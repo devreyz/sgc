@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('equipment', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('code')->unique()->nullable(); // Patrimônio
+            $table->string('code', 191)->unique()->nullable(); // Patrimônio
             $table->string('type'); // tractor, truck, harvester, implement, etc
             $table->string('brand')->nullable();
             $table->string('model')->nullable();
