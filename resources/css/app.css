@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ $title }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 10px;
+            color: #333;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 15px;
+            border-bottom: 2px solid #4F46E5;
+            margin-bottom: 15px;
+        }
+        
+        .header h1 {
+            font-size: 18px;
+            color: #1e3a5f;
+            margin-bottom: 5px;
+        }
+        
+        .header .date {
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .content {
+            padding: 0 15px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        
+        table th {
+            background-color: #4F46E5;
+            color: white;
+            padding: 8px 5px;
+            text-align: left;
+            font-size: 9px;
+            font-weight: bold;
+            border: 1px solid #3730a3;
+        }
+        
+        table td {
+            padding: 6px 5px;
+            border: 1px solid #ddd;
+            font-size: 9px;
+        }
+        
+        table tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        
+        table tr:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 10px;
+            font-size: 8px;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+        
+        .summary {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f3f4f6;
+            border-radius: 4px;
+        }
+        
+        .summary strong {
+            color: #1e3a5f;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
+        
+        @page {
+            margin: 1cm;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{{ $title }}</h1>
+        <div class="date">Gerado em: {{ $generatedAt }}</div>
+    </div>
+
+    <div class="content">
+        @if(count($data) > 0)
+            <table>
+                <thead>
+                    <tr>
+                        @foreach($columns as $label)
+                            <th>{{ $label }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($data as $row)
+                        <tr>
+                            @foreach(array_keys($columns) as $field)
+                                <td>
+                                    @php
+                                        $value = $row[$field] ?? '-';
+                                        if ($value instanceof \Carbon\Carbon) {
+                                            $value = $value->format('d/m/Y');
+                                        } elseif (is_bool($value)) {
+                                            $value = $value ? 'Sim' : 'Não';
+                                        } elseif (is_array($value)) {
+                                            $value = implode(', ', $value);
+                                        } elseif ($value === null) {
+                                            $value = '-';
+                                        }
+                                    @endphp
+                                    {{ $value }}
+                                </td>
+                            @endforeach
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+
+            <div class="summary">
+                <strong>Total de registros:</strong> {{ count($data) }}
+            </div>
+        @else
+            <div class="no-data">
+                Nenhum registro encontrado.
+            </div>
+        @endif
+    </div>
+
+    <div class="footer">
+        Sistema de Gestão Cooperativa - SGC | {{ $title }} | Página 1
+    </div>
+</body>
+</html>
