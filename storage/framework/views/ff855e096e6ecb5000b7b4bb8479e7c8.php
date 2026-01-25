@@ -18,11 +18,6 @@
                     return
                 }
 
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
-                    return
-                }
-
                 if ($wire.mountedFormComponentActions.length) {
                     return
                 }
@@ -44,11 +39,6 @@
 
 
                 if (! mountedActionShouldOpenModal) {
-                    return
-                }
-
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
                     return
                 }
 
@@ -110,11 +100,6 @@
                     return
                 }
 
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
-                    return
-                }
-
                 if ($wire.mountedFormComponentActions.length) {
                     return
                 }
@@ -136,11 +121,6 @@
 
 
                 if (! mountedTableActionShouldOpenModal) {
-                    return
-                }
-
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
                     return
                 }
 
@@ -196,11 +176,6 @@
                     return
                 }
 
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
-                    return
-                }
-
                 if ($wire.mountedFormComponentActions.length) {
                     return
                 }
@@ -222,11 +197,6 @@
 
 
                 if (! mountedTableBulkActionShouldOpenModal) {
-                    return
-                }
-
-                // Defensive: ensure Livewire $wire is available in this DOM context
-                if (typeof $wire === \'undefined\' || ! $wire) {
                     return
                 }
 
@@ -367,10 +337,6 @@
 
 
                 if (mountedFormComponentActionShouldOpenModal) {
-                    if (typeof $wire === \'undefined\' || ! $wire) {
-                        return
-                    }
-
                     $wire.unmountFormComponentAction(false, false)
                 }
             ']] + (isset($attributes) && $attributes instanceof Illuminate\View\ComponentAttributeBag ? $attributes->all() : [])); ?>
@@ -389,10 +355,6 @@
 
 
                 if (mountedFormComponentActionShouldOpenModal) {
-                    if (typeof $wire === \'undefined\' || ! $wire) {
-                        return
-                    }
-
                     $wire.unmountFormComponentAction(false, false)
                 }
             ']); ?>

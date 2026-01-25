@@ -2,96 +2,35 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Filesystem Disk
-    |--------------------------------------------------------------------------
-    |
-    | Here you may specify the default filesystem disk that should be used
-    | by the framework. The "local" disk, as well as a variety of cloud
-    | based disks are available to your application for file storage.
-    |
-    */
+    'name' => env('APP_NAME', 'SGC'),
 
-    'default' => env('FILESYSTEM_DISK', 'local'),
+    'env' => env('APP_ENV', 'production'),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Filesystem Disks
-    |--------------------------------------------------------------------------
-    |
-    | Below you may configure as many filesystem disks as necessary, and you
-    | may even configure multiple disks for the same driver. Examples for
-    | most supported storage drivers are configured here for reference.
-    |
-    | Supported drivers: "local", "ftp", "sftp", "s3", "google"
-    |
-    */
+    'debug' => (bool) env('APP_DEBUG', false),
 
-    'disks' => [
+    'url' => env('APP_URL', 'http://localhost'),
 
-        'local' => [
-            'driver' => 'local',
-            'root' => storage_path('app/private'),
-            'serve' => true,
-            'throw' => false,
-            'report' => false,
-        ],
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
-        'public' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
-            'visibility' => 'public',
-            'throw' => false,
-            'report' => false,
-        ],
+    'locale' => env('APP_LOCALE', 'pt_BR'),
 
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
-            'report' => false,
-        ],
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
-        /*
-        |--------------------------------------------------------------------------
-        | Google Drive Disk (Documentos da Cooperativa)
-        |--------------------------------------------------------------------------
-        |
-        | Configuração para armazenamento de documentos no Google Drive.
-        | Estrutura de pastas: /{Ano}/{Modulo}/{ID}/
-        |
-        */
-        'google' => [
-            'driver' => 'google',
-            'clientId' => env('GOOGLE_DRIVE_CLIENT_ID'),
-            'clientSecret' => env('GOOGLE_DRIVE_CLIENT_SECRET'),
-            'refreshToken' => env('GOOGLE_DRIVE_REFRESH_TOKEN'),
-            'folder' => env('GOOGLE_DRIVE_FOLDER_ID'),
-        ],
+    'faker_locale' => env('APP_FAKER_LOCALE', 'pt_BR'),
 
+    'cipher' => 'AES-256-CBC',
+
+    'key' => env('APP_KEY'),
+
+    'previous_keys' => [
+        ...array_filter(
+            explode(',', env('APP_PREVIOUS_KEYS', ''))
+        ),
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Symbolic Links
-    |--------------------------------------------------------------------------
-    |
-    | Here you may configure the symbolic links that will be created when the
-    | `storage:link` Artisan command is executed. The array keys should be
-    | the locations of the links and the values should be their targets.
-    |
-    */
-
-    'links' => [
-        public_path('storage') => storage_path('app/public'),
+    'maintenance' => [
+        'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
+        'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
 ];
