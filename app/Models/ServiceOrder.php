@@ -6,6 +6,7 @@ use App\Enums\ServiceOrderStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -125,6 +126,22 @@ class ServiceOrder extends Model
     public function asset(): BelongsTo
     {
         return $this->belongsTo(Asset::class);
+    }
+
+    /**
+     * Backwards-compatible alias to `asset()` for views referencing `equipment`.
+     */
+    public function equipment(): BelongsTo
+    {
+        return $this->belongsTo(Asset::class, 'asset_id');
+    }
+
+    /**
+     * Get related service provider works for this order.
+     */
+    public function works(): HasMany
+    {
+        return $this->hasMany(ServiceProviderWork::class, 'service_order_id');
     }
 
     /**

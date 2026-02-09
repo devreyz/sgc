@@ -14,7 +14,7 @@ class CashSummaryWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
     
-    protected static ?string $heading = 'Resumo Financeiro';
+    protected ?string $heading = 'Resumo Financeiro';
 
     protected function getStats(): array
     {

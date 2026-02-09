@@ -15,11 +15,13 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create roles
-        $superAdmin = Role::create(['name' => 'super_admin']);
-        $admin = Role::create(['name' => 'admin']);
-        $financial = Role::create(['name' => 'financeiro']);
-        $associate = Role::create(['name' => 'associado']);
+        // Create roles (idempotent)
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
+        $admin = Role::firstOrCreate(['name' => 'admin']);
+        $financial = Role::firstOrCreate(['name' => 'financeiro']);
+        $associate = Role::firstOrCreate(['name' => 'associado']);
+        // Ensure service provider role exists
+        $serviceProvider = Role::firstOrCreate(['name' => 'service_provider']);
 
         // Create a super admin user
         $user = User::create([
@@ -32,23 +34,27 @@ class RolesAndPermissionsSeeder extends Seeder
         $user->assignRole($superAdmin);
 
         // Create a demo associate user
-        $associateUser = User::create([
-            'name' => 'João Silva',
-            'email' => 'associado@sgc.com',
-            'password' => Hash::make('password'),
-            'status' => true,
-        ]);
+        $associateUser = User::firstOrCreate(
+            ['email' => 'associado@sgc.com'],
+            [
+                'name' => 'João Silva',
+                'password' => Hash::make('password'),
+                'status' => true,
+            ]
+        );
 
         $associateUser->assignRole($associate);
 
         // Create the associate profile
-        \App\Models\Associate::create([
-            'user_id' => $associateUser->id,
-            'cpf_cnpj' => '123.456.789-00',
-            'dap_caf' => 'DAP123456',
-            'dap_caf_expiry' => now()->addYear(),
-            'city' => 'Campo Grande',
-            'state' => 'MS',
-        ]);
+        \App\Models\Associate::firstOrCreate(
+            ['user_id' => $associateUser->id],
+            [
+                'cpf_cnpj' => '123.456.789-00',
+                'dap_caf' => 'DAP123456',
+                'dap_caf_expiry' => now()->addYear(),
+                'city' => 'Campo Grande',
+                'state' => 'MS',
+            ]
+        );
     }
 }
