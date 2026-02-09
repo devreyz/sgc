@@ -34,6 +34,7 @@ class ServiceOrder extends Model
         'distance_km',
         'status',
         'operator_id',
+        'service_provider_id',
         'horimeter_start',
         'horimeter_end',
         'odometer_start',
@@ -132,6 +133,14 @@ class ServiceOrder extends Model
     public function operator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'operator_id');
+    }
+
+    /**
+     * Get the service provider (external).
+     */
+    public function serviceProvider(): BelongsTo
+    {
+        return $this->belongsTo(ServiceProvider::class);
     }
 
     /**

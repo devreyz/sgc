@@ -32,6 +32,9 @@ class ProductionDelivery extends Model
         'approved_by',
         'approved_at',
         'notes',
+        'paid',
+        'paid_date',
+        'project_payment_id',
     ];
 
     protected function casts(): array
@@ -44,6 +47,8 @@ class ProductionDelivery extends Model
             'admin_fee_amount' => 'decimal:2',
             'net_value' => 'decimal:2',
             'approved_at' => 'datetime',
+            'paid' => 'boolean',
+            'paid_date' => 'date',
         ];
     }
 
@@ -101,6 +106,14 @@ class ProductionDelivery extends Model
     public function approver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Get the payment for this delivery.
+     */
+    public function projectPayment(): BelongsTo
+    {
+        return $this->belongsTo(ProjectPayment::class, 'project_payment_id');
     }
 
     /**
@@ -168,6 +181,22 @@ class ProductionDelivery extends Model
     public function isApproved(): bool
     {
         return $this->status === DeliveryStatus::APPROVED;
+    }
+
+    /**
+     * Check if delivery is paid.
+     */
+    public function isPaid(): bool
+    {
+        return $this->paid === true;
+    }
+
+    /**
+     * Check if can be paid.
+     */
+    public function canBePaid(): bool
+    {
+        return $this->isApproved() && !$this->isPaid();
     }
 
     /**

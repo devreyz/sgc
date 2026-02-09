@@ -41,8 +41,8 @@ class PurchaseOrdersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (PurchaseOrderStatus $state): string => $state->label())
-                    ->color(fn (PurchaseOrderStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (PurchaseOrderStatus $state): string => $state->getLabel())
+                    ->color(fn (PurchaseOrderStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')

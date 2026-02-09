@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum ServiceOrderStatus: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum ServiceOrderStatus: string implements HasLabel, HasColor
 {
     case SCHEDULED = 'scheduled';
     case IN_PROGRESS = 'in_progress';
@@ -10,7 +13,7 @@ enum ServiceOrderStatus: string
     case CANCELLED = 'cancelled';
     case BILLED = 'billed';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::SCHEDULED => 'Agendada',
@@ -21,7 +24,7 @@ enum ServiceOrderStatus: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::SCHEDULED => 'info',

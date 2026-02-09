@@ -30,41 +30,78 @@ class BankAccountResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Dados da Conta')
+                Forms\Components\Section::make('Identificação')
                     ->schema([
                         Forms\Components\TextInput::make('name')
                             ->label('Nome da Conta')
                             ->required()
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->placeholder('Ex: Caixa Interno, Banco do Brasil, Sicredi')
+                            ->columnSpan(2),
 
-                        Forms\Components\TextInput::make('bank_name')
-                            ->label('Banco')
-                            ->required()
-                            ->maxLength(255),
-
-                        Forms\Components\TextInput::make('bank_code')
-                            ->label('Código do Banco')
-                            ->maxLength(10),
-
-                        Forms\Components\TextInput::make('agency')
-                            ->label('Agência')
-                            ->required()
-                            ->maxLength(10),
-
-                        Forms\Components\TextInput::make('account_number')
-                            ->label('Número da Conta')
-                            ->required()
-                            ->maxLength(20),
-
-                        Forms\Components\Select::make('account_type')
+                        Forms\Components\Select::make('type')
                             ->label('Tipo de Conta')
                             ->options([
-                                'corrente' => 'Corrente',
-                                'poupanca' => 'Poupança',
                                 'caixa' => 'Caixa',
+                                'corrente' => 'Conta Corrente',
+                                'poupanca' => 'Poupança',
+                                'investimento' => 'Investimento',
+                                'aplicacao' => 'Aplicação',
                             ])
-                            ->required(),
+                            ->required()
+                            ->reactive()
+                            ->default('corrente'),
 
+                        Forms\Components\Toggle::make('is_default')
+                            ->label('Conta Padrão')
+                            ->helperText('Conta padrão para novas operações')
+                            ->default(false),
+
+                        Forms\Components\Toggle::make('status')
+                            ->label('Ativa')
+                            ->default(true),
+                    ])
+                    ->columns(3),
+
+                Forms\Components\Section::make('Dados Bancários')
+                    ->schema([
+                        Forms\Components\TextInput::make('bank_code')
+                            ->label('Código do Banco')
+                            ->maxLength(3)
+                            ->placeholder('Ex: 001'),
+
+                        Forms\Components\TextInput::make('bank_name')
+                            ->label('Nome do Banco')
+                            ->maxLength(255)
+                            ->placeholder('Ex: Banco do Brasil'),
+
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('agency')
+                                ->label('Agência')
+                                ->maxLength(10)
+                                ->placeholder('0001'),
+
+                            Forms\Components\TextInput::make('agency_digit')
+                                ->label('Dígito Ag.')
+                                ->maxLength(1),
+                        ]),
+
+                        Forms\Components\Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('account_number')
+                                ->label('Número da Conta')
+                                ->maxLength(20)
+                                ->placeholder('12345'),
+
+                            Forms\Components\TextInput::make('account_digit')
+                                ->label('Dígito Conta')
+                                ->maxLength(2),
+                        ]),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (callable $get) => $get('type') !== 'caixa'),
+
+                Forms\Components\Section::make('Saldos')
+                    ->schema([
                         Forms\Components\TextInput::make('initial_balance')
                             ->label('Saldo Inicial')
                             ->numeric()
@@ -76,11 +113,11 @@ class BankAccountResource extends Resource
                             ->numeric()
                             ->prefix('R$')
                             ->disabled()
-                            ->dehydrated(false),
+                            ->dehydrated(false)
+                            ->visibleOn('edit'),
 
-                        Forms\Components\Toggle::make('status')
-                            ->label('Ativo')
-                            ->default(true),
+                        Forms\Components\DatePicker::make('balance_date')
+                            ->label('Data de Referência do Saldo'),
                     ])
                     ->columns(3),
 
@@ -102,37 +139,73 @@ class BankAccountResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
+
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => match ($state) {
+                        'caixa' => 'Caixa',
+                        'corrente' => 'Corrente',
+                        'poupanca' => 'Poupança',
+                        'investimento' => 'Investimento',
+                        'aplicacao' => 'Aplicação',
+                        default => ucfirst($state),
+                    })
+                    ->color(fn ($state): string => match ($state) {
+                        'caixa' => 'warning',
+                        'corrente' => 'info',
+                        'poupanca' => 'success',
+                        'investimento' => 'primary',
+                        'aplicacao' => 'primary',
+                        default => 'gray',
+                    }),
 
                 Tables\Columns\TextColumn::make('bank_name')
                     ->label('Banco')
-                    ->searchable(),
+                    ->searchable()
+                    ->placeholder('Caixa Interno'),
 
-                Tables\Columns\TextColumn::make('agency')
-                    ->label('Agência'),
+                Tables\Columns\TextColumn::make('full_identification')
+                    ->label('Agência / Conta')
+                    ->getStateUsing(function (BankAccount $record): string {
+                        if ($record->type === 'caixa') return '-';
+                        $ag = $record->agency . ($record->agency_digit ? "-{$record->agency_digit}" : '');
+                        $cc = $record->account_number . ($record->account_digit ? "-{$record->account_digit}" : '');
+                        return "Ag: {$ag} | Cc: {$cc}";
+                    }),
 
-                Tables\Columns\TextColumn::make('account_number')
-                    ->label('Conta'),
-
-                Tables\Columns\TextColumn::make('account_type')
-                    ->label('Tipo')
-                    ->badge()
-                    ->formatStateUsing(fn ($state): string => ucfirst($state)),
+                Tables\Columns\IconColumn::make('is_default')
+                    ->label('Padrão')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-star')
+                    ->falseIcon('heroicon-o-minus'),
 
                 Tables\Columns\TextColumn::make('current_balance')
                     ->label('Saldo Atual')
                     ->money('BRL')
                     ->color(fn ($state): string => $state >= 0 ? 'success' : 'danger')
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
 
                 Tables\Columns\IconColumn::make('status')
-                    ->label('Ativo')
+                    ->label('Ativa')
                     ->boolean(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
                 Tables\Filters\TernaryFilter::make('status')
-                    ->label('Ativo'),
+                    ->label('Ativa'),
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('Tipo')
+                    ->options([
+                        'caixa' => 'Caixa',
+                        'corrente' => 'Corrente',
+                        'poupanca' => 'Poupança',
+                        'investimento' => 'Investimento',
+                        'aplicacao' => 'Aplicação',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

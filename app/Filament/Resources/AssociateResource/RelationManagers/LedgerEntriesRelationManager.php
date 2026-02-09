@@ -93,8 +93,8 @@ class LedgerEntriesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn (LedgerType $state): string => $state->label())
-                    ->color(fn (LedgerType $state): string => $state->color())
+                    ->formatStateUsing(fn (LedgerType $state): string => $state->getLabel())
+                    ->color(fn (LedgerType $state): string => $state->getColor())
                     ->icon(fn (LedgerType $state): string => 
                         $state === LedgerType::CREDIT ? 'heroicon-o-arrow-up' : 'heroicon-o-arrow-down'
                     ),
@@ -102,8 +102,8 @@ class LedgerEntriesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('category')
                     ->label('Categoria')
                     ->badge()
-                    ->formatStateUsing(fn (LedgerCategory $state): string => $state->label())
-                    ->color(fn (LedgerCategory $state): string => $state->color())
+                    ->formatStateUsing(fn (LedgerCategory $state): string => $state->getLabel())
+                    ->color(fn (LedgerCategory $state): string => $state->getColor())
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('description')

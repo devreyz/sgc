@@ -51,8 +51,8 @@ class ServiceOrdersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (ServiceOrderStatus $state): string => $state->label())
-                    ->color(fn (ServiceOrderStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (ServiceOrderStatus $state): string => $state->getLabel())
+                    ->color(fn (ServiceOrderStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')

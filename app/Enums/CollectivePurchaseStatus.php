@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum CollectivePurchaseStatus: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum CollectivePurchaseStatus: string implements HasLabel, HasColor
 {
     case OPEN = 'open';
     case CLOSED = 'closed';
@@ -13,7 +16,7 @@ enum CollectivePurchaseStatus: string
     case COMPLETED = 'completed';
     case CANCELLED = 'cancelled';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::OPEN => 'Aberta para Pedidos',
@@ -27,7 +30,7 @@ enum CollectivePurchaseStatus: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::OPEN => 'success',

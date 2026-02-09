@@ -46,8 +46,11 @@ class ChartAccountResource extends Resource
                         Forms\Components\Select::make('type')
                             ->label('Tipo')
                             ->options([
-                                'income' => 'Receita',
-                                'expense' => 'Despesa',
+                                'receita' => 'Receita',
+                                'despesa' => 'Despesa',
+                                'ativo' => 'Ativo',
+                                'passivo' => 'Passivo',
+                                'patrimonio' => 'Patrimônio Líquido',
                             ])
                             ->required(),
 
@@ -87,8 +90,8 @@ class ChartAccountResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => $state === 'income' ? 'Receita' : 'Despesa')
-                    ->color(fn ($state): string => $state === 'income' ? 'success' : 'danger'),
+                    ->formatStateUsing(fn ($state): string => $state === 'receita' ? 'Receita' : 'Despesa')
+                    ->color(fn ($state): string => $state === 'receita' ? 'success' : 'danger'),
 
                 Tables\Columns\TextColumn::make('parent.name')
                     ->label('Conta Pai'),
@@ -102,8 +105,11 @@ class ChartAccountResource extends Resource
                 Tables\Filters\SelectFilter::make('type')
                     ->label('Tipo')
                     ->options([
-                        'income' => 'Receita',
-                        'expense' => 'Despesa',
+                        'receita' => 'Receita',
+                        'despesa' => 'Despesa',
+                        'ativo' => 'Ativo',
+                        'passivo' => 'Passivo',
+                        'patrimonio' => 'Patrimônio Líquido',
                     ]),
             ])
             ->actions([

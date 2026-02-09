@@ -55,8 +55,8 @@ class ViewProductionDelivery extends ViewRecord
                                 Components\TextEntry::make('status')
                                     ->label('Status')
                                     ->badge()
-                                    ->formatStateUsing(fn (DeliveryStatus $state): string => $state->label())
-                                    ->color(fn (DeliveryStatus $state): string => $state->color()),
+                                    ->formatStateUsing(fn (DeliveryStatus $state): string => $state->getLabel())
+                                    ->color(fn (DeliveryStatus $state): string => $state->getColor()),
 
                                 Components\TextEntry::make('delivery_date')
                                     ->label('Data da Entrega')

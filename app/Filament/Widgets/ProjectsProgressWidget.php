@@ -12,6 +12,8 @@ class ProjectsProgressWidget extends ChartWidget
     protected static ?string $heading = 'Progresso dos Projetos PNAE/PAA';
 
     protected static ?int $sort = 3;
+    
+    protected int | string | array $columnSpan = 'full';
 
     protected function getData(): array
     {

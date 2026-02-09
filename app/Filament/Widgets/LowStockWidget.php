@@ -11,7 +11,9 @@ class LowStockWidget extends BaseWidget
 {
     protected static ?string $heading = 'Produtos com Estoque Baixo';
 
-    protected static ?int $sort = 5;
+    protected static ?int $sort = 4;
+    
+    protected int | string | array $columnSpan = 'full';
 
     public function table(Table $table): Table
     {
