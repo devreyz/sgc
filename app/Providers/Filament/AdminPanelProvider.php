@@ -28,7 +28,6 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
             ->colors([
                 'primary' => Color::Emerald,
                 'danger' => Color::Rose,
@@ -49,9 +48,8 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 \App\Filament\Widgets\AssociatesBalanceWidget::class,
-                \App\Filament\Widgets\FinancialOverviewWidget::class,
+                \App\Filament\Widgets\CashSummaryWidget::class,
                 \App\Filament\Widgets\ProjectsProgressWidget::class,
-                \App\Filament\Widgets\RecentServiceOrdersWidget::class,
                 \App\Filament\Widgets\LowStockWidget::class,
             ])
             ->middleware([

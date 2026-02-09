@@ -16,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasFactory, Notifiable, SoftDeletes, LogsActivity, HasRoles;
+    use HasFactory, HasRoles, LogsActivity, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -26,6 +26,8 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'status',
+        'google_id',
+        'avatar',
     ];
 
     /**
@@ -61,10 +63,22 @@ class User extends Authenticatable implements FilamentUser
 
     /**
      * Check if user can access Filament panel
+     * Priority: super_admin, admin, financeiro can always access
+     * Block ONLY if user has exclusively associado or service_provider roles
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->status;
+        if (! $this->status) {
+            return false;
+        }
+
+        // Super admin, admin, and financeiro always have access
+        if ($this->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
+            return true;
+        }
+
+        // Block if user only has portal roles (no admin access)
+        return false;
     }
 
     /**

@@ -12,7 +12,7 @@ class AssociatesBalanceWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
     
-    protected static ?string $heading = 'Associados';
+    protected ?string $heading = 'Associados';
 
     protected function getStats(): array
     {
