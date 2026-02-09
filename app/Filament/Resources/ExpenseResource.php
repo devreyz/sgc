@@ -2,20 +2,25 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\CashMovementType;
 use App\Enums\ExpenseStatus;
 use App\Enums\PaymentMethod;
 use App\Filament\Resources\ExpenseResource\Pages;
 use App\Models\Asset;
+use App\Models\BankAccount;
+use App\Models\CashMovement;
 use App\Models\Expense;
 use App\Models\SalesProject;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class ExpenseResource extends Resource
 {
@@ -45,7 +50,7 @@ class ExpenseResource extends Resource
 
                         Forms\Components\Select::make('chart_account_id')
                             ->label('Plano de Contas')
-                            ->relationship('chartAccount', 'name', fn ($query) => $query->where('type', 'expense'))
+                            ->relationship('chartAccount', 'name', fn ($query) => $query->where('type', 'despesa'))
                             ->searchable()
                             ->preload()
                             ->required(),
@@ -61,6 +66,11 @@ class ExpenseResource extends Resource
                             ->numeric()
                             ->prefix('R$')
                             ->required(),
+
+                        Forms\Components\DatePicker::make('date')
+                            ->label('Data do Documento')
+                            ->required()
+                            ->default(now()),
 
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Data de Vencimento')
@@ -181,8 +191,8 @@ class ExpenseResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (ExpenseStatus $state): string => $state->label())
-                    ->color(fn (ExpenseStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (ExpenseStatus $state): string => $state->getLabel())
+                    ->color(fn (ExpenseStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
@@ -222,21 +232,58 @@ class ExpenseResource extends Resource
                             ->default(now()),
                         Forms\Components\Select::make('bank_account_id')
                             ->label('Conta Bancária')
-                            ->relationship('bankAccount', 'name')
+                            ->options(BankAccount::where('status', true)->pluck('name', 'id'))
                             ->required(),
                         Forms\Components\Select::make('payment_method')
                             ->label('Forma de Pagamento')
                             ->options(PaymentMethod::class)
                             ->required(),
+                        Forms\Components\TextInput::make('paid_amount')
+                            ->label('Valor Pago')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(fn (Expense $record) => $record->amount)
+                            ->helperText('Informe o valor efetivamente pago'),
                     ])
                     ->action(function (Expense $record, array $data): void {
-                        $record->update([
-                            'payment_date' => $data['payment_date'],
-                            'bank_account_id' => $data['bank_account_id'],
-                            'payment_method' => $data['payment_method'],
-                            'status' => ExpenseStatus::PAID,
-                            'paid_by' => auth()->id(),
-                        ]);
+                        DB::transaction(function () use ($record, $data) {
+                            // Atualizar despesa
+                            $record->update([
+                                'paid_date' => $data['payment_date'],
+                                'bank_account_id' => $data['bank_account_id'],
+                                'payment_method' => $data['payment_method'],
+                                'paid_amount' => $data['paid_amount'],
+                                'status' => ExpenseStatus::PAID,
+                                'paid_by' => auth()->id(),
+                            ]);
+
+                            // Registrar movimento de caixa (saída)
+                            $bankAccount = BankAccount::find($data['bank_account_id']);
+                            $newBalance = $bankAccount->current_balance - $data['paid_amount'];
+
+                            CashMovement::create([
+                                'type' => CashMovementType::EXPENSE,
+                                'amount' => $data['paid_amount'],
+                                'balance_after' => $newBalance,
+                                'description' => 'Despesa: '.$record->description,
+                                'movement_date' => $data['payment_date'],
+                                'bank_account_id' => $data['bank_account_id'],
+                                'reference_type' => Expense::class,
+                                'reference_id' => $record->id,
+                                'chart_account_id' => $record->chart_account_id,
+                                'payment_method' => $data['payment_method'],
+                                'document_number' => $record->document_number,
+                                'created_by' => auth()->id(),
+                            ]);
+
+                            // Atualizar saldo da conta
+                            $bankAccount->update(['current_balance' => $newBalance]);
+                        });
+
+                        Notification::make()
+                            ->success()
+                            ->title('Despesa paga com sucesso')
+                            ->send();
                     })
                     ->visible(fn (Expense $record): bool => $record->status === ExpenseStatus::PENDING),
                 Tables\Actions\ViewAction::make(),

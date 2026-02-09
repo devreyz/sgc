@@ -2,14 +2,17 @@
 
 namespace App\Enums;
 
-enum ExpenseStatus: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum ExpenseStatus: string implements HasLabel, HasColor
 {
     case PENDING = 'pending';
     case PAID = 'paid';
     case CANCELLED = 'cancelled';
     case OVERDUE = 'overdue';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::PENDING => 'Pendente',
@@ -19,7 +22,7 @@ enum ExpenseStatus: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::PENDING => 'warning',

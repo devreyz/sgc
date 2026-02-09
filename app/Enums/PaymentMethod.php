@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum PaymentMethod: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum PaymentMethod: string implements HasLabel, HasColor
 {
     case DINHEIRO = 'dinheiro';
     case PIX = 'pix';
@@ -12,7 +15,7 @@ enum PaymentMethod: string
     case CHEQUE = 'cheque';
     case OUTRO = 'outro';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::DINHEIRO => 'Dinheiro',
@@ -22,6 +25,19 @@ enum PaymentMethod: string
             self::CARTAO => 'Cartão',
             self::CHEQUE => 'Cheque',
             self::OUTRO => 'Outro',
+        };
+    }
+
+    public function getColor(): string|array|null
+    {
+        return match ($this) {
+            self::DINHEIRO => 'success',
+            self::PIX => 'info',
+            self::TRANSFERENCIA => 'primary',
+            self::BOLETO => 'warning',
+            self::CARTAO => 'danger',
+            self::CHEQUE => 'gray',
+            self::OUTRO => 'gray',
         };
     }
 

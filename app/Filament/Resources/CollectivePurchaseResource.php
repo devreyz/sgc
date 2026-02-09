@@ -122,8 +122,8 @@ class CollectivePurchaseResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (CollectivePurchaseStatus $state): string => $state->label())
-                    ->color(fn (CollectivePurchaseStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (CollectivePurchaseStatus $state): string => $state->getLabel())
+                    ->color(fn (CollectivePurchaseStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),

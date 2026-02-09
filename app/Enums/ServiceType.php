@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum ServiceType: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum ServiceType: string implements HasLabel, HasColor
 {
     case HORA_MAQUINA = 'hora_maquina';
     case FRETE = 'frete';
@@ -10,7 +13,7 @@ enum ServiceType: string
     case BENEFICIAMENTO = 'beneficiamento';
     case OUTRO = 'outro';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::HORA_MAQUINA => 'Hora Máquina',
@@ -32,7 +35,7 @@ enum ServiceType: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::HORA_MAQUINA => 'success',

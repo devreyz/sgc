@@ -33,6 +33,12 @@ class SalesProject extends Model
         'document_path',
         'notes',
         'created_by',
+        'delivered_date',
+        'payment_received_date',
+        'received_amount',
+        'admin_fee_collected',
+        'associates_paid_amount',
+        'payment_bank_account_id',
     ];
 
     protected function casts(): array
@@ -44,6 +50,11 @@ class SalesProject extends Model
             'end_date' => 'date',
             'total_value' => 'decimal:2',
             'admin_fee_percentage' => 'decimal:2',
+            'delivered_date' => 'date',
+            'payment_received_date' => 'date',
+            'received_amount' => 'decimal:2',
+            'admin_fee_collected' => 'decimal:2',
+            'associates_paid_amount' => 'decimal:2',
         ];
     }
 
@@ -112,6 +123,30 @@ class SalesProject extends Model
     }
 
     /**
+     * Get the bank account for project payments.
+     */
+    public function paymentBankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class, 'payment_bank_account_id');
+    }
+
+    /**
+     * Get the project payments (client and associate payments).
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ProjectPayment::class);
+    }
+
+    /**
+     * Get the cash movements related to this project.
+     */
+    public function cashMovements(): MorphMany
+    {
+        return $this->morphMany(CashMovement::class, 'reference');
+    }
+
+    /**
      * Calculate the total delivered value.
      */
     public function getTotalDeliveredValueAttribute(): float
@@ -152,6 +187,107 @@ class SalesProject extends Model
     public function isActive(): bool
     {
         return $this->status === ProjectStatus::ACTIVE;
+    }
+
+    /**
+     * Calculate the total value to pay associates.
+     */
+    public function getTotalAssociatesPaymentAttribute(): float
+    {
+        return $this->deliveries()
+            ->where('status', 'approved')
+            ->sum('net_value');
+    }
+
+    /**
+     * Calculate pending associate payments.
+     */
+    public function getPendingAssociatesPaymentAttribute(): float
+    {
+        $totalToPay = $this->total_associates_payment;
+        $totalPaid = $this->associates_paid_amount ?? 0;
+        return max(0, $totalToPay - $totalPaid);
+    }
+
+    /**
+     * Get available admin fee in cash (not yet transferred).
+     */
+    public function getAvailableAdminFeeAttribute(): float
+    {
+        $totalFees = $this->total_admin_fees;
+        $collected = $this->admin_fee_collected ?? 0;
+        return max(0, $totalFees - $collected);
+    }
+
+    /**
+     * Check if all deliveries are approved.
+     */
+    public function allDeliveriesApproved(): bool
+    {
+        $totalDeliveries = $this->deliveries()->count();
+        if ($totalDeliveries === 0) {
+            return false;
+        }
+        
+        $approvedDeliveries = $this->deliveries()->where('status', 'approved')->count();
+        return $totalDeliveries === $approvedDeliveries;
+    }
+
+    /**
+     * Check if can mark as delivered.
+     */
+    public function canMarkAsDelivered(): bool
+    {
+        return $this->status === ProjectStatus::ACTIVE && $this->allDeliveriesApproved();
+    }
+
+    /**
+     * Check if can receive payment.
+     */
+    public function canReceivePayment(): bool
+    {
+        return in_array($this->status, [ProjectStatus::AWAITING_DELIVERY, ProjectStatus::DELIVERED, ProjectStatus::AWAITING_PAYMENT]);
+    }
+
+    /**
+     * Check if can pay associates.
+     */
+    public function canPayAssociates(): bool
+    {
+        return $this->status === ProjectStatus::PAYMENT_RECEIVED && 
+               $this->pending_associates_payment > 0;
+    }
+
+    /**
+     * Check if all deliveries are paid.
+     */
+    public function allDeliveriesPaid(): bool
+    {
+        $totalApproved = $this->deliveries()->where('status', 'approved')->count();
+        if ($totalApproved === 0) {
+            return false;
+        }
+        
+        $totalPaid = $this->deliveries()->where('paid', true)->count();
+        return $totalApproved === $totalPaid;
+    }
+
+    /**
+     * Check if can complete project (collect admin fee).
+     */
+    public function canCompleteProject(): bool
+    {
+        return $this->status === ProjectStatus::PAYMENT_RECEIVED && 
+               $this->allDeliveriesPaid() &&
+               $this->available_admin_fee > 0;
+    }
+
+    /**
+     * Check if can collect admin fee.
+     */
+    public function canCollectAdminFee(): bool
+    {
+        return $this->canCompleteProject();
     }
 
     /**

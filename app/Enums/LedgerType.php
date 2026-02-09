@@ -2,12 +2,15 @@
 
 namespace App\Enums;
 
-enum LedgerType: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum LedgerType: string implements HasLabel, HasColor
 {
     case CREDIT = 'credit';
     case DEBIT = 'debit';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::CREDIT => 'Crédito',
@@ -15,7 +18,7 @@ enum LedgerType: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::CREDIT => 'success',

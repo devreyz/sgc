@@ -89,8 +89,8 @@ class ServiceResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn (ServiceType $state): string => $state->label())
-                    ->color(fn (ServiceType $state): string => $state->color()),
+                    ->formatStateUsing(fn (ServiceType $state): string => $state->getLabel())
+                    ->color(fn (ServiceType $state): string => $state->getColor()),
 
                 Tables\Columns\TextColumn::make('unit')
                     ->label('Unidade')

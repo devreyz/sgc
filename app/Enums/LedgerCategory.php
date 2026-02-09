@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum LedgerCategory: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum LedgerCategory: string implements HasLabel, HasColor
 {
     case PRODUCAO = 'producao';
     case TAXA_ADMIN = 'taxa_admin';
@@ -14,7 +17,7 @@ enum LedgerCategory: string
     case TRANSFERENCIA = 'transferencia';
     case OUTRO = 'outro';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::PRODUCAO => 'Produção',
@@ -29,7 +32,7 @@ enum LedgerCategory: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::PRODUCAO => 'success',

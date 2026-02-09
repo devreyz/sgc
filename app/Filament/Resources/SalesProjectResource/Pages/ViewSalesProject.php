@@ -284,8 +284,7 @@ class ViewSalesProject extends ViewRecord
                             ->schema([
                                 Infolists\Components\TextEntry::make('type')
                                     ->label('Tipo')
-                                    ->badge()
-                                    ->formatStateUsing(fn ($state) => $state->label()),
+                                    ->badge(),
                                 Infolists\Components\TextEntry::make('customer.name')
                                     ->label('Cliente')
                                     ->icon('heroicon-o-building-office'),

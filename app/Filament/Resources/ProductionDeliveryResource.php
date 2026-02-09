@@ -254,8 +254,8 @@ class ProductionDeliveryResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (DeliveryStatus $state): string => $state->label())
-                    ->color(fn (DeliveryStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (DeliveryStatus $state): string => $state->getLabel())
+                    ->color(fn (DeliveryStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('sales_project_id')

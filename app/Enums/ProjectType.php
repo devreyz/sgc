@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum ProjectType: string
+use Filament\Support\Contracts\HasColor;
+use Filament\Support\Contracts\HasLabel;
+
+enum ProjectType: string implements HasLabel, HasColor
 {
     case PNAE = 'pnae';
     case PAA = 'paa';
@@ -10,7 +13,7 @@ enum ProjectType: string
     case LICITACAO = 'licitacao';
     case OUTRO = 'outro';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::PNAE => 'PNAE',
@@ -21,7 +24,7 @@ enum ProjectType: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::PNAE => 'success',

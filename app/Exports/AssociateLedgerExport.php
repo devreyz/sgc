@@ -59,7 +59,7 @@ class AssociateLedgerExport implements FromCollection, WithHeadings, WithMapping
         return [
             $entry->transaction_date?->format('d/m/Y'),
             $entry->type->label(),
-            $entry->category->label(),
+            $entry->category->getLabel(),
             $entry->description,
             $signal . ' R$ ' . number_format($entry->amount, 2, ',', '.'),
             'R$ ' . number_format($entry->balance_after, 2, ',', '.'),

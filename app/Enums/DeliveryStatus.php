@@ -2,14 +2,17 @@
 
 namespace App\Enums;
 
-enum DeliveryStatus: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum DeliveryStatus: string implements HasLabel, HasColor
 {
     case PENDING = 'pending';
     case APPROVED = 'approved';
     case REJECTED = 'rejected';
     case CANCELLED = 'cancelled';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::PENDING => 'Pendente',
@@ -19,7 +22,7 @@ enum DeliveryStatus: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::PENDING => 'warning',

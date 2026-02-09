@@ -2,7 +2,10 @@
 
 namespace App\Enums;
 
-enum PurchaseOrderStatus: string
+use Filament\Support\Contracts\HasLabel;
+use Filament\Support\Contracts\HasColor;
+
+enum PurchaseOrderStatus: string implements HasLabel, HasColor
 {
     case REQUESTED = 'requested';
     case CONFIRMED = 'confirmed';
@@ -12,7 +15,7 @@ enum PurchaseOrderStatus: string
     case DELIVERED = 'delivered';
     case CANCELLED = 'cancelled';
 
-    public function label(): string
+    public function getLabel(): string
     {
         return match ($this) {
             self::REQUESTED => 'Solicitado',
@@ -25,7 +28,7 @@ enum PurchaseOrderStatus: string
         };
     }
 
-    public function color(): string
+    public function getColor(): string|array|null
     {
         return match ($this) {
             self::REQUESTED => 'warning',

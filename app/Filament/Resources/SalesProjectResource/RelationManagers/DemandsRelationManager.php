@@ -82,8 +82,8 @@ class DemandsRelationManager extends RelationManager
                 Forms\Components\Placeholder::make('total_info')
                     ->label('Valor Total da Demanda')
                     ->content(function ($get) {
-                        $qty = $get('target_quantity') ?? 0;
-                        $price = $get('unit_price') ?? 0;
+                        $qty = (float) ($get('target_quantity') ?? 0);
+                        $price = (float) ($get('unit_price') ?? 0);
                         $total = $qty * $price;
                         return 'R$ ' . number_format($total, 2, ',', '.');
                     })

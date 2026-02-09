@@ -6,6 +6,7 @@ use App\Filament\Resources\ServiceOrderResource\Pages;
 use App\Enums\ServiceOrderStatus;
 use App\Enums\ServiceType;
 use App\Models\ServiceOrder;
+use App\Models\ServiceProvider;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -13,6 +14,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class ServiceOrderResource extends Resource
 {
@@ -124,36 +126,59 @@ class ServiceOrderResource extends Resource
 
                 Forms\Components\Section::make('Medidores')
                     ->schema([
-                        Forms\Components\TextInput::make('start_hourimeter')
+                        Forms\Components\TextInput::make('horimeter_start')
                             ->label('Horímetro Inicial')
                             ->numeric(),
 
-                        Forms\Components\TextInput::make('end_hourimeter')
+                        Forms\Components\TextInput::make('horimeter_end')
                             ->label('Horímetro Final')
                             ->numeric(),
 
-                        Forms\Components\TextInput::make('start_odometer')
+                        Forms\Components\TextInput::make('odometer_start')
                             ->label('Odômetro Inicial')
                             ->numeric(),
 
-                        Forms\Components\TextInput::make('end_odometer')
+                        Forms\Components\TextInput::make('odometer_end')
                             ->label('Odômetro Final')
                             ->numeric(),
                     ])
                     ->columns(4)
                     ->collapsed(),
 
-                Forms\Components\Section::make('Localização e Observações')
+                Forms\Components\Section::make('Localização e Execução')
                     ->schema([
                         Forms\Components\TextInput::make('location')
                             ->label('Local de Execução')
                             ->maxLength(255),
 
-                        Forms\Components\TextInput::make('operator_name')
-                            ->label('Nome do Operador')
-                            ->maxLength(255),
+                        Forms\Components\TextInput::make('distance_km')
+                            ->label('Distância (km)')
+                            ->numeric()
+                            ->suffix('km'),
 
-                        Forms\Components\Textarea::make('description')
+                        Forms\Components\Select::make('operator_id')
+                            ->label('Operador (Usuário)')
+                            ->relationship('operator', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Selecione o usuário do sistema que operou'),
+
+                        Forms\Components\Select::make('service_provider_id')
+                            ->label('Prestador de Serviço')
+                            ->options(function () {
+                                return ServiceProvider::where('status', true)
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Prestador externo vinculado (opcional)'),
+
+                        Forms\Components\TextInput::make('fuel_used')
+                            ->label('Combustível Utilizado')
+                            ->numeric()
+                            ->suffix('L'),
+
+                        Forms\Components\Textarea::make('work_description')
                             ->label('Descrição do Serviço')
                             ->rows(3)
                             ->columnSpanFull(),
@@ -163,7 +188,7 @@ class ServiceOrderResource extends Resource
                             ->rows(2)
                             ->columnSpanFull(),
                     ])
-                    ->columns(2),
+                    ->columns(3),
             ]);
     }
 
@@ -207,8 +232,8 @@ class ServiceOrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (ServiceOrderStatus $state): string => $state->label())
-                    ->color(fn (ServiceOrderStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (ServiceOrderStatus $state): string => $state->getLabel())
+                    ->color(fn (ServiceOrderStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
@@ -233,18 +258,18 @@ class ServiceOrderResource extends Resource
                             ->label('Data de Execução')
                             ->required()
                             ->default(now()),
-                        Forms\Components\TextInput::make('end_hourimeter')
+                        Forms\Components\TextInput::make('horimeter_end')
                             ->label('Horímetro Final')
                             ->numeric(),
-                        Forms\Components\TextInput::make('end_odometer')
+                        Forms\Components\TextInput::make('odometer_end')
                             ->label('Odômetro Final')
                             ->numeric(),
                     ])
                     ->action(function (ServiceOrder $record, array $data): void {
                         $record->update([
                             'execution_date' => $data['execution_date'],
-                            'end_hourimeter' => $data['end_hourimeter'] ?? null,
-                            'end_odometer' => $data['end_odometer'] ?? null,
+                            'horimeter_end' => $data['horimeter_end'] ?? null,
+                            'odometer_end' => $data['odometer_end'] ?? null,
                             'status' => ServiceOrderStatus::COMPLETED,
                         ]);
                     })
@@ -257,7 +282,28 @@ class ServiceOrderResource extends Resource
                     ->icon('heroicon-o-currency-dollar')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->action(fn (ServiceOrder $record) => $record->update(['status' => ServiceOrderStatus::BILLED]))
+                    ->modalHeading('Faturar Ordem de Serviço')
+                    ->modalDescription('Ao faturar, o valor será debitado do saldo do associado.')
+                    ->action(function (ServiceOrder $record) {
+                        DB::transaction(function () use ($record) {
+                            $record->update(['status' => ServiceOrderStatus::BILLED]);
+                            
+                            // Registrar débito no ledger (associado usou/gastou com serviço)
+                            $currentBalance = $record->associate->current_balance ?? 0;
+                            \App\Models\AssociateLedger::create([
+                                'associate_id' => $record->associate_id,
+                                'type' => \App\Enums\LedgerType::DEBIT,
+                                'category' => \App\Enums\LedgerCategory::SERVICO,
+                                'amount' => $record->final_price,
+                                'balance_after' => $currentBalance - $record->final_price,
+                                'description' => "Serviço faturado - OS {$record->number} - {$record->service->name}",
+                                'reference_type' => get_class($record),
+                                'reference_id' => $record->id,
+                                'transaction_date' => now(),
+                                'created_by' => auth()->id(),
+                            ]);
+                        });
+                    })
                     ->visible(fn (ServiceOrder $record): bool => 
                         $record->status === ServiceOrderStatus::COMPLETED
                     ),

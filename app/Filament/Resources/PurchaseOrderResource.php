@@ -13,6 +13,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseOrderResource extends Resource
 {
@@ -100,8 +101,8 @@ class PurchaseOrderResource extends Resource
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn (PurchaseOrderStatus $state): string => $state->label())
-                    ->color(fn (PurchaseOrderStatus $state): string => $state->color()),
+                    ->formatStateUsing(fn (PurchaseOrderStatus $state): string => $state->getLabel())
+                    ->color(fn (PurchaseOrderStatus $state): string => $state->getColor()),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
@@ -126,7 +127,43 @@ class PurchaseOrderResource extends Resource
                     ->icon('heroicon-o-truck')
                     ->color('info')
                     ->requiresConfirmation()
-                    ->action(fn (PurchaseOrder $record) => $record->update(['status' => PurchaseOrderStatus::DELIVERED]))
+                    ->modalHeading('Entregar Pedido')
+                    ->modalDescription('Ao entregar, o valor será debitado do saldo do associado.')
+                    ->form([
+                        Forms\Components\DatePicker::make('delivery_date')
+                            ->label('Data da Entrega')
+                            ->required()
+                            ->default(now()),
+                        Forms\Components\Textarea::make('notes')
+                            ->label('Observações')
+                            ->rows(2),
+                    ])
+                    ->action(function (PurchaseOrder $record, array $data) {  
+                        DB::transaction(function () use ($record, $data) {
+                            $record->update([
+                                'status' => PurchaseOrderStatus::DELIVERED,
+                                'delivery_date' => $data['delivery_date'],
+                                'delivered_by' => auth()->id(),
+                                'delivered_at' => now(),
+                                'notes' => $data['notes'] ?? $record->notes,
+                            ]);
+                            
+                            // Registrar débito no ledger (associado comprou/recebeu insumo)
+                            $currentBalance = $record->associate->current_balance ?? 0;
+                            \App\Models\AssociateLedger::create([
+                                'associate_id' => $record->associate_id,
+                                'type' => \App\Enums\LedgerType::DEBIT,
+                                'category' => \App\Enums\LedgerCategory::COMPRA_INSUMO,
+                                'amount' => $record->total_value,
+                                'balance_after' => $currentBalance - $record->total_value,
+                                'description' => "Compra coletiva entregue - {$record->collectivePurchase->title}",
+                                'reference_type' => get_class($record),
+                                'reference_id' => $record->id,
+                                'transaction_date' => $data['delivery_date'],
+                                'created_by' => auth()->id(),
+                            ]);
+                        });
+                    })
                     ->visible(fn (PurchaseOrder $record): bool => $record->status === PurchaseOrderStatus::CONFIRMED),
 
                 Tables\Actions\ViewAction::make(),
