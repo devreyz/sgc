@@ -22,6 +22,8 @@ class Service extends Model
         'type',
         'unit',
         'base_price',
+        'provider_hourly_rate',
+        'provider_daily_rate',
         'min_charge',
         'default_asset_id',
         'status',
@@ -33,6 +35,8 @@ class Service extends Model
         return [
             'type' => ServiceType::class,
             'base_price' => 'decimal:2',
+            'provider_hourly_rate' => 'decimal:2',
+            'provider_daily_rate' => 'decimal:2',
             'min_charge' => 'decimal:2',
             'status' => 'boolean',
         ];

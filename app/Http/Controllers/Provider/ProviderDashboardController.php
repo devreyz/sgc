@@ -183,7 +183,7 @@ class ProviderDashboardController extends Controller
         }
 
         // Get available equipment and services for selection
-        $equipment = \App\Models\Equipment::active()->get();
+        $equipment = \App\Models\Asset::available()->get();
         $services = \App\Models\Service::active()->get();
         $associates = \App\Models\Associate::active()->get();
 
@@ -206,22 +206,37 @@ class ProviderDashboardController extends Controller
         $validated = $request->validate([
             'associate_id' => 'nullable|exists:associates,id',
             'service_id' => 'required|exists:services,id',
-            'asset_id' => 'nullable|exists:equipment,id',
+            'asset_id' => 'nullable|exists:assets,id',
             'scheduled_date' => 'required|date',
             'start_time' => 'nullable|date_format:H:i',
             'end_time' => 'nullable|date_format:H:i',
-            'quantity' => 'required|numeric|min:0',
-            'unit' => 'required|string|max:50',
-            'unit_price' => 'required|numeric|min:0',
+            'quantity' => 'nullable|numeric|min:0',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric|min:0',
             'location' => 'required|string|max:255',
             'distance_km' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
         ]);
 
-        // Calculate prices
-        $totalPrice = $validated['quantity'] * $validated['unit_price'];
-        $discount = 0;
-        $finalPrice = $totalPrice - $discount;
+        // Buscar dados do serviço para preencher automaticamente
+        $service = \App\Models\Service::find($validated['service_id']);
+        
+        // Se não forneceu unit e unit_price, usar do serviço
+        if (empty($validated['unit'])) {
+            $validated['unit'] = $service->unit ?? 'hora';
+        }
+        if (empty($validated['unit_price'])) {
+            $validated['unit_price'] = $service->base_price ?? 0;
+        }
+
+        // Calculate prices apenas se tiver quantidade
+        $totalPrice = null;
+        $finalPrice = null;
+        if (!empty($validated['quantity']) && !empty($validated['unit_price'])) {
+            $totalPrice = $validated['quantity'] * $validated['unit_price'];
+            $discount = 0;
+            $finalPrice = $totalPrice - $discount;
+        }
 
         // Generate order number
         $lastOrder = ServiceOrder::latest('id')->first();
@@ -231,21 +246,22 @@ class ProviderDashboardController extends Controller
         // Create the service order
         $order = ServiceOrder::create([
             'number' => $orderNumber,
-            'associate_id' => $validated['associate_id'],
+            'associate_id' => $validated['associate_id'] ?? null,
             'service_id' => $validated['service_id'],
-            'asset_id' => $validated['asset_id'],
+            'asset_id' => $validated['asset_id'] ?? null,
             'scheduled_date' => $validated['scheduled_date'],
             'start_time' => $validated['start_time'] ?? null,
             'end_time' => $validated['end_time'] ?? null,
-            'quantity' => $validated['quantity'],
+            'quantity' => $validated['quantity'] ?? null,
             'unit' => $validated['unit'],
-            'unit_price' => $validated['unit_price'],
-            'total_price' => $totalPrice,
-            'discount' => $discount,
-            'final_price' => $finalPrice,
+            'unit_price' => $validated['unit_price'] ?? null,
+            'total_price' => $totalPrice ?? 0,
+            'discount' => 0,
+            'final_price' => $finalPrice ?? 0,
             'location' => $validated['location'],
             'distance_km' => $validated['distance_km'] ?? 0,
             'status' => ServiceOrderStatus::SCHEDULED,
+            'payment_status' => 'pending',
             'service_provider_id' => $provider->id,
             'notes' => $validated['notes'] ?? null,
             'created_by' => $user->id,
@@ -281,11 +297,17 @@ class ProviderDashboardController extends Controller
 
         $order = ServiceOrder::where('id', $orderId)
             ->where('service_provider_id', $provider->id)
+            ->with(['service', 'associate'])
             ->firstOrFail();
+
+        // Não permitir completar se já foi processado
+        if ($order->status === ServiceOrderStatus::COMPLETED) {
+            return back()->with('error', 'Esta ordem já foi concluída.');
+        }
 
         $validated = $request->validate([
             'execution_date' => 'required|date',
-            'hours_worked' => 'required|numeric|min:0',
+            'actual_quantity' => 'required|numeric|min:0',
             'work_description' => 'required|string',
             'receipt' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'horimeter_start' => 'nullable|numeric',
@@ -295,40 +317,188 @@ class ProviderDashboardController extends Controller
             'fuel_used' => 'nullable|numeric',
         ]);
 
-        // Upload receipt
-        $receiptPath = null;
-        if ($request->hasFile('receipt')) {
-            $receiptPath = $request->file('receipt')->store('receipts', 'public');
-        }
+        \DB::transaction(function () use ($order, $validated, $request, $provider) {
+            // Upload receipt
+            $receiptPath = null;
+            if ($request->hasFile('receipt')) {
+                $receiptPath = $request->file('receipt')->store('receipts', 'public');
+            }
 
-        // Update order status and details
-        $order->update([
-            'status' => ServiceOrderStatus::COMPLETED,
-            'execution_date' => $validated['execution_date'],
-            'work_description' => $validated['work_description'],
-            'horimeter_start' => $validated['horimeter_start'] ?? null,
-            'horimeter_end' => $validated['horimeter_end'] ?? null,
-            'odometer_start' => $validated['odometer_start'] ?? null,
-            'odometer_end' => $validated['odometer_end'] ?? null,
-            'fuel_used' => $validated['fuel_used'] ?? null,
-        ]);
+            // Buscar valores do serviço
+            $service = $order->service;
+            $unitPrice = $service->base_price; // Valor cobrado do associado
+            
+            // Determinar valor do prestador com base na unidade
+            $providerRate = 0;
+            if ($order->unit === 'hora') {
+                $providerRate = $service->provider_hourly_rate ?? 0;
+            } elseif ($order->unit === 'diaria' || $order->unit === 'dia') {
+                $providerRate = $service->provider_daily_rate ?? 0;
+            } else {
+                // Para outras unidades, usar provider_hourly_rate como padrão
+                $providerRate = $service->provider_hourly_rate ?? 0;
+            }
 
-        // Create work record with receipt
-        ServiceProviderWork::create([
-            'service_order_id' => $order->id,
-            'service_provider_id' => $provider->id,
-            'associate_id' => $order->associate_id,
-            'work_date' => $validated['execution_date'],
-            'description' => $validated['work_description'],
-            'hours_worked' => $validated['hours_worked'],
-            'unit_price' => $order->unit_price,
-            'total_value' => $order->final_price,
-            'location' => $order->location,
-            'payment_status' => 'pendente',
-            'notes' => 'Comprovante anexado: ' . $receiptPath,
-        ]);
+            // Calcular valores
+            $totalChargeToAssociate = $validated['actual_quantity'] * $unitPrice; // Valor que o associado deve pagar
+            $totalPaymentToProvider = $validated['actual_quantity'] * $providerRate; // Valor a pagar ao prestador
+            $cooperativeProfit = $totalChargeToAssociate - $totalPaymentToProvider; // Lucro da cooperativa
+
+            // Atualizar ordem de serviço
+            $order->update([
+                'status' => ServiceOrderStatus::COMPLETED,
+                'execution_date' => $validated['execution_date'],
+                'actual_quantity' => $validated['actual_quantity'],
+                'unit_price' => $unitPrice,
+                'total_price' => $totalChargeToAssociate,
+                'final_price' => $totalChargeToAssociate,
+                'provider_payment' => $totalPaymentToProvider,
+                'work_description' => $validated['work_description'],
+                'receipt_path' => $receiptPath,
+                'horimeter_start' => $validated['horimeter_start'] ?? null,
+                'horimeter_end' => $validated['horimeter_end'] ?? null,
+                'odometer_start' => $validated['odometer_start'] ?? null,
+                'odometer_end' => $validated['odometer_end'] ?? null,
+                'fuel_used' => $validated['fuel_used'] ?? null,
+                'associate_payment_status' => 'pending', // Associado deve pagar
+                'provider_payment_status' => 'pending', // Prestador receberá após associado pagar
+            ]);
+
+            // CRIAR DÉBITO para o associado (valor que ele DEVE pagar pelo serviço)
+            if ($order->associate_id) {
+                $currentBalance = $order->associate->current_balance ?? 0;
+                \App\Models\AssociateLedger::create([
+                    'associate_id' => $order->associate_id,
+                    'type' => \App\Enums\LedgerType::DEBIT,
+                    'category' => \App\Enums\LedgerCategory::SERVICO,
+                    'amount' => $totalChargeToAssociate,
+                    'balance_after' => $currentBalance - $totalChargeToAssociate,
+                    'description' => "Serviço executado - OS {$order->number} - {$service->name} - {$validated['actual_quantity']} {$order->unit}",
+                    'reference_type' => get_class($order),
+                    'reference_id' => $order->id,
+                    'transaction_date' => $validated['execution_date'],
+                    'created_by' => auth()->id() ?? $provider->user_id,
+                ]);
+
+                // Atualizar saldo do associado
+                $order->associate()->update([
+                    'current_balance' => $currentBalance - $totalChargeToAssociate
+                ]);
+            }
+
+            // Criar registro de trabalho
+            ServiceProviderWork::create([
+                'service_order_id' => $order->id,
+                'service_provider_id' => $provider->id,
+                'associate_id' => $order->associate_id,
+                'work_date' => $validated['execution_date'],
+                'description' => $validated['work_description'],
+                'hours_worked' => $validated['actual_quantity'],
+                'unit_price' => $providerRate,
+                'total_value' => $totalPaymentToProvider,
+                'location' => $order->location,
+                'payment_status' => 'pendente',
+                'notes' => "Comprovante: {$receiptPath} | Associado deve: R$ " . number_format($totalChargeToAssociate, 2, ',', '.'),
+            ]);
+        });
 
         return redirect()->route('provider.orders.show', $order->id)
-            ->with('success', 'Serviço concluído com sucesso! Aguardando aprovação para pagamento.');
+            ->with('success', 'Serviço concluído! Associado deve pagar R$ ' . number_format($order->total_price, 2, ',', '.') . '. Você receberá R$ ' . number_format($order->provider_payment, 2, ',', '.') . ' após o pagamento do associado.');
+    }
+
+    /**
+     * Show form to edit order (only before submission)
+     */
+    public function editOrder($orderId)
+    {
+        $user = Auth::user();
+        $provider = ServiceProvider::where('user_id', $user->id)->first();
+
+        $order = ServiceOrder::where('id', $orderId)
+            ->where('service_provider_id', $provider->id)
+            ->with(['service', 'asset', 'associate'])
+            ->firstOrFail();
+
+        // Não permitir editar se já foi enviado para avaliação
+        if ($order->payment_status !== 'pending') {
+            return redirect()->route('provider.orders.show', $order->id)
+                ->with('error', 'Esta ordem já foi enviada para avaliação e não pode ser editada.');
+        }
+
+        // Não permitir editar se já foi completada
+        if ($order->status === ServiceOrderStatus::COMPLETED) {
+            return redirect()->route('provider.orders.show', $order->id)
+                ->with('error', 'Esta ordem já foi concluída. Crie uma nova ordem se necessário.');
+        }
+
+        // Buscar dados para os selects
+        $services = \App\Models\Service::active()->get();
+        $associates = \App\Models\Associate::active()->get();
+        $equipment = \App\Models\Asset::where('status', \App\Enums\AssetStatus::DISPONIVEL)
+            ->orWhere('id', $order->asset_id)
+            ->get();
+
+        return view('provider.edit-order', compact('provider', 'order', 'services', 'associates', 'equipment'));
+    }
+
+    /**
+     * Update order (only before submission)
+     */
+    public function updateOrder(Request $request, $orderId)
+    {
+        $user = Auth::user();
+        $provider = ServiceProvider::where('user_id', $user->id)->first();
+
+        $order = ServiceOrder::where('id', $orderId)
+            ->where('service_provider_id', $provider->id)
+            ->firstOrFail();
+
+        // Não permitir editar se já foi enviado para avaliação
+        if ($order->payment_status !== 'pending') {
+            return back()->with('error', 'Esta ordem já foi enviada para avaliação e não pode ser editada.');
+        }
+
+        // Não permitir editar se já foi completada
+        if ($order->status === ServiceOrderStatus::COMPLETED) {
+            return back()->with('error', 'Esta ordem já foi concluída.');
+        }
+
+        $validated = $request->validate([
+            'associate_id' => 'nullable|exists:associates,id',
+            'service_id' => 'required|exists:services,id',
+            'asset_id' => 'nullable|exists:assets,id',
+            'scheduled_date' => 'required|date',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'quantity' => 'nullable|numeric|min:0',
+            'unit' => 'nullable|string|max:50',
+            'unit_price' => 'nullable|numeric|min:0',
+            'location' => 'required|string|max:255',
+            'distance_km' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Buscar dados do serviço para preencher automaticamente se mudou
+        if ($validated['service_id'] != $order->service_id) {
+            $service = \App\Models\Service::find($validated['service_id']);
+            if (empty($validated['unit'])) {
+                $validated['unit'] = $service->unit ?? 'hora';
+            }
+            if (empty($validated['unit_price'])) {
+                $validated['unit_price'] = $service->base_price ?? 0;
+            }
+        }
+
+        // Calculate prices apenas se tiver quantidade
+        if (!empty($validated['quantity']) && !empty($validated['unit_price'])) {
+            $totalPrice = $validated['quantity'] * $validated['unit_price'];
+            $validated['total_price'] = $totalPrice;
+            $validated['final_price'] = $totalPrice;
+        }
+
+        $order->update($validated);
+
+        return redirect()->route('provider.orders.show', $order->id)
+            ->with('success', 'Ordem de serviço atualizada com sucesso!');
     }
 }

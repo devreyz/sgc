@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ServiceOrderStatus;
+use App\Enums\ServiceOrderPaymentStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,14 +27,25 @@ class ServiceOrder extends Model
         'start_time',
         'end_time',
         'quantity',
+        'actual_quantity',
         'unit',
         'unit_price',
         'total_price',
         'discount',
         'final_price',
+        'provider_payment',
         'location',
         'distance_km',
         'status',
+        'payment_status',
+        'paid',
+        'paid_date',
+        'associate_payment_status',
+        'associate_paid_at',
+        'associate_payment_id',
+        'provider_payment_status',
+        'provider_paid_at',
+        'provider_payment_id',
         'operator_id',
         'service_provider_id',
         'horimeter_start',
@@ -43,6 +55,7 @@ class ServiceOrder extends Model
         'fuel_used',
         'work_description',
         'notes',
+        'receipt_path',
         'created_by',
         'approved_by',
     ];
@@ -51,15 +64,23 @@ class ServiceOrder extends Model
     {
         return [
             'status' => ServiceOrderStatus::class,
+            'associate_payment_status' => ServiceOrderPaymentStatus::class,
+            'provider_payment_status' => ServiceOrderPaymentStatus::class,
             'scheduled_date' => 'date',
             'execution_date' => 'date',
+            'paid_date' => 'date',
+            'associate_paid_at' => 'datetime',
+            'provider_paid_at' => 'datetime',
             'quantity' => 'decimal:2',
+            'actual_quantity' => 'decimal:2',
             'unit_price' => 'decimal:2',
             'total_price' => 'decimal:2',
             'discount' => 'decimal:2',
             'final_price' => 'decimal:2',
+            'provider_payment' => 'decimal:2',
             'distance_km' => 'decimal:2',
             'fuel_used' => 'decimal:2',
+            'paid' => 'boolean',
         ];
     }
 
