@@ -1,7 +1,7 @@
 @extends('layouts.bento')
 
-@section('title', 'Criar Ordem de Serviço')
-@section('page-title', 'Nova Ordem de Serviço')
+@section('title', 'Editar Ordem de Serviço')
+@section('page-title', 'Editar Ordem #' . $order->number)
 @section('user-role', 'Prestador de Serviço')
 
 @section('navigation')
@@ -22,10 +22,10 @@
     <div class="bento-card col-span-full">
         <div class="flex justify-between items-center">
             <div>
-                <h2 class="text-2xl font-bold">Criar Nova Ordem de Serviço</h2>
-                <p class="text-muted mt-1">Complete os campos necessários. Você pode definir a quantidade exata ao finalizar o serviço.</p>
+                <h2 class="text-2xl font-bold">Editar Ordem #{{ $order->number }}</h2>
+                <p class="text-muted mt-1">Apenas ordens não concluídas podem ser editadas</p>
             </div>
-            <a href="{{ route('provider.orders') }}" class="btn btn-outline">
+            <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline">
                 <span>← Voltar</span>
             </a>
         </div>
@@ -42,10 +42,11 @@
     </div>
     @endif
 
-    <form method="POST" action="{{ route('provider.orders.store') }}" class="col-span-full contents">
+    <form method="POST" action="{{ route('provider.orders.update', $order->id) }}" class="col-span-full contents">
         @csrf
+        @method('PUT')
 
-        <!-- Tipo de Serviço - Destaque Principal -->
+        <!-- Tipo de Serviço  -->
         <div class="bento-card col-span-full" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
             <div class="mb-4">
                 <h3 class="text-xl font-bold mb-2">🔧 Tipo de Serviço</h3>
@@ -60,14 +61,11 @@
                         <option value="{{ $service->id }}" 
                                 data-price="{{ $service->base_price }}"
                                 data-unit="{{ $service->unit }}"
-                                {{ old('service_id') == $service->id ? 'selected' : '' }}>
+                                {{ old('service_id', $order->service_id) == $service->id ? 'selected' : '' }}>
                             {{ $service->name }} - R$ {{ number_format($service->base_price, 2, ',', '.') }}/{{ $service->unit }}
                         </option>
                     @endforeach
                 </select>
-                <p style="margin-top: 0.5rem; opacity: 0.9; font-size: 0.875rem;">
-                    💰 Preço e unidade são baseados no tipo de serviço
-                </p>
             </div>
         </div>
 
@@ -79,20 +77,20 @@
                 <div class="form-group">
                     <label class="form-label" for="scheduled_date">Data Agendada *</label>
                     <input type="date" name="scheduled_date" id="scheduled_date" class="form-input" 
-                           value="{{ old('scheduled_date', date('Y-m-d')) }}" required>
+                           value="{{ old('scheduled_date', $order->scheduled_date?->format('Y-m-d')) }}" required>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="form-group">
                         <label class="form-label" for="start_time">Hora Início</label>
                         <input type="time" name="start_time" id="start_time" class="form-input" 
-                               value="{{ old('start_time') }}">
+                               value="{{ old('start_time', $order->start_time) }}">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="end_time">Hora Fim</label>
                         <input type="time" name="end_time" id="end_time" class="form-input" 
-                               value="{{ old('end_time') }}">
+                               value="{{ old('end_time', $order->end_time) }}">
                     </div>
                 </div>
 
@@ -102,10 +100,11 @@
                     </label>
                     <div class="flex gap-2">
                         <input type="number" name="quantity" id="quantity" class="form-input" 
-                               step="0.5" min="0" value="{{ old('quantity') }}" 
+                               step="0.5" min="0" value="{{ old('quantity', $order->quantity) }}" 
                                placeholder="Ex: 8">
                         <input type="text" id="unit_display" class="form-input" readonly 
                                style="max-width: 120px; background: #f3f4f6; font-weight: 600;" 
+                               value="{{ $order->unit }}"
                                placeholder="Unidade">
                     </div>
                     <p class="text-xs text-muted mt-1">
@@ -115,14 +114,16 @@
             </div>
         </div>
 
-        <!-- Preview do Valor (quando houver quantidade) -->
-        <div id="preview_card" class="bento-card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; display: none;">
+        <!-- Preview do Valor -->
+        <div id="preview_card" class="bento-card" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; {{ ($order->quantity && $order->unit_price) ? '' : 'display: none;' }}">
             <div>
                 <p style="opacity: 0.9; font-size: 0.875rem; margin-bottom: 0.5rem;">Valor Estimado</p>
-                <p style="font-size: 2.5rem; font-weight: bold; margin-bottom: 0.5rem;" id="total_preview">R$ 0,00</p>
+                <p style="font-size: 2.5rem; font-weight: bold; margin-bottom: 0.5rem;" id="total_preview">
+                    R$ {{ number_format(($order->quantity ?? 0) * ($order->unit_price ?? 0), 2, ',', '.') }}
+                </p>
                 <div style="opacity: 0.9; font-size: 0.9rem;">
-                    <p><span id="quantity_preview">0</span> <span id="unit_preview">horas</span></p>
-                    <p>R$ <span id="price_preview">0,00</span> por unidade</p>
+                    <p><span id="quantity_preview">{{ $order->quantity }}</span> <span id="unit_preview">{{ $order->unit }}{{ $order->quantity > 1 ? 's' : '' }}</span></p>
+                    <p>R$ <span id="price_preview">{{ number_format($order->unit_price ?? 0, 2, ',', '.') }}</span> por unidade</p>
                 </div>
             </div>
             <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.3); font-size: 0.875rem;">
@@ -138,14 +139,14 @@
                 <div class="form-group md:col-span-2">
                     <label class="form-label" for="location">Local do Serviço *</label>
                     <input type="text" name="location" id="location" class="form-input" 
-                           value="{{ old('location') }}" required
+                           value="{{ old('location', $order->location) }}" required
                            placeholder="Ex: Fazenda Santa Maria, Setor A">
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="distance_km">Distância (km)</label>
                     <input type="number" name="distance_km" id="distance_km" class="form-input" 
-                           step="0.1" min="0" value="{{ old('distance_km', 0) }}"
+                           step="0.1" min="0" value="{{ old('distance_km', $order->distance_km) }}"
                            placeholder="0">
                 </div>
             </div>
@@ -163,7 +164,7 @@
                     <select name="associate_id" id="associate_id" class="form-select">
                         <option value="">Nenhum associado</option>
                         @foreach($associates as $associate)
-                            <option value="{{ $associate->id }}" {{ old('associate_id') == $associate->id ? 'selected' : '' }}>
+                            <option value="{{ $associate->id }}" {{ old('associate_id', $order->associate_id) == $associate->id ? 'selected' : '' }}>
                                 {{ $associate->name }}
                             </option>
                         @endforeach
@@ -177,7 +178,7 @@
                     <select name="asset_id" id="asset_id" class="form-select">
                         <option value="">Nenhum equipamento</option>
                         @foreach($equipment as $equip)
-                            <option value="{{ $equip->id }}" {{ old('asset_id') == $equip->id ? 'selected' : '' }}>
+                            <option value="{{ $equip->id }}" {{ old('asset_id', $order->asset_id) == $equip->id ? 'selected' : '' }}>
                                 {{ $equip->name }} - {{ $equip->model }}
                             </option>
                         @endforeach
@@ -188,18 +189,18 @@
             <div class="form-group mt-4">
                 <label class="form-label" for="notes">Observações / Detalhes</label>
                 <textarea name="notes" id="notes" class="form-textarea" rows="3" 
-                          placeholder="Informações importantes sobre o serviço, requisitos especiais, etc.">{{ old('notes') }}</textarea>
+                          placeholder="Informações importantes sobre o serviço">{{ old('notes', $order->notes) }}</textarea>
             </div>
         </div>
 
         <!-- Actions -->
         <div class="bento-card col-span-full">
             <div class="flex gap-4 justify-end">
-                <a href="{{ route('provider.orders') }}" class="btn btn-outline px-6">
+                <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline px-6">
                     Cancelar
                 </a>
-                <button type="submit" class="btn btn-success px-8">
-                    ✓ Criar Ordem de Serviço
+                <button type="submit" class="btn btn-primary px-8">
+                    💾 Salvar Alterações
                 </button>
             </div>
         </div>
@@ -207,8 +208,8 @@
 </div>
 
 <script>
-let unitPrice = 0;
-let unit = 'hora';
+let unitPrice = {{ $order->unit_price ?? 0 }};
+let unit = '{{ $order->unit }}';
 
 // Auto-fill from service selection
 document.getElementById('service_id').addEventListener('change', function() {
@@ -240,11 +241,6 @@ function calculateTotal() {
     } else {
         previewCard.style.display = 'none';
     }
-}
-
-// Trigger calculation if quantity is pre-filled
-if (document.getElementById('quantity').value) {
-    calculateTotal();
 }
 </script>
 

@@ -49,6 +49,8 @@ Route::prefix('provider')->name('provider.')->middleware(['auth', 'role:service_
     Route::get('/orders/create', [ProviderDashboardController::class, 'createOrder'])->name('orders.create');
     Route::post('/orders', [ProviderDashboardController::class, 'storeOrder'])->name('orders.store');
     Route::get('/orders/{order}', [ProviderDashboardController::class, 'showOrder'])->name('orders.show');
+    Route::get('/orders/{order}/edit', [ProviderDashboardController::class, 'editOrder'])->name('orders.edit');
+    Route::put('/orders/{order}', [ProviderDashboardController::class, 'updateOrder'])->name('orders.update');
     Route::post('/orders/{order}/complete', [ProviderDashboardController::class, 'completeOrder'])->name('orders.complete');
     
     // Work records
