@@ -3,19 +3,23 @@
 namespace App\Providers;
 
 use App\Models\AssociateLedger;
+use App\Models\CashMovement;
 use App\Models\Expense;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\PurchaseOrder;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider as ServiceProviderModel;
+use App\Models\ServiceProviderLedger;
 use App\Observers\AssociateLedgerObserver;
+use App\Observers\CashMovementObserver;
 use App\Observers\ExpenseObserver;
 use App\Observers\ProductionDeliveryObserver;
 use App\Observers\ProductObserver;
 use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
 use App\Observers\ServiceProviderObserver;
+use App\Observers\ServiceProviderLedgerObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
@@ -43,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Register Observers
+        CashMovement::observe(CashMovementObserver::class);
         ProductionDelivery::observe(ProductionDeliveryObserver::class);
         PurchaseOrder::observe(PurchaseOrderObserver::class);
         ServiceOrder::observe(ServiceOrderObserver::class);
@@ -50,5 +55,6 @@ class AppServiceProvider extends ServiceProvider
         Product::observe(ProductObserver::class);
         AssociateLedger::observe(AssociateLedgerObserver::class);
         ServiceProviderModel::observe(ServiceProviderObserver::class);
+        ServiceProviderLedger::observe(ServiceProviderLedgerObserver::class);
     }
 }

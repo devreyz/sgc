@@ -209,12 +209,21 @@ class ServiceProviderResource extends Resource
                     ->money('BRL')
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('current_balance')
+                Tables\Columns\TextColumn::make('pending_receivable')
                     ->label('Saldo a Receber')
+                    ->state(fn (ServiceProvider $record): float => $record->pending_receivable)
                     ->money('BRL')
                     ->color(fn ($state): string => $state > 0 ? 'warning' : 'success')
                     ->weight('bold')
-                    ->sortable(),
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query; // Não ordena porque é calculado
+                    }),
+
+                Tables\Columns\TextColumn::make('ledger_balance')
+                    ->label('Saldo Ledger')
+                    ->state(fn (ServiceProvider $record): float => $record->current_balance)
+                    ->money('BRL')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('pending_total')
                     ->label('Total Pendente (Legado)')

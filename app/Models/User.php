@@ -99,11 +99,35 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Get the service provider profile for the user.
+     */
+    public function serviceProvider(): HasOne
+    {
+        return $this->hasOne(ServiceProvider::class);
+    }
+
+    /**
      * Check if user is an associate
      */
     public function isAssociate(): bool
     {
         return $this->associate !== null;
+    }
+
+    /**
+     * Check if user is a service provider
+     */
+    public function isServiceProvider(): bool
+    {
+        return $this->serviceProvider !== null;
+    }
+
+    /**
+     * Check if user has both associate and provider profiles
+     */
+    public function hasSharedWallet(): bool
+    {
+        return $this->isAssociate() && $this->isServiceProvider();
     }
 
     /**
