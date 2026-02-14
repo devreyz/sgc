@@ -1,14 +1,13 @@
 @extends('layouts.bento')
 
-@section('title', 'Criar Ordem de Serviço')
-@section('page-title', 'Nova Ordem de Serviço')
-@section('user-role', 'Prestador de Serviço')
+@section('title', 'Registrar Entrega')
+@section('page-title', 'Registrar Entrega')
+@section('user-role', 'Registrador')
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.works') }}" class="nav-tab">Meus Serviços</a>
+    <a href="{{ route('delivery.dashboard') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('delivery.register') }}" class="nav-tab active">Registrar Entrega</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -21,7 +20,7 @@
     * { box-sizing: border-box; }
     
     .container {
-        max-width: 700px;
+        max-width: 600px;
         margin: 0 auto;
         padding: 1rem;
         min-height: calc(100dvh - 180px);
@@ -193,6 +192,35 @@
         font-size: 0.875rem;
         font-weight: 600;
         color: var(--color-text);
+    }
+    
+    .quality-badges {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .quality-badge {
+        flex: 1;
+        padding: 0.75rem;
+        border: 2px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-bg);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .quality-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .quality-badge.active {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
     }
     
     .btn {
@@ -417,35 +445,11 @@
         color: var(--color-danger);
     }
     
-    .option-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .option-tab {
-        flex: 1;
-        padding: 0.75rem;
-        border: 2px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-bg);
-        cursor: pointer;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-    }
-    
-    .option-tab.active {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--color-primary);
-    }
-    
     @media (max-width: 640px) {
         .container { padding: 0.5rem; }
         .form-card { padding: 1rem; }
         .step-actions { flex-direction: column-reverse; }
+        .quality-badges { flex-direction: column; }
     }
 </style>
 
@@ -453,39 +457,59 @@
     <div id="alert-container"></div>
     
     <div class="form-card">
-        <form id="order-form">
+        <form id="delivery-form">
             @csrf
             
-            <!-- Step 1: Serviço -->
+            <!-- Step 1: Projeto e Produto -->
             <div class="step active" data-step="1">
                 <div class="step-header">
                     <h2 class="step-title">
-                        <i data-lucide="wrench"></i>
-                        Passo 1 — Tipo de Serviço
+                        <i data-lucide="package"></i>
+                        Passo 1 — Projeto e Produto
                     </h2>
-                    <p class="step-subtitle">Selecione o serviço a ser prestado</p>
+                    <p class="step-subtitle">Selecione o projeto e o produto a ser entregue</p>
                 </div>
                 
+                @if($projects->count() === 1)
+                    <input type="hidden" id="project_id" name="sales_project_id" value="{{ $projects->first()->id }}">
+                    <div class="summary-box">
+                        <div class="summary-title">Projeto Selecionado</div>
+                        <div class="summary-item">
+                            <i data-lucide="folder"></i>
+                            <span class="summary-text">{{ $projects->first()->title }}</span>
+                        </div>
+                    </div>
+                @else
+                    <div class="form-group">
+                        <label class="form-label">Projeto <span class="required">*</span></label>
+                        <div class="select-box" id="project-select-box">
+                            <i data-lucide="folder" style="width:20px;height:20px;"></i>
+                            <div class="select-box-content">
+                                <div class="select-box-label">Nenhum projeto selecionado</div>
+                                <div class="select-box-value">Clique para escolher</div>
+                            </div>
+                            <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+                        </div>
+                        <input type="hidden" id="project_id" name="sales_project_id">
+                    </div>
+                @endif
+                
                 <div class="form-group">
-                    <label class="form-label">Serviço <span class="required">*</span></label>
-                    <div class="select-box" id="service-select-box">
-                        <i data-lucide="settings" style="width:20px;height:20px;"></i>
+                    <label class="form-label">Produto <span class="required">*</span></label>
+                    <div class="select-box" id="product-select-box">
+                        <i data-lucide="box" style="width:20px;height:20px;"></i>
                         <div class="select-box-content">
-                            <div class="select-box-label">Nenhum serviço selecionado</div>
-                            <div class="select-box-value">Clique para escolher</div>
+                            <div class="select-box-label">Nenhum produto selecionado</div>
+                            <div class="select-box-value">Selecione um projeto primeiro</div>
                         </div>
                         <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
                     </div>
-                    <input type="hidden" id="service_id" name="service_id">
+                    <input type="hidden" id="demand_id" name="project_demand_id">
                 </div>
                 
-                <div id="service-info"></div>
+                <div id="product-info"></div>
                 
                 <div class="step-actions">
-                    <a href="{{ route('provider.orders') }}" class="btn btn-secondary">
-                        <i data-lucide="x"></i>
-                        Cancelar
-                    </a>
                     <button type="button" class="btn btn-primary" id="next-1">
                         Próximo
                         <i data-lucide="arrow-right"></i>
@@ -493,64 +517,35 @@
                 </div>
             </div>
             
-            <!-- Step 2: Pessoa -->
+            <!-- Step 2: Associado -->
             <div class="step" data-step="2">
                 <div class="step-header">
                     <h2 class="step-title">
-                        <i data-lucide="users"></i>
-                        Passo 2 — Pessoa
+                        <i data-lucide="user"></i>
+                        Passo 2 — Associado
                     </h2>
-                    <p class="step-subtitle">Associado ou pessoa avulsa</p>
+                    <p class="step-subtitle">Selecione quem está entregando o produto</p>
                 </div>
                 
                 <div class="summary-box">
-                    <div class="summary-title">Serviço Selecionado</div>
-                    <div class="summary-item" id="summary-service">
-                        <i data-lucide="wrench"></i>
+                    <div class="summary-title">Seleções Anteriores</div>
+                    <div class="summary-item" id="summary-product">
+                        <i data-lucide="box"></i>
                         <span class="summary-text">—</span>
                     </div>
                 </div>
                 
-                <div class="option-tabs">
-                    <button type="button" class="option-tab active" data-type="associate">
-                        <i data-lucide="user-check"></i> Associado
-                    </button>
-                    <button type="button" class="option-tab" data-type="non-associate">
-                        <i data-lucide="user"></i> Avulso
-                    </button>
-                </div>
-                
-                <div id="associate-section">
-                    <div class="form-group">
-                        <label class="form-label">Associado</label>
-                        <div class="select-box" id="associate-select-box">
-                            <i data-lucide="user" style="width:20px;height:20px;"></i>
-                            <div class="select-box-content">
-                                <div class="select-box-label">Nenhum associado</div>
-                                <div class="select-box-value">Clique para buscar</div>
-                            </div>
-                            <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+                <div class="form-group">
+                    <label class="form-label">Associado <span class="required">*</span></label>
+                    <div class="select-box" id="associate-select-box">
+                        <i data-lucide="user" style="width:20px;height:20px;"></i>
+                        <div class="select-box-content">
+                            <div class="select-box-label">Nenhum associado selecionado</div>
+                            <div class="select-box-value">Clique para buscar</div>
                         </div>
-                        <input type="hidden" id="associate_id" name="associate_id">
+                        <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
                     </div>
-                </div>
-                
-                <div id="non-associate-section" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Nome da Pessoa <span class="required">*</span></label>
-                        <input type="text" class="form-input" id="non_associate_name" placeholder="Nome completo">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">CPF/CNPJ</label>
-                        <input type="text" class="form-input" id="non_associate_doc" placeholder="000.000.000-00">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Telefone</label>
-                        <input type="text" class="form-input" id="non_associate_phone" placeholder="(00) 00000-0000">
-                    </div>
-                    <div class="form-hint" style="margin-bottom:1rem;">
-                        <i data-lucide="info"></i> Pessoa avulsa — cadastro simplificado
-                    </div>
+                    <input type="hidden" id="associate_id" name="associate_id">
                 </div>
                 
                 <div class="step-actions">
@@ -569,48 +564,52 @@
             <div class="step" data-step="3">
                 <div class="step-header">
                     <h2 class="step-title">
-                        <i data-lucide="clipboard-list"></i>
+                        <i data-lucide="clipboard-check"></i>
                         Passo 3 — Detalhes
                     </h2>
-                    <p class="step-subtitle">Informações do serviço</p>
+                    <p class="step-subtitle">Preencha as informações da entrega</p>
                 </div>
                 
                 <div class="summary-box">
                     <div class="summary-title">Seleções Anteriores</div>
-                    <div class="summary-item" id="summary-service-2">
-                        <i data-lucide="wrench"></i>
+                    <div class="summary-item" id="summary-product-2">
+                        <i data-lucide="box"></i>
                         <span class="summary-text">—</span>
                     </div>
-                    <div class="summary-item" id="summary-person">
+                    <div class="summary-item" id="summary-associate">
                         <i data-lucide="user"></i>
                         <span class="summary-text">—</span>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Data Agendada <span class="required">*</span></label>
-                    <input type="date" class="form-input" id="scheduled_date" name="scheduled_date" value="{{ date('Y-m-d') }}" required>
+                    <label class="form-label">Data da Entrega <span class="required">*</span></label>
+                    <input type="date" class="form-input" id="delivery_date" name="delivery_date" value="{{ date('Y-m-d') }}" required>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Local <span class="required">*</span></label>
-                    <input type="text" class="form-input" id="location" name="location" placeholder="Ex: Fazenda São João" required>
+                    <label class="form-label">Quantidade <span class="required">*</span></label>
+                    <input type="number" class="form-input" id="quantity" name="quantity" step="0.001" min="0.001" placeholder="0.000" required>
+                    <div class="form-hint" id="quantity-hint">Insira a quantidade entregue</div>
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label">Equipamento</label>
-                    <select class="form-select" id="asset_id" name="asset_id">
-                        <option value="">Nenhum equipamento</option>
-                        @foreach($equipment as $equip)
-                        <option value="{{ $equip->id }}">{{ $equip->name }} — {{ $equip->model }}</option>
-                        @endforeach
-                    </select>
+                    <label class="form-label">Qualidade</label>
+                    <div class="quality-badges">
+                        <button type="button" class="quality-badge active" data-grade="A">
+                            <i data-lucide="star"></i> A
+                        </button>
+                        <button type="button" class="quality-badge" data-grade="B">
+                            <i data-lucide="star"></i> B
+                        </button>
+                        <button type="button" class="quality-badge" data-grade="C">
+                            <i data-lucide="star"></i> C
+                        </button>
+                    </div>
+                    <input type="hidden" id="quality_grade" name="quality_grade" value="A">
                 </div>
                 
-                <div class="form-group">
-                    <label class="form-label">Observações</label>
-                    <textarea class="form-textarea" id="notes" name="notes" placeholder="Informações adicionais..."></textarea>
-                </div>
+                <div id="value-info"></div>
                 
                 <div class="step-actions">
                     <button type="button" class="btn btn-secondary" id="back-2">
@@ -619,7 +618,7 @@
                     </button>
                     <button type="submit" class="btn btn-primary" id="submit-btn">
                         <i data-lucide="check"></i>
-                        Criar Ordem
+                        Finalizar
                     </button>
                 </div>
             </div>
@@ -627,43 +626,22 @@
     </div>
 </div>
 
-<!-- Modal de Serviços -->
-<div class="modal" id="service-modal">
+<!-- Modal de Seleção de Projeto -->
+<div class="modal" id="project-modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">Selecionar Serviço</h3>
-            <button type="button" class="modal-close" id="close-service-modal">
+            <h3 class="modal-title">Selecionar Projeto</h3>
+            <button type="button" class="modal-close" id="close-project-modal">
                 <i data-lucide="x"></i>
             </button>
         </div>
         <div class="modal-body">
-            <input type="text" class="search-input" id="service-search" placeholder="Buscar serviço...">
-            <div class="item-list" id="service-list">
-                @foreach($services as $service)
-                <div class="item-card" data-id="{{ $service->id }}" data-name="{{ strtolower($service->name) }}" data-service='{{ json_encode([
-                    'id' => $service->id, 
-                    'name' => $service->name, 
-                    'base_price' => $service->base_price,
-                    'associate_price' => $service->associate_price,
-                    'non_associate_price' => $service->non_associate_price,
-                    'unit' => $service->unit
-                ]) }}'>
-                    <div class="item-name">{{ $service->name }}</div>
-                    <div class="item-meta">
-                        @if($service->associate_price || $service->non_associate_price)
-                            @if($service->associate_price)
-                                Associado: R$ {{ number_format($service->associate_price, 2, ',', '.') }}/{{ $service->unit }}
-                            @endif
-                            @if($service->associate_price && $service->non_associate_price)
-                                <br>
-                            @endif
-                            @if($service->non_associate_price)
-                                Avulso: R$ {{ number_format($service->non_associate_price, 2, ',', '.') }}/{{ $service->unit }}
-                            @endif
-                        @else
-                            R$ {{ number_format($service->base_price, 2, ',', '.') }}/{{ $service->unit }}
-                        @endif
-                    </div>
+            <input type="text" class="search-input" id="project-search" placeholder="Buscar projeto...">
+            <div class="item-list" id="project-list">
+                @foreach($projects as $project)
+                <div class="item-card" data-id="{{ $project->id }}" data-name="{{ strtolower($project->title) }}">
+                    <div class="item-name">{{ $project->title }}</div>
+                    <div class="item-meta">{{ $project->customer->name ?? '' }}</div>
                 </div>
                 @endforeach
             </div>
@@ -671,7 +649,23 @@
     </div>
 </div>
 
-<!-- Modal de Associados -->
+<!-- Modal de Seleção de Produto -->
+<div class="modal" id="product-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Selecionar Produto</h3>
+            <button type="button" class="modal-close" id="close-product-modal">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="text" class="search-input" id="product-search" placeholder="Buscar produto...">
+            <div class="item-list" id="product-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Seleção de Associado -->
 <div class="modal" id="associate-modal">
     <div class="modal-content">
         <div class="modal-header">
@@ -697,19 +691,27 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // State
     let state = {
-        service: null,
-        person: { type: 'associate', id: null, name: null },
-        nonAssociate: { name: null, doc: null, phone: null }
+        project: null,
+        product: null,
+        associate: null,
+        products: []
     };
     
-    const form = document.getElementById('order-form');
+    // Elements
+    const form = document.getElementById('delivery-form');
     const steps = document.querySelectorAll('.step');
-    const serviceModal = document.getElementById('service-modal');
+    const projectModal = document.getElementById('project-modal');
+    const productModal = document.getElementById('product-modal');
     const associateModal = document.getElementById('associate-modal');
     
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    // Initialize Lucide
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
     
+    // Step Navigation
     function showStep(n) {
         steps.forEach((step, idx) => {
             step.classList.toggle('active', idx === n - 1);
@@ -717,10 +719,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
     
-    // Step navigation
     document.getElementById('next-1')?.addEventListener('click', () => {
-        if (!state.service) {
-            showAlert('Selecione um serviço', 'error');
+        if (!state.project || !state.product) {
+            showAlert('Selecione o projeto e o produto', 'error');
             return;
         }
         updateSummary();
@@ -728,20 +729,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.getElementById('next-2')?.addEventListener('click', () => {
-        if (state.person.type === 'associate' && !state.person.id) {
-            showAlert('Selecione um associado ou escolha pessoa avulsa', 'error');
+        if (!state.associate) {
+            showAlert('Selecione um associado', 'error');
             return;
-        }
-        if (state.person.type === 'non-associate') {
-            const name = document.getElementById('non_associate_name').value.trim();
-            if (!name) {
-                showAlert('Preencha o nome da pessoa', 'error');
-                return;
-            }
-            state.nonAssociate.name = name;
-            state.nonAssociate.doc = document.getElementById('non_associate_doc').value.trim();
-            state.nonAssociate.phone = document.getElementById('non_associate_phone').value.trim();
-            state.person.name = name;
         }
         updateSummary();
         showStep(3);
@@ -750,103 +740,128 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('back-1')?.addEventListener('click', () => showStep(1));
     document.getElementById('back-2')?.addEventListener('click', () => showStep(2));
     
-    // Service selection
-    document.getElementById('service-select-box')?.addEventListener('click', () => {
-        serviceModal.classList.add('active');
+    // Project Selection
+    @if($projects->count() === 1)
+        const projectId = '{{ $projects->first()->id }}';
+        state.project = { id: projectId, name: '{{ $projects->first()->title }}' };
+        loadProducts(projectId);
+    @else
+        document.getElementById('project-select-box')?.addEventListener('click', () => {
+            projectModal.classList.add('active');
+        });
+    @endif
+    
+    document.getElementById('close-project-modal')?.addEventListener('click', () => {
+        projectModal.classList.remove('active');
     });
     
-    document.getElementById('close-service-modal')?.addEventListener('click', () => {
-        serviceModal.classList.remove('active');
-    });
-    
-    document.getElementById('service-search')?.addEventListener('input', function() {
+    document.getElementById('project-search')?.addEventListener('input', function() {
         const q = this.value.toLowerCase();
-        document.querySelectorAll('#service-list .item-card').forEach(card => {
-            card.style.display = card.dataset.name.includes(q) ? 'block' : 'none';
+        document.querySelectorAll('#project-list .item-card').forEach(card => {
+            const name = card.dataset.name;
+            card.style.display = name.includes(q) ? 'block' : 'none';
         });
     });
     
-    document.querySelectorAll('#service-list .item-card').forEach(card => {
+    document.querySelectorAll('#project-list .item-card').forEach(card => {
         card.addEventListener('click', function() {
-            const service = JSON.parse(this.dataset.service);
-            state.service = service;
-            document.getElementById('service_id').value = service.id;
+            const id = this.dataset.id;
+            const name = this.querySelector('.item-name').textContent;
             
-            const box = document.getElementById('service-select-box');
+            state.project = { id, name };
+            document.getElementById('project_id').value = id;
+            
+            const box = document.getElementById('project-select-box');
             box.classList.add('selected');
-            box.querySelector('.select-box-label').textContent = 'Serviço selecionado';
-            box.querySelector('.select-box-value').textContent = service.name;
+            box.querySelector('.select-box-label').textContent = 'Projeto selecionado';
+            box.querySelector('.select-box-value').textContent = name;
             
-            let priceInfo = '';
-            if (service.associate_price && service.non_associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Associado</span>
-                        <span class="info-value success">R$ ${formatMoney(service.associate_price)}/${service.unit}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Preço Avulso</span>
-                        <span class="info-value warning">R$ ${formatMoney(service.non_associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else if (service.associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Associado</span>
-                        <span class="info-value success">R$ ${formatMoney(service.associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else if (service.non_associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Avulso</span>
-                        <span class="info-value warning">R$ ${formatMoney(service.non_associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Base</span>
-                        <span class="info-value success">R$ ${formatMoney(service.base_price)}/${service.unit}</span>
-                    </div>
-                `;
-            }
+            projectModal.classList.remove('active');
+            loadProducts(id);
             
-            document.getElementById('service-info').innerHTML = `
-                <div class="info-card">
-                    ${priceInfo}
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+    });
+    
+    // Product Selection
+    document.getElementById('product-select-box')?.addEventListener('click', () => {
+        if (!state.project) {
+            showAlert('Selecione um projeto primeiro', 'error');
+            return;
+        }
+        productModal.classList.add('active');
+    });
+    
+    document.getElementById('close-product-modal')?.addEventListener('click', () => {
+        productModal.classList.remove('active');
+    });
+    
+    document.getElementById('product-search')?.addEventListener('input', function() {
+        const q = this.value.toLowerCase();
+        document.querySelectorAll('#product-list .item-card').forEach(card => {
+            const name = card.dataset.name;
+            card.style.display = name.includes(q) ? 'block' : 'none';
+        });
+    });
+    
+    async function loadProducts(projectId) {
+        try {
+            const res = await fetch('/delivery/projects/' + projectId + '/demands');
+            const products = await res.json();
+            state.products = products;
+            
+            const list = document.getElementById('product-list');
+            list.innerHTML = products.map(p => `
+                <div class="item-card" data-id="${p.id}" data-name="${p.product_name.toLowerCase()}" data-product='${JSON.stringify(p)}'>
+                    <div class="item-name">${p.product_name}</div>
+                    <div class="item-meta">Restante: ${formatNum(p.remaining_quantity)} ${p.product_unit}</div>
                 </div>
-            `;
+            `).join('');
             
-            serviceModal.classList.remove('active');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
+            list.querySelectorAll('.item-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const product = JSON.parse(this.dataset.product);
+                    
+                    state.product = product;
+                    document.getElementById('demand_id').value = product.id;
+                    
+                    const box = document.getElementById('product-select-box');
+                    box.classList.add('selected');
+                    box.querySelector('.select-box-label').textContent = 'Produto selecionado';
+                    box.querySelector('.select-box-value').textContent = product.product_name;
+                    
+                    showProductInfo(product);
+                    productModal.classList.remove('active');
+                    
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
+            });
+            
+            const box = document.getElementById('product-select-box');
+            box.querySelector('.select-box-value').textContent = 'Clique para escolher';
+            
+        } catch (e) {
+            showAlert('Erro ao carregar produtos', 'error');
+        }
+    }
     
-    // Person type tabs
-    document.querySelectorAll('.option-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.option-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            
-            const type = this.dataset.type;
-            state.person.type = type;
-            state.person.id = null;
-            state.person.name = null;
-            
-            if (type === 'associate') {
-                document.getElementById('associate-section').style.display = 'block';
-                document.getElementById('non-associate-section').style.display = 'none';
-            } else {
-                document.getElementById('associate-section').style.display = 'none';
-                document.getElementById('non-associate-section').style.display = 'block';
-            }
-            
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
+    function showProductInfo(product) {
+        document.getElementById('product-info').innerHTML = `
+            <div class="info-card">
+                <div class="info-row">
+                    <span class="info-label">Já Entregue</span>
+                    <span class="info-value success">${formatNum(product.delivered_quantity)} ${product.product_unit}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ainda Falta</span>
+                    <span class="info-value warning">${formatNum(product.remaining_quantity)} ${product.product_unit}</span>
+                </div>
+            </div>
+        `;
+        document.getElementById('quantity-hint').textContent = 'Unidade: ' + product.product_unit;
+    }
     
-    // Associate selection
+    // Associate Selection
     document.getElementById('associate-select-box')?.addEventListener('click', () => {
         associateModal.classList.add('active');
     });
@@ -869,8 +884,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const id = this.dataset.id;
             const name = this.querySelector('.item-name').textContent;
             
-            state.person.id = id;
-            state.person.name = name;
+            state.associate = { id, name };
             document.getElementById('associate_id').value = id;
             
             const box = document.getElementById('associate-select-box');
@@ -879,77 +893,104 @@ document.addEventListener('DOMContentLoaded', function() {
             box.querySelector('.select-box-value').textContent = name;
             
             associateModal.classList.remove('active');
+            
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
     });
     
-    // Form submit
+    // Quality Badges
+    document.querySelectorAll('.quality-badge').forEach(badge => {
+        badge.addEventListener('click', function() {
+            document.querySelectorAll('.quality-badge').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('quality_grade').value = this.dataset.grade;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        });
+    });
+    
+    // Quantity Change
+    document.getElementById('quantity')?.addEventListener('input', function() {
+        if (state.product && this.value) {
+            const qty = parseFloat(this.value) || 0;
+            const gross = qty * state.product.unit_price;
+            const net = gross * 0.9;
+            
+            document.getElementById('value-info').innerHTML = `
+                <div class="info-card">
+                    <div class="info-row">
+                        <span class="info-label">Valor Líquido</span>
+                        <span class="info-value success">R$ ${formatMoney(net)}</span>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    // Form Submit
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const btn = document.getElementById('submit-btn');
         btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader"></i> Criando...';
+        btn.innerHTML = '<i data-lucide="loader"></i> Salvando...';
         if (typeof lucide !== 'undefined') lucide.createIcons();
         
-        const formData = {
-            service_id: state.service.id,
-            scheduled_date: document.getElementById('scheduled_date').value,
-            location: document.getElementById('location').value,
-            asset_id: document.getElementById('asset_id').value || null,
-            notes: document.getElementById('notes').value || null
-        };
-        
-        if (state.person.type === 'associate') {
-            formData.associate_id = state.person.id;
-        } else {
-            formData.non_associate_name = state.nonAssociate.name;
-            formData.non_associate_doc = state.nonAssociate.doc;
-            formData.non_associate_phone = state.nonAssociate.phone;
-        }
+        const data = Object.fromEntries(new FormData(form));
         
         try {
-            const res = await fetch('{{ route("provider.orders.store") }}', {
+            const res = await fetch('/delivery/register', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('[name="_token"]').value,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(data)
             });
             
             const result = await res.json();
             
-            if (result.success || res.ok) {
-                showAlert('Ordem criada com sucesso!', 'success');
-                setTimeout(() => window.location.href = '{{ route("provider.orders") }}', 1500);
+            if (result.success) {
+                showAlert(result.message, 'success');
+                
+                // Reset mantendo projeto
+                const projectId = state.project.id;
+                const projectName = state.project.name;
+                
+                form.reset();
+                state = { project: { id: projectId, name: projectName }, product: null, associate: null };
+                
+                document.getElementById('project_id').value = projectId;
+                document.getElementById('product-select-box').classList.remove('selected');
+                document.getElementById('associate-select-box').classList.remove('selected');
+                
+                loadProducts(projectId);
+                showStep(1);
             } else {
-                showAlert(result.message || 'Erro ao criar ordem', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="check"></i> Criar Ordem';
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                showAlert(result.message, 'error');
             }
         } catch (e) {
-            showAlert('Erro na conexão: ' + e.message, 'error');
+            showAlert('Erro ao salvar', 'error');
+        } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="check"></i> Criar Ordem';
+            btn.innerHTML = '<i data-lucide="check"></i> Finalizar';
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     });
     
+    // Update Summary
     function updateSummary() {
-        if (state.service) {
-            const text = state.service.name;
-            document.getElementById('summary-service').querySelector('.summary-text').textContent = text;
-            document.getElementById('summary-service-2').querySelector('.summary-text').textContent = text;
+        if (state.product) {
+            const text = state.product.product_name;
+            document.getElementById('summary-product').querySelector('.summary-text').textContent = text;
+            document.getElementById('summary-product-2').querySelector('.summary-text').textContent = text;
         }
-        if (state.person.name) {
-            const type = state.person.type === 'associate' ? 'Associado' : 'Avulso';
-            document.getElementById('summary-person').querySelector('.summary-text').textContent = `${state.person.name} (${type})`;
+        if (state.associate) {
+            document.getElementById('summary-associate').querySelector('.summary-text').textContent = state.associate.name;
         }
     }
     
+    // Helpers
     function showAlert(msg, type) {
         const container = document.getElementById('alert-container');
         container.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}</div>`;
@@ -957,6 +998,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => container.innerHTML = '', 4000);
     }
     
+    function formatNum(n) { return parseFloat(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 }); }
     function formatMoney(n) { return parseFloat(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 });
 </script>

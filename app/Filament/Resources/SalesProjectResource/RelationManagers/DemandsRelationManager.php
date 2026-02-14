@@ -213,6 +213,20 @@ class DemandsRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->label('Nova Demanda')
                     ->icon('heroicon-o-plus')
+                    ->before(function (array $data) {
+                        $productId = $data['product_id'] ?? null;
+                        if (! $productId) return;
+
+                        $exists = \App\Models\ProjectDemand::where('sales_project_id', $this->ownerRecord->id)
+                            ->where('product_id', $productId)
+                            ->exists();
+
+                        if ($exists) {
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'product_id' => 'Este produto já foi adicionado a este projeto.'
+                            ]);
+                        }
+                    })
                     ->successNotificationTitle('Demanda adicionada com sucesso!')
                     ->after(function () {
                         // Recalcular total do projeto

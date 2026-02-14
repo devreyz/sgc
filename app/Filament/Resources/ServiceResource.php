@@ -54,11 +54,26 @@ class ServiceResource extends Resource
                             ->default('hora')
                             ->maxLength(20),
 
-                        Forms\Components\TextInput::make('price')
-                            ->label('Preço')
+                        Forms\Components\TextInput::make('base_price')
+                            ->label('Preço Base')
+                            ->helperText('Preço padrão do serviço')
                             ->numeric()
                             ->prefix('R$')
                             ->required(),
+                        
+                        Forms\Components\TextInput::make('associate_price')
+                            ->label('Preço Associado')
+                            ->helperText('Preço especial para associados')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->nullable(),
+                        
+                        Forms\Components\TextInput::make('non_associate_price')
+                            ->label('Preço Não-Associado')
+                            ->helperText('Preço para pessoas avulsas')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->nullable(),
 
                         Forms\Components\Toggle::make('status')
                             ->label('Ativo')
@@ -96,10 +111,22 @@ class ServiceResource extends Resource
                     ->label('Unidade')
                     ->badge(),
 
-                Tables\Columns\TextColumn::make('price')
-                    ->label('Preço')
+                Tables\Columns\TextColumn::make('base_price')
+                    ->label('Preço Base')
                     ->money('BRL')
                     ->sortable(),
+                
+                Tables\Columns\TextColumn::make('associate_price')
+                    ->label('Associado')
+                    ->money('BRL')
+                    ->sortable()
+                    ->toggleable(),
+                
+                Tables\Columns\TextColumn::make('non_associate_price')
+                    ->label('Avulso')
+                    ->money('BRL')
+                    ->sortable()
+                    ->toggleable(),
 
                 Tables\Columns\IconColumn::make('status')
                     ->label('Ativo')

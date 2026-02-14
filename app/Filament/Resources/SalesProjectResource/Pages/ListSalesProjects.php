@@ -27,7 +27,7 @@ class ListSalesProjects extends ListRecords
             'active' => Tab::make('Em Andamento')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ProjectStatus::ACTIVE)),
             'planning' => Tab::make('Planejamento')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ProjectStatus::PLANNING)),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ProjectStatus::DRAFT)),
             'completed' => Tab::make('Concluídos')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ProjectStatus::COMPLETED)),
         ];

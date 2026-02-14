@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -20,6 +21,7 @@ class ServiceProvider extends Model
         'phone',
         'email',
         'type',
+        'provider_roles',
         'address',
         'city',
         'state',
@@ -41,12 +43,28 @@ class ServiceProvider extends Model
             'hourly_rate' => 'decimal:2',
             'daily_rate' => 'decimal:2',
             'status' => 'boolean',
+            'provider_roles' => 'array',
         ];
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function services(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'service_provider_services')
+            ->withPivot(['provider_hourly_rate', 'provider_daily_rate', 'provider_unit_rate', 'status', 'notes'])
+            ->withTimestamps()
+            ->wherePivot('status', true);
+    }
+
+    public function allServices(): BelongsToMany
+    {
+        return $this->belongsToMany(Service::class, 'service_provider_services')
+            ->withPivot(['provider_hourly_rate', 'provider_daily_rate', 'provider_unit_rate', 'status', 'notes'])
+            ->withTimestamps();
     }
 
     public function works(): HasMany
@@ -95,5 +113,50 @@ class ServiceProvider extends Model
     public function scopeActive($query)
     {
         return $query->where('status', true);
+    }
+
+    /**
+     * Sync provider roles with user roles
+     */
+    public function syncRolesToUser(): void
+    {
+        if (!$this->user) {
+            return;
+        }
+
+        // Lista de roles que são específicos de prestadores de serviço
+        $providerRoles = $this->provider_roles ?? [];
+        
+        // Sempre mantém o role genérico 'service_provider'
+        if (!in_array('service_provider', $providerRoles)) {
+            $providerRoles[] = 'service_provider';
+        }
+
+        // Sincroniza apenas os roles de prestador (não mexe nos outros roles como admin)
+        $currentRoles = $this->user->roles()->pluck('name')->toArray();
+        $systemRoles = ['super_admin', 'admin', 'financeiro', 'associado'];
+        
+        // Mantém roles de sistema
+        $rolesToKeep = array_intersect($currentRoles, $systemRoles);
+        
+        // Adiciona os roles de prestador
+        $finalRoles = array_unique(array_merge($rolesToKeep, $providerRoles));
+        
+        // Sincroniza
+        $this->user->syncRoles($finalRoles);
+    }
+
+    /**
+     * Get available provider role options
+     */
+    public static function getAvailableRoles(): array
+    {
+        return [
+            'tratorista' => 'Tratorista',
+            'motorista' => 'Motorista',
+            'diarista' => 'Diarista',
+            'tecnico' => 'Técnico',
+            'registrador_entregas' => 'Registrador de Entregas',
+        ];
     }
 }

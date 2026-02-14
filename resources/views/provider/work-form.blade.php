@@ -25,17 +25,17 @@
         <div style="display: flex; flex-direction: column; gap: 1rem;">
             <div>
                 <div class="text-xs text-muted">Projeto</div>
-                <div class="font-semibold">{{ $order->project->title }}</div>
+                <div class="font-semibold">{{ optional($order->project)->title ?? '-' }}</div>
             </div>
 
             <div>
                 <div class="text-xs text-muted">Cliente</div>
-                <div class="font-semibold">{{ $order->project->customer->name ?? '-' }}</div>
+                <div class="font-semibold">{{ optional(optional($order->project)->customer)->name ?? '-' }}</div>
             </div>
 
             <div>
                 <div class="text-xs text-muted">Associado</div>
-                <div class="font-semibold">{{ $order->associate->name ?? '-' }}</div>
+                <div class="font-semibold">{{ optional($order->associate)->name ?? '-' }}</div>
             </div>
 
             <div>

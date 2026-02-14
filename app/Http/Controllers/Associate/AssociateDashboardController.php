@@ -35,10 +35,10 @@ class AssociateDashboardController extends Controller
         }
 
         $stats = [
-            'active_projects' => SalesProject::whereHas('deliveries', function ($q) use ($associate) {
-                $q->where('associate_id', $associate->id);
-            })
-                ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            'active_projects' => SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+                ->count(),
+            'my_deliveries' => ProductionDelivery::where('associate_id', $associate->id)
+                ->where('status', DeliveryStatus::APPROVED->value)
                 ->count(),
             'pending_deliveries' => ProductionDelivery::where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::PENDING->value)
@@ -47,13 +47,27 @@ class AssociateDashboardController extends Controller
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->whereMonth('delivery_date', now()->month)
                 ->sum('quantity'),
+            'earnings_this_month' => ProductionDelivery::where('associate_id', $associate->id)
+                ->where('status', DeliveryStatus::APPROVED->value)
+                ->whereMonth('delivery_date', now()->month)
+                ->sum('net_value'),
+            'unpaid_earnings' => ProductionDelivery::where('associate_id', $associate->id)
+                ->where('status', DeliveryStatus::APPROVED->value)
+                ->where('paid', false)
+                ->sum('net_value'),
             'current_balance' => $associate->current_balance ?? 0,
         ];
 
-        $recentProjects = SalesProject::whereHas('deliveries', function ($q) use ($associate) {
-            $q->where('associate_id', $associate->id);
-        })
-            ->with(['customer', 'product'])
+        // Mostrar TODOS os projetos ativos, não apenas os que ele já entregou
+        $recentProjects = SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            ->with([
+                'customer',
+                'demands.product',
+                'deliveries' => function ($q) use ($associate) {
+                    $q->where('associate_id', $associate->id)
+                      ->with('projectDemand.product');
+                }
+            ])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
@@ -79,10 +93,16 @@ class AssociateDashboardController extends Controller
                 ->with('error', 'Perfil de associado não encontrado.');
         }
 
-        $query = SalesProject::whereHas('deliveries', function ($q) use ($associate) {
-            $q->where('associate_id', $associate->id);
-        })
-            ->with(['customer', 'product']);
+        // Mostrar TODOS os projetos ativos para o associado poder ver o que precisa entregar
+        $query = SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            ->with([
+                'customer',
+                'demands.product',
+                'deliveries' => function ($q) use ($associate) {
+                    $q->where('associate_id', $associate->id)
+                      ->with('projectDemand.product');
+                }
+            ]);
 
         // Filter by status
         if ($request->status) {
@@ -102,11 +122,18 @@ class AssociateDashboardController extends Controller
         $user = Auth::user();
         $associate = Associate::where('user_id', $user->id)->first();
 
+        // Carregar QUALQUER projeto ativo, não apenas os que ele já entregou
         $project = SalesProject::where('id', $id)
-            ->whereHas('deliveries', function ($q) use ($associate) {
-                $q->where('associate_id', $associate->id);
-            })
-            ->with(['customer', 'product', 'deliveries', 'payments'])
+            ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            ->with([
+                'customer',
+                'demands.product',
+                'deliveries' => function ($q) use ($associate) {
+                    $q->where('associate_id', $associate->id)
+                      ->with('projectDemand.product');
+                },
+                'payments'
+            ])
             ->firstOrFail();
 
         return view('associate.project-details', compact('associate', 'project'));
@@ -121,7 +148,7 @@ class AssociateDashboardController extends Controller
         $associate = Associate::where('user_id', $user->id)->first();
 
         $query = ProductionDelivery::where('associate_id', $associate->id)
-            ->with(['project.customer', 'project.product']);
+            ->with(['salesProject.customer', 'product']);
 
         // Filter by status
         if ($request->status) {

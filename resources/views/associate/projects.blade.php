@@ -59,27 +59,50 @@
                             <div class="text-sm font-semibold">{{ $project->customer->name ?? '-' }}</div>
                         </div>
 
+                        @if($project->demands && $project->demands->count() > 0)
                         <div>
-                            <div class="text-xs text-muted">Produto</div>
-                            <div class="text-sm">{{ $project->product->name ?? '-' }}</div>
+                            <div class="text-xs text-muted">Produtos</div>
+                            @foreach($project->demands as $demand)
+                            <div class="text-sm" style="display: flex; justify-content: space-between; padding: 0.25rem 0;">
+                                <span>{{ $demand->product->name ?? '-' }}</span>
+                                <span class="font-semibold">{{ rtrim(rtrim(number_format($demand->target_quantity, 3, ',', '.'), '0'), ',') }} {{ $demand->product->unit ?? '' }}</span>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
+
+                        @php
+                            $totalTarget = $project->demands->sum('target_quantity');
+                            $myDeliveries = $project->deliveries->where('associate_id', auth()->user()->associate->id);
+                            $totalDelivered = $myDeliveries->sum('quantity');
+                            $progress = $totalTarget > 0 ? ($totalDelivered / $totalTarget) * 100 : 0;
+                        @endphp
+
+                        <div>
+                            <div class="text-xs text-muted mb-2">Meu Progresso</div>
+                            <div style="height: 8px; background: var(--color-bg); border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem;">
+                                <div style="height: 100%; background: var(--color-success); width: {{ min($progress, 100) }}%;"></div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.75rem;">
+                                <div>
+                                    <span class="text-muted">Entregue:</span>
+                                    <span class="font-semibold text-success">{{ rtrim(rtrim(number_format($totalDelivered, 3, ',', '.'), '0'), ',') }}</span>
+                                </div>
+                                <div>
+                                    <span class="text-muted">Meta:</span>
+                                    <span class="font-semibold">{{ rtrim(rtrim(number_format($totalTarget, 3, ',', '.'), '0'), ',') }}</span>
+                                </div>
+                            </div>
                         </div>
 
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                            <div>
-                                <div class="text-xs text-muted">Quantidade</div>
-                                <div class="text-sm font-semibold">{{ $project->quantity ?? 0 }}</div>
-                            </div>
-
-                            <div>
-                                <div class="text-xs text-muted">Entregue</div>
-                                <div class="text-sm font-semibold text-success">{{ $project->delivered_quantity ?? 0 }}</div>
-                            </div>
-                        </div>
-
-                        @if($project->total_value)
+                        @php
+                            $myEarnings = $myDeliveries->sum('total_value');
+                        @endphp
+                        
+                        @if($myEarnings > 0)
                         <div>
-                            <div class="text-xs text-muted">Valor Total</div>
-                            <div class="text-sm font-bold text-primary">R$ {{ number_format($project->total_value, 2, ',', '.') }}</div>
+                            <div class="text-xs text-muted">Meu Valor a Receber</div>
+                            <div class="text-sm font-bold text-primary">R$ {{ number_format($myEarnings, 2, ',', '.') }}</div>
                         </div>
                         @endif
                     </div>

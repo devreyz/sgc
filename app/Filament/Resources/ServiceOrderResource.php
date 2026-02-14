@@ -246,15 +246,15 @@ class ServiceOrderResource extends Resource
                 Tables\Columns\TextColumn::make('associate_payment_status')
                     ->label('Pgto Associado')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => ServiceOrderPaymentStatus::tryFrom($state)?->getLabel() ?? 'N/A')
-                    ->color(fn ($state): string => ServiceOrderPaymentStatus::tryFrom($state)?->getColor() ?? 'gray')
+                    ->formatStateUsing(fn ($state): string => $state?->getLabel() ?? 'N/A')
+                    ->color(fn ($state): string => $state?->getColor() ?? 'gray')
                     ->tooltip(fn ($record): string => $record->associate_paid_at ? 'Pago em ' . $record->associate_paid_at->format('d/m/Y') : 'Pendente'),
 
                 Tables\Columns\TextColumn::make('provider_payment_status')
                     ->label('Pgto Prestador')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => ServiceOrderPaymentStatus::tryFrom($state)?->getLabel() ?? 'N/A')
-                    ->color(fn ($state): string => ServiceOrderPaymentStatus::tryFrom($state)?->getColor() ?? 'gray')
+                    ->formatStateUsing(fn ($state): string => $state?->getLabel() ?? 'N/A')
+                    ->color(fn ($state): string => $state?->getColor() ?? 'gray')
                     ->tooltip(fn ($record): string => $record->provider_paid_at ? 'Pago em ' . $record->provider_paid_at->format('d/m/Y') : 'Pendente'),
 
                 Tables\Columns\TextColumn::make('status')
@@ -556,8 +556,10 @@ class ServiceOrderResource extends Resource
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
-                        ->visible(function ($records): bool {
-                            return $records->every(function ($record) {
+                        ->visible(function ($records = null): bool {
+                            if (is_null($records)) return false;
+                            $collection = $records instanceof \Illuminate\Support\Collection ? $records : collect($records);
+                            return $collection->every(function ($record) {
                                 return $record->status === ServiceOrderStatus::COMPLETED &&
                                     $record->associate_payment_status === 'paid' &&
                                     $record->provider_payment_status === 'pending' &&

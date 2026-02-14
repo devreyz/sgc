@@ -8,12 +8,14 @@ use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\PurchaseOrder;
 use App\Models\ServiceOrder;
+use App\Models\ServiceProvider as ServiceProviderModel;
 use App\Observers\AssociateLedgerObserver;
 use App\Observers\ExpenseObserver;
 use App\Observers\ProductionDeliveryObserver;
 use App\Observers\ProductObserver;
 use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
+use App\Observers\ServiceProviderObserver;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
@@ -47,5 +49,6 @@ class AppServiceProvider extends ServiceProvider
         Expense::observe(ExpenseObserver::class);
         Product::observe(ProductObserver::class);
         AssociateLedger::observe(AssociateLedgerObserver::class);
+        ServiceProviderModel::observe(ServiceProviderObserver::class);
     }
 }

@@ -2,18 +2,18 @@
 
 namespace App\Filament\Resources\SalesProjectResource\Pages;
 
-use App\Filament\Resources\SalesProjectResource;
-use App\Enums\ProjectStatus;
 use App\Enums\DeliveryStatus;
+use App\Enums\ProjectStatus;
+use App\Filament\Resources\SalesProjectResource;
 use App\Models\SalesProject;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
+use Filament\Forms;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
-use Filament\Resources\Pages\ViewRecord;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Response;
-use Filament\Forms;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\Response;
 
 class ViewSalesProject extends ViewRecord
 {
@@ -42,7 +42,7 @@ class ViewSalesProject extends ViewRecord
                 ->action(function (SalesProject $record, array $data) {
                     // Verificar entregas pendentes
                     $pendingCount = $record->deliveries()->where('status', DeliveryStatus::PENDING)->count();
-                    
+
                     if ($pendingCount > 0) {
                         Notification::make()
                             ->warning()
@@ -50,6 +50,7 @@ class ViewSalesProject extends ViewRecord
                             ->body("Existem {$pendingCount} entrega(s) pendente(s). Aprove ou rejeite antes de finalizar.")
                             ->persistent()
                             ->send();
+
                         return;
                     }
 
@@ -73,8 +74,7 @@ class ViewSalesProject extends ViewRecord
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
-                ->visible(fn (SalesProject $record): bool => 
-                    $record->status === ProjectStatus::ACTIVE
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::ACTIVE
                 ),
 
             Actions\Action::make('reopen')
@@ -98,8 +98,7 @@ class ViewSalesProject extends ViewRecord
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
-                ->visible(fn (SalesProject $record): bool => 
-                    $record->status === ProjectStatus::COMPLETED
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED
                 ),
 
             Actions\Action::make('finalReport')
@@ -107,8 +106,7 @@ class ViewSalesProject extends ViewRecord
                 ->icon('heroicon-o-document-chart-bar')
                 ->color('gray')
                 ->action(fn (SalesProject $record) => $this->generateFinalReport($record))
-                ->visible(fn (SalesProject $record): bool => 
-                    $record->status === ProjectStatus::COMPLETED
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED
                 ),
 
             Actions\Action::make('generateFolhaCampo')
@@ -118,7 +116,7 @@ class ViewSalesProject extends ViewRecord
                 ->action(function (SalesProject $record) {
                     $demands = $record->demands()->with('product')->get();
                     $associates = \App\Models\Associate::with('user')->get();
-                    
+
                     $pdf = Pdf::loadView('pdf.folha-campo', [
                         'project' => $record,
                         'demands' => $demands,
@@ -128,7 +126,7 @@ class ViewSalesProject extends ViewRecord
 
                     return Response::streamDownload(function () use ($pdf) {
                         echo $pdf->output();
-                    }, 'folha-campo-' . $record->id . '.pdf');
+                    }, 'folha-campo-'.$record->id.'.pdf');
                 }),
 
             Actions\Action::make('exportDeliveries')
@@ -165,16 +163,15 @@ class ViewSalesProject extends ViewRecord
                     if ($data['format'] === 'pdf') {
                         return $this->exportDeliveriesPdf($record, $data['columns']);
                     }
-                    
+
                     return \Maatwebsite\Excel\Facades\Excel::download(
                         new \App\Exports\DeliveriesExport($data['columns'], $record->id),
-                        'entregas-projeto-' . $record->id . '.xlsx'
+                        'entregas-projeto-'.$record->id.'.xlsx'
                     );
                 }),
 
             Actions\EditAction::make()
-                ->visible(fn (SalesProject $record): bool => 
-                    $record->status !== ProjectStatus::COMPLETED
+                ->visible(fn (SalesProject $record): bool => $record->status !== ProjectStatus::COMPLETED
                 ),
         ];
     }
@@ -190,7 +187,7 @@ class ViewSalesProject extends ViewRecord
         // Agrupar entregas por associado
         $deliveriesByAssociate = $record->deliveries->groupBy('associate_id');
         $associateSummary = [];
-        
+
         foreach ($deliveriesByAssociate as $associateId => $deliveries) {
             $associate = $deliveries->first()->associate;
             $associateSummary[] = [
@@ -233,7 +230,7 @@ class ViewSalesProject extends ViewRecord
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, 'relatorio-final-projeto-' . $record->id . '.pdf');
+        }, 'relatorio-final-projeto-'.$record->id.'.pdf');
     }
 
     protected function exportDeliveriesPdf(SalesProject $record, array $columns)
@@ -246,7 +243,7 @@ class ViewSalesProject extends ViewRecord
         $pdf = Pdf::loadView('pdf.deliveries-report', [
             'deliveries' => $deliveries,
             'columns' => $columns,
-            'title' => 'Entregas - ' . $record->title,
+            'title' => 'Entregas - '.$record->title,
             'generated_at' => now()->format('d/m/Y H:i'),
             'totals' => [
                 'gross' => $deliveries->sum('gross_value'),
@@ -258,7 +255,7 @@ class ViewSalesProject extends ViewRecord
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, 'entregas-projeto-' . $record->id . '.pdf');
+        }, 'entregas-projeto-'.$record->id.'.pdf');
     }
 
     public function infolist(Infolist $infolist): Infolist
@@ -279,7 +276,7 @@ class ViewSalesProject extends ViewRecord
                                     ->badge()
                                     ->size('lg'),
                             ]),
-                        
+
                         Infolists\Components\Grid::make(4)
                             ->schema([
                                 Infolists\Components\TextEntry::make('type')
@@ -296,7 +293,7 @@ class ViewSalesProject extends ViewRecord
                                     ->label('Ano')
                                     ->icon('heroicon-o-calendar'),
                             ]),
-                        
+
                         Infolists\Components\Grid::make(4)
                             ->schema([
                                 Infolists\Components\TextEntry::make('start_date')
@@ -326,69 +323,63 @@ class ViewSalesProject extends ViewRecord
                             ->schema([
                                 Infolists\Components\TextEntry::make('progress_percentage')
                                     ->label('Progresso Geral')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        number_format($record->progress_percentage, 1, ',', '.') . '%'
+                                    ->formatStateUsing(fn (SalesProject $record): string => number_format($record->progress_percentage, 1, ',', '.').'%'
                                     )
                                     ->badge()
                                     ->size('xl')
-                                    ->color(fn (SalesProject $record): string => 
-                                        $record->progress_percentage >= 100 ? 'success' : 
+                                    ->color(fn (SalesProject $record): string => $record->progress_percentage >= 100 ? 'success' :
                                         ($record->progress_percentage >= 50 ? 'warning' : 'danger')
                                     ),
-                                    
+
                                 Infolists\Components\TextEntry::make('total_delivered_value')
                                     ->label('Valor Entregue')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        'R$ ' . number_format($record->total_delivered_value, 2, ',', '.')
+                                    ->formatStateUsing(fn (SalesProject $record): string => 'R$ '.number_format($record->total_delivered_value, 2, ',', '.')
                                     )
                                     ->icon('heroicon-o-arrow-up-circle')
                                     ->color('success')
                                     ->size('lg')
                                     ->weight('bold'),
-                                    
+
                                 Infolists\Components\TextEntry::make('total_admin_fees')
                                     ->label('Total Retido (Taxa Admin)')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        'R$ ' . number_format($record->total_admin_fees, 2, ',', '.')
+                                    ->formatStateUsing(fn (SalesProject $record): string => 'R$ '.number_format($record->total_admin_fees, 2, ',', '.')
                                     )
                                     ->icon('heroicon-o-building-library')
                                     ->color('info')
                                     ->size('lg')
                                     ->weight('bold'),
-                                    
+
                                 Infolists\Components\TextEntry::make('total_net_to_associates')
                                     ->label('Total Líquido (Produtores)')
                                     ->formatStateUsing(function (SalesProject $record): string {
                                         $netTotal = $record->deliveries()->where('status', 'approved')->sum('net_value');
-                                        return 'R$ ' . number_format($netTotal, 2, ',', '.');
+
+                                        return 'R$ '.number_format($netTotal, 2, ',', '.');
                                     })
                                     ->icon('heroicon-o-users')
                                     ->color('success')
                                     ->size('lg')
                                     ->weight('bold'),
                             ]),
-                            
+
                         Infolists\Components\Grid::make(3)
                             ->schema([
                                 Infolists\Components\TextEntry::make('demands_count')
                                     ->label('Demandas Cadastradas')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        $record->demands()->count() . ' produto(s)'
+                                    ->formatStateUsing(fn (SalesProject $record): string => $record->demands()->count().' produto(s)'
                                     )
                                     ->icon('heroicon-o-clipboard-document-list'),
-                                    
+
                                 Infolists\Components\TextEntry::make('deliveries_approved_count')
                                     ->label('Entregas Aprovadas')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        $record->deliveries()->where('status', 'approved')->count() . ' entrega(s)'
+                                    ->formatStateUsing(fn (SalesProject $record): string => $record->deliveries()->where('status', 'approved')->count().' entrega(s)'
                                     )
                                     ->icon('heroicon-o-check-circle')
                                     ->color('success'),
-                                    
+
                                 Infolists\Components\TextEntry::make('deliveries_pending_count')
                                     ->label('Entregas Pendentes')
-                                    ->formatStateUsing(fn (SalesProject $record): string => 
-                                        $record->deliveries()->where('status', 'pending')->count() . ' entrega(s)'
+                                    ->formatStateUsing(fn (SalesProject $record): string => $record->deliveries()->where('status', 'pending')->count().' entrega(s)'
                                     )
                                     ->icon('heroicon-o-clock')
                                     ->color('warning'),

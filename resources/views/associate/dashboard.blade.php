@@ -68,8 +68,8 @@
                         <tr>
                             <th>Projeto</th>
                             <th>Cliente</th>
-                            <th>Produto</th>
-                            <th>Quantidade</th>
+                            <th>Produtos</th>
+                            <th>Progresso</th>
                             <th>Status</th>
                             <th>Ações</th>
                         </tr>
@@ -82,8 +82,36 @@
                                 <div class="text-xs text-muted">{{ $project->created_at->format('d/m/Y') }}</div>
                             </td>
                             <td>{{ $project->customer->name ?? '-' }}</td>
-                            <td>{{ $project->product->name ?? '-' }}</td>
-                            <td>{{ $project->quantity ?? 0 }}</td>
+                            <td>
+                                @if($project->demands && $project->demands->count() > 0)
+                                    <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                                        @foreach($project->demands->take(2) as $demand)
+                                            <div class="text-xs">
+                                                {{ $demand->product->name ?? '-' }}
+                                                <span class="text-muted">({{ rtrim(rtrim(number_format($demand->target_quantity, 3, ',', '.'), '0'), ',') }} {{ $demand->product->unit ?? '' }})</span>
+                                            </div>
+                                        @endforeach
+                                        @if($project->demands->count() > 2)
+                                            <div class="text-xs text-muted">+{{ $project->demands->count() - 2 }} produto(s)</div>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+                            <td>
+                                @php
+                                    $totalTarget = $project->demands->sum('target_quantity');
+                                    $totalDelivered = $project->deliveries->where('associate_id', auth()->user()->associate->id)->sum('quantity');
+                                    $progress = $totalTarget > 0 ? ($totalDelivered / $totalTarget) * 100 : 0;
+                                @endphp
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <div style="flex: 1; height: 6px; background: var(--color-bg); border-radius: 999px; overflow: hidden;">
+                                        <div style="height: 100%; background: var(--color-success); width: {{ min($progress, 100) }}%;"></div>
+                                    </div>
+                                    <span class="text-xs font-semibold">{{ number_format(min($progress, 100), 0) }}%</span>
+                                </div>
+                            </td>
                             <td>
                                 <span class="badge badge-{{ $project->status->value === 'completed' ? 'success' : ($project->status->value === 'in_progress' ? 'secondary' : 'warning') }}">
                                     {{ $project->status->getLabel() }}

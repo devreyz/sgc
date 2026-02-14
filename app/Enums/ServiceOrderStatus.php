@@ -10,6 +10,8 @@ enum ServiceOrderStatus: string implements HasLabel, HasColor
     case SCHEDULED = 'scheduled';
     case IN_PROGRESS = 'in_progress';
     case COMPLETED = 'completed';
+    case AWAITING_PAYMENT = 'awaiting_payment';
+    case PAID = 'paid';
     case CANCELLED = 'cancelled';
     case BILLED = 'billed';
 
@@ -19,6 +21,8 @@ enum ServiceOrderStatus: string implements HasLabel, HasColor
             self::SCHEDULED => 'Agendada',
             self::IN_PROGRESS => 'Em Execução',
             self::COMPLETED => 'Concluída',
+            self::AWAITING_PAYMENT => 'Aguardando Pagamento',
+            self::PAID => 'Paga',
             self::CANCELLED => 'Cancelada',
             self::BILLED => 'Faturada',
         };
@@ -30,6 +34,8 @@ enum ServiceOrderStatus: string implements HasLabel, HasColor
             self::SCHEDULED => 'info',
             self::IN_PROGRESS => 'warning',
             self::COMPLETED => 'success',
+            self::AWAITING_PAYMENT => 'warning',
+            self::PAID => 'success',
             self::CANCELLED => 'danger',
             self::BILLED => 'primary',
         };
@@ -41,6 +47,8 @@ enum ServiceOrderStatus: string implements HasLabel, HasColor
             self::SCHEDULED => 'heroicon-o-calendar',
             self::IN_PROGRESS => 'heroicon-o-play',
             self::COMPLETED => 'heroicon-o-check',
+            self::AWAITING_PAYMENT => 'heroicon-o-clock',
+            self::PAID => 'heroicon-o-check-circle',
             self::CANCELLED => 'heroicon-o-x-mark',
             self::BILLED => 'heroicon-o-banknotes',
         };
