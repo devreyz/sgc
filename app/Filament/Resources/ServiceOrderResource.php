@@ -345,7 +345,7 @@ class ServiceOrderResource extends Resource
                             CashMovement::create([
                                 'type' => CashMovementType::INCOME,
                                 'amount' => $data['amount'],
-                                'description' => "Recebimento OS {$record->number}".  
+                                'description' => "Recebimento OS {$record->number}".
                                     ($record->associate ? ' - '.(optional($record->associate->user)->name ?? '') : ' - Avulso'),
                                 'movement_date' => $data['payment_date'],
                                 'bank_account_id' => $data['bank_account_id'],
