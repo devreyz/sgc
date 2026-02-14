@@ -18,6 +18,11 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
         :root {
             --color-primary: #10b981;
             --color-primary-dark: #059669;
@@ -47,13 +52,18 @@
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            width: 100%;
+            max-width: 100vw;
+            overflow-x: hidden;
         }
 
         /* Bento Grid Layout */
         .bento-container {
             padding: 1rem;
             max-width: 1400px;
+            width: 100%;
             margin: 0 auto;
+            overflow-x: hidden;
         }
 
         @media (min-width: 768px) {
@@ -72,6 +82,9 @@
             display: grid;
             gap: 1rem;
             grid-template-columns: repeat(1, 1fr);
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         @media (min-width: 640px) {
@@ -95,6 +108,11 @@
             box-shadow: var(--shadow-sm);
             border: 1px solid var(--color-border);
             transition: all 0.3s ease;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            overflow: hidden;
+            position: relative;
         }
 
         .bento-card:hover {
@@ -102,11 +120,37 @@
             transform: translateY(-2px);
         }
 
+        .bento-card * {
+            max-width: 100%;
+        }
+
+        .bento-card > * {
+            width: 100%;
+        }
+
+        .bento-card .col-span-full {
+            grid-column: 1 / -1;
+        }
+
+        /* Responsive col-span classes */
         .bento-card.col-span-full {
             grid-column: 1 / -1;
         }
 
+        @media (min-width: 768px) {
+            .bento-card.md\\:col-span-3 { grid-column: span 3; }
+            .bento-card.md\\:col-span-4 { grid-column: span 4; }
+            .bento-card.md\\:col-span-6 { grid-column: span 6; }
+            .bento-card.md\\:col-span-8 { grid-column: span 8; }
+        }
+
         @media (min-width: 1024px) {
+            .bento-card.lg\\:col-span-3 { grid-column: span 3; }
+            .bento-card.lg\\:col-span-4 { grid-column: span 4; }
+            .bento-card.lg\\:col-span-6 { grid-column: span 6; }
+            .bento-card.lg\\:col-span-8 { grid-column: span 8; }
+            .bento-card.lg\\:col-span-9 { grid-column: span 9; }
+            
             .bento-card.col-span-3 { grid-column: span 3; }
             .bento-card.col-span-4 { grid-column: span 4; }
             .bento-card.col-span-6 { grid-column: span 6; }
@@ -296,12 +340,15 @@
 
         /* Table */
         .table-container {
+            width: 100%;
+            max-width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
 
         .table {
             width: 100%;
+            min-width: 600px;
             border-collapse: collapse;
         }
 
@@ -405,6 +452,7 @@
         /* Responsive Tables */
         .table-container {
             width: 100%;
+            max-width: 100%;
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             border-radius: var(--radius-md);
@@ -413,6 +461,7 @@
 
         .table {
             width: 100%;
+            min-width: 600px;
             border-collapse: collapse;
             font-size: 0.875rem;
         }
@@ -549,6 +598,9 @@
             lucide.createIcons();
         }
     </script>
+
+    <!-- Image Compressor -->
+    <script src="{{ asset('js/image-compressor.js') }}"></script>
 
     @stack('scripts')
 </body>

@@ -87,6 +87,39 @@ class ServiceProvider extends Model
         return $this->ledgers()->latest('transaction_date')->latest('id')->value('balance_after') ?? 0;
     }
 
+    /**
+     * Calcula o total pendente de recebimento (ordens concluídas mas não pagas)
+     */
+    public function getPendingReceivableAttribute(): float
+    {
+        return (float) \App\Models\ServiceOrder::where('service_provider_id', $this->id)
+            ->whereIn('status', [
+                \App\Enums\ServiceOrderStatus::AWAITING_PAYMENT,
+                \App\Enums\ServiceOrderStatus::COMPLETED,
+            ])
+            ->get()
+            ->sum('provider_remaining');
+    }
+
+    /**
+     * Calcula saldo compartilhado quando usuário é associado e prestador
+     * Por enquanto, o saldo é baseado apenas nos recebíveis como prestador
+     * No futuro, pode incluir débitos de serviços solicitados como associado
+     */
+    public function getSharedWalletBalanceAttribute(): float
+    {
+        $balance = $this->pending_receivable;
+
+        // Se usuário também é associado, pode ajustar saldo com débitos pendentes
+        // (Por enquanto, mantém apenas recebíveis de prestação de serviço)
+        if ($this->user && $this->user->associate) {
+            // Futura lógica para debitar serviços solicitados como associado
+            // $balance -= $this->user->associate->pending_payments;
+        }
+
+        return $balance;
+    }
+
     public function getTotalPendingAttribute(): float
     {
         return $this->pendingWorks()->sum('total_value');

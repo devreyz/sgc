@@ -101,27 +101,14 @@ class ServiceOrder extends Model
 
         static::creating(function ($model) {
             if (empty($model->number)) {
-                $model->number = 'OS-'.date('Y').'-'.str_pad(
-                    static::whereYear('created_at', date('Y'))->count() + 1,
-                    5,
-                    '0',
-                    STR_PAD_LEFT
-                );
-            }
-        });
-        
-        static::saving(function ($model) {
-            // Garantir que total_price exista antes do insert (DB exige valor)
-            // total_price = quantity * unit_price
-            if (isset($model->quantity) && isset($model->unit_price)) {
-                $model->total_price = $model->quantity * $model->unit_price;
+                $lastOrder = static::withTrashed()->latest('id')->first();
+                $nextNum = $lastOrder ? (intval(preg_replace('/\D/', '', $lastOrder->number)) + 1) : 1;
+                $model->number = 'OS' . str_pad($nextNum, 6, '0', STR_PAD_LEFT);
             }
 
-            // final_price pode já vir calculado pela UI, senão aplicar desconto
-            if (! isset($model->final_price)) {
-                $discount = $model->discount ?? 0;
-                $model->final_price = ($model->total_price ?? 0) - $discount;
-            }
+            // Defaults para campos obrigatórios no DB
+            $model->total_price = $model->total_price ?? 0;
+            $model->final_price = $model->final_price ?? 0;
         });
     }
 
@@ -205,28 +192,77 @@ class ServiceOrder extends Model
         return $this->hasMany(ServiceOrderPayment::class);
     }
 
+    public function clientPayments(): HasMany
+    {
+        return $this->hasMany(ServiceOrderPayment::class)->where('type', 'client');
+    }
+
+    public function providerPayments(): HasMany
+    {
+        return $this->hasMany(ServiceOrderPayment::class)->where('type', 'provider');
+    }
+
+    public function getTotalClientPaidAttribute(): float
+    {
+        return (float) $this->clientPayments()
+            ->where('status', \App\Enums\ServiceOrderPaymentStatus::BILLED)
+            ->sum('amount');
+    }
+
+    public function getTotalProviderPaidAttribute(): float
+    {
+        return (float) $this->providerPayments()
+            ->where('status', \App\Enums\ServiceOrderPaymentStatus::BILLED)
+            ->sum('amount');
+    }
+
+    public function getClientRemainingAttribute(): float
+    {
+        return max(0, (float)($this->final_price ?? 0) - $this->total_client_paid);
+    }
+
+    public function getProviderRemainingAttribute(): float
+    {
+        return max(0, (float)($this->provider_payment ?? 0) - $this->total_provider_paid);
+    }
+
+    public function isClientFullyPaid(): bool
+    {
+        return $this->total_client_paid >= (float)($this->final_price ?? 0) && (float)($this->final_price ?? 0) > 0;
+    }
+
+    public function isProviderFullyPaid(): bool
+    {
+        return $this->total_provider_paid >= (float)($this->provider_payment ?? 0) && (float)($this->provider_payment ?? 0) > 0;
+    }
+
+    public function getCooperativeProfitAttribute(): float
+    {
+        return (float)($this->final_price ?? 0) - (float)($this->provider_payment ?? 0);
+    }
+
     /**
-     * Get the total amount paid.
+     * @deprecated Use total_client_paid instead
      */
     public function getTotalPaidAttribute(): float
     {
-        return $this->payments()->sum('amount');
+        return (float) $this->payments()->sum('amount');
     }
 
     /**
-     * Get the remaining amount to be paid.
+     * @deprecated Use client_remaining instead
      */
     public function getRemainingAmountAttribute(): float
     {
-        return max(0, $this->final_price - $this->getTotalPaidAttribute());
+        return max(0, (float)($this->final_price ?? 0) - $this->total_paid);
     }
 
     /**
-     * Check if order is fully paid.
+     * @deprecated Use isClientFullyPaid() instead
      */
     public function isFullyPaid(): bool
     {
-        return $this->getTotalPaidAttribute() >= $this->final_price;
+        return $this->total_paid >= (float)($this->final_price ?? 0);
     }
 
     /**

@@ -56,20 +56,17 @@ Route::get('/qrcode/{hash}', [DocumentVerificationController::class, 'qrcode'])-
 // Service Provider Portal Routes
 Route::prefix('provider')->name('provider.')->middleware(['auth', 'any.role:service_provider,tratorista,motorista,diarista,tecnico'])->group(function () {
     Route::get('/dashboard', [ProviderDashboardController::class, 'index'])->name('dashboard');
-
-    // Service Orders - Provider can create and manage
     Route::get('/orders', [ProviderDashboardController::class, 'orders'])->name('orders');
     Route::get('/orders/create', [ProviderDashboardController::class, 'createOrder'])->name('orders.create');
     Route::post('/orders', [ProviderDashboardController::class, 'storeOrder'])->name('orders.store');
     Route::get('/orders/{order}', [ProviderDashboardController::class, 'showOrder'])->name('orders.show');
-    Route::get('/orders/{order}/edit', [ProviderDashboardController::class, 'editOrder'])->name('orders.edit');
-    Route::put('/orders/{order}', [ProviderDashboardController::class, 'updateOrder'])->name('orders.update');
+    Route::post('/orders/{order}/start', [ProviderDashboardController::class, 'startExecution'])->name('orders.start');
     Route::post('/orders/{order}/complete', [ProviderDashboardController::class, 'completeOrder'])->name('orders.complete');
-
-    // Work records
-    Route::get('/orders/{order}/work', [ProviderDashboardController::class, 'createWork'])->name('work.create');
-    Route::post('/orders/{order}/work', [ProviderDashboardController::class, 'storeWork'])->name('work.store');
-    Route::get('/works', [ProviderDashboardController::class, 'works'])->name('works');
+    Route::get('/financial', [ProviderDashboardController::class, 'financial'])->name('financial');
+    Route::get('/orders/{order}/register-payment', [ProviderDashboardController::class, 'registerClientPayment'])->name('orders.register-payment');
+    Route::post('/orders/{order}/register-payment', [ProviderDashboardController::class, 'storeClientPayment'])->name('orders.store-payment');
+    Route::get('/financial/request-payment/{order}', [ProviderDashboardController::class, 'requestPayment'])->name('financial.request-payment');
+    Route::post('/financial/request-payment/{order}', [ProviderDashboardController::class, 'storePaymentRequest'])->name('financial.store-request');
 });
 
 // Associate Portal Routes

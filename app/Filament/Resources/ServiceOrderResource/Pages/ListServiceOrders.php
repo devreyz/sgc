@@ -27,8 +27,13 @@ class ListServiceOrders extends ListRecords
             'scheduled' => Tab::make('Agendadas')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ServiceOrderStatus::SCHEDULED))
                 ->badge(fn () => \App\Models\ServiceOrder::where('status', ServiceOrderStatus::SCHEDULED)->count()),
+            'awaiting' => Tab::make('Aguardando Pgto')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ServiceOrderStatus::AWAITING_PAYMENT))
+                ->badge(fn () => \App\Models\ServiceOrder::where('status', ServiceOrderStatus::AWAITING_PAYMENT)->count()),
             'executed' => Tab::make('Executadas')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ServiceOrderStatus::COMPLETED)),
+            'paid' => Tab::make('Pagas')
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ServiceOrderStatus::PAID)),
             'billed' => Tab::make('Faturadas')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', ServiceOrderStatus::BILLED)),
         ];

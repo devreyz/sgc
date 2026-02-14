@@ -1,6 +1,6 @@
 @extends('layouts.bento')
 
-@section('title', 'Criar Ordem de Serviço')
+@section('title', 'Nova Ordem de Serviço')
 @section('page-title', 'Nova Ordem de Serviço')
 @section('user-role', 'Prestador de Serviço')
 
@@ -8,7 +8,7 @@
 <nav class="nav-tabs">
     <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
     <a href="{{ route('provider.orders') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.works') }}" class="nav-tab">Meus Serviços</a>
+    <a href="{{ route('provider.financial') }}" class="nav-tab">Financeiro</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -18,947 +18,273 @@
 
 @section('content')
 <style>
-    * { box-sizing: border-box; }
-    
-    .container {
-        max-width: 700px;
-        margin: 0 auto;
-        padding: 1rem;
-        min-height: calc(100dvh - 180px);
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .form-card {
-        background: var(--color-surface);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--shadow-md);
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .step {
-        display: none;
-        animation: fadeIn 0.3s ease-out;
-    }
-    
-    .step.active {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .step-header {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .step-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--color-text);
-        margin-bottom: 0.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .step-subtitle {
-        color: var(--color-text-secondary);
-        font-size: 0.875rem;
-    }
-    
-    .summary-box {
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .summary-title {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--color-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.5rem;
-    }
-    
-    .summary-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        background: var(--color-surface);
-        border-radius: var(--radius-sm);
-        margin-top: 0.5rem;
-    }
-    
-    .summary-item i { color: var(--color-primary); }
-    
-    .summary-text {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--color-text);
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-        flex: 1;
-    }
-    
-    .form-label {
-        display: block;
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-        margin-bottom: 0.5rem;
-    }
-    
-    .required { color: var(--color-danger); }
-    
-    .form-input, .form-select, .form-textarea {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-size: 1rem;
-        background: var(--color-bg);
-        transition: all 0.2s;
-    }
-    
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-    }
-    
-    .form-textarea {
-        resize: vertical;
-        min-height: 80px;
-    }
-    
-    .form-hint {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-        margin-top: 0.25rem;
-    }
-    
-    .select-box {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem;
-        border: 2px dashed var(--color-border);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all 0.2s;
-        background: var(--color-bg);
-    }
-    
-    .select-box:hover {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.05);
-    }
-    
-    .select-box.selected {
-        border-style: solid;
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .select-box i { color: var(--color-text-secondary); }
-    .select-box.selected i { color: var(--color-primary); }
-    
-    .select-box-content {
-        flex: 1;
-    }
-    
-    .select-box-label {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-        margin-bottom: 0.25rem;
-    }
-    
-    .select-box-value {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--color-text);
-    }
-    
-    .btn {
-        padding: 0.875rem 1.5rem;
-        border: none;
-        border-radius: var(--radius-md);
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        text-decoration: none;
-    }
-    
-    .btn-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn-primary:hover {
-        background: var(--color-primary-dark);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-    
-    .btn-secondary {
-        background: var(--color-bg);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-    }
-    
-    .btn-secondary:hover {
-        background: var(--color-surface);
-        border-color: var(--color-primary);
-    }
-    
-    .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-    
-    .step-actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: auto;
-        padding-top: 1.5rem;
-    }
-    
-    .step-actions .btn {
-        flex: 1;
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        padding: 1rem;
-        overflow-y: auto;
-    }
-    
-    .modal.active {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .modal-content {
-        width: 100%;
-        max-width: 600px;
-        background: var(--color-surface);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        max-height: 90dvh;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .modal-title {
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: var(--color-text);
-    }
-    
-    .modal-close {
-        width: 32px;
-        height: 32px;
-        border: none;
-        background: var(--color-bg);
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-text-secondary);
-        transition: all 0.2s;
-    }
-    
-    .modal-close:hover {
-        background: var(--color-danger);
-        color: white;
-    }
-    
-    .modal-body {
-        padding: 1.5rem;
-        overflow-y: auto;
-        flex: 1;
-    }
-    
-    .search-input {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-    
-    .search-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-    }
-    
-    .item-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .item-card {
-        padding: 1rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all 0.2s;
-        background: var(--color-bg);
-    }
-    
-    .item-card:hover {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.05);
-        transform: translateX(4px);
-    }
-    
-    .item-name {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-        margin-bottom: 0.25rem;
-    }
-    
-    .item-meta {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-    }
-    
-    .info-card {
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-    }
-    
-    .info-row:not(:last-child) {
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .info-label {
-        font-size: 0.875rem;
-        color: var(--color-text-secondary);
-    }
-    
-    .info-value {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-    }
-    
-    .info-value.success { color: var(--color-success); }
-    .info-value.warning { color: var(--color-warning); }
-    
-    .alert {
-        padding: 0.875rem 1rem;
-        border-radius: var(--radius-md);
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .alert-success {
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        color: var(--color-success);
-    }
-    
-    .alert-error {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: var(--color-danger);
-    }
-    
-    .option-tabs {
-        display: flex;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    .option-tab {
-        flex: 1;
-        padding: 0.75rem;
-        border: 2px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-bg);
-        cursor: pointer;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-        transition: all 0.2s;
-    }
-    
-    .option-tab.active {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.1);
-        color: var(--color-primary);
-    }
-    
-    @media (max-width: 640px) {
-        .container { padding: 0.5rem; }
-        .form-card { padding: 1rem; }
-        .step-actions { flex-direction: column-reverse; }
-    }
+    .wizard-steps { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+    .wizard-step { flex:1; padding:0.75rem; text-align:center; border-radius:var(--radius-md); background:var(--color-bg); border:2px solid var(--color-border); font-size:0.875rem; font-weight:500; color:var(--color-text-muted); transition:all 0.2s; cursor:pointer; }
+    .wizard-step.active { border-color:var(--color-primary); background:rgba(16,185,129,0.1); color:var(--color-primary); }
+    .wizard-step.done { border-color:var(--color-primary); background:var(--color-primary); color:white; }
+    .step-content { display:none; }
+    .step-content.active { display:block; }
+    .service-card { padding:1rem; border:2px solid var(--color-border); border-radius:var(--radius-md); cursor:pointer; transition:all 0.2s; }
+    .service-card:hover { border-color:var(--color-primary); background:rgba(16,185,129,0.03); }
+    .service-card.selected { border-color:var(--color-primary); background:rgba(16,185,129,0.08); }
+    .client-type-card { padding:1.25rem; border:2px solid var(--color-border); border-radius:var(--radius-md); cursor:pointer; transition:all 0.2s; text-align:center; }
+    .client-type-card:hover { border-color:var(--color-primary); }
+    .client-type-card.selected { border-color:var(--color-primary); background:rgba(16,185,129,0.08); }
+    .sub-fields { display:none; margin-top:1rem; }
+    .sub-fields.active { display:block; }
+    .btn-nav { padding:0.75rem 1.5rem; font-size:1rem; }
 </style>
 
-<div class="container">
-    <div id="alert-container"></div>
-    
-    <div class="form-card">
-        <form id="order-form">
+<div class="bento-grid">
+    <div class="bento-card col-span-full">
+        <a href="{{ route('provider.orders') }}" class="btn btn-outline" style="margin-bottom:1rem;">← Voltar</a>
+
+        @if ($errors->any())
+        <div style="padding:1rem;background:rgba(239,68,68,0.1);border-radius:var(--radius-md);margin-bottom:1rem;">
+            @foreach ($errors->all() as $e)
+                <p class="text-danger text-sm">{{ $e }}</p>
+            @endforeach
+        </div>
+        @endif
+
+        <!-- Wizard Steps Indicator -->
+        <div class="wizard-steps">
+            <div class="wizard-step active" data-step="1">1. Serviço</div>
+            <div class="wizard-step" data-step="2">2. Cliente</div>
+            <div class="wizard-step" data-step="3">3. Detalhes</div>
+        </div>
+
+        <form method="POST" action="{{ route('provider.orders.store') }}" id="orderForm">
             @csrf
-            
-            <!-- Step 1: Serviço -->
-            <div class="step active" data-step="1">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="wrench"></i>
-                        Passo 1 — Tipo de Serviço
-                    </h2>
-                    <p class="step-subtitle">Selecione o serviço a ser prestado</p>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Serviço <span class="required">*</span></label>
-                    <div class="select-box" id="service-select-box">
-                        <i data-lucide="settings" style="width:20px;height:20px;"></i>
-                        <div class="select-box-content">
-                            <div class="select-box-label">Nenhum serviço selecionado</div>
-                            <div class="select-box-value">Clique para escolher</div>
-                        </div>
-                        <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+            <input type="hidden" name="service_id" id="service_id" value="{{ old('service_id') }}">
+            <input type="hidden" name="client_type" id="client_type" value="{{ old('client_type') }}">
+            <input type="hidden" name="associate_id" id="associate_id" value="{{ old('associate_id') }}">
+
+            <!-- STEP 1: Serviço -->
+            <div class="step-content active" data-step="1">
+                <h3 class="font-bold mb-4" style="font-size:1.125rem;">Selecione o Serviço</h3>
+
+                @if($services->isEmpty())
+                    <div style="padding:2rem;text-align:center;background:var(--color-bg);border-radius:var(--radius-md);">
+                        <p class="text-muted">Nenhum serviço cadastrado para você.</p>
+                        <p class="text-sm text-muted">Solicite ao administrador que vincule serviços ao seu perfil.</p>
                     </div>
-                    <input type="hidden" id="service_id" name="service_id">
-                </div>
-                
-                <div id="service-info"></div>
-                
-                <div class="step-actions">
-                    <a href="{{ route('provider.orders') }}" class="btn btn-secondary">
-                        <i data-lucide="x"></i>
-                        Cancelar
-                    </a>
-                    <button type="button" class="btn btn-primary" id="next-1">
-                        Próximo
-                        <i data-lucide="arrow-right"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Step 2: Pessoa -->
-            <div class="step" data-step="2">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="users"></i>
-                        Passo 2 — Pessoa
-                    </h2>
-                    <p class="step-subtitle">Associado ou pessoa avulsa</p>
-                </div>
-                
-                <div class="summary-box">
-                    <div class="summary-title">Serviço Selecionado</div>
-                    <div class="summary-item" id="summary-service">
-                        <i data-lucide="wrench"></i>
-                        <span class="summary-text">—</span>
-                    </div>
-                </div>
-                
-                <div class="option-tabs">
-                    <button type="button" class="option-tab active" data-type="associate">
-                        <i data-lucide="user-check"></i> Associado
-                    </button>
-                    <button type="button" class="option-tab" data-type="non-associate">
-                        <i data-lucide="user"></i> Avulso
-                    </button>
-                </div>
-                
-                <div id="associate-section">
-                    <div class="form-group">
-                        <label class="form-label">Associado</label>
-                        <div class="select-box" id="associate-select-box">
-                            <i data-lucide="user" style="width:20px;height:20px;"></i>
-                            <div class="select-box-content">
-                                <div class="select-box-label">Nenhum associado</div>
-                                <div class="select-box-value">Clique para buscar</div>
+                @else
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
+                    @foreach($services as $service)
+                    <div class="service-card" data-service-id="{{ $service->id }}" onclick="selectService(this)">
+                        <div class="font-bold" style="font-size:1rem;">{{ $service->name }}</div>
+                        <div class="text-xs text-muted" style="margin:0.25rem 0;">{{ $service->unit }} · {{ $service->type?->getLabel() ?? '' }}</div>
+                        <div style="display:flex;justify-content:space-between;margin-top:0.5rem;">
+                            <div>
+                                <div class="text-xs text-muted">Associado</div>
+                                <div class="font-semibold text-sm">R$ {{ number_format($service->associate_price ?? $service->base_price ?? 0, 2, ',', '.') }}/{{ $service->unit }}</div>
                             </div>
-                            <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+                            <div>
+                                <div class="text-xs text-muted">Avulso</div>
+                                <div class="font-semibold text-sm">R$ {{ number_format($service->non_associate_price ?? $service->base_price ?? 0, 2, ',', '.') }}/{{ $service->unit }}</div>
+                            </div>
                         </div>
-                        <input type="hidden" id="associate_id" name="associate_id">
+                        <div style="margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--color-border);">
+                            <div class="text-xs text-muted">Você recebe</div>
+                            <div class="font-semibold text-primary text-sm">
+                                R$ {{ number_format($service->pivot_hourly ?? $service->pivot_daily ?? $service->pivot_unit ?? 0, 2, ',', '.') }}/{{ $service->unit }}
+                            </div>
+                        </div>
                     </div>
+                    @endforeach
                 </div>
-                
-                <div id="non-associate-section" style="display:none;">
-                    <div class="form-group">
-                        <label class="form-label">Nome da Pessoa <span class="required">*</span></label>
-                        <input type="text" class="form-input" id="non_associate_name" placeholder="Nome completo">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">CPF/CNPJ</label>
-                        <input type="text" class="form-input" id="non_associate_doc" placeholder="000.000.000-00">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Telefone</label>
-                        <input type="text" class="form-input" id="non_associate_phone" placeholder="(00) 00000-0000">
-                    </div>
-                    <div class="form-hint" style="margin-bottom:1rem;">
-                        <i data-lucide="info"></i> Pessoa avulsa — cadastro simplificado
-                    </div>
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn btn-secondary" id="back-1">
-                        <i data-lucide="arrow-left"></i>
-                        Voltar
-                    </button>
-                    <button type="button" class="btn btn-primary" id="next-2">
-                        Próximo
-                        <i data-lucide="arrow-right"></i>
+                @endif
+
+                <div style="display:flex;justify-content:flex-end;margin-top:1.5rem;">
+                    <button type="button" class="btn btn-primary btn-nav" onclick="goToStep(2)" id="btnStep1Next" disabled>
+                        Próximo <i data-lucide="arrow-right" style="width:1rem;height:1rem"></i>
                     </button>
                 </div>
             </div>
-            
-            <!-- Step 3: Detalhes -->
-            <div class="step" data-step="3">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="clipboard-list"></i>
-                        Passo 3 — Detalhes
-                    </h2>
-                    <p class="step-subtitle">Informações do serviço</p>
-                </div>
-                
-                <div class="summary-box">
-                    <div class="summary-title">Seleções Anteriores</div>
-                    <div class="summary-item" id="summary-service-2">
-                        <i data-lucide="wrench"></i>
-                        <span class="summary-text">—</span>
+
+            <!-- STEP 2: Cliente -->
+            <div class="step-content" data-step="2">
+                <h3 class="font-bold mb-4" style="font-size:1.125rem;">Tipo de Cliente</h3>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:500px;">
+                    <div class="client-type-card" onclick="selectClientType('associate')">
+                        <i data-lucide="users" style="width:2rem;height:2rem;color:var(--color-primary);margin-bottom:0.5rem;"></i>
+                        <div class="font-bold">Associado</div>
+                        <div class="text-xs text-muted">Cooperado cadastrado</div>
                     </div>
-                    <div class="summary-item" id="summary-person">
-                        <i data-lucide="user"></i>
-                        <span class="summary-text">—</span>
+                    <div class="client-type-card" onclick="selectClientType('non_associate')">
+                        <i data-lucide="user" style="width:2rem;height:2rem;color:var(--color-secondary);margin-bottom:0.5rem;"></i>
+                        <div class="font-bold">Pessoa Avulsa</div>
+                        <div class="text-xs text-muted">Não é cooperado</div>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Data Agendada <span class="required">*</span></label>
-                    <input type="date" class="form-input" id="scheduled_date" name="scheduled_date" value="{{ date('Y-m-d') }}" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Local <span class="required">*</span></label>
-                    <input type="text" class="form-input" id="location" name="location" placeholder="Ex: Fazenda São João" required>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Equipamento</label>
-                    <select class="form-select" id="asset_id" name="asset_id">
-                        <option value="">Nenhum equipamento</option>
-                        @foreach($equipment as $equip)
-                        <option value="{{ $equip->id }}">{{ $equip->name }} — {{ $equip->model }}</option>
+
+                <!-- Associado Fields -->
+                <div class="sub-fields" id="associate-fields">
+                    <label class="form-label">Selecione o Associado</label>
+                    <select class="form-select" onchange="document.getElementById('associate_id').value=this.value">
+                        <option value="">-- Selecione --</option>
+                        @foreach($associates as $assoc)
+                            <option value="{{ $assoc->id }}">{{ optional($assoc->user)->name ?? $assoc->name }}</option>
                         @endforeach
                     </select>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Observações</label>
-                    <textarea class="form-textarea" id="notes" name="notes" placeholder="Informações adicionais..."></textarea>
+
+                <!-- Non-Associate Fields -->
+                <div class="sub-fields" id="non-associate-fields">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="form-group" style="grid-column:span 2;">
+                            <label class="form-label">Nome *</label>
+                            <input type="text" name="non_associate_name" class="form-input" placeholder="Nome completo">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">CPF/CNPJ</label>
+                            <input type="text" name="non_associate_doc" class="form-input" placeholder="000.000.000-00">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Telefone</label>
+                            <input type="text" name="non_associate_phone" class="form-input" placeholder="(00) 00000-0000">
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn btn-secondary" id="back-2">
-                        <i data-lucide="arrow-left"></i>
-                        Voltar
+
+                <div style="display:flex;justify-content:space-between;margin-top:1.5rem;">
+                    <button type="button" class="btn btn-outline btn-nav" onclick="goToStep(1)">
+                        <i data-lucide="arrow-left" style="width:1rem;height:1rem"></i> Voltar
                     </button>
-                    <button type="submit" class="btn btn-primary" id="submit-btn">
-                        <i data-lucide="check"></i>
-                        Criar Ordem
+                    <button type="button" class="btn btn-primary btn-nav" onclick="goToStep(3)" id="btnStep2Next" disabled>
+                        Próximo <i data-lucide="arrow-right" style="width:1rem;height:1rem"></i>
                     </button>
                 </div>
             </div>
+
+            <!-- STEP 3: Detalhes -->
+            <div class="step-content" data-step="3">
+                <h3 class="font-bold mb-4" style="font-size:1.125rem;">Detalhes da Ordem</h3>
+
+                <!-- Resumo -->
+                <div id="summary" style="padding:1rem;background:var(--color-bg);border-radius:var(--radius-md);margin-bottom:1.5rem;">
+                    <div class="font-semibold" id="summary-service">-</div>
+                    <div class="text-sm text-muted" id="summary-client">-</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Data Agendada *</label>
+                        <input type="date" name="scheduled_date" class="form-input" required value="{{ old('scheduled_date', date('Y-m-d')) }}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Local *</label>
+                        <input type="text" name="location" class="form-input" required placeholder="Local do serviço" value="{{ old('location') }}">
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label class="form-label">Equipamento</label>
+                        <select name="asset_id" class="form-select">
+                            <option value="">Nenhum</option>
+                            @foreach($equipment as $eq)
+                                <option value="{{ $eq->id }}">{{ $eq->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column:span 2;">
+                        <label class="form-label">Observações</label>
+                        <textarea name="notes" class="form-textarea" rows="3" placeholder="Informações adicionais...">{{ old('notes') }}</textarea>
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;margin-top:1.5rem;">
+                    <button type="button" class="btn btn-outline btn-nav" onclick="goToStep(2)">
+                        <i data-lucide="arrow-left" style="width:1rem;height:1rem"></i> Voltar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-nav">
+                        <i data-lucide="check" style="width:1rem;height:1rem"></i> Criar Ordem de Serviço
+                    </button>
+                </div>
+            </div>
+
         </form>
     </div>
 </div>
 
-<!-- Modal de Serviços -->
-<div class="modal" id="service-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">Selecionar Serviço</h3>
-            <button type="button" class="modal-close" id="close-service-modal">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <input type="text" class="search-input" id="service-search" placeholder="Buscar serviço...">
-            <div class="item-list" id="service-list">
-                @foreach($services as $service)
-                <div class="item-card" data-id="{{ $service->id }}" data-name="{{ strtolower($service->name) }}" data-service='{{ json_encode([
-                    'id' => $service->id, 
-                    'name' => $service->name, 
-                    'base_price' => $service->base_price,
-                    'associate_price' => $service->associate_price,
-                    'non_associate_price' => $service->non_associate_price,
-                    'unit' => $service->unit
-                ]) }}'>
-                    <div class="item-name">{{ $service->name }}</div>
-                    <div class="item-meta">
-                        @if($service->associate_price || $service->non_associate_price)
-                            @if($service->associate_price)
-                                Associado: R$ {{ number_format($service->associate_price, 2, ',', '.') }}/{{ $service->unit }}
-                            @endif
-                            @if($service->associate_price && $service->non_associate_price)
-                                <br>
-                            @endif
-                            @if($service->non_associate_price)
-                                Avulso: R$ {{ number_format($service->non_associate_price, 2, ',', '.') }}/{{ $service->unit }}
-                            @endif
-                        @else
-                            R$ {{ number_format($service->base_price, 2, ',', '.') }}/{{ $service->unit }}
-                        @endif
-                    </div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Associados -->
-<div class="modal" id="associate-modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">Selecionar Associado</h3>
-            <button type="button" class="modal-close" id="close-associate-modal">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        <div class="modal-body">
-            <input type="text" class="search-input" id="associate-search" placeholder="Buscar por nome ou documento...">
-            <div class="item-list" id="associate-list">
-                @foreach($associates as $associate)
-                <div class="item-card" data-id="{{ $associate->id }}" data-name="{{ strtolower($associate->user->name ?? '') }}" data-doc="{{ $associate->cpf_cnpj ?? '' }}">
-                    <div class="item-name">{{ $associate->user->name ?? 'Associado #' . $associate->id }}</div>
-                    <div class="item-meta">{{ $associate->cpf_cnpj ?? '—' }}</div>
-                </div>
-                @endforeach
-            </div>
-        </div>
-    </div>
-</div>
-
-@push('scripts')
 <script>
+const servicesData = @json($services);
+let selectedServiceId = null;
+let selectedClientType = null;
+
+function selectService(el) {
+    document.querySelectorAll('.service-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedServiceId = el.dataset.serviceId;
+    document.getElementById('service_id').value = selectedServiceId;
+    document.getElementById('btnStep1Next').disabled = false;
+}
+
+function selectClientType(type) {
+    selectedClientType = type;
+    document.getElementById('client_type').value = type;
+    document.querySelectorAll('.client-type-card').forEach(c => c.classList.remove('selected'));
+    event.currentTarget.classList.add('selected');
+
+    document.getElementById('associate-fields').classList.toggle('active', type === 'associate');
+    document.getElementById('non-associate-fields').classList.toggle('active', type === 'non_associate');
+
+    if (type === 'non_associate') {
+        document.getElementById('associate_id').value = '';
+        document.getElementById('btnStep2Next').disabled = false;
+    } else {
+        // Enable next when associate is selected
+        checkAssociateSelected();
+    }
+}
+
+function checkAssociateSelected() {
+    if (selectedClientType === 'associate') {
+        const assocId = document.getElementById('associate_id').value;
+        document.getElementById('btnStep2Next').disabled = !assocId;
+    }
+}
+
+// Listen for associate select changes
 document.addEventListener('DOMContentLoaded', function() {
-    let state = {
-        service: null,
-        person: { type: 'associate', id: null, name: null },
-        nonAssociate: { name: null, doc: null, phone: null }
-    };
-    
-    const form = document.getElementById('order-form');
-    const steps = document.querySelectorAll('.step');
-    const serviceModal = document.getElementById('service-modal');
-    const associateModal = document.getElementById('associate-modal');
-    
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    
-    function showStep(n) {
-        steps.forEach((step, idx) => {
-            step.classList.toggle('active', idx === n - 1);
-        });
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    const assocSelect = document.querySelector('#associate-fields select');
+    if (assocSelect) {
+        assocSelect.addEventListener('change', checkAssociateSelected);
     }
-    
-    // Step navigation
-    document.getElementById('next-1')?.addEventListener('click', () => {
-        if (!state.service) {
-            showAlert('Selecione um serviço', 'error');
-            return;
-        }
-        updateSummary();
-        showStep(2);
-    });
-    
-    document.getElementById('next-2')?.addEventListener('click', () => {
-        if (state.person.type === 'associate' && !state.person.id) {
-            showAlert('Selecione um associado ou escolha pessoa avulsa', 'error');
-            return;
-        }
-        if (state.person.type === 'non-associate') {
-            const name = document.getElementById('non_associate_name').value.trim();
-            if (!name) {
-                showAlert('Preencha o nome da pessoa', 'error');
-                return;
-            }
-            state.nonAssociate.name = name;
-            state.nonAssociate.doc = document.getElementById('non_associate_doc').value.trim();
-            state.nonAssociate.phone = document.getElementById('non_associate_phone').value.trim();
-            state.person.name = name;
-        }
-        updateSummary();
-        showStep(3);
-    });
-    
-    document.getElementById('back-1')?.addEventListener('click', () => showStep(1));
-    document.getElementById('back-2')?.addEventListener('click', () => showStep(2));
-    
-    // Service selection
-    document.getElementById('service-select-box')?.addEventListener('click', () => {
-        serviceModal.classList.add('active');
-    });
-    
-    document.getElementById('close-service-modal')?.addEventListener('click', () => {
-        serviceModal.classList.remove('active');
-    });
-    
-    document.getElementById('service-search')?.addEventListener('input', function() {
-        const q = this.value.toLowerCase();
-        document.querySelectorAll('#service-list .item-card').forEach(card => {
-            card.style.display = card.dataset.name.includes(q) ? 'block' : 'none';
-        });
-    });
-    
-    document.querySelectorAll('#service-list .item-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const service = JSON.parse(this.dataset.service);
-            state.service = service;
-            document.getElementById('service_id').value = service.id;
-            
-            const box = document.getElementById('service-select-box');
-            box.classList.add('selected');
-            box.querySelector('.select-box-label').textContent = 'Serviço selecionado';
-            box.querySelector('.select-box-value').textContent = service.name;
-            
-            let priceInfo = '';
-            if (service.associate_price && service.non_associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Associado</span>
-                        <span class="info-value success">R$ ${formatMoney(service.associate_price)}/${service.unit}</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">Preço Avulso</span>
-                        <span class="info-value warning">R$ ${formatMoney(service.non_associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else if (service.associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Associado</span>
-                        <span class="info-value success">R$ ${formatMoney(service.associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else if (service.non_associate_price) {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Avulso</span>
-                        <span class="info-value warning">R$ ${formatMoney(service.non_associate_price)}/${service.unit}</span>
-                    </div>
-                `;
-            } else {
-                priceInfo = `
-                    <div class="info-row">
-                        <span class="info-label">Preço Base</span>
-                        <span class="info-value success">R$ ${formatMoney(service.base_price)}/${service.unit}</span>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('service-info').innerHTML = `
-                <div class="info-card">
-                    ${priceInfo}
-                </div>
-            `;
-            
-            serviceModal.classList.remove('active');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
-    
-    // Person type tabs
-    document.querySelectorAll('.option-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.option-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            
-            const type = this.dataset.type;
-            state.person.type = type;
-            state.person.id = null;
-            state.person.name = null;
-            
-            if (type === 'associate') {
-                document.getElementById('associate-section').style.display = 'block';
-                document.getElementById('non-associate-section').style.display = 'none';
-            } else {
-                document.getElementById('associate-section').style.display = 'none';
-                document.getElementById('non-associate-section').style.display = 'block';
-            }
-            
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
-    
-    // Associate selection
-    document.getElementById('associate-select-box')?.addEventListener('click', () => {
-        associateModal.classList.add('active');
-    });
-    
-    document.getElementById('close-associate-modal')?.addEventListener('click', () => {
-        associateModal.classList.remove('active');
-    });
-    
-    document.getElementById('associate-search')?.addEventListener('input', function() {
-        const q = this.value.toLowerCase();
-        document.querySelectorAll('#associate-list .item-card').forEach(card => {
-            const name = card.dataset.name;
-            const doc = card.dataset.doc;
-            card.style.display = (name.includes(q) || doc.includes(q)) ? 'block' : 'none';
-        });
-    });
-    
-    document.querySelectorAll('#associate-list .item-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const name = this.querySelector('.item-name').textContent;
-            
-            state.person.id = id;
-            state.person.name = name;
-            document.getElementById('associate_id').value = id;
-            
-            const box = document.getElementById('associate-select-box');
-            box.classList.add('selected');
-            box.querySelector('.select-box-label').textContent = 'Associado selecionado';
-            box.querySelector('.select-box-value').textContent = name;
-            
-            associateModal.classList.remove('active');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
-    
-    // Form submit
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        const btn = document.getElementById('submit-btn');
-        btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader"></i> Criando...';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        
-        const formData = {
-            service_id: state.service.id,
-            scheduled_date: document.getElementById('scheduled_date').value,
-            location: document.getElementById('location').value,
-            asset_id: document.getElementById('asset_id').value || null,
-            notes: document.getElementById('notes').value || null
-        };
-        
-        if (state.person.type === 'associate') {
-            formData.associate_id = state.person.id;
-        } else {
-            formData.non_associate_name = state.nonAssociate.name;
-            formData.non_associate_doc = state.nonAssociate.doc;
-            formData.non_associate_phone = state.nonAssociate.phone;
-        }
-        
-        try {
-            const res = await fetch('{{ route("provider.orders.store") }}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('[name="_token"]').value,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(formData)
-            });
-            
-            const result = await res.json();
-            
-            if (result.success || res.ok) {
-                showAlert('Ordem criada com sucesso!', 'success');
-                setTimeout(() => window.location.href = '{{ route("provider.orders") }}', 1500);
-            } else {
-                showAlert(result.message || 'Erro ao criar ordem', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="check"></i> Criar Ordem';
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-        } catch (e) {
-            showAlert('Erro na conexão: ' + e.message, 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="check"></i> Criar Ordem';
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-    });
-    
-    function updateSummary() {
-        if (state.service) {
-            const text = state.service.name;
-            document.getElementById('summary-service').querySelector('.summary-text').textContent = text;
-            document.getElementById('summary-service-2').querySelector('.summary-text').textContent = text;
-        }
-        if (state.person.name) {
-            const type = state.person.type === 'associate' ? 'Associado' : 'Avulso';
-            document.getElementById('summary-person').querySelector('.summary-text').textContent = `${state.person.name} (${type})`;
-        }
-    }
-    
-    function showAlert(msg, type) {
-        const container = document.getElementById('alert-container');
-        container.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}</div>`;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        setTimeout(() => container.innerHTML = '', 4000);
-    }
-    
-    function formatMoney(n) { return parseFloat(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 });
+
+function goToStep(step) {
+    // Hide all steps
+    document.querySelectorAll('.step-content').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.wizard-step').forEach(s => {
+        s.classList.remove('active', 'done');
+    });
+
+    // Show target step
+    document.querySelector(`.step-content[data-step="${step}"]`).classList.add('active');
+
+    // Update indicators
+    document.querySelectorAll('.wizard-step').forEach(s => {
+        const sStep = parseInt(s.dataset.step);
+        if (sStep < step) s.classList.add('done');
+        if (sStep === step) s.classList.add('active');
+    });
+
+    // Update summary on step 3
+    if (step === 3) {
+        const svc = servicesData.find(s => s.id == selectedServiceId);
+        document.getElementById('summary-service').textContent = svc ? `Serviço: ${svc.name} (${svc.unit})` : '-';
+
+        let clientText = 'Avulso';
+        if (selectedClientType === 'associate') {
+            const opt = document.querySelector('#associate-fields select');
+            clientText = 'Associado: ' + (opt.selectedOptions[0]?.text || '-');
+        }
+        document.getElementById('summary-client').textContent = clientText;
+    }
+
+    // Re-init Lucide icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
 </script>
-@endpush
 @endsection
