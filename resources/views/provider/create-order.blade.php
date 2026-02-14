@@ -197,8 +197,10 @@
                     <button type="button" class="btn btn-outline btn-nav" onclick="goToStep(2)">
                         <i data-lucide="arrow-left" style="width:1rem;height:1rem"></i> Voltar
                     </button>
-                    <button type="submit" class="btn btn-primary btn-nav">
-                        <i data-lucide="check" style="width:1rem;height:1rem"></i> Criar Ordem de Serviço
+                    <button type="submit" class="btn btn-primary btn-nav" id="orderSubmitBtn">
+                        <i data-lucide="check" style="width:1rem;height:1rem"></i>
+                        <span class="btn-text">Criar Ordem de Serviço</span>
+                        <span class="btn-spinner" style="display:none;margin-left:0.5rem;">Enviando...</span>
                     </button>
                 </div>
             </div>
@@ -286,5 +288,26 @@ function goToStep(step) {
     // Re-init Lucide icons
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
+
+// Disable submit to avoid double-submit and show loading state
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('orderForm');
+    const submitBtn = document.getElementById('orderSubmitBtn');
+    const nextBtns = document.querySelectorAll('.btn-nav');
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            // Disable all navigation buttons
+            nextBtns.forEach(b => b.disabled = true);
+
+            // Show loading text
+            const text = submitBtn.querySelector('.btn-text');
+            const spinner = submitBtn.querySelector('.btn-spinner');
+            if (text) text.style.display = 'none';
+            if (spinner) spinner.style.display = 'inline-block';
+            submitBtn.disabled = true;
+        });
+    }
+});
 </script>
 @endsection

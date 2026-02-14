@@ -618,7 +618,8 @@
                     </button>
                     <button type="submit" class="btn btn-primary" id="submit-btn">
                         <i data-lucide="check"></i>
-                        Finalizar
+                        <span class="btn-text">Finalizar</span>
+                        <span class="btn-spinner" style="display:none;margin-left:0.5rem;">Enviando...</span>
                     </button>
                 </div>
             </div>
@@ -929,14 +930,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Form Submit
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
         const btn = document.getElementById('submit-btn');
+        const text = btn.querySelector('.btn-text');
+        const spinner = btn.querySelector('.btn-spinner');
+        if (text) text.style.display = 'none';
+        if (spinner) spinner.style.display = 'inline-block';
         btn.disabled = true;
-        btn.innerHTML = '<i data-lucide="loader"></i> Salvando...';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        
+
         const data = Object.fromEntries(new FormData(form));
-        
+
         try {
             const res = await fetch('/delivery/register', {
                 method: 'POST',
@@ -947,23 +950,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify(data)
             });
-            
+
             const result = await res.json();
-            
+
             if (result.success) {
                 showAlert(result.message, 'success');
-                
+
                 // Reset mantendo projeto
                 const projectId = state.project.id;
                 const projectName = state.project.name;
-                
+
                 form.reset();
                 state = { project: { id: projectId, name: projectName }, product: null, associate: null };
-                
+
                 document.getElementById('project_id').value = projectId;
                 document.getElementById('product-select-box').classList.remove('selected');
                 document.getElementById('associate-select-box').classList.remove('selected');
-                
+
                 loadProducts(projectId);
                 showStep(1);
             } else {
@@ -973,7 +976,8 @@ document.addEventListener('DOMContentLoaded', function() {
             showAlert('Erro ao salvar', 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i data-lucide="check"></i> Finalizar';
+            if (spinner) spinner.style.display = 'none';
+            if (text) text.style.display = 'inline-block';
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     });
