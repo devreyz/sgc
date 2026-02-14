@@ -20,16 +20,28 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $financial = Role::firstOrCreate(['name' => 'financeiro']);
         $associate = Role::firstOrCreate(['name' => 'associado']);
-        // Ensure service provider role exists
-        $serviceProvider = Role::firstOrCreate(['name' => 'service_provider']);
+        
+        // Service Provider roles (can have multiple)
+        $serviceProvider = Role::firstOrCreate(['name' => 'service_provider']); // Generic provider
+        $tratorista = Role::firstOrCreate(['name' => 'tratorista']);
+        $motorista = Role::firstOrCreate(['name' => 'motorista']);
+        $diarista = Role::firstOrCreate(['name' => 'diarista']);
+        $tecnico = Role::firstOrCreate(['name' => 'tecnico']);
+        
+        // Delivery recorder role for mobile delivery registration
+        $deliveryRecorder = Role::firstOrCreate(['name' => 'registrador_entregas']);
+        
+        $this->command->info('Created service provider roles: tratorista, motorista, diarista, tecnico, registrador_entregas');
 
         // Create a super admin user
-        $user = User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@sgc.com',
-            'password' => Hash::make('password'),
-            'status' => true,
-        ]);
+        $user = User::firstOrCreate(
+            ['email' => 'admin@sgc.com'],
+            [
+                'name' => 'Super Admin',
+                'password' => Hash::make('password'),
+                'status' => true,
+            ]
+        );
 
         $user->assignRole($superAdmin);
 

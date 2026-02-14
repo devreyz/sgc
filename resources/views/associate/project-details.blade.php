@@ -44,22 +44,24 @@
                 @endif
             </div>
 
+            @if($project->demands && $project->demands->count() > 0)
             <div>
-                <div class="text-xs text-muted">Produto</div>
-                <div class="font-semibold">{{ $project->product->name ?? '-' }}</div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                <div>
-                    <div class="text-xs text-muted">Quantidade Total</div>
-                    <div class="font-bold" style="font-size: 1.5rem;">{{ $project->quantity ?? 0 }}</div>
+                <div class="text-xs text-muted mb-2">Produtos Demandados</div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    @foreach($project->demands as $demand)
+                    <div style="padding: 0.75rem; background: var(--color-bg); border-radius: var(--radius-md); border: 1px solid var(--color-border);">
+                        <div class="flex justify-between items-start mb-1">
+                            <div class="font-semibold">{{ $demand->product->name ?? '-' }}</div>
+                            <div class="badge badge-secondary">{{ rtrim(rtrim(number_format($demand->target_quantity, 3, ',', '.'), '0'), ',') }} {{ $demand->product->unit ?? '' }}</div>
+                        </div>
+                        @if($demand->unit_price)
+                        <div class="text-xs text-muted">Preço: R$ {{ number_format($demand->unit_price, 2, ',', '.') }}/{{ $demand->product->unit ?? 'un' }}</div>
+                        @endif
+                    </div>
+                    @endforeach
                 </div>
-
-                <div>
-                    <div class="text-xs text-muted">Entregue</div>
-                    <div class="font-bold text-success" style="font-size: 1.5rem;">{{ $project->delivered_quantity ?? 0 }}</div>
-                </div>
             </div>
+            @endif
 
             @if($project->start_date || $project->end_date)
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
@@ -79,10 +81,15 @@
             </div>
             @endif
 
-            @if($project->total_value)
+            @php
+                $myDeliveries = $project->deliveries->where('associate_id', auth()->user()->associate->id);
+                $myEarnings = $myDeliveries->sum('total_value');
+            @endphp
+
+            @if($myEarnings > 0)
             <div>
-                <div class="text-xs text-muted">Valor Total do Projeto</div>
-                <div class="font-bold text-primary" style="font-size: 1.75rem;">R$ {{ number_format($project->total_value, 2, ',', '.') }}</div>
+                <div class="text-xs text-muted">Meu Valor a Receber</div>
+                <div class="font-bold text-success" style="font-size: 1.75rem;">R$ {{ number_format($myEarnings, 2, ',', '.') }}</div>
             </div>
             @endif
 
@@ -99,50 +106,81 @@
 
     <!-- Progress Chart -->
     <div class="bento-card col-span-6">
-        <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Progresso de Entregas</h2>
+        <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Meu Progresso de Entregas</h2>
         
         @php
-            $progress = $project->quantity > 0 ? ($project->delivered_quantity / $project->quantity) * 100 : 0;
+            $myDeliveries = $project->deliveries->where('associate_id', auth()->user()->associate->id);
+            $totalTarget = $project->demands->sum('target_quantity');
+            $totalDelivered = $myDeliveries->sum('quantity');
+            $progress = $totalTarget > 0 ? ($totalDelivered / $totalTarget) * 100 : 0;
         @endphp
 
         <div style="margin-bottom: 2rem;">
             <div class="flex justify-between mb-2">
-                <span class="text-sm text-muted">Progresso</span>
+                <span class="text-sm text-muted">Progresso Geral</span>
                 <span class="font-bold">{{ number_format($progress, 1) }}%</span>
             </div>
             <div style="height: 12px; background: var(--color-bg); border-radius: 999px; overflow: hidden;">
-                <div style="height: 100%; background: var(--color-primary); width: {{ $progress }}%; transition: width 0.3s;"></div>
+                <div style="height: 100%; background: var(--color-primary); width: {{ min($progress, 100) }}%; transition: width 0.3s;"></div>
             </div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
             <div style="padding: 1rem; background: var(--color-bg); border-radius: var(--radius-md); text-align: center;">
-                <div class="text-xs text-muted mb-1">Total</div>
-                <div class="font-bold" style="font-size: 1.5rem;">{{ $project->quantity ?? 0 }}</div>
+                <div class="text-xs text-muted mb-1">Meta Total</div>
+                <div class="font-bold" style="font-size: 1.5rem;">{{ rtrim(rtrim(number_format($totalTarget, 3, ',', '.'), '0'), ',') }}</div>
             </div>
 
             <div style="padding: 1rem; background: rgba(16, 185, 129, 0.1); border-radius: var(--radius-md); text-align: center;">
-                <div class="text-xs text-muted mb-1">Entregue</div>
-                <div class="font-bold text-success" style="font-size: 1.5rem;">{{ $project->delivered_quantity ?? 0 }}</div>
+                <div class="text-xs text-muted mb-1">Eu Entreguei</div>
+                <div class="font-bold text-success" style="font-size: 1.5rem;">{{ rtrim(rtrim(number_format($totalDelivered, 3, ',', '.'), '0'), ',') }}</div>
             </div>
 
             <div style="padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: var(--radius-md); text-align: center;">
-                <div class="text-xs text-muted mb-1">Restante</div>
-                <div class="font-bold text-warning" style="font-size: 1.5rem;">{{ ($project->quantity ?? 0) - ($project->delivered_quantity ?? 0) }}</div>
+                <div class="text-xs text-muted mb-1">Falta</div>
+                <div class="font-bold text-warning" style="font-size: 1.5rem;">{{ rtrim(rtrim(number_format(max($totalTarget - $totalDelivered, 0), 3, ',', '.'), '0'), ',') }}</div>
             </div>
         </div>
+
+        @if($project->demands && $project->demands->count() > 0)
+        <div>
+            <div class="text-xs text-muted mb-2">Progresso por Produto</div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                @foreach($project->demands as $demand)
+                @php
+                    $demandDelivered = $myDeliveries->where('project_demand_id', $demand->id)->sum('quantity');
+                    $demandProgress = $demand->target_quantity > 0 ? ($demandDelivered / $demand->target_quantity) * 100 : 0;
+                @endphp
+                <div style="padding: 0.75rem; background: var(--color-bg); border-radius: var(--radius-md);">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-xs font-semibold">{{ $demand->product->name ?? '-' }}</span>
+                        <span class="text-xs">{{ rtrim(rtrim(number_format($demandDelivered, 3, ',', '.'), '0'), ',') }} / {{ rtrim(rtrim(number_format($demand->target_quantity, 3, ',', '.'), '0'), ',') }} {{ $demand->product->unit ?? '' }}</span>
+                    </div>
+                    <div style="height: 6px; background: rgba(0,0,0,0.1); border-radius: 999px; overflow: hidden;">
+                        <div style="height: 100%; background: var(--color-success); width: {{ min($demandProgress, 100) }}%;"></div>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+        @endif
     </div>
 
     <!-- Deliveries -->
     <div class="bento-card col-span-full">
-        <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Entregas Realizadas</h2>
+        <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Minhas Entregas Realizadas</h2>
 
-        @if($project->deliveries && $project->deliveries->count() > 0)
+        @php
+            $myDeliveries = $project->deliveries->where('associate_id', auth()->user()->associate->id);
+        @endphp
+
+        @if($myDeliveries->count() > 0)
             <div class="table-container">
                 <table class="table">
                     <thead>
                         <tr>
                             <th>Data Entrega</th>
+                            <th>Produto</th>
                             <th>Quantidade</th>
                             <th>Valor Unitário</th>
                             <th>Valor Total</th>
@@ -150,12 +188,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($project->deliveries as $delivery)
+                        @foreach($myDeliveries as $delivery)
                         <tr>
                             <td>{{ $delivery->delivery_date ? $delivery->delivery_date->format('d/m/Y') : '-' }}</td>
-                            <td class="font-semibold">{{ $delivery->quantity }}</td>
+                            <td>{{ $delivery->projectDemand->product->name ?? '-' }}</td>
+                            <td class="font-semibold">{{ rtrim(rtrim(number_format($delivery->quantity, 3, ',', '.'), '0'), ',') }} {{ $delivery->projectDemand->product->unit ?? '' }}</td>
                             <td>R$ {{ number_format($delivery->unit_value ?? 0, 2, ',', '.') }}</td>
-                            <td class="font-bold text-primary">R$ {{ number_format($delivery->total_value ?? 0, 2, ',', '.') }}</td>
+                            <td class="font-bold text-success">R$ {{ number_format($delivery->total_value ?? 0, 2, ',', '.') }}</td>
                             <td>
                                 <span class="badge badge-{{ $delivery->status->value === 'delivered' ? 'success' : ($delivery->status->value === 'approved' ? 'secondary' : 'warning') }}">
                                     {{ $delivery->status->getLabel() }}
@@ -164,10 +203,19 @@
                         </tr>
                         @endforeach
                     </tbody>
+                    <tfoot>
+                        <tr style="background: var(--color-bg); font-weight: bold;">
+                            <td colspan="2" style="text-align: right;">Total:</td>
+                            <td>{{ rtrim(rtrim(number_format($myDeliveries->sum('quantity'), 3, ',', '.'), '0'), ',') }}</td>
+                            <td></td>
+                            <td class="text-success">R$ {{ number_format($myDeliveries->sum('total_value'), 2, ',', '.') }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         @else
-            <p class="text-muted">Nenhuma entrega registrada ainda.</p>
+            <p class="text-muted">Você ainda não registrou entregas neste projeto.</p>
         @endif
     </div>
 

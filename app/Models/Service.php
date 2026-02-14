@@ -6,6 +6,7 @@ use App\Enums\ServiceType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -22,6 +23,8 @@ class Service extends Model
         'type',
         'unit',
         'base_price',
+        'associate_price',
+        'non_associate_price',
         'provider_hourly_rate',
         'provider_daily_rate',
         'min_charge',
@@ -35,6 +38,8 @@ class Service extends Model
         return [
             'type' => ServiceType::class,
             'base_price' => 'decimal:2',
+            'associate_price' => 'decimal:2',
+            'non_associate_price' => 'decimal:2',
             'provider_hourly_rate' => 'decimal:2',
             'provider_daily_rate' => 'decimal:2',
             'min_charge' => 'decimal:2',
@@ -56,6 +61,17 @@ class Service extends Model
     public function defaultAsset(): BelongsTo
     {
         return $this->belongsTo(Asset::class, 'default_asset_id');
+    }
+
+    /**
+     * Get the service providers that offer this service.
+     */
+    public function serviceProviders(): BelongsToMany
+    {
+        return $this->belongsToMany(ServiceProvider::class, 'service_provider_services')
+            ->withPivot(['provider_hourly_rate', 'provider_daily_rate', 'provider_unit_rate', 'status', 'notes'])
+            ->withTimestamps()
+            ->wherePivot('status', true);
     }
 
     /**

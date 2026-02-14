@@ -198,6 +198,38 @@ class ServiceOrder extends Model
     }
 
     /**
+     * Get the payments for this order.
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(ServiceOrderPayment::class);
+    }
+
+    /**
+     * Get the total amount paid.
+     */
+    public function getTotalPaidAttribute(): float
+    {
+        return $this->payments()->sum('amount');
+    }
+
+    /**
+     * Get the remaining amount to be paid.
+     */
+    public function getRemainingAmountAttribute(): float
+    {
+        return max(0, $this->final_price - $this->getTotalPaidAttribute());
+    }
+
+    /**
+     * Check if order is fully paid.
+     */
+    public function isFullyPaid(): bool
+    {
+        return $this->getTotalPaidAttribute() >= $this->final_price;
+    }
+
+    /**
      * Get the ledger entries for this order.
      */
     public function ledgerEntries(): MorphMany

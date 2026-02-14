@@ -182,10 +182,29 @@ class ProviderDashboardController extends Controller
                 ->with('error', 'Perfil de prestador não encontrado.');
         }
 
-        // Get available equipment and services for selection
+        // Get available equipment
         $equipment = \App\Models\Asset::available()->get();
-        $services = \App\Models\Service::active()->get();
-        $associates = \App\Models\Associate::active()->get();
+        
+        // Get only services that this provider offers (via pivot entries)
+        $providerServices = \App\Models\ServiceProviderService::where('service_provider_id', $provider->id)
+            ->where('status', true)
+            ->with('service')
+            ->get();
+
+        $services = $providerServices->map(function ($ps) {
+            $service = $ps->service;
+            if ($service) {
+                $service->provider_hourly_rate = $ps->provider_hourly_rate;
+                $service->provider_daily_rate = $ps->provider_daily_rate;
+                $service->provider_unit_rate = $ps->provider_unit_rate;
+            }
+            return $service;
+        })->filter();
+        
+        // Get all associates
+        $associates = \App\Models\Associate::with('user')->whereHas('user', function($q) {
+            $q->where('status', true);
+        })->get();
 
         return view('provider.create-order', compact('provider', 'equipment', 'services', 'associates'));
     }
@@ -216,17 +235,31 @@ class ProviderDashboardController extends Controller
             'location' => 'required|string|max:255',
             'distance_km' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string',
+            'non_associate_name' => 'nullable|string|max:255',
+            'non_associate_doc' => 'nullable|string|max:50',
+            'non_associate_phone' => 'nullable|string|max:20',
         ]);
 
         // Buscar dados do serviço para preencher automaticamente
         $service = \App\Models\Service::find($validated['service_id']);
         
+        // Determinar se é associado ou não-associado
+        $isAssociate = !empty($validated['associate_id']);
+        
         // Se não forneceu unit e unit_price, usar do serviço
         if (empty($validated['unit'])) {
             $validated['unit'] = $service->unit ?? 'hora';
         }
+        
         if (empty($validated['unit_price'])) {
-            $validated['unit_price'] = $service->base_price ?? 0;
+            // Usar preço correto baseado no tipo de pessoa
+            if ($isAssociate && $service->associate_price) {
+                $validated['unit_price'] = $service->associate_price;
+            } elseif (!$isAssociate && $service->non_associate_price) {
+                $validated['unit_price'] = $service->non_associate_price;
+            } else {
+                $validated['unit_price'] = $service->base_price ?? 0;
+            }
         }
 
         // Calculate prices apenas se tiver quantidade
@@ -242,10 +275,25 @@ class ProviderDashboardController extends Controller
         $lastOrder = ServiceOrder::latest('id')->first();
         $nextNumber = $lastOrder ? (intval(substr($lastOrder->number, 2)) + 1) : 1;
         $orderNumber = 'OS' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+        
+        // Handle non-associate data
+        $notesExtra = $validated['notes'] ?? '';
+        if (!empty($validated['non_associate_name'])) {
+            $nonAssociateInfo = "\n\n[PESSOA AVULSA]\n";
+            $nonAssociateInfo .= "Nome: " . $validated['non_associate_name'];
+            if (!empty($validated['non_associate_doc'])) {
+                $nonAssociateInfo .= "\nCPF/CNPJ: " . $validated['non_associate_doc'];
+            }
+            if (!empty($validated['non_associate_phone'])) {
+                $nonAssociateInfo .= "\nTelefone: " . $validated['non_associate_phone'];
+            }
+            $notesExtra .= $nonAssociateInfo;
+        }
 
         // Create the service order
         $order = ServiceOrder::create([
             'number' => $orderNumber,
+            'service_provider_id' => $provider->id,
             'associate_id' => $validated['associate_id'] ?? null,
             'service_id' => $validated['service_id'],
             'asset_id' => $validated['asset_id'] ?? null,
@@ -261,9 +309,7 @@ class ProviderDashboardController extends Controller
             'location' => $validated['location'],
             'distance_km' => $validated['distance_km'] ?? 0,
             'status' => ServiceOrderStatus::SCHEDULED,
-            'payment_status' => 'pending',
-            'service_provider_id' => $provider->id,
-            'notes' => $validated['notes'] ?? null,
+            'notes' => $notesExtra,
             'created_by' => $user->id,
         ]);
 
@@ -324,34 +370,50 @@ class ProviderDashboardController extends Controller
                 $receiptPath = $request->file('receipt')->store('receipts', 'public');
             }
 
-            // Buscar valores do serviço
+            // Buscar dados do serviço e valores do prestador
             $service = $order->service;
-            $unitPrice = $service->base_price; // Valor cobrado do associado
+            
+            // Buscar valor do prestador da tabela pivot
+            $providerService = \App\Models\ServiceProviderService::where('service_provider_id', $provider->id)
+                ->where('service_id', $service->id)
+                ->first();
+            
+            if (!$providerService) {
+                throw new \Exception('Serviço não encontrado para este prestador. Configure os valores antes de concluir.');
+            }
             
             // Determinar valor do prestador com base na unidade
             $providerRate = 0;
             if ($order->unit === 'hora') {
-                $providerRate = $service->provider_hourly_rate ?? 0;
+                $providerRate = $providerService->provider_hourly_rate ?? 0;
             } elseif ($order->unit === 'diaria' || $order->unit === 'dia') {
-                $providerRate = $service->provider_daily_rate ?? 0;
+                $providerRate = $providerService->provider_daily_rate ?? 0;
             } else {
-                // Para outras unidades, usar provider_hourly_rate como padrão
-                $providerRate = $service->provider_hourly_rate ?? 0;
+                // Para outras unidades, usar provider_unit_rate
+                $providerRate = $providerService->provider_unit_rate ?? 0;
+            }
+            
+            // Determinar valor cobrado do cliente baseado em associado ou não
+            $unitPrice = 0;
+            if ($order->associate_id) {
+                $unitPrice = $service->associate_price ?? $service->base_price;
+            } else {
+                $unitPrice = $service->non_associate_price ?? $service->base_price;
             }
 
             // Calcular valores
-            $totalChargeToAssociate = $validated['actual_quantity'] * $unitPrice; // Valor que o associado deve pagar
+            $totalChargeToClient = $validated['actual_quantity'] * $unitPrice; // Valor que será cobrado
             $totalPaymentToProvider = $validated['actual_quantity'] * $providerRate; // Valor a pagar ao prestador
-            $cooperativeProfit = $totalChargeToAssociate - $totalPaymentToProvider; // Lucro da cooperativa
+            $cooperativeProfit = $totalChargeToClient - $totalPaymentToProvider; // Lucro da cooperativa
 
-            // Atualizar ordem de serviço
+            // Atualizar ordem de serviço para AGUARDANDO PAGAMENTO
             $order->update([
-                'status' => ServiceOrderStatus::COMPLETED,
+                'status' => ServiceOrderStatus::AWAITING_PAYMENT,
                 'execution_date' => $validated['execution_date'],
                 'actual_quantity' => $validated['actual_quantity'],
                 'unit_price' => $unitPrice,
-                'total_price' => $totalChargeToAssociate,
-                'final_price' => $totalChargeToAssociate,
+                'total_price' => $totalChargeToClient,
+                'final_price' => $totalChargeToClient,
                 'provider_payment' => $totalPaymentToProvider,
                 'work_description' => $validated['work_description'],
                 'receipt_path' => $receiptPath,
@@ -364,46 +426,11 @@ class ProviderDashboardController extends Controller
                 'provider_payment_status' => 'pending', // Prestador receberá após associado pagar
             ]);
 
-            // CRIAR DÉBITO para o associado (valor que ele DEVE pagar pelo serviço)
-            if ($order->associate_id) {
-                $currentBalance = $order->associate->current_balance ?? 0;
-                \App\Models\AssociateLedger::create([
-                    'associate_id' => $order->associate_id,
-                    'type' => \App\Enums\LedgerType::DEBIT,
-                    'category' => \App\Enums\LedgerCategory::SERVICO,
-                    'amount' => $totalChargeToAssociate,
-                    'balance_after' => $currentBalance - $totalChargeToAssociate,
-                    'description' => "Serviço executado - OS {$order->number} - {$service->name} - {$validated['actual_quantity']} {$order->unit}",
-                    'reference_type' => get_class($order),
-                    'reference_id' => $order->id,
-                    'transaction_date' => $validated['execution_date'],
-                    'created_by' => auth()->id() ?? $provider->user_id,
-                ]);
-
-                // Atualizar saldo do associado
-                $order->associate()->update([
-                    'current_balance' => $currentBalance - $totalChargeToAssociate
-                ]);
-            }
-
-            // Criar registro de trabalho
-            ServiceProviderWork::create([
-                'service_order_id' => $order->id,
-                'service_provider_id' => $provider->id,
-                'associate_id' => $order->associate_id,
-                'work_date' => $validated['execution_date'],
-                'description' => $validated['work_description'],
-                'hours_worked' => $validated['actual_quantity'],
-                'unit_price' => $providerRate,
-                'total_value' => $totalPaymentToProvider,
-                'location' => $order->location,
-                'payment_status' => 'pendente',
-                'notes' => "Comprovante: {$receiptPath} | Associado deve: R$ " . number_format($totalChargeToAssociate, 2, ',', '.'),
-            ]);
+            // NÃO criar lançamentos financeiros aqui - isso será feito ao registrar o pagamento
         });
 
         return redirect()->route('provider.orders.show', $order->id)
-            ->with('success', 'Serviço concluído! Associado deve pagar R$ ' . number_format($order->total_price, 2, ',', '.') . '. Você receberá R$ ' . number_format($order->provider_payment, 2, ',', '.') . ' após o pagamento do associado.');
+            ->with('success', 'Ordem concluída! Agora aguardando registro de pagamento. Valor total: R$ ' . number_format($order->final_price, 2, ',', '.'));
     }
 
     /**

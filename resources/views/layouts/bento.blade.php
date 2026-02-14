@@ -401,6 +401,96 @@
         .justify-between { justify-content: space-between; }
         .gap-4 { gap: 1rem; }
         .gap-2 { gap: 0.5rem; }
+
+        /* Responsive Tables */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .table thead {
+            background: var(--color-bg);
+        }
+
+        .table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--color-text);
+            border-bottom: 1px solid var(--color-border);
+            white-space: nowrap;
+        }
+
+        .table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-text);
+        }
+
+        .table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table tbody tr:hover {
+            background: var(--color-bg);
+        }
+
+        /* Auto-wrap tables on mobile */
+        @media (max-width: 768px) {
+            .table {
+                font-size: 0.8125rem;
+            }
+            
+            .table th,
+            .table td {
+                padding: 0.5rem 0.75rem;
+            }
+        }
+
+        /* Badge/Status styles */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.625rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--color-success);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--color-warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--color-danger);
+        }
+
+        .badge-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--color-info);
+        }
+
+        .badge-secondary {
+            background: rgba(107, 114, 128, 0.1);
+            color: var(--color-text-muted);
+        }
     </style>
 
     @stack('styles')
@@ -451,6 +541,14 @@
 
         @yield('content')
     </main>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    </script>
 
     @stack('scripts')
 </body>
