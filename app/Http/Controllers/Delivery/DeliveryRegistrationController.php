@@ -174,6 +174,22 @@ class DeliveryRegistrationController extends Controller
         ]);
 
         try {
+            // Prevenir submissões duplicadas rápidas (mesmo projeto, demanda, associado, data)
+            $duplicate = ProductionDelivery::where('sales_project_id', $validated['sales_project_id'])
+                ->where('project_demand_id', $validated['project_demand_id'])
+                ->where('associate_id', $validated['associate_id'])
+                ->where('delivery_date', $validated['delivery_date'])
+                ->where('created_at', '>=', now()->subSeconds(30))
+                ->first();
+
+            if ($duplicate) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Entrega já registrada recentemente.',
+                    'existing' => ['id' => $duplicate->id]
+                ], 409);
+            }
+
             DB::beginTransaction();
 
             // Get project demand to calculate values

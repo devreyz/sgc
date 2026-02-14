@@ -190,6 +190,27 @@ class ProviderDashboardController extends Controller
             $notes .= $extra;
         }
 
+        // Prevenir submissões duplicadas: checar ordens muito recentes com mesmos dados
+        $recentDuplicate = ServiceOrder::where('service_provider_id', $provider->id)
+            ->where('service_id', $validated['service_id'])
+            ->where('scheduled_date', $validated['scheduled_date'])
+            ->where('location', $validated['location'])
+            ->where(function ($q) use ($isAssociate, $validated) {
+                if ($isAssociate) {
+                    $q->where('associate_id', $validated['associate_id']);
+                } else {
+                    $q->whereNull('associate_id');
+                }
+            })
+            ->where('created_by', Auth::id())
+            ->where('created_at', '>=', now()->subSeconds(30))
+            ->first();
+
+        if ($recentDuplicate) {
+            return redirect()->route('provider.orders.show', $recentDuplicate->id)
+                ->with('warning', 'Ordem já enviada recentemente — evitando duplicata.');
+        }
+
         $order = ServiceOrder::create([
             'service_provider_id' => $provider->id,
             'service_id'          => $validated['service_id'],

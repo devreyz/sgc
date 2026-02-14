@@ -210,9 +210,10 @@
 
             <div style="margin-top:1.5rem;display:flex;gap:1rem;justify-content:flex-end;">
                 <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline">Cancelar</a>
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="paymentSubmitBtn">
                     <i data-lucide="check" style="width:1rem;height:1rem;"></i>
-                    Registrar Pagamento
+                    <span class="btn-text">Registrar Pagamento</span>
+                    <span class="btn-spinner" style="display:none;margin-left:0.5rem;">Enviando...</span>
                 </button>
             </div>
         </form>
@@ -229,3 +230,21 @@
 </div>
 
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[action^="/provider/orders/"]');
+    const submitBtn = document.getElementById('paymentSubmitBtn');
+    if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+            submitBtn.disabled = true;
+            const text = submitBtn.querySelector('.btn-text');
+            const spinner = submitBtn.querySelector('.btn-spinner');
+            if (text) text.style.display = 'none';
+            if (spinner) spinner.style.display = 'inline-block';
+        });
+    }
+});
+</script>
+@endpush
