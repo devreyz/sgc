@@ -57,6 +57,22 @@
             overflow-x: hidden;
         }
 
+        /* Grid paper background (same as welcome) */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            z-index: 0;
+            pointer-events: none;
+        }
+
         /* Bento Grid Layout */
         .bento-container {
             padding: 1rem;
@@ -64,6 +80,9 @@
             width: 100%;
             margin: 0 auto;
             overflow-x: hidden;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
         }
 
         @media (min-width: 768px) {
@@ -159,6 +178,31 @@
             .bento-card.col-span-12 { grid-column: span 12; }
         }
 
+        /* Generic responsive col-span classes for grid items (anchors, divs, etc.) */
+        .col-span-full { grid-column: 1 / -1; }
+
+        @media (min-width: 768px) {
+            .md\:col-span-3 { grid-column: span 3; }
+            .md\:col-span-4 { grid-column: span 4; }
+            .md\:col-span-6 { grid-column: span 6; }
+            .md\:col-span-8 { grid-column: span 8; }
+        }
+
+        @media (min-width: 1024px) {
+            .lg\:col-span-3 { grid-column: span 3; }
+            .lg\:col-span-4 { grid-column: span 4; }
+            .lg\:col-span-6 { grid-column: span 6; }
+            .lg\:col-span-8 { grid-column: span 8; }
+            .lg\:col-span-9 { grid-column: span 9; }
+
+            .col-span-3 { grid-column: span 3; }
+            .col-span-4 { grid-column: span 4; }
+            .col-span-6 { grid-column: span 6; }
+            .col-span-8 { grid-column: span 8; }
+            .col-span-9 { grid-column: span 9; }
+            .col-span-12 { grid-column: span 12; }
+        }
+
         /* Header */
         .header {
             background: var(--color-surface);
@@ -179,6 +223,30 @@
             gap: 1rem;
         }
 
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-hub {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .btn-hub:hover {
+            background: var(--color-bg);
+            transform: translateY(-1px);
+        }
+
         .header-title {
             font-size: 1.25rem;
             font-weight: 600;
@@ -197,6 +265,22 @@
             border-radius: 50%;
             object-fit: cover;
             border: 2px solid var(--color-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .header-user {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .header-user:hover .user-avatar {
+            transform: scale(1.05);
         }
 
         .user-info {
@@ -540,6 +624,180 @@
             background: rgba(107, 114, 128, 0.1);
             color: var(--color-text-muted);
         }
+
+        /* User Menu Overlay */
+        .user-menu-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(4px);
+        }
+
+        .user-menu-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* User Menu Sheet */
+        .user-menu-sheet {
+            position: fixed;
+            z-index: 1001;
+            background: var(--color-surface);
+            box-shadow: var(--shadow-lg);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Mobile: Bottom Sheet */
+        @media (max-width: 767px) {
+            .user-menu-sheet {
+                bottom: 0;
+                left: 0;
+                right: 0;
+                border-radius: 24px 24px 0 0;
+                transform: translateY(100%);
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .user-menu-sheet.active {
+                transform: translateY(0);
+            }
+        }
+
+        /* Tablet/Desktop: Side Sheet */
+        @media (min-width: 768px) {
+            .user-menu-sheet {
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-width: 400px;
+                transform: translateX(100%);
+                overflow-y: auto;
+            }
+
+            .user-menu-sheet.active {
+                transform: translateX(0);
+            }
+        }
+
+        .user-menu-header {
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            color: white;
+            position: relative;
+        }
+
+        .user-menu-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .user-menu-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .user-menu-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-menu-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+        }
+
+        .user-menu-info h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-menu-info p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .user-menu-content {
+            padding: 1.5rem;
+        }
+
+        .user-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            text-decoration: none;
+            color: var(--color-text);
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+            border: 1px solid transparent;
+        }
+
+        .user-menu-item:hover {
+            background: var(--color-bg);
+            border-color: var(--color-border);
+            transform: translateX(4px);
+        }
+
+        .user-menu-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .user-menu-icon.primary {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--color-primary);
+        }
+
+        .user-menu-icon.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--color-danger);
+        }
+
+        .user-menu-text h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-menu-text p {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+        }
+
+        .user-menu-divider {
+            height: 1px;
+            background: var(--color-border);
+            margin: 1rem 0;
+        }
     </style>
 
     @stack('styles')
@@ -554,8 +812,11 @@
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <h1 class="header-title">@yield('page-title', 'Dashboard')</h1>
-            <div class="header-user">
+            <div class="header-left">
+                <a href="{{ route('home') }}" class="btn-hub" title="Voltar ao Hub">Hub</a>
+                <h1 class="header-title">@yield('page-title', 'Dashboard')</h1>
+            </div>
+            <div class="header-user" id="userMenuToggle">
                 <div class="user-info">
                     <div class="user-name">{{ Auth::user()->name }}</div>
                     <div class="user-role">@yield('user-role')</div>
@@ -570,6 +831,83 @@
             </div>
         </div>
     </header>
+
+    <!-- User Menu Overlay -->
+    <div class="user-menu-overlay" id="userMenuOverlay"></div>
+
+    <!-- User Menu Sheet -->
+    <div class="user-menu-sheet" id="userMenuSheet">
+        <div class="user-menu-header">
+            <button class="user-menu-close" id="userMenuClose">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="user-menu-profile">
+                @if(Auth::user()->avatar)
+                    <img src="{{ Auth::user()->avatar }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
+                @else
+                    <div class="user-menu-avatar" style="background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem;">
+                        {{ substr(Auth::user()->name, 0, 1) }}
+                    </div>
+                @endif
+                <div class="user-menu-info">
+                    <h3>{{ Auth::user()->name }}</h3>
+                    <p>{{ Auth::user()->email }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="user-menu-content">
+            <a href="{{ route('home') }}" class="user-menu-item">
+                <div class="user-menu-icon primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </div>
+                <div class="user-menu-text">
+                    <h4>Página Inicial</h4>
+                    <p>Voltar ao início</p>
+                </div>
+            </a>
+
+            @if(Auth::user()->hasAnyRole(['super_admin', 'admin']))
+                <a href="/admin/users/{{ Auth::id() }}/edit" class="user-menu-item">
+                    <div class="user-menu-icon primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <div class="user-menu-text">
+                        <h4>Perfil</h4>
+                        <p>Gerenciar conta</p>
+                    </div>
+                </a>
+            @endif
+
+            <div class="user-menu-divider"></div>
+
+            <form action="{{ route('logout') }}" method="POST" style="margin: 0;">
+                @csrf
+                <button type="submit" class="user-menu-item" style="width: 100%; background: none; border: none; cursor: pointer;">
+                    <div class="user-menu-icon danger">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </div>
+                    <div class="user-menu-text">
+                        <h4>Sair</h4>
+                        <p>Encerrar sessão</p>
+                    </div>
+                </button>
+            </form>
+        </div>
+    </div>
 
     <!-- Navigation -->
     @yield('navigation')
@@ -597,6 +935,45 @@
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
+
+        // User Menu Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const userMenuToggle = document.getElementById('userMenuToggle');
+            const userMenuOverlay = document.getElementById('userMenuOverlay');
+            const userMenuSheet = document.getElementById('userMenuSheet');
+            const userMenuClose = document.getElementById('userMenuClose');
+
+            function openUserMenu() {
+                userMenuOverlay.classList.add('active');
+                userMenuSheet.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeUserMenu() {
+                userMenuOverlay.classList.remove('active');
+                userMenuSheet.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            if (userMenuToggle) {
+                userMenuToggle.addEventListener('click', openUserMenu);
+            }
+
+            if (userMenuClose) {
+                userMenuClose.addEventListener('click', closeUserMenu);
+            }
+
+            if (userMenuOverlay) {
+                userMenuOverlay.addEventListener('click', closeUserMenu);
+            }
+
+            // Close on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && userMenuSheet.classList.contains('active')) {
+                    closeUserMenu();
+                }
+            });
+        });
     </script>
 
     <!-- Image Compressor -->

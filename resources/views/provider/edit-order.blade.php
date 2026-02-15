@@ -165,7 +165,7 @@
                         <option value="">Nenhum associado</option>
                         @foreach($associates as $associate)
                             <option value="{{ $associate->id }}" {{ old('associate_id', $order->associate_id) == $associate->id ? 'selected' : '' }}>
-                                {{ $associate->name }}
+                                {{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}
                             </option>
                         @endforeach
                     </select>

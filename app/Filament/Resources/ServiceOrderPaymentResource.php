@@ -111,6 +111,39 @@ class ServiceOrderPaymentResource extends Resource
                                 },
                             ]),
 
+                        Forms\Components\TextInput::make('discount')
+                            ->label('Desconto')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(0)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                $amount = floatval($get('amount') ?? 0);
+                                $discount = floatval($get('discount') ?? 0);
+                                $fees = floatval($get('fees') ?? 0);
+                                $set('final_amount', number_format($amount - $discount + $fees, 2, '.', ''));
+                            }),
+
+                        Forms\Components\TextInput::make('fees')
+                            ->label('Taxas/Encargos')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(0)
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function (Forms\Set $set, Forms\Get $get) {
+                                $amount = floatval($get('amount') ?? 0);
+                                $discount = floatval($get('discount') ?? 0);
+                                $fees = floatval($get('fees') ?? 0);
+                                $set('final_amount', number_format($amount - $discount + $fees, 2, '.', ''));
+                            }),
+
+                        Forms\Components\TextInput::make('final_amount')
+                            ->label('Valor Final')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->readOnly()
+                            ->helperText('Valor - Desconto + Taxas'),
+
                         Forms\Components\Select::make('payment_method')
                             ->label('Forma de Pagamento')
                             ->options(PaymentMethod::class)
@@ -122,7 +155,9 @@ class ServiceOrderPaymentResource extends Resource
                             ->relationship('bankAccount', 'name')
                             ->searchable()
                             ->preload()
-                            ->helperText('Conta onde o valor foi depositado (se aplicável)'),
+                            ->required()
+                            ->default(fn () => \App\Models\BankAccount::where('is_default', true)->first()?->id)
+                            ->helperText('Conta onde o valor foi depositado'),
 
                         Forms\Components\Textarea::make('notes')
                             ->label('Observações')
@@ -172,6 +207,21 @@ class ServiceOrderPaymentResource extends Resource
                     ->label('Valor')
                     ->money('BRL')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('discount')
+                    ->label('Desconto')
+                    ->money('BRL')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('fees')
+                    ->label('Taxas')
+                    ->money('BRL')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('final_amount')
+                    ->label('Valor Final')
+                    ->money('BRL')
+                    ->toggleable(isToggledHiddenByDefault: true),
                     
                 Tables\Columns\TextColumn::make('payment_method')
                     ->label('Forma')
@@ -258,6 +308,7 @@ class ServiceOrderPaymentResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
                             ->helperText('Conta onde o valor será creditado'),
                     ])
                     ->action(function (ServiceOrderPayment $record, array $data): void {

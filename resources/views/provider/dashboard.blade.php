@@ -160,7 +160,7 @@
                                         </span>
                                     </div>
                                     <div style="font-size:0.875rem;color:var(--text-secondary);">
-                                        Cliente: {{ $order->associate ? $order->associate->name : 'Avulso' }}
+                                        Cliente: {{ $order->associate ? (optional($order->associate->user)->name ?? $order->associate->property_name ?? "#{$order->associate->id}") : 'Avulso' }}
                                     </div>
                                     @if($order->location)
                                         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem;">
@@ -219,7 +219,7 @@
                         <td>{{ optional($order->service)->name ?? '-' }}</td>
                         <td>
                             @if($order->associate_id)
-                                {{ $order->associate->name }}
+                                {{ optional($order->associate->user)->name ?? $order->associate->property_name ?? "#{$order->associate->id}" }}
                             @else
                                 Avulso
                             @endif

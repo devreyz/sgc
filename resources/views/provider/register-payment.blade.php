@@ -57,11 +57,11 @@
                 <span class="info-label">Serviço</span>
                 <span class="info-value">{{ $order->service->name }}</span>
             </div>
-            <div class="info-item">
+                <div class="info-item">
                 <span class="info-label">Cliente</span>
                 <span class="info-value">
                     @if($order->associate)
-                        {{ $order->associate->name }}
+                        {{ optional($order->associate->user)->name ?? $order->associate->property_name ?? "#{$order->associate->id}" }}
                     @else
                         @php
                             preg_match('/\[PESSOA AVULSA\]\nNome:\s*(.+)/m', $order->notes ?? '', $matches);
@@ -175,6 +175,36 @@
                         <option value="boleto" {{ old('payment_method') == 'boleto' ? 'selected' : '' }}>Boleto</option>
                     </select>
                     @error('payment_method')
+                        <span class="form-error">{{ $message }}</span>
+                    @enderror
+                </div>
+
+                <div class="form-group">
+                    <label for="discount" class="form-label">Desconto</label>
+                    <input type="number" 
+                           name="discount" 
+                           id="discount" 
+                           class="form-input @error('discount') error @enderror" 
+                           step="0.01" 
+                           min="0"
+                           value="{{ old('discount', '0.00') }}">
+                    <span class="form-help">Desconto concedido ao cliente (se houver)</span>
+                    @error('discount')
+                        <span class="form-error">{{ $message }}</span>
+                    @enderror
+                </div>
+
+                <div class="form-group">
+                    <label for="fees" class="form-label">Taxas/Encargos</label>
+                    <input type="number" 
+                           name="fees" 
+                           id="fees" 
+                           class="form-input @error('fees') error @enderror" 
+                           step="0.01" 
+                           min="0"
+                           value="{{ old('fees', '0.00') }}">
+                    <span class="form-help">Taxas de cartão, transferência, etc.</span>
+                    @error('fees')
                         <span class="form-error">{{ $message }}</span>
                     @enderror
                 </div>

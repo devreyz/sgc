@@ -49,14 +49,25 @@ class GoogleAuthController extends Controller
 
             Auth::login($user, true);
 
-            // Redirect based on user role/type
+            // Redirect based on user role(s)
+            $roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [];
+
+            // If user has more than one role, send to hub
+            if (is_countable($roles) && count($roles) > 1) {
+                return redirect()->intended(route('home'));
+            }
+
+            // Single-role shortcuts
             if ($user->hasRole('service_provider')) {
                 return redirect()->intended('/provider/dashboard');
-            } elseif ($user->hasRole('associate')) {
+            }
+
+            if ($user->hasRole('associate')) {
                 return redirect()->intended('/associate/dashboard');
             }
 
-            return redirect()->intended('/admin');
+            // Fallback to home
+            return redirect()->intended(route('home'));
 
         } catch (\Exception $e) {
             Log::error('Google OAuth callback failed', [

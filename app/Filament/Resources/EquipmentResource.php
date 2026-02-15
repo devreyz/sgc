@@ -256,6 +256,7 @@ class EquipmentResource extends Resource
         return [
             RelationManagers\MaintenanceSchedulesRelationManager::class,
             RelationManagers\MaintenanceRecordsRelationManager::class,
+            RelationManagers\ExpensesRelationManager::class,
         ];
     }
 

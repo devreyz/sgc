@@ -60,6 +60,19 @@ class ChartAccountResource extends Resource
                             ->searchable()
                             ->preload(),
 
+                        Forms\Components\Select::make('nature')
+                            ->label('Natureza')
+                            ->options([
+                                'devedora' => 'Devedora',
+                                'credora' => 'Credora',
+                            ])
+                            ->helperText('Devedora: aumenta com débito. Credora: aumenta com crédito.'),
+
+                        Forms\Components\Toggle::make('allows_entries')
+                            ->label('Permite Lançamentos')
+                            ->default(true)
+                            ->helperText('Contas sintéticas (pai) geralmente não permitem.'),
+
                         Forms\Components\Toggle::make('status')
                             ->label('Ativo')
                             ->default(true),
@@ -90,8 +103,27 @@ class ChartAccountResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => $state === 'receita' ? 'Receita' : 'Despesa')
-                    ->color(fn ($state): string => $state === 'receita' ? 'success' : 'danger'),
+                    ->formatStateUsing(fn ($state): string => match ($state) {
+                        'receita' => 'Receita',
+                        'despesa' => 'Despesa',
+                        'ativo' => 'Ativo',
+                        'passivo' => 'Passivo',
+                        'patrimonio' => 'Patrimônio Líquido',
+                        default => ucfirst($state),
+                    })
+                    ->color(fn ($state): string => match ($state) {
+                        'receita' => 'success',
+                        'despesa' => 'danger',
+                        'ativo' => 'info',
+                        'passivo' => 'warning',
+                        'patrimonio' => 'primary',
+                        default => 'gray',
+                    }),
+
+                Tables\Columns\IconColumn::make('allows_entries')
+                    ->label('Lanç.')
+                    ->boolean()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('parent.name')
                     ->label('Conta Pai'),

@@ -69,7 +69,7 @@ class ServiceOrderResource extends Resource
                     Forms\Components\Select::make('associate_id')
                         ->label('Associado (cliente)')
                         ->relationship('associate', 'id')
-                        ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->name ?? "#{$record->id}")
+                        ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? "#{$record->id}")
                         ->searchable()->preload()
                         ->helperText('Deixe vazio para pessoa avulsa'),
 
@@ -316,6 +316,7 @@ class ServiceOrderResource extends Resource
                             ->options(fn () => BankAccount::pluck('name', 'id'))
                             ->searchable()->preload()
                             ->required()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
                             ->helperText('Conta onde o valor será creditado'),
                         Forms\Components\FileUpload::make('receipt_path')
                             ->label('Comprovante')
@@ -415,6 +416,7 @@ class ServiceOrderResource extends Resource
                                 ->options(fn () => BankAccount::pluck('name', 'id'))
                                 ->searchable()->preload()
                                 ->required()
+                                ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
                                 ->helperText('Conta onde o valor será creditado'),
                         ];
                     })
@@ -530,6 +532,8 @@ class ServiceOrderResource extends Resource
                             ->label('Conta Bancária')
                             ->options(fn () => BankAccount::pluck('name', 'id'))
                             ->searchable()->preload()
+                            ->required()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
                             ->helperText('Conta de onde sai o dinheiro'),
                         Forms\Components\FileUpload::make('receipt_path')
                             ->label('Comprovante')
@@ -641,6 +645,8 @@ class ServiceOrderResource extends Resource
                                 ->label('Conta Bancária')
                                 ->options(fn () => BankAccount::pluck('name', 'id'))
                                 ->searchable()->preload()
+                                ->required()
+                                ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
                                 ->helperText('Conta de onde sai o dinheiro'),
                             Forms\Components\Textarea::make('notes')
                                 ->label('Observações')->rows(2),
