@@ -151,15 +151,15 @@
         <div class="error-code">419</div>
         <h1 class="error-title">Sessão expirada</h1>
         <p class="error-message">
-            Sua sessão expirou por motivos de segurança. Por favor, recarregue a página e tente novamente.
+            Sua sessão expirou por motivos de segurança. Por favor, faça login novamente e tente acessar a página.
         </p>
         
-        <a href="{{ route('home') }}" class="btn">
+        <a href="{{ route('login') }}" class="btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="23 4 23 10 17 10"></polyline>
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
             </svg>
-            Recarregar Página
+            Fazer Login
         </a>
     </div>
 </body>

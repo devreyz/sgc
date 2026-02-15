@@ -51,9 +51,12 @@ class ServiceProviderSeeder extends Seeder
             [
                 'user_id' => $user->id,
                 'name' => 'João Prestador',
-                'cpf_cnpj' => '987.654.321-00',
+                // campo na migration é 'cpf'
+                'cpf' => '987.654.321-00',
                 'phone' => '(67) 99999-9999',
-                'specialty' => 'Serviços Gerais',
+                // campo na migration é 'type'
+                'type' => 'outro',
+                // current_balance é adicionado por migration posterior, manter caso exista
                 'current_balance' => 0,
             ]
         );

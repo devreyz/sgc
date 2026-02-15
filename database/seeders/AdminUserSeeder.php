@@ -13,11 +13,17 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'email' => 'josereisleite2016@gmail.com',
-            'password' => Hash::make('hdhdjsdlhsehreiygkgf7vcbfed'),
-            'status' => true,
-        ])->assignRole('super_admin');
+        $user = User::firstOrCreate(
+            ['email' => 'josereisleite2016@gmail.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('hdhdjsdlhsehreiygkgf7vcbfed'),
+                'status' => true,
+            ]
+        );
+
+        if (!$user->hasRole('super_admin')) {
+            $user->assignRole('super_admin');
+        }
     }
 }
