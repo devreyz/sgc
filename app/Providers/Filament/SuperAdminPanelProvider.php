@@ -54,6 +54,7 @@ class SuperAdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                \App\Http\Middleware\EnsureSuperAdmin::class,
             ])
             ->authGuard('web')
             ->login()

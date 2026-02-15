@@ -86,6 +86,20 @@ class UserResource extends Resource
     {
         return $table
             ->modifyQueryUsing(function ($query) {
+                // Super admin vê todos os usuários
+                if (! \Illuminate\Support\Facades\Auth::user()?->hasRole('super_admin')) {
+                    // Filtrar apenas usuários do tenant atual
+                    $tenantId = session('tenant_id');
+                    if ($tenantId) {
+                        $query->whereHas('tenants', function ($q) use ($tenantId) {
+                            $q->where('tenant_id', $tenantId);
+                        });
+                    } else {
+                        // Se não houver tenant na sessão, não mostrar nenhum usuário
+                        $query->whereRaw('1 = 0');
+                    }
+                }
+                
                 // Admins de cooperativa não podem ver ou gerenciar super admins
                 // Super admins são gerenciados apenas no painel super-admin
                 $superAdminRole = \Spatie\Permission\Models\Role::where('name', 'super_admin')->first();
@@ -100,10 +114,10 @@ class UserResource extends Resource
                 Tables\Columns\ImageColumn::make('avatar')
                     ->label('')
                     ->circular(),
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('display_name')
                     ->label('Nome')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(['name'])
+                    ->sortable(['name']),
                 Tables\Columns\TextColumn::make('email')
                     ->label('E-mail')
                     ->searchable()
@@ -127,7 +141,13 @@ class UserResource extends Resource
                     ->label('Status'),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('Função')
-                    ->relationship('roles', 'name'),
+                    ->relationship('roles', 'name', function ($query) {
+                        // Não mostrar super_admin nos filtros do painel admin
+                        if (!\Illuminate\Support\Facades\Auth::user()?->hasRole('super_admin')) {
+                            $query->where('name', '!=', 'super_admin');
+                        }
+                        return $query;
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

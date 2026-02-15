@@ -24,9 +24,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use App\Filament\Traits\TenantScoped;
 
 class ServiceOrderResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = ServiceOrder::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -155,7 +157,7 @@ class ServiceOrderResource extends Resource
                 Tables\Columns\TextColumn::make('service.name')
                     ->label('Serviço')->searchable()->limit(20),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Cliente')->searchable()->limit(20)
                     ->default('Avulso'),
 

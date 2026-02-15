@@ -80,7 +80,7 @@ class ViewProductionDelivery extends ViewRecord
                         Components\TextEntry::make('salesProject.title')
                             ->label('Projeto de Venda'),
 
-                        Components\TextEntry::make('associate.user.name')
+                        Components\TextEntry::make('associate.user.display_name')
                             ->label('Produtor'),
 
                         Components\TextEntry::make('product.name')

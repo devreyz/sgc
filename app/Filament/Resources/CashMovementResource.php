@@ -12,9 +12,11 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use App\Filament\Traits\TenantScoped;
 
 class CashMovementResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = CashMovement::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrows-right-left';

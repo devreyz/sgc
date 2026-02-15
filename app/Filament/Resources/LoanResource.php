@@ -16,9 +16,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Traits\TenantScoped;
 
 class LoanResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = Loan::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';

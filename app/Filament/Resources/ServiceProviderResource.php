@@ -4,7 +4,9 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ServiceProviderResource\Pages;
 use App\Filament\Resources\ServiceProviderResource\RelationManagers;
+use App\Filament\Traits\TenantScoped;
 use App\Models\ServiceProvider;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,9 +14,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rules\Unique;
 
 class ServiceProviderResource extends Resource
 {
+    use TenantScoped;
+
     protected static ?string $model = ServiceProvider::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
@@ -35,8 +40,23 @@ class ServiceProviderResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('user_id')
                             ->label('Usuário do Sistema')
-                            ->relationship('user', 'name')
-                            ->searchable()
+                            ->relationship(
+                                name: 'user',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: function ($query) {
+                                    $tenantId = session('tenant_id');
+                                    if ($tenantId) {
+                                        // Filtrar apenas usuários desta organização
+                                        $query->whereHas('tenants', function ($q) use ($tenantId) {
+                                            $q->where('tenant_id', $tenantId);
+                                        });
+                                    }
+
+                                    return $query;
+                                }
+                            )
+                            ->getOptionLabelFromRecordUsing(fn (User $record) => $record->display_name)
+                            ->searchable(['name', 'email'])
                             ->preload()
                             ->helperText('Vincule a um usuário cadastrado no sistema (associado ou não)'),
 
@@ -49,7 +69,9 @@ class ServiceProviderResource extends Resource
                             ->label('CPF')
                             ->mask('999.999.999-99')
                             ->maxLength(14)
-                            ->unique(ignoreRecord: true),
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            }),
 
                         Forms\Components\TextInput::make('rg')
                             ->label('RG')
@@ -161,9 +183,9 @@ class ServiceProviderResource extends Resource
                     ->sortable()
                     ->weight('bold'),
 
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.display_name')
                     ->label('Usuário Vinculado')
-                    ->searchable()
+                    ->searchable(['users.name'])
                     ->placeholder('Sem vínculo')
                     ->toggleable(),
 
@@ -175,7 +197,7 @@ class ServiceProviderResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Função')
                     ->badge()
-                    ->formatStateUsing(fn ($state): string => match($state) {
+                    ->formatStateUsing(fn ($state): string => match ($state) {
                         'tratorista' => 'Tratorista',
                         'motorista' => 'Motorista',
                         'diarista' => 'Diarista',
@@ -184,7 +206,7 @@ class ServiceProviderResource extends Resource
                         'outro' => 'Outro',
                         default => ucfirst($state),
                     })
-                    ->color(fn ($state): string => match($state) {
+                    ->color(fn ($state): string => match ($state) {
                         'tratorista' => 'success',
                         'motorista' => 'info',
                         'diarista' => 'warning',
@@ -229,7 +251,7 @@ class ServiceProviderResource extends Resource
                     ->label('Total Pendente (Legado)')
                     ->state(fn (ServiceProvider $record): float => $record->total_pending)
                     ->money('BRL')
-                   ->color(fn ($state): string => $state > 0 ? 'danger' : 'gray')
+                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'gray')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('works_count')
@@ -316,7 +338,7 @@ class ServiceProviderResource extends Resource
 
                         return response()->streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'relatorio-prestadores-' . now()->format('Y-m-d') . '.pdf');
+                        }, 'relatorio-prestadores-'.now()->format('Y-m-d').'.pdf');
                     }),
             ]);
     }
