@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GeneratedDocument extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'template_id',
@@ -61,7 +62,7 @@ class GeneratedDocument extends Model
      */
     public function isSigned(): bool
     {
-        return !is_null($this->signed_at);
+        return ! is_null($this->signed_at);
     }
 
     /**

@@ -5,7 +5,9 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -91,6 +93,82 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Get all tenants this user belongs to.
+     */
+    public function tenants(): BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'tenant_user')
+            ->withPivot('is_admin')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get tenants where this user is an admin.
+     */
+    public function adminTenants(): BelongsToMany
+    {
+        return $this->tenants()->wherePivot('is_admin', true);
+    }
+
+    /**
+     * Check if user is admin of a specific tenant.
+     */
+    public function isTenantAdmin(?int $tenantId = null): bool
+    {
+        $tenantId = $tenantId ?? session('tenant_id');
+
+        if (! $tenantId) {
+            return false;
+        }
+
+        return $this->tenants()
+            ->wherePivot('tenant_id', $tenantId)
+            ->wherePivot('is_admin', true)
+            ->exists();
+    }
+
+    /**
+     * Check if user belongs to a specific tenant.
+     */
+    public function belongsToTenant(?int $tenantId = null): bool
+    {
+        $tenantId = $tenantId ?? session('tenant_id');
+
+        if (! $tenantId) {
+            return false;
+        }
+
+        return $this->tenants()->where('tenant_id', $tenantId)->exists();
+    }
+
+    /**
+     * Get current active tenant for this user.
+     */
+    public function currentTenant(): ?Tenant
+    {
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return null;
+        }
+
+        return $this->tenants()->find($tenantId);
+    }
+
+    /**
+     * Check if user can access any tenant.
+     */
+    public function hasAnyTenant(): bool
+    {
+        // Super admin can access any tenant
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        return $this->tenants()->exists();
+    }
+
+    /**
      * Get the associate profile for the user.
      */
     public function associate(): HasOne
@@ -133,7 +211,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Get the ledger entries for the user's associate profile.
      */
-    public function ledgerEntries(): HasMany
+    public function ledgerEntries(): HasManyThrough
     {
         return $this->hasManyThrough(
             AssociateLedger::class,

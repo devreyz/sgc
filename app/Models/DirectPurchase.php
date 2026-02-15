@@ -4,18 +4,20 @@ namespace App\Models;
 
 use App\Enums\DirectPurchaseStatus;
 use App\Enums\DirectPurchasePaymentStatus;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class DirectPurchase extends Model
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'supplier_id',
@@ -115,7 +117,7 @@ class DirectPurchase extends Model
 
     public function updateTotalValue(): void
     {
-        $this->total_value = $this->items()->sum(\DB::raw('quantity * unit_price'));
+        $this->total_value = $this->items()->sum(DB::raw('quantity * unit_price'));
         $this->final_value = $this->total_value - ($this->discount ?? 0);
         $this->save();
     }

@@ -17,6 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Http\Middleware\TenantMiddleware;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -45,6 +46,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
+                \App\Filament\Widgets\TenantSelectorWidget::class,
                 \App\Filament\Widgets\PendingPaymentRequestsWidget::class,
                 \App\Filament\Widgets\ServiceOrdersPaymentsWidget::class,
                 \App\Filament\Widgets\AssociatesBalanceWidget::class,
@@ -65,9 +67,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->plugins([
-                \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
+                TenantMiddleware::class,
+                \App\Http\Middleware\PreventSuperAdminAccess::class,
             ])
             ->navigationGroups([
                 'Cadastros',
