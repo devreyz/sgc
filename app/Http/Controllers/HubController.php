@@ -15,7 +15,39 @@ class HubController extends Controller
 
         $user = Auth::user();
 
-        // Detectar as roles disponíveis
+        // Verificar se usuário tem tenants antes de mostrar hub
+        $userTenants = $user->tenants;
+        
+        // Se não tem nenhum tenant, mostrar erro
+        if ($userTenants->isEmpty()) {
+            return view('hub', [
+                'user' => $user,
+                'roles' => [],
+                'tenants' => collect(),
+            ])->with('error', 'Você não está vinculado a nenhuma organização. Contate o administrador.');
+        }
+
+        // Se não há tenant na sessão, mostrar seleção de tenant
+        if (!session('tenant_id')) {
+            return view('tenant.select', [
+                'tenants' => $userTenants,
+                'user' => $user,
+            ]);
+        }
+
+        // Verificar se o tenant da sessão ainda é válido para o usuário
+        $currentTenantId = session('tenant_id');
+        if (!$userTenants->contains('id', $currentTenantId)) {
+            session()->forget('tenant_id');
+            return view('tenant.select', [
+                'tenants' => $userTenants,
+                'user' => $user,
+            ])->with('warning', 'Você não tem mais acesso à organização anterior. Selecione outra.');
+        }
+
+        $currentTenant = $userTenants->firstWhere('id', $currentTenantId);
+
+        // Detectar as roles disponíveis do usuário no tenant atual
         $roles = [];
 
         if ($user->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
@@ -33,7 +65,7 @@ class HubController extends Controller
                 'name' => 'Prestador de Serviço',
                 'description' => 'Gerenciar ordens e recebimentos',
                 'icon' => 'briefcase',
-                'url' => route('provider.dashboard'),
+                'url' => route('provider.dashboard', ['tenant' => $currentTenant->slug]),
                 'color' => 'success',
             ];
         }
@@ -43,7 +75,7 @@ class HubController extends Controller
                 'name' => 'Associado',
                 'description' => 'Projetos e entregas',
                 'icon' => 'users',
-                'url' => route('associate.dashboard'),
+                'url' => route('associate.dashboard', ['tenant' => $currentTenant->slug]),
                 'color' => 'info',
             ];
         }
@@ -53,7 +85,7 @@ class HubController extends Controller
                 'name' => 'Registrador de Entregas',
                 'description' => 'Registrar entregas de produção',
                 'icon' => 'package',
-                'url' => route('delivery.dashboard'),
+                'url' => route('delivery.dashboard', ['tenant' => $currentTenant->slug]),
                 'color' => 'warning',
             ];
         }
@@ -65,12 +97,11 @@ class HubController extends Controller
 
         // Se não tem nenhuma role conhecida, mostrar hub com mensagem em vez de redirecionar
         if (count($roles) === 0) {
-            // evita redirecionamento automático para /admin que causa loops/UX indesejado
-            $notice = 'Seu usuário não possui painéis atribuídos. Contate o administrador para atribuir permissões.';
+            $notice = 'Seu usuário não possui painéis atribuídos nesta organização. Contate o administrador para atribuir permissões.';
             return view('hub', compact('roles', 'user'))->with('error', $notice);
         }
 
-        // Mostrar hub de seleção
-        return view('hub', compact('roles', 'user'));
+        // Mostrar hub de seleção com tenant context
+        return view('hub', compact('roles', 'user', 'currentTenant'));
     }
 }

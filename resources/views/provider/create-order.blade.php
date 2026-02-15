@@ -4,17 +4,25 @@
 @section('page-title', 'Nova Ordem de Serviço')
 @section('user-role', 'Prestador de Serviço')
 
+@php
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? request()->route('tenant')?->slug ?? null;
+@endphp
+
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Financeiro</a>
+    <a href="{{ route('provider.dashboard', ['tenant' => $tenantSlug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('provider.orders', ['tenant' => $tenantSlug]) }}" class="nav-tab active">Ordens de Serviço</a>
+    <a href="{{ route('provider.financial', ['tenant' => $tenantSlug]) }}" class="nav-tab">Financeiro</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
     </form>
 </nav>
 @endsection
+
+@php
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? request()->route('tenant')?->slug ?? null;
+@endphp
 
 @section('content')
 <style>
@@ -37,7 +45,7 @@
 
 <div class="bento-grid">
     <div class="bento-card col-span-full">
-        <a href="{{ route('provider.orders') }}" class="btn btn-outline" style="margin-bottom:1rem;">← Voltar</a>
+        <a href="{{ route('provider.orders', ['tenant' => $tenantSlug]) }}" class="btn btn-outline" style="margin-bottom:1rem;">← Voltar</a>
 
         @if ($errors->any())
         <div style="padding:1rem;background:rgba(239,68,68,0.1);border-radius:var(--radius-md);margin-bottom:1rem;">
@@ -54,7 +62,7 @@
             <div class="wizard-step" data-step="3">3. Detalhes</div>
         </div>
 
-        <form method="POST" action="{{ route('provider.orders.store') }}" id="orderForm">
+        <form method="POST" action="{{ route('provider.orders.store', ['tenant' => $tenantSlug]) }}" id="orderForm">
             @csrf
             <input type="hidden" name="service_id" id="service_id" value="{{ old('service_id') }}">
             <input type="hidden" name="client_type" id="client_type" value="{{ old('client_type') }}">

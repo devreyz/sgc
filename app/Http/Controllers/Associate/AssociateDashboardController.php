@@ -25,9 +25,16 @@ class AssociateDashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+        $tenantId = session('tenant_id');
 
-        // Get associate record linked to user
-        $associate = Associate::where('user_id', $user->id)->first();
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        // Get associate record linked to user in current tenant
+        $associate = Associate::where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
 
         if (! $associate) {
             // Show message that no associate profile exists
@@ -35,23 +42,29 @@ class AssociateDashboardController extends Controller
         }
 
         $stats = [
-            'active_projects' => SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            'active_projects' => SalesProject::where('tenant_id', $tenantId)
+                ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
                 ->count(),
-            'my_deliveries' => ProductionDelivery::where('associate_id', $associate->id)
+            'my_deliveries' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->count(),
-            'pending_deliveries' => ProductionDelivery::where('associate_id', $associate->id)
+            'pending_deliveries' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::PENDING->value)
                 ->count(),
-            'total_delivered_this_month' => ProductionDelivery::where('associate_id', $associate->id)
+            'total_delivered_this_month' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->whereMonth('delivery_date', now()->month)
                 ->sum('quantity'),
-            'earnings_this_month' => ProductionDelivery::where('associate_id', $associate->id)
+            'earnings_this_month' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->whereMonth('delivery_date', now()->month)
                 ->sum('net_value'),
-            'unpaid_earnings' => ProductionDelivery::where('associate_id', $associate->id)
+            'unpaid_earnings' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_id', $associate->id)
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->where('paid', false)
                 ->sum('net_value'),
@@ -59,12 +72,14 @@ class AssociateDashboardController extends Controller
         ];
 
         // Mostrar TODOS os projetos ativos, não apenas os que ele já entregou
-        $recentProjects = SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+        $recentProjects = SalesProject::where('tenant_id', $tenantId)
+            ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
             ->with([
                 'customer',
                 'demands.product',
-                'deliveries' => function ($q) use ($associate) {
-                    $q->where('associate_id', $associate->id)
+                'deliveries' => function ($q) use ($associate, $tenantId) {
+                    $q->where('tenant_id', $tenantId)
+                      ->where('associate_id', $associate->id)
                       ->with('projectDemand.product');
                 }
             ])
@@ -72,7 +87,8 @@ class AssociateDashboardController extends Controller
             ->limit(5)
             ->get();
 
-        $recentTransactions = AssociateLedger::where('associate_id', $associate->id)
+        $recentTransactions = AssociateLedger::where('tenant_id', $tenantId)
+            ->where('associate_id', $associate->id)
             ->orderBy('transaction_date', 'desc')
             ->limit(10)
             ->get();
@@ -86,20 +102,30 @@ class AssociateDashboardController extends Controller
     public function projects(Request $request)
     {
         $user = Auth::user();
-        $associate = Associate::where('user_id', $user->id)->first();
+        $tenantId = session('tenant_id');
+
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $associate = Associate::where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
 
         if (! $associate) {
-            return redirect()->route('associate.dashboard')
+            return redirect()->route('associate.dashboard', ['tenant' => request()->route('tenant')->slug])
                 ->with('error', 'Perfil de associado não encontrado.');
         }
 
         // Mostrar TODOS os projetos ativos para o associado poder ver o que precisa entregar
-        $query = SalesProject::whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+        $query = SalesProject::where('tenant_id', $tenantId)
+            ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
             ->with([
                 'customer',
                 'demands.product',
-                'deliveries' => function ($q) use ($associate) {
-                    $q->where('associate_id', $associate->id)
+                'deliveries' => function ($q) use ($associate, $tenantId) {
+                    $q->where('tenant_id', $tenantId)
+                      ->where('associate_id', $associate->id)
                       ->with('projectDemand.product');
                 }
             ]);
@@ -120,16 +146,26 @@ class AssociateDashboardController extends Controller
     public function showProject($id)
     {
         $user = Auth::user();
-        $associate = Associate::where('user_id', $user->id)->first();
+        $tenantId = session('tenant_id');
+
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $associate = Associate::where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
 
         // Carregar QUALQUER projeto ativo, não apenas os que ele já entregou
         $project = SalesProject::where('id', $id)
+            ->where('tenant_id', $tenantId)
             ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
             ->with([
                 'customer',
                 'demands.product',
-                'deliveries' => function ($q) use ($associate) {
-                    $q->where('associate_id', $associate->id)
+                'deliveries' => function ($q) use ($associate, $tenantId) {
+                    $q->where('tenant_id', $tenantId)
+                      ->where('associate_id', $associate->id)
                       ->with('projectDemand.product');
                 },
                 'payments'
@@ -145,9 +181,18 @@ class AssociateDashboardController extends Controller
     public function deliveries(Request $request)
     {
         $user = Auth::user();
-        $associate = Associate::where('user_id', $user->id)->first();
+        $tenantId = session('tenant_id');
 
-        $query = ProductionDelivery::where('associate_id', $associate->id)
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $associate = Associate::where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('associate_id', $associate->id)
             ->with(['salesProject.customer', 'product']);
 
         // Filter by status
@@ -174,9 +219,18 @@ class AssociateDashboardController extends Controller
     public function ledger(Request $request)
     {
         $user = Auth::user();
-        $associate = Associate::where('user_id', $user->id)->first();
+        $tenantId = session('tenant_id');
 
-        $query = AssociateLedger::where('associate_id', $associate->id);
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $associate = Associate::where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        $query = AssociateLedger::where('tenant_id', $tenantId)
+            ->where('associate_id', $associate->id);
 
         // Filter by date range
         if ($request->start_date) {

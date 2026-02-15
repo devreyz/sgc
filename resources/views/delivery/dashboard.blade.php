@@ -6,8 +6,8 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard') }}" class="nav-tab active">Dashboard</a>
-    <a href="{{ route('delivery.register') }}" class="nav-tab">Registrar Entrega</a>
+    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Dashboard</a>
+    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Registrar Entrega</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -421,11 +421,11 @@
                     </div>
                     
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="{{ route('delivery.projects.deliveries', $project['id']) }}" class="btn-register" style="background: var(--color-info); padding: 0.625rem 1rem;">
+                        <a href="{{ route('delivery.projects.deliveries', ['tenant' => $currentTenant->slug, 'project' => $project['id']]) }}" class="btn-register" style="background: var(--color-info); padding: 0.625rem 1rem;">
                             <i data-lucide="history" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i>
                             Histórico
                         </a>
-                        <a href="{{ route('delivery.register', $project['id']) }}" class="btn-register">
+                        <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug, 'project' => $project['id']]) }}" class="btn-register">
                             <i data-lucide="plus" style="width:16px;height:16px;display:inline-block;vertical-align:middle;"></i>
                             Registrar
                         </a>

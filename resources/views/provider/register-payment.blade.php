@@ -6,10 +6,10 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Financeiro</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Carteira</a>
+    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Ordens de Serviço</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Financeiro</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Carteira</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -38,7 +38,7 @@
                 <h2 class="font-bold" style="font-size:1.5rem;">Registrar Pagamento do Cliente</h2>
                 <p class="text-muted text-sm">Ordem #{{ $order->number }}</p>
             </div>
-            <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline">← Voltar</a>
+            <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-outline">← Voltar</a>
         </div>
     </div>
 
@@ -126,7 +126,7 @@
             Registrar Novo Pagamento
         </h3>
 
-        <form action="{{ route('provider.orders.store-payment', $order->id) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('provider.orders.store-payment', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <div class="form-grid">
@@ -239,7 +239,7 @@
             </div>
 
             <div style="margin-top:1.5rem;display:flex;gap:1rem;justify-content:flex-end;">
-                <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline">Cancelar</a>
+                <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary" id="paymentSubmitBtn">
                     <i data-lucide="check" style="width:1rem;height:1rem;"></i>
                     <span class="btn-text">Registrar Pagamento</span>

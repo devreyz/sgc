@@ -6,10 +6,10 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('associate.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('associate.projects') }}" class="nav-tab">Projetos</a>
-    <a href="{{ route('associate.deliveries') }}" class="nav-tab">Entregas</a>
-    <a href="{{ route('associate.ledger') }}" class="nav-tab active">Extrato</a>
+    <a href="{{ route('associate.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Projetos</a>
+    <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Entregas</a>
+    <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Extrato</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -47,7 +47,7 @@
             </div>
             <div style="margin-top: auto; display: flex; gap: 0.5rem;">
                 <button type="submit" class="btn btn-primary">Filtrar</button>
-                <a href="{{ route('associate.ledger') }}" class="btn btn-outline">Limpar</a>
+                <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Limpar</a>
             </div>
         </form>
     </div>

@@ -6,10 +6,10 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Financeiro</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Carteira</a>
+    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Ordens de Serviço</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Financeiro</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Carteira</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -38,7 +38,7 @@
                 <p class="text-muted text-sm">Criada em {{ $order->created_at->format('d/m/Y H:i') }}</p>
             </div>
             <div class="flex gap-2 items-center">
-                <a href="{{ route('provider.orders') }}" class="btn btn-outline">← Voltar</a>
+                <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">← Voltar</a>
                 @php
                     $statusColors = [
                         'scheduled' => 'background:#dbeafe;color:#1e40af;',
@@ -274,7 +274,7 @@
     <!-- Botão Iniciar Execução -->
     @if($order->status->value === 'scheduled')
     <div class="bento-card col-span-full">
-        <form method="POST" action="{{ route('provider.orders.start', $order->id) }}">
+        <form method="POST" action="{{ route('provider.orders.start', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}">
             @csrf
             <p class="text-sm text-muted mb-4">A ordem está agendada. Inicie a execução quando começar o serviço.</p>
             <button type="submit" class="btn btn-primary">
@@ -310,7 +310,7 @@
             @endif
         </div>
 
-        <form method="POST" action="{{ route('provider.orders.complete', $order->id) }}" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('provider.orders.complete', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" enctype="multipart/form-data">
             @csrf
             <div class="form-grid">
                 <div class="form-group">
@@ -345,7 +345,7 @@
             </div>
 
             <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
-                <a href="{{ route('provider.orders') }}" class="btn btn-outline">Cancelar</a>
+                <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
                     <i data-lucide="check" style="width:1rem;height:1rem"></i> Finalizar Execução
                 </button>
@@ -363,7 +363,7 @@
                 Serviço concluído. Registre o pagamento do cliente quando receber.
                 <span style="font-weight:600;">Restante: R$ {{ number_format($order->client_remaining, 2, ',', '.') }}</span>
             </p>
-            <a href="{{ route('provider.orders.register-payment', $order->id) }}" class="btn btn-primary">
+            <a href="{{ route('provider.orders.register-payment', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-primary">
                 <i data-lucide="dollar-sign" style="width:1rem;height:1rem;"></i>
                 Registrar Pagamento
             </a>

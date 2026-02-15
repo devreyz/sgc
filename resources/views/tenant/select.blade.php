@@ -25,7 +25,7 @@
                     @forelse($tenants as $tenant)
                         <form action="{{ route('tenant.switch') }}" method="POST">
                             @csrf
-                            <input type="hidden" name="tenant_id" value="{{ $tenant['id'] }}">
+                            <input type="hidden" name="tenant_id" value="{{ $tenant->id }}">
                             <button type="submit" class="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-500 rounded-lg transition-colors">
                                 <div class="flex items-center space-x-3">
                                     <div class="shrink-0">
@@ -34,8 +34,8 @@
                                         </svg>
                                     </div>
                                     <div class="text-left">
-                                        <p class="text-lg font-semibold text-gray-900">{{ $tenant['name'] }}</p>
-                                        <p class="text-sm text-gray-500">{{ $tenant['slug'] }}</p>
+                                        <p class="text-lg font-semibold text-gray-900">{{ $tenant->name }}</p>
+                                        <p class="text-sm text-gray-500">{{ $tenant->slug }}</p>
                                     </div>
                                 </div>
                                 <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

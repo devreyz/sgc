@@ -6,15 +6,19 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab active">Financeiro</a>
+    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Ordens de Serviço</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Financeiro</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
     </form>
 </nav>
 @endsection
+
+@php
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? request()->route('tenant')?->slug ?? null;
+@endphp
 
 @section('content')
 <div class="bento-grid">
@@ -140,7 +144,7 @@
                             @if($hasPendingRequest)
                                 <span class="badge badge-warning" style="font-size:0.75rem;">Em análise</span>
                             @else
-                                <a href="{{ route('provider.financial.request-payment', $order->id) }}" class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
+                                <a href="{{ route('provider.financial.request-payment', ['tenant' => $tenantSlug, 'order' => $order->id]) }}" class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
                                     <i data-lucide="send" style="width:0.875rem;height:0.875rem;"></i>
                                     Solicitar Saque
                                 </a>
@@ -240,7 +244,7 @@
                     <tr>
                         <td>{{ $payment->payment_date?->format('d/m/Y') }}</td>
                         <td>
-                            <a href="{{ route('provider.orders.show', $payment->service_order_id) }}" style="color:var(--color-info);text-decoration:none;font-weight:600;">
+                            <a href="{{ route('provider.orders.show', ['tenant' => $tenantSlug, 'order' => $payment->service_order_id]) }}" style="color:var(--color-info);text-decoration:none;font-weight:600;">
                                 {{ optional($payment->serviceOrder)->number ?? '-' }}
                             </a>
                         </td>

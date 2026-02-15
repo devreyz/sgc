@@ -6,10 +6,10 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('associate.dashboard') }}" class="nav-tab active">Dashboard</a>
-    <a href="{{ route('associate.projects') }}" class="nav-tab">Projetos</a>
-    <a href="{{ route('associate.deliveries') }}" class="nav-tab">Entregas</a>
-    <a href="{{ route('associate.ledger') }}" class="nav-tab">Extrato</a>
+    <a href="{{ route('associate.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Dashboard</a>
+    <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Projetos</a>
+    <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Entregas</a>
+    <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Extrato</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -58,7 +58,7 @@
     <div class="bento-card col-span-8">
         <div class="flex justify-between items-center mb-4">
             <h2 class="font-bold" style="font-size: 1.25rem;">Projetos Recentes</h2>
-            <a href="{{ route('associate.projects') }}" class="btn btn-outline">Ver Todos</a>
+            <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Ver Todos</a>
         </div>
 
         @if($recentProjects->count() > 0)
@@ -118,7 +118,7 @@
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ route('associate.projects.show', $project->id) }}" class="btn btn-outline" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
+                                <a href="{{ route('associate.projects.show', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-outline" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">
                                     Ver Detalhes
                                 </a>
                             </td>
@@ -136,7 +136,7 @@
     <div class="bento-card col-span-4">
         <div class="flex justify-between items-center mb-4">
             <h2 class="font-bold" style="font-size: 1.25rem;">Últimas Transações</h2>
-            <a href="{{ route('associate.ledger') }}" class="btn btn-outline" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">Ver Extrato</a>
+            <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline" style="padding: 0.375rem 0.75rem; font-size: 0.75rem;">Ver Extrato</a>
         </div>
 
         @if($recentTransactions->count() > 0)
@@ -165,16 +165,16 @@
     <div class="bento-card col-span-12">
         <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Ações Rápidas</h2>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-            <a href="{{ route('associate.projects') }}" class="btn btn-primary">
+            <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="btn btn-primary">
                 📦 Meus Projetos
             </a>
-            <a href="{{ route('associate.deliveries') }}" class="btn btn-secondary">
+            <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug]) }}" class="btn btn-secondary">
                 🚚 Minhas Entregas
             </a>
-            <a href="{{ route('associate.ledger') }}" class="btn btn-outline">
+            <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">
                 💳 Ver Extrato
             </a>
-            <a href="{{ route('associate.deliveries', ['status' => 'pending']) }}" class="btn btn-outline">
+            <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug, 'status' => 'pending']) }}" class="btn btn-outline">
                 ⏳ Entregas Pendentes
             </a>
         </div>

@@ -6,8 +6,8 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('delivery.register') }}" class="nav-tab">Registrar Entrega</a>
+    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Registrar Entrega</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
