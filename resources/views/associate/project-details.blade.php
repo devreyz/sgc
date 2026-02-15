@@ -6,10 +6,10 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('associate.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('associate.projects') }}" class="nav-tab active">Projetos</a>
-    <a href="{{ route('associate.deliveries') }}" class="nav-tab">Entregas</a>
-    <a href="{{ route('associate.ledger') }}" class="nav-tab">Extrato</a>
+    <a href="{{ route('associate.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Projetos</a>
+    <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Entregas</a>
+    <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Extrato</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -21,7 +21,7 @@
 <div class="bento-grid">
     <!-- Back Button -->
     <div class="bento-card col-span-full">
-        <a href="{{ route('associate.projects') }}" class="btn btn-outline">
+        <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">
             ← Voltar para Projetos
         </a>
     </div>

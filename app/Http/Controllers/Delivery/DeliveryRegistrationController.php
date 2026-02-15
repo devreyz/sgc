@@ -25,11 +25,17 @@ class DeliveryRegistrationController extends Controller
      */
     public function index()
     {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
         // Get active projects with statistics
-        $projects = SalesProject::whereIn('status', [
-            ProjectStatus::DRAFT->value,
-            ProjectStatus::ACTIVE->value
-        ])
+        $projects = SalesProject::where('tenant_id', $tenantId)
+            ->whereIn('status', [
+                ProjectStatus::DRAFT->value,
+                ProjectStatus::ACTIVE->value,
+            ])
             ->with(['customer', 'demands.product', 'deliveries'])
             ->get()
             ->map(function ($project) {
@@ -58,9 +64,12 @@ class DeliveryRegistrationController extends Controller
 
         $stats = [
             'active_projects' => $projects->count(),
-            'total_deliveries_today' => ProductionDelivery::whereDate('delivery_date', today())->count(),
-            'pending_approvals' => ProductionDelivery::where('status', DeliveryStatus::PENDING)->count(),
-            'total_delivered_this_week' => ProductionDelivery::whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])->sum('quantity'),
+            'total_deliveries_today' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereDate('delivery_date', today())->count(),
+            'pending_approvals' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('status', DeliveryStatus::PENDING)->count(),
+            'total_delivered_this_week' => ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])->sum('quantity'),
         ];
 
         return view('delivery.dashboard', compact('projects', 'stats'));
@@ -71,28 +80,36 @@ class DeliveryRegistrationController extends Controller
      */
     public function register($projectId = null)
     {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
         // Get specific project or all active projects
         if ($projectId) {
-            $project = SalesProject::whereIn('status', [
-                ProjectStatus::DRAFT->value,
-                ProjectStatus::ACTIVE->value
-            ])
+            $project = SalesProject::where('tenant_id', $tenantId)
+                ->whereIn('status', [
+                    ProjectStatus::DRAFT->value,
+                    ProjectStatus::ACTIVE->value,
+                ])
                 ->with(['customer', 'demands.product', 'deliveries'])
                 ->findOrFail($projectId);
 
             $projects = collect([$project]);
         } else {
-            $projects = SalesProject::whereIn('status', [
-                ProjectStatus::DRAFT->value,
-                ProjectStatus::ACTIVE->value
-            ])
+            $projects = SalesProject::where('tenant_id', $tenantId)
+                ->whereIn('status', [
+                    ProjectStatus::DRAFT->value,
+                    ProjectStatus::ACTIVE->value,
+                ])
                 ->with(['customer', 'demands.product'])
                 ->orderBy('title')
                 ->get();
         }
 
         // Get all associates
-        $associates = Associate::with('user')
+        $associates = Associate::where('tenant_id', $tenantId)
+            ->with('user')
             ->whereHas('user', function ($q) {
                 $q->where('status', true);
             })
@@ -107,12 +124,19 @@ class DeliveryRegistrationController extends Controller
      */
     public function getProjectDemands($projectId)
     {
-        $demands = ProjectDemand::where('sales_project_id', $projectId)
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Tenant não encontrado'], 403);
+        }
+
+        $demands = ProjectDemand::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
             ->with('product')
             ->get()
-            ->map(function ($demand) {
+            ->map(function ($demand) use ($tenantId) {
                 // Calculate remaining quantity
-                $delivered = ProductionDelivery::where('project_demand_id', $demand->id)
+                $delivered = ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('project_demand_id', $demand->id)
                     ->where('status', '!=', DeliveryStatus::CANCELLED->value)
                     ->sum('quantity');
 
@@ -135,7 +159,13 @@ class DeliveryRegistrationController extends Controller
      */
     public function getAssociateDeliveries($projectId, $associateId)
     {
-        $deliveries = ProductionDelivery::where('sales_project_id', $projectId)
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Tenant não encontrado'], 403);
+        }
+
+        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->with('projectDemand.product')
             ->orderBy('delivery_date', 'desc')
@@ -162,6 +192,14 @@ class DeliveryRegistrationController extends Controller
      */
     public function store(Request $request)
     {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selecione uma organização primeiro.',
+            ], 403);
+        }
+
         $validated = $request->validate([
             'sales_project_id' => 'required|exists:sales_projects,id',
             'project_demand_id' => 'required|exists:project_demands,id',
@@ -175,7 +213,8 @@ class DeliveryRegistrationController extends Controller
 
         try {
             // Prevenir submissões duplicadas rápidas (mesmo projeto, demanda, associado, data)
-            $duplicate = ProductionDelivery::where('sales_project_id', $validated['sales_project_id'])
+            $duplicate = ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('sales_project_id', $validated['sales_project_id'])
                 ->where('project_demand_id', $validated['project_demand_id'])
                 ->where('associate_id', $validated['associate_id'])
                 ->where('delivery_date', $validated['delivery_date'])
@@ -186,14 +225,15 @@ class DeliveryRegistrationController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Entrega já registrada recentemente.',
-                    'existing' => ['id' => $duplicate->id]
+                    'existing' => ['id' => $duplicate->id],
                 ], 409);
             }
 
             DB::beginTransaction();
 
             // Get project demand to calculate values
-            $demand = ProjectDemand::findOrFail($validated['project_demand_id']);
+            $demand = ProjectDemand::where('tenant_id', $tenantId)
+                ->findOrFail($validated['project_demand_id']);
 
             // Calculate gross value
             $quantity = (float) $validated['quantity'];
@@ -207,6 +247,7 @@ class DeliveryRegistrationController extends Controller
 
             // Create delivery
             $delivery = ProductionDelivery::create([
+                'tenant_id' => $tenantId,
                 'sales_project_id' => $validated['sales_project_id'],
                 'project_demand_id' => $validated['project_demand_id'],
                 'associate_id' => $validated['associate_id'],
@@ -251,9 +292,17 @@ class DeliveryRegistrationController extends Controller
      */
     public function projectDeliveries($projectId)
     {
-        $project = SalesProject::with('customer')->findOrFail($projectId);
-        
-        $deliveries = ProductionDelivery::where('sales_project_id', $projectId)
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)
+            ->with('customer')
+            ->findOrFail($projectId);
+
+        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
             ->with(['associate.user', 'projectDemand.product'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
@@ -261,7 +310,7 @@ class DeliveryRegistrationController extends Controller
             ->map(function ($delivery) {
                 return [
                     'id' => $delivery->id,
-                    'associate_name' => $delivery->associate->user->name ?? 'Associado #' . $delivery->associate_id,
+                    'associate_name' => $delivery->associate->user->name ?? 'Associado #'.$delivery->associate_id,
                     'product_name' => $delivery->projectDemand->product->name ?? '-',
                     'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
                     'quantity' => (float) $delivery->quantity,
@@ -281,16 +330,22 @@ class DeliveryRegistrationController extends Controller
      */
     public function approveDelivery($deliveryId)
     {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Tenant não encontrado'], 403);
+        }
+
         try {
-            $delivery = ProductionDelivery::findOrFail($deliveryId);
-            
+            $delivery = ProductionDelivery::where('tenant_id', $tenantId)
+                ->findOrFail($deliveryId);
+
             if ($delivery->status !== DeliveryStatus::PENDING) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Esta entrega já foi processada.'
+                    'message' => 'Esta entrega já foi processada.',
                 ], 400);
             }
-            
+
             $delivery->update([
                 'status' => DeliveryStatus::APPROVED,
                 'approved_by' => Auth::id(),
@@ -299,12 +354,12 @@ class DeliveryRegistrationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Entrega aprovada com sucesso!'
+                'message' => 'Entrega aprovada com sucesso!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao aprovar: ' . $e->getMessage()
+                'message' => 'Erro ao aprovar: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -314,16 +369,22 @@ class DeliveryRegistrationController extends Controller
      */
     public function rejectDelivery(Request $request, $deliveryId)
     {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Tenant não encontrado'], 403);
+        }
+
         try {
-            $delivery = ProductionDelivery::findOrFail($deliveryId);
-            
+            $delivery = ProductionDelivery::where('tenant_id', $tenantId)
+                ->findOrFail($deliveryId);
+
             if ($delivery->status !== DeliveryStatus::PENDING) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Esta entrega já foi processada.'
+                    'message' => 'Esta entrega já foi processada.',
                 ], 400);
             }
-            
+
             $delivery->update([
                 'status' => DeliveryStatus::REJECTED,
                 'rejection_reason' => $request->input('reason'),
@@ -333,12 +394,12 @@ class DeliveryRegistrationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Entrega rejeitada.'
+                'message' => 'Entrega rejeitada.',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao rejeitar: ' . $e->getMessage()
+                'message' => 'Erro ao rejeitar: '.$e->getMessage(),
             ], 500);
         }
     }

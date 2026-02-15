@@ -4,11 +4,16 @@
 @section('page-title', 'Dashboard')
 @section('user-role', 'Prestador de Serviço')
 
+@php
+    // Fallback seguro para slug do tenant: primeiro $currentTenant, depois rota, depois sessão
+    $tenantSlug = $currentTenant?->slug ?? request()->route('tenant')?->slug ?? session('tenant_slug') ?? null;
+@endphp
+
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab active">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab">Financeiro</a>
+    <a href="{{ $tenantSlug ? route('provider.dashboard', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab active">Dashboard</a>
+    <a href="{{ $tenantSlug ? route('provider.orders', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab">Ordens de Serviço</a>
+    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab">Financeiro</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -32,7 +37,7 @@
                 <i data-lucide="wallet" style="width:1.25rem;height:1.25rem;display:inline;vertical-align:text-bottom;"></i>
                 Resumo Financeiro
             </h2>
-            <a href="{{ route('provider.financial') }}" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.875rem;">
+            <a href="{{ route('provider.financial', ['tenant' => ($currentTenant?->slug ?? session('tenant_slug'))]) }}" class="btn btn-outline" style="padding:0.5rem 1rem;font-size:0.875rem;">
                 <i data-lucide="arrow-right" style="width:1rem;height:1rem;"></i>
                 Ver Detalhes
             </a>
@@ -79,13 +84,13 @@
     <div class="bento-card col-span-full lg:col-span-4">
         <h2 class="font-bold mb-4" style="font-size: 1.125rem;">Ações Rápidas</h2>
         <div style="display:flex;flex-direction:column;gap:0.75rem;">
-            <a href="{{ route('provider.orders.create') }}" class="btn btn-primary" style="width:100%;justify-content:center;">
+            <a href="{{ route('provider.orders.create', ['tenant' => ($currentTenant?->slug ?? session('tenant_slug'))]) }}" class="btn btn-primary" style="width:100%;justify-content:center;">
                 <i data-lucide="plus" style="width:1rem;height:1rem"></i> Nova Ordem
             </a>
-            <a href="{{ route('provider.orders') }}" class="btn btn-outline" style="width:100%;justify-content:center;">
+            <a href="{{ route('provider.orders', ['tenant' => ($currentTenant?->slug ?? session('tenant_slug'))]) }}" class="btn btn-outline" style="width:100%;justify-content:center;">
                 <i data-lucide="list" style="width:1rem;height:1rem"></i> Todas as Ordens
             </a>
-            <a href="{{ route('provider.financial') }}" class="btn btn-outline" style="width:100%;justify-content:center;">
+            <a href="{{ route('provider.financial', ['tenant' => ($currentTenant?->slug ?? session('tenant_slug'))]) }}" class="btn btn-outline" style="width:100%;justify-content:center;">
                 <i data-lucide="banknote" style="width:1rem;height:1rem"></i> Solicitar Saque
             </a>
         </div>
@@ -169,7 +174,7 @@
                                         </div>
                                     @endif
                                 </div>
-                                <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.875rem;">
+                                <a href="{{ route('provider.orders.show', ['tenant' => ($currentTenant?->slug ?? session('tenant_slug')), 'order' => $order->id]) }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.875rem;">
                                     Ver Detalhes
                                 </a>
                             </div>
@@ -184,7 +189,7 @@
             <div style="text-align:center;padding:2rem;">
                 <i data-lucide="calendar-x" style="width:3rem;height:3rem;color:var(--text-muted);margin:0 auto 1rem;"></i>
                 <p style="color:var(--text-muted);">Nenhuma ordem agendada para os próximos 30 dias</p>
-                <a href="{{ route('provider.orders.create') }}" class="btn btn-primary" style="margin-top:1rem;">
+                <a href="{{ route('provider.orders.create', ['tenant' => $currentTenant->slug]) }}" class="btn btn-primary" style="margin-top:1rem;">
                     <i data-lucide="plus" style="width:1rem;height:1rem"></i> Criar Nova Ordem
                 </a>
             </div>
@@ -230,7 +235,7 @@
                             </span>
                         </td>
                         <td>
-                            <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
+                            <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
                                 Ver
                             </a>
                         </td>

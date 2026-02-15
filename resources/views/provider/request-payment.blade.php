@@ -6,9 +6,9 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial') }}" class="nav-tab active">Financeiro</a>
+    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
+    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Ordens de Serviço</a>
+    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Financeiro</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -37,7 +37,7 @@
                 <h2 class="font-bold" style="font-size:1.5rem;">Solicitar Pagamento</h2>
                 <p class="text-muted text-sm">Ordem #{{ $order->number }}</p>
             </div>
-            <a href="{{ route('provider.orders.show', $order->id) }}" class="btn btn-outline">← Voltar</a>
+            <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-outline">← Voltar</a>
         </div>
     </div>
 
@@ -109,7 +109,7 @@
             Nova Solicitação de Pagamento
         </h3>
 
-        <form action="{{ route('provider.financial.store-request', $order->id) }}" method="POST">
+        <form action="{{ route('provider.financial.store-request', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" method="POST">
             @csrf
 
             <div class="form-grid">
@@ -162,7 +162,7 @@ PIX: seu@email.com"
             </div>
 
             <div style="margin-top:1.5rem;display:flex;gap:1rem;justify-content:flex-end;">
-                <a href="{{ route('provider.financial') }}" class="btn btn-outline">Cancelar</a>
+                <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary">
                     <i data-lucide="send" style="width:1rem;height:1rem;"></i>
                     Enviar Solicitação

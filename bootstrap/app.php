@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckUserRole::class,
             'any.role' => \App\Http\Middleware\CheckAnyRole::class,
+            'tenant.slug' => \App\Http\Middleware\TenantFromSlugMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
