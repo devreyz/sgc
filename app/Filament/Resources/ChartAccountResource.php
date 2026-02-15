@@ -11,9 +11,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Traits\TenantScoped;
+use Illuminate\Validation\Rules\Unique;
 
 class ChartAccountResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = ChartAccount::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -35,7 +38,9 @@ class ChartAccountResource extends Resource
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
                             ->required()
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->maxLength(20),
 
                         Forms\Components\TextInput::make('name')
@@ -54,19 +59,16 @@ class ChartAccountResource extends Resource
                             ])
                             ->required(),
 
-                        Forms\Components\Select::make('parent_id')
-                            ->label('Conta Pai')
-                            ->relationship('parent', 'name')
-                            ->searchable()
-                            ->preload(),
+                        // Campo 'Conta Pai' removido por decisão: não é necessário no formulário.
 
                         Forms\Components\Select::make('nature')
                             ->label('Natureza')
                             ->options([
-                                'devedora' => 'Devedora',
-                                'credora' => 'Credora',
+                                'debit' => 'Devedora',
+                                'credit' => 'Credora',
                             ])
-                            ->helperText('Devedora: aumenta com débito. Credora: aumenta com crédito.'),
+                            ->required()
+                            ->helperText('Devedora ("debit"): conta que aumenta quando debitada. Credora ("credit"): conta que aumenta quando creditada. Exemplo: "Conta de Luz" é do tipo "despesa" com natureza "debit" (aumenta com débito).'),
 
                         Forms\Components\Toggle::make('allows_entries')
                             ->label('Permite Lançamentos')
@@ -125,8 +127,7 @@ class ChartAccountResource extends Resource
                     ->boolean()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\TextColumn::make('parent.name')
-                    ->label('Conta Pai'),
+                // Coluna 'Conta Pai' removida conforme decisão do formulário.
 
                 Tables\Columns\IconColumn::make('status')
                     ->label('Ativo')

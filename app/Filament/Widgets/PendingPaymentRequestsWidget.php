@@ -15,11 +15,14 @@ class PendingPaymentRequestsWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
+        $tenantId = session('tenant_id');
+        
         return $table
             ->heading('Pedidos de Saque Pendentes')
             ->description('Prestadores aguardando pagamento')
             ->query(
                 ProviderPaymentRequest::query()
+                    ->where('tenant_id', $tenantId)
                     ->where('status', 'pending')
                     ->with(['serviceProvider', 'serviceOrder.service'])
                     ->latest('request_date')

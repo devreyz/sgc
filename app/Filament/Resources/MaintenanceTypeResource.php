@@ -9,9 +9,11 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Filament\Traits\TenantScoped;
 
 class MaintenanceTypeResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = MaintenanceType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';

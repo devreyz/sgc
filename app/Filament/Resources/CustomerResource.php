@@ -12,9 +12,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Traits\TenantScoped;
+use Illuminate\Validation\Rules\Unique;
 
 class CustomerResource extends Resource
 {
+    use TenantScoped;
     use HasExportActions;
     
     protected static ?string $model = Customer::class;
@@ -58,7 +61,9 @@ class CustomerResource extends Resource
                         Forms\Components\TextInput::make('cnpj')
                             ->label('CNPJ')
                             ->mask('99.999.999/9999-99')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->required()
                             ->maxLength(18),
 

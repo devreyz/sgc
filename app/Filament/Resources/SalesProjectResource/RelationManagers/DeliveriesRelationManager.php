@@ -135,7 +135,7 @@ class DeliveriesRelationManager extends RelationManager
                     ->date('d/m/Y')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Associado')
                     ->searchable()
                     ->sortable(),
@@ -536,7 +536,7 @@ class DeliveriesRelationManager extends RelationManager
                                 ->content(function ($records) {
                                     $total = $records->sum('net_value');
                                     $count = $records->count();
-                                    $associates = $records->pluck('associate.user.name')->unique()->implode(', ');
+                                    $associates = $records->map(fn($r) => $r->associate?->user?->getTenantName())->filter()->unique()->implode(', ');
                                     
                                     return new \Illuminate\Support\HtmlString(
                                         '<div class="space-y-2 text-sm">'.

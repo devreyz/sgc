@@ -20,9 +20,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use App\Filament\Traits\TenantScoped;
 
 class DirectPurchaseResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = DirectPurchase::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-shopping-cart';

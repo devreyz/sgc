@@ -52,6 +52,7 @@
     48 => 'App\\Providers\\AppServiceProvider',
     49 => 'App\\Providers\\Filament\\AdminPanelProvider',
     50 => 'App\\Providers\\Filament\\SuperAdminPanelProvider',
+    51 => 'App\\Providers\\ShieldCustomizationServiceProvider',
   ),
   'eager' => 
   array (
@@ -90,6 +91,7 @@
     32 => 'App\\Providers\\AppServiceProvider',
     33 => 'App\\Providers\\Filament\\AdminPanelProvider',
     34 => 'App\\Providers\\Filament\\SuperAdminPanelProvider',
+    35 => 'App\\Providers\\ShieldCustomizationServiceProvider',
   ),
   'deferred' => 
   array (

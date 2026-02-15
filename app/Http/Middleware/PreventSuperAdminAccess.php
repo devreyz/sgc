@@ -20,8 +20,13 @@ class PreventSuperAdminAccess
     public function handle(Request $request, Closure $next): Response
     {
         if (Auth::check() && Auth::user()->isSuperAdmin()) {
-            // Redirect super admin to their panel
-            return redirect('/super-admin');
+            // If the super admin does not belong to any tenant, keep redirecting
+            // them to the super-admin panel. If they have any tenant memberships,
+            // allow access to admin panels (they can act within those orgs).
+            if (! Auth::user()->tenants()->exists()) {
+                return redirect('/super-admin');
+            }
+            // otherwise allow access to the admin panel
         }
 
         return $next($request);

@@ -12,9 +12,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Traits\TenantScoped;
+use Illuminate\Validation\Rules\Unique;
 
 class ServiceResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = Service::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench';
@@ -35,7 +38,9 @@ class ServiceResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->maxLength(20),
 
                         Forms\Components\TextInput::make('name')

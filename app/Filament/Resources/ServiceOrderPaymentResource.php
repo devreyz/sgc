@@ -19,9 +19,11 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use App\Filament\Traits\TenantScoped;
 
 class ServiceOrderPaymentResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = ServiceOrderPayment::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';

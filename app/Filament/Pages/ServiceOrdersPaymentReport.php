@@ -33,9 +33,12 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
 
     public function table(Table $table): Table
     {
+        $tenantId = session('tenant_id');
+        
         return $table
             ->query(
                 ServiceOrder::query()
+                    ->where('tenant_id', $tenantId)
                     ->where('status', ServiceOrderStatus::COMPLETED)
                     ->with(['associate.user', 'service', 'works.serviceProvider'])
                     ->latest('execution_date')
@@ -51,7 +54,7 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
                     ->date('d/m/Y')
                     ->sortable(),
 
-                TextColumn::make('associate.user.name')
+                TextColumn::make('associate.user.display_name')
                     ->label('Associado')
                     ->searchable()
                     ->limit(20),

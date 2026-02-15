@@ -13,9 +13,12 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rules\Unique;
+use App\Filament\Traits\TenantScoped;
 
 class ProductResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = Product::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cube';
@@ -36,7 +39,9 @@ class ProductResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('sku')
                             ->label('SKU / Código')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->maxLength(100),
 
                         Forms\Components\TextInput::make('name')

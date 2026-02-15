@@ -11,9 +11,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Filament\Traits\TenantScoped;
 
 class DocumentTemplateResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = DocumentTemplate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';

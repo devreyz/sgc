@@ -23,9 +23,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use App\Filament\Traits\TenantScoped;
 
 class SalesProjectResource extends Resource
 {
+    use TenantScoped;
     use HasExportActions;
 
     protected static ?string $model = SalesProject::class;

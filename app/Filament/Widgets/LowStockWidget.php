@@ -17,9 +17,12 @@ class LowStockWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
+        $tenantId = session('tenant_id');
+        
         return $table
             ->query(
                 Product::query()
+                    ->where('tenant_id', $tenantId)
                     ->whereColumn('current_stock', '<=', 'min_stock')
                     ->where('status', true)
                     ->orderBy('current_stock')
