@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\AssetResource\Pages;
+use App\Filament\Traits\TenantScoped;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Models\Asset;
@@ -12,10 +13,13 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class AssetResource extends Resource
 {
+    use TenantScoped;
+    
     protected static ?string $model = Asset::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
@@ -36,7 +40,9 @@ class AssetResource extends Resource
                     ->schema([
                         Forms\Components\TextInput::make('code')
                             ->label('Código')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->maxLength(50),
 
                         Forms\Components\TextInput::make('name')

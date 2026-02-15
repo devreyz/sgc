@@ -5,7 +5,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AssociateResource\Pages;
 use App\Filament\Resources\AssociateResource\RelationManagers;
 use App\Filament\Traits\HasExportActions;
+use App\Filament\Traits\TenantScoped;
 use App\Models\Associate;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -13,11 +15,15 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Unique;
 
 class AssociateResource extends Resource
 {
     use HasExportActions;
-    
+    use TenantScoped;
+
     protected static ?string $model = Associate::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -40,32 +46,100 @@ class AssociateResource extends Resource
                             ->schema([
                                 Forms\Components\Select::make('user_id')
                                     ->label('Usuário')
-                                    ->relationship('user', 'name')
-                                    ->searchable()
+                                    ->relationship(
+                                        name: 'user',
+                                        titleAttribute: 'name',
+                                        modifyQueryUsing: function ($query) {
+                                            $tenantId = session('tenant_id');
+                                            if ($tenantId && ! Auth::user()?->hasRole('super_admin')) {
+                                                // Filtrar apenas usuários desta organização
+                                                $query->whereHas('tenants', function ($q) use ($tenantId) {
+                                                    $q->where('tenant_id', $tenantId);
+                                                });
+                                            }
+
+                                            return $query;
+                                        }
+                                    )
+                                    ->getOptionLabelFromRecordUsing(fn (User $record) => $record->display_name)
+                                    ->searchable(['name', 'email'])
                                     ->preload()
                                     ->required()
                                     ->createOptionForm([
                                         Forms\Components\TextInput::make('name')
-                                            ->label('Nome')
+                                            ->label('Nome Completo')
                                             ->required()
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->helperText('Nome como deve aparecer nesta organização'),
                                         Forms\Components\TextInput::make('email')
                                             ->label('E-mail')
                                             ->email()
                                             ->required()
-                                            ->unique('users', 'email')
-                                            ->maxLength(255),
+                                            ->maxLength(255)
+                                            ->helperText('Se o e-mail já existir no sistema, o usuário será vinculado a esta organização'),
                                         Forms\Components\TextInput::make('password')
                                             ->label('Senha')
                                             ->password()
                                             ->required()
-                                            ->minLength(8),
-                                    ]),
+                                            ->minLength(8)
+                                            ->helperText('Senha específica desta organização (mínimo 8 caracteres)'),
+                                    ])
+                                    ->createOptionUsing(function (array $data): int {
+                                        $tenantId = session('tenant_id');
+
+                                        // Verificar se usuário já existe por email
+                                        $existingUser = User::where('email', $data['email'])->first();
+
+                                        if ($existingUser) {
+                                            // Usuário existe - adicionar à organização atual
+                                            if ($tenantId && ! $existingUser->tenants()->where('tenant_id', $tenantId)->exists()) {
+                                                $existingUser->tenants()->attach($tenantId, [
+                                                    'tenant_name' => $data['name'],
+                                                    'tenant_password' => Hash::make($data['password']),
+                                                    'is_admin' => false,
+                                                    'roles' => json_encode([]),
+                                                    'created_at' => now(),
+                                                    'updated_at' => now(),
+                                                ]);
+
+                                                \Filament\Notifications\Notification::make()
+                                                    ->title('Usuário existente vinculado à organização')
+                                                    ->success()
+                                                    ->send();
+                                            }
+
+                                            return $existingUser->id;
+                                        }
+
+                                        // Usuário não existe - criar novo
+                                        $user = User::create([
+                                            'name' => $data['name'],
+                                            'email' => $data['email'],
+                                            'password' => Hash::make($data['password']),
+                                            'status' => true,
+                                        ]);
+
+                                        // Vincular à organização atual
+                                        if ($tenantId) {
+                                            $user->tenants()->attach($tenantId, [
+                                                'tenant_name' => $data['name'],
+                                                'tenant_password' => Hash::make($data['password']),
+                                                'is_admin' => false,
+                                                'roles' => json_encode([]),
+                                                'created_at' => now(),
+                                                'updated_at' => now(),
+                                            ]);
+                                        }
+
+                                        return $user->id;
+                                    }),
 
                                 Forms\Components\TextInput::make('cpf_cnpj')
                                     ->label('CPF/CNPJ')
                                     ->required()
-                                    ->unique(ignoreRecord: true)
+                                    ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                        return $rule->where('tenant_id', session('tenant_id'));
+                                    })
                                     ->mask('999.999.999-99')
                                     ->maxLength(18),
 
@@ -206,10 +280,10 @@ class AssociateResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.name')
+                Tables\Columns\TextColumn::make('user.display_name')
                     ->label('Nome')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(['users.name'])
+                    ->sortable(['users.name']),
 
                 Tables\Columns\TextColumn::make('cpf_cnpj')
                     ->label('CPF/CNPJ')
@@ -222,8 +296,7 @@ class AssociateResource extends Resource
                 Tables\Columns\TextColumn::make('dap_caf_expiry')
                     ->label('Validade DAP/CAF')
                     ->date('d/m/Y')
-                    ->color(fn (Associate $record): string => 
-                        $record->isDapCafExpired() ? 'danger' : 
+                    ->color(fn (Associate $record): string => $record->isDapCafExpired() ? 'danger' :
                         ($record->isDapCafExpiringSoon() ? 'warning' : 'success')
                     )
                     ->sortable(),
@@ -264,8 +337,7 @@ class AssociateResource extends Resource
                     ]),
                 Tables\Filters\Filter::make('dap_expiring')
                     ->label('DAP/CAF Vencendo')
-                    ->query(fn (Builder $query): Builder => 
-                        $query->whereBetween('dap_caf_expiry', [now(), now()->addDays(30)])
+                    ->query(fn (Builder $query): Builder => $query->whereBetween('dap_caf_expiry', [now(), now()->addDays(30)])
                     ),
             ])
             ->headerActions([
@@ -315,7 +387,7 @@ class AssociateResource extends Resource
     protected static function getExportColumns(): array
     {
         return [
-            'user.name' => 'Nome',
+            'user.display_name' => 'Nome',
             'cpf_cnpj' => 'CPF/CNPJ',
             'rg' => 'RG',
             'dap_caf' => 'DAP/CAF',

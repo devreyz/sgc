@@ -18,26 +18,38 @@ class CashSummaryWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $tenantId = session('tenant_id');
+        
         // Saldo total em contas
-        $totalInAccounts = BankAccount::where('status', true)->sum('current_balance');
+        $totalInAccounts = BankAccount::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->sum('current_balance');
         
         // Caixa principal
-        $mainCash = BankAccount::where('type', 'caixa')->where('status', true)->first();
+        $mainCash = BankAccount::where('tenant_id', $tenantId)
+            ->where('type', 'caixa')
+            ->where('status', true)
+            ->first();
         $cashBalance = $mainCash ? $mainCash->current_balance : 0;
 
         // Movimentos do mês
         $currentMonth = now()->startOfMonth();
-        $monthlyIncome = CashMovement::where('type', CashMovementType::INCOME)
+        $monthlyIncome = CashMovement::where('tenant_id', $tenantId)
+            ->where('type', CashMovementType::INCOME)
             ->whereBetween('movement_date', [$currentMonth, now()])
             ->sum('amount');
 
-        $monthlyExpense = CashMovement::where('type', CashMovementType::EXPENSE)
+        $monthlyExpense = CashMovement::where('tenant_id', $tenantId)
+            ->where('type', CashMovementType::EXPENSE)
             ->whereBetween('movement_date', [$currentMonth, now()])
             ->sum('amount');
 
         // Despesas pendentes
-        $pendingExpenses = Expense::where('status', ExpenseStatus::PENDING)->sum('amount');
-        $overdueCount = Expense::where('status', ExpenseStatus::PENDING)
+        $pendingExpenses = Expense::where('tenant_id', $tenantId)
+            ->where('status', ExpenseStatus::PENDING)
+            ->sum('amount');
+        $overdueCount = Expense::where('tenant_id', $tenantId)
+            ->where('status', ExpenseStatus::PENDING)
             ->where('due_date', '<', now())
             ->count();
 

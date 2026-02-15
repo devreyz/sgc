@@ -25,7 +25,7 @@ class ViewAssociate extends ViewRecord
             ->schema([
                 Infolists\Components\Section::make('Informações do Associado')
                     ->schema([
-                        Infolists\Components\TextEntry::make('user.name')
+                        Infolists\Components\TextEntry::make('user.display_name')
                             ->label('Nome'),
                         Infolists\Components\TextEntry::make('cpf_cnpj')
                             ->label('CPF/CNPJ'),

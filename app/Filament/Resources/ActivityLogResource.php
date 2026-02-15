@@ -104,9 +104,9 @@ class ActivityLogResource extends Resource
                 Tables\Columns\TextColumn::make('subject_id')
                     ->label('ID'),
 
-                Tables\Columns\TextColumn::make('causer.name')
+                Tables\Columns\TextColumn::make('causer.display_name')
                     ->label('Usuário')
-                    ->searchable(),
+                    ->searchable(['users.name']),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([

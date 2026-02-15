@@ -42,8 +42,22 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(191);
 
         // Grant all permissions to super_admin
+        // This allows super admin to bypass all Gate and Policy checks
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('super_admin') ? true : null;
+            if ($user->hasRole('super_admin')) {
+                return true;
+            }
+            
+            // For non-super-admin users, enforce tenant check
+            // Block access if no tenant is set (except for tenant selection routes)
+            if (!request()->is('tenant/*') && !request()->is('super-admin/*')) {
+                $currentTenantId = session('tenant_id');
+                if (!$currentTenantId && !$user->isSuperAdmin()) {
+                    return false;
+                }
+            }
+            
+            return null;
         });
 
         // Register Observers

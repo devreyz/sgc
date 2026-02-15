@@ -16,42 +16,52 @@ class ServiceOrdersPaymentsWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $tenantId = session('tenant_id');
+        
         // Valores a receber dos associados
-        $pendingFromAssociates = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $pendingFromAssociates = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'pending')
             ->sum(DB::raw('actual_quantity * unit_price'));
 
-        $countPendingFromAssociates = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $countPendingFromAssociates = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'pending')
             ->count();
 
         // Valores a pagar aos prestadores (onde associado já pagou)
-        $pendingToProviders = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $pendingToProviders = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'paid')
             ->where('provider_payment_status', 'pending')
             ->sum('provider_payment');
 
-        $countPendingToProviders = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $countPendingToProviders = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'paid')
             ->where('provider_payment_status', 'pending')
             ->count();
 
         // Lucro acumulado (receita - pagamento ao prestador) dos pagos
-        $totalRevenue = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $totalRevenue = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'paid')
             ->sum(DB::raw('actual_quantity * unit_price'));
 
-        $totalProviderPayments = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $totalProviderPayments = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->where('associate_payment_status', 'paid')
             ->sum('provider_payment');
 
         $cooperativeProfit = $totalRevenue - $totalProviderPayments;
 
         // Lucro potencial (se todos pagarem)
-        $totalPotentialRevenue = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $totalPotentialRevenue = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->sum(DB::raw('actual_quantity * unit_price'));
 
-        $totalPotentialProviderPayments = ServiceOrder::where('status', ServiceOrderStatus::COMPLETED)
+        $totalPotentialProviderPayments = ServiceOrder::where('tenant_id', $tenantId)
+            ->where('status', ServiceOrderStatus::COMPLETED)
             ->sum('provider_payment');
 
         $potentialProfit = $totalPotentialRevenue - $totalPotentialProviderPayments;

@@ -19,9 +19,11 @@ use Illuminate\Support\Facades\Response;
 use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
 use pxlrbt\FilamentExcel\Columns\Column;
 use pxlrbt\FilamentExcel\Exports\ExcelExport;
+use App\Filament\Traits\TenantScoped;
 
 class ProductionDeliveryResource extends Resource
 {
+    use TenantScoped;
     protected static ?string $model = ProductionDelivery::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
@@ -203,7 +205,7 @@ class ProductionDeliveryResource extends Resource
                     ->limit(20)
                     ->tooltip(fn ($record) => $record->salesProject->title),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Produtor')
                     ->searchable()
                     ->sortable(),

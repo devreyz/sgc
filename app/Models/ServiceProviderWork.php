@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class ServiceProviderWork extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'service_provider_id',
@@ -56,7 +58,7 @@ class ServiceProviderWork extends Model
                     'reference_type' => get_class($model),
                     'reference_id' => $model->id,
                     'transaction_date' => $model->work_date,
-                    'created_by' => auth()->id(),
+                    'created_by' => Auth::id(),
                 ]);
             }
         });
