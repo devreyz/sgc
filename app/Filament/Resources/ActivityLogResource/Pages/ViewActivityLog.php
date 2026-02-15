@@ -26,7 +26,7 @@ class ViewActivityLog extends ViewRecord
                         Infolists\Components\TextEntry::make('description')
                             ->label('Ação')
                             ->badge(),
-                        Infolists\Components\TextEntry::make('causer.name')
+                        Infolists\Components\TextEntry::make('causer.display_name')
                             ->label('Usuário'),
                     ])
                     ->columns(4),

@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
 
 class DocumentTemplate extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -140,7 +142,7 @@ class DocumentTemplate extends Model
             'title' => $this->name . ' - ' . now()->format('d/m/Y'),
             'content' => $content,
             'variables_used' => $variables,
-            'generated_by' => auth()->id(),
+            'generated_by' => Auth::id(),
         ]);
     }
 }

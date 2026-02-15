@@ -30,7 +30,7 @@ class OrdersRelationManager extends RelationManager
                     ->date('d/m/Y')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Associado')
                     ->searchable()
                     ->sortable(),

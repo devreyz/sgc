@@ -6,6 +6,7 @@ use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
 
 // Home route - mostra welcome ou hub se logado
@@ -24,6 +25,12 @@ Route::get('/offline', function () {
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 Route::post('/logout', [GoogleAuthController::class, 'logout'])->name('logout');
+
+// Tenant Selection Routes (authenticated users)
+Route::middleware('auth')->group(function () {
+    Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
+    Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
+});
 
 // Public Document Verification Routes (no authentication required)
 Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])->name('document.verify');

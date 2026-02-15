@@ -13,10 +13,13 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Validation\Rules\Unique;
 use Filament\Notifications\Notification;
+use App\Filament\Traits\TenantScoped;
 
 class EquipmentResource extends Resource
 {
+    use TenantScoped;
     use HasExportActions;
     
     protected static ?string $model = Equipment::class;
@@ -45,7 +48,9 @@ class EquipmentResource extends Resource
 
                         Forms\Components\TextInput::make('code')
                             ->label('Código Patrimônio')
-                            ->unique(ignoreRecord: true)
+                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
+                                return $rule->where('tenant_id', session('tenant_id'));
+                            })
                             ->maxLength(50)
                             ->placeholder('Ex: TRAT-001'),
 

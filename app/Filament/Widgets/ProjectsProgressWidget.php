@@ -17,7 +17,10 @@ class ProjectsProgressWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $projects = SalesProject::where('status', ProjectStatus::ACTIVE)
+        $tenantId = session('tenant_id');
+        
+        $projects = SalesProject::where('tenant_id', $tenantId)
+            ->where('status', ProjectStatus::ACTIVE)
             ->with(['demands', 'deliveries'])
             ->take(5)
             ->get();

@@ -60,20 +60,14 @@ class UserResource extends Resource
                             ->multiple()
                             ->preload()
                             ->searchable()
-                            ->disabled(fn ($record) => $record?->hasRole('super_admin') && ! auth()->user()->hasRole('super_admin'))
                             ->options(function () {
-                                $roles = \Spatie\Permission\Models\Role::all()->pluck('name', 'id');
-
-                                // Se não é super_admin, remove a opção de atribuir super_admin
-                                if (! auth()->user()->hasRole('super_admin')) {
-                                    $superAdminRole = \Spatie\Permission\Models\Role::where('name', 'super_admin')->first();
-                                    if ($superAdminRole) {
-                                        $roles = $roles->except($superAdminRole->id);
-                                    }
-                                }
-
+                                // Admins de cooperativa não podem atribuir a role super_admin
+                                // Super admin é gerenciado apenas no painel super-admin
+                                $roles = \Spatie\Permission\Models\Role::where('name', '!=', 'super_admin')
+                                    ->pluck('name', 'id');
                                 return $roles;
-                            }),
+                            })
+                            ->helperText('Apenas funções de gestão da cooperativa. Super Admins são gerenciados no painel de sistema.'),
                     ]),
 
                 Forms\Components\Section::make('Integração Google')
@@ -91,14 +85,39 @@ class UserResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function ($query) {
+                // Super admin vê todos os usuários
+                if (! \Illuminate\Support\Facades\Auth::user()?->hasRole('super_admin')) {
+                    // Filtrar apenas usuários do tenant atual
+                    $tenantId = session('tenant_id');
+                    if ($tenantId) {
+                        $query->whereHas('tenants', function ($q) use ($tenantId) {
+                            $q->where('tenant_id', $tenantId);
+                        });
+                    } else {
+                        // Se não houver tenant na sessão, não mostrar nenhum usuário
+                        $query->whereRaw('1 = 0');
+                    }
+                }
+                
+                // Admins de cooperativa não podem ver ou gerenciar super admins
+                // Super admins são gerenciados apenas no painel super-admin
+                $superAdminRole = \Spatie\Permission\Models\Role::where('name', 'super_admin')->first();
+                if ($superAdminRole) {
+                    $query->whereDoesntHave('roles', function ($q) use ($superAdminRole) {
+                        $q->where('roles.id', $superAdminRole->id);
+                    });
+                }
+                return $query;
+            })
             ->columns([
                 Tables\Columns\ImageColumn::make('avatar')
                     ->label('')
                     ->circular(),
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('display_name')
                     ->label('Nome')
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(['name'])
+                    ->sortable(['name']),
                 Tables\Columns\TextColumn::make('email')
                     ->label('E-mail')
                     ->searchable()
@@ -122,25 +141,21 @@ class UserResource extends Resource
                     ->label('Status'),
                 Tables\Filters\SelectFilter::make('roles')
                     ->label('Função')
-                    ->relationship('roles', 'name'),
+                    ->relationship('roles', 'name', function ($query) {
+                        // Não mostrar super_admin nos filtros do painel admin
+                        if (!\Illuminate\Support\Facades\Auth::user()?->hasRole('super_admin')) {
+                            $query->where('name', '!=', 'super_admin');
+                        }
+                        return $query;
+                    }),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->hidden(fn ($record) => $record->hasRole('super_admin') && ! auth()->user()->hasRole('super_admin')),
-                Tables\Actions\DeleteAction::make()
-                    ->hidden(fn ($record) => $record->hasRole('super_admin') && ! auth()->user()->hasRole('super_admin')),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->action(function ($records) {
-                            $records->each(function ($record) {
-                                // Não permite deletar super_admin se usuário não for super_admin
-                                if (! $record->hasRole('super_admin') || auth()->user()->hasRole('super_admin')) {
-                                    $record->delete();
-                                }
-                            });
-                        }),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
     }

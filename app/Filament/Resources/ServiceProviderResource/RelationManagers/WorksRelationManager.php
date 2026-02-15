@@ -121,7 +121,7 @@ class WorksRelationManager extends RelationManager
                     ->searchable()
                     ->limit(35),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Associado')
                     ->placeholder('Interno')
                     ->toggleable(),

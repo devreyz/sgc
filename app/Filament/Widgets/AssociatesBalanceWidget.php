@@ -16,25 +16,32 @@ class AssociatesBalanceWidget extends BaseWidget
 
     protected function getStats(): array
     {
-        $totalAssociates = Associate::count();
-        $activeAssociates = Associate::whereHas('user', fn ($q) => $q->where('status', true))->count();
+        $tenantId = session('tenant_id');
+        
+        $totalAssociates = Associate::where('tenant_id', $tenantId)->count();
+        $activeAssociates = Associate::where('tenant_id', $tenantId)
+            ->whereHas('user', fn ($q) => $q->where('status', true))
+            ->count();
         
         // Saldo total dos associados (quanto a cooperativa deve pagar)
-        $totalBalance = AssociateLedger::selectRaw('associate_id, MAX(id) as last_id')
+        $totalBalance = AssociateLedger::where('tenant_id', $tenantId)
+            ->selectRaw('associate_id, MAX(id) as last_id')
             ->groupBy('associate_id')
             ->get()
             ->map(fn ($item) => AssociateLedger::find($item->last_id))
             ->sum('balance_after');
         
         // Contar associados com saldo positivo (tem a receber) e negativo (devem)
-        $withCredit = AssociateLedger::selectRaw('associate_id, MAX(id) as last_id')
+        $withCredit = AssociateLedger::where('tenant_id', $tenantId)
+            ->selectRaw('associate_id, MAX(id) as last_id')
             ->groupBy('associate_id')
             ->get()
             ->map(fn ($item) => AssociateLedger::find($item->last_id))
             ->where('balance_after', '>', 0)
             ->count();
             
-        $withDebt = AssociateLedger::selectRaw('associate_id, MAX(id) as last_id')
+        $withDebt = AssociateLedger::where('tenant_id', $tenantId)
+            ->selectRaw('associate_id, MAX(id) as last_id')
             ->groupBy('associate_id')
             ->get()
             ->map(fn ($item) => AssociateLedger::find($item->last_id))
@@ -42,7 +49,9 @@ class AssociatesBalanceWidget extends BaseWidget
             ->count();
 
         // DAPs vencendo
-        $dapsExpiring = Associate::whereBetween('dap_caf_expiry', [now(), now()->addDays(30)])->count();
+        $dapsExpiring = Associate::where('tenant_id', $tenantId)
+            ->whereBetween('dap_caf_expiry', [now(), now()->addDays(30)])
+            ->count();
 
         return [
             Stat::make('Total de Associados', $totalAssociates)
