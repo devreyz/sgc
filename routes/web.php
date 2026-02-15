@@ -6,6 +6,7 @@ use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\TenantController;
 use Illuminate\Support\Facades\Route;
 
 // Home route - mostra welcome ou hub se logado
@@ -22,8 +23,17 @@ Route::get('/offline', function () {
 
 // Google OAuth Routes
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 Route::post('/logout', [GoogleAuthController::class, 'logout'])->name('logout');
+
+// Tenant Selection Routes (authenticated)
+Route::middleware('auth')->group(function () {
+    Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
+    Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
+    Route::get('/tenant/switch/{tenantId}', [TenantController::class, 'switch'])->name('tenant.switch.get');
+    Route::post('/tenant/clear', [TenantController::class, 'clear'])->name('tenant.clear');
+    Route::get('/tenant/current', [TenantController::class, 'current'])->name('tenant.current');
+});
 
 // Public Document Verification Routes (no authentication required)
 Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])->name('document.verify');

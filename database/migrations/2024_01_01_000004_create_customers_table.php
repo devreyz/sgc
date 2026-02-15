@@ -15,11 +15,12 @@ return new class extends Migration
     {
         Schema::create('customers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Identificação
             $table->string('name');
             $table->string('trade_name')->nullable()->comment('Nome fantasia');
-            $table->string('cnpj', 18)->unique();
+            $table->string('cnpj', 18);
             $table->enum('type', ['prefeitura', 'escola', 'mercado', 'restaurante', 'hospital', 'outro'])->default('outro');
             
             // Contato
@@ -45,8 +46,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('cnpj');
-            $table->index('type');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'cnpj']);
+            $table->index(['tenant_id', 'type']);
+            $table->unique(['tenant_id', 'cnpj']);
         });
     }
 

@@ -14,8 +14,9 @@ return new class extends Migration
         // Tabela de equipamentos/ativos
         Schema::create('equipment', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
-            $table->string('code', 191)->unique()->nullable(); // Patrimônio
+            $table->string('code', 191)->nullable(); // Patrimônio
             $table->string('type'); // tractor, truck, harvester, implement, etc
             $table->string('brand')->nullable();
             $table->string('model')->nullable();
@@ -31,11 +32,16 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id'], 'equipment_tenant_id_idx');
+            $table->index(['tenant_id', 'code'], 'equipment_tenant_code_idx');
+            $table->unique(['tenant_id', 'code'], 'equipment_tenant_code_unique');
         });
 
         // Tabela de tipos de manutenção
         Schema::create('maintenance_types', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
             $table->string('interval_type'); // hours, km, days
@@ -44,11 +50,14 @@ return new class extends Migration
             $table->integer('warning_before')->default(50); // Avisar X antes
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            
+            $table->index(['tenant_id', 'id'], 'maintenance_types_tenant_id_idx');
         });
 
         // Tabela de manutenções programadas
         Schema::create('maintenance_schedules', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('equipment_id')->constrained()->cascadeOnDelete();
             $table->foreignId('maintenance_type_id')->constrained()->cascadeOnDelete();
             $table->decimal('last_hours', 10, 2)->nullable(); // Última manutenção em X horas
@@ -60,12 +69,14 @@ return new class extends Migration
             $table->string('status')->default('pending'); // pending, overdue, completed
             $table->timestamps();
 
-            $table->unique(['equipment_id', 'maintenance_type_id']);
+            $table->index(['tenant_id', 'equipment_id'], 'maint_sched_tenant_equip_idx');
+            $table->unique(['tenant_id', 'equipment_id', 'maintenance_type_id'], 'maint_sched_tenant_equip_type_unique');
         });
 
         // Tabela de registros de manutenção
         Schema::create('maintenance_records', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('equipment_id')->constrained()->cascadeOnDelete();
             $table->foreignId('maintenance_type_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
@@ -81,11 +92,15 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id'], 'maintenance_records_tenant_id_idx');
+            $table->index(['tenant_id', 'equipment_id'], 'maintenance_records_tenant_equipment_idx');
         });
 
         // Tabela de atualizações de horímetro/odômetro
         Schema::create('equipment_readings', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('equipment_id')->constrained()->cascadeOnDelete();
             $table->string('reading_type'); // hours, km
             $table->decimal('value', 10, 2);
@@ -93,6 +108,9 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+            
+            $table->index(['tenant_id', 'id'], 'equipment_readings_tenant_id_idx');
+            $table->index(['tenant_id', 'equipment_id'], 'equipment_readings_tenant_equipment_idx');
         });
     }
 

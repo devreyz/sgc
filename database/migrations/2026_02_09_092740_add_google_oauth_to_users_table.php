@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->string('google_id')->nullable()->unique()->after('email');
-            $table->string('avatar')->nullable()->after('google_id');
+            // google_id and avatar already added in main users migration
+            // Only make password nullable for OAuth users
             $table->string('password')->nullable()->change();
         });
     }
@@ -24,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['google_id', 'avatar']);
+            // Can't easily revert password to not nullable
         });
     }
 };

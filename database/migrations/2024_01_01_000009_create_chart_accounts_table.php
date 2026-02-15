@@ -16,9 +16,10 @@ return new class extends Migration
     {
         Schema::create('chart_accounts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Estrutura hierárquica
-            $table->string('code', 20)->unique()->comment('Código contábil: 1.1.01');
+            $table->string('code', 20)->comment('Código contábil: 1.1.01');
             $table->string('name');
             $table->foreignId('parent_id')->nullable()->constrained('chart_accounts')->nullOnDelete();
             
@@ -34,8 +35,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('code');
-            $table->index('type');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'code']);
+            $table->index(['tenant_id', 'type']);
+            $table->unique(['tenant_id', 'code']);
         });
     }
 

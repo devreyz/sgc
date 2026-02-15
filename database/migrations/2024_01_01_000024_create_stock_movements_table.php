@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('stock_movements', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Produto
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
@@ -58,6 +59,12 @@ return new class extends Migration
             
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'product_id']);
+            $table->index(['tenant_id', 'type']);
+            $table->index(['tenant_id', 'movement_date']);
+            $table->index(['tenant_id', 'moveable_type', 'moveable_id']);
             
             $table->index('product_id');
             $table->index('type');

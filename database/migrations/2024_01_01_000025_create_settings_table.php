@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->nullable()->constrained('tenants')->cascadeOnDelete();
             
             $table->string('group', 100);
             $table->string('name', 100);
@@ -23,7 +24,8 @@ return new class extends Migration
             
             $table->timestamps();
             
-            $table->unique(['group', 'name']);
+            $table->unique(['tenant_id', 'group', 'name']);
+            $table->index(['tenant_id', 'group']);
         });
     }
 

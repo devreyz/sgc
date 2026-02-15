@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('project_payments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('sales_project_id')->constrained()->cascadeOnDelete();
             $table->string('type'); // 'client_payment' ou 'associate_payment'
             $table->string('status')->default('pending'); // pending, deposited, paid, cancelled
@@ -37,8 +38,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['sales_project_id', 'status']);
-            $table->index('associate_id');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'sales_project_id', 'status']);
+            $table->index(['tenant_id', 'associate_id']);
         });
     }
 

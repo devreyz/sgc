@@ -16,6 +16,7 @@ return new class extends Migration
     {
         Schema::create('expenses', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
 
             // Identificação
             $table->string('description');
@@ -64,8 +65,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('status');
-            $table->index('due_date');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'due_date']);
+            $table->index(['tenant_id', 'expenseable_type', 'expenseable_id']);
         });
     }
 

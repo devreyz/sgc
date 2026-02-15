@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\LedgerType;
 use App\Enums\ProviderLedgerCategory;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +13,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ServiceProviderLedger extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToTenant, HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
         'service_provider_id',
         'type',
         'amount',

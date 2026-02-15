@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('service_provider_services', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Relacionamentos
             $table->foreignId('service_provider_id')->constrained('service_providers')->cascadeOnDelete();
@@ -34,13 +35,15 @@ return new class extends Migration
             $table->timestamps();
             
             // Índices
-            $table->unique(['service_provider_id', 'service_id'], 'provider_service_unique');
-            $table->index('status');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'status']);
+            $table->unique(['tenant_id', 'service_provider_id', 'service_id'], 'provider_service_unique');
         });
         
         // Criar tabela de pagamentos de ordens de serviço
         Schema::create('service_order_payments', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Relacionamento
             $table->foreignId('service_order_id')->constrained('service_orders')->cascadeOnDelete();
@@ -64,8 +67,9 @@ return new class extends Migration
             $table->timestamps();
             
             // Índices
-            $table->index('service_order_id');
-            $table->index('payment_date');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'service_order_id']);
+            $table->index(['tenant_id', 'payment_date']);
         });
     }
 

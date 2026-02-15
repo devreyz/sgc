@@ -5,8 +5,8 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
+use App\Models\Role;
+use App\Models\Permission;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -15,21 +15,26 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
+        // Ensure a tenant context for creating tenant-scoped seed data
+        // (TenantSeeder runs before this and creates tenant ID 1)
+        app()->instance('tenant.id', 1);
+        session(['tenant_id' => 1]);
+
         // Create roles (idempotent)
-        $superAdmin = Role::firstOrCreate(['name' => 'super_admin']);
-        $admin = Role::firstOrCreate(['name' => 'admin']);
-        $financial = Role::firstOrCreate(['name' => 'financeiro']);
-        $associate = Role::firstOrCreate(['name' => 'associado']);
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'tenant_id' => 1]);
+        $admin = Role::firstOrCreate(['name' => 'admin', 'tenant_id' => 1]);
+        $financial = Role::firstOrCreate(['name' => 'financeiro', 'tenant_id' => 1]);
+        $associate = Role::firstOrCreate(['name' => 'associado', 'tenant_id' => 1]);
         
         // Service Provider roles (can have multiple)
-        $serviceProvider = Role::firstOrCreate(['name' => 'service_provider']); // Generic provider
-        $tratorista = Role::firstOrCreate(['name' => 'tratorista']);
-        $motorista = Role::firstOrCreate(['name' => 'motorista']);
-        $diarista = Role::firstOrCreate(['name' => 'diarista']);
-        $tecnico = Role::firstOrCreate(['name' => 'tecnico']);
+        $serviceProvider = Role::firstOrCreate(['name' => 'service_provider', 'tenant_id' => 1]); // Generic provider
+        $tratorista = Role::firstOrCreate(['name' => 'tratorista', 'tenant_id' => 1]);
+        $motorista = Role::firstOrCreate(['name' => 'motorista', 'tenant_id' => 1]);
+        $diarista = Role::firstOrCreate(['name' => 'diarista', 'tenant_id' => 1]);
+        $tecnico = Role::firstOrCreate(['name' => 'tecnico', 'tenant_id' => 1]);
         
         // Delivery recorder role for mobile delivery registration
-        $deliveryRecorder = Role::firstOrCreate(['name' => 'registrador_entregas']);
+        $deliveryRecorder = Role::firstOrCreate(['name' => 'registrador_entregas', 'tenant_id' => 1]);
         
         $this->command->info('Created service provider roles: tratorista, motorista, diarista, tecnico, registrador_entregas');
 
@@ -43,7 +48,10 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         );
 
-        $user->assignRole($superAdmin);
+        // Assign role with tenant pivot set (super admin user already flagged via is_super_admin)
+        if (!$user->roles()->where('roles.id', $superAdmin->id)->wherePivot('tenant_id', 1)->exists()) {
+            $user->roles()->attach($superAdmin->id, ['tenant_id' => 1]);
+        }
 
         // Create a demo associate user
         $associateUser = User::firstOrCreate(
@@ -55,7 +63,9 @@ class RolesAndPermissionsSeeder extends Seeder
             ]
         );
 
-        $associateUser->assignRole($associate);
+        if (!$associateUser->roles()->where('roles.id', $associate->id)->wherePivot('tenant_id', 1)->exists()) {
+            $associateUser->roles()->attach($associate->id, ['tenant_id' => 1]);
+        }
 
         // Create the associate profile
         \App\Models\Associate::firstOrCreate(

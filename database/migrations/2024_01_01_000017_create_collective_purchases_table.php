@@ -16,10 +16,11 @@ return new class extends Migration
     {
         Schema::create('collective_purchases', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Identificação
             $table->string('title');
-            $table->string('code', 191)->nullable()->unique();
+            $table->string('code', 191)->nullable();
             $table->text('description')->nullable();
             
             // Período
@@ -57,6 +58,10 @@ return new class extends Migration
             
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'status']);
+            $table->unique(['tenant_id', 'code']);
             
             $table->index('status');
             $table->index('order_end_date');

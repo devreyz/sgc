@@ -16,10 +16,11 @@ return new class extends Migration
     {
         Schema::create('associates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             
             // Documentos
-            $table->string('cpf_cnpj', 18)->unique();
+            $table->string('cpf_cnpj', 18);
             $table->string('rg', 20)->nullable();
             $table->string('dap_caf', 50)->nullable()->comment('DAP ou CAF do produtor rural');
             $table->date('dap_caf_expiry')->nullable()->comment('Validade do DAP/CAF');
@@ -53,8 +54,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('cpf_cnpj');
-            $table->index('dap_caf');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'cpf_cnpj']);
+            $table->index(['tenant_id', 'dap_caf']);
+            $table->unique(['tenant_id', 'cpf_cnpj']);
         });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ExpenseStatus;
+use App\Traits\BelongsToTenant;
 use App\Enums\PaymentMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,9 +16,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Expense extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'tenant_id',
         'description',
         'document_number',
         'amount',

@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('document_templates', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
             $table->string('type')->default('contract'); // contract, declaration, receipt, report
             $table->text('description')->nullable();
@@ -22,10 +23,13 @@ return new class extends Migration
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
         });
 
         Schema::create('generated_documents', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('template_id')->constrained('document_templates')->cascadeOnDelete();
             $table->string('documentable_type', 191)->nullable();
             $table->unsignedBigInteger('documentable_id')->nullable();
@@ -38,7 +42,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['documentable_type', 'documentable_id']);
+            $table->index(['tenant_id', 'id'], 'doc_templates_tenant_id_idx');
+            $table->index(['tenant_id', 'documentable_type', 'documentable_id'], 'gen_docs_tenant_doc_idx');
         });
     }
 

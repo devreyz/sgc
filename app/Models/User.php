@@ -5,6 +5,7 @@ namespace App\Models;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -28,6 +29,7 @@ class User extends Authenticatable implements FilamentUser
         'status',
         'google_id',
         'avatar',
+        'is_super_admin',
     ];
 
     /**
@@ -47,6 +49,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'status' => 'boolean',
+            'is_super_admin' => 'boolean',
         ];
     }
 
@@ -73,7 +76,7 @@ class User extends Authenticatable implements FilamentUser
         }
 
         // Super admin, admin, and financeiro always have access
-        if ($this->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
+        if ($this->is_super_admin || $this->isSuperAdmin() || $this->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
             return true;
         }
 
@@ -87,7 +90,49 @@ class User extends Authenticatable implements FilamentUser
      */
     public function isSuperAdmin(): bool
     {
-        return $this->hasRole('super_admin');
+        return $this->is_super_admin || $this->hasRole('super_admin');
+    }
+
+    /**
+     * Tenants that this user belongs to
+     */
+    public function tenants(): BelongsToMany
+    {
+        return $this->belongsToMany(Tenant::class, 'tenant_user')
+            ->withPivot('is_admin')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the active tenant from session
+     */
+    public function currentTenant(): ?Tenant
+    {
+        $tenantId = session('tenant_id');
+        if (!$tenantId) {
+            return null;
+        }
+        return $this->tenants()->find($tenantId);
+    }
+
+    /**
+     * Check if user is admin of a specific tenant
+     */
+    public function isTenantAdmin(?int $tenantId = null): bool
+    {
+        if ($this->is_super_admin) {
+            return true;
+        }
+
+        $tenantId = $tenantId ?? session('tenant_id');
+        if (!$tenantId) {
+            return false;
+        }
+
+        return $this->tenants()
+            ->where('tenant_id', $tenantId)
+            ->wherePivot('is_admin', true)
+            ->exists();
     }
 
     /**

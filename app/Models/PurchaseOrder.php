@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PurchaseOrderStatus;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,9 +15,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class PurchaseOrder extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'tenant_id',
         'collective_purchase_id',
         'associate_id',
         'total_value',

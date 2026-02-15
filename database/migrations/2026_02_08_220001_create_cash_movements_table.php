@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('cash_movements', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('type'); // income, expense, transfer
             $table->decimal('amount', 15, 2);
             $table->decimal('balance_after', 15, 2)->nullable();
@@ -39,9 +40,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index(['reference_type', 'reference_id']);
-            $table->index(['movement_date', 'type']);
-            $table->index('bank_account_id');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'reference_type', 'reference_id']);
+            $table->index(['tenant_id', 'movement_date', 'type']);
+            $table->index(['tenant_id', 'bank_account_id']);
         });
     }
 

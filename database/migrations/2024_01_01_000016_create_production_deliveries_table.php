@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('production_deliveries', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Relacionamentos
             $table->foreignId('sales_project_id')->constrained('sales_projects')->cascadeOnDelete();
@@ -54,10 +55,11 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('sales_project_id');
-            $table->index('associate_id');
-            $table->index('delivery_date');
-            $table->index('status');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'sales_project_id']);
+            $table->index(['tenant_id', 'associate_id']);
+            $table->index(['tenant_id', 'delivery_date']);
+            $table->index(['tenant_id', 'status']);
         });
     }
 

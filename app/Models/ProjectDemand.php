@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +13,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class ProjectDemand extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'tenant_id',
         'sales_project_id',
         'product_id',
         'target_quantity',

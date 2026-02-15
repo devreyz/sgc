@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('direct_purchase_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Compra
             $table->foreignId('direct_purchase_id')->constrained('direct_purchases')->cascadeOnDelete();
@@ -35,8 +36,9 @@ return new class extends Migration
             
             $table->timestamps();
             
-            $table->index('direct_purchase_id');
-            $table->index('product_id');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'direct_purchase_id']);
+            $table->index(['tenant_id', 'product_id']);
         });
     }
 

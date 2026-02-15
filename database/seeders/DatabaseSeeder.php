@@ -12,10 +12,10 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            TenantSeeder::class, // Deve ser primeiro para criar tenant
             RolesAndPermissionsSeeder::class,
             ChartAccountSeeder::class,
             ServiceSeeder::class,
-            AdminUserSeeder::class,
         ]);
     }
 }

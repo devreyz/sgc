@@ -14,8 +14,9 @@ return new class extends Migration
     {
         Schema::create('service_providers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->string('name');
-            $table->string('cpf', 14)->nullable()->unique();
+            $table->string('cpf', 14)->nullable();
             $table->string('rg', 20)->nullable();
             $table->string('phone', 20)->nullable();
             $table->string('email', 191)->nullable();
@@ -37,11 +38,16 @@ return new class extends Migration
             $table->boolean('status')->default(true);
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'cpf']);
+            $table->unique(['tenant_id', 'cpf']);
         });
 
         // Tabela de trabalhos realizados pelo prestador
         Schema::create('service_provider_works', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             $table->foreignId('service_provider_id')->constrained()->cascadeOnDelete();
             $table->foreignId('service_order_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('associate_id')->nullable()->constrained()->nullOnDelete();
@@ -56,6 +62,9 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'service_provider_id']);
         });
     }
 

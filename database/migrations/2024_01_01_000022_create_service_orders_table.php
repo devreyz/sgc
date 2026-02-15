@@ -15,9 +15,10 @@ return new class extends Migration
     {
         Schema::create('service_orders', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Número da OS
-            $table->string('number', 191)->unique();
+            $table->string('number', 191);
             
             // Relacionamentos
             $table->foreignId('associate_id')->constrained('associates')->cascadeOnDelete();
@@ -75,6 +76,12 @@ return new class extends Migration
             
             $table->timestamps();
             $table->softDeletes();
+            
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'number']);
+            $table->index(['tenant_id', 'associate_id']);
+            $table->index(['tenant_id', 'status']);
+            $table->unique(['tenant_id', 'number']);
             
             $table->index('associate_id');
             $table->index('service_id');

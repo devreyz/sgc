@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('loans', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Associado
             $table->foreignId('associate_id')->constrained('associates')->cascadeOnDelete();
@@ -56,9 +57,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('associate_id');
-            $table->index('status');
-            $table->index('loan_date');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'associate_id']);
+            $table->index(['tenant_id', 'status']);
+            $table->index(['tenant_id', 'loan_date']);
         });
     }
 

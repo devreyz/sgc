@@ -15,11 +15,12 @@ return new class extends Migration
     {
         Schema::create('suppliers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Identificação
             $table->string('name');
             $table->string('trade_name')->nullable();
-            $table->string('cpf_cnpj', 18)->unique();
+            $table->string('cpf_cnpj', 18);
             $table->enum('type', ['insumos', 'pecas', 'equipamentos', 'servicos', 'outro'])->default('outro');
             
             // Contato
@@ -50,8 +51,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('cpf_cnpj');
-            $table->index('type');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'cpf_cnpj']);
+            $table->index(['tenant_id', 'type']);
+            $table->unique(['tenant_id', 'cpf_cnpj']);
         });
     }
 

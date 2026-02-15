@@ -15,10 +15,11 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Identificação
             $table->string('name');
-            $table->string('sku', 191)->nullable()->unique()->comment('Código interno');
+            $table->string('sku', 191)->nullable()->comment('Código interno');
             $table->foreignId('category_id')->nullable()->constrained('product_categories')->nullOnDelete();
             
             // Classificação
@@ -44,8 +45,10 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('type');
-            $table->index('sku');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'type']);
+            $table->index(['tenant_id', 'sku']);
+            $table->unique(['tenant_id', 'sku']);
         });
     }
 

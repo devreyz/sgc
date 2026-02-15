@@ -15,6 +15,7 @@ return new class extends Migration
     {
         Schema::create('purchase_order_items', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Relacionamentos
             $table->foreignId('purchase_order_id')->constrained('purchase_orders')->cascadeOnDelete();
@@ -31,7 +32,8 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('purchase_order_id');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'purchase_order_id']);
         });
     }
 

@@ -16,6 +16,7 @@ return new class extends Migration
     {
         Schema::create('associate_ledgers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Associado
             $table->foreignId('associate_id')->constrained('associates')->cascadeOnDelete();
@@ -54,10 +55,12 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('associate_id');
-            $table->index('type');
-            $table->index('category');
-            $table->index('transaction_date');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'associate_id']);
+            $table->index(['tenant_id', 'type']);
+            $table->index(['tenant_id', 'category']);
+            $table->index(['tenant_id', 'transaction_date']);
+            $table->index(['tenant_id', 'reference_type', 'reference_id']);
         });
     }
 

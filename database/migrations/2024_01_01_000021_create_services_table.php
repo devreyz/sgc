@@ -15,10 +15,11 @@ return new class extends Migration
     {
         Schema::create('services', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
             
             // Identificação
             $table->string('name');
-            $table->string('code', 191)->nullable()->unique();
+            $table->string('code', 191)->nullable();
             $table->text('description')->nullable();
             
             // Tipo e Unidade
@@ -46,7 +47,9 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             
-            $table->index('type');
+            $table->index(['tenant_id', 'id']);
+            $table->index(['tenant_id', 'type']);
+            $table->unique(['tenant_id', 'code']);
         });
     }
 
