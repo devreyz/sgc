@@ -193,7 +193,7 @@ class AssetResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            \App\Filament\Resources\AssetResource\RelationManagers\ExpensesRelationManager::class,
         ];
     }
 

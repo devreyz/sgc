@@ -55,7 +55,8 @@ class CashMovementResource extends Resource
                             ->relationship('bankAccount', 'name')
                             ->options(BankAccount::where('status', true)->pluck('name', 'id'))
                             ->required()
-                            ->searchable(),
+                            ->searchable()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id),
 
                         Forms\Components\Select::make('transfer_to_account_id')
                             ->label('Transferir Para')

@@ -44,7 +44,7 @@ class SupplierResource extends Resource
                             ->label('Nome Fantasia')
                             ->maxLength(255),
 
-                        Forms\Components\TextInput::make('cnpj_cpf')
+                        Forms\Components\TextInput::make('cpf_cnpj')
                             ->label('CNPJ/CPF')
                             ->unique(ignoreRecord: true)
                             ->required()
@@ -163,7 +163,7 @@ class SupplierResource extends Resource
                     ->label('Nome Fantasia')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('cnpj_cpf')
+                Tables\Columns\TextColumn::make('cpf_cnpj')
                     ->label('CNPJ/CPF')
                     ->searchable(),
 
@@ -233,7 +233,7 @@ class SupplierResource extends Resource
         return [
             'name' => 'Razão Social',
             'trade_name' => 'Nome Fantasia',
-            'cnpj_cpf' => 'CNPJ/CPF',
+            'cpf_cnpj' => 'CNPJ/CPF',
             'ie' => 'Inscrição Estadual',
             'address' => 'Endereço',
             'district' => 'Bairro',

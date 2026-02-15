@@ -20,6 +20,9 @@ class ServiceOrderPayment extends Model
         'status',
         'payment_date',
         'amount',
+        'discount',
+        'fees',
+        'final_amount',
         'payment_method',
         'bank_account_id',
         'notes',
@@ -32,6 +35,9 @@ class ServiceOrderPayment extends Model
         return [
             'payment_date' => 'date',
             'amount' => 'decimal:2',
+            'discount' => 'decimal:2',
+            'fees' => 'decimal:2',
+            'final_amount' => 'decimal:2',
             'payment_method' => PaymentMethod::class,
             'status' => ServiceOrderPaymentStatus::class,
         ];

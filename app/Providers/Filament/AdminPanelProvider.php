@@ -10,15 +10,13 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Filament\Support\Facades\FilamentView;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -94,6 +92,70 @@ class AdminPanelProvider extends PanelProvider
                     <meta name="apple-mobile-web-app-status-bar-style" content="default">
                     <meta name="apple-mobile-web-app-title" content="SGC">
                     <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+                    <style>
+                        /* Grid paper background for Filament panel */
+                        body::before {
+                            content: "";
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background-image: 
+                                linear-gradient(rgba(37, 99, 235, 0.03) 1px, transparent 1px),
+                                linear-gradient(90deg, rgba(37, 99, 235, 0.03) 1px, transparent 1px);
+                            background-size: 20px 20px;
+                            z-index: 0;
+                            pointer-events: none;
+                        }
+
+                        /* Ensure Filament UI sits above the background */
+                        .filament-panels, .filament-app, .filament-main {
+                            position: relative;
+                            z-index: 1;
+                        }
+
+                        /* Discrete, theme-aware scrollbar for Filament sidebar */
+                        .fi-sidebar-nav {
+                            overflow-y: auto;
+                            scrollbar-width: thin;
+                            scrollbar-color: rgba(17,24,39,0.12) transparent; /* firefox */
+                        }
+
+                        .fi-sidebar-nav::-webkit-scrollbar {
+                            width: 8px;
+                        }
+
+                        .fi-sidebar-nav::-webkit-scrollbar-track {
+                            background: transparent;
+                        }
+
+                        .fi-sidebar-nav::-webkit-scrollbar-thumb {
+                            background-color: rgba(17,24,39,0.12);
+                            border-radius: 8px;
+                            border: 2px solid transparent;
+                            background-clip: padding-box;
+                        }
+
+                        .fi-sidebar-nav:hover::-webkit-scrollbar-thumb {
+                            background-color: rgba(17,24,39,0.18);
+                        }
+
+                        /* Dark theme adjustments: prefer explicit dark class and prefers-color-scheme */
+                        .dark .fi-sidebar-nav,
+                        [data-theme="dark"] .fi-sidebar-nav,
+                        @media (prefers-color-scheme: dark) {
+                            .fi-sidebar-nav {
+                                scrollbar-color: rgba(255,255,255,0.08) transparent;
+                            }
+                            .fi-sidebar-nav::-webkit-scrollbar-thumb {
+                                background-color: rgba(255,255,255,0.08);
+                            }
+                            .fi-sidebar-nav:hover::-webkit-scrollbar-thumb {
+                                background-color: rgba(255,255,255,0.12);
+                            }
+                        }
+                    </style>
                 ')
             )
             ->renderHook(

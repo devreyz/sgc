@@ -533,9 +533,15 @@ class ProviderDashboardController extends Controller
             'amount' => 'required|numeric|min:0.01|max:' . $clientRemaining,
             'payment_method' => 'required|in:dinheiro,pix,transferencia,cheque,cartao,boleto',
             'payment_date' => 'required|date',
+            'discount' => 'nullable|numeric|min:0',
+            'fees' => 'nullable|numeric|min:0',
             'receipt' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:5120',
             'notes' => 'nullable|string|max:1000',
         ]);
+
+        $discount = $validated['discount'] ?? 0;
+        $fees = $validated['fees'] ?? 0;
+        $finalAmount = $validated['amount'] - $discount + $fees;
 
         // Upload do comprovante se houver
         $receiptPath = null;
@@ -550,6 +556,9 @@ class ProviderDashboardController extends Controller
             'status' => 'pending',
             'payment_date' => $validated['payment_date'],
             'amount' => $validated['amount'],
+            'discount' => $discount,
+            'fees' => $fees,
+            'final_amount' => $finalAmount,
             'payment_method' => $validated['payment_method'],
             'receipt_path' => $receiptPath,
             'notes' => $validated['notes'],

@@ -45,7 +45,7 @@ class PurchaseOrderResource extends Resource
                         Forms\Components\Select::make('associate_id')
                             ->label('Associado')
                             ->relationship('associate', 'id')
-                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->user->name)
+                            ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? "#{$record->id}")
                             ->searchable()
                             ->preload()
                             ->required(),

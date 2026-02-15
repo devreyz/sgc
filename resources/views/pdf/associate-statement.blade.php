@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Extrato - {{ $associate->name }}</title>
+    <title>Extrato - {{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10px; color: #333; }
@@ -42,7 +42,7 @@
 <body>
     <div class="header">
         <h1>EXTRATO DE CONTA - ASSOCIADO</h1>
-        <h2>{{ $associate->name }}</h2>
+        <h2>{{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</h2>
         <p>Período: {{ $period['from'] }} a {{ $period['until'] }} | Gerado em: {{ $generated_at }}</p>
     </div>
 
@@ -51,7 +51,7 @@
         <div class="info-col">
             <div class="info-box">
                 <h3>Dados Pessoais</h3>
-                <div class="info-row"><span class="label">Nome:</span> {{ $associate->name }}</div>
+                <div class="info-row"><span class="label">Nome:</span> {{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</div>
                 @if($associate->cpf)<div class="info-row"><span class="label">CPF:</span> {{ $associate->cpf }}</div>@endif
                 @if($associate->user && $associate->user->phone)<div class="info-row"><span class="label">Telefone:</span> {{ $associate->user->phone }}</div>@endif
                 @if($associate->user && $associate->user->email)<div class="info-row"><span class="label">E-mail:</span> {{ $associate->user->email }}</div>@endif
@@ -155,7 +155,7 @@
             <div class="signature-line">Responsável - Cooperativa</div>
         </div>
         <div class="signature-box" style="float: right;">
-            <div class="signature-line">{{ $associate->name }} - Associado</div>
+            <div class="signature-line">{{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }} - Associado</div>
         </div>
     </div>
 

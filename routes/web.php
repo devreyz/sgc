@@ -4,36 +4,12 @@ use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\DocumentVerificationController;
+use App\Http\Controllers\HubController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    if (Auth::check()) {
-        $user = Auth::user();
-
-        // Priority: admins go to admin panel
-        if ($user->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
-            return redirect('/admin');
-        }
-
-        // Registrador de entregas vai direto para o dashboard
-        if ($user->hasRole('registrador_entregas') && !$user->hasAnyRole(['service_provider', 'associado'])) {
-            return redirect('/delivery');
-        }
-
-        // Portal users - Service providers têm prioridade
-        if ($user->hasAnyRole(['service_provider', 'tratorista', 'motorista', 'diarista', 'tecnico'])) {
-            return redirect('/provider/dashboard');
-        } elseif ($user->hasRole('associado')) {
-            return redirect('/associate/dashboard');
-        }
-
-        return redirect('/admin');
-    }
-
-    return view('auth.login');
-})->name('home');
+// Home route - mostra welcome ou hub se logado
+Route::get('/', [HubController::class, 'index'])->name('home');
 
 // Login route (named) — used by authentication redirects
 Route::get('/login', function () {

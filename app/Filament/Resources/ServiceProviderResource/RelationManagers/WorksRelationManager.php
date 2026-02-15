@@ -44,7 +44,7 @@ class WorksRelationManager extends RelationManager
                 Forms\Components\Select::make('associate_id')
                     ->label('Associado Atendido (opcional)')
                     ->relationship('associate', 'id')
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->user->name ?? $record->id)
+                    ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? $record->id)
                     ->searchable()
                     ->preload()
                     ->helperText('Para quem o serviço foi prestado'),

@@ -60,7 +60,7 @@ class DeliveriesRelationManager extends RelationManager
                 Forms\Components\Select::make('associate_id')
                     ->label('Associado Produtor')
                     ->relationship('associate', 'id')
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->user->name)
+                    ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? "#{$record->id}")
                     ->searchable()
                     ->preload()
                     ->helperText('Quem entregou esta produção?')

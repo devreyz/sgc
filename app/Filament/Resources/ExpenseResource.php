@@ -9,6 +9,7 @@ use App\Filament\Resources\ExpenseResource\Pages;
 use App\Models\Asset;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
+use App\Models\Equipment;
 use App\Models\Expense;
 use App\Models\SalesProject;
 use App\Models\User;
@@ -67,6 +68,24 @@ class ExpenseResource extends Resource
                             ->prefix('R$')
                             ->required(),
 
+                        Forms\Components\TextInput::make('discount')
+                            ->label('Desconto')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(0),
+
+                        Forms\Components\TextInput::make('interest')
+                            ->label('Juros')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(0),
+
+                        Forms\Components\TextInput::make('fine')
+                            ->label('Multa')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->default(0),
+
                         Forms\Components\DatePicker::make('date')
                             ->label('Data do Documento')
                             ->required()
@@ -93,7 +112,9 @@ class ExpenseResource extends Resource
                             ->label('Conta Bancária')
                             ->relationship('bankAccount', 'name')
                             ->searchable()
-                            ->preload(),
+                            ->preload()
+                            ->required()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id),
 
                         Forms\Components\Select::make('payment_method')
                             ->label('Forma de Pagamento')
@@ -115,6 +136,9 @@ class ExpenseResource extends Resource
                                 Forms\Components\MorphToSelect\Type::make(Asset::class)
                                     ->titleAttribute('name')
                                     ->label('Patrimônio'),
+                                Forms\Components\MorphToSelect\Type::make(Equipment::class)
+                                    ->titleAttribute('name')
+                                    ->label('Equipamento'),
                                 Forms\Components\MorphToSelect\Type::make(SalesProject::class)
                                     ->titleAttribute('title')
                                     ->label('Projeto de Venda'),
@@ -233,7 +257,8 @@ class ExpenseResource extends Resource
                         Forms\Components\Select::make('bank_account_id')
                             ->label('Conta Bancária')
                             ->options(BankAccount::where('status', true)->pluck('name', 'id'))
-                            ->required(),
+                            ->required()
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id),
                         Forms\Components\Select::make('payment_method')
                             ->label('Forma de Pagamento')
                             ->options(PaymentMethod::class)
@@ -242,8 +267,8 @@ class ExpenseResource extends Resource
                             ->label('Valor Pago')
                             ->numeric()
                             ->prefix('R$')
-                            ->default(fn (Expense $record) => $record->amount)
-                            ->helperText('Informe o valor efetivamente pago'),
+                            ->default(fn (Expense $record) => $record->total_amount)
+                            ->helperText('Calculado: Valor - Desconto + Juros + Multa'),
                     ])
                     ->action(function (Expense $record, array $data): void {
                         DB::transaction(function () use ($record, $data) {

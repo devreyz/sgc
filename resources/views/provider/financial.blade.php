@@ -123,8 +123,8 @@
                         <td>{{ optional($order->service)->name ?? '-' }}</td>
                         <td>
                             @if($order->associate)
-                                {{ $order->associate->name }}
-                            @else
+                                    {{ optional($order->associate->user)->name ?? $order->associate->property_name ?? "#{$order->associate->id}" }}
+                                @else
                                 @php
                                     preg_match('/\[PESSOA AVULSA\]\nNome:\s*(.+)/m', $order->notes ?? '', $matches);
                                 @endphp
