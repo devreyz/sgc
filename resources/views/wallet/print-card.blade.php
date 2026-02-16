@@ -90,211 +90,223 @@
                 {{ $tenant->primary_color ?? '#10b981' }} 0%, 
                 {{ $tenant->secondary_color ?? '#059669' }} 100%);
             color: white;
-            padding: 4.5mm;
+            padding: 3mm 4.5mm; /* Reduzido padding vertical */
             height: 100%;
             display: flex;
             flex-direction: column;
             position: relative;
-        }
-
-        .card-front::before {
-            content: '';
-            position: absolute;
-            top: -15mm;
-            right: -15mm;
-            width: 45mm;
-            height: 45mm;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            z-index: 0;
         }
 
         .header {
             display: flex;
             align-items: center;
-            gap: 3mm;
-            margin-bottom: 2.5mm;
+            justify-content: center;
+            height: 10mm; /* Logo mais compactado */
+            margin-bottom: 2mm;
             z-index: 1;
         }
 
         .logo-container {
-            width: 12mm;
-            height: 12mm;
-            background: white;
-            border-radius: 2mm;
-            padding: 1.2mm;
+            height: 10mm;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 1mm 3mm rgba(0,0,0,0.1);
-            overflow: hidden; /* Garante que o conteúdo não saia dos cantos arredondados */
         }
 
         .logo-container img {
-            max-width: 100%;
-            max-height: 100%;
+            max-height: 10mm;
             object-fit: contain;
-            border-radius: 1mm; /* Bordas arredondadas na própria imagem */
+        }
+
+        .tenant-stripe {
+            background: #ffffff;
+            width: calc(100% + 9mm);
+            margin-left: -4.5mm;
+            padding: 1.2mm 4.5mm; /* Mais compacto */
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 3mm;
+            box-sizing: border-box;
+            z-index: 1;
+            margin-bottom: 2mm;
+        }
+
+        .tenant-stripe .logo-container {
+            width: 12mm;
+            height: 12mm;
+            flex: 0 0 auto;
         }
 
         .tenant-title {
             flex: 1;
+            text-align: left;
         }
 
         .tenant-title h1 {
-            font-size: 2.3mm; /* Reduzido levemente para comportar 3 linhas */
+            font-size: 2.9mm;
             font-weight: 800;
-            /* mantemos a exibição com quebra automática (até 3 linhas) */
-            display: -webkit-box;
-            -webkit-line-clamp: 3; /* Limita a 3 linhas */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            word-wrap: break-word;
-            line-height: 1.0; /* Linhas mais próximas para caber mais */
-            letter-spacing: 0.12mm;
-            margin-bottom: 0.2mm;
-            text-shadow: 0 0.5mm 1mm rgba(0,0,0,0.2);
-            text-transform: none; /* deixamos a transformação para o servidor com mb_strtoupper */
-            font-family: 'Noto Sans', inherit;
+            color: #111827;
+            margin: 0;
+            line-height: 1.05;
+            text-align: left;
         }
 
         .tenant-subtitle {
-            font-size: 2.1mm; /* Aumentado conforme solicitado */
+            font-size: 2.3mm;
             font-weight: 700;
-            opacity: 0.95;
-            letter-spacing: 0.1mm;
-            font-family: 'Noto Sans', inherit;
+            color: {{ $tenant->primary_color ?? '#10b981' }};
+            text-transform: uppercase;
+            margin-top: 0.1mm;
+            text-align: left;
         }
 
         .content {
             flex: 1;
             display: grid;
-            grid-template-columns: 17.5mm 1fr; /* Foto reduzida para criar mais respiro */
-            gap: 3.5mm;
+            grid-template-columns: 16mm 1fr;
+            gap: 3mm;
             z-index: 1;
-            align-items: center; /* Centraliza verticalmente a foto e info */
-            padding-bottom: 12mm; /* Espaço para a faixa fixa na base */
+            align-items: center;
+            padding-bottom: 9mm; /* Espaço para faixa inferior (8mm height + margem) */
         }
 
         .photo-container {
-            width: 17.5mm;
-            height: 23.33mm; /* altura fixa em mm para html2canvas preservar proporção no PDF */
+            width: 16mm;
+            height: 21.33mm;
             background: #e5e7eb;
-            border-radius: 1.5mm;
-            border: 0.6mm solid white;
+            border-radius: 1mm;
             overflow: hidden;
-            box-shadow: 0 2mm 5mm rgba(0,0,0,0.2);
+            box-shadow: 0 1mm 3mm rgba(0,0,0,0.25);
             position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             box-sizing: border-box;
+            border: 0.4mm solid white;
         }
 
         .photo-container img.photo-img {
-          position: absolute;
-            height: 100%;
-            
-            object-position: center center;
-            display: block;
-        }
-
-        .photo-initials {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            color: rgba(15,23,42,0.65);
-            font-size: 8mm;
-        }
-
-        .info-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 1mm;
-        }
-
-        .name-label {
-            font-size: 2.8mm; /* Mantém legibilidade */
-            font-weight: 800;
-            line-height: 1.05;
-            text-shadow: 0 0.5mm 1mm rgba(0,0,0,0.2);
-            text-align: center; /* Centralizado na base */
-            margin-top: 2mm;
+            object-fit: cover;
             display: block;
-            width: 100%;
-        }
-
-        .card-front { position: relative; }
-
-        .name-stripe {
-            position: absolute;
-            left: -4.5mm; /* compensa padding do card */
-            right: -4.5mm;
-            bottom: 0;
-            background: #ffffff;
-            padding: 3.2mm 4.5mm; /* mais espaço vertical para evitar crop */
-            box-sizing: border-box;
-            border-radius: 0 0 3.5mm 3.5mm; /* curva inferior alinhada ao cartão */
-            overflow: hidden;
-        }
-
-        .name-stripe .name-label {
-            color: #000000; /* Nome em preto */
-            font-size: 2.7mm; /* ligeiro ajuste para caber melhor */
-            font-weight: 800;
-            text-transform: uppercase;
-            display: -webkit-box;
-            -webkit-line-clamp: 2; /* no máximo 2 linhas */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            margin: 0;
-            line-height: 1.12; /* evita crop nas linhas inferiores */
-            padding-top: 0.2mm;
-            padding-bottom: 0.2mm;
         }
 
         .details-box {
-            background: rgba(255,255,255,0.98); /* Mais opaco para melhor contraste */
-            color: #0f172a; /* Texto escuro sobre fundo claro */
-            border-radius: 1.2mm;
-            padding: 1.2mm 1.6mm;
-            border: 0.2mm solid rgba(15,23,42,0.06);
-            min-height: 23.33mm; /* Igual altura da foto reduzida */
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 1.25mm;
+            padding: 1.2mm 1.5mm;
+            border: 0.15mm solid rgba(0, 0, 0, 0.08);
             display: flex;
             flex-direction: column;
-            justify-content: center; /* Centraliza conteúdo verticalmente */
+            justify-content: space-between; /* manter conteúdo e fixar o último (email) embaixo */
+            min-height: 21.33mm;
+            gap: 0.5mm;
+        }
+
+        /* Estilo específico para a linha de email: centralizada e com wrap */
+        .data-row.email-row .label {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-size: 2.0mm;
+        }
+
+        .data-row.email-row .value {
+            display: block;
+            width: 100%;
+            text-align: center;
+            white-space: normal; /* permite wrap */
+            word-break: break-word;
+            overflow: visible;
+            max-width: none; /* garantir que não seja limitado pela regra genérica */
+            font-size: 2.0mm; /* ajustar conforme necessário */
+            font-weight: 700;
+            color: #000000;
+            margin-top: 0.2mm;
+        }
+        .data-row.email-row {
+            flex-direction: column; /* empilha label + valor */
+            align-items: center;
+        }
+
+        /* Verso: permitir wrap no campo de email detalhado */
+        .field.email-field .f-value {
+            white-space: normal;
+            word-break: break-word;
+            overflow: visible;
+            font-size: 2.4mm;
+        }
+        /* Email maior no verso, posicionado embaixo do back-left, mas acima do footer */
+        .email-back {
+            margin-top: auto; /* empurra para baixo dentro de .back-left */
+            text-align: center;
+            font-size: 2.8mm; /* um pouco maior conforme solicitado */
+            font-weight: 700;
+            color: #000000;
+            white-space: normal;
+            word-break: break-word;
+            padding-top: 0.8mm;
+            padding-bottom: 0.6mm;
         }
 
         .data-row {
-            display: grid;
-            grid-template-columns: auto 1fr;
-            column-gap: 6mm;
+            display: flex;
+            justify-content: space-between;
             align-items: center;
-            font-size: 1.9mm; /* ligeiro ajuste para melhor legibilidade */
-            margin-bottom: 0.9mm;
-            padding-bottom: 0;
-            color: #0f172a;
+            font-size: 2.5mm; /* Ajustado para aproveitar espaço disponível */
+            line-height: 1.15;
+            padding-bottom: 0.3mm;
+            border-bottom: 0.1mm solid rgba(0, 0, 0, 0.05);
         }
 
         .data-row:last-child {
-            margin-bottom: 0;
             border-bottom: none;
         }
 
-        .label { font-weight: 700; color: #334155; }
-        .value { font-weight: 800; color: #0b1220; }
-
-        .footer-front {
-            display: flex;
-            justify-content: space-between;
-            font-size: 1.8mm;
+        .label {
             font-weight: 600;
-            opacity: 0.9;
-            margin-top: 2mm;
-            z-index: 1;
+            color: #475569;
+            font-size: 2.5mm; /* pequeno aumento */
+        }
+
+        .value {
+            font-weight: 800;
+            color: #000000;
+            text-align: right;
+            max-width: 70%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .name-stripe {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #ffffff;
+            height: 8.5mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4.5mm;
+            box-sizing: border-box;
+            z-index: 2;
+            border-top: 0.3mm solid rgba(0, 0, 0, 0.1);
+        }
+
+        .name-stripe .name-label {
+            color: #000000;
+            font-size: 3.2mm;
+            font-weight: 800;
+            text-transform: uppercase;
+            text-align: center;
+            width: 100%;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.1;
         }
 
         /* VERSO */
@@ -309,10 +321,30 @@
 
         .mag-stripe {
             width: 100%;
-            height: 8mm;
+            height: 9mm;
             background: #111827;
-            margin-top: 3mm;
+            margin-top: 0mm;
             margin-bottom: 3mm;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* alinhado à esquerda */
+            padding-left: 4.5mm; /* pequeno padding interno */
+            padding-right: 4.5mm;
+            box-sizing: border-box;
+        }
+
+        .barcode-plate {
+            background: #ffffff;
+            width: fit; /* largura fixa do plate igual ao código de barras */
+            height: 9mm; /* mesma altura da faixa preta */
+            padding: 0 1mm; /* sem padding para que o código ocupe toda altura */
+            border-radius: 1mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0.4mm 1mm rgba(0,0,0,0.06);
+            box-sizing: border-box;
+            border-radius: 0mm;
         }
 
         .back-body {
@@ -343,10 +375,10 @@
             text-align: center;
         }
 
-        .extra-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5mm 3mm;
+        .extra-info-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2mm;
         }
 
         .field {
@@ -357,24 +389,24 @@
         .field.wide { grid-column: span 2; }
 
         .f-label {
-            font-size: 1.8mm;
+            font-size: 2.0mm;
             color: {{ $tenant->primary_color ?? '#10b981' }};
             font-weight: 700;
             text-transform: uppercase;
-            margin-bottom: 0.3mm;
+            margin-bottom: 0.2mm;
         }
 
         .f-value {
-            font-size: 2.2mm;
-            font-weight: 600;
-            color: #374151;
+            font-size: 2.6mm; /* Aumentado para aproveitar espaço */
+            font-weight: 700;
+            color: #000000;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
         .back-right {
-            width: 22mm; /* Reduzido de 24mm */
+            width: 22mm;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -383,7 +415,7 @@
         }
 
         .qr-wrapper {
-            width: 22mm; /* Reduzido de 24mm */
+            width: 22mm;
             height: 22mm;
             background: white;
             padding: 1.2mm;
@@ -397,28 +429,21 @@
         #qrcode { width: 100%; height: 100%; }
         #qrcode svg { width: 100% !important; height: 100% !important; }
 
-        .barcode-container {
-            margin-top: auto;
-            width: 100%;
-            height: 8mm; /* Ajustado de 10mm */
-            display: flex;
-            justify-content: center;
-        }
-
-        #barcode {
-            max-width: 100%;
-            height: 100%;
+        #mag-barcode {
+            width: 100%; /* ocupa toda a largura da placa */
+            height: 100%; /* ocupa toda a altura da placa (9mm) */
+            display: block;
         }
 
         .back-footer-info {
-            font-size: 1.6mm; /* Reduzido de 1.8mm */
+            font-size: 1.6mm;
             color: #6b7280;
             text-align: center;
             border-top: 0.2mm solid #e5e7eb;
             margin-top: 1.5mm;
             padding-top: 1.5mm;
             line-height: 1.2;
-            word-break: break-all; /* Evita que nomes gigantes quebrem o layout */
+            word-break: break-all;
         }
 
         .v-official {
@@ -489,15 +514,15 @@
         <!-- FRENTE -->
         <div class="card" id="card-front-capture">
             <div class="card-front">
-                <div class="header">
+                <div class="tenant-stripe">
                     @if($tenant->logo)
                     <div class="logo-container">
                         <img src="{{ Storage::url($tenant->logo) }}" alt="Logo">
                     </div>
                     @endif
                     <div class="tenant-title">
-                        <h1>{{ $tenant->name }}</h1>
-                        <p class="tenant-subtitle">Carteira de Identificação do Associado</p>
+                        <h1>{{ mb_strtoupper($tenant->name, 'UTF-8') }}</h1>
+                        <p class="tenant-subtitle">CARTEIRA DE IDENTIFICAÇÃO DO ASSOCIADO</p>
                     </div>
                 </div>
 
@@ -526,9 +551,8 @@
                                 <span class="label">ADMISSÃO:</span>
                                 <span class="value">{{ $associate->admission_date ? $associate->admission_date->format('d/m/Y') : $associate->created_at->format('d/m/Y') }}</span>
                             </div>
-                            <div class="data-row">
-                                <span class="label">EMAIL:</span>
-                                <span class="value" style="font-size: 2mm;">{{ $user->email }}</span>
+                            <div class="data-row email-row">
+                                <span class="value" style="font-size: 2.2mm;">{{ $user->email }}</span>
                             </div>
                         </div>
                     </div>
@@ -546,38 +570,23 @@
         <!-- VERSO -->
         <div class="card" id="card-back-capture">
             <div class="card-back">
-                <div class="mag-stripe"></div>
+                <div class="back-meta" style="text-align:center; font-size:2.4mm; color:#4b5563;">Emitido digitalmente via {{ parse_url(config('app.url'), PHP_URL_HOST) }}</div>
+
+                <div class="mag-stripe">
+                    <div class="barcode-plate">
+                        <svg id="mag-barcode"></svg>
+                    </div>
+                </div>
                 
                 <div class="back-body">
                     <div class="back-left">
                         <div class="back-header-strip">DADOS ADICIONAIS</div>
                         
-                        <div class="extra-info-grid">
-                            @if($associate->property_name)
-                            <div class="field wide">
-                                <span class="f-label">Estabelecimento</span>
-                                <span class="f-value">{{ $associate->property_name }}</span>
-                            </div>
-                            @endif
-
+                        <div class="extra-info-list">
                             @if($associate->city)
                             <div class="field">
                                 <span class="f-label">Município</span>
                                 <span class="f-value">{{ $associate->city }}/{{ $associate->state }}</span>
-                            </div>
-                            @endif
-
-                            @if($associate->property_area)
-                            <div class="field">
-                                <span class="f-label">Área Tot (ha)</span>
-                                <span class="f-value">{{ number_format($associate->property_area, 2, ',', '.') }}</span>
-                            </div>
-                            @endif
-
-                            @if($associate->dap_caf)
-                            <div class="field">
-                                <span class="f-label">DAP / CAF</span>
-                                <span class="f-value">{{ $associate->dap_caf }}</span>
                             </div>
                             @endif
 
@@ -587,10 +596,25 @@
                                 <span class="f-value">{{ $tenant->cnpj }}</span>
                             </div>
                             @endif
-                        </div>
 
-                        <div class="barcode-container">
-                            <svg id="barcode"></svg>
+                            <div style="height:4mm"></div>
+
+                            <div class="field">
+                                <span class="f-label">MATRÍCULA</span>
+                                <span class="f-value">{{ $associate->member_code ?? $associate->registration_number ?? str_pad($associate->id, 6, '0', STR_PAD_LEFT) }}</span>
+                            </div>
+
+                            <div class="field">
+                                <span class="f-label">CPF/CNPJ</span>
+                                <span class="f-value">{{ $associate->cpf_cnpj ?? 'N/A' }}</span>
+                            </div>
+
+                            <div class="field">
+                                <span class="f-label">ADMISSÃO</span>
+                                <span class="f-value">{{ $associate->admission_date ? $associate->admission_date->format('d/m/Y') : $associate->created_at->format('d/m/Y') }}</span>
+                            </div>
+
+                            <div class="email-back">{{ $user->email }}</div>
                         </div>
                     </div>
 
@@ -598,14 +622,12 @@
                         <div class="qr-wrapper">
                             <div id="qrcode"></div>
                         </div>
-                        <div class="v-official">Validação Oficial</div>
                     </div>
                 </div>
 
-                <div class="back-footer-info">
-                    <div style="font-size: 2mm; color: #24303f; font-weight: 700;">{{ $tenant->name }}</div>
-                    <div style="font-size: 1.8mm; color: #374151;">{{ $tenant->phone ?? 'N/A' }} {{ $tenant->email ? ' | ' . $tenant->email : '' }}</div>
-                    <div style="font-size: 1.6mm; color: #4b5563; margin-top: 1mm;">Emitido digitalmente via {{ parse_url(config('app.url'), PHP_URL_HOST) }}</div>
+                <div class="back-footer-info" style="padding: 1.2mm 4.5mm 1.5mm 4.5mm; box-sizing: border-box;">
+                    <div style="font-size: 2.2mm; color: #24303f; font-weight: 700; text-align: center;">{{ $tenant->name }}</div>
+                    <div style="font-size: 1.9mm; color: #374151; text-align: center;">{{ $tenant->phone ?? '(00) 0000-0000' }}{{ $tenant->email ? ' | ' . $tenant->email : '' }}</div>
                 </div>
             </div>
         </div>
@@ -668,15 +690,24 @@
 
             // 2. Gerar Código de Barras
             const memberCode = "{{ $associate->member_code ?? $associate->registration_number ?? str_pad($associate->id, 6, '0', STR_PAD_LEFT) }}";
-            JsBarcode("#barcode", memberCode, {
+            JsBarcode("#mag-barcode", memberCode, {
                 format: "CODE128",
-                width: 1.2,
-                height: 35,
-                displayValue: true,
-                fontSize: 10,
+                width: 1.1,
+                height: 36,
+                displayValue: false, // não mostrar o número embaixo
                 margin: 0,
-                background: "transparent"
+                lineColor: '#000000', // barras pretas normais
+                background: '#ffffff' // manter em branco para leitura
             });
+            // Ajusta dimensões do SVG do código para a placa branca
+            try {
+                const svg = document.getElementById('mag-barcode');
+                if (svg) {
+                    svg.setAttribute('preserveAspectRatio', 'xMinYMid meet');
+                    svg.style.width = '100%';
+                    svg.style.height = '100%';
+                }
+            } catch (e) { /* silently ignore */ }
 
             // 3. Gerar PDF
             document.getElementById('generatePdfBtn').addEventListener('click', async function() {
