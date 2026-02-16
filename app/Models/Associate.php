@@ -39,6 +39,8 @@ class Associate extends Model
         'pix_key_type',
         'admission_date',
         'registration_number',
+        'member_code',
+        'validation_token',
         'notes',
     ];
 

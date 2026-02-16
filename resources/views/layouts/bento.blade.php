@@ -47,12 +47,14 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: var(--color-bg);
+            background: rgba(249, 250, 251, 0.6);
+            rgba(var(--color-bg-rgb, 249 250 251), 0.6)
             color: var(--color-text);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             width: 100%;
+            max-height: 100dvh;
             max-width: 100vw;
             overflow-x: hidden;
         }
@@ -759,7 +761,49 @@
         .user-menu-item:hover {
             background: var(--color-bg);
             border-color: var(--color-border);
-            transform: translateX(4px);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .tenant-card-active {
+            border-color: var(--color-primary) !important;
+            background: rgba(16, 185, 129, 0.05) !important;
+            position: relative;
+        }
+
+        .tenant-card-active::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 8px;
+            height: 8px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        /* Carousel animation classes */
+        .carousel-item {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .carousel-item.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .carousel-item.exit {
+            opacity: 0;
+            transform: translateY(-15px);
         }
 
         .user-menu-icon {
@@ -812,9 +856,41 @@
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <div class="header-left">
-                <a href="{{ route('home') }}" class="btn-hub" title="Voltar ao Hub">Hub</a>
-                <h1 class="header-title">@yield('page-title', 'Dashboard')</h1>
+            <div class="header-left" style="overflow: hidden; flex: 1; display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
+                <a href="{{ route('home') }}" class="btn-hub" title="Página Inicial" style="flex-shrink: 0; padding: 0.3rem 0.65rem; font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; background: var(--color-bg); border-color: var(--color-border); border-radius: 10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                    <span style="font-weight: 700; color: var(--color-text);">Início</span>
+                </a>
+                
+                @php
+                    $currentTenant = null;
+                    if (session('tenant_id')) {
+                        $currentTenant = \App\Models\Tenant::find(session('tenant_id'));
+                    } else {
+                        $routeTenant = request()->route('tenant');
+                        $routeSlug = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
+                        if ($routeSlug) {
+                            $currentTenant = \App\Models\Tenant::where('slug', $routeSlug)->first();
+                        }
+                    }
+                    
+                    // Definir o slug atual de forma robusta para uso no menu
+                    $currentTenantSlug = $currentTenant ? $currentTenant->slug : null;
+                @endphp
+
+                <div class="header-titles-carousel" style="position: relative; height: 1.5rem; flex: 1; min-width: 0;">
+                    <h1 class="carousel-item active" style="margin:0; font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        @yield('page-title', 'Dashboard')
+                    </h1>
+                    @if($currentTenant)
+                        <h1 class="carousel-item" style="margin:0; font-size:0.95rem; font-weight:600; color:var(--color-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            {{ $currentTenant->name }}
+                        </h1>
+                    @endif
+                </div>
             </div>
             <div class="header-user" id="userMenuToggle">
                 <div class="user-info">
@@ -822,7 +898,7 @@
                     <div class="user-role">@yield('user-role')</div>
                 </div>
                 @if(Auth::user()->avatar)
-                    <img src="{{ Auth::user()->avatar }}" alt="{{ Auth::user()->name }}" class="user-avatar">
+                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-avatar">
                 @else
                     <div class="user-avatar" style="background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600;">
                         {{ substr(Auth::user()->name, 0, 1) }}
@@ -846,7 +922,7 @@
             </button>
             <div class="user-menu-profile">
                 @if(Auth::user()->avatar)
-                    <img src="{{ Auth::user()->avatar }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
+                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
                 @else
                     <div class="user-menu-avatar" style="background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem;">
                         {{ substr(Auth::user()->name, 0, 1) }}
@@ -860,21 +936,43 @@
         </div>
 
         <div class="user-menu-content">
-            <a href="{{ route('home') }}" class="user-menu-item">
-                <div class="user-menu-icon primary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                    </svg>
-                </div>
-                <div class="user-menu-text">
-                    <h4>Página Inicial</h4>
-                    <p>Voltar ao início</p>
-                </div>
-            </a>
+            @php
+                $tenants = \App\Models\Tenant::orderBy('name')->get();
+            @endphp
 
-            @if(Auth::user()->hasAnyRole(['super_admin', 'admin']))
-                <a href="/admin/users/{{ Auth::id() }}/edit" class="user-menu-item">
+            @if($tenants->count() > 0)
+                <div style="padding: 1rem 1rem 0.75rem 1rem;">
+                    <h4 style="font-size:0.85rem; margin-bottom:0.75rem; font-weight:600; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:0.05em;">Minhas Organizações</h4>
+                    <div style="display:grid; gap:0.5rem;">
+                        @foreach($tenants as $t)
+                            @php $isActive = ($currentTenantSlug === $t->slug); @endphp
+                            <form action="{{ url('/tenant/switch') }}" method="POST" class="tenant-switch-form" data-tenant-name="{{ $t->name }}" data-tenant-slug="{{ $t->slug }}" style="margin:0;">
+                                @csrf
+                                <input type="hidden" name="tenant_id" value="{{ $t->id }}">
+                                <button type="submit" class="user-menu-item {{ $isActive ? 'tenant-card-active' : '' }}" style="display:flex; align-items:center; gap:0.75rem; width:100%; padding:0.75rem; border-radius:12px; text-align:left; border:1px solid var(--color-border); background:var(--color-surface);">
+                                    <div class="user-menu-icon" style="width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:{{ $isActive ? 'var(--color-primary)' : 'var(--color-bg)' }}; color:{{ $isActive ? 'white' : 'var(--color-text-muted)' }}; transition:all 0.3s;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="font-weight:600; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--color-text);">{{ $t->name }}</div>
+                                        <div style="font-size:0.75rem; color:var(--color-text-muted);">{{ $t->slug }}</div>
+                                    </div>
+                                    @if($isActive)
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    @endif
+                                </button>
+                            </form>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <div class="user-menu-divider"></div>
+
+            @if($currentTenantSlug)
+                <a href="{{ url('/' . $currentTenantSlug . '/profile') }}" class="user-menu-item">
                     <div class="user-menu-icon primary">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -882,11 +980,26 @@
                         </svg>
                     </div>
                     <div class="user-menu-text">
-                        <h4>Perfil</h4>
-                        <p>Gerenciar conta</p>
+                        <h4>Meu Perfil</h4>
+                        <p>Editar informações pessoais</p>
+                    </div>
+                </a>
+
+                <a href="{{ url('/' . $currentTenantSlug . '/wallet') }}" class="user-menu-item">
+                    <div class="user-menu-icon primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                            <line x1="2" y1="10" x2="22" y2="10"></line>
+                        </svg>
+                    </div>
+                    <div class="user-menu-text">
+                        <h4>Minha Carteira</h4>
+                        <p>Carteirinha e extrato financeiro</p>
                     </div>
                 </a>
             @endif
+
+           
 
             <div class="user-menu-divider"></div>
 
@@ -913,16 +1026,22 @@
     @yield('navigation')
 
     <!-- Main Content -->
-    <main class="bento-container">
+    <main class="bento-container" style="padding-top: 0.5rem;">
         @if(session('success'))
-            <div class="bento-card col-span-full" style="background: rgba(16, 185, 129, 0.1); border-color: var(--color-success);">
-                <p style="color: var(--color-success); font-weight: 500;">{{ session('success') }}</p>
+            <div class="bento-card col-span-full" style="padding: 0.75rem 1.25rem; margin-bottom: 1rem; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-success); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                </div>
+                <p style="color: var(--color-primary-dark); font-weight: 600; font-size: 0.9rem; margin: 0;">{{ session('success') }}</p>
             </div>
         @endif
 
         @if(session('error'))
-            <div class="bento-card col-span-full" style="background: rgba(239, 68, 68, 0.1); border-color: var(--color-danger);">
-                <p style="color: var(--color-danger); font-weight: 500;">{{ session('error') }}</p>
+            <div class="bento-card col-span-full" style="padding: 0.75rem 1.25rem; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-danger); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </div>
+                <p style="color: #b91c1c; font-weight: 600; font-size: 0.9rem; margin: 0;">{{ session('error') }}</p>
             </div>
         @endif
 
@@ -972,6 +1091,67 @@
                 if (e.key === 'Escape' && userMenuSheet.classList.contains('active')) {
                     closeUserMenu();
                 }
+            });
+
+            // Header titles carousel
+            const carouselItems = document.querySelectorAll('.carousel-item');
+            if (carouselItems.length > 1) {
+                let currentIndex = 0;
+                setInterval(() => {
+                    const current = carouselItems[currentIndex];
+                    const nextIndex = (currentIndex + 1) % carouselItems.length;
+                    const next = carouselItems[nextIndex];
+
+                    current.classList.remove('active');
+                    current.classList.add('exit');
+                    
+                    setTimeout(() => {
+                        current.classList.remove('exit');
+                        next.classList.add('active');
+                        currentIndex = nextIndex;
+                    }, 500);
+                }, 4000); // Altera a cada 4 segundos
+            }
+
+            // Tenant switch forms: submit via fetch e gerenciar redirecionamento
+            document.querySelectorAll('.tenant-switch-form').forEach(form => {
+                form.addEventListener('submit', function(evt) {
+                    evt.preventDefault();
+                    const fd = new FormData(form);
+                    const action = form.getAttribute('action');
+                    const newSlug = form.dataset.tenantSlug;
+                    const currentSlug = '{{ $currentTenantSlug }}' || '';
+
+                    // Feedback visual no botão
+                    const btn = form.querySelector('button');
+                    btn.style.opacity = '0.7';
+                    btn.style.pointerEvents = 'none';
+
+                    fetch(action, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: fd
+                    }).then(resp => {
+                        if (resp.ok) {
+                            const currentPath = window.location.pathname;
+                            // Se estivermos em uma rota com slug no URL, substituímos e redirecionamos
+                            if (currentSlug && currentPath.indexOf('/' + currentSlug) !== -1) {
+                                window.location.href = currentPath.replace('/' + currentSlug, '/' + newSlug);
+                            } else {
+                                // Caso contrário (ex: Hub), apenas recarregamos para atualizar a sessão
+                                window.location.reload(); 
+                            }
+                        } else {
+                            btn.style.opacity = '1';
+                            btn.style.pointerEvents = 'auto';
+                            alert('Erro ao trocar de organização.');
+                        }
+                    }).catch(err => {
+                        console.error('Tenant switch error', err);
+                        window.location.reload();
+                    });
+                });
             });
         });
     </script>

@@ -18,14 +18,14 @@ trait BelongsToTenant
     {
         // Apply global scope to filter by tenant automatically
         static::addGlobalScope('tenant', function (Builder $builder) {
-            // Skip scope if user is super admin
-            if (Auth::check() && Auth::user()->isSuperAdmin()) {
-                return;
-            }
-
             // Get current tenant ID from session
             $tenantId = session('tenant_id');
 
+            // IMPORTANTE: Mesmo super_admin deve respeitar o tenant da sessão quando houver um selecionado
+            // Super admin só vê todos os dados quando NÃO há tenant na sessão
+            // Isso garante que ao trabalhar em um painel de tenant específico, 
+            // apenas dados daquele tenant sejam manipulados
+            
             // Apply tenant filter if tenant is set
             if ($tenantId) {
                 $builder->where(static::getQualifiedTenantColumn(), $tenantId);
@@ -59,15 +59,11 @@ trait BelongsToTenant
 
         // Prevent updates to records from other tenants
         static::updating(function (Model $model) {
-            // Skip if user is super admin
-            if (Auth::check() && Auth::user()->isSuperAdmin()) {
-                return;
-            }
-
             $currentTenantId = session('tenant_id');
             $modelTenantId = $model->getAttribute('tenant_id');
 
-            // Block if trying to update record from another tenant
+            // Se há tenant selecionado na sessão, validar que não está tentando editar de outro tenant
+            // Isso se aplica até para super_admin quando trabalhando em contexto de tenant
             if ($currentTenantId && $modelTenantId && $currentTenantId != $modelTenantId) {
                 throw new \Exception('Você não tem permissão para atualizar registros de outra organização.');
             }

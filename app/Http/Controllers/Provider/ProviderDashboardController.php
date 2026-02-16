@@ -25,6 +25,18 @@ class ProviderDashboardController extends Controller
         $this->middleware('auth');
     }
 
+    private function routeTenantSlug(): ?string
+    {
+        $routeTenant = request()->route('tenant');
+        $routeSlug = null;
+        if (is_string($routeTenant)) {
+            $routeSlug = $routeTenant;
+        } elseif (is_object($routeTenant)) {
+            $routeSlug = $routeTenant->slug ?? null;
+        }
+
+        return session('tenant_slug') ?? $routeSlug;
+    }
     private function getProvider()
     {
         $tenantId = session('tenant_id');
@@ -130,7 +142,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $query = ServiceOrder::where('tenant_id', $tenantId)
@@ -159,18 +171,38 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug])
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()])
                 ->with('error', 'Perfil de prestador não encontrado.');
         }
 
+        // Buscar serviços vinculados ao prestador usando o global scope de tenant
         $providerServices = ServiceProviderService::where('service_provider_id', $provider->id)
             ->where('status', true)
-            ->with('service')
+            ->with(['service' => function ($query) use ($tenantId) {
+                // Garantir que o serviço também é do mesmo tenant
+                $query->where('tenant_id', $tenantId)->where('status', true);
+            }])
             ->get();
+
+        // Log para debug (remover após correção)
+        \Log::info('Provider createOrder Debug', [
+            'tenant_id' => $tenantId,
+            'provider_id' => $provider->id,
+            'providerServices_count' => $providerServices->count(),
+            'session_all' => session()->all(),
+        ]);
 
         $services = $providerServices->map(function ($ps) {
             $service = $ps->service;
-            if (!$service || !$service->status) return null;
+            if (!$service || !$service->status) {
+                \Log::warning('Service filtered out', [
+                    'ps_id' => $ps->id,
+                    'service_id' => $ps->service_id,
+                    'service_exists' => $service !== null,
+                    'service_status' => $service?->status ?? 'null',
+                ]);
+                return null;
+            }
             $service->pivot_hourly = $ps->provider_hourly_rate;
             $service->pivot_daily = $ps->provider_daily_rate;
             $service->pivot_unit = $ps->provider_unit_rate;
@@ -198,7 +230,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug])
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()])
                 ->with('error', 'Perfil não encontrado.');
         }
 
@@ -249,7 +281,7 @@ class ProviderDashboardController extends Controller
 
         if ($recentDuplicate) {
             return redirect()->route('provider.orders.show', [
-                'tenant' => request()->route('tenant')->slug,
+                'tenant' => $this->routeTenantSlug(),
                 'order' => $recentDuplicate->id
             ])->with('warning', 'Ordem já enviada recentemente — evitando duplicata.');
         }
@@ -273,7 +305,7 @@ class ProviderDashboardController extends Controller
         ]);
 
         return redirect()->route('provider.orders.show', [
-            'tenant' => request()->route('tenant')->slug,
+            'tenant' => $this->routeTenantSlug(),
             'order' => $order->id
         ])->with('success', 'Ordem criada! Número: ' . $order->number);
     }
@@ -291,7 +323,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -320,7 +352,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -335,7 +367,7 @@ class ProviderDashboardController extends Controller
         $order->update(['status' => ServiceOrderStatus::IN_PROGRESS]);
 
         return redirect()->route('provider.orders.show', [
-            'tenant' => request()->route('tenant')->slug,
+            'tenant' => $this->routeTenantSlug(),
             'order' => $order->id
         ])->with('success', 'Execução iniciada! Registre as informações ao finalizar.');
     }
@@ -353,7 +385,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -417,7 +449,7 @@ class ProviderDashboardController extends Controller
         });
 
         return redirect()->route('provider.orders.show', [
-            'tenant' => request()->route('tenant')->slug,
+            'tenant' => $this->routeTenantSlug(),
             'order' => $order->id
         ])->with('success', sprintf(
                 'Serviço concluído! Cliente paga: R$ %s | Você recebe: R$ %s',
@@ -439,7 +471,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         // Ordens com valores pendentes (cliente pagou, prestador ainda não recebeu)
@@ -509,7 +541,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -521,7 +553,7 @@ class ProviderDashboardController extends Controller
 
         // Verificar se tem saldo disponível
         if ($order->provider_remaining <= 0) {
-            return redirect()->route('provider.financial', ['tenant' => request()->route('tenant')->slug])
+            return redirect()->route('provider.financial', ['tenant' => $this->routeTenantSlug()])
                 ->with('error', 'Esta ordem não possui saldo disponível para saque.');
         }
 
@@ -543,7 +575,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -570,7 +602,7 @@ class ProviderDashboardController extends Controller
             'status' => 'pending',
         ]);
 
-        return redirect()->route('provider.financial', ['tenant' => request()->route('tenant')->slug])
+        return redirect()->route('provider.financial', ['tenant' => $this->routeTenantSlug()])
             ->with('success', 'Solicitação de saque enviada! Aguarde aprovação da administração.');
     }
 
@@ -583,7 +615,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -612,7 +644,7 @@ class ProviderDashboardController extends Controller
 
         $provider = $this->getProvider();
         if (!$provider) {
-            return redirect()->route('provider.dashboard', ['tenant' => request()->route('tenant')->slug]);
+            return redirect()->route('provider.dashboard', ['tenant' => $this->routeTenantSlug()]);
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
@@ -664,7 +696,7 @@ class ProviderDashboardController extends Controller
         ]);
 
         return redirect()->route('provider.orders.show', [
-            'tenant' => request()->route('tenant')->slug,
+            'tenant' => $this->routeTenantSlug(),
             'order' => $order->id
         ])->with('success', 'Pagamento do cliente registrado! Aguarde confirmação da administração.');
     }

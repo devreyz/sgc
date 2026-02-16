@@ -4,12 +4,18 @@
 @section('page-title', 'Extrato Financeiro')
 @section('user-role', 'Associado')
 
+@php
+    $routeTenant = request()->route('tenant');
+    $routeSlug = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
+@endphp
+
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('associate.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('associate.projects', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Projetos</a>
-    <a href="{{ route('associate.deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Entregas</a>
-    <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Extrato</a>
+    <a href="{{ $tenantSlug ? route('associate.dashboard', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ $tenantSlug ? route('associate.projects', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Projetos</a>
+    <a href="{{ $tenantSlug ? route('associate.deliveries', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Entregas</a>
+    <a href="{{ $tenantSlug ? route('associate.ledger', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab active">Extrato</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -47,7 +53,7 @@
             </div>
             <div style="margin-top: auto; display: flex; gap: 0.5rem;">
                 <button type="submit" class="btn btn-primary">Filtrar</button>
-                <a href="{{ route('associate.ledger', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Limpar</a>
+                <a href="{{ $tenantSlug ? route('associate.ledger', ['tenant' => $tenantSlug]) : url('/') }}" class="btn btn-outline">Limpar</a>
             </div>
         </form>
     </div>

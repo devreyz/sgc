@@ -37,7 +37,15 @@ class TenantController extends Controller
 
         try {
             $this->tenantResolver->setTenant($request->tenant_id);
-            
+
+            if ($request->ajax() || $request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+                $tenant = $this->tenantResolver->current();
+                return response()->json([
+                    'message' => 'Organização alterada com sucesso.',
+                    'tenant' => $tenant ? ['id' => $tenant->id, 'name' => $tenant->name, 'slug' => $tenant->slug] : null,
+                ], 200);
+            }
+
             return redirect()
                 ->intended('/admin')
                 ->with('success', 'Organização alterada com sucesso.');

@@ -4,12 +4,18 @@
 @section('page-title', 'Ordens de Serviço')
 @section('user-role', 'Prestador de Serviço')
 
+@php
+    $routeTenant = request()->route('tenant');
+    $routeSlug = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
+@endphp
+
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Financeiro</a>
-    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Carteira</a>
+    <a href="{{ $tenantSlug ? route('provider.dashboard', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ $tenantSlug ? route('provider.orders', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab active">Ordens de Serviço</a>
+    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Financeiro</a>
+    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Carteira</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
         <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
@@ -33,7 +39,7 @@
                 <h2 class="font-bold" style="font-size: 1.5rem;">Minhas Ordens de Serviço</h2>
                 <p class="text-muted text-sm">{{ $orders->total() }} ordens encontradas</p>
             </div>
-            <a href="{{ route('provider.orders.create', ['tenant' => $currentTenant->slug]) }}" class="btn btn-primary">
+            <a href="{{ $tenantSlug ? route('provider.orders.create', ['tenant' => $tenantSlug]) : url('/') }}" class="btn btn-primary">
                 <i data-lucide="plus" style="width:1rem;height:1rem"></i> Nova Ordem
             </a>
         </div>
@@ -54,7 +60,7 @@
                 </select>
             </div>
             <div style="margin-top: auto;">
-                <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Limpar</a>
+                <a href="{{ $tenantSlug ? route('provider.orders', ['tenant' => $tenantSlug]) : url('/') }}" class="btn btn-outline">Limpar</a>
             </div>
         </form>
     </div>
@@ -131,11 +137,11 @@
                         </td>
                         <td>
                             <div style="display:flex;gap:0.5rem;">
-                                <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
+                                <a href="{{ $tenantSlug ? route('provider.orders.show', ['tenant' => $tenantSlug, 'order' => $order->id]) : url('/') }}" class="btn btn-outline" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
                                     Ver
                                 </a>
                                 @if(in_array($order->status->value, ['scheduled', 'in_progress']))
-                                <a href="{{ route('provider.orders.show', ['tenant' => $currentTenant->slug, 'order' => $order->id]) }}#complete" class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
+                                <a href="{{ $tenantSlug ? route('provider.orders.show', ['tenant' => $tenantSlug, 'order' => $order->id]) : url('/') }}#complete" class="btn btn-primary" style="padding:0.375rem 0.75rem;font-size:0.75rem;">
                                     Concluir
                                 </a>
                                 @endif
