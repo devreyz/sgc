@@ -1,3 +1,8 @@
+@extends('layouts.bento')
+
+@section('title', 'Carteirinha de Associado')
+@section('page-title', 'Carteirinha de Associado - ' . $tenant->name)
+
 @php
     $abbreviateName = function($name, $limit = 40) {
         if (mb_strlen($name) <= $limit) return $name;
@@ -22,22 +27,22 @@
         return (mb_strlen($final) > $limit) ? mb_substr($final, 0, $limit-3) . '...' : $final;
     };
 @endphp
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carteirinha de Associado - {{ $tenant->name }}</title>
-    <!-- Fonte que trata corretamente uppercase com acentos -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">
-    <!-- QR Code SVG library -->
-    <script src="https://cdn.jsdelivr.net/gh/lrsjng/kjua@0.9.0/dist/kjua.min.js"></script>
-    <!-- Barcode library -->
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <!-- jsPDF and html2canvas for PDF generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <style>
+
+@section('navigation')
+@endsection
+
+@section('content')
+<!-- Fonte que trata corretamente uppercase com acentos -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">
+<!-- QR Code SVG library -->
+<script src="https://cdn.jsdelivr.net/gh/lrsjng/kjua@0.9.0/dist/kjua.min.js"></script>
+<!-- Barcode library -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+<!-- jsPDF and html2canvas for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
         * {
             margin: 0;
             padding: 0;
@@ -51,21 +56,46 @@
             margin: 0;
         }
 
-        body {
-            font-family: 'Noto Sans', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            background: #f0f2f5;
-            padding: 20mm;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+        .print-preview-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .print-preview-container {
+                padding: 1rem 0.5rem;
+            }
         }
 
         .print-area {
-            width: 85.6mm;
+            width: 100%;
             display: flex;
             flex-direction: column;
             gap: 10mm;
+            margin: 0 auto 2rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Em telas largas, mostrar frente e verso lado a lado */
+        @media (min-width: 1024px) {
+            .print-area {
+                flex-direction: row;
+                gap: 10mm;
+                max-width: calc(85.6mm * 2 + 10mm);
+                align-items: flex-start;
+                justify-content: center;
+            }
+            .card { margin: 0; }
+        }
+
+        @media (max-width: 480px) {
+            .print-area {
+                max-width: 100%;
+                transform: scale(0.9);
+                transform-origin: top center;
+            }
         }
 
         .card {
@@ -97,7 +127,7 @@
             position: relative;
         }
 
-        .header {
+        .header-card {
             display: flex;
             align-items: center;
             justify-content: center;
@@ -454,48 +484,177 @@
             text-transform: uppercase;
         }
 
-        /* CONTROLES PREVIEW */
-        .controls {
-            margin: 10mm auto;
-            background: white;
-            padding: 6mm;
-            border-radius: 3mm;
-            box-shadow: 0 2mm 6mm rgba(0,0,0,0.1);
-            max-width: 120mm;
+        /* CONTROLES PREVIEW - Estilo Bento */
+        .preview-header {
             text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem 0; /* adiciona padding ao header */
+            animation: fadeInDown 0.6s ease-out;
+        }
+
+        .preview-header h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 0.5rem;
+        }
+
+        .preview-header p {
+            font-size: 0.95rem;
+            color: var(--color-text-muted);
+        }
+
+        .controls-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--color-border);
+            margin: 2rem auto 0;
+            max-width: 600px;
+            animation: fadeInUp 0.6s ease-out 0.2s backwards;
+        }
+
+        @media (max-width: 640px) {
+            .controls-card {
+                padding: 1rem;
+                margin: 1rem auto 0;
+            }
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.05);
+            border-radius: var(--radius-md);
+        }
+
+        .control-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--color-primary);
+        }
+
+        .control-group label {
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: var(--color-text);
+            user-select: none;
+        }
+
+        @media (max-width: 480px) {
+            .control-group {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.5rem;
+            }
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
         }
 
         .btn-pdf {
-            background: #ef4444;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
             color: white;
-            padding: 3mm 8mm;
+            padding: 0.875rem 2rem;
             border: none;
-            border-radius: 2mm;
-            font-size: 4mm;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 1mm 3mm rgba(239, 68, 68, 0.3);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
-        .btn-pdf:hover { background: #dc2626; transform: translateY(-0.5mm); }
+        .btn-pdf:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-pdf:active {
+            transform: translateY(0);
+        }
+
+        .btn-pdf:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         .btn-close {
-            background: #6b7280;
-            color: white;
-            padding: 3mm 8mm;
-            border: none;
-            border-radius: 2mm;
-            font-size: 4mm;
-            margin-left: 3mm;
+            background: var(--color-surface);
+            color: var(--color-text-muted);
+            padding: 0.875rem 2rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-close:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--color-text);
+            border-color: var(--color-text-muted);
+        }
+
+        @media (max-width: 480px) {
+            .btn-pdf, .btn-close {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+                width: 100%;
+            }
         }
 
         #loading {
             display: none;
-            margin-top: 4mm;
-            color: #6b7280;
+            margin-top: 1rem;
+            text-align: center;
+            color: var(--color-text-muted);
             font-weight: 600;
+            font-size: 0.95rem;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .rotated {
@@ -503,13 +662,19 @@
         }
 
         @media print {
-            body { background: white; padding: 0; }
-            .controls { display: none !important; }
+            .print-preview-container { background: white; padding: 0; }
+            .controls-card, .preview-header { display: none !important; }
             .card { box-shadow: none; page-break-after: always; }
+            .print-area { margin: 0; }
         }
     </style>
-</head>
-<body>
+
+<div class="print-preview-container">
+    <div class="preview-header">
+        <h2>Preview da Carteirinha</h2>
+        <p>Visualize e gere o PDF da carteirinha para impressão</p>
+    </div>
+
     <div class="print-area">
         <!-- FRENTE -->
         <div class="card" id="card-front-capture">
@@ -565,9 +730,7 @@
 
                 <!-- footer removido: validade apresentada em ADMISSÃO / RENOVAÇÃO -->
             </div>
-        </div>
-
-        <!-- VERSO -->
+                <!-- VERSO -->
         <div class="card" id="card-back-capture">
             <div class="card-back">
                 <div class="back-meta" style="text-align:center; font-size:2.4mm; color:#4b5563;">Emitido digitalmente via {{ parse_url(config('app.url'), PHP_URL_HOST) }}</div>
@@ -631,21 +794,42 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="controls">
-        <h3>Preview da Carteirinha</h3>
-        <p style="font-size: 3.5mm; color: #6b7280; margin-bottom: 4mm;">O verso será invertido automaticamente no PDF para permitir a dobra correta.</p>
-        
-        <div style="margin-bottom: 5mm; display: flex; align-items: center; justify-content: center; gap: 3mm;">
-            <input type="checkbox" id="toggleBorder" style="width: 5mm; height: 5mm; cursor: pointer;">
-            <label for="toggleBorder" style="font-size: 3.8mm; font-weight: 600; cursor: pointer;">Adicionar borda pontilhada para recorte</label>
         </div>
 
-        <button id="generatePdfBtn" class="btn-pdf">📄 GERAR PDF PARA IMPRESSÃO</button>
-        <button onclick="window.close()" class="btn-close">Fechar</button>
+    
+    </div>
+
+    <div class="controls-card">
+        <div class="control-group">
+            <input type="checkbox" id="toggleBorder">
+            <label for="toggleBorder">Adicionar borda pontilhada para recorte</label>
+        </div>
+
+        <div class="button-group">
+            <button id="generatePdfBtn" class="btn-pdf">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+                GERAR PDF PARA IMPRESSÃO
+            </button>
+            <button id="downloadImgBtn" class="btn-pdf" style="background: linear-gradient(135deg,var(--color-secondary),var(--color-primary));">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="14" rx="2" ry="2"></rect>
+                    <path d="M8 21h8"></path>
+                    <path d="M12 17v4"></path>
+                </svg>
+                BAIXAR IMAGENS (ALTA RESOLUÇÃO)
+            </button>
+            <button onclick="window.close()" class="btn-close">Fechar</button>
+        </div>
+
         <div id="loading">⏳ Processando imagens em alta resolução...</div>
     </div>
+</div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -779,8 +963,64 @@
                     loading.style.display = 'none';
                 }
             });
+
+            // 4. Baixar imagens em alta resolução (frente e verso)
+            document.getElementById('downloadImgBtn').addEventListener('click', async function() {
+                const btn = this;
+                const loading = document.getElementById('loading');
+                btn.disabled = true;
+                loading.style.display = 'block';
+                try {
+                    const frontElem = document.getElementById('card-front-capture');
+                    const backElem = document.getElementById('card-back-capture');
+
+                    // Rotacionar o verso ANTES da captura (para manter orientação correta)
+                    backElem.classList.add('rotated');
+
+                    // Capturas em alta resolução
+                    const canvasFront = await html2canvas(frontElem, {
+                        scale: 4,
+                        useCORS: true,
+                        backgroundColor: null,
+                        imageTimeout: 0
+                    });
+
+                    const canvasBack = await html2canvas(backElem, {
+                        scale: 4,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        imageTimeout: 0
+                    });
+
+                    // Resetar rotação
+                    backElem.classList.remove('rotated');
+
+                    // Forçar download das imagens
+                    function downloadDataURL(dataURL, filename) {
+                        const a = document.createElement('a');
+                        a.href = dataURL;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    }
+
+                    const imgFront = canvasFront.toDataURL('image/png', 1.0);
+                    const imgBack = canvasBack.toDataURL('image/png', 1.0);
+
+                    downloadDataURL(imgFront, 'Carteirinha_Frente_{{ Str::slug($user->name) }}.png');
+                    // Pequeno delay para dar tempo ao navegador iniciar o download
+                    setTimeout(() => downloadDataURL(imgBack, 'Carteirinha_Verso_{{ Str::slug($user->name) }}.png'), 300);
+
+                } catch (e) {
+                    console.error(e);
+                    alert('Erro ao baixar imagens: ' + (e.message || e));
+                } finally {
+                    btn.disabled = false;
+                    loading.style.display = 'none';
+                }
+            });
         });
     </script>
-</body>
-</html>
+@endsection
 

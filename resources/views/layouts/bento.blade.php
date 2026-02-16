@@ -216,6 +216,17 @@
             box-shadow: var(--shadow-sm);
         }
 
+        /* Header */
+        .header {
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+
         .header-content {
             max-width: 1400px;
             margin: 0 auto;
