@@ -107,7 +107,8 @@ class TenantResource extends Resource
                                     ->url()
                                     ->maxLength(255)
                                     ->prefix('https://')
-                                    ->placeholder('www.exemplo.com.br'),
+                                    ->placeholder('www.exemplo.com.br')
+                                    ->extraInputAttributes(['type' => 'text']), // Evita erro de validação nativa do browser que bloqueia save se campo estiver em aba oculta
                             ])
                             ->columns(2),
 

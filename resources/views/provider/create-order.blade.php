@@ -5,7 +5,9 @@
 @section('user-role', 'Prestador de Serviço')
 
 @php
-    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? request()->route('tenant')?->slug ?? null;
+    $routeTenant = request()->route('tenant');
+    $routeSlug = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
+    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
 @section('navigation')
@@ -20,9 +22,7 @@
 </nav>
 @endsection
 
-@php
-    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? request()->route('tenant')?->slug ?? null;
-@endphp
+{{-- tenantSlug já definido acima com fallback robusto --}}
 
 @section('content')
 <style>

@@ -5,8 +5,11 @@ use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
+use App\Http\Controllers\MemberCardValidationController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\TenantController;
+use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
 
 // Home route - mostra welcome ou hub se logado
@@ -36,12 +39,24 @@ Route::middleware('auth')->group(function () {
 Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])->name('document.verify');
 Route::get('/qrcode/{hash}', [DocumentVerificationController::class, 'qrcode'])->name('document.qrcode');
 
+// Public Member Card Validation Route (no authentication required)
+Route::get('/validate-card/{token}', [MemberCardValidationController::class, 'verifyCard'])->name('member-card.validate');
+
 // ===========================================================================================
 // ROTAS COM PREFIXO DE TENANT (SLUG) - Portais Legados (Associate, Provider, Delivery)
 // ===========================================================================================
 
 Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
-    
+
+    // Profile Routes (Available for all authenticated users)
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile/avatar', [ProfileController::class, 'removeAvatar'])->name('profile.remove-avatar');
+
+    // Wallet / Digital Card Routes (Available for all authenticated users)
+    Route::get('/wallet', [WalletController::class, 'show'])->name('wallet.show');
+    Route::get('/wallet/print-card', [WalletController::class, 'printCard'])->name('wallet.print-card');
+
     // Service Provider Portal Routes
     Route::prefix('provider')->name('provider.')->middleware(['any.role:service_provider,tratorista,motorista,diarista,tecnico'])->group(function () {
         Route::get('/dashboard', [ProviderDashboardController::class, 'index'])->name('dashboard');
