@@ -30,14 +30,48 @@ class ActivityLogResource extends Resource
         return false;
     }
 
+    /**
+     * Tanto Admin quanto SuperAdmin podem ver logs.
+     * Admin vê apenas logs da própria organização (filtrado por tenant_id).
+     * SuperAdmin vê todos os logs.
+     */
     public static function canViewAny(): bool
     {
-        return auth()->user()?->hasRole('super_admin') ?? false;
+        $user = auth()->user();
+        if (!$user) return false;
+        return $user->hasRole('super_admin') || $user->can('view_any_activity');
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->hasRole('super_admin') ?? false;
+        $user = auth()->user();
+        if (!$user) return false;
+        return $user->hasRole('super_admin') || $user->can('view_any_activity');
+    }
+
+    /**
+     * Filtra logs por tenant automaticamente para Admin.
+     * SuperAdmin vê todos.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && !$user->hasRole('super_admin')) {
+            $tenantId = session('tenant_id');
+            if ($tenantId) {
+                // Filtra por tenant_id na coluna direta OU nas properties (retrocompatibilidade)
+                $query->where(function (Builder $q) use ($tenantId) {
+                    $q->where('tenant_id', $tenantId)
+                      ->orWhere('properties->tenant_id', $tenantId);
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query;
     }
 
     public static function form(Form $form): Form

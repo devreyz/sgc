@@ -41,6 +41,37 @@ class User extends Authenticatable implements FilamentUser
     ];
 
     /**
+     * PROTEÇÃO DE INTEGRIDADE: Bloqueia deleção de usuários.
+     * Usuários NUNCA podem ser apagados (nem soft delete em contexto normal).
+     * SoftDelete é mantido apenas para cenários extremos de suporte técnico pelo SuperAdmin.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            // Permite soft delete APENAS se chamado explicitamente por super_admin
+            // Em todos os outros contextos, bloqueia
+            if (!$user->isForceDeleting() && auth()->check() && auth()->user()->isSuperAdmin()) {
+                // Super admin pode fazer soft delete para suporte
+                return true;
+            }
+
+            // Se é force delete, sempre bloqueia
+            if ($user->isForceDeleting()) {
+                throw new \RuntimeException(
+                    'Usuários não podem ser permanentemente excluídos. Use desativação (status = false).'
+                );
+            }
+
+            // Para todos os outros, bloqueia
+            if (!auth()->check() || !auth()->user()->isSuperAdmin()) {
+                throw new \RuntimeException(
+                    'Usuários não podem ser excluídos. Use desativação do vínculo na organização.'
+                );
+            }
+        });
+    }
+
+    /**
      * Get the attributes that should be cast.
      */
     protected function casts(): array
@@ -61,6 +92,20 @@ class User extends Authenticatable implements FilamentUser
             ->logOnly(['name', 'email', 'status'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /**
+     * Injeta tenant_id nos logs de atividade do User.
+     * User não tem tenant_id próprio, então usa o da sessão.
+     */
+    public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName = ''): void
+    {
+        $tenantId = session('tenant_id');
+        if ($tenantId) {
+            $activity->tenant_id = $tenantId;
+            $properties = $activity->properties ?? collect();
+            $activity->properties = $properties->merge(['tenant_id' => $tenantId]);
+        }
     }
 
     /**

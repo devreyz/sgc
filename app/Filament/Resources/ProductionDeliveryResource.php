@@ -367,6 +367,7 @@ class ProductionDeliveryResource extends Resource
                         ->deselectRecordsAfterCompletion(),
 
                     Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\RestoreBulkAction::make(),
                 ]),
             ])
             ->headerActions([

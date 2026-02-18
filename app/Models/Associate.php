@@ -14,7 +14,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Associate extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'user_id',
@@ -121,14 +121,14 @@ class Associate extends Model
      * Calculate current balance from ledger entries.
      */
 
-
     /**
      * Get the full name with registration number.
      */
     public function getFullIdentificationAttribute(): string
     {
         $registration = $this->registration_number ? " ({$this->registration_number})" : '';
-        return $this->user->name . $registration;
+
+        return $this->user->name.$registration;
     }
 
     /**
@@ -136,9 +136,10 @@ class Associate extends Model
      */
     public function isDapCafExpired(): bool
     {
-        if (!$this->dap_caf_expiry) {
+        if (! $this->dap_caf_expiry) {
             return false;
         }
+
         return $this->dap_caf_expiry->isPast();
     }
 
@@ -147,9 +148,10 @@ class Associate extends Model
      */
     public function isDapCafExpiringSoon(): bool
     {
-        if (!$this->dap_caf_expiry) {
+        if (! $this->dap_caf_expiry) {
             return false;
         }
+
         return $this->dap_caf_expiry->isBetween(now(), now()->addDays(30));
     }
 
@@ -158,6 +160,6 @@ class Associate extends Model
      */
     public function scopeActive($query)
     {
-        return $query->whereHas('user', fn($q) => $q->where('status', true));
+        return $query->whereHas('user', fn ($q) => $q->where('status', true));
     }
 }

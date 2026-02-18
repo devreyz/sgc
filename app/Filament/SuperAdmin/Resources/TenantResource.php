@@ -433,12 +433,11 @@ class TenantResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                // BLOQUEADO: Organizações (tenants) não podem ser deletadas.
+                // Use desativação (active = false) ao invés de exclusão.
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // BLOQUEADO: Sem ações destrutivas em massa para organizações.
             ]);
     }
 
