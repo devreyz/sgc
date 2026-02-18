@@ -123,4 +123,24 @@ trait BelongsToTenant
     {
         return $this->getAttribute('tenant_id') == $tenantId;
     }
+
+    /**
+     * Injeta tenant_id automaticamente nos logs de atividade.
+     * Funciona quando o model também usa LogsActivity do Spatie.
+     */
+    public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName = ''): void
+    {
+        $tenantId = $this->getAttribute('tenant_id') ?? session('tenant_id');
+        
+        if ($tenantId) {
+            // Injeta na coluna direta (se existir)
+            $activity->tenant_id = $tenantId;
+            
+            // Também nas properties para retrocompatibilidade
+            $properties = $activity->properties ?? collect();
+            $activity->properties = $properties->merge([
+                'tenant_id' => $tenantId,
+            ]);
+        }
+    }
 }

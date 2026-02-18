@@ -153,9 +153,17 @@ class Tenant extends Model
     /**
      * Remove a user from this tenant.
      */
+    /**
+     * DEPRECADO: Use TenantUser::deactivate() ao invés de remover vínculos.
+     * Vínculos NUNCA devem ser removidos, apenas desativados.
+     *
+     * @throws \RuntimeException sempre
+     */
     public function removeUser(User $user): void
     {
-        $this->users()->detach($user->id);
+        throw new \RuntimeException(
+            'Vínculos não podem ser removidos. Use TenantUser::deactivate() para desativar o acesso.'
+        );
     }
 
     /**

@@ -55,47 +55,35 @@ class UserPolicy
     }
 
     /**
-     * Determine whether the user can delete the model.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários NUNCA podem ser apagados.
      */
     public function delete(User $user): bool
     {
-        return $user->can('delete_user::tenant');
+        return false;
     }
 
     /**
-     * Determine whether the user can bulk delete.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários NUNCA podem ser apagados em massa.
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_user::tenant');
+        return false;
     }
 
     /**
-     * Determine whether the user can permanently delete.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários NUNCA podem ser apagados permanentemente.
      */
     public function forceDelete(User $user): bool
     {
-        return $user->can('force_delete_user::tenant');
+        return false;
     }
 
     /**
-     * Determine whether the user can permanently bulk delete.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários NUNCA podem ser apagados permanentemente em massa.
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_user::tenant');
+        return false;
     }
 
     /**
@@ -121,24 +109,18 @@ class UserPolicy
     }
 
     /**
-     * Determine whether the user can bulk restore.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários não podem ser replicados.
      */
     public function replicate(User $user): bool
     {
-        return $user->can('replicate_user::tenant');
+        return false;
     }
 
     /**
-     * Determine whether the user can reorder.
-     *
-     * @param  \App\Models\User  $user
-     * @return bool
+     * Usuários não podem ser reordenados.
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_user::tenant');
+        return false;
     }
 }

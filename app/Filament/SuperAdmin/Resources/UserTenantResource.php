@@ -172,9 +172,8 @@ class UserTenantResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                // BLOQUEADO: Usuários não podem ser deletados.
+                // O vínculo é gerenciado via ativação/desativação.
             ]);
     }
 
