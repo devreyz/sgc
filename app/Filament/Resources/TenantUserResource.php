@@ -59,45 +59,44 @@ class TenantUserResource extends Resource
                 Forms\Components\Section::make('Dados do Membro')
                     ->description('Informações do vínculo deste membro com a organização')
                     ->schema([
-                        // Na criação: permite buscar user existente ou criar novo
-                        Forms\Components\Select::make('user_id')
-                            ->label('Usuário (Email)')
-                            ->relationship('user', 'email')
-                            ->getOptionLabelFromRecordUsing(fn (User $record) => "{$record->getRawOriginal('name')} ({$record->email})")
-                            ->searchable(['name', 'email'])
-                            ->preload()
+                        // Na criação: campos simples de email e nome (sem vazar lista de users)
+                        Forms\Components\TextInput::make('user_email')
+                            ->label('E-mail do Membro')
+                            ->email()
                             ->required()
+                            ->maxLength(255)
                             ->visible(fn (string $operation): bool => $operation === 'create')
-                            ->helperText('Selecione um usuário existente ou crie um novo abaixo.')
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->label('Nome Completo')
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('email')
-                                    ->label('E-mail')
-                                    ->email()
-                                    ->required()
-                                    ->unique('users', 'email')
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('password')
-                                    ->label('Senha')
-                                    ->password()
-                                    ->required()
-                                    ->minLength(8)
-                                    ->maxLength(255)
-                                    ->dehydrateStateUsing(fn ($state) => Hash::make($state)),
-                            ])
-                            ->createOptionUsing(function (array $data): int {
-                                $user = User::create([
-                                    'name' => $data['name'],
-                                    'email' => $data['email'],
-                                    'password' => $data['password'],
-                                    'status' => true,
-                                ]);
-
-                                return $user->id;
+                            ->helperText('Se o email já existir no sistema, será vinculado automaticamente. Caso contrário, um novo usuário será criado.')
+                            ->live(onBlur: true)
+                            ->afterStateUpdated(function ($state, $set) {
+                                // Se o email já existe, preenche o nome
+                                if ($state && filter_var($state, FILTER_VALIDATE_EMAIL)) {
+                                    $existingUser = User::withTrashed()->where('email', $state)->first();
+                                    if ($existingUser) {
+                                        $set('user_name', $existingUser->name);
+                                        $set('_existing_user', true);
+                                    } else {
+                                        $set('_existing_user', false);
+                                    }
+                                }
                             }),
+
+                        Forms\Components\TextInput::make('user_name')
+                            ->label('Nome Completo')
+                            ->required()
+                            ->maxLength(255)
+                            ->visible(fn (string $operation): bool => $operation === 'create')
+                            ->helperText('Nome completo do membro.'),
+
+                        Forms\Components\TextInput::make('tenant_password')
+                            ->label('Senha de Acesso')
+                            ->password()
+                            ->revealable()
+                            ->required(fn (string $operation): bool => $operation === 'create')
+                            ->minLength(8)
+                            ->maxLength(255)
+                            ->visible(fn (string $operation): bool => $operation === 'create')
+                            ->helperText('Senha que o membro usará para acessar esta organização.'),
 
                         // Na edição: mostra email como read-only (troca é via ação dedicada)
                         Forms\Components\TextInput::make('user_email_display')
@@ -113,6 +112,16 @@ class TenantUserResource extends Resource
                             ->maxLength(255)
                             ->helperText('Nome usado nesta organização. Se vazio, usa o nome global do usuário.')
                             ->placeholder('Deixe vazio para usar o nome global'),
+
+                        Forms\Components\TextInput::make('tenant_password')
+                            ->label('Alterar Senha de Acesso')
+                            ->password()
+                            ->revealable()
+                            ->minLength(8)
+                            ->maxLength(255)
+                            ->visible(fn (string $operation): bool => $operation === 'edit')
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->helperText('Deixe em branco para manter a senha atual.'),
 
                         Forms\Components\Toggle::make('is_admin')
                             ->label('Administrador da Organização')
@@ -195,6 +204,33 @@ class TenantUserResource extends Resource
                         return $query->whereHas('user', fn ($q) => $q->where('email', 'like', "%{$search}%"));
                     })
                     ->copyable(),
+
+                Tables\Columns\TextColumn::make('email_history')
+                    ->label('Histórico de Emails')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->formatStateUsing(function ($state) {
+                        if (empty($state) || !is_array($state)) {
+                            return 'Sem alterações';
+                        }
+                        $lines = [];
+                        foreach ($state as $entry) {
+                            $date = date('d/m/Y H:i', strtotime($entry['changed_at'] ?? ''));
+                            $email = $entry['email'] ?? 'N/A';
+                            $lines[] = "{$email} (até {$date})";
+                        }
+                        return implode("\n", $lines);
+                    })
+                    ->tooltip(function ($state) {
+                        if (empty($state) || !is_array($state)) return null;
+                        $lines = [];
+                        foreach ($state as $entry) {
+                            $date = date('d/m/Y H:i', strtotime($entry['changed_at'] ?? ''));
+                            $email = $entry['email'] ?? 'N/A';
+                            $newEmail = $entry['new_email'] ?? 'N/A';
+                            $lines[] = "{$email} → {$newEmail} em {$date}";
+                        }
+                        return implode("\n", $lines);
+                    }),
 
                 Tables\Columns\TextColumn::make('roles')
                     ->label('Funções')
