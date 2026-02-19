@@ -5,6 +5,7 @@ namespace App\Filament\Resources\TenantUserResource\Pages;
 use App\Filament\Resources\TenantUserResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Hash;
 
 class EditTenantUser extends EditRecord
 {
@@ -14,6 +15,18 @@ class EditTenantUser extends EditRecord
     {
         // Sem DeleteAction - vínculos nunca são deletados
         return [];
+    }
+
+    /**
+     * Hash da senha se foi alterada.
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        if (!empty($data['tenant_password'])) {
+            $data['tenant_password'] = Hash::make($data['tenant_password']);
+        }
+
+        return $data;
     }
 
     protected function getRedirectUrl(): string

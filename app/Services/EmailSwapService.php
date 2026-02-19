@@ -101,6 +101,18 @@ class EmailSwapService
                 ->where('id', $tenantUser->id)
                 ->update(['user_id' => $newUser->id, 'updated_at' => now()]);
 
+            // 2.1. Adicionar ao histórico de emails
+            $emailHistory = $tenantUser->email_history ?? [];
+            $emailHistory[] = [
+                'email' => $oldUser->email,
+                'changed_at' => now()->toDateTimeString(),
+                'changed_by' => $performedBy ?? auth()->id(),
+                'new_email' => $newEmail,
+            ];
+            DB::table('tenant_user')
+                ->where('id', $tenantUser->id)
+                ->update(['email_history' => json_encode($emailHistory)]);
+
             // 3. Atualizar Associate.user_id se existir
             $associateUpdated = DB::table('associates')
                 ->where('user_id', $oldUserId)

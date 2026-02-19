@@ -55,6 +55,7 @@ class TenantUser extends Model
         'deactivated_at',
         'deactivated_by',
         'notes',
+        'email_history',
     ];
 
     protected function casts(): array
@@ -63,6 +64,7 @@ class TenantUser extends Model
             'is_admin' => 'boolean',
             'status' => 'boolean',
             'roles' => 'array',
+            'email_history' => 'array',
             'tenant_password' => 'hashed',
             'deactivated_at' => 'datetime',
         ];

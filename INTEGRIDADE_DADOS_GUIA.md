@@ -234,4 +234,117 @@ Membro quer trocar email: joao@old.com → joao@new.com
 # Já executadas:
 2026_02_18_000001_enhance_tenant_user_for_integrity  ✅
 2026_02_18_000002_add_tenant_id_to_activity_log      ✅
+2026_02_19_000001_add_email_history_to_tenant_user    ✅
+```
+
+---
+
+## Melhorias de Segurança e Usabilidade (19/02/2026)
+
+### 1. Eliminação de Vazamento de Emails
+
+**Problema**: TenantUserResource listava todos os emails do sistema no Select, expondo informações sensíveis.
+
+**Solução**:
+
+- Substituído `Select` por `TextInput` simples no form de criação
+- Lookup de User existente é feito no backend (`CreateTenantUser::mutateFormDataBeforeCreate`)
+- Se email já existir, User é reutilizado/restaurado automaticamente
+- Se não existir, novo User é criado com senha aleatória (a senha real fica em `tenant_password`)
+
+### 2. Senha no Vínculo
+
+**Problema**: Senha estava sendo criada no User global, comprometendo a separação entre identidade global e acesso por tenant.
+
+**Solução**:
+
+- Campo `tenant_user.tenant_password` (com cast `hashed`) armazena a senha real
+- User global recebe senha aleatória forte e nunca é usada para autenticação
+- Form de criação: campo `tenant_password` obrigatório
+- Form de edição: campo `tenant_password` opcional (se vazio, mantém a atual)
+- `EditTenantUser::mutateFormDataBeforeSave()` faz hash da senha antes de salvar
+
+### 3. Histórico de Emails
+
+**Problema**: Ao trocar email via `EmailSwapService`, o histórico era perdido.
+
+**Solução**:
+
+- Adicionado campo `tenant_user.email_history` (JSON)
+- `EmailSwapService` registra cada troca: `[{email, changed_at, changed_by, new_email}]`
+- TenantUserResource exibe coluna "Histórico de Emails" (toggleable) com todas as trocas
+- Tooltip mostra timeline completa: `email1 → email2 em dd/mm/YYYY HH:mm`
+
+### 4. Logs de Atividade Visíveis e Amigáveis
+
+**Problema**: ActivityLogResource não estava visível para admins, e a visualização era técnica demais.
+
+**Solução**:
+
+**Visibilidade**:
+
+- `canViewAny()` e `shouldRegisterNavigation()` já permitem admins com permissão `view_any_activity`
+- Filtro automático por `tenant_id` para não-super-admins
+
+**Melhorias na Tabela**:
+
+- Colunas mais legíveis com traduções (User, Ação, Entidade)
+- Descrições em português: ✓ Criado, ✎ Atualizado, ⨯ Excluído, ↺ Restaurado
+- Coluna "Alterações" mostra preview das mudanças (campo: old → new)
+- Coluna "Histórico de Emails" no TenantUserResource
+- Tradução automática de entidades (ServiceOrder → Ordem de Serviço, etc.)
+
+**Filtros Avançados**:
+
+- Por ação (created, updated, deleted, restored) — múltipla seleção
+- Por entidade (com traduções) — múltipla seleção
+- Por usuário (com lookup) — múltipla seleção
+- Por tipo de log — múltipla seleção
+- Por período (com indicador visual: "De 10/02 até 19/02")
+
+**Relatórios Exportáveis**:
+
+- Botão "Gerar Relatório Completo" com seleção de período
+- Exportação CSV (compatível com Excel com UTF-8 BOM)
+- Formato: `Data/Hora;Usuário;Ação;Entidade;ID;Descrição`
+- Bulk action "Exportar Selecionados"
+
+**Visualização Detalhada**:
+
+- Infolist melhorado com seções claras
+- Tabela de alterações side-by-side (valor antigo ← → valor novo)
+- Cores: vermelho para old, verde para new
+- View customizada: `filament.infolists.activity-changes`
+- Campos sensíveis (password, tokens) são automaticamente omitidos
+- Valores booleanos traduzidos (Sim/Não)
+- Arrays formatados como lista
+- Campos traduzidos (name → Nome, email → E-mail, etc.)
+
+**Arquivos Criados**:
+
+- `resources/views/filament/infolists/activity-changes.blade.php` — View customizada para exibir mudanças de forma amigável
+
+---
+
+## Comandos de Verificação
+
+```bash
+# Verificar sintaxe PHP
+php -l app/Filament/Resources/TenantUserResource.php
+php -l app/Services/EmailSwapService.php
+php -l app/Models/TenantUser.php
+php -l app/Filament/Resources/ActivityLogResource.php
+
+# Rodar migrações
+php artisan migrate
+
+# Verificar permissões (após shield:generate)
+php artisan shield:generate --all
+# ⚠️ Re-aplicar bloqueios em UserPolicy e TenantUserPolicy!
+
+# Boot da aplicação (verifica erros fatais)
+php artisan about
+
+# Verificar rotas
+php artisan route:list --name=filament
 ```
