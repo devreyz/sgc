@@ -61,7 +61,10 @@ class PurchaseOrderResource extends Resource
                             ->label('Status')
                             ->options(PurchaseOrderStatus::class)
                             ->required()
-                            ->default(PurchaseOrderStatus::REQUESTED),
+                            ->default(PurchaseOrderStatus::REQUESTED)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\Textarea::make('notes')
                             ->label('Observações')

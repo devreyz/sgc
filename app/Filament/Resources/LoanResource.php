@@ -63,7 +63,10 @@ class LoanResource extends Resource
                             ->options(LoanStatus::class)
                             ->required()
                             ->default(LoanStatus::ACTIVE)
-                            ->native(false),
+                            ->native(false)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
                     ])
                     ->columns(2),
 

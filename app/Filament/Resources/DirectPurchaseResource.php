@@ -74,7 +74,10 @@ class DirectPurchaseResource extends Resource
                             ->options(DirectPurchaseStatus::class)
                             ->required()
                             ->default(DirectPurchaseStatus::DRAFT)
-                            ->native(false),
+                            ->native(false)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\Select::make('payment_status')
                             ->label('Status Pagamento')

@@ -8,6 +8,7 @@ use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +53,12 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile/avatar', [ProfileController::class, 'removeAvatar'])->name('profile.remove-avatar');
+
+    // Report Routes (Authenticated — relying on session tenant_id)
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/associate-deliveries/{associate}', [ReportController::class, 'associateDeliveries'])
+            ->name('associate-deliveries');
+    });
 
     // Wallet / Digital Card Routes (Available for all authenticated users)
     Route::get('/wallet', [WalletController::class, 'show'])->name('wallet.show');

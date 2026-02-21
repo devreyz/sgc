@@ -63,7 +63,10 @@ class SalesProjectResource extends Resource
                             ->label('Status')
                             ->options(ProjectStatus::class)
                             ->required()
-                            ->default(ProjectStatus::DRAFT),
+                            ->default(ProjectStatus::DRAFT)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\Select::make('customer_id')
                             ->label('Cliente')

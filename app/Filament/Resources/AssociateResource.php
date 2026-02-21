@@ -346,6 +346,36 @@ class AssociateResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+
+                // ── Relatório de Entregas por Associado ──
+                Tables\Actions\Action::make('deliveriesReport')
+                    ->label('Relatório de Entregas')
+                    ->icon('heroicon-o-document-chart-bar')
+                    ->color('info')
+                    ->form([
+                        \Filament\Forms\Components\DatePicker::make('start_date')
+                            ->label('Data Inicial')
+                            ->nullable(),
+                        \Filament\Forms\Components\DatePicker::make('end_date')
+                            ->label('Data Final')
+                            ->nullable(),
+                        \Filament\Forms\Components\Textarea::make('notes')
+                            ->label('Observações')
+                            ->rows(2)
+                            ->nullable(),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $params = array_filter([
+                            'start_date' => $data['start_date'] ?? null,
+                            'end_date'   => $data['end_date'] ?? null,
+                            'notes'      => $data['notes'] ?? null,
+                        ]);
+                        $url = route('reports.associate-deliveries', $record->id);
+                        if ($params) {
+                            $url .= '?' . http_build_query($params);
+                        }
+                        return redirect()->away($url);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

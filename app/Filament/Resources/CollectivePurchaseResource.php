@@ -52,7 +52,10 @@ class CollectivePurchaseResource extends Resource
                             ->label('Status')
                             ->options(CollectivePurchaseStatus::class)
                             ->required()
-                            ->default(CollectivePurchaseStatus::OPEN),
+                            ->default(CollectivePurchaseStatus::OPEN)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\DatePicker::make('start_date')
                             ->label('Data Início')

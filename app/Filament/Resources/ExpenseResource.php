@@ -104,7 +104,10 @@ class ExpenseResource extends Resource
                             ->label('Status')
                             ->options(ExpenseStatus::class)
                             ->required()
-                            ->default(ExpenseStatus::PENDING),
+                            ->default(ExpenseStatus::PENDING)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
                     ])
                     ->columns(2),
 
