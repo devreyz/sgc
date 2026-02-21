@@ -9,6 +9,7 @@ use App\Enums\ProviderLedgerCategory;
 use App\Enums\ServiceOrderPaymentStatus;
 use App\Enums\ServiceOrderStatus;
 use App\Filament\Resources\ServiceOrderResource\Pages;
+use App\Filament\Resources\ServiceOrderResource\RelationManagers;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ServiceOrder;
@@ -93,7 +94,10 @@ class ServiceOrderResource extends Resource
                         ->label('Status')
                         ->options(ServiceOrderStatus::class)
                         ->required()
-                        ->default(ServiceOrderStatus::SCHEDULED),
+                        ->default(ServiceOrderStatus::SCHEDULED)
+                        ->disabled()
+                        ->dehydrated(fn (string $context): bool => $context === 'create')
+                        ->helperText('Status só pode ser alterado por ações específicas'),
                 ])->columns(3),
 
             Forms\Components\Section::make('Agendamento e Local')
@@ -380,6 +384,114 @@ class ServiceOrderResource extends Resource
                             ->send();
                     })
                     ->visible(fn (ServiceOrder $record): bool => in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
+                        $record->client_remaining > 0
+                    ),
+
+                // ── GERAR PARCELAS COM DESCONTO DE ARREDONDAMENTO ──
+                Tables\Actions\Action::make('generateInstallments')
+                    ->label('Gerar Parcelas')
+                    ->icon('heroicon-o-calculator')
+                    ->color('info')
+                    ->modalHeading('Gerar Parcelas com Desconto de Arredondamento')
+                    ->form(function (ServiceOrder $record) {
+                        $remaining = $record->client_remaining;
+                        return [
+                            Forms\Components\TextInput::make('num_installments')
+                                ->label('Número de Parcelas')
+                                ->numeric()
+                                ->required()
+                                ->minValue(2)
+                                ->maxValue(60)
+                                ->default(2)
+                                ->live()
+                                ->helperText(sprintf('Saldo a parcelar: R$ %s', number_format($remaining, 2, ',', '.'))),
+
+                            Forms\Components\DatePicker::make('first_due_date')
+                                ->label('Vencimento da 1ª Parcela')
+                                ->required()
+                                ->default(now()->addDays(30)),
+
+                            Forms\Components\Select::make('payment_method')
+                                ->label('Forma de Pagamento')
+                                ->options(PaymentMethod::class)
+                                ->required()
+                                ->default('boleto'),
+
+                            Forms\Components\Placeholder::make('preview')
+                                ->label('Prévia do Parcelamento')
+                                ->content(function (callable $get) use ($remaining) {
+                                    $n = max(1, (int) ($get('num_installments') ?? 2));
+                                    $perInstallment = floor(($remaining / $n) * 100) / 100;
+                                    $discount = round($remaining - ($perInstallment * $n), 2);
+                                    $lines = [
+                                        "Valor original: R$ " . number_format($remaining, 2, ',', '.'),
+                                        "Parcela base: R$ " . number_format($perInstallment, 2, ',', '.') . " × {$n}",
+                                        "Desconto de arredondamento: R$ " . number_format($discount, 2, ',', '.'),
+                                        "Total final: R$ " . number_format($perInstallment * $n, 2, ',', '.'),
+                                    ];
+                                    return implode("\n", $lines);
+                                }),
+                        ];
+                    })
+                    ->action(function (ServiceOrder $record, array $data): void {
+                        DB::transaction(function () use ($record, $data) {
+                            $remaining = $record->client_remaining;
+                            $n = max(1, (int) $data['num_installments']);
+                            $perInstallment = floor(($remaining / $n) * 100) / 100;
+                            $roundoffDiscount = round($remaining - ($perInstallment * $n), 2);
+                            $firstDate = \Carbon\Carbon::parse($data['first_due_date']);
+
+                            for ($i = 0; $i < $n; $i++) {
+                                ServiceOrderPayment::create([
+                                    'service_order_id'  => $record->id,
+                                    'type'              => 'client',
+                                    'status'            => ServiceOrderPaymentStatus::PENDING,
+                                    'payment_date'      => $firstDate->copy()->addMonths($i),
+                                    'amount'            => $perInstallment,
+                                    'payment_method'    => $data['payment_method'],
+                                    'notes'             => sprintf(
+                                        'Parcela %d/%d | Desconto arredondamento: R$ %s',
+                                        $i + 1,
+                                        $n,
+                                        number_format($roundoffDiscount, 2, ',', '.')
+                                    ),
+                                    'registered_by'     => auth()->id(),
+                                ]);
+                            }
+
+                            // Registrar desconto no histórico financeiro
+                            if ($roundoffDiscount > 0) {
+                                $record->update([
+                                    'discount' => (float) ($record->discount ?? 0) + $roundoffDiscount,
+                                    'final_price' => $record->final_price - $roundoffDiscount,
+                                ]);
+                            }
+
+                            // Log auditável
+                            activity()
+                                ->causedBy(auth()->user())
+                                ->performedOn($record)
+                                ->withProperties([
+                                    'tenant_id'        => session('tenant_id'),
+                                    'num_installments' => $n,
+                                    'per_installment'  => $perInstallment,
+                                    'roundoff_discount'=> $roundoffDiscount,
+                                    'total_original'   => $remaining,
+                                    'total_final'      => $perInstallment * $n,
+                                ])
+                                ->log('service.apply_discount');
+                        });
+
+                        Notification::make()->success()
+                            ->title('Parcelas geradas')
+                            ->body(sprintf(
+                                '%d parcelas geradas. Desconto de arredondamento registrado nos logs.',
+                                $data['num_installments']
+                            ))
+                            ->send();
+                    })
+                    ->visible(fn (ServiceOrder $record): bool =>
+                        in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
                         $record->client_remaining > 0
                     ),
 
@@ -738,7 +850,9 @@ class ServiceOrderResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\ExpensesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

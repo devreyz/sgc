@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Enums\ServiceOrderStatus;
 use App\Enums\ServiceOrderPaymentStatus;
+use App\Enums\ServiceOrderStatus;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -104,7 +104,7 @@ class ServiceOrder extends Model
             if (empty($model->number)) {
                 $lastOrder = static::withTrashed()->latest('id')->first();
                 $nextNum = $lastOrder ? (intval(preg_replace('/\D/', '', $lastOrder->number)) + 1) : 1;
-                $model->number = 'OS' . str_pad($nextNum, 6, '0', STR_PAD_LEFT);
+                $model->number = 'OS'.str_pad($nextNum, 6, '0', STR_PAD_LEFT);
             }
 
             // Defaults para campos obrigatórios no DB
@@ -186,6 +186,14 @@ class ServiceOrder extends Model
     }
 
     /**
+     * Get expenses linked to this service order (via expenseable polymorphic).
+     */
+    public function expenses(): MorphMany
+    {
+        return $this->morphMany(Expense::class, 'expenseable');
+    }
+
+    /**
      * Get the payments for this order.
      */
     public function payments(): HasMany
@@ -219,27 +227,27 @@ class ServiceOrder extends Model
 
     public function getClientRemainingAttribute(): float
     {
-        return max(0, (float)($this->final_price ?? 0) - $this->total_client_paid);
+        return max(0, (float) ($this->final_price ?? 0) - $this->total_client_paid);
     }
 
     public function getProviderRemainingAttribute(): float
     {
-        return max(0, (float)($this->provider_payment ?? 0) - $this->total_provider_paid);
+        return max(0, (float) ($this->provider_payment ?? 0) - $this->total_provider_paid);
     }
 
     public function isClientFullyPaid(): bool
     {
-        return $this->total_client_paid >= (float)($this->final_price ?? 0) && (float)($this->final_price ?? 0) > 0;
+        return $this->total_client_paid >= (float) ($this->final_price ?? 0) && (float) ($this->final_price ?? 0) > 0;
     }
 
     public function isProviderFullyPaid(): bool
     {
-        return $this->total_provider_paid >= (float)($this->provider_payment ?? 0) && (float)($this->provider_payment ?? 0) > 0;
+        return $this->total_provider_paid >= (float) ($this->provider_payment ?? 0) && (float) ($this->provider_payment ?? 0) > 0;
     }
 
     public function getCooperativeProfitAttribute(): float
     {
-        return (float)($this->final_price ?? 0) - (float)($this->provider_payment ?? 0);
+        return (float) ($this->final_price ?? 0) - (float) ($this->provider_payment ?? 0);
     }
 
     /**
@@ -255,7 +263,7 @@ class ServiceOrder extends Model
      */
     public function getRemainingAmountAttribute(): float
     {
-        return max(0, (float)($this->final_price ?? 0) - $this->total_paid);
+        return max(0, (float) ($this->final_price ?? 0) - $this->total_paid);
     }
 
     /**
@@ -263,7 +271,7 @@ class ServiceOrder extends Model
      */
     public function isFullyPaid(): bool
     {
-        return $this->total_paid >= (float)($this->final_price ?? 0);
+        return $this->total_paid >= (float) ($this->final_price ?? 0);
     }
 
     /**

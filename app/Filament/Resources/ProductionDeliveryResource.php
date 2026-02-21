@@ -3,27 +3,30 @@
 namespace App\Filament\Resources;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\StockMovementReason;
 use App\Filament\Resources\ProductionDeliveryResource\Pages;
+use App\Filament\Resources\ProductionDeliveryResource\RelationManagers;
+use App\Filament\Traits\TenantScoped;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
+use App\Services\StockService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Response;
-use pxlrbt\FilamentExcel\Actions\Tables\ExportBulkAction;
-use pxlrbt\FilamentExcel\Columns\Column;
-use pxlrbt\FilamentExcel\Exports\ExcelExport;
-use App\Filament\Traits\TenantScoped;
 
 class ProductionDeliveryResource extends Resource
 {
     use TenantScoped;
+
     protected static ?string $model = ProductionDelivery::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
@@ -44,7 +47,13 @@ class ProductionDeliveryResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('sales_project_id')
                             ->label('Projeto de Venda')
-                            ->options(SalesProject::active()->pluck('title', 'id'))
+                            ->relationship('salesProject', 'title', function ($query) {
+                                return $query->whereIn('status', [
+                                    \App\Enums\ProjectStatus::DRAFT,
+                                    \App\Enums\ProjectStatus::ACTIVE,
+                                    \App\Enums\ProjectStatus::AWAITING_DELIVERY,
+                                ]);
+                            })
                             ->searchable()
                             ->preload()
                             ->reactive()
@@ -56,25 +65,31 @@ class ProductionDeliveryResource extends Resource
                             ->label('Demanda / Produto')
                             ->options(function (callable $get) {
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return [];
-                                
+                                if (! $projectId) {
+                                    return [];
+                                }
+
                                 return ProjectDemand::where('sales_project_id', $projectId)
                                     ->with('product')
                                     ->get()
                                     ->mapWithKeys(fn ($d) => [
-                                        $d->id => $d->product->name . ' - R$ ' . 
-                                                  number_format($d->unit_price, 2, ',', '.') . 
-                                                  '/' . $d->product->unit .
-                                                  ' (Resta: ' . number_format($d->remaining_quantity, 2, ',', '.') . ')'
+                                        $d->id => $d->product->name.' - R$ '.
+                                                  number_format($d->unit_price, 2, ',', '.').
+                                                  '/'.$d->product->unit.
+                                                  ' (Resta: '.number_format($d->remaining_quantity, 2, ',', '.').')',
                                     ]);
                             })
                             ->searchable()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
-                                if (!$state) return;
+                                if (! $state) {
+                                    return;
+                                }
                                 $demand = ProjectDemand::with('product')->find($state);
-                                if (!$demand) return;
-                                
+                                if (! $demand) {
+                                    return;
+                                }
+
                                 $set('product_id', $demand->product_id);
                                 $set('unit_price', $demand->unit_price);
                             })
@@ -131,7 +146,10 @@ class ProductionDeliveryResource extends Resource
                             ->label('Status')
                             ->options(DeliveryStatus::class)
                             ->default(DeliveryStatus::PENDING)
-                            ->required(),
+                            ->required()
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado pelas ações Aprovar / Rejeitar'),
                     ])
                     ->columns(2),
 
@@ -143,32 +161,32 @@ class ProductionDeliveryResource extends Resource
                                 $qty = floatval($get('quantity') ?? 0);
                                 $price = floatval($get('unit_price') ?? 0);
                                 $projectId = $get('sales_project_id');
-                                
+
                                 $gross = $qty * $price;
                                 $adminRate = 10; // default
-                                
+
                                 if ($projectId) {
                                     $project = SalesProject::find($projectId);
                                     $adminRate = $project?->admin_fee_percentage ?? 10;
                                 }
-                                
+
                                 $adminFee = $gross * ($adminRate / 100);
                                 $net = $gross - $adminFee;
-                                
+
                                 return new \Illuminate\Support\HtmlString(
-                                    '<div class="grid grid-cols-3 gap-4 text-sm">' .
-                                    '<div class="p-3 bg-gray-100 rounded-lg dark:bg-gray-800">' .
-                                    '<div class="text-gray-500 dark:text-gray-400">Valor Bruto</div>' .
-                                    '<div class="text-lg font-bold">R$ ' . number_format($gross, 2, ',', '.') . '</div>' .
-                                    '</div>' .
-                                    '<div class="p-3 bg-red-50 rounded-lg dark:bg-red-900/20">' .
-                                    '<div class="text-gray-500 dark:text-gray-400">Taxa Admin (' . $adminRate . '%)</div>' .
-                                    '<div class="text-lg font-bold text-red-600 dark:text-red-400">- R$ ' . number_format($adminFee, 2, ',', '.') . '</div>' .
-                                    '</div>' .
-                                    '<div class="p-3 bg-green-50 rounded-lg dark:bg-green-900/20">' .
-                                    '<div class="text-gray-500 dark:text-gray-400">Valor Líquido (Produtor)</div>' .
-                                    '<div class="text-lg font-bold text-green-600 dark:text-green-400">R$ ' . number_format($net, 2, ',', '.') . '</div>' .
-                                    '</div>' .
+                                    '<div class="grid grid-cols-3 gap-4 text-sm">'.
+                                    '<div class="p-3 bg-gray-100 rounded-lg dark:bg-gray-800">'.
+                                    '<div class="text-gray-500 dark:text-gray-400">Valor Bruto</div>'.
+                                    '<div class="text-lg font-bold">R$ '.number_format($gross, 2, ',', '.').'</div>'.
+                                    '</div>'.
+                                    '<div class="p-3 bg-red-50 rounded-lg dark:bg-red-900/20">'.
+                                    '<div class="text-gray-500 dark:text-gray-400">Taxa Admin ('.$adminRate.'%)</div>'.
+                                    '<div class="text-lg font-bold text-red-600 dark:text-red-400">- R$ '.number_format($adminFee, 2, ',', '.').'</div>'.
+                                    '</div>'.
+                                    '<div class="p-3 bg-green-50 rounded-lg dark:bg-green-900/20">'.
+                                    '<div class="text-gray-500 dark:text-gray-400">Valor Líquido (Produtor)</div>'.
+                                    '<div class="text-lg font-bold text-green-600 dark:text-green-400">R$ '.number_format($net, 2, ',', '.').'</div>'.
+                                    '</div>'.
                                     '</div>'
                                 );
                             })
@@ -216,8 +234,7 @@ class ProductionDeliveryResource extends Resource
 
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Qtd')
-                    ->formatStateUsing(fn ($state, $record): string => 
-                        number_format($state, 2, ',', '.') . ' ' . ($record->product->unit ?? '')
+                    ->formatStateUsing(fn ($state, $record): string => number_format($state, 2, ',', '.').' '.($record->product->unit ?? '')
                     )
                     ->alignCenter(),
 
@@ -304,19 +321,37 @@ class ProductionDeliveryResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Aprovar Entrega')
-                    ->modalDescription('Ao aprovar, o valor líquido será creditado ao produtor.')
+                    ->modalDescription('Ao aprovar, o valor líquido será creditado ao produtor e o estoque será atualizado.')
                     ->action(function ($record) {
-                        $record->update([
-                            'status' => DeliveryStatus::APPROVED,
-                            'approved_by' => auth()->id(),
-                            'approved_at' => now(),
-                        ]);
-                        
-                        if ($record->projectDemand) {
-                            $record->projectDemand->updateDeliveredQuantity();
+                        try {
+                            // 1. Registrar entrada no estoque (produção entrou no armazém)
+                            $stockService = app(StockService::class);
+                            $movement = $stockService->entry(
+                                $record->product,
+                                (float) $record->quantity,
+                                StockMovementReason::PRODUCAO,
+                                $record,
+                                ['notes' => "Entrega de produção aprovada #{$record->id}"],
+                            );
+
+                            // 2. Atualizar entrega
+                            $record->update([
+                                'status' => DeliveryStatus::APPROVED,
+                                'approved_by' => Auth::id(),
+                                'approved_at' => now(),
+                                'stock_movement_id' => $movement->id,
+                            ]);
+
+                            // 3. Atualizar saldo da demanda do projeto
+                            if ($record->projectDemand) {
+                                $record->projectDemand->updateDeliveredQuantity();
+                            }
+
+                            Notification::make()->title('Entrega aprovada! Estoque atualizado.')->success()->send();
+                        } catch (\Exception $e) {
+                            Notification::make()->title('Erro ao aprovar: '.$e->getMessage())->danger()->send();
                         }
                     })
-                    ->successNotificationTitle('Entrega aprovada!')
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
 
                 Tables\Actions\Action::make('reject')
@@ -331,8 +366,8 @@ class ProductionDeliveryResource extends Resource
                     ])
                     ->action(fn ($record, array $data) => $record->update([
                         'status' => DeliveryStatus::REJECTED,
-                        'notes' => ($record->notes ? $record->notes . "\n\n" : '') . 
-                                  'REJEITADO: ' . $data['rejection_reason'],
+                        'notes' => ($record->notes ? $record->notes."\n\n" : '').
+                                  'REJEITADO: '.$data['rejection_reason'],
                     ]))
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
 
@@ -357,7 +392,7 @@ class ProductionDeliveryResource extends Resource
                                         'approved_by' => auth()->id(),
                                         'approved_at' => now(),
                                     ]);
-                                    
+
                                     if ($record->projectDemand) {
                                         $record->projectDemand->updateDeliveredQuantity();
                                     }
@@ -405,13 +440,13 @@ class ProductionDeliveryResource extends Resource
                     ])
                     ->action(function (array $data) {
                         $query = ProductionDelivery::with(['salesProject', 'associate.user', 'product']);
-                        
+
                         if ($data['status_filter'] !== 'all') {
                             $query->where('status', $data['status_filter']);
                         }
-                        
+
                         $deliveries = $query->orderBy('delivery_date', 'desc')->get();
-                        
+
                         $pdf = Pdf::loadView('pdf.deliveries-report', [
                             'deliveries' => $deliveries,
                             'columns' => $data['columns'],
@@ -427,7 +462,7 @@ class ProductionDeliveryResource extends Resource
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'entregas-' . now()->format('Y-m-d') . '.pdf');
+                        }, 'entregas-'.now()->format('Y-m-d').'.pdf');
                     }),
 
                 Tables\Actions\Action::make('export_excel')
@@ -456,7 +491,7 @@ class ProductionDeliveryResource extends Resource
                     ->action(function (array $data) {
                         return \Maatwebsite\Excel\Facades\Excel::download(
                             new \App\Exports\DeliveriesExport($data['columns']),
-                            'entregas-' . now()->format('Y-m-d') . '.xlsx'
+                            'entregas-'.now()->format('Y-m-d').'.xlsx'
                         );
                     }),
             ]);
@@ -464,7 +499,9 @@ class ProductionDeliveryResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            RelationManagers\ExpensesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

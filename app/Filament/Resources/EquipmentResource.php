@@ -64,7 +64,10 @@ class EquipmentResource extends Resource
                             ->label('Status')
                             ->options(Equipment::STATUSES)
                             ->default('active')
-                            ->required(),
+                            ->required()
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
                     ])
                     ->columns(2),
 

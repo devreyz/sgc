@@ -59,7 +59,10 @@ class AssetResource extends Resource
                             ->label('Status')
                             ->options(AssetStatus::class)
                             ->required()
-                            ->default(AssetStatus::DISPONIVEL),
+                            ->default(AssetStatus::DISPONIVEL)
+                            ->disabled()
+                            ->dehydrated(fn (string $context): bool => $context === 'create')
+                            ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\TextInput::make('brand')
                             ->label('Marca')

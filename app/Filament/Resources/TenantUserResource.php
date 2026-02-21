@@ -108,10 +108,11 @@ class TenantUserResource extends Resource
                             ->helperText('Para trocar o email, use a ação "Trocar Email" na listagem.'),
 
                         Forms\Components\TextInput::make('tenant_name')
-                            ->label('Nome de Exibição')
+                            ->label('Nome de Exibição na Organização')
                             ->maxLength(255)
-                            ->helperText('Nome usado nesta organização. Se vazio, usa o nome global do usuário.')
-                            ->placeholder('Deixe vazio para usar o nome global'),
+                            ->helperText('Nome do membro nesta organização. Se vazio, usa o nome global do usuário.')
+                            ->placeholder('Deixe vazio para usar o nome global')
+                            ->visible(fn (string $operation): bool => $operation === 'edit'),
 
                         Forms\Components\TextInput::make('tenant_password')
                             ->label('Alterar Senha de Acesso')

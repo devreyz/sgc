@@ -36,6 +36,7 @@ class ProductionDelivery extends Model
         'paid',
         'paid_date',
         'project_payment_id',
+        'stock_movement_id',
     ];
 
     protected function casts(): array
@@ -115,6 +116,14 @@ class ProductionDelivery extends Model
     public function projectPayment(): BelongsTo
     {
         return $this->belongsTo(ProjectPayment::class, 'project_payment_id');
+    }
+
+    /**
+     * Get expenses linked to this delivery (via expenseable polymorphic).
+     */
+    public function expenses(): MorphMany
+    {
+        return $this->morphMany(Expense::class, 'expenseable');
     }
 
     /**
