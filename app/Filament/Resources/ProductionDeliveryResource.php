@@ -7,6 +7,7 @@ use App\Enums\StockMovementReason;
 use App\Filament\Resources\ProductionDeliveryResource\Pages;
 use App\Filament\Resources\ProductionDeliveryResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
+use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
@@ -21,6 +22,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 
 class ProductionDeliveryResource extends Resource
@@ -43,6 +45,21 @@ class ProductionDeliveryResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Section::make('Tipo de Entrega')
+                    ->schema([
+                        Forms\Components\Toggle::make('is_standalone')
+                            ->label('Entrega Avulsa (sem projeto)')
+                            ->default(false)
+                            ->reactive()
+                            ->afterStateUpdated(function (callable $set) {
+                                $set('sales_project_id', null);
+                                $set('project_demand_id', null);
+                                $set('product_id', null);
+                                $set('unit_price', null);
+                            })
+                            ->helperText('Ative para registrar uma entrega que não está vinculada a nenhum projeto'),
+                    ]),
+
                 Forms\Components\Section::make('Projeto e Demanda')
                     ->schema([
                         Forms\Components\Select::make('sales_project_id')
@@ -58,7 +75,7 @@ class ProductionDeliveryResource extends Resource
                             ->preload()
                             ->reactive()
                             ->afterStateUpdated(fn (callable $set) => $set('project_demand_id', null))
-                            ->required()
+                            ->required(fn (callable $get) => !$get('is_standalone'))
                             ->helperText('Selecione o projeto ativo'),
 
                         Forms\Components\Select::make('project_demand_id')
@@ -93,11 +110,41 @@ class ProductionDeliveryResource extends Resource
                                 $set('product_id', $demand->product_id);
                                 $set('unit_price', $demand->unit_price);
                             })
-                            ->required()
+                            ->required(fn (callable $get) => !$get('is_standalone'))
                             ->helperText('Produto com preço e quantidade restante'),
 
                         Forms\Components\Hidden::make('product_id'),
                     ])
+                    ->visible(fn (callable $get) => !$get('is_standalone')),
+
+                Forms\Components\Section::make('Produto (Entrega Avulsa)')
+                    ->schema([
+                        Forms\Components\Select::make('product_id')
+                            ->label('Produto')
+                            ->options(fn () => Product::active()
+                                ->where('tenant_id', session('tenant_id'))
+                                ->pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $product = Product::find($state);
+                                    $set('unit_price', $product?->cost_price ?? 0);
+                                }
+                            })
+                            ->helperText('Selecione o produto da entrega avulsa'),
+
+                        Forms\Components\TextInput::make('unit_price')
+                            ->label('Preço Unitário')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->required()
+                            ->helperText('Preço por unidade (preenchido do custo do produto)'),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (callable $get) => (bool) $get('is_standalone'))
                     ->columns(2),
 
                 Forms\Components\Section::make('Dados da Entrega')
@@ -129,9 +176,11 @@ class ProductionDeliveryResource extends Resource
                             ->label('Preço Unitário')
                             ->numeric()
                             ->prefix('R$')
-                            ->disabled()
+                            ->disabled(fn (callable $get) => !$get('is_standalone'))
                             ->dehydrated(true)
-                            ->helperText('Preço definido na demanda'),
+                            ->helperText(fn (callable $get) => $get('is_standalone')
+                                ? 'Preço definido manualmente'
+                                : 'Preço definido na demanda'),
 
                         Forms\Components\Select::make('quality_grade')
                             ->label('Classificação de Qualidade')
@@ -140,7 +189,14 @@ class ProductionDeliveryResource extends Resource
                                 'B' => 'B - Boa',
                                 'C' => 'C - Aceitável',
                             ])
+                            ->required()
                             ->default('A'),
+
+                        Forms\Components\Textarea::make('quality_notes')
+                            ->label('Observações de Qualidade')
+                            ->rows(2)
+                            ->placeholder('Detalhes sobre a qualidade, defeitos encontrados, etc.')
+                            ->nullable(),
 
                         Forms\Components\Select::make('status')
                             ->label('Status')
@@ -160,17 +216,19 @@ class ProductionDeliveryResource extends Resource
                             ->content(function (callable $get) {
                                 $qty = floatval($get('quantity') ?? 0);
                                 $price = floatval($get('unit_price') ?? 0);
+                                $isStandalone = (bool) $get('is_standalone');
                                 $projectId = $get('sales_project_id');
 
                                 $gross = $qty * $price;
-                                $adminRate = 10; // default
+                                $adminRate = 0;
+                                $adminFee = 0;
 
-                                if ($projectId) {
+                                if (!$isStandalone && $projectId) {
                                     $project = SalesProject::find($projectId);
                                     $adminRate = $project?->admin_fee_percentage ?? 10;
+                                    $adminFee = $gross * ($adminRate / 100);
                                 }
 
-                                $adminFee = $gross * ($adminRate / 100);
                                 $net = $gross - $adminFee;
 
                                 return new \Illuminate\Support\HtmlString(
@@ -324,30 +382,37 @@ class ProductionDeliveryResource extends Resource
                     ->modalDescription('Ao aprovar, o valor líquido será creditado ao produtor e o estoque será atualizado.')
                     ->action(function ($record) {
                         try {
-                            // 1. Registrar entrada no estoque (produção entrou no armazém)
-                            $stockService = app(StockService::class);
-                            $movement = $stockService->entry(
-                                $record->product,
-                                (float) $record->quantity,
-                                StockMovementReason::PRODUCAO,
-                                $record,
-                                ['notes' => "Entrega de produção aprovada #{$record->id}"],
-                            );
+                            DB::transaction(function () use ($record) {
+                                // 1. Registrar entrada no estoque
+                                $stockService = app(StockService::class);
+                                $movement = $stockService->entry(
+                                    $record->product,
+                                    (float) $record->quantity,
+                                    StockMovementReason::PRODUCAO,
+                                    $record,
+                                    ['notes' => "Entrega de produção aprovada #{$record->id}"],
+                                );
 
-                            // 2. Atualizar entrega
-                            $record->update([
-                                'status' => DeliveryStatus::APPROVED,
-                                'approved_by' => Auth::id(),
-                                'approved_at' => now(),
-                                'stock_movement_id' => $movement->id,
-                            ]);
+                                // 2. Atualizar entrega — o observer (ProductionDeliveryObserver)
+                                //    chama FinancialDistributionService::processDelivery() no
+                                //    evento 'updated', que cria a entrada de ledger automaticamente.
+                                $record->update([
+                                    'status'            => DeliveryStatus::APPROVED,
+                                    'approved_by'       => Auth::id(),
+                                    'approved_at'       => now(),
+                                    'stock_movement_id' => $movement->id,
+                                ]);
 
-                            // 3. Atualizar saldo da demanda do projeto
-                            if ($record->projectDemand) {
-                                $record->projectDemand->updateDeliveredQuantity();
-                            }
+                                // 3. Atualizar saldo da demanda do projeto (se vinculado)
+                                if ($record->projectDemand) {
+                                    $record->projectDemand->updateDeliveredQuantity();
+                                }
+                            });
 
-                            Notification::make()->title('Entrega aprovada! Estoque atualizado.')->success()->send();
+                            Notification::make()
+                                ->title('Entrega aprovada! Estoque atualizado e crédito gerado para o produtor.')
+                                ->success()
+                                ->send();
                         } catch (\Exception $e) {
                             Notification::make()->title('Erro ao aprovar: '.$e->getMessage())->danger()->send();
                         }
@@ -385,19 +450,41 @@ class ProductionDeliveryResource extends Resource
                         ->color('success')
                         ->requiresConfirmation()
                         ->action(function ($records) {
+                            $successCount = 0;
                             foreach ($records as $record) {
-                                if ($record->status === DeliveryStatus::PENDING) {
-                                    $record->update([
-                                        'status' => DeliveryStatus::APPROVED,
-                                        'approved_by' => auth()->id(),
-                                        'approved_at' => now(),
-                                    ]);
+                                if ($record->status !== DeliveryStatus::PENDING) {
+                                    continue;
+                                }
+                                try {
+                                    DB::transaction(function () use ($record) {
+                                        $stockService = app(StockService::class);
+                                        $movement = $stockService->entry(
+                                            $record->product,
+                                            (float) $record->quantity,
+                                            StockMovementReason::PRODUCAO,
+                                            $record,
+                                            ['notes' => "Entrega de produção aprovada #{$record->id} (bulk)"],
+                                        );
 
-                                    if ($record->projectDemand) {
-                                        $record->projectDemand->updateDeliveredQuantity();
-                                    }
+                                        // O observer cria o ledger automaticamente via
+                                        // FinancialDistributionService::processDelivery()
+                                        $record->update([
+                                            'status'            => DeliveryStatus::APPROVED,
+                                            'approved_by'       => Auth::id(),
+                                            'approved_at'       => now(),
+                                            'stock_movement_id' => $movement->id,
+                                        ]);
+
+                                        if ($record->projectDemand) {
+                                            $record->projectDemand->updateDeliveredQuantity();
+                                        }
+                                    });
+                                    $successCount++;
+                                } catch (\Exception $e) {
+                                    continue;
                                 }
                             }
+                            Notification::make()->title("{$successCount} entregas aprovadas com sucesso.")->success()->send();
                         })
                         ->deselectRecordsAfterCompletion(),
 

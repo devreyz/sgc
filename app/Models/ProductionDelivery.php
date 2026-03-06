@@ -157,13 +157,17 @@ class ProductionDelivery extends Model
             if ($delivery->unit_price && $delivery->quantity) {
                 $grossValue = $delivery->quantity * $delivery->unit_price;
                 
-                // Get admin fee percentage from project
+                // Get admin fee percentage from project (standalone = 0%)
                 if ($delivery->sales_project_id) {
                     $project = $delivery->salesProject;
                     $adminFeePercentage = $project->admin_fee_percentage ?? 10;
                     
                     $delivery->admin_fee_amount = $grossValue * ($adminFeePercentage / 100);
                     $delivery->net_value = $grossValue - $delivery->admin_fee_amount;
+                } else {
+                    // Standalone delivery: no admin fee
+                    $delivery->admin_fee_amount = 0;
+                    $delivery->net_value = $grossValue;
                 }
             }
         });

@@ -21,16 +21,23 @@ class CheckAnyRole
             return redirect('/login')->with('error', 'Você precisa estar autenticado.');
         }
 
-        // Admins e super_admins podem acessar qualquer coisa
-        if ($request->user()->hasAnyRole(['super_admin', 'admin'])) {
+        $user = $request->user();
+
+        // Super admins e admins globais (Spatie) passam sempre
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
             return $next($request);
         }
 
-        // Verifica se o usuário tem qualquer um dos roles especificados
-        if (!$request->user()->hasAnyRole($roles)) {
-            return redirect('/')->with('error', 'Você não tem permissão para acessar esta área.');
+        // Verifica roles globais (Spatie)
+        if ($user->hasAnyRole($roles)) {
+            return $next($request);
         }
 
-        return $next($request);
+        // Verifica roles no tenant atual (pivot)
+        if ($user->hasRoleInTenant($roles)) {
+            return $next($request);
+        }
+
+        return redirect('/')->with('error', 'Você não tem permissão para acessar esta área.');
     }
 }

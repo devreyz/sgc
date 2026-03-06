@@ -74,17 +74,22 @@ class ProductResource extends Resource
                             ->maxLength(10),
 
                         Forms\Components\TextInput::make('cost_price')
-                            ->label('Preço de Custo')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->default(0),
+                        ->label('Preço de Custo (Compra)')
+                        ->numeric()
+                        ->prefix('R$')
+                        ->required()
+                        ->minValue(0)
+                        ->default(0)
+                        ->helperText('Preço base para compras e recebimentos'),
 
-                        Forms\Components\TextInput::make('sale_price')
-                            ->label('Preço de Venda')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->default(0),
-
+                    Forms\Components\TextInput::make('sale_price')
+                        ->label('Preço de Venda')
+                        ->numeric()
+                        ->prefix('R$')
+                        ->required()
+                        ->minValue(0)
+                        ->default(0)
+                        ->helperText('Preço base para vendas no caixa e projetos'),
                         Forms\Components\Toggle::make('status')
                             ->label('Ativo')
                             ->default(true),

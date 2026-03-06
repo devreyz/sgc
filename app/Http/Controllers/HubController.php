@@ -2,14 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class HubController extends Controller
 {
     public function index()
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return view('welcome');
         }
 
@@ -17,7 +16,7 @@ class HubController extends Controller
 
         // Verificar se usuário tem tenants antes de mostrar hub
         $userTenants = $user->tenants;
-        
+
         // Se não tem nenhum tenant, mostrar erro
         if ($userTenants->isEmpty()) {
             return view('hub', [
@@ -28,7 +27,7 @@ class HubController extends Controller
         }
 
         // Se não há tenant na sessão, mostrar seleção de tenant
-        if (!session('tenant_id')) {
+        if (! session('tenant_id')) {
             return view('tenant.select', [
                 'tenants' => $userTenants,
                 'user' => $user,
@@ -37,8 +36,9 @@ class HubController extends Controller
 
         // Verificar se o tenant da sessão ainda é válido para o usuário
         $currentTenantId = session('tenant_id');
-        if (!$userTenants->contains('id', $currentTenantId)) {
+        if (! $userTenants->contains('id', $currentTenantId)) {
             session()->forget('tenant_id');
+
             return view('tenant.select', [
                 'tenants' => $userTenants,
                 'user' => $user,
@@ -50,7 +50,7 @@ class HubController extends Controller
         // Detectar as roles disponíveis do usuário no tenant atual
         $roles = [];
 
-        if ($user->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
+        if ($user->hasRoleInTenant(['super_admin', 'admin', 'financeiro'], $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Administração',
                 'description' => 'Gerenciar sistema completo',
@@ -60,7 +60,7 @@ class HubController extends Controller
             ];
         }
 
-        if ($user->hasAnyRole(['service_provider', 'tratorista', 'motorista', 'diarista', 'tecnico'])) {
+        if ($user->hasRoleInTenant(['service_provider', 'tratorista', 'motorista', 'diarista', 'tecnico'], $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Prestador de Serviço',
                 'description' => 'Gerenciar ordens e recebimentos',
@@ -70,7 +70,7 @@ class HubController extends Controller
             ];
         }
 
-        if ($user->hasRole('associado')) {
+        if ($user->hasRoleInTenant('associado', $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Associado',
                 'description' => 'Projetos e entregas',
@@ -80,7 +80,7 @@ class HubController extends Controller
             ];
         }
 
-        if ($user->hasRole('registrador_entregas')) {
+        if ($user->hasRoleInTenant('registrador_entregas', $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Registrador de Entregas',
                 'description' => 'Registrar entregas de produção',
@@ -90,14 +90,20 @@ class HubController extends Controller
             ];
         }
 
-        // Se só tem uma role, redirecionar automaticamente
-        if (count($roles) === 1) {
-            return redirect($roles[0]['url']);
+        if ($user->hasRoleInTenant(['operador_caixa', 'financeiro'], $currentTenant->id)) {
+            $roles[] = [
+                'name' => 'Caixa (Vendas Rápidas)',
+                'description' => 'Registrar vendas e controlar caixa',
+                'icon' => 'shopping-cart',
+                'url' => route('cashier.dashboard', ['tenant' => $currentTenant->slug]),
+                'color' => 'success',
+            ];
         }
 
         // Se não tem nenhuma role conhecida, mostrar hub com mensagem em vez de redirecionar
         if (count($roles) === 0) {
             $notice = 'Seu usuário não possui painéis atribuídos nesta organização. Contate o administrador para atribuir permissões.';
+
             return view('hub', compact('roles', 'user'))->with('error', $notice);
         }
 

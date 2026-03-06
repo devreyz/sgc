@@ -6,7 +6,9 @@ use App\Models\Document;
 use App\Models\DocumentTemplate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\SvgWriter;
+use Endroid\QrCode\Writer\PngWriter;
 
 class DocumentService
 {
@@ -25,10 +27,10 @@ class DocumentService
     public function generateQrCode(string $hash): string
     {
         $url = route('document.verify', ['hash' => $hash]);
-        return QrCode::size(150)
-            ->style('round')
-            ->eye('circle')
-            ->generate($url);
+        $qr = QrCode::create($url)
+            ->setSize(150);
+        $writer = new SvgWriter();
+        return $writer->write($qr)->getString();
     }
 
     /**
@@ -37,13 +39,11 @@ class DocumentService
     public function generateQrCodeBase64(string $hash): string
     {
         $url = route('document.verify', ['hash' => $hash]);
-        return base64_encode(
-            QrCode::format('png')
-                ->size(150)
-                ->style('round')
-                ->eye('circle')
-                ->generate($url)
-        );
+        $qr = QrCode::create($url)
+            ->setSize(150);
+        $writer = new PngWriter();
+        $result = $writer->write($qr);
+        return base64_encode($result->getString());
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\Associate;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
+use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,16 @@ class DeliveryRegistrationController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'any.role:registrador_entregas']);
+    }
+
+    private function currentTenant(): ?Tenant
+    {
+        $tenant = request()->route('tenant');
+        if ($tenant instanceof Tenant) {
+            return $tenant;
+        }
+        $tenantId = session('tenant_id');
+        return $tenantId ? Tenant::find($tenantId) : null;
     }
 
     /**
@@ -72,7 +83,9 @@ class DeliveryRegistrationController extends Controller
                 ->whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])->sum('quantity'),
         ];
 
-        return view('delivery.dashboard', compact('projects', 'stats'));
+        $currentTenant = $this->currentTenant();
+
+        return view('delivery.dashboard', compact('projects', 'stats', 'currentTenant'));
     }
 
     /**
@@ -88,12 +101,13 @@ class DeliveryRegistrationController extends Controller
         // Get specific project or all active projects
         if ($projectId) {
             $project = SalesProject::where('tenant_id', $tenantId)
-                ->whereIn('status', [
-                    ProjectStatus::DRAFT->value,
-                    ProjectStatus::ACTIVE->value,
-                ])
                 ->with(['customer', 'demands.product', 'deliveries'])
-                ->findOrFail($projectId);
+                ->find($projectId);
+
+            if (!$project) {
+                return redirect()->route('delivery.dashboard', ['tenant' => request()->route('tenant')])
+                    ->with('error', 'Projeto não encontrado.');
+            }
 
             $projects = collect([$project]);
         } else {
@@ -116,7 +130,9 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('delivery.register', compact('projects', 'associates'));
+        $currentTenant = $this->currentTenant();
+
+        return view('delivery.register', compact('projects', 'associates', 'currentTenant'));
     }
 
     /**
@@ -322,7 +338,9 @@ class DeliveryRegistrationController extends Controller
                 ];
             });
 
-        return view('delivery.project-deliveries', compact('project', 'deliveries'));
+        $currentTenant = $this->currentTenant();
+
+        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant'));
     }
 
     /**

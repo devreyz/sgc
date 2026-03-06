@@ -22,6 +22,11 @@ class StockReceipt extends Model
     protected $fillable = [
         'product_id',
         'supplier_id',
+        'origin_type',
+        'associate_id',
+        'origin_name',
+        'origin_document',
+        'origin_phone',
         'quantity',
         'unit_cost',
         'total_cost',
@@ -29,7 +34,10 @@ class StockReceipt extends Model
         'receipt_date',
         'batch',
         'expiry_date',
+        'quality_grade',
+        'quality_notes',
         'stock_movement_id',
+        'associate_ledger_id',
         'notes',
         'confirmed_by',
         'confirmed_at',
@@ -70,9 +78,32 @@ class StockReceipt extends Model
         return $this->belongsTo(Supplier::class);
     }
 
+    public function associate(): BelongsTo
+    {
+        return $this->belongsTo(Associate::class);
+    }
+
+    public function associateLedger(): BelongsTo
+    {
+        return $this->belongsTo(AssociateLedger::class);
+    }
+
     public function stockMovement(): BelongsTo
     {
         return $this->belongsTo(StockMovement::class);
+    }
+
+    /**
+     * Get the origin display name.
+     */
+    public function getOriginDisplayAttribute(): string
+    {
+        return match ($this->origin_type) {
+            'supplier'  => $this->supplier?->name ?? 'Fornecedor não informado',
+            'associate' => optional($this->associate?->user)->name ?? $this->associate?->property_name ?? 'Associado',
+            'other'     => $this->origin_name ?? 'Não informado',
+            default     => $this->supplier?->name ?? $this->origin_name ?? '—',
+        };
     }
 
     public function confirmedBy(): BelongsTo

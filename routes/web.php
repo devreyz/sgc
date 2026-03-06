@@ -9,6 +9,7 @@ use App\Http\Controllers\MemberCardValidationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Cashier\CashierController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
@@ -99,6 +100,18 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
+    });
+
+    // Cashier Portal Routes (POS - Quick Sales)
+    Route::prefix('cashier')->name('cashier.')->middleware(['any.role:operador_caixa,financeiro'])->group(function () {
+        Route::get('/dashboard', [CashierController::class, 'index'])->name('dashboard');
+        Route::get('/new', [CashierController::class, 'create'])->name('create');
+        Route::post('/new', [CashierController::class, 'store'])->name('store');
+        Route::get('/confirm/{sale}', [CashierController::class, 'confirm'])->name('confirm');
+        Route::post('/confirm/{sale}', [CashierController::class, 'storeConfirm'])->name('storeConfirm');
+        Route::post('/cancel/{sale}', [CashierController::class, 'cancel'])->name('cancel');
+        Route::get('/history', [CashierController::class, 'history'])->name('history');
+        Route::get('/product/{product}/price', [CashierController::class, 'getProductPrice'])->name('product.price');
     });
 
 });
