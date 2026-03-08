@@ -26,11 +26,7 @@
 @section('content')
 <div class="bento-grid">
 
-    @if(session('success'))
-    <div class="bento-card col-span-full" style="border-left: 4px solid var(--color-success); background: rgba(16, 185, 129, 0.05);">
-        <p style="color: var(--color-success); font-weight: 500;"><i data-lucide="check-circle" style="width:1rem;height:1rem;display:inline;vertical-align:text-bottom;"></i> {{ session('success') }}</p>
-    </div>
-    @endif
+   
 
     <!-- Resumo Financeiro Consolidado -->
     <div class="bento-card col-span-full lg:col-span-8">
