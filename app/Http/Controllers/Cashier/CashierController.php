@@ -137,15 +137,16 @@ class CashierController extends Controller
     //  CONFIRMAR VENDA
     // =========================================================================
 
-    public function confirm($saleId)
+    public function confirm()
     {
+        $sale = (int) request()->route('sale');
         $tenantId = session('tenant_id');
         if (!$tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
         $sale = QuickSale::where('tenant_id', $tenantId)
-            ->where('id', $saleId)
+            ->where('id', $sale)
             ->with('product')
             ->first();
 
@@ -162,15 +163,16 @@ class CashierController extends Controller
         return view('cashier.confirm-sale', compact('sale'));
     }
 
-    public function storeConfirm(Request $request, $saleId)
+    public function storeConfirm(Request $request)
     {
+        $sale = (int) request()->route('sale');
         $tenantId = session('tenant_id');
         if (!$tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
         $sale = QuickSale::where('tenant_id', $tenantId)
-            ->where('id', $saleId)
+            ->where('id', $sale)
             ->where('status', 'pending')
             ->with('product')
             ->firstOrFail();
@@ -205,15 +207,16 @@ class CashierController extends Controller
     //  CANCELAR VENDA
     // =========================================================================
 
-    public function cancel(Request $request, $saleId)
+    public function cancel(Request $request)
     {
+        $sale = (int) request()->route('sale');
         $tenantId = session('tenant_id');
         if (!$tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
         $sale = QuickSale::where('tenant_id', $tenantId)
-            ->where('id', $saleId)
+            ->where('id', $sale)
             ->whereIn('status', ['pending', 'confirmed'])
             ->with('product')
             ->firstOrFail();
@@ -275,11 +278,12 @@ class CashierController extends Controller
     //  API: Buscar preço do produto (AJAX)
     // =========================================================================
 
-    public function getProductPrice($productId)
+    public function getProductPrice()
     {
+        $product = (int) request()->route('product');
         $tenantId = session('tenant_id');
         $product = Product::where('tenant_id', $tenantId)
-            ->where('id', $productId)
+            ->where('id', $product)
             ->first();
 
         if (!$product) {

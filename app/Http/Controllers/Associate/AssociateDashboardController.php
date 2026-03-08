@@ -143,8 +143,9 @@ class AssociateDashboardController extends Controller
     /**
      * Show project details
      */
-    public function showProject($id)
+    public function showProject()
     {
+        $project = (int) request()->route('project');
         $user = Auth::user();
         $tenantId = session('tenant_id');
 
@@ -157,7 +158,7 @@ class AssociateDashboardController extends Controller
             ->first();
 
         // Carregar QUALQUER projeto ativo, não apenas os que ele já entregou
-        $project = SalesProject::where('id', $id)
+        $project = SalesProject::where('id', $project)
             ->where('tenant_id', $tenantId)
             ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
             ->with([

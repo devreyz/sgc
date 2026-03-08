@@ -108,6 +108,12 @@ class SalesProjectResource extends Resource
                             ->minValue(0)
                             ->maxValue(100)
                             ->helperText('Percentual retido pela cooperativa (padrão 10%)'),
+
+                        Forms\Components\Toggle::make('allow_any_product')
+                            ->label('Aceitar qualquer produto')
+                            ->helperText('Quando ativo, o projeto pode receber qualquer produto cadastrado sem demandas pré-definidas')
+                            ->default(false)
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -196,6 +202,25 @@ class SalesProjectResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+
+                // Ativar/Iniciar projeto
+                Tables\Actions\Action::make('activate')
+                    ->label('Iniciar Projeto')
+                    ->icon('heroicon-o-play')
+                    ->color('success')
+                    ->visible(fn (SalesProject $record) => $record->status === ProjectStatus::DRAFT)
+                    ->requiresConfirmation()
+                    ->modalHeading('Iniciar Projeto')
+                    ->modalDescription('Ao iniciar o projeto, ele será marcado como "Em Execução" e passará a aceitar registros de entrega. Deseja continuar?')
+                    ->action(function (SalesProject $record) {
+                        $record->update(['status' => ProjectStatus::ACTIVE]);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Projeto iniciado com sucesso!')
+                            ->body('O projeto agora está em execução e aceita registros de entrega.')
+                            ->send();
+                    }),
 
                 // Marcar como entregue
                 Tables\Actions\Action::make('mark_delivered')

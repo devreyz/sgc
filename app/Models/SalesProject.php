@@ -40,6 +40,7 @@ class SalesProject extends Model
         'admin_fee_collected',
         'associates_paid_amount',
         'payment_bank_account_id',
+        'allow_any_product',
     ];
 
     protected function casts(): array
@@ -56,6 +57,7 @@ class SalesProject extends Model
             'received_amount' => 'decimal:2',
             'admin_fee_collected' => 'decimal:2',
             'associates_paid_amount' => 'decimal:2',
+            'allow_any_product' => 'boolean',
         ];
     }
 

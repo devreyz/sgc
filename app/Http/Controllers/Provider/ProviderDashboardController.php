@@ -67,6 +67,17 @@ class ProviderDashboardController extends Controller
         return $provider;
     }
 
+    private function currentTenant(): ?\App\Models\Tenant
+    {
+        $tenant = request()->route('tenant');
+        if ($tenant instanceof \App\Models\Tenant) {
+            return $tenant;
+        }
+        $tenantId = session('tenant_id');
+
+        return $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+    }
+
     // =========================================================================
     //  DASHBOARD
     // =========================================================================
@@ -338,8 +349,9 @@ class ProviderDashboardController extends Controller
     //  DETALHES DA ORDEM
     // =========================================================================
 
-    public function showOrder($orderId)
+    public function showOrder()
     {
+        $orderId = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -365,15 +377,18 @@ class ProviderDashboardController extends Controller
             ->where('service_id', $order->service_id)
             ->first();
 
-        return view('provider.show-order', compact('provider', 'order', 'providerService'));
+        $currentTenant = $this->currentTenant();
+
+        return view('provider.show-order', compact('provider', 'order', 'providerService', 'currentTenant'));
     }
 
     // =========================================================================
     //  INICIAR EXECUÇÃO
     // =========================================================================
 
-    public function startExecution($orderId)
+    public function startExecution()
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -385,7 +400,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->first();
 
@@ -410,8 +425,9 @@ class ProviderDashboardController extends Controller
     //  CONCLUIR ORDEM (REGISTRAR EXECUÇÃO)
     // =========================================================================
 
-    public function completeOrder(Request $request, $orderId)
+    public function completeOrder(Request $request)
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -423,7 +439,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->with('service')
             ->first();
@@ -571,8 +587,9 @@ class ProviderDashboardController extends Controller
     //  SOLICITAR SAQUE
     // =========================================================================
 
-    public function requestPayment($orderId)
+    public function requestPayment()
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -584,7 +601,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->whereIn('status', [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED])
             ->with('service')
@@ -607,11 +624,14 @@ class ProviderDashboardController extends Controller
             ->where('status', 'pending')
             ->first();
 
-        return view('provider.request-payment', compact('provider', 'order', 'existingRequest'));
+        $currentTenant = $this->currentTenant();
+
+        return view('provider.request-payment', compact('provider', 'order', 'existingRequest', 'currentTenant'));
     }
 
-    public function storePaymentRequest(Request $request, $orderId)
+    public function storePaymentRequest(Request $request)
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -623,7 +643,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->first();
 
@@ -655,8 +675,9 @@ class ProviderDashboardController extends Controller
             ->with('success', 'Solicitação de saque enviada! Aguarde aprovação da administração.');
     }
 
-    public function registerClientPayment($orderId)
+    public function registerClientPayment()
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -668,7 +689,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->where('status', ServiceOrderStatus::AWAITING_PAYMENT)
             ->with(['service', 'associate'])
@@ -686,11 +707,14 @@ class ProviderDashboardController extends Controller
 
         $clientRemaining = $order->final_price - $totalPaid;
 
-        return view('provider.register-payment', compact('provider', 'order', 'totalPaid', 'clientRemaining'));
+        $currentTenant = $this->currentTenant();
+
+        return view('provider.register-payment', compact('provider', 'order', 'totalPaid', 'clientRemaining', 'currentTenant'));
     }
 
-    public function storeClientPayment(Request $request, $orderId)
+    public function storeClientPayment(Request $request)
     {
+        $order = (int) request()->route('order');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -702,7 +726,7 @@ class ProviderDashboardController extends Controller
         }
 
         $order = ServiceOrder::where('tenant_id', $tenantId)
-            ->where('id', $orderId)
+            ->where('id', $order)
             ->where('service_provider_id', $provider->id)
             ->first();
 

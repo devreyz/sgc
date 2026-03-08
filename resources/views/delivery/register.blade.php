@@ -467,31 +467,86 @@
                         <i data-lucide="package"></i>
                         Passo 1 — Projeto e Produto
                     </h2>
+                    @if($isStandalone)
+
+                    <p class="step-subtitle">Registre uma entrega avulsa sem vínculo com projeto</p>
+
+                    @else
+
                     <p class="step-subtitle">Selecione o projeto e o produto a ser entregue</p>
+
+                    @endif
+
                 </div>
-                
-                @if($projects->count() === 1)
+
+
+
+                @if($isStandalone)
+
+                    {{-- Modo avulso: sem projeto vinculado --}}
+
+                    <input type="hidden" name="is_standalone" value="1">
+
+                    <input type="hidden" id="project_id" name="sales_project_id" value="">
+
+                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;">
+
+                        <span style="display:inline-flex;align-items:center;gap:0.35rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:0.35rem 0.85rem;border-radius:99px;font-size:0.82rem;font-weight:600;letter-spacing:0.02em;">
+
+                            <i data-lucide="zap" style="width:14px;height:14px;"></i>
+
+                            Entrega Avulsa
+
+                        </span>
+
+                        <span style="color:var(--color-text-muted);font-size:0.88rem;">sem vínculo com projeto</span>
+
+                    </div>
+
+                @elseif($projects->count() === 1)
+
                     <input type="hidden" id="project_id" name="sales_project_id" value="{{ $projects->first()->id }}">
+
                     <div class="summary-box">
+
                         <div class="summary-title">Projeto Selecionado</div>
+
                         <div class="summary-item">
+
                             <i data-lucide="folder"></i>
+
                             <span class="summary-text">{{ $projects->first()->title }}</span>
+
                         </div>
+
                     </div>
+
                 @else
+
                     <div class="form-group">
+
                         <label class="form-label">Projeto <span class="required">*</span></label>
+
                         <div class="select-box" id="project-select-box">
+
                             <i data-lucide="folder" style="width:20px;height:20px;"></i>
+
                             <div class="select-box-content">
+
                                 <div class="select-box-label">Nenhum projeto selecionado</div>
+
                                 <div class="select-box-value">Clique para escolher</div>
+
                             </div>
+
                             <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
+
                         </div>
+
                         <input type="hidden" id="project_id" name="sales_project_id">
+
                     </div>
+
                 @endif
                 
                 <div class="form-group">
@@ -500,11 +555,12 @@
                         <i data-lucide="box" style="width:20px;height:20px;"></i>
                         <div class="select-box-content">
                             <div class="select-box-label">Nenhum produto selecionado</div>
-                            <div class="select-box-value">Selecione um projeto primeiro</div>
+                            <div class="select-box-value">{{ $isStandalone ? 'Clique para escolher' : 'Selecione um projeto primeiro' }}</div>
                         </div>
                         <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
                     </div>
                     <input type="hidden" id="demand_id" name="project_demand_id">
+                    <input type="hidden" id="product_id_free" name="product_id">
                 </div>
                 
                 <div id="product-info"></div>
@@ -689,248 +745,328 @@
     </div>
 </div>
 
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // State
-    let state = {
-        project: null,
-        product: null,
-        associate: null,
-        products: []
-    };
+    let state = { project: null, product: null, associate: null, products: [] };
+
+    const isStandalone = {{ $isStandalone ? 'true' : 'false' }};
+
+    @if($isStandalone)
+    const standaloneProductsData = {!! json_encode($standaloneProducts->map(function($p) {
+        return [
+            'id' => null,
+            'product_id' => $p->id,
+            'product_name' => $p->name,
+            'product_unit' => $p->unit ?? 'un',
+            'unit_price' => (float) ($p->sale_price ?? $p->cost_price ?? 0),
+            'is_free' => false,
+            'is_standalone' => true,
+            'delivered_quantity' => 0,
+            'remaining_quantity' => null,
+        ];
+    })->values()->all()) !!};
+    @else
+    const standaloneProductsData = [];
+    @endif
     
-    // Elements
     const form = document.getElementById('delivery-form');
     const steps = document.querySelectorAll('.step');
     const projectModal = document.getElementById('project-modal');
     const productModal = document.getElementById('product-modal');
     const associateModal = document.getElementById('associate-modal');
     
-    // Initialize Lucide
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    // ===== Alert helper =====
+    function showAlert(msg, type) {
+        const container = document.getElementById('alert-container');
+        if (!container) return;
+        container.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}</div>`;
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        setTimeout(() => { container.innerHTML = ''; }, 5000);
     }
-    
-    // Step Navigation
+
+    // ===== Step navigation =====
     function showStep(n) {
-        steps.forEach((step, idx) => {
-            step.classList.toggle('active', idx === n - 1);
-        });
+        steps.forEach((step, idx) => step.classList.toggle('active', idx === n - 1));
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
-    
+
     document.getElementById('next-1')?.addEventListener('click', () => {
-        if (!state.project || !state.product) {
-            showAlert('Selecione o projeto e o produto', 'error');
-            return;
-        }
-        updateSummary();
-        showStep(2);
+        if (!state.product || (!isStandalone && !state.project)) { showAlert('Selecione o projeto e o produto', 'error'); return; }
+        updateSummary(); showStep(2);
     });
-    
     document.getElementById('next-2')?.addEventListener('click', () => {
-        if (!state.associate) {
-            showAlert('Selecione um associado', 'error');
-            return;
-        }
-        updateSummary();
-        showStep(3);
+        if (!state.associate) { showAlert('Selecione um associado', 'error'); return; }
+        updateSummary(); showStep(3);
     });
-    
     document.getElementById('back-1')?.addEventListener('click', () => showStep(1));
     document.getElementById('back-2')?.addEventListener('click', () => showStep(2));
-    
-    // Project Selection
-    @if($projects->count() === 1)
-        const projectId = '{{ $projects->first()->id }}';
-        state.project = { id: projectId, name: '{{ $projects->first()->title }}' };
-        loadProducts(projectId);
+
+    // ===== Project Selection =====
+
+    @if($isStandalone)
+
+        // Modo avulso: pré-carregar produtos avulsos
+
+        loadStandaloneProductList();
+
+    @elseif($projects->count() === 1)
+
+        state.project = { id: '{{ $projects->first()->id }}', name: '{{ addslashes($projects->first()->title) }}' };
+
+        document.getElementById('project_id').value = state.project.id;
+
+        loadProducts(state.project.id);
+
     @else
-        document.getElementById('project-select-box')?.addEventListener('click', () => {
-            projectModal.classList.add('active');
-        });
+
+        document.getElementById('project-select-box')?.addEventListener('click', () => projectModal.classList.add('active'));
+
     @endif
-    
-    document.getElementById('close-project-modal')?.addEventListener('click', () => {
-        projectModal.classList.remove('active');
-    });
-    
+
+    document.getElementById('close-project-modal')?.addEventListener('click', () => projectModal.classList.remove('active'));
+
     document.getElementById('project-search')?.addEventListener('input', function() {
         const q = this.value.toLowerCase();
         document.querySelectorAll('#project-list .item-card').forEach(card => {
-            const name = card.dataset.name;
-            card.style.display = name.includes(q) ? 'block' : 'none';
+            card.style.display = card.dataset.name.includes(q) ? '' : 'none';
         });
     });
-    
+
     document.querySelectorAll('#project-list .item-card').forEach(card => {
         card.addEventListener('click', function() {
             const id = this.dataset.id;
             const name = this.querySelector('.item-name').textContent;
-            
             state.project = { id, name };
             document.getElementById('project_id').value = id;
-            
+
             const box = document.getElementById('project-select-box');
             box.classList.add('selected');
             box.querySelector('.select-box-label').textContent = 'Projeto selecionado';
             box.querySelector('.select-box-value').textContent = name;
-            
+
+            // Reset produto ao trocar projeto
+            state.product = null;
+            document.getElementById('demand_id').value = '';
+            document.getElementById('product_id_free').value = '';
+            const pBox = document.getElementById('product-select-box');
+            pBox.classList.remove('selected');
+            pBox.querySelector('.select-box-label').textContent = 'Nenhum produto selecionado';
+            pBox.querySelector('.select-box-value').textContent = 'Clique para escolher';
+            document.getElementById('product-info').innerHTML = '';
+
             projectModal.classList.remove('active');
             loadProducts(id);
-            
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
     });
-    
-    // Product Selection
+
+    // ===== Product Selection =====
     document.getElementById('product-select-box')?.addEventListener('click', () => {
-        if (!state.project) {
-            showAlert('Selecione um projeto primeiro', 'error');
-            return;
-        }
+        if (!isStandalone && !state.project) { showAlert('Selecione um projeto primeiro', 'error'); return; }
         productModal.classList.add('active');
     });
-    
-    document.getElementById('close-product-modal')?.addEventListener('click', () => {
-        productModal.classList.remove('active');
-    });
-    
+    document.getElementById('close-product-modal')?.addEventListener('click', () => productModal.classList.remove('active'));
+
     document.getElementById('product-search')?.addEventListener('input', function() {
         const q = this.value.toLowerCase();
         document.querySelectorAll('#product-list .item-card').forEach(card => {
-            const name = card.dataset.name;
-            card.style.display = name.includes(q) ? 'block' : 'none';
+            card.style.display = card.dataset.name.includes(q) ? '' : 'none';
         });
     });
-    
+
     async function loadProducts(projectId) {
+        const productBox = document.getElementById('product-select-box');
+        productBox.querySelector('.select-box-value').textContent = 'Carregando...';
         try {
-            const res = await fetch('/delivery/projects/' + projectId + '/demands');
+            const segments = window.location.pathname.split('/');
+            const tenantIdx = segments.indexOf('delivery') - 1;
+            const tenantSlug = segments[tenantIdx];
+            const res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/demands');
             const products = await res.json();
             state.products = products;
-            
+
             const list = document.getElementById('product-list');
-            list.innerHTML = products.map(p => `
-                <div class="item-card" data-id="${p.id}" data-name="${p.product_name.toLowerCase()}" data-product='${JSON.stringify(p)}'>
-                    <div class="item-name">${p.product_name}</div>
-                    <div class="item-meta">Restante: ${formatNum(p.remaining_quantity)} ${p.product_unit}</div>
-                </div>
-            `).join('');
-            
+            if (!products.length) {
+                list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-text-muted)">Nenhum produto disponível para este projeto.</div>';
+            } else {
+                list.innerHTML = products.map(p => {
+                    const safeProduct = JSON.stringify(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    const meta = p.is_free
+                        ? '<span style="color:var(--color-primary)">Projeto livre · Qualquer quantidade</span>'
+                        : 'Restante: <strong>' + formatNum(p.remaining_quantity) + ' ' + p.product_unit + '</strong>';
+                    return '<div class="item-card" data-id="' + (p.id || '') + '" data-name="' + p.product_name.toLowerCase() + '" data-product=\'' + safeProduct + '\'>'
+                        + '<div class="item-name">' + p.product_name + '</div>'
+                        + '<div class="item-meta">' + meta + '</div>'
+                        + '</div>';
+                }).join('');
+            }
+
             list.querySelectorAll('.item-card').forEach(card => {
                 card.addEventListener('click', function() {
                     const product = JSON.parse(this.dataset.product);
-                    
                     state.product = product;
-                    document.getElementById('demand_id').value = product.id;
-                    
+
+                    if (product.is_free) {
+                        document.getElementById('demand_id').value = '';
+                        document.getElementById('product_id_free').value = product.product_id;
+                    } else {
+                        document.getElementById('demand_id').value = product.id;
+                        document.getElementById('product_id_free').value = '';
+                    }
+
                     const box = document.getElementById('product-select-box');
                     box.classList.add('selected');
                     box.querySelector('.select-box-label').textContent = 'Produto selecionado';
                     box.querySelector('.select-box-value').textContent = product.product_name;
-                    
+
                     showProductInfo(product);
                     productModal.classList.remove('active');
-                    
                     if (typeof lucide !== 'undefined') lucide.createIcons();
                 });
             });
-            
-            const box = document.getElementById('product-select-box');
-            box.querySelector('.select-box-value').textContent = 'Clique para escolher';
-            
+
+            productBox.querySelector('.select-box-value').textContent = 'Clique para escolher';
         } catch (e) {
             showAlert('Erro ao carregar produtos', 'error');
+            productBox.querySelector('.select-box-value').textContent = 'Erro – tente novamente';
         }
     }
-    
+
+
+
+    @if($isStandalone)
+
+    function loadStandaloneProductList() {
+
+        const list = document.getElementById('product-list');
+
+        if (!standaloneProductsData || !standaloneProductsData.length) {
+
+            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-text-muted)">Nenhum produto disponível.</div>';
+
+            return;
+
+        }
+
+        list.innerHTML = standaloneProductsData.map((p, i) => {
+
+            return '<div class="item-card" data-idx="' + i + '" data-name="' + p.product_name.toLowerCase() + '">' +
+
+                '<div class="item-name">' + p.product_name + '</div>' +
+
+                '<div class="item-meta" style="color:var(--color-text-muted)">Unidade: <strong>' + p.product_unit + '</strong></div>' +
+
+                '</div>';
+
+        }).join('');
+
+        list.querySelectorAll('.item-card').forEach(card => {
+
+            card.addEventListener('click', function() {
+
+                const product = standaloneProductsData[parseInt(this.dataset.idx)];
+
+                state.product = product;
+
+                document.getElementById('demand_id').value = '';
+
+                document.getElementById('product_id_free').value = product.product_id;
+
+                const box = document.getElementById('product-select-box');
+
+                box.classList.add('selected');
+
+                box.querySelector('.select-box-label').textContent = 'Produto selecionado';
+
+                box.querySelector('.select-box-value').textContent = product.product_name;
+
+                showProductInfo(product);
+
+                productModal.classList.remove('active');
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            });
+
+        });
+
+    }
+
+    @endif
+
     function showProductInfo(product) {
-        document.getElementById('product-info').innerHTML = `
-            <div class="info-card">
-                <div class="info-row">
-                    <span class="info-label">Já Entregue</span>
-                    <span class="info-value success">${formatNum(product.delivered_quantity)} ${product.product_unit}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Ainda Falta</span>
-                    <span class="info-value warning">${formatNum(product.remaining_quantity)} ${product.product_unit}</span>
-                </div>
-            </div>
-        `;
+
+        const el = document.getElementById('product-info');
+
+        if (product.is_standalone) {
+
+            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Unidade</span><span class="info-value">' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Modo</span><span class="info-value success">Entrega Avulsa</span></div></div>';
+
+        } else if (product.is_free) {
+            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Já Entregue (este projeto)</span><span class="info-value success">' + formatNum(product.delivered_quantity) + ' ' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Sem limite de quantidade</span><span class="info-value" style="color:var(--color-primary)">∞</span></div></div>';
+        } else {
+            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Já Entregue</span><span class="info-value success">' + formatNum(product.delivered_quantity) + ' ' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Ainda Falta</span><span class="info-value warning">' + formatNum(product.remaining_quantity) + ' ' + product.product_unit + '</span></div></div>';
+        }
         document.getElementById('quantity-hint').textContent = 'Unidade: ' + product.product_unit;
     }
-    
-    // Associate Selection
-    document.getElementById('associate-select-box')?.addEventListener('click', () => {
-        associateModal.classList.add('active');
-    });
-    
-    document.getElementById('close-associate-modal')?.addEventListener('click', () => {
-        associateModal.classList.remove('active');
-    });
-    
+
+    // ===== Associate Selection =====
+    document.getElementById('associate-select-box')?.addEventListener('click', () => associateModal.classList.add('active'));
+    document.getElementById('close-associate-modal')?.addEventListener('click', () => associateModal.classList.remove('active'));
+
     document.getElementById('associate-search')?.addEventListener('input', function() {
         const q = this.value.toLowerCase();
         document.querySelectorAll('#associate-list .item-card').forEach(card => {
-            const name = card.dataset.name;
-            const doc = card.dataset.doc;
-            card.style.display = (name.includes(q) || doc.includes(q)) ? 'block' : 'none';
+            card.style.display = (card.dataset.name.includes(q) || (card.dataset.doc || '').includes(q)) ? '' : 'none';
         });
     });
-    
+
     document.querySelectorAll('#associate-list .item-card').forEach(card => {
         card.addEventListener('click', function() {
             const id = this.dataset.id;
             const name = this.querySelector('.item-name').textContent;
-            
             state.associate = { id, name };
             document.getElementById('associate_id').value = id;
-            
             const box = document.getElementById('associate-select-box');
             box.classList.add('selected');
             box.querySelector('.select-box-label').textContent = 'Associado selecionado';
             box.querySelector('.select-box-value').textContent = name;
-            
             associateModal.classList.remove('active');
-            
             if (typeof lucide !== 'undefined') lucide.createIcons();
         });
     });
-    
-    // Quality Badges
+
+    // ===== Quality Badges =====
     document.querySelectorAll('.quality-badge').forEach(badge => {
         badge.addEventListener('click', function() {
             document.querySelectorAll('.quality-badge').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             document.getElementById('quality_grade').value = this.dataset.grade;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
         });
     });
-    
-    // Quantity Change
+
+    // ===== Quantity change =====
     document.getElementById('quantity')?.addEventListener('input', function() {
         if (state.product && this.value) {
             const qty = parseFloat(this.value) || 0;
-            const gross = qty * state.product.unit_price;
+            const gross = qty * (state.product.unit_price || 0);
             const net = gross * 0.9;
-            
-            document.getElementById('value-info').innerHTML = `
-                <div class="info-card">
-                    <div class="info-row">
-                        <span class="info-label">Valor Líquido</span>
-                        <span class="info-value success">R$ ${formatMoney(net)}</span>
-                    </div>
-                </div>
-            `;
+            const el = document.getElementById('value-info');
+            if (gross > 0) {
+                el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Valor Líquido Estimado</span><span class="info-value success">R$ ' + formatMoney(net) + '</span></div></div>';
+            } else {
+                el.innerHTML = '';
+            }
         }
     });
-    
-    // Form Submit
+
+    // ===== Form Submit =====
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
-
         const btn = document.getElementById('submit-btn');
         const text = btn.querySelector('.btn-text');
         const spinner = btn.querySelector('.btn-spinner');
@@ -938,10 +1074,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (spinner) spinner.style.display = 'inline-block';
         btn.disabled = true;
 
-        const data = Object.fromEntries(new FormData(form));
+        const formData = new FormData(form);
+        const data = {};
+        for (const [k, v] of formData.entries()) { if (v !== '') data[k] = v; }
 
         try {
-            const res = await fetch('/delivery/register', {
+            const segments = window.location.pathname.split('/');
+            const tenantIdx = segments.indexOf('delivery') - 1;
+            const tenantSlug = segments[tenantIdx];
+            const res = await fetch('/' + tenantSlug + '/delivery/register', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('[name="_token"]').value,
@@ -955,55 +1096,61 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (result.success) {
                 showAlert(result.message, 'success');
-
-                // Reset mantendo projeto
-                const projectId = state.project.id;
-                const projectName = state.project.name;
-
-                form.reset();
-                state = { project: { id: projectId, name: projectName }, product: null, associate: null };
-
-                document.getElementById('project_id').value = projectId;
-                document.getElementById('product-select-box').classList.remove('selected');
-                document.getElementById('associate-select-box').classList.remove('selected');
-
-                loadProducts(projectId);
-                showStep(1);
+                // Recarregar com dados atualizados após breve pausa
+                setTimeout(() => {
+                    const projectId = state.project ? state.project.id : null;
+                    if (projectId) {
+                        window.location.href = '/' + tenantSlug + '/delivery/register/' + projectId;
+                    } else {
+                        window.location.reload();
+                    }
+                }, 1500);
             } else {
                 showAlert(result.message, 'error');
+                btn.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+                if (text) text.style.display = 'inline-block';
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
-        } catch (e) {
-            showAlert('Erro ao salvar', 'error');
-        } finally {
+        } catch (err) {
+            showAlert('Erro ao salvar. Verifique a conexão.', 'error');
             btn.disabled = false;
             if (spinner) spinner.style.display = 'none';
             if (text) text.style.display = 'inline-block';
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     });
-    
-    // Update Summary
+
+    // ===== Update Summary =====
     function updateSummary() {
         if (state.product) {
-            const text = state.product.product_name;
-            document.getElementById('summary-product').querySelector('.summary-text').textContent = text;
-            document.getElementById('summary-product-2').querySelector('.summary-text').textContent = text;
+            document.querySelectorAll('[id^="summary-product"]').forEach(el => {
+                const span = el.querySelector('.summary-text');
+                if (span) span.textContent = state.product.product_name;
+            });
         }
         if (state.associate) {
-            document.getElementById('summary-associate').querySelector('.summary-text').textContent = state.associate.name;
+            const el = document.getElementById('summary-associate');
+            if (el) { const span = el.querySelector('.summary-text'); if (span) span.textContent = state.associate.name; }
         }
     }
-    
-    // Helpers
-    function showAlert(msg, type) {
-        const container = document.getElementById('alert-container');
-        container.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}</div>`;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        setTimeout(() => container.innerHTML = '', 4000);
+
+    function formatNum(n) {
+        if (n === null || n === undefined) return '∞';
+        return parseFloat(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
     }
-    
-    function formatNum(n) { return parseFloat(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 }); }
-    function formatMoney(n) { return parseFloat(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function formatMoney(n) {
+        return parseFloat(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    // Fechar modais ao clicar fora
+    [projectModal, productModal, associateModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) modal.classList.remove('active');
+            });
+        }
+    });
 });
 </script>
 @endpush

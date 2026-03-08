@@ -314,7 +314,11 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = 'Aprovando...';
             
             try {
-                const res = await fetch(`/delivery/deliveries/${deliveryId}/approve`, {
+                //get tenant slug from url
+                const segments = window.location.pathname.split('/');
+                const tenantIndex = segments.indexOf('delivery') - 1;
+                const tenantSlug = segments[tenantIndex];
+                const res = await fetch(`/${tenantSlug}/delivery/deliveries/${deliveryId}/approve`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -353,7 +357,11 @@ document.addEventListener('DOMContentLoaded', function() {
             this.textContent = 'Rejeitando...';
             
             try {
-                const res = await fetch(`/delivery/deliveries/${deliveryId}/reject`, {
+                //get tenant slug from url
+                const segments = window.location.pathname.split('/');
+                const tenantIndex = segments.indexOf('delivery') - 1;
+                const tenantSlug = segments[tenantIndex];
+                const res = await fetch(`/${tenantSlug}/delivery/deliveries/${deliveryId}/reject`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

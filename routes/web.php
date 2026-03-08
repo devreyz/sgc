@@ -100,6 +100,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
+        Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
+        Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
     });
 
     // Cashier Portal Routes (POS - Quick Sales)

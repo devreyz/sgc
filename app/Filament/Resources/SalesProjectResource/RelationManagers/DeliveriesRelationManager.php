@@ -30,6 +30,11 @@ class DeliveriesRelationManager extends RelationManager
 
     protected static ?string $pluralModelLabel = 'Entregas';
 
+    public function isReadOnly(): bool
+    {
+        return false;
+    }
+
     public function form(Form $form): Form
     {
         return $form
@@ -53,7 +58,35 @@ class DeliveriesRelationManager extends RelationManager
                         $set('quantity', min(10, (float) $d->remaining_quantity)); // Sugere 10 ou o restante
                     })
                     ->helperText('Selecione o produto/demanda deste projeto. Preço e produto serão preenchidos automaticamente.')
-                    ->required(),
+                    ->required(fn () => !($this->ownerRecord->allow_any_product ?? false))
+                    ->visible(fn () => !($this->ownerRecord->allow_any_product ?? false)),
+
+                // Seletor de produto para projetos livres (allow_any_product)
+                Forms\Components\Select::make('product_id')
+                    ->label('Produto (Projeto Livre)')
+                    ->options(fn () => \App\Models\Product::active()
+                        ->where('tenant_id', $this->ownerRecord->tenant_id)
+                        ->pluck('name', 'id'))
+                    ->searchable()
+                    ->preload()
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        if ($state) {
+                            $product = \App\Models\Product::find($state);
+                            $set('unit_price', $product?->cost_price ?? 0);
+                        }
+                    })
+                    ->required(fn () => (bool) ($this->ownerRecord->allow_any_product ?? false))
+                    ->visible(fn () => (bool) ($this->ownerRecord->allow_any_product ?? false))
+                    ->helperText('Produto entregue (projeto aceita qualquer produto)'),
+
+                Forms\Components\TextInput::make('unit_price')
+                    ->label('Preço Unitário')
+                    ->numeric()
+                    ->prefix('R$')
+                    ->required(fn () => (bool) ($this->ownerRecord->allow_any_product ?? false))
+                    ->visible(fn () => (bool) ($this->ownerRecord->allow_any_product ?? false))
+                    ->helperText('Preço por unidade do produto'),
 
                 Forms\Components\Hidden::make('product_id'),
 

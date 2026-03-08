@@ -24,6 +24,8 @@ class ProductionDelivery extends Model
         'delivery_date',
         'quantity',
         'unit_price',
+        'admin_fee_percentage',
+        'from_stock',
         'admin_fee_amount',
         'net_value',
         'status',
@@ -46,8 +48,10 @@ class ProductionDelivery extends Model
             'delivery_date' => 'date',
             'quantity' => 'decimal:3',
             'unit_price' => 'decimal:2',
+            'admin_fee_percentage' => 'decimal:2',
             'admin_fee_amount' => 'decimal:2',
             'net_value' => 'decimal:2',
+            'from_stock' => 'boolean',
             'approved_at' => 'datetime',
             'paid' => 'boolean',
             'paid_date' => 'date',
@@ -159,16 +163,17 @@ class ProductionDelivery extends Model
                 
                 // Get admin fee percentage from project (standalone = 0%)
                 if ($delivery->sales_project_id) {
+                    // Entrega vinculada a projeto: usa taxa do projeto
                     $project = $delivery->salesProject;
                     $adminFeePercentage = $project->admin_fee_percentage ?? 10;
-                    
-                    $delivery->admin_fee_amount = $grossValue * ($adminFeePercentage / 100);
-                    $delivery->net_value = $grossValue - $delivery->admin_fee_amount;
                 } else {
-                    // Standalone delivery: no admin fee
-                    $delivery->admin_fee_amount = 0;
-                    $delivery->net_value = $grossValue;
+                    // Entrega avulsa: usa taxa definida na própria entrega (padrão 0%)
+                    $adminFeePercentage = $delivery->admin_fee_percentage ?? 0;
                 }
+
+                $adminFee = $grossValue * ($adminFeePercentage / 100);
+                $delivery->admin_fee_amount = $adminFee;
+                $delivery->net_value = $grossValue - $adminFee;
             }
         });
     }

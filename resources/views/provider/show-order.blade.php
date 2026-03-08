@@ -57,7 +57,7 @@
         </div>
     </div>
 
-    @if(session('success'))
+    @if(session('success') && session('success') !== $order->status->getLabel())
     <div class="bento-card col-span-full" style="border-left:4px solid var(--color-success);background:rgba(16,185,129,0.05);">
         <p style="color:var(--color-success);font-weight:500;">✓ {{ session('success') }}</p>
     </div>
