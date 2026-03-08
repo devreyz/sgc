@@ -651,7 +651,8 @@ class ProductionDeliveryResource extends Resource
                             ->default('all'),
                     ])
                     ->action(function (array $data) {
-                        $query = ProductionDelivery::with(['salesProject', 'associate.user', 'product']);
+                        $query = ProductionDelivery::with(['salesProject', 'associate.user', 'product'])
+                            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value]);
 
                         if ($data['status_filter'] !== 'all') {
                             $query->where('status', $data['status_filter']);
@@ -709,6 +710,198 @@ class ProductionDeliveryResource extends Resource
                             new \App\Exports\DeliveriesExport($data['columns']),
                             'entregas-'.now()->format('Y-m-d').'.xlsx'
                         );
+                    }),
+
+                Tables\Actions\Action::make('standalone_by_associate')
+                    ->label('Avulsas por Associado')
+                    ->icon('heroicon-o-user-group')
+                    ->color('info')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data Início')
+                            ->displayFormat('d/m/Y'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data Fim')
+                            ->displayFormat('d/m/Y')
+                            ->default(now()),
+                    ])
+                    ->action(function (array $data) {
+                        $tenantId = session('tenant_id');
+                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+                        $query = ProductionDelivery::where('tenant_id', $tenantId)
+                            ->whereNull('sales_project_id')
+                            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                            ->with(['associate.user', 'product']);
+
+                        if (! empty($data['date_from'])) {
+                            $query->whereDate('delivery_date', '>=', $data['date_from']);
+                        }
+                        if (! empty($data['date_to'])) {
+                            $query->whereDate('delivery_date', '<=', $data['date_to']);
+                        }
+
+                        $deliveries = $query->orderBy('delivery_date')->get();
+
+                        $grouped = $deliveries->groupBy('associate_id');
+                        $groups = [];
+                        foreach ($grouped as $associateId => $items) {
+                            $assoc = $items->first()->associate;
+                            $rows = $items->map(fn ($d) => [
+                                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                                'project' => 'Avulsa',
+                                'associate' => $assoc?->user?->name ?? '—',
+                                'product' => $d->product?->name ?? '—',
+                                'unit' => $d->product?->unit ?? 'un',
+                                'quantity' => (float) $d->quantity,
+                                'unit_price' => (float) $d->unit_price,
+                                'gross_value' => (float) $d->gross_value,
+                                'admin_fee' => (float) ($d->admin_fee_amount ?? 0),
+                                'net_value' => (float) ($d->net_value ?? 0),
+                                'status' => $d->status->getLabel(),
+                                'status_value' => $d->status->value,
+                                'quality_grade' => $d->quality_grade,
+                            ])->values()->all();
+
+                            $groups[] = [
+                                'associate_name'   => $assoc?->user?->name ?? 'Desconhecido',
+                                'cpf'              => $assoc?->cpf_cnpj ?? '',
+                                'deliveries_count' => $items->count(),
+                                'total_quantity'   => $items->sum('quantity'),
+                                'gross_value'      => $items->sum('gross_value'),
+                                'admin_fee'        => $items->sum('admin_fee_amount'),
+                                'net_value'        => $items->sum('net_value'),
+                                'deliveries'       => $rows,
+                            ];
+                        }
+                        usort($groups, fn ($a, $b) => strcasecmp($a['associate_name'], $b['associate_name']));
+
+                        $totals = [
+                            'associates_count' => count($groups),
+                            'deliveries_count' => $deliveries->count(),
+                            'total_quantity'   => $deliveries->sum('quantity'),
+                            'total_gross'      => $deliveries->sum('gross_value'),
+                            'total_admin_fee'  => $deliveries->sum('admin_fee_amount'),
+                            'total_net'        => $deliveries->sum('net_value'),
+                        ];
+
+                        $filters = ['Avulsas (sem projeto)'];
+                        if (! empty($data['date_from'])) {
+                            $filters['date_from'] = \Carbon\Carbon::parse($data['date_from'])->format('d/m/Y');
+                        }
+                        if (! empty($data['date_to'])) {
+                            $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
+                        }
+
+                        $pdf = Pdf::loadView('pdf.deliveries-by-associate', [
+                            'tenant'       => $tenant,
+                            'title'        => 'Relatório de Entregas Avulsas por Associado',
+                            'subtitle'     => 'Entregas não vinculadas a projetos',
+                            'generated_at' => now()->format('d/m/Y H:i'),
+                            'filters'      => $filters,
+                            'groups'       => $groups,
+                            'totals'       => $totals,
+                        ])->setPaper('a4', 'landscape');
+
+                        return Response::streamDownload(function () use ($pdf) {
+                            echo $pdf->output();
+                        }, 'avulsas-por-associado-'.now()->format('Y-m-d').'.pdf', ['Content-Type' => 'application/pdf']);
+                    }),
+
+                Tables\Actions\Action::make('standalone_by_product')
+                    ->label('Avulsas por Produto')
+                    ->icon('heroicon-o-shopping-bag')
+                    ->color('info')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data Início')
+                            ->displayFormat('d/m/Y'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data Fim')
+                            ->displayFormat('d/m/Y')
+                            ->default(now()),
+                    ])
+                    ->action(function (array $data) {
+                        $tenantId = session('tenant_id');
+                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+                        $query = ProductionDelivery::where('tenant_id', $tenantId)
+                            ->whereNull('sales_project_id')
+                            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                            ->with(['associate.user', 'product']);
+
+                        if (! empty($data['date_from'])) {
+                            $query->whereDate('delivery_date', '>=', $data['date_from']);
+                        }
+                        if (! empty($data['date_to'])) {
+                            $query->whereDate('delivery_date', '<=', $data['date_to']);
+                        }
+
+                        $deliveries = $query->orderBy('delivery_date')->get();
+
+                        $grouped = $deliveries->groupBy('product_id');
+                        $groups = [];
+                        foreach ($grouped as $productId => $items) {
+                            $product = $items->first()->product;
+                            $rows = $items->map(fn ($d) => [
+                                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                                'project' => 'Avulsa',
+                                'associate' => $d->associate?->user?->name ?? '—',
+                                'product' => $product?->name ?? '—',
+                                'unit' => $product?->unit ?? 'un',
+                                'quantity' => (float) $d->quantity,
+                                'unit_price' => (float) $d->unit_price,
+                                'gross_value' => (float) $d->gross_value,
+                                'admin_fee' => (float) ($d->admin_fee_amount ?? 0),
+                                'net_value' => (float) ($d->net_value ?? 0),
+                                'status' => $d->status->getLabel(),
+                                'status_value' => $d->status->value,
+                                'quality_grade' => $d->quality_grade,
+                            ])->values()->all();
+
+                            $groups[] = [
+                                'product_name'     => $product?->name ?? 'Desconhecido',
+                                'unit'             => $product?->unit ?? 'un',
+                                'deliveries_count' => $items->count(),
+                                'total_quantity'   => $items->sum('quantity'),
+                                'gross_value'      => $items->sum('gross_value'),
+                                'admin_fee'        => $items->sum('admin_fee_amount'),
+                                'net_value'        => $items->sum('net_value'),
+                                'deliveries'       => $rows,
+                            ];
+                        }
+                        usort($groups, fn ($a, $b) => strcasecmp($a['product_name'], $b['product_name']));
+
+                        $totals = [
+                            'products_count'  => count($groups),
+                            'deliveries_count' => $deliveries->count(),
+                            'total_quantity'   => $deliveries->sum('quantity'),
+                            'total_gross'      => $deliveries->sum('gross_value'),
+                            'total_admin_fee'  => $deliveries->sum('admin_fee_amount'),
+                            'total_net'        => $deliveries->sum('net_value'),
+                        ];
+
+                        $filters = ['Avulsas (sem projeto)'];
+                        if (! empty($data['date_from'])) {
+                            $filters['date_from'] = \Carbon\Carbon::parse($data['date_from'])->format('d/m/Y');
+                        }
+                        if (! empty($data['date_to'])) {
+                            $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
+                        }
+
+                        $pdf = Pdf::loadView('pdf.deliveries-by-product', [
+                            'tenant'       => $tenant,
+                            'title'        => 'Relatório de Entregas Avulsas por Produto',
+                            'subtitle'     => 'Entregas não vinculadas a projetos',
+                            'generated_at' => now()->format('d/m/Y H:i'),
+                            'filters'      => $filters,
+                            'groups'       => $groups,
+                            'totals'       => $totals,
+                        ])->setPaper('a4', 'landscape');
+
+                        return Response::streamDownload(function () use ($pdf) {
+                            echo $pdf->output();
+                        }, 'avulsas-por-produto-'.now()->format('Y-m-d').'.pdf', ['Content-Type' => 'application/pdf']);
                     }),
             ]);
     }

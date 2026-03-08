@@ -4,8 +4,16 @@
     <meta charset="UTF-8">
     <title>Folha de Campo - {{ $project->title }}</title>
     <style>
+        @page { margin: 20mm 15mm 20mm 15mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 11px; color: #333; }
+        .org-header { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2px solid #2d3748; padding-bottom: 8px; }
+        .org-header-left { display: table-cell; vertical-align: middle; width: 65%; }
+        .org-header-right { display: table-cell; vertical-align: middle; text-align: right; width: 35%; }
+        .org-name { font-size: 13px; font-weight: bold; color: #2d3748; margin-bottom: 2px; }
+        .org-legal { font-size: 8px; color: #718096; }
+        .doc-title { font-size: 15px; font-weight: bold; color: #2d3748; margin-bottom: 2px; }
+        .doc-subtitle { font-size: 9px; color: #718096; }
         .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #2d3748; padding-bottom: 10px; }
         .header h1 { font-size: 18px; color: #2d3748; margin-bottom: 4px; }
         .header h2 { font-size: 14px; color: #4a5568; font-weight: normal; }
@@ -26,11 +34,29 @@
     </style>
 </head>
 <body>
+    @if($tenant)
+    <div class="org-header">
+        <div class="org-header-left">
+            <div class="org-name">{{ $tenant->name }}</div>
+            <div class="org-legal">
+                @if($tenant->cnpj) CNPJ: {{ $tenant->cnpj }} @endif
+                @if($tenant->city) &nbsp;|&nbsp; {{ $tenant->city }}@if($tenant->state)/{{ $tenant->state }}@endif @endif
+                @if($tenant->phone) &nbsp;|&nbsp; {{ $tenant->phone }} @endif
+            </div>
+        </div>
+        <div class="org-header-right">
+            <div class="doc-title">FOLHA DE CAMPO</div>
+            <div class="doc-subtitle">{{ $project->title }}</div>
+            <div class="doc-subtitle">Data: {{ $date }}</div>
+        </div>
+    </div>
+    @else
     <div class="header">
         <h1>FOLHA DE CAMPO</h1>
         <h2>{{ $project->title }}</h2>
         <p>Data: {{ $date }} | Gerado em: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
+    @endif
 
     <div class="info-box">
         <table>

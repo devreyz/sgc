@@ -57,7 +57,6 @@ class SuperAdminPanelProvider extends PanelProvider
                 \App\Http\Middleware\EnsureSuperAdmin::class,
             ])
             ->authGuard('web')
-            ->login()
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
             ])

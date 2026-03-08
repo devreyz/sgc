@@ -719,8 +719,13 @@ class DeliveryRegistrationController extends Controller
         $query = ProductionDelivery::where('tenant_id', $tenantId)
             ->with(['salesProject', 'associate.user', 'product']);
 
+        // Relatórios nunca exibem entregas rejeitadas ou canceladas
+        $query->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value]);
+
         if ($status = request('status')) {
-            $query->where('status', $status);
+            if (! in_array($status, [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])) {
+                $query->where('status', $status);
+            }
         }
         if ($projectId = request('project_id')) {
             $query->where('sales_project_id', $projectId);

@@ -102,6 +102,7 @@ class ListCashMovements extends ListRecords
                                 ? CashMovementType::from($data['type'])->getLabel()
                                 : 'Todos',
                             'generated_at' => now()->format('d/m/Y H:i'),
+                            'tenant' => \App\Models\Tenant::find(session('tenant_id')),
                         ])->setPaper('a4', 'landscape');
 
                         return Response::streamDownload(function () use ($pdf) {

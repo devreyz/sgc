@@ -48,6 +48,7 @@ class ViewServiceProvider extends ViewRecord
                         'total_pending' => $works->where('payment_status', 'pendente')->sum('total_value'),
                         'total_paid' => $works->where('payment_status', 'pago')->sum('total_value'),
                         'generated_at' => now()->format('d/m/Y H:i'),
+                        'tenant' => \App\Models\Tenant::find(session('tenant_id')),
                     ]);
 
                     return response()->streamDownload(function () use ($pdf) {

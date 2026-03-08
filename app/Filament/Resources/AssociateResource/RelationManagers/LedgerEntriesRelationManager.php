@@ -246,6 +246,7 @@ class LedgerEntriesRelationManager extends RelationManager
                                 'until' => $data['until'] ? \Carbon\Carbon::parse($data['until'])->format('d/m/Y') : 'Hoje',
                             ],
                             'generated_at' => now()->format('d/m/Y H:i'),
+                            'tenant' => \App\Models\Tenant::find(session('tenant_id')),
                         ]);
 
                         return Response::streamDownload(function () use ($pdf) {
