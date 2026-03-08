@@ -1,0 +1,5 @@
+# Ignore all files in this directory
+*
+# But keep these files so the directory remains in git
+!.gitignore
+!.gitkeep
