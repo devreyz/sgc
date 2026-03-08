@@ -126,7 +126,7 @@ class ViewSalesProject extends ViewRecord
 
                     return Response::streamDownload(function () use ($pdf) {
                         echo $pdf->output();
-                    }, 'folha-campo-'.$record->id.'.pdf');
+                    }, 'folha-campo-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
                 }),
 
             Actions\Action::make('exportDeliveries')
@@ -220,7 +220,13 @@ class ViewSalesProject extends ViewRecord
             'progress' => $d->quantity > 0 ? ($d->delivered_quantity / $d->quantity * 100) : 0,
         ]);
 
-        $pdf = Pdf::loadView('pdf.project-final-report', [
+        $tenantId = session('tenant_id');
+        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+        $pdf = Pdf::loadView('pdf.project-final-report-v2', [
+            'tenant' => $tenant,
+            'title' => 'Relatório Final do Projeto',
+            'subtitle' => $record->title,
             'project' => $record,
             'associateSummary' => $associateSummary,
             'demandsSummary' => $demandsSummary,
@@ -230,7 +236,7 @@ class ViewSalesProject extends ViewRecord
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, 'relatorio-final-projeto-'.$record->id.'.pdf');
+        }, 'relatorio-final-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 
     protected function exportDeliveriesPdf(SalesProject $record, array $columns)
@@ -240,7 +246,11 @@ class ViewSalesProject extends ViewRecord
             ->orderBy('delivery_date', 'desc')
             ->get();
 
-        $pdf = Pdf::loadView('pdf.deliveries-report', [
+        $tenantId = session('tenant_id');
+        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+        $pdf = Pdf::loadView('pdf.deliveries-report-v2', [
+            'tenant' => $tenant,
             'deliveries' => $deliveries,
             'columns' => $columns,
             'title' => 'Entregas - '.$record->title,
@@ -251,11 +261,11 @@ class ViewSalesProject extends ViewRecord
                 'net' => $deliveries->sum('net_value'),
                 'quantity' => $deliveries->sum('quantity'),
             ],
-        ]);
+        ])->setPaper('a4', 'landscape');
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, 'entregas-projeto-'.$record->id.'.pdf');
+        }, 'entregas-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 
     public function infolist(Infolist $infolist): Infolist

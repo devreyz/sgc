@@ -659,7 +659,11 @@ class ProductionDeliveryResource extends Resource
 
                         $deliveries = $query->orderBy('delivery_date', 'desc')->get();
 
-                        $pdf = Pdf::loadView('pdf.deliveries-report', [
+                        $tenantId = session('tenant_id');
+                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+                        $pdf = Pdf::loadView('pdf.deliveries-report-v2', [
+                            'tenant' => $tenant,
                             'deliveries' => $deliveries,
                             'columns' => $data['columns'],
                             'title' => 'Relatório de Entregas',
@@ -670,11 +674,11 @@ class ProductionDeliveryResource extends Resource
                                 'net' => $deliveries->sum('net_value'),
                                 'quantity' => $deliveries->sum('quantity'),
                             ],
-                        ]);
+                        ])->setPaper('a4', 'landscape');
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'entregas-'.now()->format('Y-m-d').'.pdf');
+                        }, 'entregas-'.now()->format('Y-m-d').'.pdf', ['Content-Type' => 'application/pdf']);
                     }),
 
                 Tables\Actions\Action::make('export_excel')

@@ -338,7 +338,7 @@ class ServiceProviderResource extends Resource
 
                         return response()->streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'relatorio-prestadores-'.now()->format('Y-m-d').'.pdf');
+                        }, 'relatorio-prestadores-'.now()->format('Y-m-d').'.pdf', ['Content-Type' => 'application/pdf']);
                     }),
             ]);
     }

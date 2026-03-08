@@ -250,7 +250,7 @@ class LedgerEntriesRelationManager extends RelationManager
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'extrato-' . $this->ownerRecord->id . '-' . now()->format('Y-m-d') . '.pdf');
+                        }, 'extrato-' . $this->ownerRecord->id . '-' . now()->format('Y-m-d') . '.pdf', ['Content-Type' => 'application/pdf']);
                     }),
 
                 // Exportar Excel

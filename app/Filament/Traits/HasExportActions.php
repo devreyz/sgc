@@ -151,7 +151,8 @@ trait HasExportActions
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
-            "{$fileName}.pdf"
+            "{$fileName}.pdf",
+            ['Content-Type' => 'application/pdf']
         );
     }
 

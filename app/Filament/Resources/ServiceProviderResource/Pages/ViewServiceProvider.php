@@ -52,7 +52,7 @@ class ViewServiceProvider extends ViewRecord
 
                     return response()->streamDownload(function () use ($pdf) {
                         echo $pdf->output();
-                    }, 'extrato-' . \Illuminate\Support\Str::slug($record->name) . '-' . now()->format('Y-m') . '.pdf');
+                    }, 'extrato-' . \Illuminate\Support\Str::slug($record->name) . '-' . now()->format('Y-m') . '.pdf', ['Content-Type' => 'application/pdf']);
                 }),
         ];
     }

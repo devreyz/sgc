@@ -106,7 +106,7 @@ class ListCashMovements extends ListRecords
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
-                        }, 'relatorio-caixa-' . now()->format('Y-m-d') . '.pdf');
+                        }, 'relatorio-caixa-' . now()->format('Y-m-d') . '.pdf', ['Content-Type' => 'application/pdf']);
                     } else {
                         return Excel::download(
                             new GenericExport(

@@ -104,6 +104,11 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
         Route::post('/projects/{project}/deliver-to-client', [DeliveryRegistrationController::class, 'deliverToClient'])->name('projects.deliver-to-client');
+
+        // Relatórios PDF
+        Route::get('/reports/by-associate', [DeliveryRegistrationController::class, 'reportByAssociate'])->name('reports.by-associate');
+        Route::get('/reports/by-product', [DeliveryRegistrationController::class, 'reportByProduct'])->name('reports.by-product');
+        Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
     });
 
     // Cashier Portal Routes (POS - Quick Sales)

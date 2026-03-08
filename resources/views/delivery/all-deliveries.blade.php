@@ -53,10 +53,34 @@
     .btn-outline:hover { background:var(--color-bg); }
     .btn-sm { padding:.3rem .6rem; font-size:.75rem; }
     .empty-msg { padding:2rem; text-align:center; color:var(--color-text-secondary); }
+
+    /* Reports Section */
+    .reports-bar { background:var(--color-surface); border-radius:var(--radius-lg); padding:1rem 1.25rem; border:1px solid var(--color-border); margin-bottom:1.25rem; }
+    .reports-bar h4 { font-size:.8rem; font-weight:700; margin-bottom:.6rem; display:flex; align-items:center; gap:.4rem; color:var(--color-text); }
+    .reports-row { display:flex; flex-wrap:wrap; gap:.5rem; align-items:flex-end; }
+    .report-btn { display:inline-flex; align-items:center; gap:.35rem; padding:.45rem .85rem; border-radius:var(--radius-md); border:1px solid var(--color-border); cursor:pointer; font-size:.78rem; font-weight:600; text-decoration:none; transition:.15s; background:var(--color-bg); color:var(--color-text); }
+    .report-btn:hover { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+    .report-btn.primary { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+    .report-btn.primary:hover { opacity:.9; }
+    .report-btn i { width:.85rem; height:.85rem; }
+    .report-separator { width:1px; height:28px; background:var(--color-border); margin:0 .25rem; }
+
+    /* Receipt Modal */
+    .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); z-index:9000; justify-content:center; align-items:center; backdrop-filter:blur(3px); }
+    .modal-overlay.active { display:flex; }
+    .receipt-modal { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:90%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    .receipt-modal h3 { font-size:1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+    .receipt-modal .form-group { margin-bottom:.75rem; }
+    .receipt-modal .form-group label { display:block; font-size:.75rem; font-weight:600; text-transform:uppercase; color:var(--color-text-secondary); margin-bottom:.25rem; }
+    .receipt-modal .form-group select { width:100%; font-size:.85rem; padding:.45rem .6rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg); color:var(--color-text); }
+    .receipt-modal-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:1rem; }
+
     @media(max-width:640px) {
         .filters-form { flex-direction:column; }
         .filter-group { width:100%; }
         .filter-group input, .filter-group select { width:100%; }
+        .reports-row { flex-direction:column; }
+        .report-separator { display:none; }
     }
 </style>
 
@@ -143,6 +167,58 @@
     </form>
 </div>
 
+<!-- Reports -->
+<div class="reports-bar">
+    <h4><i data-lucide="file-text" style="width:.9rem;height:.9rem;color:var(--color-primary);"></i> Relatórios PDF</h4>
+    <div class="reports-row">
+        {{-- Grouped reports inherit current filters --}}
+        <a href="{{ route('delivery.reports.by-associate', array_merge(['tenant' => $currentTenant->slug], request()->only('status', 'project_id', 'date_from', 'date_to', 'search'))) }}" class="report-btn" target="_blank">
+            <i data-lucide="users"></i> Agrupado por Associado
+        </a>
+        <a href="{{ route('delivery.reports.by-product', array_merge(['tenant' => $currentTenant->slug], request()->only('status', 'project_id', 'date_from', 'date_to', 'search'))) }}" class="report-btn" target="_blank">
+            <i data-lucide="box"></i> Agrupado por Produto
+        </a>
+        <div class="report-separator"></div>
+        <button type="button" class="report-btn primary" onclick="openReceiptModal()">
+            <i data-lucide="file-signature"></i> Comprovante por Associado (Projeto)
+        </button>
+    </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="modal-overlay" id="receiptModal">
+    <div class="receipt-modal">
+        <h3><i data-lucide="file-signature" style="width:1rem;height:1rem;color:var(--color-primary);"></i> Gerar Comprovante de Entrega</h3>
+        <p style="font-size:.8rem;color:var(--color-text-secondary);margin-bottom:1rem;">Selecione o projeto e o associado para gerar o comprovante com campo de assinatura.</p>
+        <form method="GET" action="{{ route('delivery.reports.project-associate', ['tenant' => $currentTenant->slug]) }}" target="_blank">
+            <div class="form-group">
+                <label>Projeto</label>
+                <select name="project_id" required>
+                    <option value="">Selecione o projeto...</option>
+                    @foreach($projects as $id => $title)
+                        <option value="{{ $id }}" {{ $projectFilter == $id ? 'selected' : '' }}>{{ $title }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Associado</label>
+                <select name="associate_id" required>
+                    <option value="">Selecione o associado...</option>
+                    @foreach($associates as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="receipt-modal-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeReceiptModal()">Cancelar</button>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i data-lucide="download" style="width:.8rem;height:.8rem;"></i> Gerar PDF
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Deliveries Table -->
 <div class="section-card">
     <div class="section-card-header">
@@ -190,4 +266,19 @@
     </div>
     @endif
 </div>
+
 @endsection
+
+@push('scripts')
+<script>
+    function openReceiptModal() {
+        document.getElementById('receiptModal').classList.add('active');
+    }
+    function closeReceiptModal() {
+        document.getElementById('receiptModal').classList.remove('active');
+    }
+    document.getElementById('receiptModal').addEventListener('click', function(e) {
+        if (e.target === this) closeReceiptModal();
+    });
+</script>
+@endpush
