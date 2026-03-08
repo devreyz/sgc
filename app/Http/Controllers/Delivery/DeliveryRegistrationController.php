@@ -44,9 +44,9 @@ class DeliveryRegistrationController extends Controller
         }
 
         $projects = SalesProject::where('tenant_id', $tenantId)
-            ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value])
+            ->whereIn('status', [ProjectStatus::DRAFT->value, ProjectStatus::ACTIVE->value, ProjectStatus::AWAITING_DELIVERY->value])
             ->with(['customer', 'demands.product', 'deliveries'])
-            ->orderByRaw("FIELD(status, 'active', 'draft')")
+            ->orderByRaw("FIELD(status, 'active', 'awaiting_delivery', 'draft')")
             ->orderBy('title')
             ->get()
             ->map(function ($project) {
@@ -584,7 +584,7 @@ class DeliveryRegistrationController extends Controller
         if ($project->status !== ProjectStatus::ACTIVE) {
             return response()->json([
                 'success' => false,
-                'message' => 'Apenas projetos ativos podem ser finalizados. Status atual: '.$project->status->getLabel(),
+                'message' => 'Apenas projetos ativos podem ter suas entregas finalizadas. Status atual: '.$project->status->getLabel(),
             ], 400);
         }
 
@@ -592,7 +592,35 @@ class DeliveryRegistrationController extends Controller
         if ($pendingCount > 0) {
             return response()->json([
                 'success' => false,
-                'message' => "Existem {$pendingCount} entrega(s) ainda pendentes de aprovação. Aprove ou rejeite-as antes de finalizar o projeto.",
+                'message' => "Existem {$pendingCount} entrega(s) ainda pendentes de aprovação. Aprove ou rejeite-as antes de finalizar.",
+            ], 400);
+        }
+
+        $project->update(['status' => ProjectStatus::AWAITING_DELIVERY]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Entregas finalizadas! O projeto agora aguarda a entrega ao cliente.',
+        ]);
+    }
+
+    public function deliverToClient()
+    {
+        $projectId = (int) request()->route('project');
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Tenant não encontrado'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        if (! $project) {
+            return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
+        }
+
+        if ($project->status !== ProjectStatus::AWAITING_DELIVERY) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O projeto precisa ter as entregas finalizadas antes de marcar como entregue ao cliente. Status atual: '.$project->status->getLabel(),
             ], 400);
         }
 
@@ -600,7 +628,74 @@ class DeliveryRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Projeto finalizado com sucesso! Status atualizado para Entregue ao Cliente.',
+            'message' => 'Projeto marcado como entregue ao cliente com sucesso!',
         ]);
+    }
+
+    public function allDeliveries()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $currentTenant = $this->currentTenant();
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->with(['salesProject', 'associate.user', 'product', 'receiver', 'approver']);
+
+        // Permanecer com filtros via query string
+        $statusFilter = request('status');
+        $projectFilter = request('project_id');
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $search = request('search');
+
+        if ($statusFilter) {
+            $query->where('status', $statusFilter);
+        }
+        if ($projectFilter) {
+            $query->where('sales_project_id', $projectFilter);
+        }
+        if ($dateFrom) {
+            $query->whereDate('delivery_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('delivery_date', '<=', $dateTo);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('product', fn ($pq) => $pq->where('name', 'like', "%{$search}%"))
+                  ->orWhereHas('associate.user', fn ($aq) => $aq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        $deliveries = $query->orderByDesc('delivery_date')->orderByDesc('id')->paginate(25)->appends(request()->query());
+
+        $projects = SalesProject::where('tenant_id', $tenantId)
+            ->orderBy('title')
+            ->pluck('title', 'id');
+
+        // Resumo de estoque por produto (entregas aprovadas)
+        $stockSummary = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->with('product')
+            ->select('product_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('COUNT(*) as total_deliveries'))
+            ->groupBy('product_id')
+            ->get()
+            ->map(fn ($item) => [
+                'product_name' => optional($item->product)->name ?? 'Desconhecido',
+                'total_quantity' => $item->total_quantity,
+                'total_deliveries' => $item->total_deliveries,
+            ]);
+
+        $stats = [
+            'total' => ProductionDelivery::where('tenant_id', $tenantId)->count(),
+            'pending' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::PENDING)->count(),
+            'approved' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::APPROVED)->count(),
+            'rejected' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::REJECTED)->count(),
+        ];
+
+        return view('delivery.all-deliveries', compact('deliveries', 'projects', 'stockSummary', 'stats', 'currentTenant', 'statusFilter', 'projectFilter', 'dateFrom', 'dateTo', 'search'));
     }
 }

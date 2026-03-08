@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Provider;
 
 use App\Enums\AssetStatus;
+use App\Enums\ExpenseStatus;
 use App\Enums\ServiceOrderPaymentStatus;
 use App\Enums\ServiceOrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\Associate;
+use App\Models\ChartAccount;
+use App\Models\Expense;
 use App\Models\ProviderPaymentRequest;
 use App\Models\Service;
 use App\Models\ServiceOrder;
+use App\Models\ServiceOrderAddition;
 use App\Models\ServiceOrderPayment;
 use App\Models\ServiceProvider;
 use App\Models\ServiceProviderService;
@@ -377,9 +381,15 @@ class ProviderDashboardController extends Controller
             ->where('service_id', $order->service_id)
             ->first();
 
+        $chartAccounts = ChartAccount::where('tenant_id', $tenantId)
+            ->where('allows_entries', true)
+            ->where('status', true)
+            ->orderBy('name')
+            ->pluck('name', 'id');
+
         $currentTenant = $this->currentTenant();
 
-        return view('provider.show-order', compact('provider', 'order', 'providerService', 'currentTenant'));
+        return view('provider.show-order', compact('provider', 'order', 'providerService', 'currentTenant', 'chartAccounts'));
     }
 
     // =========================================================================
@@ -460,6 +470,11 @@ class ProviderDashboardController extends Controller
             'horimeter_start' => 'nullable|numeric',
             'horimeter_end' => 'nullable|numeric',
             'fuel_used' => 'nullable|numeric',
+            'additions' => 'nullable|array',
+            'additions.*.type' => 'required_with:additions|in:expense,fee,discount',
+            'additions.*.description' => 'required_with:additions|string|max:255',
+            'additions.*.amount' => 'required_with:additions|numeric|min:0.01',
+            'additions.*.chart_account_id' => 'nullable|exists:chart_accounts,id',
         ]);
 
         $providerService = ServiceProviderService::where('service_provider_id', $provider->id)
@@ -485,14 +500,31 @@ class ProviderDashboardController extends Controller
         $totalClient = round($qty * $clientRate, 2);
         $totalProvider = round($qty * $providerRate, 2);
 
-        DB::transaction(function () use ($order, $validated, $clientRate, $totalClient, $totalProvider) {
+        // Processar adições (taxas e descontos alteram o valor final)
+        $additions = $validated['additions'] ?? [];
+        $totalFees = 0;
+        $totalDiscounts = 0;
+
+        foreach ($additions as $addition) {
+            $amount = (float) ($addition['amount'] ?? 0);
+            if ($addition['type'] === 'fee') {
+                $totalFees += $amount;
+            } elseif ($addition['type'] === 'discount') {
+                $totalDiscounts += $amount;
+            }
+        }
+
+        $finalPrice = max(0, $totalClient + $totalFees - $totalDiscounts);
+
+        DB::transaction(function () use ($order, $validated, $clientRate, $totalClient, $totalProvider, $finalPrice, $totalDiscounts, $additions) {
             $order->update([
                 'status' => ServiceOrderStatus::AWAITING_PAYMENT,
                 'execution_date' => $validated['execution_date'],
                 'actual_quantity' => $validated['actual_quantity'],
                 'unit_price' => $clientRate,
                 'total_price' => $totalClient,
-                'final_price' => $totalClient,
+                'final_price' => $finalPrice,
+                'discount' => $totalDiscounts,
                 'provider_payment' => $totalProvider,
                 'work_description' => $validated['work_description'],
                 'horimeter_start' => $validated['horimeter_start'] ?? null,
@@ -501,6 +533,39 @@ class ProviderDashboardController extends Controller
                 'associate_payment_status' => ServiceOrderPaymentStatus::PENDING,
                 'provider_payment_status' => ServiceOrderPaymentStatus::PENDING,
             ]);
+
+            // Criar registros de adições + despesas vinculadas
+            foreach ($additions as $addition) {
+                $expenseId = null;
+
+                if ($addition['type'] === 'expense') {
+                    $expense = Expense::create([
+                        'description' => $addition['description'],
+                        'amount' => $addition['amount'],
+                        'date' => $validated['execution_date'],
+                        'due_date' => $validated['execution_date'],
+                        'chart_account_id' => $addition['chart_account_id'] ?? null,
+                        'status' => ExpenseStatus::PENDING,
+                        'expenseable_type' => ServiceOrder::class,
+                        'expenseable_id' => $order->id,
+                        'notes' => "Despesa vinculada à OS {$order->number} na finalização",
+                        'created_by' => auth()->id(),
+                        'tenant_id' => session('tenant_id'),
+                    ]);
+                    $expenseId = $expense->id;
+                }
+
+                ServiceOrderAddition::create([
+                    'service_order_id' => $order->id,
+                    'type' => $addition['type'],
+                    'description' => $addition['description'],
+                    'amount' => $addition['amount'],
+                    'chart_account_id' => $addition['chart_account_id'] ?? null,
+                    'expense_id' => $expenseId,
+                    'created_by' => auth()->id(),
+                    'tenant_id' => session('tenant_id'),
+                ]);
+            }
         });
 
         return redirect()->route('provider.orders.show', [

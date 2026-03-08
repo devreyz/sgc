@@ -93,6 +93,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     // Delivery Registration Routes (Mobile-friendly for delivery recorders)
     Route::prefix('delivery')->name('delivery.')->middleware(['any.role:registrador_entregas'])->group(function () {
         Route::get('/', [DeliveryRegistrationController::class, 'index'])->name('dashboard');
+        Route::get('/all-deliveries', [DeliveryRegistrationController::class, 'allDeliveries'])->name('all-deliveries');
         Route::get('/register/{project?}', [DeliveryRegistrationController::class, 'register'])->name('register');
         Route::post('/register', [DeliveryRegistrationController::class, 'store'])->name('store');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');
@@ -102,6 +103,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
+        Route::post('/projects/{project}/deliver-to-client', [DeliveryRegistrationController::class, 'deliverToClient'])->name('projects.deliver-to-client');
     });
 
     // Cashier Portal Routes (POS - Quick Sales)

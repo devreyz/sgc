@@ -348,4 +348,27 @@ class ServiceOrder extends Model
     {
         return $query->whereBetween('execution_date', [$startDate, $endDate]);
     }
+
+    /**
+     * Get the additions (expenses, fees, discounts) for this order.
+     */
+    public function additions(): HasMany
+    {
+        return $this->hasMany(ServiceOrderAddition::class);
+    }
+
+    public function feeAdditions(): HasMany
+    {
+        return $this->hasMany(ServiceOrderAddition::class)->where('type', 'fee');
+    }
+
+    public function discountAdditions(): HasMany
+    {
+        return $this->hasMany(ServiceOrderAddition::class)->where('type', 'discount');
+    }
+
+    public function expenseAdditions(): HasMany
+    {
+        return $this->hasMany(ServiceOrderAddition::class)->where('type', 'expense');
+    }
 }

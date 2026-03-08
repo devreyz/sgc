@@ -344,6 +344,67 @@
                 </div>
             </div>
 
+            <!-- Seção de Despesas, Taxas e Descontos -->
+            <div style="margin-top:1.5rem;border-top:1px solid var(--color-border);padding-top:1.5rem;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                    <h4 class="font-bold" style="margin:0;display:flex;align-items:center;gap:.5rem;">
+                        <i data-lucide="list-plus" style="width:1.1rem;height:1.1rem;"></i>
+                        Despesas, Taxas e Descontos
+                    </h4>
+                    <button type="button" id="btn-add-addition" class="btn btn-outline" style="padding:.4rem .8rem;font-size:.8rem;">
+                        <i data-lucide="plus" style="width:.9rem;height:.9rem;"></i> Adicionar
+                    </button>
+                </div>
+                <p class="text-xs text-muted" style="margin-bottom:1rem;">
+                    <strong>Despesas</strong> = custo registrado (não altera valor do cliente) · <strong>Taxas</strong> = somadas ao valor · <strong>Descontos</strong> = subtraídos do valor
+                </p>
+                <div id="additions-container"></div>
+                <div id="additions-summary" style="display:none;margin-top:.75rem;padding:.75rem;background:var(--color-bg);border-radius:var(--radius-md);font-size:.85rem;">
+                    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+                        <span>Taxas: <strong id="summary-fees" style="color:var(--color-danger);">R$ 0,00</strong></span>
+                        <span>Descontos: <strong id="summary-discounts" style="color:var(--color-success);">R$ 0,00</strong></span>
+                        <span>Valor ajustado: <strong id="summary-adjusted">-</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Template de item de adição (hidden) -->
+            <template id="addition-template">
+                <div class="addition-item" style="display:grid;grid-template-columns:140px 1fr 120px 1fr 32px;gap:.75rem;align-items:start;padding:.75rem;background:var(--color-bg);border-radius:var(--radius-md);margin-bottom:.5rem;border:1px solid var(--color-border);">
+                    <div>
+                        <label class="form-label" style="font-size:.75rem;margin-bottom:.25rem;">Tipo *</label>
+                        <select name="additions[__IDX__][type]" class="form-input addition-type" required style="font-size:.85rem;padding:.4rem .5rem;">
+                            <option value="">Selecione</option>
+                            <option value="expense">💰 Despesa</option>
+                            <option value="fee">📈 Taxa</option>
+                            <option value="discount">📉 Desconto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:.75rem;margin-bottom:.25rem;">Descrição *</label>
+                        <input type="text" name="additions[__IDX__][description]" class="form-input" required placeholder="Ex: Taxa de deslocamento" style="font-size:.85rem;padding:.4rem .5rem;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:.75rem;margin-bottom:.25rem;">Valor (R$) *</label>
+                        <input type="number" name="additions[__IDX__][amount]" class="form-input addition-amount" required step="0.01" min="0.01" placeholder="0,00" style="font-size:.85rem;padding:.4rem .5rem;">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:.75rem;margin-bottom:.25rem;">Plano de Contas</label>
+                        <select name="additions[__IDX__][chart_account_id]" class="form-input" style="font-size:.85rem;padding:.4rem .5rem;">
+                            <option value="">Nenhum</option>
+                            @foreach($chartAccounts ?? [] as $id => $name)
+                                <option value="{{ $id }}">{{ $name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div style="padding-top:1.3rem;">
+                        <button type="button" class="btn-remove-addition" title="Remover" style="background:none;border:none;cursor:pointer;color:var(--color-danger);padding:.25rem;">
+                            <i data-lucide="x" style="width:1rem;height:1rem;"></i>
+                        </button>
+                    </div>
+                </div>
+            </template>
+
             <div style="display:flex;justify-content:flex-end;gap:1rem;margin-top:1.5rem;">
                 <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary" style="padding:0.75rem 1.5rem;">
@@ -400,6 +461,7 @@ document.getElementById('actual_quantity')?.addEventListener('input', function()
     const providerTotal = (qty * providerRate).toFixed(2).replace('.', ',');
     document.getElementById('calc-preview').textContent =
         `Cliente: R$ ${clientTotal} | Você recebe: R$ ${providerTotal}`;
+    updateAdditionsSummary();
 });
 
 // Trigger initial calc
@@ -408,6 +470,57 @@ document.getElementById('actual_quantity')?.dispatchEvent(new Event('input'));
 // Scroll to complete section if hash
 if (window.location.hash === '#complete') {
     document.getElementById('complete')?.scrollIntoView({ behavior: 'smooth' });
+}
+
+// === Additions (Despesas, Taxas, Descontos) ===
+let additionIdx = 0;
+
+document.getElementById('btn-add-addition')?.addEventListener('click', function() {
+    const template = document.getElementById('addition-template');
+    const container = document.getElementById('additions-container');
+    const clone = template.content.cloneNode(true);
+    const html = clone.querySelector('.addition-item').outerHTML.replace(/__IDX__/g, additionIdx);
+    container.insertAdjacentHTML('beforeend', html);
+    additionIdx++;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    bindAdditionEvents();
+    updateAdditionsSummary();
+});
+
+function bindAdditionEvents() {
+    document.querySelectorAll('.btn-remove-addition').forEach(function(btn) {
+        btn.onclick = function() {
+            this.closest('.addition-item').remove();
+            updateAdditionsSummary();
+        };
+    });
+    document.querySelectorAll('.addition-type, .addition-amount').forEach(function(el) {
+        el.onchange = updateAdditionsSummary;
+        el.oninput = updateAdditionsSummary;
+    });
+}
+
+function updateAdditionsSummary() {
+    const items = document.querySelectorAll('.addition-item');
+    const summary = document.getElementById('additions-summary');
+    if (!items.length) { if (summary) summary.style.display = 'none'; return; }
+    if (summary) summary.style.display = 'block';
+
+    let fees = 0, discounts = 0;
+    items.forEach(function(item) {
+        const type = item.querySelector('.addition-type')?.value;
+        const amount = parseFloat(item.querySelector('.addition-amount')?.value) || 0;
+        if (type === 'fee') fees += amount;
+        if (type === 'discount') discounts += amount;
+    });
+
+    const qty = parseFloat(document.getElementById('actual_quantity')?.value) || 0;
+    const baseClient = qty * clientRate;
+    const adjusted = Math.max(0, baseClient + fees - discounts);
+
+    document.getElementById('summary-fees').textContent = 'R$ ' + fees.toFixed(2).replace('.', ',');
+    document.getElementById('summary-discounts').textContent = 'R$ ' + discounts.toFixed(2).replace('.', ',');
+    document.getElementById('summary-adjusted').textContent = 'R$ ' + adjusted.toFixed(2).replace('.', ',');
 }
 </script>
 @endsection

@@ -7,6 +7,7 @@
 @section('navigation')
 <nav class="nav-tabs">
     <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Dashboard</a>
+    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Entregas</a>
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Registrar Entrega</a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
@@ -60,6 +61,7 @@
     .status-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .65rem; border-radius: 99px; font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
     .status-badge.draft  { background: rgba(245,158,11,.15); color: #d97706; }
     .status-badge.active { background: rgba(16,185,129,.15);  color: #059669; }
+    .status-badge.awaiting_delivery { background: rgba(59,130,246,.15); color: #2563eb; }
     .project-body { padding: 1.25rem 1.5rem; }
     .project-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: .75rem; margin-bottom: 1rem; }
     .info-item { text-align: center; }
@@ -98,6 +100,16 @@
     .empty-icon { width: 48px; height: 48px; margin: 0 auto 1rem; opacity: .4; }
     .empty-title { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; color: var(--color-text); }
     .empty-message { font-size: .875rem; }
+    /* Custom Modal */
+    .custom-modal-overlay { position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .2s; padding:1rem; }
+    .custom-modal-overlay.visible { opacity:1; }
+    .custom-modal { background:var(--color-surface); border-radius:var(--radius-lg); padding:2rem; max-width:420px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3); text-align:center; transform:scale(0.95); transition:transform .2s; }
+    .custom-modal-overlay.visible .custom-modal { transform:scale(1); }
+    .custom-modal-icon { margin-bottom:1rem; }
+    .custom-modal-title { font-size:1.2rem; font-weight:700; margin-bottom:.5rem; color:var(--color-text); }
+    .custom-modal-message { font-size:.9rem; color:var(--color-text-secondary); line-height:1.5; margin-bottom:1.5rem; }
+    .custom-modal-actions { display:flex; gap:.75rem; justify-content:center; }
+    .custom-modal-actions .btn { padding:.6rem 1.2rem; font-size:.85rem; }
     #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: .5rem; }
     .toast { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: .75rem 1rem; display: flex; align-items: center; gap: .5rem; font-size: .875rem; box-shadow: 0 4px 12px rgba(0,0,0,.15); animation: fadeInUp .3s ease; transition: opacity .3s; min-width: 280px; max-width: 380px; }
     .toast.success { border-left: 3px solid var(--color-success); }
@@ -185,6 +197,8 @@
                     <span class="status-badge {{ $project['status_value'] }}">
                         @if($project['status_value'] === 'draft')
                             <i data-lucide="file-edit" style="width:10px;height:10px"></i>
+                        @elseif($project['status_value'] === 'awaiting_delivery')
+                            <i data-lucide="package-check" style="width:10px;height:10px"></i>
                         @else
                             <i data-lucide="play" style="width:10px;height:10px"></i>
                         @endif
@@ -296,15 +310,26 @@
                             <i data-lucide="plus" style="width:13px;height:13px"></i>
                             Registrar
                         </a>
-                        <button class="btn btn-success btn-sm finalize-project-btn"
+                        <button class="btn btn-warning btn-sm finalize-project-btn"
                                 data-project-id="{{ $project['id'] }}"
                                 data-project-title="{{ $project['title'] }}"
                                 data-pending="{{ $project['pending_deliveries'] ?? 0 }}"
                                 data-tenant="{{ $currentTenant->slug }}"
-                                title="Marcar projeto como entregue ao cliente">
+                                title="Finalizar recebimento de entregas">
                             <span class="spinner" id="fin-spinner-{{ $project['id'] }}"></span>
-                            <i data-lucide="check-circle" style="width:13px;height:13px"></i>
-                            Finalizar
+                            <i data-lucide="package-check" style="width:13px;height:13px"></i>
+                            Finalizar Entregas
+                        </button>
+                        @endif
+                        @if($project['status_value'] === 'awaiting_delivery')
+                        <button class="btn btn-success btn-sm deliver-to-client-btn"
+                                data-project-id="{{ $project['id'] }}"
+                                data-project-title="{{ $project['title'] }}"
+                                data-tenant="{{ $currentTenant->slug }}"
+                                title="Marcar como entregue ao cliente">
+                            <span class="spinner" id="deliver-spinner-{{ $project['id'] }}"></span>
+                            <i data-lucide="truck" style="width:13px;height:13px"></i>
+                            Entregue ao Cliente
                         </button>
                         @endif
                     </div>
@@ -331,6 +356,51 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(function() { toast.style.opacity = '0'; setTimeout(function() { toast.remove(); }, 300); }, 4000);
     }
 
+    // === Custom Modal ===
+    function showModal(options) {
+        var overlay = document.createElement('div');
+        overlay.className = 'custom-modal-overlay';
+        overlay.innerHTML =
+            '<div class="custom-modal">' +
+                '<div class="custom-modal-icon" style="color:' + (options.iconColor || 'var(--color-primary)') + '">' +
+                    '<i data-lucide="' + (options.icon || 'alert-circle') + '" style="width:40px;height:40px;"></i>' +
+                '</div>' +
+                '<h3 class="custom-modal-title">' + (options.title || 'Confirmação') + '</h3>' +
+                '<p class="custom-modal-message">' + (options.message || '') + '</p>' +
+                '<div class="custom-modal-actions">' +
+                    '<button class="btn btn-ghost custom-modal-cancel">Cancelar</button>' +
+                    '<button class="btn ' + (options.confirmClass || 'btn-primary') + ' custom-modal-confirm">' +
+                        (options.confirmText || 'Confirmar') +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+
+        // Animate in
+        requestAnimationFrame(function() { overlay.classList.add('visible'); });
+
+        return new Promise(function(resolve) {
+            overlay.querySelector('.custom-modal-cancel').onclick = function() {
+                overlay.classList.remove('visible');
+                setTimeout(function() { overlay.remove(); }, 200);
+                resolve(false);
+            };
+            overlay.querySelector('.custom-modal-confirm').onclick = function() {
+                overlay.classList.remove('visible');
+                setTimeout(function() { overlay.remove(); }, 200);
+                resolve(true);
+            };
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    overlay.classList.remove('visible');
+                    setTimeout(function() { overlay.remove(); }, 200);
+                    resolve(false);
+                }
+            });
+        });
+    }
+
     // Iniciar Projeto
     document.querySelectorAll('.start-project-btn').forEach(function(btn) {
         btn.addEventListener('click', async function () {
@@ -338,9 +408,19 @@ document.addEventListener('DOMContentLoaded', function () {
             var projectTitle = this.dataset.projectTitle;
             var tenantSlug = this.dataset.tenant;
             var spinner = document.getElementById('spinner-' + projectId);
+            var self = this;
 
-            if (!confirm('Iniciar o projeto "' + projectTitle + '"?\n\nApos iniciado, o projeto aceita registros de entrega.')) return;
-            this.disabled = true;
+            var confirmed = await showModal({
+                icon: 'play',
+                iconColor: '#d97706',
+                title: 'Iniciar Projeto',
+                message: 'Deseja iniciar o projeto <strong>"' + projectTitle + '"</strong>?<br><small>Após iniciado, o projeto aceita registros de entrega.</small>',
+                confirmText: 'Iniciar',
+                confirmClass: 'btn-warning'
+            });
+            if (!confirmed) return;
+
+            self.disabled = true;
             if (spinner) spinner.style.display = 'inline-block';
 
             try {
@@ -358,18 +438,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(function() { window.location.reload(); }, 1200);
                 } else {
                     showToast(result.message, 'error');
-                    this.disabled = false;
+                    self.disabled = false;
                     if (spinner) spinner.style.display = 'none';
                 }
             } catch (e) {
                 showToast('Erro ao iniciar projeto. Tente novamente.', 'error');
-                this.disabled = false;
+                self.disabled = false;
                 if (spinner) spinner.style.display = 'none';
             }
         });
     });
 
-    // Finalizar Projeto
+    // Finalizar Entregas (ACTIVE → AWAITING_DELIVERY)
     document.querySelectorAll('.finalize-project-btn').forEach(function(btn) {
         btn.addEventListener('click', async function () {
             var projectId = this.dataset.projectId;
@@ -377,14 +457,24 @@ document.addEventListener('DOMContentLoaded', function () {
             var tenantSlug = this.dataset.tenant;
             var pending = parseInt(this.dataset.pending || '0');
             var spinner = document.getElementById('fin-spinner-' + projectId);
+            var self = this;
 
             if (pending > 0) {
-                showToast('Existem ' + pending + ' entrega(s) pendentes de aprovacao. Aprove ou rejeite-as antes de finalizar.', 'error');
+                showToast('Existem ' + pending + ' entrega(s) pendentes de aprovação. Aprove ou rejeite-as antes de finalizar.', 'error');
                 return;
             }
 
-            if (!confirm('Finalizar o projeto "' + projectTitle + '"?\n\nO status sera alterado para "Entregue ao Cliente".')) return;
-            this.disabled = true;
+            var confirmed = await showModal({
+                icon: 'package-check',
+                iconColor: '#d97706',
+                title: 'Finalizar Entregas',
+                message: 'Deseja finalizar o recebimento de entregas do projeto <strong>"' + projectTitle + '"</strong>?<br><small>Nenhuma nova entrega poderá ser registrada. Após isso, marque como "Entregue ao Cliente".</small>',
+                confirmText: 'Finalizar Entregas',
+                confirmClass: 'btn-warning'
+            });
+            if (!confirmed) return;
+
+            self.disabled = true;
             if (spinner) spinner.style.display = 'inline-block';
 
             try {
@@ -402,12 +492,60 @@ document.addEventListener('DOMContentLoaded', function () {
                     setTimeout(function() { window.location.reload(); }, 1400);
                 } else {
                     showToast(result.message, 'error');
-                    this.disabled = false;
+                    self.disabled = false;
                     if (spinner) spinner.style.display = 'none';
                 }
             } catch (e) {
-                showToast('Erro ao finalizar projeto. Tente novamente.', 'error');
-                this.disabled = false;
+                showToast('Erro ao finalizar entregas. Tente novamente.', 'error');
+                self.disabled = false;
+                if (spinner) spinner.style.display = 'none';
+            }
+        });
+    });
+
+    // Entregue ao Cliente (AWAITING_DELIVERY → DELIVERED)
+    document.querySelectorAll('.deliver-to-client-btn').forEach(function(btn) {
+        btn.addEventListener('click', async function () {
+            var projectId = this.dataset.projectId;
+            var projectTitle = this.dataset.projectTitle;
+            var tenantSlug = this.dataset.tenant;
+            var spinner = document.getElementById('deliver-spinner-' + projectId);
+            var self = this;
+
+            var confirmed = await showModal({
+                icon: 'truck',
+                iconColor: '#059669',
+                title: 'Entregue ao Cliente',
+                message: 'Confirma que o projeto <strong>"' + projectTitle + '"</strong> foi entregue ao cliente?<br><small>O status será alterado para "Entregue ao Cliente".</small>',
+                confirmText: 'Confirmar Entrega',
+                confirmClass: 'btn-success'
+            });
+            if (!confirmed) return;
+
+            self.disabled = true;
+            if (spinner) spinner.style.display = 'inline-block';
+
+            try {
+                var res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/deliver-to-client', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    }
+                });
+                var result = await res.json();
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    setTimeout(function() { window.location.reload(); }, 1400);
+                } else {
+                    showToast(result.message, 'error');
+                    self.disabled = false;
+                    if (spinner) spinner.style.display = 'none';
+                }
+            } catch (e) {
+                showToast('Erro ao registrar entrega. Tente novamente.', 'error');
+                self.disabled = false;
                 if (spinner) spinner.style.display = 'none';
             }
         });

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\CashMovementType;
+use App\Enums\ExpenseStatus;
 use App\Enums\LedgerType;
 use App\Enums\PaymentMethod;
 use App\Enums\ProviderLedgerCategory;
@@ -10,9 +11,13 @@ use App\Enums\ServiceOrderPaymentStatus;
 use App\Enums\ServiceOrderStatus;
 use App\Filament\Resources\ServiceOrderResource\Pages;
 use App\Filament\Resources\ServiceOrderResource\RelationManagers;
+use App\Filament\Traits\TenantScoped;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
+use App\Models\ChartAccount;
+use App\Models\Expense;
 use App\Models\ServiceOrder;
+use App\Models\ServiceOrderAddition;
 use App\Models\ServiceOrderPayment;
 use App\Models\ServiceProvider;
 use App\Models\ServiceProviderLedger;
@@ -25,11 +30,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
-use App\Filament\Traits\TenantScoped;
 
 class ServiceOrderResource extends Resource
 {
     use TenantScoped;
+
     protected static ?string $model = ServiceOrder::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -234,19 +239,74 @@ class ServiceOrderResource extends Resource
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->modalHeading('Finalizar Execução')
+                    ->modalWidth('4xl')
                     ->form([
-                        Forms\Components\DatePicker::make('execution_date')
-                            ->label('Data de Execução')->required()->default(now()),
-                        Forms\Components\TextInput::make('actual_quantity')
-                            ->label('Quantidade Executada')->numeric()->required()->minValue(0.1),
-                        Forms\Components\TextInput::make('horimeter_start')
-                            ->label('Horímetro Inicial')->numeric(),
-                        Forms\Components\TextInput::make('horimeter_end')
-                            ->label('Horímetro Final')->numeric(),
-                        Forms\Components\TextInput::make('fuel_used')
-                            ->label('Combustível (L)')->numeric(),
-                        Forms\Components\Textarea::make('work_description')
-                            ->label('Descrição do Trabalho')->required()->rows(3),
+                        Forms\Components\Section::make('Dados da Execução')
+                            ->schema([
+                                Forms\Components\DatePicker::make('execution_date')
+                                    ->label('Data de Execução')->required()->default(now()),
+                                Forms\Components\TextInput::make('actual_quantity')
+                                    ->label('Quantidade Executada')->numeric()->required()->minValue(0.1),
+                                Forms\Components\TextInput::make('horimeter_start')
+                                    ->label('Horímetro Inicial')->numeric(),
+                                Forms\Components\TextInput::make('horimeter_end')
+                                    ->label('Horímetro Final')->numeric(),
+                                Forms\Components\TextInput::make('fuel_used')
+                                    ->label('Combustível (L)')->numeric(),
+                                Forms\Components\Textarea::make('work_description')
+                                    ->label('Descrição do Trabalho')->required()->rows(3)->columnSpanFull(),
+                            ])->columns(3),
+
+                        Forms\Components\Section::make('Despesas, Taxas e Descontos')
+                            ->description('Adicione despesas extras, taxas ou descontos à ordem de serviço. Despesas são registradas como custo (não alteram valor do cliente). Taxas são somadas e descontos subtraídos do valor final.')
+                            ->schema([
+                                Forms\Components\Repeater::make('additions')
+                                    ->label('')
+                                    ->schema([
+                                        Forms\Components\Select::make('type')
+                                            ->label('Tipo')
+                                            ->options([
+                                                'expense' => '💰 Despesa (custo)',
+                                                'fee' => '📈 Taxa (soma ao valor)',
+                                                'discount' => '📉 Desconto (subtrai do valor)',
+                                            ])
+                                            ->required()
+                                            ->reactive()
+                                            ->columnSpan(1),
+                                        Forms\Components\TextInput::make('description')
+                                            ->label('Descrição')
+                                            ->required()
+                                            ->maxLength(255)
+                                            ->columnSpan(2),
+                                        Forms\Components\TextInput::make('amount')
+                                            ->label('Valor (R$)')
+                                            ->numeric()
+                                            ->required()
+                                            ->minValue(0.01)
+                                            ->prefix('R$')
+                                            ->columnSpan(1),
+                                        Forms\Components\Select::make('chart_account_id')
+                                            ->label('Plano de Contas')
+                                            ->options(fn () => ChartAccount::where('allows_entries', true)->where('status', true)->pluck('name', 'id'))
+                                            ->searchable()
+                                            ->preload()
+                                            ->columnSpan(2),
+                                    ])
+                                    ->columns(6)
+                                    ->addActionLabel('Adicionar item')
+                                    ->defaultItems(0)
+                                    ->reorderable(false)
+                                    ->collapsible()
+                                    ->itemLabel(fn (array $state): ?string => ($state['type'] ?? null)
+                                            ? match ($state['type']) {
+                                                'expense' => '💰 Despesa',
+                                                'fee' => '📈 Taxa',
+                                                'discount' => '📉 Desconto',
+                                                default => 'Item',
+                                            }.': '.($state['description'] ?? '').' — R$ '.number_format((float) ($state['amount'] ?? 0), 2, ',', '.')
+                                            : null
+                                    ),
+                            ])->collapsed(),
                     ])
                     ->action(function (ServiceOrder $record, array $data): void {
                         DB::transaction(function () use ($record, $data) {
@@ -276,13 +336,30 @@ class ServiceOrderResource extends Resource
                             $totalClient = round($qty * $clientRate, 2);
                             $totalProvider = round($qty * $providerRate, 2);
 
+                            // Processar adições (taxas e descontos alteram o valor final)
+                            $totalFees = 0;
+                            $totalDiscounts = 0;
+                            $additions = $data['additions'] ?? [];
+
+                            foreach ($additions as $addition) {
+                                $amount = (float) ($addition['amount'] ?? 0);
+                                if ($addition['type'] === 'fee') {
+                                    $totalFees += $amount;
+                                } elseif ($addition['type'] === 'discount') {
+                                    $totalDiscounts += $amount;
+                                }
+                            }
+
+                            $finalPrice = max(0, $totalClient + $totalFees - $totalDiscounts);
+
                             $record->update([
                                 'status' => ServiceOrderStatus::AWAITING_PAYMENT,
                                 'execution_date' => $data['execution_date'],
                                 'actual_quantity' => $qty,
                                 'unit_price' => $clientRate,
                                 'total_price' => $totalClient,
-                                'final_price' => $totalClient,
+                                'final_price' => $finalPrice,
+                                'discount' => $totalDiscounts,
                                 'provider_payment' => $totalProvider,
                                 'work_description' => $data['work_description'],
                                 'horimeter_start' => $data['horimeter_start'] ?? null,
@@ -291,6 +368,39 @@ class ServiceOrderResource extends Resource
                                 'associate_payment_status' => ServiceOrderPaymentStatus::PENDING,
                                 'provider_payment_status' => ServiceOrderPaymentStatus::PENDING,
                             ]);
+
+                            // Criar registros de adições + despesas vinculadas
+                            foreach ($additions as $addition) {
+                                $expenseId = null;
+
+                                if ($addition['type'] === 'expense') {
+                                    $expense = Expense::create([
+                                        'description' => $addition['description'],
+                                        'amount' => $addition['amount'],
+                                        'date' => $data['execution_date'],
+                                        'due_date' => $data['execution_date'],
+                                        'chart_account_id' => $addition['chart_account_id'] ?? null,
+                                        'status' => ExpenseStatus::PENDING,
+                                        'expenseable_type' => ServiceOrder::class,
+                                        'expenseable_id' => $record->id,
+                                        'notes' => "Despesa vinculada à OS {$record->number} na finalização",
+                                        'created_by' => auth()->id(),
+                                        'tenant_id' => session('tenant_id'),
+                                    ]);
+                                    $expenseId = $expense->id;
+                                }
+
+                                ServiceOrderAddition::create([
+                                    'service_order_id' => $record->id,
+                                    'type' => $addition['type'],
+                                    'description' => $addition['description'],
+                                    'amount' => $addition['amount'],
+                                    'chart_account_id' => $addition['chart_account_id'] ?? null,
+                                    'expense_id' => $expenseId,
+                                    'created_by' => auth()->id(),
+                                    'tenant_id' => session('tenant_id'),
+                                ]);
+                            }
                         });
                         Notification::make()->success()->title('Execução finalizada')->body('Aguardando pagamento do cliente')->send();
                     })
@@ -395,6 +505,7 @@ class ServiceOrderResource extends Resource
                     ->modalHeading('Gerar Parcelas com Desconto de Arredondamento')
                     ->form(function (ServiceOrder $record) {
                         $remaining = $record->client_remaining;
+
                         return [
                             Forms\Components\TextInput::make('num_installments')
                                 ->label('Número de Parcelas')
@@ -424,11 +535,12 @@ class ServiceOrderResource extends Resource
                                     $perInstallment = floor(($remaining / $n) * 100) / 100;
                                     $discount = round($remaining - ($perInstallment * $n), 2);
                                     $lines = [
-                                        "Valor original: R$ " . number_format($remaining, 2, ',', '.'),
-                                        "Parcela base: R$ " . number_format($perInstallment, 2, ',', '.') . " × {$n}",
-                                        "Desconto de arredondamento: R$ " . number_format($discount, 2, ',', '.'),
-                                        "Total final: R$ " . number_format($perInstallment * $n, 2, ',', '.'),
+                                        'Valor original: R$ '.number_format($remaining, 2, ',', '.'),
+                                        'Parcela base: R$ '.number_format($perInstallment, 2, ',', '.')." × {$n}",
+                                        'Desconto de arredondamento: R$ '.number_format($discount, 2, ',', '.'),
+                                        'Total final: R$ '.number_format($perInstallment * $n, 2, ',', '.'),
                                     ];
+
                                     return implode("\n", $lines);
                                 }),
                         ];
@@ -443,19 +555,19 @@ class ServiceOrderResource extends Resource
 
                             for ($i = 0; $i < $n; $i++) {
                                 ServiceOrderPayment::create([
-                                    'service_order_id'  => $record->id,
-                                    'type'              => 'client',
-                                    'status'            => ServiceOrderPaymentStatus::PENDING,
-                                    'payment_date'      => $firstDate->copy()->addMonths($i),
-                                    'amount'            => $perInstallment,
-                                    'payment_method'    => $data['payment_method'],
-                                    'notes'             => sprintf(
+                                    'service_order_id' => $record->id,
+                                    'type' => 'client',
+                                    'status' => ServiceOrderPaymentStatus::PENDING,
+                                    'payment_date' => $firstDate->copy()->addMonths($i),
+                                    'amount' => $perInstallment,
+                                    'payment_method' => $data['payment_method'],
+                                    'notes' => sprintf(
                                         'Parcela %d/%d | Desconto arredondamento: R$ %s',
                                         $i + 1,
                                         $n,
                                         number_format($roundoffDiscount, 2, ',', '.')
                                     ),
-                                    'registered_by'     => auth()->id(),
+                                    'registered_by' => auth()->id(),
                                 ]);
                             }
 
@@ -472,12 +584,12 @@ class ServiceOrderResource extends Resource
                                 ->causedBy(auth()->user())
                                 ->performedOn($record)
                                 ->withProperties([
-                                    'tenant_id'        => session('tenant_id'),
+                                    'tenant_id' => session('tenant_id'),
                                     'num_installments' => $n,
-                                    'per_installment'  => $perInstallment,
-                                    'roundoff_discount'=> $roundoffDiscount,
-                                    'total_original'   => $remaining,
-                                    'total_final'      => $perInstallment * $n,
+                                    'per_installment' => $perInstallment,
+                                    'roundoff_discount' => $roundoffDiscount,
+                                    'total_original' => $remaining,
+                                    'total_final' => $perInstallment * $n,
                                 ])
                                 ->log('service.apply_discount');
                         });
@@ -490,8 +602,7 @@ class ServiceOrderResource extends Resource
                             ))
                             ->send();
                     })
-                    ->visible(fn (ServiceOrder $record): bool =>
-                        in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
+                    ->visible(fn (ServiceOrder $record): bool => in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
                         $record->client_remaining > 0
                     ),
 
