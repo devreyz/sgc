@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\SalesProjectResource;
 use App\Models\SalesProject;
+use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
 use Filament\Forms;
@@ -116,6 +117,7 @@ class ViewSalesProject extends ViewRecord
                 ->action(function (SalesProject $record) {
                     $demands = $record->demands()->with('product')->get();
                     $associates = \App\Models\Associate::with('user')->get();
+                    $tmplCfg = $this->getTemplateConfig('folha_campo', ['paper_orientation' => 'portrait']);
 
                     $pdf = Pdf::loadView('pdf.folha-campo', [
                         'project' => $record,
@@ -123,7 +125,9 @@ class ViewSalesProject extends ViewRecord
                         'associates' => $associates,
                         'date' => now()->format('d/m/Y'),
                         'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                    ]);
+                        'visible_sections' => $tmplCfg['visible_sections'],
+                        'visible_columns' => $tmplCfg['visible_columns'],
+                    ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
 
                     return Response::streamDownload(function () use ($pdf) {
                         echo $pdf->output();
@@ -206,7 +210,7 @@ class ViewSalesProject extends ViewRecord
                             ->placeholder('Selecione o associado'),
                     ];
                 })
-                    ->action(function (SalesProject $record, array $data) {
+                ->action(function (SalesProject $record, array $data) {
                     return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id']);
                 }),
 
@@ -248,14 +252,14 @@ class ViewSalesProject extends ViewRecord
             ])->values()->all();
 
             $groups[] = [
-                'associate_name'   => $assoc?->user?->name ?? 'Desconhecido',
-                'cpf'              => $assoc?->cpf_cnpj ?? '',
+                'associate_name' => $assoc?->user?->name ?? 'Desconhecido',
+                'cpf' => $assoc?->cpf_cnpj ?? '',
                 'deliveries_count' => $items->count(),
-                'total_quantity'   => $items->sum('quantity'),
-                'gross_value'      => $items->sum('gross_value'),
-                'admin_fee'        => $items->sum('admin_fee_amount'),
-                'net_value'        => $items->sum('net_value'),
-                'deliveries'       => $rows,
+                'total_quantity' => $items->sum('quantity'),
+                'gross_value' => $items->sum('gross_value'),
+                'admin_fee' => $items->sum('admin_fee_amount'),
+                'net_value' => $items->sum('net_value'),
+                'deliveries' => $rows,
             ];
         }
         usort($groups, fn ($a, $b) => strcasecmp($a['associate_name'], $b['associate_name']));
@@ -263,21 +267,25 @@ class ViewSalesProject extends ViewRecord
         $totals = [
             'associates_count' => count($groups),
             'deliveries_count' => $deliveries->count(),
-            'total_quantity'   => $deliveries->sum('quantity'),
-            'total_gross'      => $deliveries->sum('gross_value'),
-            'total_admin_fee'  => $deliveries->sum('admin_fee_amount'),
-            'total_net'        => $deliveries->sum('net_value'),
+            'total_quantity' => $deliveries->sum('quantity'),
+            'total_gross' => $deliveries->sum('gross_value'),
+            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
+            'total_net' => $deliveries->sum('net_value'),
         ];
 
+        $tmplCfg = $this->getTemplateConfig('deliveries_associate', ['paper_orientation' => 'landscape']);
+
         $pdf = Pdf::loadView('pdf.deliveries-by-associate', [
-            'tenant'       => $tenant,
-            'title'        => 'Relatório de Entregas por Associado',
-            'subtitle'     => $record->title,
+            'tenant' => $tenant,
+            'title' => 'Relatório de Entregas por Associado',
+            'subtitle' => $record->title,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters'      => ['project' => $record->title],
-            'groups'       => $groups,
-            'totals'       => $totals,
-        ])->setPaper('a4', 'landscape');
+            'filters' => ['project' => $record->title],
+            'groups' => $groups,
+            'totals' => $totals,
+            'visible_sections' => $tmplCfg['visible_sections'],
+            'visible_columns' => $tmplCfg['visible_columns'],
+        ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -316,36 +324,40 @@ class ViewSalesProject extends ViewRecord
             ])->values()->all();
 
             $groups[] = [
-                'product_name'     => $product?->name ?? 'Desconhecido',
-                'unit'             => $product?->unit ?? 'un',
+                'product_name' => $product?->name ?? 'Desconhecido',
+                'unit' => $product?->unit ?? 'un',
                 'deliveries_count' => $items->count(),
-                'total_quantity'   => $items->sum('quantity'),
-                'gross_value'      => $items->sum('gross_value'),
-                'admin_fee'        => $items->sum('admin_fee_amount'),
-                'net_value'        => $items->sum('net_value'),
-                'deliveries'       => $rows,
+                'total_quantity' => $items->sum('quantity'),
+                'gross_value' => $items->sum('gross_value'),
+                'admin_fee' => $items->sum('admin_fee_amount'),
+                'net_value' => $items->sum('net_value'),
+                'deliveries' => $rows,
             ];
         }
         usort($groups, fn ($a, $b) => strcasecmp($a['product_name'], $b['product_name']));
 
         $totals = [
-            'products_count'    => count($groups),
-            'deliveries_count'  => $deliveries->count(),
-            'total_quantity'    => $deliveries->sum('quantity'),
-            'total_gross'       => $deliveries->sum('gross_value'),
-            'total_admin_fee'   => $deliveries->sum('admin_fee_amount'),
-            'total_net'         => $deliveries->sum('net_value'),
+            'products_count' => count($groups),
+            'deliveries_count' => $deliveries->count(),
+            'total_quantity' => $deliveries->sum('quantity'),
+            'total_gross' => $deliveries->sum('gross_value'),
+            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
+            'total_net' => $deliveries->sum('net_value'),
         ];
 
+        $tmplCfg = $this->getTemplateConfig('deliveries_product', ['paper_orientation' => 'landscape']);
+
         $pdf = Pdf::loadView('pdf.deliveries-by-product', [
-            'tenant'       => $tenant,
-            'title'        => 'Relatório de Entregas por Produto',
-            'subtitle'     => $record->title,
+            'tenant' => $tenant,
+            'title' => 'Relatório de Entregas por Produto',
+            'subtitle' => $record->title,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters'      => ['project' => $record->title],
-            'groups'       => $groups,
-            'totals'       => $totals,
-        ])->setPaper('a4', 'landscape');
+            'filters' => ['project' => $record->title],
+            'groups' => $groups,
+            'totals' => $totals,
+            'visible_sections' => $tmplCfg['visible_sections'],
+            'visible_columns' => $tmplCfg['visible_columns'],
+        ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -378,10 +390,10 @@ class ViewSalesProject extends ViewRecord
 
         $summary = [
             'deliveries_count' => $deliveries->count(),
-            'total_quantity'   => $deliveries->sum('quantity'),
-            'gross_value'      => $deliveries->sum('gross_value'),
-            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
-            'net_value'        => $deliveries->sum('net_value'),
+            'total_quantity' => $deliveries->sum('quantity'),
+            'gross_value' => $deliveries->sum('gross_value'),
+            'admin_fee' => $deliveries->sum('admin_fee_amount'),
+            'net_value' => $deliveries->sum('net_value'),
         ];
 
         $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
@@ -389,24 +401,24 @@ class ViewSalesProject extends ViewRecord
 
             return [
                 'product_name' => $product?->name ?? '—',
-                'unit'         => $product?->unit ?? 'un',
-                'count'        => $items->count(),
-                'quantity'     => $items->sum('quantity'),
-                'gross'        => $items->sum('gross_value'),
-                'admin_fee'    => $items->sum('admin_fee_amount'),
-                'net'          => $items->sum('net_value'),
+                'unit' => $product?->unit ?? 'un',
+                'count' => $items->count(),
+                'quantity' => $items->sum('quantity'),
+                'gross' => $items->sum('gross_value'),
+                'admin_fee' => $items->sum('admin_fee_amount'),
+                'net' => $items->sum('net_value'),
             ];
         })->values()->all();
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
-            'tenant'          => $tenant,
-            'title'           => 'Comprovante de Entrega',
-            'subtitle'        => $record->title,
-            'generated_at'    => now()->format('d/m/Y H:i'),
-            'project'         => $record,
-            'associate'       => $associate,
-            'deliveries'      => $deliveries,
-            'summary'         => $summary,
+            'tenant' => $tenant,
+            'title' => 'Comprovante de Entrega',
+            'subtitle' => $record->title,
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'project' => $record,
+            'associate' => $associate,
+            'deliveries' => $deliveries,
+            'summary' => $summary,
             'productsSummary' => $productsSummary,
         ])->setPaper('a4', 'portrait');
 
@@ -478,6 +490,31 @@ class ViewSalesProject extends ViewRecord
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, 'relatorio-final-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
+     * Get system template config for a given key, or defaults.
+     */
+    protected function getTemplateConfig(string $systemKey, array $defaults = []): array
+    {
+        $tmpl = TemplatedPdfService::getActiveSystemTemplate($systemKey);
+        if ($tmpl) {
+            $def = $tmpl->getSystemDefinition();
+
+            return [
+                'visible_sections' => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
+                'visible_columns' => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
+                'paper_size' => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
+                'paper_orientation' => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
+            ];
+        }
+
+        return array_merge([
+            'visible_sections' => null,
+            'visible_columns' => null,
+            'paper_size' => 'a4',
+            'paper_orientation' => 'landscape',
+        ], $defaults);
     }
 
     protected function exportDeliveriesPdf(SalesProject $record, array $columns)

@@ -1,8 +1,16 @@
 @extends('pdf.partials.header')
 
 @section('content')
+@php
+    // Support visible_sections and visible_columns from DocumentTemplate config
+    $vs = $visible_sections ?? null; // null = show all
+    $vc = $visible_columns ?? null;  // null = show all
+    $showSection = fn(string $s) => $vs === null || in_array($s, $vs);
+    $showCol = fn(string $c) => $vc === null || in_array($c, $vc);
+@endphp
+
 {{-- ═══ FILTROS APLICADOS ═══ --}}
-@if(isset($filters) && count(array_filter($filters)))
+@if($showSection('filters') && isset($filters) && count(array_filter($filters)))
 <div class="info-box mb-2">
     <table>
         <tr>
@@ -18,6 +26,7 @@
 @endif
 
 {{-- ═══ RESUMO GERAL ═══ --}}
+@if($showSection('summary_cards'))
 <div class="summary-cards">
     <div class="summary-card">
         <div class="card-value">{{ $totals['associates_count'] ?? 0 }}</div>
@@ -44,8 +53,10 @@
         <div class="card-label">Valor Líquido</div>
     </div>
 </div>
+@endif
 
 {{-- ═══ ENTREGAS AGRUPADAS POR ASSOCIADO ═══ --}}
+@if($showSection('deliveries'))
 @foreach($groups as $group)
 <div class="no-break">
     <div class="group-header">
@@ -62,28 +73,29 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width:60px;">Data</th>
-                <th>Projeto</th>
-                <th>Produto</th>
-                <th class="text-right" style="width:65px;">Qtd</th>
-                <th class="text-right" style="width:65px;">Vlr Unit.</th>
-                <th class="text-right" style="width:70px;">Vlr Bruto</th>
-                <th class="text-right" style="width:65px;">Taxa Adm</th>
-                <th class="text-right" style="width:70px;">Vlr Líquido</th>
-                <th class="text-center" style="width:55px;">Status</th>
+                @if($showCol('date'))<th style="width:60px;">Data</th>@endif
+                @if($showCol('project'))<th>Projeto</th>@endif
+                @if($showCol('product'))<th>Produto</th>@endif
+                @if($showCol('quantity'))<th class="text-right" style="width:65px;">Qtd</th>@endif
+                @if($showCol('unit_value'))<th class="text-right" style="width:65px;">Vlr Unit.</th>@endif
+                @if($showCol('gross_value'))<th class="text-right" style="width:70px;">Vlr Bruto</th>@endif
+                @if($showCol('admin_fee'))<th class="text-right" style="width:65px;">Taxa Adm</th>@endif
+                @if($showCol('net_value'))<th class="text-right" style="width:70px;">Vlr Líquido</th>@endif
+                @if($showCol('status'))<th class="text-center" style="width:55px;">Status</th>@endif
             </tr>
         </thead>
         <tbody>
             @foreach($group['deliveries'] as $d)
             <tr>
-                <td>{{ $d['delivery_date'] }}</td>
-                <td>{{ \Illuminate\Support\Str::limit($d['project'], 25) }}</td>
-                <td>{{ $d['product'] }}</td>
-                <td class="text-right">{{ number_format($d['quantity'], 2, ',', '.') }}</td>
-                <td class="text-right">R$ {{ number_format($d['unit_price'], 2, ',', '.') }}</td>
-                <td class="text-right">R$ {{ number_format($d['gross_value'], 2, ',', '.') }}</td>
-                <td class="text-right">R$ {{ number_format($d['admin_fee'], 2, ',', '.') }}</td>
-                <td class="text-right text-bold">R$ {{ number_format($d['net_value'], 2, ',', '.') }}</td>
+                @if($showCol('date'))<td>{{ $d['delivery_date'] }}</td>@endif
+                @if($showCol('project'))<td>{{ \Illuminate\Support\Str::limit($d['project'], 25) }}</td>@endif
+                @if($showCol('product'))<td>{{ $d['product'] }}</td>@endif
+                @if($showCol('quantity'))<td class="text-right">{{ number_format($d['quantity'], 2, ',', '.') }}</td>@endif
+                @if($showCol('unit_value'))<td class="text-right">R$ {{ number_format($d['unit_price'], 2, ',', '.') }}</td>@endif
+                @if($showCol('gross_value'))<td class="text-right">R$ {{ number_format($d['gross_value'], 2, ',', '.') }}</td>@endif
+                @if($showCol('admin_fee'))<td class="text-right">R$ {{ number_format($d['admin_fee'], 2, ',', '.') }}</td>@endif
+                @if($showCol('net_value'))<td class="text-right text-bold">R$ {{ number_format($d['net_value'], 2, ',', '.') }}</td>@endif
+                @if($showCol('status'))
                 <td class="text-center">
                     @php
                         $cls = match($d['status_value']) {
@@ -95,23 +107,27 @@
                     @endphp
                     <span class="badge {{ $cls }}">{{ $d['status'] }}</span>
                 </td>
+                @endif
             </tr>
             @endforeach
         </tbody>
+        @if($showSection('totals'))
         <tfoot>
             <tr>
                 <td colspan="3"><strong>SUBTOTAL — {{ $group['associate_name'] }}</strong></td>
-                <td class="text-right"><strong>{{ number_format($group['total_quantity'], 2, ',', '.') }}</strong></td>
-                <td></td>
-                <td class="text-right"><strong>R$ {{ number_format($group['gross_value'], 2, ',', '.') }}</strong></td>
-                <td class="text-right"><strong>R$ {{ number_format($group['admin_fee'], 2, ',', '.') }}</strong></td>
-                <td class="text-right"><strong class="text-success">R$ {{ number_format($group['net_value'], 2, ',', '.') }}</strong></td>
-                <td></td>
+                @if($showCol('quantity'))<td class="text-right"><strong>{{ number_format($group['total_quantity'], 2, ',', '.') }}</strong></td>@endif
+                @if($showCol('unit_value'))<td></td>@endif
+                @if($showCol('gross_value'))<td class="text-right"><strong>R$ {{ number_format($group['gross_value'], 2, ',', '.') }}</strong></td>@endif
+                @if($showCol('admin_fee'))<td class="text-right"><strong>R$ {{ number_format($group['admin_fee'], 2, ',', '.') }}</strong></td>@endif
+                @if($showCol('net_value'))<td class="text-right"><strong class="text-success">R$ {{ number_format($group['net_value'], 2, ',', '.') }}</strong></td>@endif
+                @if($showCol('status'))<td></td>@endif
             </tr>
         </tfoot>
+        @endif
     </table>
 </div>
 @endforeach
+@endif
 
 {{-- ═══ TOTAIS GERAIS ═══ --}}
 <div class="totals-box">

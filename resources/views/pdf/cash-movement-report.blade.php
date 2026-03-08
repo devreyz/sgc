@@ -6,7 +6,7 @@
     <style>
         @page { margin: 20mm 15mm 20mm 15mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9px; color: #333; }
+        body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 9px; color: #333;}
         .org-header { display: table; width: 100%; margin-bottom: 12px; border-bottom: 2px solid #2d3748; padding-bottom: 8px; }
         .org-header-left { display: table-cell; vertical-align: middle; width: 65%; }
         .org-header-right { display: table-cell; vertical-align: middle; text-align: right; width: 35%; }

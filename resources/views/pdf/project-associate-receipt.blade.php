@@ -186,8 +186,8 @@
     <p style="font-size:9px; text-align:justify; line-height:1.6;">
         Declaro que recebi da <strong>{{ $tenant->name ?? 'cooperativa' }}</strong>
         @if($tenant->cnpj), CNPJ {{ $tenant->cnpj }}@endif,
-        o comprovante referente às entregas de produtos realizadas no âmbito do projeto
-        <strong>{{ $project->title }}</strong>
+        o comprovante referente às entregas de produtos realizadas no âmbito do projeto 
+        <strong> {{ $project->title }}</strong>
         @if($project->contract_number)(Contrato nº {{ $project->contract_number }})@endif,
         totalizando <strong>{{ number_format($summary['total_quantity'], 2, ',', '.') }}</strong> unidades
         no valor bruto de <strong>R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</strong>,
