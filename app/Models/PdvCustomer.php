@@ -12,6 +12,11 @@ class PdvCustomer extends Model
 {
     use BelongsToTenant, HasFactory, SoftDeletes;
 
+    protected $hidden = [
+        'tenant_id',
+        'deleted_at',
+    ];
+
     protected $fillable = [
         'name',
         'cpf_cnpj',

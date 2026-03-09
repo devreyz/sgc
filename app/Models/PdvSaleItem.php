@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PdvSaleItem extends Model
 {
+    protected $hidden = [
+        'stock_movement_id',
+    ];
+
     protected $fillable = [
         'pdv_sale_id',
         'product_id',

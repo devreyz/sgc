@@ -16,6 +16,12 @@ class Product extends Model
 {
     use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
+    protected $hidden = [
+        'tenant_id',
+        'cost_price',
+        'deleted_at',
+    ];
+
     protected $fillable = [
         'name',
         'sku',

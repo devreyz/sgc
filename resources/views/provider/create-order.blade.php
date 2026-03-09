@@ -218,7 +218,7 @@
 </div>
 
 <script>
-const servicesData = @json($services);
+const servicesData = @json($services->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'unit' => $s->unit]));
 let selectedServiceId = null;
 let selectedClientType = null;
 

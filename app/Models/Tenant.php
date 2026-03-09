@@ -14,6 +14,23 @@ class Tenant extends Model
 {
     use HasFactory, LogsActivity, SoftDeletes;
 
+    protected $hidden = [
+        'cnpj',
+        'state_registration',
+        'municipal_registration',
+        'bank_name',
+        'bank_code',
+        'bank_agency',
+        'bank_account',
+        'pix_key',
+        'legal_representative_name',
+        'legal_representative_cpf',
+        'legal_representative_role',
+        'document_settings',
+        'settings',
+        'deleted_at',
+    ];
+
     /**
      * The attributes that are mass assignable.
      */

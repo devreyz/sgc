@@ -10,6 +10,11 @@ class PdvFiadoPayment extends Model
 {
     use BelongsToTenant;
 
+    protected $hidden = [
+        'tenant_id',
+        'created_by',
+    ];
+
     protected $fillable = [
         'pdv_sale_id',
         'amount',

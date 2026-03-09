@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Pdv;
 
 use App\Enums\PaymentMethod;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PdvCustomerResource;
+use App\Http\Resources\PdvSaleResource;
 use App\Models\PdvCustomer;
 use App\Models\PdvSale;
 use App\Models\Product;
@@ -116,7 +118,7 @@ class PdvController extends Controller
 
             return response()->json([
                 'success' => true,
-                'sale' => $sale,
+                'sale' => new PdvSaleResource($sale),
                 'message' => "Venda {$sale->code} finalizada!",
             ]);
         } catch (\Exception $e) {
@@ -175,7 +177,7 @@ class PdvController extends Controller
     }
 
     // ─── API: HISTÓRICO JSON ──────────────────────────────
-    public function historyApi(Request $request): JsonResponse
+    public function historyApi(Request $request)
     {
         $query = PdvSale::where('tenant_id', $this->tenantId())
             ->with(['customer', 'items.product', 'payments', 'fiadoPayments', 'creator'])
@@ -194,18 +196,11 @@ class PdvController extends Controller
         $perPage = min((int) $request->get('per_page', 25), 100);
         $paginated = $query->paginate($perPage);
 
-        // Append computed attributes to each sale
-        $paginated->getCollection()->transform(function ($sale) {
-            $sale->append(['display_name', 'fiado_remaining']);
-
-            return $sale;
-        });
-
-        return response()->json($paginated);
+        return PdvSaleResource::collection($paginated);
     }
 
     // ─── FIADO: LISTAR PENDENTES ──────────────────────────
-    public function fiadoPending(): JsonResponse
+    public function fiadoPending()
     {
         $sales = PdvSale::where('tenant_id', $this->tenantId())
             ->where('status', 'completed')
@@ -215,7 +210,7 @@ class PdvController extends Controller
             ->get()
             ->filter(fn ($s) => $s->fiado_remaining > 0);
 
-        return response()->json($sales->values());
+        return PdvSaleResource::collection($sales->values());
     }
 
     // ─── FIADO: REGISTRAR PAGAMENTO ───────────────────────
@@ -280,7 +275,7 @@ class PdvController extends Controller
             ...$validator->validated(),
         ]);
 
-        return response()->json(['success' => true, 'customer' => $customer]);
+        return response()->json(['success' => true, 'customer' => new PdvCustomerResource($customer)]);
     }
 
     // ─── STATS API ────────────────────────────────────────
@@ -314,7 +309,7 @@ class PdvController extends Controller
 
         $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator']);
 
-        return response()->json($model->append(['display_name', 'fiado_remaining']));
+        return response()->json(new PdvSaleResource($model));
     }
 
     // ─── DETALHE DE CLIENTE (JSON) ────────────────────────
@@ -328,7 +323,7 @@ class PdvController extends Controller
 
         $model->load(['sales' => fn ($q) => $q->latest()->limit(20)->with('payments')]);
 
-        return response()->json($model->append(['fiado_balance']));
+        return response()->json(new PdvCustomerResource($model));
     }
 
     // ─── ATUALIZAR CLIENTE ────────────────────────────────
@@ -354,7 +349,7 @@ class PdvController extends Controller
 
         $model->update($validator->validated());
 
-        return response()->json(['success' => true, 'customer' => $model]);
+        return response()->json(['success' => true, 'customer' => new PdvCustomerResource($model)]);
     }
 
     /**

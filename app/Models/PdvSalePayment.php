@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PdvSalePayment extends Model
 {
+    protected $hidden = [
+        'cash_movement_id',
+    ];
+
     protected $fillable = [
         'pdv_sale_id',
         'payment_method',
