@@ -18,6 +18,9 @@ class CheckAnyRole
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
         if (!$request->user()) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Não autenticado.'], 401);
+            }
             return redirect('/login')->with('error', 'Você precisa estar autenticado.');
         }
 
@@ -33,9 +36,19 @@ class CheckAnyRole
             return $next($request);
         }
 
+        // Resolve o tenant da rota (modelo vinculado) antes de cair na sessão
+        $routeTenant = $request->route('tenant');
+        $tenantId = ($routeTenant instanceof \App\Models\Tenant)
+            ? $routeTenant->id
+            : session('tenant_id');
+
         // Verifica roles no tenant atual (pivot)
-        if ($user->hasRoleInTenant($roles)) {
+        if ($user->hasRoleInTenant($roles, $tenantId)) {
             return $next($request);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Você não tem permissão para acessar esta área.'], 403);
         }
 
         return redirect('/')->with('error', 'Você não tem permissão para acessar esta área.');

@@ -68,7 +68,7 @@
     <div class="bento-card col-span-full lg:col-span-4">
         <h2 class="font-bold mb-4" style="font-size: 1.25rem;">⚡ Ação Rápida</h2>
         <a href="{{ $tenantSlug ? route('cashier.create', ['tenant' => $tenantSlug]) : url('/') }}" class="btn btn-primary" style="width:100%;justify-content:center;padding:1rem;font-size:1.125rem;">
-            🛒 Nova Venda
+            � Nova Venda
         </a>
 
         <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:1px solid var(--border-color, #e5e7eb);">

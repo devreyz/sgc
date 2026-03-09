@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -95,9 +96,17 @@ class AdminPanelProvider extends PanelProvider
                 'Compras Coletivas',
                 'Serviços',
                 'Estoque',
+                'PDV',
                 'Sistema',
             ])
             ->sidebarCollapsibleOnDesktop()
+            ->navigationItems([
+                NavigationItem::make('Abrir PDV')
+                    ->url(fn (): string => session('tenant_slug') ? '/' . session('tenant_slug') . '/pdv' : '#', shouldOpenInNewTab: true)
+                    ->icon('heroicon-o-computer-desktop')
+                    ->group('PDV')
+                    ->sort(1),
+            ])
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])

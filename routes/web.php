@@ -9,7 +9,7 @@ use App\Http\Controllers\MemberCardValidationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Cashier\CashierController;
+use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
@@ -111,16 +111,26 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
     });
 
-    // Cashier Portal Routes (POS - Quick Sales)
-    Route::prefix('cashier')->name('cashier.')->middleware(['any.role:operador_caixa,financeiro'])->group(function () {
-        Route::get('/dashboard', [CashierController::class, 'index'])->name('dashboard');
-        Route::get('/new', [CashierController::class, 'create'])->name('create');
-        Route::post('/new', [CashierController::class, 'store'])->name('store');
-        Route::get('/confirm/{sale}', [CashierController::class, 'confirm'])->name('confirm');
-        Route::post('/confirm/{sale}', [CashierController::class, 'storeConfirm'])->name('storeConfirm');
-        Route::post('/cancel/{sale}', [CashierController::class, 'cancel'])->name('cancel');
-        Route::get('/history', [CashierController::class, 'history'])->name('history');
-        Route::get('/product/{product}/price', [CashierController::class, 'getProductPrice'])->name('product.price');
+    // PDV (Point of Sale) Routes
+    Route::prefix('pdv')->name('pdv.')->middleware(['any.role:operador_caixa,financeiro'])->group(function () {
+        Route::get('/', [PdvController::class, 'index'])->name('index');
+        Route::get('/history', [PdvController::class, 'history'])->name('history');
+
+        // API endpoints (JSON)
+        Route::get('/products', [PdvController::class, 'products'])->name('products');
+        Route::get('/search', [PdvController::class, 'searchProducts'])->name('search');
+        Route::post('/sale', [PdvController::class, 'completeSale'])->name('sale');
+        Route::post('/sale/{sale}/cancel', [PdvController::class, 'cancelSale'])->name('sale.cancel');
+        Route::get('/stats', [PdvController::class, 'stats'])->name('stats');
+        Route::get('/customers', [PdvController::class, 'customers'])->name('customers');
+        Route::post('/customers', [PdvController::class, 'storeCustomer'])->name('customers.store');
+        Route::get('/fiado', [PdvController::class, 'fiadoPending'])->name('fiado');
+        Route::post('/fiado/{sale}/pay', [PdvController::class, 'payFiado'])->name('fiado.pay');
+        Route::get('/history-api', [PdvController::class, 'historyApi'])->name('history.api');
+        Route::get('/sale/{sale}/receipt', [PdvController::class, 'receipt'])->name('sale.receipt');
+        Route::get('/sale/{sale}/detail', [PdvController::class, 'saleDetail'])->name('sale.detail');
+        Route::get('/customers/{customer}', [PdvController::class, 'getCustomer'])->name('customers.get');
+        Route::put('/customers/{customer}', [PdvController::class, 'updateCustomer'])->name('customers.update');
     });
 
 });

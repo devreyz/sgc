@@ -92,10 +92,10 @@ class HubController extends Controller
 
         if ($user->hasRoleInTenant(['operador_caixa', 'financeiro'], $currentTenant->id)) {
             $roles[] = [
-                'name' => 'Caixa (Vendas Rápidas)',
-                'description' => 'Registrar vendas e controlar caixa',
-                'icon' => 'shopping-cart',
-                'url' => route('cashier.dashboard', ['tenant' => $currentTenant->slug]),
+                'name' => 'PDV - Ponto de Venda',
+                'description' => 'Sistema de vendas e controle de caixa',
+                'icon' => 'monitor',
+                'url' => route('pdv.index', ['tenant' => $currentTenant->slug]),
                 'color' => 'success',
             ];
         }
