@@ -286,8 +286,10 @@
         </tbody>
     </table>
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         {{ config('app.name', 'SGC') }} - Sistema de Gestão de Cooperativas | Página 1
     </div>
+    @endunless
 </body>
 </html>

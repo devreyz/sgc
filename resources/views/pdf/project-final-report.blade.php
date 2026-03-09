@@ -182,8 +182,10 @@
         <div class="signature-line">Responsável Comprador</div>
     </div>
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         SGC - Sistema de Gestão Cooperativa | Relatório Final do Projeto | {{ $generated_at }}
     </div>
+    @endunless
 </body>
 </html>

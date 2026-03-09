@@ -237,7 +237,8 @@ class LedgerEntriesRelationManager extends RelationManager
                             'balance' => $this->ownerRecord->current_balance,
                         ];
 
-                        $pdf = Pdf::loadView('pdf.associate-statement', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.associate-statement', [
                             'associate' => $this->ownerRecord,
                             'entries' => $entries,
                             'totals' => $totals,
@@ -247,7 +248,7 @@ class LedgerEntriesRelationManager extends RelationManager
                             ],
                             'generated_at' => now()->format('d/m/Y H:i'),
                             'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                        ]);
+                        ], $svc->systemPdfOptions('pdf.associate-statement', 'Extrato de Conta'));
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();

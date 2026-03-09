@@ -27,6 +27,9 @@ class DocumentTemplateResource extends Resource
     protected static ?string $pluralModelLabel = 'Modelos de Documentos';
     protected static ?int $navigationSort = 10;
 
+    // Esconde da navegação — substituído pelos dois sub-resources
+    protected static bool $shouldRegisterNavigation = false;
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -45,6 +48,8 @@ class DocumentTemplateResource extends Resource
                         ->required()
                         ->default('custom')
                         ->live()
+                        ->disabled(fn ($record) => $record && $record->isSystem())
+                        ->dehydrated()
                         ->helperText('PDF do Sistema: seções/colunas configuráveis. Personalizado: editor livre.'),
 
                     Forms\Components\Select::make('type')
@@ -75,14 +80,16 @@ class DocumentTemplateResource extends Resource
                         )
                         ->required()
                         ->live()
+                        ->disabled(fn ($record) => $record && $record->isSystem())
+                        ->dehydrated()
                         ->helperText('Selecione qual PDF do sistema este modelo configurará.'),
                 ])
                 ->visible(fn (Get $get) => $get('template_category') === 'system')
                 ->columns(1),
 
-            // ═══ Layout: header & footer ═══
-            Forms\Components\Section::make('Layout: Cabeçalho e Rodapé')
-                ->description('Escolha layouts personalizados de cabeçalho e rodapé.')
+            // ═══ Layout: header, footer, cover & back-cover ═══
+            Forms\Components\Section::make('Layout do Documento')
+                ->description('Escolha layouts de cabeçalho, rodapé, capa e contracapa. Crie modelos em "Layouts de PDF" no menu.')
                 ->schema([
                     Forms\Components\Select::make('header_layout_id')
                         ->label('Cabeçalho')
@@ -108,6 +115,30 @@ class DocumentTemplateResource extends Resource
                         ->searchable()
                         ->placeholder('Padrão do Sistema'),
 
+                    Forms\Components\Select::make('cover_layout_id')
+                        ->label('Capa')
+                        ->options(fn () => PdfLayoutTemplate::active()
+                            ->covers()
+                            ->pluck('name', 'id')
+                            ->prepend('— Sem Capa —', '')
+                            ->toArray()
+                        )
+                        ->default('')
+                        ->searchable()
+                        ->placeholder('Sem Capa'),
+
+                    Forms\Components\Select::make('back_cover_layout_id')
+                        ->label('Contracapa')
+                        ->options(fn () => PdfLayoutTemplate::active()
+                            ->backCovers()
+                            ->pluck('name', 'id')
+                            ->prepend('— Sem Contracapa —', '')
+                            ->toArray()
+                        )
+                        ->default('')
+                        ->searchable()
+                        ->placeholder('Sem Contracapa'),
+
                     Forms\Components\Select::make('paper_size')
                         ->label('Tamanho do Papel')
                         ->options(DocumentTemplate::PAPER_SIZES)
@@ -117,6 +148,12 @@ class DocumentTemplateResource extends Resource
                         ->label('Orientação')
                         ->options(DocumentTemplate::PAPER_ORIENTATIONS)
                         ->default('portrait'),
+
+                    Forms\Components\Select::make('color_theme')
+                        ->label('Tema de Cor')
+                        ->options(DocumentTemplate::COLOR_THEMES)
+                        ->default('org')
+                        ->helperText('Cores que serão usadas ao gerar o PDF.'),
                 ])
                 ->columns(4),
 
@@ -260,7 +297,7 @@ class DocumentTemplateResource extends Resource
     {
         $groups = DocumentTemplate::getAvailableVariables();
         $html = '<div class="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm">';
-        $html .= '<p class="font-bold text-blue-700 dark:text-blue-300 mb-2">��� Variáveis do Sistema disponíveis</p>';
+        $html .= '<p class="font-bold text-blue-700 dark:text-blue-300 mb-2">��� Variáveis do Sistema disponíveis</p>';
         $html .= '<div class="grid grid-cols-3 gap-1 text-xs">';
         foreach ($groups as $group => $vars) {
             $html .= '<div class="col-span-3 font-semibold text-blue-600 dark:text-blue-400 mt-2">' . $group . '</div>';
@@ -315,6 +352,13 @@ class DocumentTemplateResource extends Resource
                     ->label('Ativo')
                     ->boolean(),
 
+                Tables\Columns\TextColumn::make('deleted_at')
+                    ->label('Excluído em')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->placeholder('—'),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Atualizado')
                     ->dateTime('d/m/Y H:i')
@@ -336,6 +380,26 @@ class DocumentTemplateResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
             ])
             ->actions([
+                Tables\Actions\Action::make('toggle_active')
+                    ->label(fn ($record) => $record->is_active ? 'Desativar' : 'Ativar')
+                    ->icon(fn ($record) => $record->is_active ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
+                    ->color(fn ($record) => $record->is_active ? 'danger' : 'success')
+                    ->requiresConfirmation()
+                    ->hidden(fn ($record) => $record->trashed())
+                    ->action(function ($record) {
+                        if (!$record->is_active) {
+                            // Deactivate others with same key when activating
+                            if ($record->system_template_key) {
+                                DocumentTemplate::where('system_template_key', $record->system_template_key)
+                                    ->where('template_category', 'system')
+                                    ->where('tenant_id', $record->tenant_id)
+                                    ->where('id', '!=', $record->id)
+                                    ->update(['is_active' => false]);
+                            }
+                        }
+                        $record->update(['is_active' => !$record->is_active]);
+                    }),
+
                 Tables\Actions\Action::make('preview')
                     ->label('Pré-vis.')
                     ->icon('heroicon-o-eye')
@@ -365,11 +429,14 @@ class DocumentTemplateResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\RestoreAction::make(),
+                Tables\Actions\ForceDeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('updated_at', 'desc');

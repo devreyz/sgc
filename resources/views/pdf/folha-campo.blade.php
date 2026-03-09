@@ -34,6 +34,7 @@
     </style>
 </head>
 <body>
+    @unless($suppress_internal_header ?? false)
     @if($tenant)
     <div class="org-header">
         <div class="org-header-left">
@@ -57,6 +58,7 @@
         <p>Data: {{ $date }} | Gerado em: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
     @endif
+    @endunless
 
     <div class="info-box">
         <table>
@@ -165,8 +167,10 @@
         <div class="signature-line">Responsável pela Cooperativa</div>
     </div>
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         SGC - Sistema de Gestão Cooperativa | Folha de Campo | {{ $date }}
     </div>
+    @endunless
 </body>
 </html>

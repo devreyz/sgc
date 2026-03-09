@@ -26,12 +26,15 @@ class DocumentTemplate extends Model
         'created_by',
         'header_layout_id',
         'footer_layout_id',
+        'cover_layout_id',
+        'back_cover_layout_id',
         'visible_sections',
         'visible_columns',
         'custom_fields',
         'paper_size',
         'paper_orientation',
         'section_order',
+        'color_theme',
     ];
 
     protected function casts(): array
@@ -75,6 +78,35 @@ class DocumentTemplate extends Model
         'portrait'  => 'Retrato',
         'landscape' => 'Paisagem',
     ];
+
+    // Color themes for PDF generation
+    const COLOR_THEMES = [
+        'org'     => 'Cores da Organização',
+        'blue'    => 'Azul',
+        'green'   => 'Verde',
+        'teal'    => 'Teal',
+        'purple'  => 'Roxo',
+        'orange'  => 'Laranja',
+        'red'     => 'Vermelho',
+        'gray'    => 'Cinza',
+        'dark'    => 'Escuro',
+    ];
+
+    // Color theme primary/accent definitions
+    public static function getThemeColors(string $theme, ?string $orgPrimary = null, ?string $orgAccent = null): array
+    {
+        return match ($theme) {
+            'blue'   => ['primary' => '#1e40af', 'accent' => '#3b82f6'],
+            'green'  => ['primary' => '#065f46', 'accent' => '#10b981'],
+            'teal'   => ['primary' => '#0f766e', 'accent' => '#14b8a6'],
+            'purple' => ['primary' => '#6b21a8', 'accent' => '#a855f7'],
+            'orange' => ['primary' => '#c2410c', 'accent' => '#f97316'],
+            'red'    => ['primary' => '#991b1b', 'accent' => '#ef4444'],
+            'gray'   => ['primary' => '#374151', 'accent' => '#6b7280'],
+            'dark'   => ['primary' => '#111827', 'accent' => '#1f2937'],
+            default  => ['primary' => $orgPrimary ?? '#1e40af', 'accent' => $orgAccent ?? '#3b82f6'],
+        };
+    }
 
     // Custom field types
     const FIELD_TYPES = [

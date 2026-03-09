@@ -154,9 +154,11 @@
         </tbody>
     </table>
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         <p>Documento gerado pelo Sistema de Gestão de Cooperativa (SGC)</p>
         <p>{{ now()->format('d/m/Y H:i:s') }}</p>
     </div>
+    @endunless
 </body>
 </html>

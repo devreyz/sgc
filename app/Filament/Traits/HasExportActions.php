@@ -142,12 +142,16 @@ trait HasExportActions
     {
         $data = static::prepareExportData($records, $columns);
         
-        $pdf = Pdf::loadView('pdf.generic-export', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.generic-export', [
             'title' => $title,
             'columns' => $columns,
             'data' => $data,
             'generatedAt' => now()->format('d/m/Y H:i'),
-        ])->setPaper('a4', 'landscape');
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.generic-export', $title),
+            ['paper' => 'a4', 'orientation' => 'landscape']
+        ));
 
         return response()->streamDownload(
             fn () => print($pdf->output()),

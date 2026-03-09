@@ -832,7 +832,8 @@ class DeliveryRegistrationController extends Controller
             'total_net' => $deliveries->sum('net_value'),
         ];
 
-        $pdf = Pdf::loadView('pdf.deliveries-by-associate', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Associado',
             'subtitle' => request('project_id') ? ($filters['project'] ?? '') : null,
@@ -840,7 +841,10 @@ class DeliveryRegistrationController extends Controller
             'filters' => $filters,
             'groups' => $groups,
             'totals' => $totals,
-        ])->setPaper('a4', 'landscape');
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.deliveries-by-associate', 'Relatório de Entregas por Associado'),
+            ['paper' => 'a4', 'orientation' => 'landscape']
+        ));
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
@@ -891,7 +895,8 @@ class DeliveryRegistrationController extends Controller
             'total_net' => $deliveries->sum('net_value'),
         ];
 
-        $pdf = Pdf::loadView('pdf.deliveries-by-product', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Produto',
             'subtitle' => request('project_id') ? ($filters['project'] ?? '') : null,
@@ -899,7 +904,10 @@ class DeliveryRegistrationController extends Controller
             'filters' => $filters,
             'groups' => $groups,
             'totals' => $totals,
-        ])->setPaper('a4', 'landscape');
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.deliveries-by-product', 'Relatório de Entregas por Produto'),
+            ['paper' => 'a4', 'orientation' => 'landscape']
+        ));
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
@@ -969,7 +977,8 @@ class DeliveryRegistrationController extends Controller
             ];
         })->values()->all();
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'title' => 'Comprovante de Entrega',
             'subtitle' => $project->title,
@@ -979,7 +988,10 @@ class DeliveryRegistrationController extends Controller
             'deliveries' => $deliveries,
             'summary' => $summary,
             'productsSummary' => $productsSummary,
-        ])->setPaper('a4', 'portrait');
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.project-associate-receipt', 'Comprovante de Entrega'),
+            ['paper' => 'a4', 'orientation' => 'portrait']
+        ));
 
         $safeName = str_replace(' ', '-', mb_strtolower($associate->user->name ?? 'associado'));
 

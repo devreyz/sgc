@@ -133,8 +133,10 @@
     </div>
     @endif
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         SGC - Sistema de Gestão Cooperativa | {{ $title ?? 'Relatório de Entregas' }} | {{ $generated_at }}
     </div>
+    @endunless
 </body>
 </html>

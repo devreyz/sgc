@@ -663,7 +663,8 @@ class ProductionDeliveryResource extends Resource
                         $tenantId = session('tenant_id');
                         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
-                        $pdf = Pdf::loadView('pdf.deliveries-report-v2', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.deliveries-report-v2', [
                             'tenant' => $tenant,
                             'deliveries' => $deliveries,
                             'columns' => $data['columns'],
@@ -675,7 +676,10 @@ class ProductionDeliveryResource extends Resource
                                 'net' => $deliveries->sum('net_value'),
                                 'quantity' => $deliveries->sum('quantity'),
                             ],
-                        ])->setPaper('a4', 'landscape');
+                        ], array_merge(
+                            $svc->systemPdfOptions('pdf.deliveries-report-v2', 'Relatório de Entregas'),
+                            ['paper' => 'a4', 'orientation' => 'landscape']
+                        ));
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
@@ -793,7 +797,8 @@ class ProductionDeliveryResource extends Resource
                             $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
                         }
 
-                        $pdf = Pdf::loadView('pdf.deliveries-by-associate', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
                             'tenant'       => $tenant,
                             'title'        => 'Relatório de Entregas Avulsas por Associado',
                             'subtitle'     => 'Entregas não vinculadas a projetos',
@@ -801,7 +806,10 @@ class ProductionDeliveryResource extends Resource
                             'filters'      => $filters,
                             'groups'       => $groups,
                             'totals'       => $totals,
-                        ])->setPaper('a4', 'landscape');
+                        ], array_merge(
+                            $svc->systemPdfOptions('pdf.deliveries-by-associate', 'Entregas por Associado'),
+                            ['paper' => 'a4', 'orientation' => 'landscape']
+                        ));
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
@@ -889,7 +897,8 @@ class ProductionDeliveryResource extends Resource
                             $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
                         }
 
-                        $pdf = Pdf::loadView('pdf.deliveries-by-product', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
                             'tenant'       => $tenant,
                             'title'        => 'Relatório de Entregas Avulsas por Produto',
                             'subtitle'     => 'Entregas não vinculadas a projetos',
@@ -897,7 +906,10 @@ class ProductionDeliveryResource extends Resource
                             'filters'      => $filters,
                             'groups'       => $groups,
                             'totals'       => $totals,
-                        ])->setPaper('a4', 'landscape');
+                        ], array_merge(
+                            $svc->systemPdfOptions('pdf.deliveries-by-product', 'Entregas por Produto'),
+                            ['paper' => 'a4', 'orientation' => 'landscape']
+                        ));
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();

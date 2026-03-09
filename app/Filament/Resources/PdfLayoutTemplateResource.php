@@ -23,7 +23,7 @@ class PdfLayoutTemplateResource extends Resource
     protected static ?string $navigationGroup = 'Sistema';
     protected static ?string $modelLabel = 'Layout de PDF';
     protected static ?string $pluralModelLabel = 'Layouts de PDF (Cabeçalho/Rodapé)';
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 12;
 
     public static function form(Form $form): Form
     {
@@ -53,6 +53,17 @@ class PdfLayoutTemplateResource extends Resource
                     Forms\Components\Toggle::make('is_active')
                         ->label('Ativo')
                         ->default(true),
+
+                    Forms\Components\TextInput::make('estimated_height_mm')
+                        ->label('Altura estimada (mm)')
+                        ->numeric()
+                        ->integer()
+                        ->default(20)
+                        ->minValue(10)
+                        ->maxValue(80)
+                        ->suffix('mm')
+                        ->helperText('Altura aproximada renderizada. Usada para calcular a margem superior/inferior da página e evitar sobreposição com o conteúdo. Aumente para cabeçalhos com logo + múltiplas linhas.')
+                        ->columnSpan(2),
                 ])
                 ->columns(4),
 
@@ -110,10 +121,12 @@ class PdfLayoutTemplateResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn ($state) => PdfLayoutTemplate::LAYOUT_TYPES[$state] ?? $state)
                     ->color(fn ($state) => match ($state) {
-                        'header' => 'primary',
-                        'footer' => 'success',
-                        'both'   => 'warning',
-                        default  => 'gray',
+                        'header'     => 'primary',
+                        'footer'     => 'success',
+                        'both'       => 'warning',
+                        'cover'      => 'info',
+                        'back_cover' => 'danger',
+                        default      => 'gray',
                     }),
 
                 Tables\Columns\IconColumn::make('is_default')
@@ -154,6 +167,14 @@ class PdfLayoutTemplateResource extends Resource
 
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
+                Tables\Actions\RestoreAction::make(),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\RestoreBulkAction::make(),
+                    Tables\Actions\ForceDeleteBulkAction::make(),
+                ]),
             ])
             ->defaultSort('updated_at', 'desc');
     }

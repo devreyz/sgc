@@ -1,8 +1,18 @@
 @extends('pdf.partials.header')
 
 @section('content')
+@php
+    // Support both legacy $columns array and new visible_columns system
+    $vs = $visible_sections ?? null;
+    $vc = $visible_columns ?? null;
+    $showSection = fn(string $k) => $vs === null || in_array($k, $vs);
+    // $columns is the export column selector; $visible_columns overrides if set
+    $colsToShow = $vc ?? $columns ?? ['delivery_date','associate','product','quantity','gross_value','admin_fee','net_value','status'];
+    $showCol = fn(string $k) => in_array($k, $colsToShow);
+@endphp
+
 {{-- ═══ FILTROS / CONTEXTO ═══ --}}
-@if(isset($filters) && count(array_filter($filters ?? [])))
+@if($showSection('filters') && isset($filters) && count(array_filter($filters ?? [])))
 <div class="info-box mb-2">
     <table>
         <tr>
@@ -18,56 +28,57 @@
 @endif
 
 {{-- ═══ TABELA DE ENTREGAS ═══ --}}
+@if($showSection('deliveries'))
 <table class="data-table">
     <thead>
         <tr>
-            @if(in_array('delivery_date', $columns))<th>Data</th>@endif
-            @if(in_array('project', $columns))<th>Projeto</th>@endif
-            @if(in_array('associate', $columns))<th>Produtor</th>@endif
-            @if(in_array('product', $columns))<th>Produto</th>@endif
-            @if(in_array('quantity', $columns))<th class="text-right">Qtd</th>@endif
-            @if(in_array('unit_price', $columns))<th class="text-right">Preço Un.</th>@endif
-            @if(in_array('gross_value', $columns))<th class="text-right">V. Bruto</th>@endif
-            @if(in_array('admin_fee', $columns))<th class="text-right">Taxa Admin</th>@endif
-            @if(in_array('net_value', $columns))<th class="text-right">V. Líquido</th>@endif
-            @if(in_array('quality', $columns))<th class="text-center">Qualidade</th>@endif
-            @if(in_array('status', $columns))<th class="text-center">Status</th>@endif
+            @if($showCol('delivery_date'))<th>Data</th>@endif
+            @if($showCol('project'))<th>Projeto</th>@endif
+            @if($showCol('associate'))<th>Produtor</th>@endif
+            @if($showCol('product'))<th>Produto</th>@endif
+            @if($showCol('quantity'))<th class="text-right">Qtd</th>@endif
+            @if($showCol('unit_price'))<th class="text-right">Preço Un.</th>@endif
+            @if($showCol('gross_value'))<th class="text-right">V. Bruto</th>@endif
+            @if($showCol('admin_fee'))<th class="text-right">Taxa Admin</th>@endif
+            @if($showCol('net_value'))<th class="text-right">V. Líquido</th>@endif
+            @if($showCol('quality'))<th class="text-center">Qualidade</th>@endif
+            @if($showCol('status'))<th class="text-center">Status</th>@endif
         </tr>
     </thead>
     <tbody>
         @forelse ($deliveries as $delivery)
         <tr>
-            @if(in_array('delivery_date', $columns))
+            @if($showCol('delivery_date'))
                 <td>{{ $delivery->delivery_date?->format('d/m/Y') ?? '—' }}</td>
             @endif
-            @if(in_array('project', $columns))
+            @if($showCol('project'))
                 <td>{{ $delivery->salesProject->title ?? '—' }}</td>
             @endif
-            @if(in_array('associate', $columns))
+            @if($showCol('associate'))
                 <td>{{ $delivery->associate->user->name ?? '—' }}</td>
             @endif
-            @if(in_array('product', $columns))
+            @if($showCol('product'))
                 <td>{{ $delivery->product->name ?? '—' }}</td>
             @endif
-            @if(in_array('quantity', $columns))
+            @if($showCol('quantity'))
                 <td class="text-right">{{ number_format($delivery->quantity, 2, ',', '.') }} {{ $delivery->product->unit ?? '' }}</td>
             @endif
-            @if(in_array('unit_price', $columns))
+            @if($showCol('unit_price'))
                 <td class="text-right">R$ {{ number_format($delivery->unit_price, 2, ',', '.') }}</td>
             @endif
-            @if(in_array('gross_value', $columns))
+            @if($showCol('gross_value'))
                 <td class="text-right">R$ {{ number_format($delivery->gross_value, 2, ',', '.') }}</td>
             @endif
-            @if(in_array('admin_fee', $columns))
+            @if($showCol('admin_fee'))
                 <td class="text-right">R$ {{ number_format($delivery->admin_fee_amount ?? 0, 2, ',', '.') }}</td>
             @endif
-            @if(in_array('net_value', $columns))
+            @if($showCol('net_value'))
                 <td class="text-right">R$ {{ number_format($delivery->net_value ?? 0, 2, ',', '.') }}</td>
             @endif
-            @if(in_array('quality', $columns))
+            @if($showCol('quality'))
                 <td class="text-center">{{ $delivery->quality_grade ?? '—' }}</td>
             @endif
-            @if(in_array('status', $columns))
+            @if($showCol('status'))
                 <td class="text-center">
                     @php
                         $statusClass = match($delivery->status->value) {
@@ -83,16 +94,17 @@
         </tr>
         @empty
         <tr>
-            <td colspan="{{ count($columns) }}" class="text-center" style="padding:20px; color:#999;">
+            <td colspan="{{ count($colsToShow) }}" class="text-center" style="padding:20px; color:#999;">
                 Nenhuma entrega encontrada
             </td>
         </tr>
         @endforelse
     </tbody>
 </table>
+@endif
 
 {{-- ═══ TOTAIS ═══ --}}
-@if(isset($totals))
+@if($showSection('totals') && isset($totals))
 <div class="totals-box">
     <table>
         <tr>

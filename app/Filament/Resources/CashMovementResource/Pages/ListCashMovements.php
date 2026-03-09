@@ -91,7 +91,8 @@ class ListCashMovements extends ListRecords
                     ];
 
                     if ($data['format'] === 'pdf') {
-                        $pdf = Pdf::loadView('pdf.cash-movement-report', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.cash-movement-report', [
                             'movements' => $movements,
                             'totals' => $totals,
                             'period' => $period,
@@ -103,7 +104,10 @@ class ListCashMovements extends ListRecords
                                 : 'Todos',
                             'generated_at' => now()->format('d/m/Y H:i'),
                             'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                        ])->setPaper('a4', 'landscape');
+                        ], array_merge(
+                            $svc->systemPdfOptions('pdf.cash-movement-report', 'Relatório de Movimentos de Caixa'),
+                            ['paper' => 'a4', 'orientation' => 'landscape']
+                        ));
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();

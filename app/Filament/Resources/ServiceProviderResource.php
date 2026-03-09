@@ -325,7 +325,8 @@ class ServiceProviderResource extends Resource
                         $works = $query->orderBy('service_provider_id')->orderBy('work_date')->get();
                         $grouped = $works->groupBy('service_provider_id');
 
-                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.service-providers-report', [
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.service-providers-report', [
                             'grouped' => $grouped,
                             'start_date' => \Carbon\Carbon::parse($data['start_date'])->format('d/m/Y'),
                             'end_date' => \Carbon\Carbon::parse($data['end_date'])->format('d/m/Y'),
@@ -335,7 +336,7 @@ class ServiceProviderResource extends Resource
                             'total_paid' => $works->where('payment_status', 'pago')->sum('total_value'),
                             'generated_at' => now()->format('d/m/Y H:i'),
                             'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                        ]);
+                        ], $svc->systemPdfOptions('pdf.service-providers-report', 'Rel. Prestadores de Serviço'));
 
                         return response()->streamDownload(function () use ($pdf) {
                             echo $pdf->output();

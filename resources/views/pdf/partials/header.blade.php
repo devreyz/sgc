@@ -1,10 +1,14 @@
 @php
     $tenant = $tenant ?? null;
-    $primaryColor = $tenant->primary_color ?? '#1e40af';
-    $secondaryColor = $tenant->secondary_color ?? '#1e3a5f';
-    $accentColor = $tenant->accent_color ?? '#3b82f6';
+    // Allow callers to pass explicit theme colors (overrides tenant colors)
+    $primaryColor = $primaryColor ?? $tenant->primary_color ?? '#1e40af';
+    $secondaryColor = $secondaryColor ?? $tenant->secondary_color ?? '#1e3a5f';
+    $accentColor = $accentColor ?? $tenant->accent_color ?? '#3b82f6';
     $logoPath = $tenant && $tenant->logo ? public_path('storage/' . $tenant->logo) : null;
     $hasLogo = $logoPath && file_exists($logoPath);
+    // Suppress flags used by generateSystemPdf() to avoid duplicate header/footer
+    $suppress_internal_header = $suppress_internal_header ?? false;
+    $suppress_internal_footer = $suppress_internal_footer ?? false;
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -21,6 +25,7 @@
             font-size: 9px;
             color: #1f2937;
             line-height: 1.4;
+            padding: 14mm 12mm;
         }
 
         /* ── Header with branding ── */
@@ -146,32 +151,49 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 14px;
-            font-size: 8.5px;
+            font-size: 8px;
+            table-layout: fixed;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         table.data-table thead th {
             background: {{ $primaryColor }};
             color: #fff;
-            padding: 6px 8px;
+            padding: 5px 4px;
             text-align: left;
-            font-size: 8px;
+            font-size: 7px;
             text-transform: uppercase;
             letter-spacing: 0.3px;
             font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        table.data-table thead th.text-right { text-align: right; }
+        table.data-table thead th.text-center { text-align: center; }
         table.data-table tbody td {
-            padding: 5px 8px;
+            padding: 4px 4px;
             border-bottom: 1px solid #e5e7eb;
-            font-size: 8.5px;
+            font-size: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+        table.data-table tbody td.text-right { text-align: right; }
+        table.data-table tbody td.text-center { text-align: center; }
         table.data-table tbody tr:nth-child(even) { background: #f9fafb; }
         table.data-table tbody tr:hover { background: #f3f4f6; }
         table.data-table tfoot td {
             background: #f1f5f9;
-            padding: 6px 8px;
+            padding: 5px 4px;
             font-weight: bold;
-            font-size: 9px;
+            font-size: 8px;
             border-top: 2px solid {{ $primaryColor }};
         }
+        table.data-table tfoot td.text-right { text-align: right; }
+
+        /* ── Compact Table variant ── */
+        table.data-table.compact thead th { padding: 3px 3px; font-size: 6.5px; }
+        table.data-table.compact tbody td { padding: 3px 3px; font-size: 7px; }
+        table.data-table.compact tfoot td { padding: 3px 3px; font-size: 7px; }
 
         /* ── Group Header (for grouped reports) ── */
         .group-header {
@@ -313,6 +335,7 @@
 </head>
 <body>
     {{-- ═══ HEADER ═══ --}}
+    @unless($suppress_internal_header)
     <div class="pdf-header">
         @if($hasLogo)
         <div class="pdf-header-logo">
@@ -343,10 +366,12 @@
             <div class="doc-date">Gerado em: {{ $generated_at ?? now()->format('d/m/Y H:i') }}</div>
         </div>
     </div>
+    @endunless
 
     @yield('content')
 
     {{-- ═══ FOOTER ═══ --}}
+    @unless($suppress_internal_footer)
     <div class="pdf-footer">
         <span class="footer-org">{{ $tenant->name ?? 'SGC' }}</span>
         @if($tenant && $tenant->cnpj) — CNPJ: {{ $tenant->cnpj }} @endif
@@ -354,6 +379,9 @@
         {{ $title ?? 'Relatório' }} — Gerado em {{ $generated_at ?? now()->format('d/m/Y H:i') }}
         <br>
         <span style="font-size:6px;">SGC — Sistema de Gestão Cooperativa</span>
+        <br>
+        Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span>
     </div>
+    @endunless
 </body>
 </html>

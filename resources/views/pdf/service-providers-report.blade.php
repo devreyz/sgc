@@ -39,6 +39,7 @@
     </style>
 </head>
 <body>
+    @unless($suppress_internal_header ?? false)
     @if($tenant)
     <div class="org-header">
         <div class="org-header-left">
@@ -61,6 +62,7 @@
         <p>Período: {{ $start_date }} a {{ $end_date }} | Gerado em: {{ $generated_at }}</p>
     </div>
     @endif
+    @endunless
 
     <div class="summary">
         <table>
@@ -131,8 +133,10 @@
         </div>
     @endforeach
 
+    @unless($suppress_internal_footer ?? false)
     <div class="footer">
         SGC - Sistema de Gestão Cooperativa | Relatório de Prestadores | {{ $generated_at }}
     </div>
+    @endunless
 </body>
 </html>

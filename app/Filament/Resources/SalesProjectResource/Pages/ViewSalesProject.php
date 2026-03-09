@@ -23,6 +23,7 @@ class ViewSalesProject extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            // ── Ação principal do projeto ──
             Actions\Action::make('finalize')
                 ->label('Finalizar Projeto')
                 ->icon('heroicon-o-check-badge')
@@ -75,11 +76,10 @@ class ViewSalesProject extends ViewRecord
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
-                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::ACTIVE
-                ),
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::ACTIVE),
 
             Actions\Action::make('reopen')
-                ->label('Reabrir Projeto')
+                ->label('Reabrir')
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->requiresConfirmation()
@@ -99,43 +99,152 @@ class ViewSalesProject extends ViewRecord
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
-                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED
-                ),
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED),
 
-            Actions\Action::make('finalReport')
-                ->label('Relatório Final')
+            // ── Grupo: Relatórios PDF ──
+            Actions\ActionGroup::make([
+                Actions\Action::make('finalReport')
+                    ->label('Relatório Final')
+                    ->icon('heroicon-o-document-chart-bar')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data inicial (filtro)')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data final (filtro)')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                    ])
+                    ->action(fn (SalesProject $record, array $data) => $this->generateFinalReport($record, $data))
+                    ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED),
+
+                Actions\Action::make('generateFolhaCampo')
+                    ->label('Folha de Campo')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data inicial (filtro)')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data final (filtro)')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                    ])
+                    ->action(function (SalesProject $record, array $data) {
+                        $demands = $record->demands()->with('product')->get();
+                        $associates = \App\Models\Associate::with('user')->get();
+                        $tmplCfg = $this->getTemplateConfig('folha_campo', ['paper_orientation' => 'portrait']);
+
+                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $svc->generateSystemPdf('pdf.folha-campo', [
+                            'project' => $record,
+                            'demands' => $demands,
+                            'associates' => $associates,
+                            'date' => now()->format('d/m/Y'),
+                            'date_from' => $data['date_from'] ?? null,
+                            'date_to' => $data['date_to'] ?? null,
+                            'tenant' => \App\Models\Tenant::find(session('tenant_id')),
+                            'visible_sections' => $tmplCfg['visible_sections'],
+                            'visible_columns' => $tmplCfg['visible_columns'],
+                        ], [
+                            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
+                            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
+                            'paper' => $tmplCfg['paper_size'],
+                            'orientation' => $tmplCfg['paper_orientation'],
+                            'title' => 'Folha de Campo',
+                            'primary_color' => $tmplCfg['primary_color'],
+                            'accent_color' => $tmplCfg['accent_color'],
+                        ]);
+
+                        return Response::streamDownload(function () use ($pdf) {
+                            echo $pdf->output();
+                        }, 'folha-campo-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
+                    }),
+
+                Actions\Action::make('reportByAssociate')
+                    ->label('PDF por Associado')
+                    ->icon('heroicon-o-user-group')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data inicial')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data final')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\Select::make('associate_id')
+                            ->label('Associado (opcional)')
+                            ->options(fn (SalesProject $record) => \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                                ->whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
+                                ->with('user')
+                                ->get()
+                                ->pluck('user.name', 'id')
+                            )
+                            ->searchable()
+                            ->placeholder('Todos'),
+                    ])
+                    ->action(fn (SalesProject $record, array $data) => $this->generateProjectReportByAssociate($record, $data)),
+
+                Actions\Action::make('reportByProduct')
+                    ->label('PDF por Produto')
+                    ->icon('heroicon-o-shopping-bag')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data inicial')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data final')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\Select::make('product_id')
+                            ->label('Produto (opcional)')
+                            ->options(fn (SalesProject $record) => \App\Models\Product::whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
+                                ->pluck('name', 'id')
+                            )
+                            ->searchable()
+                            ->placeholder('Todos'),
+                    ])
+                    ->action(fn (SalesProject $record, array $data) => $this->generateProjectReportByProduct($record, $data)),
+
+                Actions\Action::make('receiptByAssociate')
+                    ->label('Comprovante Associado')
+                    ->icon('heroicon-o-document-check')
+                    ->color('warning')
+                    ->form(function (SalesProject $record): array {
+                        $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                            ->whereHas('productionDeliveries', fn ($q) => $q
+                                ->where('sales_project_id', $record->id)
+                                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                            )
+                            ->with('user')
+                            ->get()
+                            ->pluck('user.name', 'id');
+
+                        return [
+                            Forms\Components\Select::make('associate_id')
+                                ->label('Associado')
+                                ->options($associates)
+                                ->required()
+                                ->searchable()
+                                ->placeholder('Selecione o associado'),
+                        ];
+                    })
+                    ->action(function (SalesProject $record, array $data) {
+                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id']);
+                    }),
+            ])
+                ->label('Relatórios PDF')
                 ->icon('heroicon-o-document-chart-bar')
-                ->color('gray')
-                ->action(fn (SalesProject $record) => $this->generateFinalReport($record))
-                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED
-                ),
-
-            Actions\Action::make('generateFolhaCampo')
-                ->label('Folha de Campo')
-                ->icon('heroicon-o-document-arrow-down')
                 ->color('info')
-                ->action(function (SalesProject $record) {
-                    $demands = $record->demands()->with('product')->get();
-                    $associates = \App\Models\Associate::with('user')->get();
-                    $tmplCfg = $this->getTemplateConfig('folha_campo', ['paper_orientation' => 'portrait']);
+                ->button(),
 
-                    $pdf = Pdf::loadView('pdf.folha-campo', [
-                        'project' => $record,
-                        'demands' => $demands,
-                        'associates' => $associates,
-                        'date' => now()->format('d/m/Y'),
-                        'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                        'visible_sections' => $tmplCfg['visible_sections'],
-                        'visible_columns' => $tmplCfg['visible_columns'],
-                    ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
-
-                    return Response::streamDownload(function () use ($pdf) {
-                        echo $pdf->output();
-                    }, 'folha-campo-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
-                }),
-
+            // ── Exportar ──
             Actions\Action::make('exportDeliveries')
-                ->label('Exportar Entregas')
+                ->label('Exportar')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('gray')
                 ->form([
@@ -155,6 +264,14 @@ class ViewSalesProject extends ViewRecord
                         ])
                         ->default(['delivery_date', 'associate', 'product', 'quantity', 'gross_value', 'admin_fee', 'net_value', 'status'])
                         ->columns(2),
+                    Forms\Components\DatePicker::make('date_from')
+                        ->label('Data inicial (filtro)')
+                        ->displayFormat('d/m/Y')
+                        ->placeholder('Sem filtro'),
+                    Forms\Components\DatePicker::make('date_to')
+                        ->label('Data final (filtro)')
+                        ->displayFormat('d/m/Y')
+                        ->placeholder('Sem filtro'),
                     Forms\Components\Select::make('format')
                         ->label('Formato')
                         ->options([
@@ -166,7 +283,7 @@ class ViewSalesProject extends ViewRecord
                 ])
                 ->action(function (SalesProject $record, array $data) {
                     if ($data['format'] === 'pdf') {
-                        return $this->exportDeliveriesPdf($record, $data['columns']);
+                        return $this->exportDeliveriesPdf($record, $data['columns'], $data);
                     }
 
                     return \Maatwebsite\Excel\Facades\Excel::download(
@@ -175,61 +292,32 @@ class ViewSalesProject extends ViewRecord
                     );
                 }),
 
-            Actions\Action::make('reportByAssociate')
-                ->label('PDF por Associado')
-                ->icon('heroicon-o-user-group')
-                ->color('info')
-                ->action(fn (SalesProject $record) => $this->generateProjectReportByAssociate($record)),
-
-            Actions\Action::make('reportByProduct')
-                ->label('PDF por Produto')
-                ->icon('heroicon-o-shopping-bag')
-                ->color('info')
-                ->action(fn (SalesProject $record) => $this->generateProjectReportByProduct($record)),
-
-            Actions\Action::make('receiptByAssociate')
-                ->label('Comprovante Associado')
-                ->icon('heroicon-o-document-check')
-                ->color('warning')
-                ->form(function (SalesProject $record): array {
-                    $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
-                        ->whereHas('productionDeliveries', fn ($q) => $q
-                            ->where('sales_project_id', $record->id)
-                            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-                        )
-                        ->with('user')
-                        ->get()
-                        ->pluck('user.name', 'id');
-
-                    return [
-                        Forms\Components\Select::make('associate_id')
-                            ->label('Associado')
-                            ->options($associates)
-                            ->required()
-                            ->searchable()
-                            ->placeholder('Selecione o associado'),
-                    ];
-                })
-                ->action(function (SalesProject $record, array $data) {
-                    return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id']);
-                }),
-
             Actions\EditAction::make()
-                ->visible(fn (SalesProject $record): bool => $record->status !== ProjectStatus::COMPLETED
-                ),
+                ->visible(fn (SalesProject $record): bool => $record->status !== ProjectStatus::COMPLETED),
         ];
     }
 
-    protected function generateProjectReportByAssociate(SalesProject $record): mixed
+    protected function generateProjectReportByAssociate(SalesProject $record, array $filters = []): mixed
     {
         $tenantId = session('tenant_id');
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
-        $deliveries = $record->deliveries()
+        $query = $record->deliveries()
             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
             ->with(['associate.user', 'product'])
-            ->orderBy('delivery_date')
-            ->get();
+            ->orderBy('delivery_date');
+
+        if (!empty($filters['date_from'])) {
+            $query->where('delivery_date', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->where('delivery_date', '<=', $filters['date_to']);
+        }
+        if (!empty($filters['associate_id'])) {
+            $query->where('associate_id', $filters['associate_id']);
+        }
+
+        $deliveries = $query->get();
 
         $grouped = $deliveries->groupBy('associate_id');
         $groups = [];
@@ -275,33 +363,59 @@ class ViewSalesProject extends ViewRecord
 
         $tmplCfg = $this->getTemplateConfig('deliveries_associate', ['paper_orientation' => 'landscape']);
 
-        $pdf = Pdf::loadView('pdf.deliveries-by-associate', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Associado',
             'subtitle' => $record->title,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters' => ['project' => $record->title],
+            'filters' => [
+                'project' => $record->title,
+                'date_from' => !empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => !empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+            ],
             'groups' => $groups,
             'totals' => $totals,
             'visible_sections' => $tmplCfg['visible_sections'],
             'visible_columns' => $tmplCfg['visible_columns'],
-        ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
+            'primaryColor' => $tmplCfg['primary_color'],
+            'accentColor'  => $tmplCfg['accent_color'],
+        ], [
+            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
+            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
+            'paper' => $tmplCfg['paper_size'],
+            'orientation' => $tmplCfg['paper_orientation'],
+            'title' => 'Relatório de Entregas por Associado',
+            'primary_color' => $tmplCfg['primary_color'],
+            'accent_color'  => $tmplCfg['accent_color'],
+        ]);
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, 'entregas-associados-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 
-    protected function generateProjectReportByProduct(SalesProject $record): mixed
+    protected function generateProjectReportByProduct(SalesProject $record, array $filters = []): mixed
     {
         $tenantId = session('tenant_id');
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
-        $deliveries = $record->deliveries()
+        $query = $record->deliveries()
             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
             ->with(['associate.user', 'product'])
-            ->orderBy('delivery_date')
-            ->get();
+            ->orderBy('delivery_date');
+
+        if (!empty($filters['date_from'])) {
+            $query->where('delivery_date', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->where('delivery_date', '<=', $filters['date_to']);
+        }
+        if (!empty($filters['product_id'])) {
+            $query->where('product_id', $filters['product_id']);
+        }
+
+        $deliveries = $query->get();
 
         $grouped = $deliveries->groupBy('product_id');
         $groups = [];
@@ -347,17 +461,32 @@ class ViewSalesProject extends ViewRecord
 
         $tmplCfg = $this->getTemplateConfig('deliveries_product', ['paper_orientation' => 'landscape']);
 
-        $pdf = Pdf::loadView('pdf.deliveries-by-product', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Produto',
             'subtitle' => $record->title,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters' => ['project' => $record->title],
+            'filters' => [
+                'project' => $record->title,
+                'date_from' => !empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => !empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+            ],
             'groups' => $groups,
             'totals' => $totals,
             'visible_sections' => $tmplCfg['visible_sections'],
             'visible_columns' => $tmplCfg['visible_columns'],
-        ])->setPaper($tmplCfg['paper_size'], $tmplCfg['paper_orientation']);
+            'primaryColor' => $tmplCfg['primary_color'],
+            'accentColor'  => $tmplCfg['accent_color'],
+        ], [
+            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
+            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
+            'paper' => $tmplCfg['paper_size'],
+            'orientation' => $tmplCfg['paper_orientation'],
+            'title' => 'Relatório de Entregas por Produto',
+            'primary_color' => $tmplCfg['primary_color'],
+            'accent_color'  => $tmplCfg['accent_color'],
+        ]);
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -410,7 +539,10 @@ class ViewSalesProject extends ViewRecord
             ];
         })->values()->all();
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $tmplCfg = $this->getTemplateConfig('project_associate_receipt', ['paper_orientation' => 'portrait']);
+
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'title' => 'Comprovante de Entrega',
             'subtitle' => $record->title,
@@ -420,7 +552,19 @@ class ViewSalesProject extends ViewRecord
             'deliveries' => $deliveries,
             'summary' => $summary,
             'productsSummary' => $productsSummary,
-        ])->setPaper('a4', 'portrait');
+            'visible_sections' => $tmplCfg['visible_sections'],
+            'visible_columns' => $tmplCfg['visible_columns'],
+            'primaryColor' => $tmplCfg['primary_color'],
+            'accentColor' => $tmplCfg['accent_color'],
+        ], [
+            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
+            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
+            'paper' => $tmplCfg['paper_size'],
+            'orientation' => $tmplCfg['paper_orientation'],
+            'title' => 'Comprovante de Entrega',
+            'primary_color' => $tmplCfg['primary_color'],
+            'accent_color'  => $tmplCfg['accent_color'],
+        ]);
 
         $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
 
@@ -429,7 +573,7 @@ class ViewSalesProject extends ViewRecord
         }, "comprovante-{$safeName}-projeto-{$record->id}.pdf", ['Content-Type' => 'application/pdf']);
     }
 
-    protected function generateFinalReport(SalesProject $record)
+    protected function generateFinalReport(SalesProject $record, array $filters = [])
     {
         $record->load([
             'customer',
@@ -476,7 +620,8 @@ class ViewSalesProject extends ViewRecord
         $tenantId = session('tenant_id');
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
-        $pdf = Pdf::loadView('pdf.project-final-report-v2', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.project-final-report-v2', [
             'tenant' => $tenant,
             'title' => 'Relatório Final do Projeto',
             'subtitle' => $record->title,
@@ -485,7 +630,7 @@ class ViewSalesProject extends ViewRecord
             'demandsSummary' => $demandsSummary,
             'totals' => $totals,
             'generated_at' => now()->format('d/m/Y H:i'),
-        ]);
+        ], $svc->systemPdfOptions('pdf.project-final-report-v2', 'Relatório Final'));
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
@@ -500,34 +645,59 @@ class ViewSalesProject extends ViewRecord
         $tmpl = TemplatedPdfService::getActiveSystemTemplate($systemKey);
         if ($tmpl) {
             $def = $tmpl->getSystemDefinition();
+            $tenantId = session('tenant_id');
+            $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+            $theme = $tmpl->color_theme ?? 'org';
+            $themeColors = \App\Models\DocumentTemplate::getThemeColors(
+                $theme,
+                $tenant?->primary_color,
+                $tenant?->accent_color
+            );
 
             return [
-                'visible_sections' => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
-                'visible_columns' => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
-                'paper_size' => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
-                'paper_orientation' => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
+                'visible_sections'   => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
+                'visible_columns'    => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
+                'paper_size'         => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
+                'paper_orientation'  => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
+                'primary_color'      => $themeColors['primary'],
+                'accent_color'       => $themeColors['accent'],
+                'header_layout_id'   => $tmpl->header_layout_id,
+                'footer_layout_id'   => $tmpl->footer_layout_id,
             ];
         }
 
         return array_merge([
-            'visible_sections' => null,
-            'visible_columns' => null,
-            'paper_size' => 'a4',
+            'visible_sections'  => null,
+            'visible_columns'   => null,
+            'paper_size'        => 'a4',
             'paper_orientation' => 'landscape',
+            'primary_color'     => null,
+            'accent_color'      => null,
+            'header_layout_id'  => null,
+            'footer_layout_id'  => null,
         ], $defaults);
     }
 
-    protected function exportDeliveriesPdf(SalesProject $record, array $columns)
+    protected function exportDeliveriesPdf(SalesProject $record, array $columns, array $filters = [])
     {
-        $deliveries = $record->deliveries()
+        $query = $record->deliveries()
             ->with(['associate.user', 'product'])
-            ->orderBy('delivery_date', 'desc')
-            ->get();
+            ->orderBy('delivery_date', 'desc');
+
+        if (!empty($filters['date_from'])) {
+            $query->where('delivery_date', '>=', $filters['date_from']);
+        }
+        if (!empty($filters['date_to'])) {
+            $query->where('delivery_date', '<=', $filters['date_to']);
+        }
+
+        $deliveries = $query->get();
 
         $tenantId = session('tenant_id');
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
 
-        $pdf = Pdf::loadView('pdf.deliveries-report-v2', [
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.deliveries-report-v2', [
             'tenant' => $tenant,
             'deliveries' => $deliveries,
             'columns' => $columns,
@@ -539,7 +709,10 @@ class ViewSalesProject extends ViewRecord
                 'net' => $deliveries->sum('net_value'),
                 'quantity' => $deliveries->sum('quantity'),
             ],
-        ])->setPaper('a4', 'landscape');
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.deliveries-report-v2', 'Relatório de Entregas'),
+            ['paper' => 'a4', 'orientation' => 'landscape']
+        ));
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();

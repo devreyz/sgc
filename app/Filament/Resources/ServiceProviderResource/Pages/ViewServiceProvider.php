@@ -39,7 +39,8 @@ class ViewServiceProvider extends ViewRecord
                         ->orderBy('work_date')
                         ->get();
 
-                    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.service-provider-statement', [
+                    $svc = app(\App\Services\TemplatedPdfService::class);
+                    $pdf = $svc->generateSystemPdf('pdf.service-provider-statement', [
                         'provider' => $record,
                         'works' => $works,
                         'start_date' => \Carbon\Carbon::parse($data['start_date'])->format('d/m/Y'),
@@ -49,7 +50,7 @@ class ViewServiceProvider extends ViewRecord
                         'total_paid' => $works->where('payment_status', 'pago')->sum('total_value'),
                         'generated_at' => now()->format('d/m/Y H:i'),
                         'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                    ]);
+                    ], $svc->systemPdfOptions('pdf.service-provider-statement', 'Extrato de Serviços'));
 
                     return response()->streamDownload(function () use ($pdf) {
                         echo $pdf->output();

@@ -10,6 +10,7 @@ use App\Enums\ProjectType;
 use App\Filament\Resources\SalesProjectResource\Pages;
 use App\Filament\Resources\SalesProjectResource\RelationManagers;
 use App\Filament\Traits\HasExportActions;
+use App\Filament\Traits\TenantScoped;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ProjectPayment;
@@ -23,12 +24,11 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
-use App\Filament\Traits\TenantScoped;
 
 class SalesProjectResource extends Resource
 {
-    use TenantScoped;
     use HasExportActions;
+    use TenantScoped;
 
     protected static ?string $model = SalesProject::class;
 
