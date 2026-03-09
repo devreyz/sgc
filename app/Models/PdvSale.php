@@ -94,13 +94,17 @@ class PdvSale extends Model
         if ($this->customer) {
             return $this->customer->name;
         }
+
         return $this->customer_name ?? 'Consumidor';
     }
 
     public function getFiadoRemainingAttribute(): float
     {
-        if (!$this->is_fiado) return 0;
+        if (! $this->is_fiado) {
+            return 0;
+        }
         $paid = (float) $this->fiadoPayments()->sum('amount');
+
         return max(0, (float) $this->total - (float) $this->amount_paid - $paid);
     }
 
