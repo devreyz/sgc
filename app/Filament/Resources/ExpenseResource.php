@@ -12,6 +12,7 @@ use App\Models\CashMovement;
 use App\Models\Equipment;
 use App\Models\Expense;
 use App\Models\SalesProject;
+use App\Models\ServiceOrder;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -118,8 +119,8 @@ class ExpenseResource extends Resource
                             ->relationship('bankAccount', 'name')
                             ->searchable()
                             ->preload()
-                            ->required()
-                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id),
+                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
+                            ->helperText('Pode ser definido na hora do pagamento'),
 
                         Forms\Components\Select::make('payment_method')
                             ->label('Forma de Pagamento')
@@ -138,6 +139,9 @@ class ExpenseResource extends Resource
                         Forms\Components\MorphToSelect::make('expenseable')
                             ->label('Vincular a')
                             ->types([
+                                Forms\Components\MorphToSelect\Type::make(ServiceOrder::class)
+                                    ->titleAttribute('number')
+                                    ->label('Ordem de Serviço'),
                                 Forms\Components\MorphToSelect\Type::make(Asset::class)
                                     ->titleAttribute('name')
                                     ->label('Patrimônio'),
@@ -199,6 +203,30 @@ class ExpenseResource extends Resource
                     ->label('Fornecedor')
                     ->searchable()
                     ->limit(20),
+
+                Tables\Columns\TextColumn::make('expenseable_type')
+                    ->label('Vinculado a')
+                    ->formatStateUsing(function (?string $state, Expense $record): string {
+                        if (!$state) return '—';
+                        $label = match ($state) {
+                            ServiceOrder::class => 'OS',
+                            Asset::class => 'Patrimônio',
+                            Equipment::class => 'Equipamento',
+                            SalesProject::class => 'Projeto',
+                            User::class => 'Usuário',
+                            default => class_basename($state),
+                        };
+                        $name = $record->expenseable?->number ?? $record->expenseable?->name ?? $record->expenseable?->title ?? "#{$record->expenseable_id}";
+                        return "{$label}: {$name}";
+                    })
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        ServiceOrder::class => 'primary',
+                        Asset::class => 'info',
+                        SalesProject::class => 'warning',
+                        default => $state ? 'gray' : 'gray',
+                    })
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('amount')
                     ->label('Valor')

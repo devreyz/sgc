@@ -20,6 +20,8 @@
 /storage/pail
 /storage/framework/
 /storage/logs
+/storage/app/private
+/storage/app/public
 /storage/oauth-private.key
 /storage/oauth-public.key
 /storage/app/public

@@ -844,6 +844,24 @@ class ServiceOrderResource extends Resource
                         $record->provider_remaining > 0
                     ),
 
+                // ── GERAR PDF ──
+                Tables\Actions\Action::make('generatePdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->action(function (ServiceOrder $record) {
+                        $record->load(['associate.user', 'service', 'serviceProvider', 'asset', 'additions']);
+                        $tenant = \App\Models\Tenant::find(session('tenant_id'));
+                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.service-order', [
+                            'order' => $record,
+                            'tenant' => $tenant,
+                        ])->setPaper('a4', 'portrait');
+                        return response()->streamDownload(
+                            fn () => print($pdf->output()),
+                            "OS-{$record->number}.pdf"
+                        );
+                    }),
+
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])

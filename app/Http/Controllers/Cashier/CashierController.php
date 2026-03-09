@@ -104,33 +104,77 @@ class CashierController extends Controller
         }
 
         $validated = $request->validate([
-            'product_id'     => 'required|exists:products,id',
-            'quantity'        => 'required|numeric|min:0.001',
-            'unit_price'      => 'required|numeric|min:0.01',
-            'payment_method'  => 'required|in:dinheiro,pix,cartao_debito,cartao_credito,boleto,outro',
-            'customer_name'   => 'nullable|string|max:255',
-            'notes'           => 'nullable|string|max:1000',
+            'items'            => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.quantity'   => 'required|numeric|min:0.001',
+            'items.*.unit_price' => 'required|numeric|min:0.01',
+            'payment_method'   => 'required|in:dinheiro,pix,cartao_debito,cartao_credito,boleto,outro',
+            'customer_name'    => 'nullable|string|max:255',
+            'notes'            => 'nullable|string|max:1000',
         ]);
 
-        $product = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
+        $batchId = now()->format('YmdHis') . '-' . Auth::id();
+        $createdSales = [];
 
-        $sale = QuickSale::create([
-            'tenant_id'      => $tenantId,
-            'product_id'     => $product->id,
-            'quantity'        => $validated['quantity'],
-            'unit_price'      => $validated['unit_price'],
-            'total_value'     => round($validated['quantity'] * $validated['unit_price'], 2),
-            'payment_method'  => $validated['payment_method'],
-            'status'          => 'pending',
-            'sale_date'       => today(),
-            'notes'           => trim(($validated['customer_name'] ? "Cliente: {$validated['customer_name']}\n" : '') . ($validated['notes'] ?? '')),
-            'created_by'      => Auth::id(),
-        ]);
+        DB::transaction(function () use ($validated, $tenantId, $batchId, &$createdSales) {
+            foreach ($validated['items'] as $item) {
+                $product = Product::where('tenant_id', $tenantId)->findOrFail($item['product_id']);
 
-        return redirect()->route('cashier.confirm', [
-            'tenant' => $this->routeTenantSlug(),
-            'sale'   => $sale->id,
-        ])->with('success', 'Venda criada! Confirme para baixar o estoque.');
+                $sale = QuickSale::create([
+                    'tenant_id'      => $tenantId,
+                    'product_id'     => $product->id,
+                    'quantity'        => $item['quantity'],
+                    'unit_price'      => $item['unit_price'],
+                    'total_value'     => round($item['quantity'] * $item['unit_price'], 2),
+                    'payment_method'  => $validated['payment_method'],
+                    'status'          => 'pending',
+                    'sale_date'       => today(),
+                    'notes'           => trim(
+                        ($validated['customer_name'] ? "Cliente: {$validated['customer_name']}\n" : '') .
+                        ($validated['notes'] ?? '') .
+                        "\nLote: {$batchId}"
+                    ),
+                    'created_by'      => Auth::id(),
+                ]);
+                $createdSales[] = $sale;
+            }
+        });
+
+        // Auto-confirmar todas as vendas do lote
+        $errors = [];
+        foreach ($createdSales as $sale) {
+            try {
+                DB::transaction(function () use ($sale) {
+                    $stockService = app(StockService::class);
+                    $movement = $stockService->exit(
+                        $sale->product,
+                        (float) $sale->quantity,
+                        StockMovementReason::VENDA,
+                        $sale,
+                        ['notes' => "Venda rápida (caixa) #{$sale->id}"]
+                    );
+                    $sale->update([
+                        'status'            => 'confirmed',
+                        'stock_movement_id' => $movement->id,
+                        'confirmed_by'      => \Illuminate\Support\Facades\Auth::id(),
+                        'confirmed_at'      => now(),
+                    ]);
+                });
+            } catch (\Exception $e) {
+                $errors[] = "{$sale->product->name}: {$e->getMessage()}";
+            }
+        }
+
+        if (!empty($errors)) {
+            return redirect()->route('cashier.dashboard', ['tenant' => $this->routeTenantSlug()])
+                ->with('warning', 'Vendas criadas, mas com erros: ' . implode('; ', $errors));
+        }
+
+        $total = collect($createdSales)->sum(fn ($s) => $s->total_value);
+        $count = count($createdSales);
+
+        return redirect()->route('cashier.dashboard', ['tenant' => $this->routeTenantSlug()])
+            ->with('success', "{$count} produto(s) vendido(s) — Total: R$ " . number_format($total, 2, ',', '.'));
     }
 
     // =========================================================================

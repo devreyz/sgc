@@ -3,17 +3,18 @@
         {{-- Cards de resumo no topo --}}
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             @php
-                $completed = \App\Models\ServiceOrder::where('status', \App\Enums\ServiceOrderStatus::COMPLETED)->count();
-                $pendingFromAssociates = \App\Models\ServiceOrder::where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
+                $tenantId = session('tenant_id');
+                $completed = \App\Models\ServiceOrder::where('tenant_id', $tenantId)->where('status', \App\Enums\ServiceOrderStatus::COMPLETED)->count();
+                $pendingFromAssociates = \App\Models\ServiceOrder::where('tenant_id', $tenantId)->where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
                     ->where('associate_payment_status', 'pending')
-                    ->sum(\Illuminate\Support\Facades\DB::raw('final_price'));
-                $pendingToProviders = \App\Models\ServiceOrder::where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
+                    ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(final_price, 0)'));
+                $pendingToProviders = \App\Models\ServiceOrder::where('tenant_id', $tenantId)->where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
                     ->where('associate_payment_status', 'paid')
                     ->where('provider_payment_status', 'pending')
-                    ->sum('provider_payment');
-                $totalProfit = \App\Models\ServiceOrder::where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
+                    ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(provider_payment, 0)'));
+                $totalProfit = \App\Models\ServiceOrder::where('tenant_id', $tenantId)->where('status', \App\Enums\ServiceOrderStatus::COMPLETED)
                     ->where('associate_payment_status', 'paid')
-                    ->sum(\Illuminate\Support\Facades\DB::raw('final_price - provider_payment'));
+                    ->sum(\Illuminate\Support\Facades\DB::raw('COALESCE(final_price, 0) - COALESCE(provider_payment, 0)'));
             @endphp
 
             <div class="rounded-lg bg-white p-6 shadow dark:bg-gray-800">

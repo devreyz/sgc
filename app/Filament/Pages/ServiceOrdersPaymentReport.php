@@ -40,7 +40,7 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
                 ServiceOrder::query()
                     ->where('tenant_id', $tenantId)
                     ->where('status', ServiceOrderStatus::COMPLETED)
-                    ->with(['associate.user', 'service', 'works.serviceProvider'])
+                    ->with(['associate.user', 'service', 'serviceProvider', 'works.serviceProvider'])
                     ->latest('execution_date')
             )
             ->columns([
@@ -61,6 +61,11 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
 
                 TextColumn::make('service.name')
                     ->label('Serviço')
+                    ->searchable()
+                    ->limit(20),
+
+                TextColumn::make('serviceProvider.name')
+                    ->label('Prestador')
                     ->searchable()
                     ->limit(20),
 
@@ -88,15 +93,15 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
                     ->label('Lucro Cooperativa')
                     ->money('BRL')
                     ->state(function (ServiceOrder $record): float {
-                        return $record->final_price - $record->provider_payment;
+                        return (float) $record->final_price - (float) $record->provider_payment;
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query->orderByRaw("(final_price - provider_payment) {$direction}");
+                        return $query->orderByRaw("(final_price - COALESCE(provider_payment, 0)) {$direction}");
                     })
                     ->summarize([
-                        \Filament\Tables\Columns\Summarizers\Sum::make()
+                        \Filament\Tables\Columns\Summarizers\Summarizer::make()
+                            ->using(fn (\Illuminate\Database\Query\Builder $query): float => (float) $query->sum(DB::raw('final_price - COALESCE(provider_payment, 0)')))
                             ->money('BRL')
-                            ->using(fn ($query) => $query->sum(DB::raw('final_price - provider_payment')))
                             ->label('Total'),
                     ]),
 
@@ -187,6 +192,12 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
                 SelectFilter::make('service_id')
                     ->label('Serviço')
                     ->relationship('service', 'name')
+                    ->searchable()
+                    ->preload(),
+
+                SelectFilter::make('service_provider_id')
+                    ->label('Prestador')
+                    ->relationship('serviceProvider', 'name')
                     ->searchable()
                     ->preload(),
             ])
