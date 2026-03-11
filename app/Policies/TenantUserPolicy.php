@@ -43,35 +43,35 @@ class TenantUserPolicy
     }
 
     /**
-     * Vínculos NUNCA podem ser apagados, apenas desativados.
+     * Determine whether the user can delete the model.
      */
     public function delete(User $user, TenantUser $tenantUser): bool
     {
-        return false;
+        return $user->can('delete_tenant::user');
     }
 
     /**
-     * Vínculos NUNCA podem ser apagados em massa.
+     * Determine whether the user can bulk delete.
      */
     public function deleteAny(User $user): bool
     {
-        return false;
+        return $user->can('delete_any_tenant::user');
     }
 
     /**
-     * Vínculos NUNCA podem ser apagados permanentemente.
+     * Determine whether the user can permanently delete.
      */
     public function forceDelete(User $user, TenantUser $tenantUser): bool
     {
-        return false;
+        return $user->can('force_delete_tenant::user');
     }
 
     /**
-     * Vínculos NUNCA podem ser apagados permanentemente em massa.
+     * Determine whether the user can permanently bulk delete.
      */
     public function forceDeleteAny(User $user): bool
     {
-        return false;
+        return $user->can('force_delete_any_tenant::user');
     }
 
     /**
@@ -91,18 +91,18 @@ class TenantUserPolicy
     }
 
     /**
-     * Vínculos não podem ser replicados.
+     * Determine whether the user can replicate.
      */
     public function replicate(User $user, TenantUser $tenantUser): bool
     {
-        return false;
+        return $user->can('replicate_tenant::user');
     }
 
     /**
-     * Vínculos não podem ser reordenados.
+     * Determine whether the user can reorder.
      */
     public function reorder(User $user): bool
     {
-        return false;
+        return $user->can('reorder_tenant::user');
     }
 }

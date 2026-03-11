@@ -4,22 +4,34 @@ namespace App\Filament\Pages;
 
 use App\Models\PdvSale;
 use App\Models\Product;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
 
 class PdvDashboardPage extends Page
 {
+    use HasPageShield;
+
     protected static string $view = 'filament.pages.pdv-dashboard';
+
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
+
     protected static ?string $navigationGroup = 'PDV';
+
     protected static ?string $navigationLabel = 'Dashboard PDV';
+
     protected static ?string $title = 'Dashboard PDV';
+
     protected static ?int $navigationSort = 5;
 
     public array $stats = [];
+
     public array $topProducts = [];
+
     public array $paymentBreakdown = [];
+
     public array $weeklyChart = [];
+
     public int $period = 30; // dias
 
     public function mount(): void
@@ -35,7 +47,9 @@ class PdvDashboardPage extends Page
     private function loadData(): void
     {
         $tenantId = session('tenant_id');
-        if (!$tenantId) return;
+        if (! $tenantId) {
+            return;
+        }
 
         $from = now()->subDays((int) $this->period)->startOfDay();
         $today = today();
@@ -59,19 +73,19 @@ class PdvDashboardPage extends Page
         $fiadoTotalRemaining = $fiadoSales->sum(fn ($s) => $s->fiado_remaining);
 
         $this->stats = [
-            'total_today'     => (float) $todaySales->sum('total'),
-            'count_today'     => (int)   $todaySales->count(),
-            'ticket_today'    => $todaySales->count() > 0
+            'total_today' => (float) $todaySales->sum('total'),
+            'count_today' => (int) $todaySales->count(),
+            'ticket_today' => $todaySales->count() > 0
                 ? (float) $todaySales->sum('total') / $todaySales->count()
                 : 0,
-            'total_period'    => (float) $periodSales->sum('total'),
-            'count_period'    => (int)   $periodSales->count(),
-            'fiado_amount'    => $fiadoTotalRemaining,
-            'fiado_count'     => (int)   $fiadoPending->count(),
-            'low_stock'       => (int)   Product::where('tenant_id', $tenantId)
-                                            ->where('status', true)
-                                            ->whereColumn('current_stock', '<=', 'min_stock')
-                                            ->count(),
+            'total_period' => (float) $periodSales->sum('total'),
+            'count_period' => (int) $periodSales->count(),
+            'fiado_amount' => $fiadoTotalRemaining,
+            'fiado_count' => (int) $fiadoPending->count(),
+            'low_stock' => (int) Product::where('tenant_id', $tenantId)
+                ->where('status', true)
+                ->whereColumn('current_stock', '<=', 'min_stock')
+                ->count(),
         ];
 
         // Top 5 produtos mais vendidos no período
@@ -107,16 +121,11 @@ class PdvDashboardPage extends Page
                 ->where('status', 'completed')
                 ->whereDate('created_at', $date)
                 ->sum('total');
+
             return [
-                'date'  => $date->format('d/m'),
+                'date' => $date->format('d/m'),
                 'total' => (float) $total,
             ];
         })->toArray();
-    }
-
-    public static function canAccess(): bool
-    {
-        if (!auth()->check()) return false;
-        return auth()->user()->hasAnyRole(['super_admin', 'admin', 'operador_caixa', 'financeiro']);
     }
 }

@@ -100,13 +100,7 @@ class AdminPanelProvider extends PanelProvider
                 'Sistema',
             ])
             ->sidebarCollapsibleOnDesktop()
-            ->navigationItems([
-                NavigationItem::make('Abrir PDV')
-                    ->url(fn (): string => session('tenant_slug') ? '/' . session('tenant_slug') . '/pdv' : '#', shouldOpenInNewTab: true)
-                    ->icon('heroicon-o-computer-desktop')
-                    ->group('PDV')
-                    ->sort(1),
-            ])
+            ->databaseNotifications()
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])

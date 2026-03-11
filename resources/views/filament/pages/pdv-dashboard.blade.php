@@ -135,9 +135,60 @@
         .quick-action-icon { width: 2rem; height: 2rem; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; }
     </style>
 
+    <style>
+        /* Dark theme overrides */
+        .dark .pdv-stat-card,
+        [data-theme="dark"] .pdv-stat-card {
+            background: #0b1220; /* darker panel bg */
+            border-color: rgba(148,163,184,0.06);
+        }
+        .dark .pdv-panel,
+        [data-theme="dark"] .pdv-panel {
+            background: #061226;
+            border-color: rgba(148,163,184,0.06);
+        }
+        .dark .pdv-stat-card .stat-label,
+        [data-theme="dark"] .pdv-stat-card .stat-label,
+        .dark .chart-label,
+        [data-theme="dark"] .chart-label {
+            color: rgba(203,213,225,0.8);
+        }
+        .dark .pdv-stat-card .stat-sub,
+        [data-theme="dark"] .pdv-stat-card .stat-sub {
+            color: rgba(148,163,184,0.9);
+        }
+        .dark .pdv-stat-card .stat-value,
+        [data-theme="dark"] .pdv-stat-card .stat-value {
+            color: #e6f4ff;
+        }
+        .dark .chart-bar::after,
+        [data-theme="dark"] .chart-bar::after {
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .dark .period-btn,
+        [data-theme="dark"] .period-btn {
+            border-color: rgba(148,163,184,0.06);
+            color: rgba(203,213,225,0.9);
+        }
+        .dark .period-btn.active,
+        [data-theme="dark"] .period-btn.active {
+            background: #1f2937;
+            color: #fff;
+            border-color: #111827;
+        }
+        .pdv-theme-toggle {
+            margin-left: auto; display:inline-flex; align-items:center; gap:0.5rem;
+        }
+        .pdv-theme-toggle button { background: transparent; border: none; cursor: pointer; color: inherit }
+    </style>
+
     {{-- Seletor de período --}}
     <div class="period-selector">
         <span style="font-size:0.875rem;color:rgb(var(--gray-500));align-self:center">Período:</span>
+        <div class="pdv-theme-toggle" role="group" aria-label="Tema">
+            <button id="pdv-theme-toggle" title="Alternar tema">🌙</button>
+        </div>
         @foreach([7 => '7 dias', 15 => '15 dias', 30 => '30 dias', 60 => '60 dias', 90 => '90 dias'] as $days => $label)
         <button
             wire:click="$set('period', {{ $days }})"
@@ -190,6 +241,36 @@
             <div class="stat-sub">{{ ($stats['low_stock'] ?? 0) > 0 ? 'Atenção necessária' : 'Estoque OK' }}</div>
         </div>
     </div>
+
+    <script>
+        (function(){
+            const toggle = document.getElementById('pdv-theme-toggle');
+            if (!toggle) return;
+
+            const apply = (mode) => {
+                const html = document.documentElement;
+                if (mode === 'dark') {
+                    html.classList.add('dark');
+                    html.setAttribute('data-theme','dark');
+                    toggle.textContent = '☀️';
+                } else {
+                    html.classList.remove('dark');
+                    html.setAttribute('data-theme','light');
+                    toggle.textContent = '🌙';
+                }
+            };
+
+            const saved = localStorage.getItem('pdv_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            apply(saved);
+
+            toggle.addEventListener('click', function(){
+                const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                localStorage.setItem('pdv_theme', next);
+                apply(next);
+            });
+        })();
+    </script>
 
     {{-- Linha período --}}
     <div style="margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: rgb(var(--gray-50)); border-radius: 0.5rem; border: 1px solid rgb(var(--gray-200));">

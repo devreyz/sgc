@@ -9,12 +9,12 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 class OrganizationSettingsPage extends Page implements HasForms
 {
     use InteractsWithForms;
+    use HasPageShield;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
@@ -29,24 +29,6 @@ class OrganizationSettingsPage extends Page implements HasForms
     protected static ?int $navigationSort = 5;
 
     public ?array $data = [];
-
-    public static function canAccess(): bool
-    {
-        /** @var \App\Models\User|null $user */
-        $user = Auth::user();
-
-        if (! $user) {
-            return false;
-        }
-
-        // super_admin nunca usa este painel (ele tem o painel dedicado)
-        if ($user->hasRole('super_admin')) {
-            return false;
-        }
-
-        // Apenas o role admin da organização tem acesso
-        return $user->hasRole('admin');
-    }
 
     public function mount(): void
     {

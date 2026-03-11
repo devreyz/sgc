@@ -3,10 +3,10 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\DocumentTemplate;
+use App\Models\PdfLayoutTemplate;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
-class DocumentTemplatePolicy
+class PdfLayoutTemplatePolicy
 {
     use HandlesAuthorization;
 
@@ -15,15 +15,15 @@ class DocumentTemplatePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_system::pdf');
+        return $user->can('view_any_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, DocumentTemplate $documentTemplate): bool
+    public function view(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('view_system::pdf');
+        return $user->can('view_pdf::layout::template');
     }
 
     /**
@@ -31,23 +31,23 @@ class DocumentTemplatePolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_system::pdf');
+        return $user->can('create_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can update the model.
      */
-    public function update(User $user, DocumentTemplate $documentTemplate): bool
+    public function update(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('update_system::pdf');
+        return $user->can('update_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can delete the model.
      */
-    public function delete(User $user, DocumentTemplate $documentTemplate): bool
+    public function delete(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('delete_system::pdf');
+        return $user->can('delete_pdf::layout::template');
     }
 
     /**
@@ -55,15 +55,15 @@ class DocumentTemplatePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_system::pdf');
+        return $user->can('delete_any_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can permanently delete.
      */
-    public function forceDelete(User $user, DocumentTemplate $documentTemplate): bool
+    public function forceDelete(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('force_delete_system::pdf');
+        return $user->can('force_delete_pdf::layout::template');
     }
 
     /**
@@ -71,15 +71,15 @@ class DocumentTemplatePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_system::pdf');
+        return $user->can('force_delete_any_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can restore.
      */
-    public function restore(User $user, DocumentTemplate $documentTemplate): bool
+    public function restore(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('restore_system::pdf');
+        return $user->can('restore_pdf::layout::template');
     }
 
     /**
@@ -87,15 +87,15 @@ class DocumentTemplatePolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_system::pdf');
+        return $user->can('restore_any_pdf::layout::template');
     }
 
     /**
      * Determine whether the user can replicate.
      */
-    public function replicate(User $user, DocumentTemplate $documentTemplate): bool
+    public function replicate(User $user, PdfLayoutTemplate $pdfLayoutTemplate): bool
     {
-        return $user->can('replicate_system::pdf');
+        return $user->can('replicate_pdf::layout::template');
     }
 
     /**
@@ -103,6 +103,6 @@ class DocumentTemplatePolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_system::pdf');
+        return $user->can('reorder_pdf::layout::template');
     }
 }
