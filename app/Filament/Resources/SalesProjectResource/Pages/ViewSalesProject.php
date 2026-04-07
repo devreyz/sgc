@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
 use App\Filament\Resources\SalesProjectResource;
+use App\Models\AssociateReceipt;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
@@ -346,10 +347,20 @@ class ViewSalesProject extends ViewRecord
                                 ->required()
                                 ->searchable()
                                 ->placeholder('Selecione o associado'),
+                            Forms\Components\TextInput::make('receipt_year')
+                                ->label('Ano do Comprovante')
+                                ->numeric()
+                                ->default(now()->year)
+                                ->required(),
+                            Forms\Components\DatePicker::make('issued_at')
+                                ->label('Data de Emissão')
+                                ->default(today())
+                                ->displayFormat('d/m/Y')
+                                ->required(),
                         ];
                     })
                     ->action(function (SalesProject $record, array $data) {
-                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id']);
+                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id'], $data);
                     }),
             ])
                 ->label('Relatórios PDF')
@@ -608,7 +619,7 @@ class ViewSalesProject extends ViewRecord
         }, 'entregas-produtos-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
     }
 
-    protected function generateProjectAssociateReceipt(SalesProject $record, int $associateId): mixed
+    protected function generateProjectAssociateReceipt(SalesProject $record, int $associateId, array $formData = []): mixed
     {
         $tenantId = session('tenant_id');
         $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
@@ -630,6 +641,28 @@ class ViewSalesProject extends ViewRecord
                 ->send();
 
             return null;
+        }
+
+        // Criar/recuperar registro de comprovante
+        $year = (int) ($formData['receipt_year'] ?? now()->year);
+        $issuedAt = !empty($formData['issued_at']) ? $formData['issued_at'] : today();
+
+        $receipt = AssociateReceipt::firstOrCreate(
+            [
+                'tenant_id' => $tenantId,
+                'sales_project_id' => $record->id,
+                'associate_id' => $associateId,
+            ],
+            [
+                'receipt_year' => $year,
+                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at' => $issuedAt,
+            ]
+        );
+
+        // Atualizar data de emissão se explicitamente informada
+        if (!empty($formData['issued_at'])) {
+            $receipt->update(['issued_at' => $issuedAt]);
         }
 
         $summary = [
@@ -654,38 +687,25 @@ class ViewSalesProject extends ViewRecord
             ];
         })->values()->all();
 
-        $tmplCfg = $this->getTemplateConfig('project_associate_receipt', ['paper_orientation' => 'portrait']);
-
         $svc = app(\App\Services\TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
-            'title' => 'Comprovante de Entrega',
-            'subtitle' => $record->title,
-            'generated_at' => now()->format('d/m/Y H:i'),
             'project' => $record,
             'associate' => $associate,
-            'deliveries' => $deliveries,
+            'receipt' => $receipt,
             'summary' => $summary,
             'productsSummary' => $productsSummary,
-            'visible_sections' => $tmplCfg['visible_sections'],
-            'visible_columns' => $tmplCfg['visible_columns'],
-            'primaryColor' => $tmplCfg['primary_color'],
-            'accentColor' => $tmplCfg['accent_color'],
         ], [
-            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
-            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
-            'paper' => $tmplCfg['paper_size'],
-            'orientation' => $tmplCfg['paper_orientation'],
+            'paper' => 'a4',
+            'orientation' => 'portrait',
             'title' => 'Comprovante de Entrega',
-            'primary_color' => $tmplCfg['primary_color'],
-            'accent_color'  => $tmplCfg['accent_color'],
         ]);
 
         $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, "comprovante-{$safeName}-projeto-{$record->id}.pdf", ['Content-Type' => 'application/pdf']);
+        }, "comprovante-{$receipt->formatted_number}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
     }
 
     protected function generateFinalReport(SalesProject $record, array $filters = [])
@@ -962,6 +982,65 @@ class ViewSalesProject extends ViewRecord
                             ]),
                     ])
                     ->collapsible(),
+
+                Infolists\Components\Section::make('Produtores que Entregaram')
+                    ->description('Associados com entregas aprovadas neste projeto')
+                    ->icon('heroicon-o-users')
+                    ->headerActions([
+                        Infolists\Components\Actions\Action::make('printProducers')
+                            ->label('Imprimir Lista')
+                            ->icon('heroicon-o-printer')
+                            ->color('gray')
+                            ->url(fn (SalesProject $record) => route('delivery.projects.producers', [
+                                'tenant' => session('tenant_slug') ?? \App\Models\Tenant::find(session('tenant_id'))?->slug,
+                                'project' => $record->id,
+                            ]))
+                            ->openUrlInNewTab(),
+                    ])
+                    ->schema([
+                        Infolists\Components\RepeatableEntry::make('producersSummary')
+                            ->label('')
+                            ->getStateUsing(function (SalesProject $record): array {
+                                return $record->deliveries()
+                                    ->where('status', DeliveryStatus::APPROVED)
+                                    ->with('associate.user')
+                                    ->get()
+                                    ->groupBy('associate_id')
+                                    ->map(function ($items) {
+                                        $assoc = $items->first()->associate;
+                                        return [
+                                            'name'         => $assoc?->user?->name ?? '—',
+                                            'cpf'          => $assoc?->cpf_cnpj ?? '—',
+                                            'registration' => $assoc?->registration_number ?? '—',
+                                            'deliveries'   => $items->count(),
+                                            'quantity'     => number_format($items->sum('quantity'), 3, ',', '.'),
+                                            'gross'        => 'R$ '.number_format($items->sum('gross_value'), 2, ',', '.'),
+                                            'net'          => 'R$ '.number_format($items->sum('net_value'), 2, ',', '.'),
+                                        ];
+                                    })
+                                    ->values()
+                                    ->all();
+                            })
+                            ->schema([
+                                Infolists\Components\Grid::make(6)
+                                    ->schema([
+                                        Infolists\Components\TextEntry::make('name')
+                                            ->label('Produtor')
+                                            ->weight(\Filament\Support\Enums\FontWeight::Bold),
+                                        Infolists\Components\TextEntry::make('cpf')
+                                            ->label('CPF'),
+                                        Infolists\Components\TextEntry::make('registration')
+                                            ->label('Matrícula'),
+                                        Infolists\Components\TextEntry::make('deliveries')
+                                            ->label('Entregas'),
+                                        Infolists\Components\TextEntry::make('gross')
+                                            ->label('Val. Bruto'),
+                                        Infolists\Components\TextEntry::make('net')
+                                            ->label('Val. Líquido')
+                                            ->color('success'),
+                                    ]),
+                            ]),
+                    ]),
             ]);
     }
 }

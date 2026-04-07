@@ -1010,6 +1010,45 @@ class DeliveryRegistrationController extends Controller
     }
 
     /**
+     * Lista pública (autenticada) dos produtores que entregaram em um projeto.
+     * Requer auth + role registrador_entregas ou acima.
+     */
+    public function projectProducers(SalesProject $project)
+    {
+        $tenantId = session('tenant_id');
+        if (!$tenantId || $project->tenant_id !== $tenantId) {
+            abort(403);
+        }
+
+        $tenant = $this->currentTenant();
+
+        $producers = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->with('associate.user')
+            ->get()
+            ->groupBy('associate_id')
+            ->map(function ($items) {
+                $assoc = $items->first()->associate;
+                return [
+                    'associate'    => $assoc,
+                    'name'         => $assoc?->user?->name ?? '—',
+                    'cpf'          => $assoc?->cpf_cnpj ?? '—',
+                    'registration' => $assoc?->registration_number ?? '—',
+                    'deliveries'   => $items->count(),
+                    'quantity'     => $items->sum('quantity'),
+                    'gross_value'  => $items->sum('gross_value'),
+                    'admin_fee'    => $items->sum('admin_fee_amount'),
+                    'net_value'    => $items->sum('net_value'),
+                ];
+            })
+            ->sortBy('name')
+            ->values();
+
+        return view('delivery.project-producers', compact('project', 'tenant', 'producers'));
+    }
+
+    /**
      * PDF: Comprovante de entrega de um projeto filtrado por associado — com assinatura
      */
     public function reportProjectAssociate()

@@ -110,6 +110,9 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/reports/by-associate', [DeliveryRegistrationController::class, 'reportByAssociate'])->name('reports.by-associate');
         Route::get('/reports/by-product', [DeliveryRegistrationController::class, 'reportByProduct'])->name('reports.by-product');
         Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
+
+        // Lista pública (autenticada) de produtores por projeto
+        Route::get('/projects/{project}/producers', [DeliveryRegistrationController::class, 'projectProducers'])->name('projects.producers');
     });
 
     // PDV (Point of Sale) Routes
