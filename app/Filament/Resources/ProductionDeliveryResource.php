@@ -251,8 +251,16 @@ class ProductionDeliveryResource extends Resource
                             ->reactive()
                             ->hint(function (callable $get) {
                                 $productId = $get('product_id');
+                                if (! $productId) {
+                                    return 'Estoque atual: —';
+                                }
+
                                 $product = \App\Models\Product::find($productId);
-                                return 'Estoque atual: ' . number_format($product->current_stock, 3, ',', '.') . ' kg';
+                                if (! $product) {
+                                    return 'Estoque atual: —';
+                                }
+
+                                return 'Estoque atual: ' . number_format($product->current_stock ?? 0, 3, ',', '.') . ' kg';
                             })
                             ->hintIcon(fn (callable $get) => $get('from_stock') ? 'heroicon-o-archive-box' : null)
                             ->hintColor(fn (callable $get) => $get('from_stock') ? 'info' : null)
