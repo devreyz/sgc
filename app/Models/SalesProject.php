@@ -41,6 +41,8 @@ class SalesProject extends Model
         'associates_paid_amount',
         'payment_bank_account_id',
         'allow_any_product',
+        'completion_notes',
+        'completed_at',
     ];
 
     protected function casts(): array
@@ -58,6 +60,7 @@ class SalesProject extends Model
             'admin_fee_collected' => 'decimal:2',
             'associates_paid_amount' => 'decimal:2',
             'allow_any_product' => 'boolean',
+            'completed_at' => 'datetime',
         ];
     }
 

@@ -17,6 +17,7 @@ enum StockMovementReason: string implements HasLabel, HasColor
     // Saídas
     case VENDA           = 'venda';
     case ENTREGA         = 'entrega';          // Entrega a projeto
+    case ENTREGA_CLIENTE = 'entrega_cliente';  // Saída de estoque por entrega ao cliente
     case USO_INTERNO     = 'uso_interno';
     case PERDA           = 'perda';
     case QUEBRA          = 'quebra';
@@ -39,6 +40,7 @@ enum StockMovementReason: string implements HasLabel, HasColor
             self::INVENTARIO_MAIS  => 'Inventário (Sobra)',
             self::VENDA            => 'Venda',
             self::ENTREGA          => 'Entrega (Projeto)',
+            self::ENTREGA_CLIENTE  => 'Entrega ao Cliente',
             self::USO_INTERNO      => 'Uso Interno',
             self::PERDA            => 'Perda',
             self::QUEBRA           => 'Quebra',
@@ -56,7 +58,8 @@ enum StockMovementReason: string implements HasLabel, HasColor
         return match ($this) {
             self::COMPRA, self::PRODUCAO, self::DEVOLUCAO,
             self::RECEBIMENTO, self::INVENTARIO_MAIS          => 'success',
-            self::VENDA, self::ENTREGA, self::USO_INTERNO,
+            self::VENDA, self::ENTREGA, self::ENTREGA_CLIENTE,
+            self::USO_INTERNO,
             self::PERDA, self::QUEBRA, self::VENCIMENTO,
             self::INVENTARIO_MENOS                           => 'danger',
             self::AJUSTE_INVENTARIO, self::CORRECAO,

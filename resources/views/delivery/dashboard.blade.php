@@ -115,6 +115,27 @@
     .toast.success { border-left: 3px solid var(--color-success); }
     .toast.error   { border-left: 3px solid var(--color-danger); }
     .toast.info    { border-left: 3px solid var(--color-info, #0ea5e9); }
+    /* Modal de quantidades para entrega ao cliente */
+    .qty-modal { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.75rem; max-width:500px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3); transform:scale(0.95); transition:transform .2s; max-height:85vh; overflow-y:auto; text-align:left; }
+    .custom-modal-overlay.visible .qty-modal { transform:scale(1); }
+    .qty-modal-title { font-size:1.1rem; font-weight:700; margin-bottom:.25rem; color:var(--color-text); display:flex; align-items:center; gap:.5rem; }
+    .qty-modal-subtitle { font-size:.82rem; color:var(--color-text-secondary); margin-bottom:1.25rem; }
+    .qty-product-list { display:flex; flex-direction:column; gap:.75rem; margin-bottom:1.25rem; }
+    .qty-product-row { background:var(--color-bg); border-radius:var(--radius-md); padding:.85rem 1rem; border:1px solid var(--color-border); }
+    .qty-product-name { font-size:.88rem; font-weight:600; color:var(--color-text); margin-bottom:.4rem; }
+    .qty-product-meta { font-size:.75rem; color:var(--color-text-secondary); margin-bottom:.5rem; }
+    .qty-input-row { display:flex; align-items:center; gap:.5rem; }
+    .qty-input-row label { font-size:.78rem; font-weight:500; color:var(--color-text-secondary); white-space:nowrap; }
+    .qty-input { flex:1; padding:.35rem .6rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); color:var(--color-text); font-size:.875rem; min-width:0; }
+    .qty-input:focus { outline:none; border-color:var(--color-primary); }
+    .qty-unit { font-size:.78rem; color:var(--color-text-secondary); white-space:nowrap; }
+    .qty-date-row { margin-bottom:.85rem; }
+    .qty-date-row label { font-size:.82rem; font-weight:500; color:var(--color-text); display:block; margin-bottom:.3rem; }
+    .qty-date-row input[type="date"] { width:100%; padding:.4rem .6rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); color:var(--color-text); font-size:.875rem; }
+    .qty-notes-row { margin-bottom:1rem; }
+    .qty-notes-row label { font-size:.82rem; font-weight:500; color:var(--color-text); display:block; margin-bottom:.3rem; }
+    .qty-notes-row textarea { width:100%; padding:.4rem .6rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); color:var(--color-text); font-size:.875rem; resize:vertical; min-height:56px; }
+    .qty-modal-actions { display:flex; gap:.75rem; justify-content:flex-end; flex-wrap:wrap; }
     @media (max-width: 480px) {
         .project-header { flex-direction: column; align-items: flex-start; }
         .btn-actions { flex-direction: column; width: 100%; }
@@ -344,6 +365,14 @@
 document.addEventListener('DOMContentLoaded', function () {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
+    function escHtml(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function fmtQty(n) {
+        var v = parseFloat(n) || 0;
+        return v % 1 === 0 ? v.toString() : v.toFixed(3).replace(/\.?0+$/, '');
+    }
+
     function showToast(message, type) {
         type = type || 'success';
         var icons = { success: 'check-circle', error: 'alert-circle', info: 'info' };
@@ -503,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // Entregue ao Cliente (AWAITING_DELIVERY → DELIVERED)
+    // Entregue ao Cliente (AWAITING_DELIVERY → DELIVERED) com seleção de quantidades
     document.querySelectorAll('.deliver-to-client-btn').forEach(function(btn) {
         btn.addEventListener('click', async function () {
             var projectId = this.dataset.projectId;
@@ -512,42 +541,139 @@ document.addEventListener('DOMContentLoaded', function () {
             var spinner = document.getElementById('deliver-spinner-' + projectId);
             var self = this;
 
-            var confirmed = await showModal({
-                icon: 'truck',
-                iconColor: '#059669',
-                title: 'Entregue ao Cliente',
-                message: 'Confirma que o projeto <strong>"' + projectTitle + '"</strong> foi entregue ao cliente?<br><small>O status será alterado para "Entregue ao Cliente".</small>',
-                confirmText: 'Confirmar Entrega',
-                confirmClass: 'btn-success'
-            });
-            if (!confirmed) return;
-
+            // 1. Buscar resumo do estoque por produto
             self.disabled = true;
             if (spinner) spinner.style.display = 'inline-block';
 
+            var stockData = [];
             try {
-                var res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/deliver-to-client', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '{{ csrf_token() }}',
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                    }
+                var res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/stock-summary', {
+                    headers: { 'Accept': 'application/json' }
                 });
-                var result = await res.json();
-                if (result.success) {
-                    showToast(result.message, 'success');
-                    setTimeout(function() { window.location.reload(); }, 1400);
-                } else {
-                    showToast(result.message, 'error');
-                    self.disabled = false;
-                    if (spinner) spinner.style.display = 'none';
-                }
+                stockData = await res.json();
             } catch (e) {
-                showToast('Erro ao registrar entrega. Tente novamente.', 'error');
+                showToast('Erro ao carregar estoque. Tente novamente.', 'error');
                 self.disabled = false;
                 if (spinner) spinner.style.display = 'none';
+                return;
             }
+
+            self.disabled = false;
+            if (spinner) spinner.style.display = 'none';
+
+            if (!stockData.length) {
+                showToast('Nenhum produto com entrega aprovada encontrado neste projeto.', 'error');
+                return;
+            }
+
+            // 2. Montar modal com campos de quantidade
+            var today = new Date().toISOString().slice(0, 10);
+            var productRows = stockData.map(function(p) {
+                return '<div class="qty-product-row">' +
+                    '<div class="qty-product-name">' + escHtml(p.product_name) + '</div>' +
+                    '<div class="qty-product-meta">Aprovado no projeto: <strong>' + fmtQty(p.approved_qty) + ' ' + escHtml(p.product_unit) + '</strong> &nbsp;|&nbsp; Estoque atual: <strong>' + fmtQty(p.current_stock) + ' ' + escHtml(p.product_unit) + '</strong></div>' +
+                    '<div class="qty-input-row">' +
+                        '<label for="qty-' + p.product_id + '">Entregar:</label>' +
+                        '<input type="number" id="qty-' + p.product_id + '" class="qty-input" ' +
+                            'data-product-id="' + p.product_id + '" ' +
+                            'value="' + fmtQty(p.max_deliverable) + '" ' +
+                            'min="0" max="' + p.max_deliverable + '" step="0.001" ' +
+                            'placeholder="0">' +
+                        '<span class="qty-unit">' + escHtml(p.product_unit) + '</span>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+
+            var overlay = document.createElement('div');
+            overlay.className = 'custom-modal-overlay';
+            overlay.innerHTML =
+                '<div class="qty-modal">' +
+                    '<div class="qty-modal-title">' +
+                        '<i data-lucide="truck" style="width:20px;height:20px;color:#059669"></i>' +
+                        'Entregar ao Cliente' +
+                    '</div>' +
+                    '<div class="qty-modal-subtitle">Projeto: <strong>' + escHtml(projectTitle) + '</strong> &mdash; Informe as quantidades a entregar. O restante permanece no estoque.</div>' +
+                    '<div class="qty-date-row">' +
+                        '<label for="qty-delivery-date">Data da Entrega</label>' +
+                        '<input type="date" id="qty-delivery-date" value="' + today + '">' +
+                    '</div>' +
+                    '<div class="qty-product-list">' + productRows + '</div>' +
+                    '<div class="qty-notes-row">' +
+                        '<label for="qty-notes">Observações (opcional)</label>' +
+                        '<textarea id="qty-notes" placeholder="Notas sobre a entrega..."></textarea>' +
+                    '</div>' +
+                    '<div class="qty-modal-actions">' +
+                        '<button class="btn btn-ghost qty-cancel-btn">Cancelar</button>' +
+                        '<button class="btn btn-success qty-confirm-btn">' +
+                            '<span class="spinner" id="qty-spinner" style="border-color:rgba(255,255,255,.4);border-top-color:#fff"></span>' +
+                            '<i data-lucide="check" style="width:14px;height:14px"></i>' +
+                            'Confirmar Entrega' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            requestAnimationFrame(function() { overlay.classList.add('visible'); });
+
+            overlay.querySelector('.qty-cancel-btn').onclick = function() {
+                overlay.classList.remove('visible');
+                setTimeout(function() { overlay.remove(); }, 200);
+            };
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    overlay.classList.remove('visible');
+                    setTimeout(function() { overlay.remove(); }, 200);
+                }
+            });
+
+            overlay.querySelector('.qty-confirm-btn').addEventListener('click', async function() {
+                var confirmBtn = this;
+                var qtySpinner = document.getElementById('qty-spinner');
+
+                // Coletar quantidades
+                var quantities = {};
+                overlay.querySelectorAll('.qty-input').forEach(function(input) {
+                    var pid = input.dataset.productId;
+                    var val = parseFloat(input.value) || 0;
+                    if (val > 0) quantities[pid] = val;
+                });
+
+                if (!Object.keys(quantities).length) {
+                    showToast('Informe ao menos uma quantidade maior que zero.', 'error');
+                    return;
+                }
+
+                var deliveryDate = document.getElementById('qty-delivery-date').value || today;
+                var notes = document.getElementById('qty-notes').value || '';
+
+                confirmBtn.disabled = true;
+                if (qtySpinner) qtySpinner.style.display = 'inline-block';
+
+                try {
+                    var res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/deliver-to-client', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') || {}).content || '{{ csrf_token() }}',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ quantities: quantities, delivery_date: deliveryDate, notes: notes })
+                    });
+                    var result = await res.json();
+                    overlay.classList.remove('visible');
+                    setTimeout(function() { overlay.remove(); }, 200);
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                        setTimeout(function() { window.location.reload(); }, 1400);
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (e) {
+                    showToast('Erro ao registrar entrega ao cliente. Tente novamente.', 'error');
+                    confirmBtn.disabled = false;
+                    if (qtySpinner) qtySpinner.style.display = 'none';
+                }
+            });
         });
     });
 

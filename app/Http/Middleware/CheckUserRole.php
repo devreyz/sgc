@@ -20,10 +20,28 @@ class CheckUserRole
             return redirect('/login')->with('error', 'Você precisa estar autenticado.');
         }
 
-        if (!$request->user()->hasRole($role)) {
-            return redirect('/')->with('error', 'Você não tem permissão para acessar esta área.');
+        $user = $request->user();
+
+        // Super admins global passam sempre
+        if ($user->hasAnyRole(['super_admin', 'admin'])) {
+            return $next($request);
         }
 
-        return $next($request);
+        // Verifica role global (Spatie)
+        if ($user->hasRole($role)) {
+            return $next($request);
+        }
+
+        // Verifica role no tenant atual (pivot)
+        $routeTenant = $request->route('tenant');
+        $tenantId = ($routeTenant instanceof \App\Models\Tenant)
+            ? $routeTenant->id
+            : session('tenant_id');
+
+        if ($user->hasRoleInTenant($role, $tenantId)) {
+            return $next($request);
+        }
+
+        return redirect('/')->with('error', 'Você não tem permissão para acessar esta área.');
     }
 }

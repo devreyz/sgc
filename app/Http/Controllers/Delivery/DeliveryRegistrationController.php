@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Delivery;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
+use App\Enums\StockMovementReason;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
 use App\Models\Product;
@@ -11,6 +12,7 @@ use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\StockService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -606,7 +608,7 @@ class DeliveryRegistrationController extends Controller
         ]);
     }
 
-    public function deliverToClient()
+    public function deliverToClient(Request $request)
     {
         $projectId = (int) request()->route('project');
         $tenantId = session('tenant_id');
@@ -626,12 +628,103 @@ class DeliveryRegistrationController extends Controller
             ], 400);
         }
 
-        $project->update(['status' => ProjectStatus::DELIVERED]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Projeto marcado como entregue ao cliente com sucesso!',
+        $validated = $request->validate([
+            'delivery_date' => 'nullable|date',
+            'quantities'    => 'required|array|min:1',
+            'quantities.*'  => 'numeric|min:0',
+            'notes'         => 'nullable|string|max:500',
         ]);
+
+        // Verifica se ao menos uma quantidade é > 0
+        $quantities = collect($validated['quantities'])->filter(fn ($q) => (float) $q > 0);
+        if ($quantities->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Informe ao menos uma quantidade maior que zero.'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $stockService = app(StockService::class);
+            $deliveryDate = $validated['delivery_date'] ?? now()->toDateString();
+            $notes = $validated['notes'] ?? null;
+
+            foreach ($quantities as $productId => $qty) {
+                $product = Product::where('tenant_id', $tenantId)->find((int) $productId);
+                if (! $product || (float) $qty <= 0) {
+                    continue;
+                }
+
+                $stockService->exit(
+                    $product,
+                    (float) $qty,
+                    StockMovementReason::ENTREGA_CLIENTE,
+                    $project,
+                    [
+                        'movement_date' => $deliveryDate,
+                        'notes'         => trim("Entrega ao cliente - Projeto: {$project->title}" . ($notes ? " | {$notes}" : '')),
+                    ]
+                );
+            }
+
+            $project->update([
+                'status'         => ProjectStatus::DELIVERED,
+                'delivered_date' => $deliveryDate,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Projeto marcado como entregue ao cliente com sucesso! Baixa no estoque registrada.',
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar entrega ao cliente: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Retorna o resumo de estoque disponível por produto para um projeto (aprovado)
+     */
+    public function getProjectStockSummary()
+    {
+        $projectId = (int) request()->route('project');
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Tenant não encontrado'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        if (! $project) {
+            return response()->json(['error' => 'Projeto não encontrado'], 404);
+        }
+
+        // Agrupa entregas aprovadas por produto para saber o que entrou no estoque
+        $approvedByProduct = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->with('product')
+            ->selectRaw('product_id, SUM(quantity) as total_qty')
+            ->groupBy('product_id')
+            ->get();
+
+        $result = $approvedByProduct->map(function ($item) {
+            $product = $item->product;
+            return [
+                'product_id'      => $item->product_id,
+                'product_name'    => $product?->name ?? 'Produto #'.$item->product_id,
+                'product_unit'    => $product?->unit ?? 'un',
+                'approved_qty'    => (float) $item->total_qty,
+                'current_stock'   => (float) ($product?->current_stock ?? 0),
+                'max_deliverable' => min((float) $item->total_qty, (float) ($product?->current_stock ?? 0)),
+            ];
+        })->values();
+
+        return response()->json($result);
     }
 
     public function allDeliveries()

@@ -97,6 +97,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/register/{project?}', [DeliveryRegistrationController::class, 'register'])->name('register');
         Route::post('/register', [DeliveryRegistrationController::class, 'store'])->name('store');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');
+        Route::get('/projects/{project}/stock-summary', [DeliveryRegistrationController::class, 'getProjectStockSummary'])->name('projects.stock-summary');
         Route::get('/projects/{project}/associates/{associate}/deliveries', [DeliveryRegistrationController::class, 'getAssociateDeliveries'])->name('associates.deliveries');
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');

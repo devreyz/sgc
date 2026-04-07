@@ -4,8 +4,12 @@ namespace App\Filament\Resources\SalesProjectResource\Pages;
 
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
+use App\Enums\StockMovementReason;
 use App\Filament\Resources\SalesProjectResource;
+use App\Models\Product;
+use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Services\StockService;
 use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions;
@@ -14,6 +18,7 @@ use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 
 class ViewSalesProject extends ViewRecord
@@ -25,21 +30,18 @@ class ViewSalesProject extends ViewRecord
         return [
             // ── Ação principal do projeto ──
             Actions\Action::make('finalize')
-                ->label('Finalizar Projeto')
-                ->icon('heroicon-o-check-badge')
-                ->color('success')
+                ->label('Finalizar Coleta')
+                ->icon('heroicon-o-archive-box-arrow-down')
+                ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Finalizar Projeto')
-                ->modalDescription('Deseja finalizar este projeto? Não será possível adicionar mais entregas.')
-                ->modalIcon('heroicon-o-check-badge')
+                ->modalHeading('Finalizar Recebimento de Entregas')
+                ->modalDescription('Deseja encerrar o recebimento de entregas dos associados? Não será possível adicionar mais entregas. A próxima etapa será a entrega ao cliente.')
+                ->modalIcon('heroicon-o-archive-box-arrow-down')
                 ->form([
                     Forms\Components\Textarea::make('completion_notes')
-                        ->label('Observações de Encerramento')
-                        ->placeholder('Notas sobre a conclusão do projeto (opcional)')
+                        ->label('Observações')
+                        ->placeholder('Notas sobre o encerramento do recebimento (opcional)')
                         ->rows(3),
-                    Forms\Components\Toggle::make('generate_report')
-                        ->label('Gerar Relatório Final em PDF')
-                        ->default(true),
                 ])
                 ->action(function (SalesProject $record, array $data) {
                     // Verificar entregas pendentes
@@ -56,27 +58,131 @@ class ViewSalesProject extends ViewRecord
                         return;
                     }
 
-                    // Atualizar status do projeto
                     $record->update([
-                        'status' => ProjectStatus::COMPLETED,
-                        'completed_at' => now(),
+                        'status' => ProjectStatus::AWAITING_DELIVERY,
                         'completion_notes' => $data['completion_notes'] ?? null,
                     ]);
 
                     Notification::make()
                         ->success()
-                        ->title('Projeto Finalizado!')
-                        ->body('O projeto foi concluído com sucesso.')
+                        ->title('Recebimento Finalizado!')
+                        ->body('O projeto aguarda a entrega ao cliente. Use a ação "Entregar ao Cliente" para registrar a saída do estoque.')
                         ->send();
-
-                    // Gerar relatório final
-                    if ($data['generate_report'] ?? false) {
-                        return $this->generateFinalReport($record);
-                    }
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
                 ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::ACTIVE),
+
+            Actions\Action::make('deliverToClient')
+                ->label('Entregar ao Cliente')
+                ->icon('heroicon-o-truck')
+                ->color('success')
+                ->modalHeading('Registrar Entrega ao Cliente')
+                ->modalIcon('heroicon-o-truck')
+                ->form(function (SalesProject $record): array {
+                    // Buscar produtos entregues (aprovados) neste projeto agrupados por produto
+                    $approvedByProduct = ProductionDelivery::where('sales_project_id', $record->id)
+                        ->where('status', DeliveryStatus::APPROVED)
+                        ->with('product')
+                        ->selectRaw('product_id, SUM(quantity) as total_qty')
+                        ->groupBy('product_id')
+                        ->get();
+
+                    $fields = [
+                        Forms\Components\DatePicker::make('delivery_date')
+                            ->label('Data da Entrega')
+                            ->default(today())
+                            ->displayFormat('d/m/Y')
+                            ->required(),
+                    ];
+
+                    foreach ($approvedByProduct as $item) {
+                        $product = $item->product;
+                        if (! $product) {
+                            continue;
+                        }
+                        $approved = (float) $item->total_qty;
+                        $currentStock = (float) $product->current_stock;
+                        $max = min($approved, $currentStock);
+
+                        $fields[] = Forms\Components\TextInput::make("quantities.{$product->id}")
+                            ->label("{$product->name} ({$product->unit})")
+                            ->helperText("Aprovado no projeto: {$approved} {$product->unit} | Estoque atual: {$currentStock} {$product->unit}")
+                            ->numeric()
+                            ->minValue(0)
+                            ->maxValue($max)
+                            ->default($max)
+                            ->step(0.001)
+                            ->suffix($product->unit);
+                    }
+
+                    $fields[] = Forms\Components\Textarea::make('notes')
+                        ->label('Observações')
+                        ->placeholder('Notas sobre a entrega ao cliente (opcional)')
+                        ->rows(2);
+
+                    return $fields;
+                })
+                ->action(function (SalesProject $record, array $data) {
+                    $quantities = collect($data['quantities'] ?? [])->filter(fn ($q) => (float) $q > 0);
+
+                    if ($quantities->isEmpty()) {
+                        Notification::make()
+                            ->warning()
+                            ->title('Quantidade Inválida')
+                            ->body('Informe ao menos uma quantidade maior que zero para entregar.')
+                            ->send();
+                        return;
+                    }
+
+                    try {
+                        DB::transaction(function () use ($record, $data, $quantities) {
+                            $stockService = app(StockService::class);
+                            $deliveryDate = $data['delivery_date'] ?? now()->toDateString();
+                            $notes = $data['notes'] ?? null;
+
+                            foreach ($quantities as $productId => $qty) {
+                                $product = Product::find((int) $productId);
+                                if (! $product) {
+                                    continue;
+                                }
+
+                                $stockService->exit(
+                                    $product,
+                                    (float) $qty,
+                                    StockMovementReason::ENTREGA_CLIENTE,
+                                    $record,
+                                    [
+                                        'movement_date' => is_string($deliveryDate)
+                                            ? $deliveryDate
+                                            : $deliveryDate->toDateString(),
+                                        'notes' => trim("Entrega ao cliente - Projeto: {$record->title}" . ($notes ? " | {$notes}" : '')),
+                                    ]
+                                );
+                            }
+
+                            $record->update([
+                                'status'         => ProjectStatus::DELIVERED,
+                                'delivered_date' => $deliveryDate,
+                            ]);
+                        });
+
+                        Notification::make()
+                            ->success()
+                            ->title('Entregue ao Cliente!')
+                            ->body('A entrega foi registrada e o estoque atualizado com sucesso.')
+                            ->send();
+
+                        $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
+                    } catch (\Throwable $e) {
+                        Notification::make()
+                            ->danger()
+                            ->title('Erro ao Registrar Entrega')
+                            ->body($e->getMessage())
+                            ->send();
+                    }
+                })
+                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::AWAITING_DELIVERY),
 
             Actions\Action::make('reopen')
                 ->label('Reabrir')
@@ -99,7 +205,14 @@ class ViewSalesProject extends ViewRecord
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
-                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED),
+                ->visible(fn (SalesProject $record): bool => in_array($record->status, [
+                        ProjectStatus::AWAITING_DELIVERY,
+                        ProjectStatus::DELIVERED,
+                        ProjectStatus::AWAITING_PAYMENT,
+                        ProjectStatus::PAYMENT_RECEIVED,
+                        ProjectStatus::ASSOCIATES_PAID,
+                        ProjectStatus::COMPLETED,
+                    ])),
 
             // ── Grupo: Relatórios PDF ──
             Actions\ActionGroup::make([
@@ -117,7 +230,9 @@ class ViewSalesProject extends ViewRecord
                             ->placeholder('Sem filtro'),
                     ])
                     ->action(fn (SalesProject $record, array $data) => $this->generateFinalReport($record, $data))
-                    ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::COMPLETED),
+                    ->visible(fn (SalesProject $record): bool => ! in_array($record->status, [
+                        ProjectStatus::DRAFT, ProjectStatus::ACTIVE,
+                    ])),
 
                 Actions\Action::make('generateFolhaCampo')
                     ->label('Folha de Campo')
