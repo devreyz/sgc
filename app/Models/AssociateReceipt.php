@@ -54,10 +54,10 @@ class AssociateReceipt extends Model
     }
 
     /**
-     * Número formatado: ex. "2026/0042"
+     * Número formatado: ex. "0042/2026"
      */
     public function getFormattedNumberAttribute(): string
     {
-        return $this->receipt_year . '/' . str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT);
+        return str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT) . '/' . $this->receipt_year;
     }
 }

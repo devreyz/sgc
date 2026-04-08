@@ -1053,6 +1053,96 @@ class DeliveryRegistrationController extends Controller
     }
 
     /**
+     * Gera e faz download do comprovante PDF de um produtor em um projeto (portal externo).
+     */
+    public function generateAssociateReceiptPdf()
+    {
+        $projectId   = (int) request()->route('project');
+        $associateId = (int) request()->route('associate');
+        $tenantId    = session('tenant_id');
+
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $project   = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
+        $tenant    = $this->currentTenant();
+
+        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->with('product')
+            ->orderBy('delivery_date')
+            ->get();
+
+        if ($deliveries->isEmpty()) {
+            return redirect()->back()->with('error', 'Nenhuma entrega aprovada encontrada para este produtor neste projeto.');
+        }
+
+        // Criar ou reutilizar registro de comprovante
+        $year   = now()->year;
+        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->first();
+
+        if ($receipt) {
+            $receipt->update(['issued_at' => today()]);
+        } else {
+            $receipt = \App\Models\AssociateReceipt::create([
+                'tenant_id'        => $tenantId,
+                'sales_project_id' => $projectId,
+                'associate_id'     => $associateId,
+                'receipt_year'     => $year,
+                'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at'        => today(),
+            ]);
+        }
+
+        $summary = [
+            'deliveries_count' => $deliveries->count(),
+            'total_quantity'   => $deliveries->sum('quantity'),
+            'gross_value'      => $deliveries->sum('gross_value'),
+            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
+            'net_value'        => $deliveries->sum('net_value'),
+        ];
+
+        $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
+            $product    = $items->first()->product;
+            $totalQty   = $items->sum('quantity');
+            $totalGross = $items->sum('gross_value');
+            return [
+                'product_name' => $product?->name ?? '—',
+                'unit'         => $product?->unit ?? 'un',
+                'count'        => $items->count(),
+                'quantity'     => $totalQty,
+                'unit_price'   => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
+                'gross'        => $totalGross,
+                'admin_fee'    => $items->sum('admin_fee_amount'),
+                'net'          => $items->sum('net_value'),
+            ];
+        })->values()->all();
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+            'tenant'          => $tenant,
+            'project'         => $project,
+            'associate'       => $associate,
+            'receipt'         => $receipt,
+            'summary'         => $summary,
+            'productsSummary' => $productsSummary,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
      * PDF: Comprovante de entrega de um projeto filtrado por associado — com assinatura
      */
     public function reportProjectAssociate()

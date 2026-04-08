@@ -75,9 +75,23 @@
 }
 .producers-table tfoot td.r { text-align: right; }
 .empty-state { padding: 2rem; text-align: center; color: #94a3b8; font-size: .95rem; background: #fff; border: 1px solid #e2e8f0; }
+.receipt-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    background: #1a5c3a;
+    color: #fff;
+    padding: .3rem .65rem;
+    font-size: .78rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.receipt-btn:hover { background: #155230; }
 
 @media print {
     .nav-tabs, .print-btn, nav { display: none !important; }
+    .no-print { display: none !important; }
     body { background: #fff !important; }
     .page-header { border: none; padding: .5rem 0; }
 }
@@ -111,6 +125,7 @@
             <th class="r" style="width:14%;">Qtd. Total</th>
             <th class="r" style="width:14%;">Val. Bruto</th>
             <th class="r" style="width:14%;">Val. Líquido</th>
+            <th class="no-print" style="width:12%;text-align:center;">Comprovante</th>
         </tr>
     </thead>
     <tbody>
@@ -124,6 +139,14 @@
             <td class="r">{{ number_format($p['quantity'], 3, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($p['gross_value'], 2, ',', '.') }}</td>
             <td class="r" style="color:#1a5c3a;font-weight:600;">R$ {{ number_format($p['net_value'], 2, ',', '.') }}</td>
+            <td class="no-print" style="text-align:center;">
+                <a href="{{ route('delivery.projects.associate-receipt', ['tenant' => $tenant->slug, 'project' => $project->id, 'associate' => $p['associate']->id]) }}"
+                   class="receipt-btn"
+                   title="Gerar Comprovante PDF">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                    Comprovante
+                </a>
+            </td>
         </tr>
         @endforeach
     </tbody>
@@ -134,6 +157,7 @@
             <td class="r">{{ number_format($producers->sum('quantity'), 3, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($producers->sum('gross_value'), 2, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($producers->sum('net_value'), 2, ',', '.') }}</td>
+            <td class="no-print"></td>
         </tr>
     </tfoot>
 </table>

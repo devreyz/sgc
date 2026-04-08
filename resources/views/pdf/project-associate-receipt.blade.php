@@ -62,7 +62,7 @@ body {
 .decl strong { color: {{ $primaryColor }}; }
 .sec-label { font-size: 10px; font-weight: bold; color: {{ $primaryColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 0 0 8px; }
 table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10.5px; }
-table.tbl thead th { background: {{ $primaryColor }}; color: #fff; padding: 6px 7px; text-align: left; font-size: 9.5px; font-weight: 600; }
+table.tbl thead th { background: {{ $primaryColor }}; color: #fff; padding: 6px 7px; text-align: left; font-size: 9.5px; font-weight: 600; font-family: 'DejaVu Sans', Arial, sans-serif; }
 table.tbl thead th.r { text-align: right; }
 table.tbl tbody td { padding: 6px 7px; border-bottom: 1px solid #e8ecf0; }
 table.tbl tbody td.r { text-align: right; }
@@ -161,10 +161,11 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     <thead>
         <tr>
             <th>Produto</th>
-            <th class="r" style="width:17%;">Qtd. Total</th>
-            <th class="r" style="width:17%;">Valor Bruto</th>
-            <th class="r" style="width:15%;">Taxa Adm.</th>
-            <th class="r" style="width:17%;">Valor Líquido</th>
+            <th class="r" style="width:10%;">Qtd.</th>
+            <th class="r" style="width:13%;">Vlr. Unit.</th>
+            <th class="r" style="width:14%;">Vlr. Bruto</th>
+            <th class="r" style="width:12%;">Taxa Adm.</th>
+            <th class="r" style="width:14%;">Vlr. Líquido</th>
         </tr>
     </thead>
     <tbody>
@@ -172,6 +173,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
         <tr>
             <td><strong>{{ $ps['product_name'] }}</strong></td>
             <td class="r">{{ number_format($ps['quantity'], 3, ',', '.') }} {{ $ps['unit'] }}</td>
+            <td class="r">R$ {{ number_format($ps['unit_price'] ?? 0, 2, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($ps['gross'], 2, ',', '.') }}</td>
             <td class="r" style="color:#c0392b;">- R$ {{ number_format($ps['admin_fee'], 2, ',', '.') }}</td>
             <td class="r" style="color:#1a5c3a;">R$ {{ number_format($ps['net'], 2, ',', '.') }}</td>
@@ -182,6 +184,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
         <tr>
             <td><strong>TOTAL</strong></td>
             <td class="r">{{ number_format($summary['total_quantity'], 3, ',', '.') }}</td>
+            <td class="r"></td>
             <td class="r">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</td>
             <td class="r" style="color:#c0392b;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</td>
@@ -189,24 +192,43 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     </tfoot>
 </table>
 
-{{-- ═══ LOCAL E DATA ═══ --}}
-<p style="font-size:10.5px; color:#444; margin-bottom:0; margin-top:4px;">
+{{-- ═══ RESUMO FINANCEIRO ═══ --}}
+<div style="display: table; width: 100%; margin-bottom: 20px; border: 1px solid {{ $lineColor }};">
+    <div style="display: table-cell; width: 33%; text-align: center; padding: 9px 8px; border-right: 1px solid {{ $lineColor }};">
+        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Bruto Total</div>
+        <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 3px;">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</div>
+    </div>
+    <div style="display: table-cell; width: 33%; text-align: center; padding: 9px 8px; border-right: 1px solid {{ $lineColor }};">
+        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Taxa Adm. ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)</div>
+        <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-top: 3px;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</div>
+    </div>
+    <div style="display: table-cell; width: 34%; text-align: center; padding: 9px 8px; background: {{ $primaryColor }};">
+        <div style="font-size: 8px; color: rgba(255,255,255,0.75); text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Líquido a Receber</div>
+        <div style="font-size: 15px; font-weight: bold; color: #fff; margin-top: 3px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
+    </div>
+</div>
+
+{{-- ═══ CERTIFICAÇÃO E ASSINATURA ═══ --}}
+<p style="text-align: center; font-size: 11px; color: #333; margin: 22px 0 14px;">Por ser verdade, firmo o presente recibo.</p>
+
+<p style="text-align: center; font-size: 10.5px; color: #444; margin-bottom: 0; margin-top: 4px;">
     {{ $tenant->city ?? '________________' }}{{ $tenant->state ? '/' . $tenant->state : '' }},&nbsp;&nbsp;
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
-{{-- ═══ ASSINATURA ═══ --}}
-<div class="sig-area">
-    <div class="sig-block">
-        <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
-        <div class="sig-role">Produtor / Associado</div>
-        <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>
-    </div>
-</div>
+<table style="margin: 28px auto 0; page-break-inside: avoid;">
+    <tr>
+        <td style="text-align: center; padding: 0 30px;">
+            <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
+            <div class="sig-role">Produtor / Associado</div>
+            <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>
+        </td>
+    </tr>
+</table>
 
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
-    {{ $tenant->name ?? '' }}@if($tenant?->cnpj) &mdash; CNPJ: {{ $tenant->cnpj }}@endif
+    {{ $tenant->name ?? '' }}
     &nbsp;&nbsp;|&nbsp;&nbsp; Comprovante gerado em {{ now()->format('d/m/Y H:i') }}
 </div>
 

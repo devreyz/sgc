@@ -647,22 +647,23 @@ class ViewSalesProject extends ViewRecord
         $year = (int) ($formData['receipt_year'] ?? now()->year);
         $issuedAt = !empty($formData['issued_at']) ? $formData['issued_at'] : today();
 
-        $receipt = AssociateReceipt::firstOrCreate(
-            [
-                'tenant_id' => $tenantId,
-                'sales_project_id' => $record->id,
-                'associate_id' => $associateId,
-            ],
-            [
-                'receipt_year' => $year,
-                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
-                'issued_at' => $issuedAt,
-            ]
-        );
+        // Reutiliza registro existente para o mesmo associado+projeto, atualizando a data de emissão
+        $receipt = AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $record->id)
+            ->where('associate_id', $associateId)
+            ->first();
 
-        // Atualizar data de emissão se explicitamente informada
-        if (!empty($formData['issued_at'])) {
+        if ($receipt) {
             $receipt->update(['issued_at' => $issuedAt]);
+        } else {
+            $receipt = AssociateReceipt::create([
+                'tenant_id'        => $tenantId,
+                'sales_project_id' => $record->id,
+                'associate_id'     => $associateId,
+                'receipt_year'     => $year,
+                'receipt_number'   => AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at'        => $issuedAt,
+            ]);
         }
 
         $summary = [
@@ -675,15 +676,18 @@ class ViewSalesProject extends ViewRecord
 
         $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
             $product = $items->first()->product;
+            $totalQty   = $items->sum('quantity');
+            $totalGross = $items->sum('gross_value');
 
             return [
                 'product_name' => $product?->name ?? '—',
-                'unit' => $product?->unit ?? 'un',
-                'count' => $items->count(),
-                'quantity' => $items->sum('quantity'),
-                'gross' => $items->sum('gross_value'),
-                'admin_fee' => $items->sum('admin_fee_amount'),
-                'net' => $items->sum('net_value'),
+                'unit'         => $product?->unit ?? 'un',
+                'count'        => $items->count(),
+                'quantity'     => $totalQty,
+                'unit_price'   => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
+                'gross'        => $totalGross,
+                'admin_fee'    => $items->sum('admin_fee_amount'),
+                'net'          => $items->sum('net_value'),
             ];
         })->values()->all();
 
