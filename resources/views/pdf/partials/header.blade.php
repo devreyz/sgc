@@ -4,8 +4,30 @@
     $primaryColor = $primaryColor ?? $tenant->primary_color ?? '#1e40af';
     $secondaryColor = $secondaryColor ?? $tenant->secondary_color ?? '#1e3a5f';
     $accentColor = $accentColor ?? $tenant->accent_color ?? '#3b82f6';
-    $logoPath = $tenant && $tenant->logo ? public_path('storage/' . $tenant->logo) : null;
-    $hasLogo = $logoPath && file_exists($logoPath);
+    $logoPath = null;
+    $hasLogo = false;
+    if ($tenant && !empty($tenant->logo)) {
+        $raw = trim($tenant->logo);
+        if (preg_match('/^https?:\/\//i', $raw) || str_starts_with($raw, '//')) {
+            $logoPath = $raw;
+            $hasLogo = true;
+        } else {
+            $candidate = public_path('storage/' . $raw);
+            if (file_exists($candidate)) {
+                $logoPath = $candidate;
+                $hasLogo = true;
+            } else {
+                $candidate2 = public_path($raw);
+                if (file_exists($candidate2)) {
+                    $logoPath = $candidate2;
+                    $hasLogo = true;
+                } else {
+                    $logoPath = asset('storage/' . ltrim($raw, '/'));
+                    $hasLogo = true;
+                }
+            }
+        }
+    }
     // Suppress flags used by generateSystemPdf() to avoid duplicate header/footer
     $suppress_internal_header = $suppress_internal_header ?? false;
     $suppress_internal_footer = $suppress_internal_footer ?? false;

@@ -10,8 +10,34 @@
      *   $summary         - array: gross_value, admin_fee, net_value, deliveries_count, total_quantity
      *   $productsSummary - array of arrays: product_name, unit, quantity, gross, admin_fee, net
      */
-    $logoPath = $tenant && $tenant->logo ? public_path('storage/' . $tenant->logo) : null;
-    $hasLogo  = $logoPath && file_exists($logoPath);
+    $logoPath = null;
+    $hasLogo = false;
+    if ($tenant && !empty($tenant->logo)) {
+        $raw = trim($tenant->logo);
+        // Se já for uma URL absoluta, use como está
+        if (preg_match('/^https?:\/\//i', $raw) || str_starts_with($raw, '//')) {
+            $logoPath = $raw;
+            $hasLogo = true;
+        } else {
+            // Prioriza arquivo em public/storage
+            $candidate = public_path('storage/' . $raw);
+            if (file_exists($candidate)) {
+                $logoPath = $candidate;
+                $hasLogo = true;
+            } else {
+                // tenta caminho relativo em public
+                $candidate2 = public_path($raw);
+                if (file_exists($candidate2)) {
+                    $logoPath = $candidate2;
+                    $hasLogo = true;
+                } else {
+                    // fallback para URL pública (asset) — pode ser usado pelo gerador de PDF
+                    $logoPath = asset('storage/' . ltrim($raw, '/'));
+                    $hasLogo = true;
+                }
+            }
+        }
+    }
 
     $receiptLabel = isset($receipt) ? $receipt->formatted_number : '—';
     $issuedAt     = isset($receipt) ? $receipt->issued_at->format('d/m/Y') : now()->format('d/m/Y');
@@ -42,14 +68,16 @@ body {
 }
 .hdr { display: table; width: 100%; padding-bottom: 10px; border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
 .hdr-logo { display: table-cell; width: 70px; vertical-align: middle; }
-.hdr-logo img { width: 60px; height: 60px; object-fit: contain; border:none; outline: none; }
+.hdr-logo img { width: 80px; height: 80px; object-fit: contain; border:none; outline: none; }
 .hdr-org  { display: table-cell; vertical-align: middle; padding-left: 12px; }
-.hdr-org .org-name { font-size: 13px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
+.hdr-org .org-name { font-size: 11px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
 .hdr-right { display: table-cell; text-align: right; vertical-align: middle; white-space: nowrap; }
 .hdr-right .doc-type { font-size: 9px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
 .hdr-right .doc-num  { font-size: 13px; font-weight: bold; color: {{ $textColor }}; display: block; }
 .hdr-right .doc-date { font-size: 9.5px; color: #555; display: block; margin-top: 2px; }
+.hdr-right .doc-cheque-label { font-size: 9px; color: #555; display: block; margin-top: 6px; }
+.hdr-right .doc-cheque-box { display: inline-block; min-width: 150px; height: 28px; border: 1px solid #000; margin-top: 6px; text-align: center; font-weight: bold; line-height: 28px; color: #000; }
 .assoc-row { display: table; width: 100%; margin-bottom: 14px; border-bottom: 1px solid {{ $lineColor }}; padding-bottom: 10px; }
 .assoc-col  { display: table-cell; vertical-align: top; padding-right: 20px; }
 .assoc-col-last { display: table-cell; vertical-align: top; }
@@ -106,7 +134,8 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     <div class="hdr-right">
         <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
-        <span class="doc-date">Emitido em: {{ $issuedAt }}</span>
+        <span class="doc-cheque-label">Nº Cheque</span>
+        <span class="doc-cheque-box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
     </div>
 </div>
 
@@ -254,10 +283,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
-<!-- Campo para preenchimento manual do número do cheque -->
-<div style="text-align:center; margin:24px 0 4px; font-size:11px; color:#222;">
-    <strong>Nº Cheque:</strong>&nbsp;&nbsp;<span style="display:inline-block; width:320px; border-bottom:1px solid #000; vertical-align:middle;">&nbsp;</span>
-</div>
+<!-- (Campo de nº do cheque movido para o cabeçalho) -->
 <table style="margin: 28px auto 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
     <tr>
         <td style="text-align: center; padding: 0 30px;">
