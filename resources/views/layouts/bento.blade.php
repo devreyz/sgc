@@ -909,7 +909,13 @@
                     <div class="user-role">@yield('user-role')</div>
                 </div>
                 @if(Auth::user()->avatar)
-                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-avatar">
+                    @php
+                        $avatar = Auth::user()->avatar;
+                        $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
+                            ? $avatar
+                            : Storage::url($avatar);
+                    @endphp
+                    <img src="{{ $avatarUrl }}" alt="{{ Auth::user()->name }}" class="user-avatar">
                 @else
                     <div class="user-avatar" style="background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600;">
                         {{ substr(Auth::user()->name, 0, 1) }}
@@ -933,7 +939,13 @@
             </button>
             <div class="user-menu-profile">
                 @if(Auth::user()->avatar)
-                    <img src="{{ Storage::url(Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
+                    @php
+                        $avatar = Auth::user()->avatar;
+                        $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
+                            ? $avatar
+                            : Storage::url($avatar);
+                    @endphp
+                    <img src="{{ $avatarUrl }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
                 @else
                     <div class="user-menu-avatar" style="background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem;">
                         {{ substr(Auth::user()->name, 0, 1) }}

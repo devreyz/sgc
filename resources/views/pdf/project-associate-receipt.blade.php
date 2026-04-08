@@ -16,12 +16,15 @@
     $receiptLabel = isset($receipt) ? $receipt->formatted_number : '—';
     $issuedAt     = isset($receipt) ? $receipt->issued_at->format('d/m/Y') : now()->format('d/m/Y');
 
-    $primaryColor = '#1a3a5c';
+    $primaryColor = '#0a0a0a';
     $lineColor    = '#c0c8d4';
+    $textColor    = '#000000';
 
-    $hasContract = !empty($project->contract_number);
-    $hasProcess  = !empty($project->process_number);
-    $hasCustomer = !empty($project->customer?->name);
+    $isSecondCopy = $isSecondCopy ?? false;
+    $isStandalone = empty($project);
+
+    $hasContract = !$isStandalone && !empty($project->contract_number);
+    $hasProcess  = !$isStandalone && !empty($project->process_number);
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -33,7 +36,7 @@
 body {
     font-family: 'DejaVu Sans', Arial, sans-serif;
     font-size: 11px;
-    color: #1a1a1a;
+    color: {{ $textColor }};
     background: #fff;
     padding: 16mm 18mm 14mm 18mm;
 }
@@ -41,11 +44,11 @@ body {
 .hdr-logo { display: table-cell; width: 70px; vertical-align: middle; }
 .hdr-logo img { width: 60px; height: 60px; object-fit: contain; }
 .hdr-org  { display: table-cell; vertical-align: middle; padding-left: 12px; }
-.hdr-org .org-name { font-size: 13px; font-weight: bold; color: {{ $primaryColor }}; text-transform: uppercase; line-height: 1.3; }
+.hdr-org .org-name { font-size: 13px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
 .hdr-right { display: table-cell; text-align: right; vertical-align: middle; white-space: nowrap; }
-.hdr-right .doc-type { font-size: 9px; font-weight: bold; color: {{ $primaryColor }}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-.hdr-right .doc-num  { font-size: 13px; font-weight: bold; color: {{ $primaryColor }}; display: block; }
+.hdr-right .doc-type { font-size: 9px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
+.hdr-right .doc-num  { font-size: 13px; font-weight: bold; color: {{ $textColor }}; display: block; }
 .hdr-right .doc-date { font-size: 9.5px; color: #555; display: block; margin-top: 2px; }
 .assoc-row { display: table; width: 100%; margin-bottom: 14px; border-bottom: 1px solid {{ $lineColor }}; padding-bottom: 10px; }
 .assoc-col  { display: table-cell; vertical-align: top; padding-right: 20px; }
@@ -59,16 +62,16 @@ body {
 .proj-value { font-size: 10.5px; font-weight: bold; color: #111; }
 .decl { margin-bottom: 14px; padding: 10px 14px; border: 1px solid {{ $lineColor }}; background: #fafbfc; }
 .decl p { font-size: 11px; line-height: 1.7; color: #222; text-align: justify; }
-.decl strong { color: {{ $primaryColor }}; }
-.sec-label { font-size: 10px; font-weight: bold; color: {{ $primaryColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 0 0 8px; }
-table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10.5px; }
-table.tbl thead th { background: {{ $primaryColor }}; color: #fff; padding: 6px 7px; text-align: left; font-size: 9.5px; font-weight: 600; font-family: 'DejaVu Sans', Arial, sans-serif; }
+.decl strong { color: {{ $textColor }}; }
+.sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 0 0 8px; }
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; }
+table.tbl thead th { background: {{ $primaryColor }}; color: #fff; padding: 6px 7px; text-align: left; font-size: 12px;  font-family: 'DejaVu Sans', Arial, sans-serif; }
 table.tbl thead th.r { text-align: right; }
 table.tbl tbody td { padding: 6px 7px; border-bottom: 1px solid #e8ecf0; }
 table.tbl tbody td.r { text-align: right; }
 table.tbl tbody tr:nth-child(even) td { background: #f7f9fb; }
 table.tbl tfoot td { padding: 7px 7px; font-weight: bold; background: #eef1f5; border-top: 2px solid {{ $primaryColor }}; }
-table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size: 12px; }
+table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12px; }
 .sig-area { margin-top: 30px; display: table; width: 55%; page-break-inside: avoid; }
 .sig-block { display: table-cell; text-align: center; }
 .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 40px; font-size: 11px; font-weight: bold; }
@@ -82,17 +85,26 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
 {{-- ═══ CABEÇALHO ═══ --}}
 <div class="hdr">
     <div class="hdr-logo">
-        @if($hasLogo)<img src="{{ $logoPath }}" alt="Logo">@endif
+        @if($hasLogo)
+            <img src="{{ $logoPath }}" alt="Logo">
+        @endif
     </div>
     <div class="hdr-org">
         <div class="org-name">{{ $tenant->name ?? '' }}</div>
         <div class="org-meta">
-            @if($tenant?->cnpj)CNPJ: {{ $tenant->cnpj }}<br>@endif
-            @if($tenant?->city){{ $tenant->city }}@if($tenant?->state) / {{ $tenant->state }}@endif@endif
+            @if($tenant?->cnpj)
+                CNPJ: {{ $tenant->cnpj }}<br>
+            @endif
+            @if($tenant?->city)
+                {{ $tenant->city }}
+                @if($tenant?->state)
+                    / {{ $tenant->state }}
+                @endif
+            @endif
         </div>
     </div>
     <div class="hdr-right">
-        <span class="doc-type">Comprovante de Entrega</span>
+        <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
         <span class="doc-date">Emitido em: {{ $issuedAt }}</span>
     </div>
@@ -116,43 +128,64 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     @endif
 </div>
 
-{{-- ═══ PROJETO ═══ --}}
+{{-- ═══ PROJETO / PERÍODO ═══ --}}
 <div class="proj-strip">
-    <div class="proj-cell" style="width:44%;">
-        <span class="proj-label">Projeto</span>
-        <span class="proj-value">{{ $project->title }}</span>
-    </div>
-    @if($hasContract)
-    <div class="proj-cell" style="width:24%;">
-        <span class="proj-label">Nº Contrato / CPR</span>
-        <span class="proj-value">{{ $project->contract_number }}</span>
-    </div>
-    @elseif($hasProcess)
-    <div class="proj-cell" style="width:24%;">
-        <span class="proj-label">Nº Processo</span>
-        <span class="proj-value">{{ $project->process_number }}</span>
-    </div>
+    @if($isStandalone)
+        <div class="proj-cell" style="width:50%;">
+            <span class="proj-label">Referente</span>
+            <span class="proj-value">Entrega de Produtos</span>
+        </div>
+        @if(isset($receipt) && $receipt->from_date)
+        <div class="proj-cell" style="width:25%;">
+            <span class="proj-label">Período De</span>
+            <span class="proj-value">{{ $receipt->from_date->format('d/m/Y') }}</span>
+        </div>
+        @endif
+        @if(isset($receipt) && $receipt->to_date)
+        <div class="proj-cell-last" style="width:25%;">
+            <span class="proj-label">Até</span>
+            <span class="proj-value">{{ $receipt->to_date->format('d/m/Y') }}</span>
+        </div>
+        @endif
+    @else
+        <div class="proj-cell" style="width:{{ ($hasContract || $hasProcess) ? '55%' : '80%' }};">
+            <span class="proj-label">Referente</span>
+            <span class="proj-value">{{ $project->title }}</span>
+        </div>
+        @if($hasContract)
+        <div class="proj-cell" style="width:25%;">
+            <span class="proj-label">Nº Contrato / CPR</span>
+            <span class="proj-value">{{ $project->contract_number }}</span>
+        </div>
+        @elseif($hasProcess)
+        <div class="proj-cell" style="width:25%;">
+            <span class="proj-label">Nº Processo</span>
+            <span class="proj-value">{{ $project->process_number }}</span>
+        </div>
+        @endif
+        <div class="proj-cell-last" style="width:20%;">
+            <span class="proj-label">Taxa Adm.</span>
+            <span class="proj-value">{{ number_format($project->admin_fee_percentage ?? 0, 1) }}%</span>
+        </div>
     @endif
-    @if($hasCustomer)
-    <div class="proj-cell" style="width:22%;">
-        <span class="proj-label">Cliente</span>
-        <span class="proj-value">{{ $project->customer->name }}</span>
-    </div>
-    @endif
-    <div class="proj-cell-last" style="width:10%;">
-        <span class="proj-label">Taxa Adm.</span>
-        <span class="proj-value">{{ number_format($project->admin_fee_percentage ?? 0, 1) }}%</span>
-    </div>
 </div>
 
 {{-- ═══ DECLARAÇÃO ═══ --}}
 <div class="decl">
     <p>
-        Recebi da <strong>{{ $tenant->name ?? '' }}</strong>@if($tenant?->cnpj), CNPJ <strong>{{ $tenant->cnpj }}</strong>@endif,
-        referente à entrega dos produtos abaixo, a quantia de
-        <strong>R$&nbsp;{{ number_format($summary['net_value'], 2, ',', '.') }}</strong>
-        (valor líquido após dedução de taxa administrativa de R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}).
-    </p>
+    Recebi da <strong>{{ $tenant->name ?? '' }}</strong>
+    @if($tenant?->cnpj)
+        , inscrita no CNPJ sob nº <strong>{{ $tenant->cnpj }}</strong>
+    @endif,
+    referente ao pagamento pela entrega dos produtos relacionados abaixo
+    @if(!$isStandalone)
+        , vinculados ao projeto <strong>{{ $project->title }}</strong>
+    @endif,
+    a quantia líquida de
+    <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
+    já deduzida a taxa administrativa no valor de
+    <strong>R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</strong>.
+</p>
 </div>
 
 {{-- ═══ RESUMO POR PRODUTO ═══ --}}
@@ -161,11 +194,11 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     <thead>
         <tr>
             <th>Produto</th>
-            <th class="r" style="width:10%;">Qtd.</th>
+            <th class="r" style="width:15%;">Qtd.</th>
             <th class="r" style="width:13%;">Vlr. Unit.</th>
-            <th class="r" style="width:14%;">Vlr. Bruto</th>
-            <th class="r" style="width:12%;">Taxa Adm.</th>
-            <th class="r" style="width:14%;">Vlr. Líquido</th>
+            <th class="r" style="width:15%;">Vlr. Bruto</th>
+            <th class="r" style="width:13%;">Taxa Adm.</th>
+            <th class="r" style="width:18%;">Vlr. Líquido</th>
         </tr>
     </thead>
     <tbody>
@@ -199,12 +232,17 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
         <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 3px;">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</div>
     </div>
     <div style="display: table-cell; width: 33%; text-align: center; padding: 9px 8px; border-right: 1px solid {{ $lineColor }};">
-        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Taxa Adm. ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)</div>
+        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">
+            Taxa Adm.
+            @if(!$isStandalone)
+                ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)
+            @endif
+        </div>
         <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-top: 3px;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</div>
     </div>
-    <div style="display: table-cell; width: 34%; text-align: center; padding: 9px 8px; background: {{ $primaryColor }};">
-        <div style="font-size: 8px; color: rgba(255,255,255,0.75); text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Líquido a Receber</div>
-        <div style="font-size: 15px; font-weight: bold; color: #fff; margin-top: 3px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
+    <div style="display: table-cell; width: 34%; text-align: center; padding: 9px 8px;">
+        <div style="font-size: 8px; color: #000000; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Líquido a Receber</div>
+        <div style="font-size: 15px; font-weight: bold; color: #000000; margin-top: 3px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
     </div>
 </div>
 
@@ -216,7 +254,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
-<table style="margin: 28px auto 0; page-break-inside: avoid;">
+<table style="margin: 28px auto 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
     <tr>
         <td style="text-align: center; padding: 0 30px;">
             <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
@@ -226,10 +264,20 @@ table.tbl tfoot td.r { text-align: right; color: {{ $primaryColor }}; font-size:
     </tr>
 </table>
 
+{{-- ═══ SEGUNDA VIA ═══ --}}
+    @if($isSecondCopy)
+        <div style="position: fixed; top: 50%; left: 0; width: 100%; text-align: center; transform: translateY(-50%) rotate(-35deg); color: rgba(180,0,0,0.12); font-size: 72px; font-weight: bold; letter-spacing: 6px; font-family: 'DejaVu Sans', Arial, sans-serif; pointer-events: none; z-index: 100;">
+            2ª VIA
+        </div>
+    @endif
+
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
     &nbsp;&nbsp;|&nbsp;&nbsp; Comprovante gerado em {{ now()->format('d/m/Y H:i') }}
+    @if($isSecondCopy)
+        &nbsp;&nbsp;|&nbsp;&nbsp; <strong>2ª VIA</strong>
+    @endif
 </div>
 
 </body>

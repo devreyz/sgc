@@ -682,7 +682,11 @@
                 <div class="tenant-stripe">
                     @if($tenant->logo)
                     <div class="logo-container">
-                        <img src="{{ Storage::url($tenant->logo) }}" alt="Logo">
+                        @php
+                            $tlogo = $tenant->logo;
+                            $tlogoUrl = \Illuminate\Support\Str::startsWith($tlogo, ['http://', 'https://']) ? $tlogo : Storage::url($tlogo);
+                        @endphp
+                        <img src="{{ $tlogoUrl }}" alt="Logo">
                     </div>
                     @endif
                     <div class="tenant-title">
@@ -694,7 +698,13 @@
                 <div class="content">
                     <div class="photo-container">
                         @if($user->avatar)
-                            <img class="photo-img" src="{{ Storage::url($user->avatar) }}" alt="Foto" crossorigin="anonymous" loading="eager" decoding="async">
+                            @php
+                                $avatar = $user->avatar;
+                                $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
+                                    ? $avatar
+                                    : Storage::url($avatar);
+                            @endphp
+                            <img class="photo-img" src="{{ $avatarUrl }}" alt="Foto" crossorigin="anonymous" loading="eager" decoding="async">
                         @else
                             <div class="photo-initials" style="display: flex; align-items: center; justify-content: center; height: 100%;">
                                 {{ strtoupper(substr($user->name, 0, 2)) }}

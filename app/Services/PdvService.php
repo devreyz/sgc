@@ -48,15 +48,25 @@ class PdvService
 
             $isFiado = $data['is_fiado'] ?? false;
 
-            // Calcular total pago
+            // Calcular total pago (considerar sempre os pagamentos informados)
             $amountPaid = 0;
-            if (!$isFiado && !empty($data['payments'])) {
+            if (!empty($data['payments'])) {
                 foreach ($data['payments'] as $payment) {
                     $amountPaid += (float) $payment['amount'];
                 }
             }
 
             $changeAmount = max(0, round($amountPaid - $total, 2));
+
+            // Regras de negócio: se houve pagamento parcial e não marcou fiado,
+            // é necessário fornecer um cliente para registrar o saldo a prazo.
+            $hasCustomer = !empty($data['pdv_customer_id']);
+            if ($amountPaid < $total && !$isFiado && !$hasCustomer) {
+                throw new \InvalidArgumentException('Pagamento parcial requer marcar fiado ou selecionar um cliente para crédito.');
+            }
+
+            // Definir se a venda será considerada fiado (quando houver saldo restante)
+            $finalIsFiado = $isFiado || ($amountPaid < $total);
 
             // Criar venda
             $sale = PdvSale::create([
@@ -69,10 +79,10 @@ class PdvService
                 'discount_percent' => $discountPercent,
                 'tax_amount' => $taxAmount,
                 'total' => $total,
-                'amount_paid' => $isFiado ? 0 : min($amountPaid, $total),
+                'amount_paid' => min($amountPaid, $total),
                 'change_amount' => $changeAmount,
                 'status' => 'completed',
-                'is_fiado' => $isFiado,
+                'is_fiado' => $finalIsFiado,
                 'fiado_due_date' => $data['fiado_due_date'] ?? null,
                 'interest_rate' => $data['interest_rate'] ?? 0,
                 'notes' => $data['notes'] ?? null,
@@ -114,15 +124,16 @@ class PdvService
                 ]);
             }
 
-            // Registrar pagamentos (se não for fiado)
-            if (!$isFiado && !empty($data['payments'])) {
+            // Registrar pagamentos informados (podem ser parciais)
+            if (!empty($data['payments'])) {
                 $this->registerPayments($sale, $data['payments'], $tenantId);
             }
 
-            // Atualizar saldo devedor do cliente (fiado)
-            if ($isFiado && $sale->pdv_customer_id) {
+            // Atualizar saldo devedor do cliente (fiado) apenas para o saldo remanescente
+            $remaining = round(max(0, $total - min($amountPaid, $total)), 2);
+            if ($finalIsFiado && $sale->pdv_customer_id && $remaining > 0) {
                 PdvCustomer::where('id', $sale->pdv_customer_id)
-                    ->increment('credit_balance', $total);
+                    ->increment('credit_balance', $remaining);
             }
 
             return $sale;

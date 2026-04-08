@@ -121,6 +121,11 @@ class PdvController extends Controller
                 'sale' => new PdvSaleResource($sale),
                 'message' => "Venda {$sale->code} finalizada!",
             ]);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

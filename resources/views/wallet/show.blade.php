@@ -101,7 +101,13 @@
                 <div style="margin-bottom: 1.5rem;">
                     <div style="display: flex; align-items: center; gap: 1rem;">
                         @if($user->avatar)
-                            <img src="{{ Storage::url($user->avatar) }}" alt="{{ $user->name }}" 
+                            @php
+                                $avatar = $user->avatar;
+                                $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
+                                    ? $avatar
+                                    : Storage::url($avatar);
+                            @endphp
+                            <img src="{{ $avatarUrl }}" alt="{{ $user->name }}" 
                                  style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3);">
                         @else
                             <div style="width: 60px; height: 60px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700;">

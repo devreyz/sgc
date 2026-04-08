@@ -14,15 +14,21 @@ class AssociateReceipt extends Model
         'receipt_year',
         'receipt_number',
         'issued_at',
+        'from_date',
+        'to_date',
         'notes',
+        'acknowledged_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'issued_at' => 'date',
-            'receipt_year' => 'integer',
-            'receipt_number' => 'integer',
+            'issued_at'       => 'date',
+            'from_date'       => 'date',
+            'to_date'         => 'date',
+            'receipt_year'    => 'integer',
+            'receipt_number'  => 'integer',
+            'acknowledged_at' => 'datetime',
         ];
     }
 

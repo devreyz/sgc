@@ -86,7 +86,7 @@ class SalesProjectResource extends Resource
                         Forms\Components\DatePicker::make('end_date')
                             ->label('Data Fim')
                             ->required()
-                            ->after('start_date'),
+                            ->afterOrEqual('start_date'),
 
                         Forms\Components\TextInput::make('reference_year')
                             ->label('Ano de Referência')
