@@ -1,3 +1,15 @@
+<?php
+/**
+ * Script que reescreve todas as views do painel externo de entregas.
+ * Executar: php scripts/write_delivery_views.php
+ */
+
+$base = __DIR__ . '/../resources/views/delivery';
+
+// ─────────────────────────────────────────────
+// 1. DASHBOARD
+// ─────────────────────────────────────────────
+$dashboard = <<<'BLADE'
 @extends('layouts.bento')
 
 @section('title', 'Painel de Entregas')
@@ -554,3 +566,15 @@ document.querySelectorAll('.dp-modal-overlay').forEach(el => {
 });
 </script>
 @endsection
+BLADE;
+
+file_put_contents("$base/dashboard.blade.php", $dashboard);
+echo "dashboard.blade.php written\n";
+
+// ─────────────────────────────────────────────
+// 2. REGISTER (manter estrutura atual, mas melhorar mobile + avulso)
+// (skip – too long, handled separately)
+// ─────────────────────────────────────────────
+echo "Skipping register – handled separately\n";
+
+echo "Done.\n";

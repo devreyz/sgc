@@ -6,12 +6,20 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Entregas</a>
-    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Registrar Entrega</a>
+    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Dashboard
+    </a>
+    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">
+        <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
+    </a>
+    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
+    </a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
+        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
+            <i data-lucide="log-out" style="width:14px;height:14px"></i> Sair
+        </button>
     </form>
 </nav>
 @endsection
@@ -53,6 +61,13 @@
     .btn-outline:hover { background:var(--color-bg); }
     .btn-sm { padding:.3rem .6rem; font-size:.75rem; }
     .empty-msg { padding:2rem; text-align:center; color:var(--color-text-secondary); }
+    .action-btns { display:flex; gap:.3rem; }
+    .btn-xs { padding:.22rem .5rem; font-size:.7rem; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; transition:.15s; white-space:nowrap; }
+    .btn-xs:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-approve { background:rgba(16,185,129,.12); color:#059669; }
+    .btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
+    .btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; }
+    .btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
 
     /* Reports Section */
     .reports-bar { background:var(--color-surface); border-radius:var(--radius-lg); padding:1rem 1.25rem; border:1px solid var(--color-border); margin-bottom:1.25rem; }
@@ -235,27 +250,40 @@
                     <th>Projeto</th>
                     <th>Produto</th>
                     <th>Associado</th>
-                    <th>Qtd (kg)</th>
-                    <th>Valor Unit.</th>
-                    <th>Valor Bruto</th>
+                    <th>Qtd</th>
+                    <th>Val. Bruto</th>
                     <th>Status</th>
-                    <th>Qualidade</th>
+                    <th>Qual.</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($deliveries as $d)
-                <tr>
+                <tr id="row-{{ $d->id }}">
                     <td style="white-space:nowrap;">{{ $d->delivery_date?->format('d/m/Y') }}</td>
-                    <td>{{ \Illuminate\Support\Str::limit(optional($d->salesProject)->title, 25) ?? 'Avulsa' }}</td>
+                    <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ optional($d->salesProject)->title ?? 'Avulsa' }}">{{ \Illuminate\Support\Str::limit(optional($d->salesProject)->title, 22) ?? '<em>Avulsa</em>' }}</td>
                     <td>{{ optional($d->product)->name ?? '-' }}</td>
-                    <td>{{ optional(optional($d->associate)->user)->name ?? '-' }}</td>
-                    <td style="font-weight:600;">{{ number_format($d->quantity, 1, ',', '.') }}</td>
-                    <td>R$ {{ number_format($d->unit_price, 2, ',', '.') }}</td>
-                    <td>R$ {{ number_format($d->gross_value, 2, ',', '.') }}</td>
+                    <td style="white-space:nowrap;">{{ optional(optional($d->associate)->user)->name ?? '-' }}</td>
+                    <td style="font-weight:600;white-space:nowrap;">{{ number_format($d->quantity, 3, ',', '.') }} <small style="font-weight:400;font-size:.7em;">{{ optional($d->product)->unit ?? 'un' }}</small></td>
+                    <td style="white-space:nowrap;">R$ {{ number_format($d->gross_value, 2, ',', '.') }}</td>
                     <td>
                         <span class="badge-status {{ $d->status->value }}">{{ $d->status->getLabel() }}</span>
                     </td>
                     <td>{{ $d->quality_grade ?? '-' }}</td>
+                    <td>
+                        @if($d->status->value === 'pending')
+                        <div class="action-btns">
+                            <button class="btn-xs btn-approve" data-id="{{ $d->id }}" title="Aprovar">
+                                <i data-lucide="check" style="width:11px;height:11px"></i> Aprovar
+                            </button>
+                            <button class="btn-xs btn-reject" data-id="{{ $d->id }}" title="Rejeitar">
+                                <i data-lucide="x" style="width:11px;height:11px"></i> Rejeitar
+                            </button>
+                        </div>
+                        @else
+                        <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>
+                        @endif
+                    </td>
                 </tr>
                 @endforeach
             </tbody>
@@ -271,14 +299,60 @@
 
 @push('scripts')
 <script>
-    function openReceiptModal() {
-        document.getElementById('receiptModal').classList.add('active');
+const TENANT_SLUG = '{{ $currentTenant->slug }}';
+const CSRF_TOKEN = '{{ csrf_token() }}';
+
+function openReceiptModal() {
+    document.getElementById('receiptModal').classList.add('active');
+}
+function closeReceiptModal() {
+    document.getElementById('receiptModal').classList.remove('active');
+}
+document.getElementById('receiptModal').addEventListener('click', function(e) {
+    if (e.target === this) closeReceiptModal();
+});
+
+// ── Inline approve/reject ──
+document.addEventListener('click', async function(e) {
+    const approveBtn = e.target.closest('.btn-approve');
+    const rejectBtn  = e.target.closest('.btn-reject');
+    if (!approveBtn && !rejectBtn) return;
+
+    const btn = approveBtn || rejectBtn;
+    const id  = btn.dataset.id;
+    const action = approveBtn ? 'approve' : 'reject';
+
+    if (!confirm(action === 'approve' ? 'Aprovar esta entrega?' : 'Rejeitar esta entrega?')) return;
+
+    btn.disabled = true;
+    const row = document.getElementById('row-' + id);
+    const allBtns = row ? row.querySelectorAll('.btn-xs') : [btn];
+    allBtns.forEach(b => b.disabled = true);
+
+    try {
+        const res = await fetch(`/${TENANT_SLUG}/delivery/deliveries/${id}/${action}`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+            if (row) {
+                const statusCell = row.querySelector('.badge-status');
+                const actionCell = row.querySelector('.action-btns');
+                if (statusCell) {
+                    statusCell.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
+                    statusCell.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
+                }
+                if (actionCell) actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+            }
+        } else {
+            alert(data.message || 'Erro ao processar.');
+            allBtns.forEach(b => b.disabled = false);
+        }
+    } catch(err) {
+        alert('Erro de comunicação com o servidor.');
+        allBtns.forEach(b => b.disabled = false);
     }
-    function closeReceiptModal() {
-        document.getElementById('receiptModal').classList.remove('active');
-    }
-    document.getElementById('receiptModal').addEventListener('click', function(e) {
-        if (e.target === this) closeReceiptModal();
-    });
+});
 </script>
 @endpush

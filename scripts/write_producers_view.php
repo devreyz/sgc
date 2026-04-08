@@ -1,3 +1,10 @@
+<?php
+/**
+ * Reescreve a view project-producers.blade.php com design consistente usando CSS vars
+ */
+$file = __DIR__ . '/../resources/views/delivery/project-producers.blade.php';
+
+$content = <<<'BLADE'
 @extends('layouts.bento')
 
 @section('title', 'Produtores do Projeto')
@@ -202,3 +209,7 @@
     @endif
 </div>
 @endsection
+BLADE;
+
+file_put_contents($file, $content);
+echo "project-producers.blade.php written (" . strlen($content) . " bytes)\n";

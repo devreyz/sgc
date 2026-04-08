@@ -6,11 +6,20 @@
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Registrar Entrega</a>
+    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Dashboard
+    </a>
+    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
+    </a>
+    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">
+        <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
+    </a>
     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
         @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
+        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
+            <i data-lucide="log-out" style="width:14px;height:14px"></i> Sair
+        </button>
     </form>
 </nav>
 @endsection
