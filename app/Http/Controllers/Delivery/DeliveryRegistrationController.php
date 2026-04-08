@@ -1109,19 +1109,17 @@ class DeliveryRegistrationController extends Controller
             'net_value'        => $deliveries->sum('net_value'),
         ];
 
-        $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
-            $product    = $items->first()->product;
-            $totalQty   = $items->sum('quantity');
-            $totalGross = $items->sum('gross_value');
+        $productsSummary = $deliveries->map(function ($d) {
             return [
-                'product_name' => $product?->name ?? '—',
-                'unit'         => $product?->unit ?? 'un',
-                'count'        => $items->count(),
-                'quantity'     => $totalQty,
-                'unit_price'   => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
-                'gross'        => $totalGross,
-                'admin_fee'    => $items->sum('admin_fee_amount'),
-                'net'          => $items->sum('net_value'),
+                'product_name'  => $d->product?->name ?? '—',
+                'unit'          => $d->product?->unit ?? 'un',
+                'delivery_date' => $d->delivery_date,
+                'count'         => 1,
+                'quantity'      => $d->quantity,
+                'unit_price'    => $d->unit_price ?? 0,
+                'gross'         => $d->gross_value,
+                'admin_fee'     => $d->admin_fee_amount,
+                'net'           => $d->net_value,
             ];
         })->values()->all();
 
@@ -1140,6 +1138,120 @@ class DeliveryRegistrationController extends Controller
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
         }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
+     * Gera comprovante PDF a partir de entregas selecionadas manualmente.
+     * Aceita POST com array de IDs de entregas aprovadas (de um mesmo associado).
+     */
+    public function generateSelectedDeliveriesReceipt(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $tenantId  = session('tenant_id');
+
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $deliveryIds = $request->input('delivery_ids', []);
+        if (empty($deliveryIds) || !is_array($deliveryIds)) {
+            return response()->json(['success' => false, 'message' => 'Selecione ao menos uma entrega.'], 422);
+        }
+
+        // Sanitizar IDs
+        $deliveryIds = array_map('intval', $deliveryIds);
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $tenant  = $this->currentTenant();
+
+        // Buscar entregas selecionadas — somente aprovadas, do mesmo tenant/projeto
+        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereIn('id', $deliveryIds)
+            ->with(['product', 'associate.user'])
+            ->orderBy('delivery_date')
+            ->get();
+
+        if ($deliveries->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Nenhuma entrega aprovada encontrada entre as selecionadas.'], 422);
+        }
+
+        // Verificar que todas pertencem ao mesmo associado
+        $associateIds = $deliveries->pluck('associate_id')->unique();
+        if ($associateIds->count() > 1) {
+            return response()->json(['success' => false, 'message' => 'Selecione entregas de um mesmo produtor para gerar o comprovante.'], 422);
+        }
+
+        $associate = Associate::where('tenant_id', $tenantId)
+            ->with('user')
+            ->findOrFail($associateIds->first());
+
+        // Criar ou reutilizar registro de comprovante
+        $year    = now()->year;
+        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associate->id)
+            ->first();
+
+        if ($receipt) {
+            $receipt->update(['issued_at' => today()]);
+        } else {
+            $receipt = \App\Models\AssociateReceipt::create([
+                'tenant_id'        => $tenantId,
+                'sales_project_id' => $projectId,
+                'associate_id'     => $associate->id,
+                'receipt_year'     => $year,
+                'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at'        => today(),
+            ]);
+        }
+
+        // Resumo financeiro
+        $summary = [
+            'deliveries_count' => $deliveries->count(),
+            'total_quantity'   => $deliveries->sum('quantity'),
+            'gross_value'      => $deliveries->sum('gross_value'),
+            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
+            'net_value'        => $deliveries->sum('net_value'),
+        ];
+
+        // Listar cada entrega individualmente (não agrupar) para manter datas visíveis
+        $productsSummary = $deliveries->map(function ($d) {
+            return [
+                'product_name'  => $d->product?->name ?? '—',
+                'unit'          => $d->product?->unit ?? 'un',
+                'delivery_date' => $d->delivery_date,
+                'count'         => 1,
+                'quantity'      => $d->quantity,
+                'unit_price'    => $d->unit_price ?? 0,
+                'gross'         => $d->gross_value,
+                'admin_fee'     => $d->admin_fee_amount,
+                'net'           => $d->net_value,
+            ];
+        })->values()->all();
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+            'tenant'          => $tenant,
+            'project'         => $project,
+            'associate'       => $associate,
+            'receipt'         => $receipt,
+            'summary'         => $summary,
+            'productsSummary' => $productsSummary,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+        $filename     = "comprovante-{$receiptLabel}-{$safeName}-parcial.pdf";
+
+        // Retornar Base64 para download via JS (POST não permite download direto)
+        $base64 = base64_encode($pdf->output());
+
+        return response()->json([
+            'success'  => true,
+            'filename' => $filename,
+            'pdf'      => $base64,
+        ]);
     }
 
     /**
@@ -1188,18 +1300,18 @@ class DeliveryRegistrationController extends Controller
             'net_value' => $deliveries->sum('net_value'),
         ];
 
-        // Resumo por produto
-        $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
-            $product = $items->first()->product;
-
+        // Resumo por entrega individual (com datas)
+        $productsSummary = $deliveries->map(function ($d) {
             return [
-                'product_name' => $product?->name ?? '—',
-                'unit' => $product?->unit ?? 'un',
-                'count' => $items->count(),
-                'quantity' => $items->sum('quantity'),
-                'gross' => $items->sum('gross_value'),
-                'admin_fee' => $items->sum('admin_fee_amount'),
-                'net' => $items->sum('net_value'),
+                'product_name'  => $d->product?->name ?? '—',
+                'unit'          => $d->product?->unit ?? 'un',
+                'delivery_date' => $d->delivery_date,
+                'count'         => 1,
+                'quantity'      => $d->quantity,
+                'unit_price'    => $d->unit_price ?? 0,
+                'gross'         => $d->gross_value,
+                'admin_fee'     => $d->admin_fee_amount,
+                'net'           => $d->net_value,
             ];
         })->values()->all();
 

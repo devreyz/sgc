@@ -103,6 +103,16 @@
     .pd-toast.error   { border-left:3px solid var(--color-danger); }
     @keyframes pd-fi { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
+    /* Selection bar */
+    .selection-bar { position:fixed; bottom:0; left:0; right:0; background:var(--color-surface); border-top:2px solid var(--color-primary); padding:.75rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; z-index:99998; box-shadow:0 -4px 18px rgba(0,0,0,.14); transform:translateY(100%); transition:transform .25s ease; }
+    .selection-bar.visible { transform:translateY(0); }
+    .selection-bar-info { font-size:.88rem; font-weight:600; display:flex; align-items:center; gap:.4rem; }
+    .selection-bar-actions { display:flex; gap:.5rem; align-items:center; }
+    .btn-primary { background:var(--color-primary); color:#fff; }
+    .btn-primary:hover:not(:disabled) { opacity:.88; transform:translateY(-1px); }
+    .chk-cell { width:32px; text-align:center; }
+    .chk-cell input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--color-primary); }
+
     @media(max-width:600px) {
         .pd-header { flex-direction:column; }
         .data-table th:nth-child(3), .data-table td:nth-child(3),
@@ -220,6 +230,7 @@ $totalNet      = $deliveries->sum('net_value');
         <table class="data-table">
             <thead>
                 <tr>
+                    <th class="chk-cell"><input type="checkbox" id="select-all" title="Selecionar todas aprovadas"></th>
                     <th>Data</th>
                     <th>Associado</th>
                     <th>Produto</th>
@@ -233,6 +244,11 @@ $totalNet      = $deliveries->sum('net_value');
             <tbody>
                 @foreach($deliveries as $delivery)
                 <tr id="row-{{ $delivery['id'] }}" class="{{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}">
+                    <td class="chk-cell">
+                        @if($delivery['status_value'] === 'approved')
+                        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['net_value'] }}">
+                        @endif
+                    </td>
                     <td style="white-space:nowrap;">{{ $delivery['delivery_date'] }}</td>
                     <td style="font-weight:500;">{{ $delivery['associate_name'] }}</td>
                     <td>{{ $delivery['product_name'] }}</td>
@@ -264,9 +280,26 @@ $totalNet      = $deliveries->sum('net_value');
     @endif
 </div>
 
+{{-- ── BARRA DE SELEÇÃO (fixa no rodapé) ── --}}
+<div class="selection-bar" id="selection-bar">
+    <div class="selection-bar-info">
+        <i data-lucide="check-square" style="width:16px;height:16px;color:var(--color-primary)"></i>
+        <span id="sel-count">0</span> entrega(s) selecionada(s)
+        &nbsp;—&nbsp;
+        <span style="color:var(--color-success)">R$ <span id="sel-total">0,00</span></span>
+    </div>
+    <div class="selection-bar-actions">
+        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Limpar</button>
+        <button class="btn btn-primary btn-sm" id="btn-gen-receipt" onclick="generateSelectedReceipt()">
+            <i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante
+        </button>
+    </div>
+</div>
+
 <script>
-const PD_TENANT = '{{ $currentTenant->slug }}';
-const PD_CSRF   = '{{ csrf_token() }}';
+const PD_TENANT   = '{{ $currentTenant->slug }}';
+const PD_CSRF     = '{{ csrf_token() }}';
+const PD_PROJECT  = {{ $project->id }};
 
 function pdToast(msg, type = 'success') {
     const c = document.getElementById('pd-toasts');
@@ -275,6 +308,74 @@ function pdToast(msg, type = 'success') {
     el.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
     c.appendChild(el);
     setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.remove(), 300); }, 4000);
+}
+
+/* ── Seleção de entregas ── */
+function updateSelectionBar() {
+    const checks = document.querySelectorAll('.delivery-chk:checked');
+    const bar    = document.getElementById('selection-bar');
+    const count  = checks.length;
+    let total = 0;
+    checks.forEach(c => total += parseFloat(c.dataset.net || 0));
+    document.getElementById('sel-count').textContent = count;
+    document.getElementById('sel-total').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    bar.classList.toggle('visible', count > 0);
+}
+
+function clearSelection() {
+    document.querySelectorAll('.delivery-chk').forEach(c => c.checked = false);
+    document.getElementById('select-all').checked = false;
+    updateSelectionBar();
+}
+
+document.getElementById('select-all')?.addEventListener('change', function() {
+    const val = this.checked;
+    document.querySelectorAll('.delivery-chk').forEach(c => c.checked = val);
+    updateSelectionBar();
+});
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('delivery-chk')) updateSelectionBar();
+});
+
+async function generateSelectedReceipt() {
+    const checks = document.querySelectorAll('.delivery-chk:checked');
+    if (checks.length === 0) return pdToast('Selecione ao menos uma entrega.', 'error');
+
+    const ids = Array.from(checks).map(c => parseInt(c.value));
+    const btn = document.getElementById('btn-gen-receipt');
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" style="width:13px;height:13px"></i> Gerando...';
+
+    try {
+        const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/receipt-selected`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ delivery_ids: ids })
+        });
+        const data = await res.json();
+        if (data.success) {
+            // Converter Base64 → Blob → download
+            const byteChars = atob(data.pdf);
+            const byteArray = new Uint8Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+            const blob = new Blob([byteArray], { type: 'application/pdf' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href = url; a.download = data.filename; a.click();
+            URL.revokeObjectURL(url);
+            pdToast(`Comprovante gerado com ${ids.length} entrega(s)!`);
+            clearSelection();
+        } else {
+            pdToast(data.message || 'Erro ao gerar comprovante.', 'error');
+        }
+    } catch(err) {
+        pdToast('Erro de comunicação com o servidor.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 }
 
 document.addEventListener('click', async function(e) {
