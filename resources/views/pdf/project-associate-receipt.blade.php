@@ -223,7 +223,8 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     <thead>
         <tr>
             <th>Produto</th>
-            <th class="r" style="width:15%;">Qtd.</th>
+            <th style="width:12%;">Data Entrega</th>
+            <th class="r" style="width:12%;">Qtd.</th>
             <th class="r" style="width:13%;">Vlr. Unit.</th>
             <th class="r" style="width:15%;">Vlr. Bruto</th>
             <th class="r" style="width:13%;">Taxa Adm.</th>
@@ -232,8 +233,24 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     </thead>
     <tbody>
         @foreach($productsSummary as $ps)
+        @php
+            $deliveryDate = '—';
+            if (!empty($ps['delivery_date'])) {
+                $d = $ps['delivery_date'];
+                if (is_object($d) && method_exists($d, 'format')) {
+                    $deliveryDate = $d->format('d/m/Y');
+                } else {
+                    try {
+                        $deliveryDate = \Carbon\Carbon::parse($d)->format('d/m/Y');
+                    } catch (\Exception $e) {
+                        $deliveryDate = $d;
+                    }
+                }
+            }
+        @endphp
         <tr>
             <td><strong>{{ $ps['product_name'] }}</strong></td>
+            <td>{{ $deliveryDate }}</td>
             <td class="r">{{ number_format($ps['quantity'], 3, ',', '.') }} {{ $ps['unit'] }}</td>
             <td class="r">R$ {{ number_format($ps['unit_price'] ?? 0, 2, ',', '.') }}</td>
             <td class="r">R$ {{ number_format($ps['gross'], 2, ',', '.') }}</td>
@@ -245,6 +262,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     <tfoot>
         <tr>
             <td><strong>TOTAL</strong></td>
+            <td></td>
             <td class="r">{{ number_format($summary['total_quantity'], 3, ',', '.') }}</td>
             <td class="r"></td>
             <td class="r">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</td>
