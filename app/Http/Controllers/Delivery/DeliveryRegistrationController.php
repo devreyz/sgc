@@ -1013,12 +1013,16 @@ class DeliveryRegistrationController extends Controller
      * Lista pública (autenticada) dos produtores que entregaram em um projeto.
      * Requer auth + role registrador_entregas ou acima.
      */
-    public function projectProducers(SalesProject $project)
+    public function projectProducers()
     {
-        $tenantId = session('tenant_id');
-        if (!$tenantId || $project->tenant_id !== $tenantId) {
-            abort(403);
+        $projectId = (int) request()->route('project');
+        $tenantId  = session('tenant_id');
+
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
 
         $tenant = $this->currentTenant();
 

@@ -370,7 +370,10 @@ class AssociateResource extends Resource
                             'end_date'   => $data['end_date'] ?? null,
                             'notes'      => $data['notes'] ?? null,
                         ]);
-                        $url = route('reports.associate-deliveries', $record->id);
+                        $url = route('reports.associate-deliveries', [
+                            'tenant'    => session('tenant_slug'),
+                            'associate' => $record->id,
+                        ]);
                         if ($params) {
                             $url .= '?' . http_build_query($params);
                         }

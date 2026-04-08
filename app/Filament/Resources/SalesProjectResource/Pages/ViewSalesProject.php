@@ -702,10 +702,11 @@ class ViewSalesProject extends ViewRecord
         ]);
 
         $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, "comprovante-{$receipt->formatted_number}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
     }
 
     protected function generateFinalReport(SalesProject $record, array $filters = [])
