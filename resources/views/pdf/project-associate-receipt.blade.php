@@ -42,7 +42,7 @@ body {
 }
 .hdr { display: table; width: 100%; padding-bottom: 10px; border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
 .hdr-logo { display: table-cell; width: 70px; vertical-align: middle; }
-.hdr-logo img { width: 60px; height: 60px; object-fit: contain; }
+.hdr-logo img { width: 60px; height: 60px; object-fit: contain; border:none; outline: none; }
 .hdr-org  { display: table-cell; vertical-align: middle; padding-left: 12px; }
 .hdr-org .org-name { font-size: 13px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
@@ -65,7 +65,7 @@ body {
 .decl strong { color: {{ $textColor }}; }
 .sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 0 0 8px; }
 table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; }
-table.tbl thead th { background: {{ $primaryColor }}; color: #fff; padding: 6px 7px; text-align: left; font-size: 12px;  font-family: 'DejaVu Sans', Arial, sans-serif; }
+table.tbl thead th { border-bottom: 1px solid {{ $lineColor }}; border-top: 1px solid {{ $lineColor }}; padding: 6px 7px; text-align: left; font-size: 12px;  font-family: 'DejaVu Sans', Arial, sans-serif; }
 table.tbl thead th.r { text-align: right; }
 table.tbl tbody td { padding: 6px 7px; border-bottom: 1px solid #e8ecf0; }
 table.tbl tbody td.r { text-align: right; }
@@ -254,6 +254,10 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
+<!-- Campo para preenchimento manual do número do cheque -->
+<div style="text-align:center; margin:24px 0 4px; font-size:11px; color:#222;">
+    <strong>Nº Cheque:</strong>&nbsp;&nbsp;<span style="display:inline-block; width:320px; border-bottom:1px solid #000; vertical-align:middle;">&nbsp;</span>
+</div>
 <table style="margin: 28px auto 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
     <tr>
         <td style="text-align: center; padding: 0 30px;">
