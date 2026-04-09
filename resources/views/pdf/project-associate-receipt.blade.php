@@ -226,7 +226,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
         <tr>
             <td><strong>TOTAL</strong></td>
             <td></td>
-            <td class="r">{{ number_format($summary['total_quantity'], 3, ',', '.') }}</td>
+            <td class="r"></td>
             <td class="r"></td>
             <td class="r">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</td>
             <td class="r" style="color:#c0392b;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>
