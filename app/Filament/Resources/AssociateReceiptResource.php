@@ -283,21 +283,17 @@ class AssociateReceiptResource extends Resource
                             'net_value' => $deliveries->sum('net_value'),
                         ];
 
-                        $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
-                            $product = $items->first()->product;
-                            $totalQty = $items->sum('quantity');
-                            $totalGross = $items->sum('gross_value');
-
+                        $productsSummary = $deliveries->map(function ($d) {
                             return [
-                                'product_name' => $product?->name ?? '—',
-                                'unit' => $product?->unit ?? 'un',
-                                'delivery_date' => $items->first()->delivery_date,
-                                'count' => $items->count(),
-                                'quantity' => $totalQty,
-                                'unit_price' => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
-                                'gross' => $totalGross,
-                                'admin_fee' => $items->sum('admin_fee_amount'),
-                                'net' => $items->sum('net_value'),
+                                'product_name' => $d->product?->name ?? '—',
+                                'unit'          => $d->product?->unit ?? 'un',
+                                'delivery_date' => $d->delivery_date,
+                                'count'         => 1,
+                                'quantity'      => $d->quantity,
+                                'unit_price'    => $d->unit_price ?? 0,
+                                'gross'         => $d->gross_value,
+                                'admin_fee'     => $d->admin_fee_amount,
+                                'net'           => $d->net_value,
                             ];
                         })->values()->all();
 
