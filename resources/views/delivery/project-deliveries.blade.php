@@ -80,10 +80,20 @@
     .btn-sm { padding:.3rem .6rem; font-size:.73rem; }
     .btn-xs { padding:.22rem .5rem; font-size:.7rem; }
     .action-btns { display:flex; gap:.3rem; }
-    .btn-approve { background:rgba(16,185,129,.12); color:#059669; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.22rem .5rem; font-size:.7rem; transition:.15s; }
-    .btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
-    .btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.22rem .5rem; font-size:.7rem; transition:.15s; }
-    .btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
+    .btn-edit    { background:rgba(59,130,246,.12); color:#2563eb; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.22rem .5rem; font-size:.7rem; transition:.15s; }
+    .btn-edit:hover { background:#2563eb; color:#fff; }
+
+    /* Edit modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100000; }
+    .modal-overlay.hidden { display:none; }
+    .modal-box { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:min(480px,95vw); box-shadow:0 8px 32px rgba(0,0,0,.22); }
+    .modal-title { font-size:1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
+    .form-group { margin-bottom:.85rem; }
+    .form-label { display:block; font-size:.75rem; font-weight:600; margin-bottom:.3rem; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.03em; }
+    .form-control { width:100%; padding:.45rem .7rem; border:1px solid var(--color-border); border-radius:var(--radius-md); font-size:.88rem; background:var(--color-bg); color:var(--color-text); }
+    .form-control:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 2px rgba(var(--color-primary-rgb),.15); }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+    .modal-footer { display:flex; gap:.5rem; justify-content:flex-end; margin-top:1.2rem; border-top:1px solid var(--color-border); padding-top:1rem; }
 
     /* Reports bar */
     .reports-bar { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); padding:.9rem 1.2rem; margin-bottom:1.25rem; }
@@ -121,6 +131,47 @@
 </style>
 
 <div id="pd-toasts"></div>
+
+{{-- ── MODAL EDITAR ENTREGA ── --}}
+<div class="modal-overlay hidden" id="edit-modal">
+    <div class="modal-box">
+        <div class="modal-title">
+            <i data-lucide="pencil" style="width:16px;height:16px;color:#2563eb"></i>
+            Editar Entrega
+        </div>
+        <input type="hidden" id="edit-delivery-id">
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Data da Entrega *</label>
+                <input type="date" id="edit-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Quantidade *</label>
+                <input type="number" id="edit-qty" class="form-control" step="0.001" min="0.001" required>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Preço Unitário</label>
+                <input type="number" id="edit-price" class="form-control" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Classificação</label>
+                <input type="text" id="edit-quality" class="form-control" maxlength="50" placeholder="Ex: A, B, Premium…">
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Observações</label>
+            <textarea id="edit-notes" class="form-control" rows="2" maxlength="1000" placeholder="Observações opcionais..."></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost btn-sm" onclick="closeEditModal()">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="edit-save-btn" onclick="saveEditDelivery()">
+                <i data-lucide="save" style="width:13px;height:13px"></i> Salvar
+            </button>
+        </div>
+    </div>
+</div>
 
 {{-- ── PROJECT HEADER ── --}}
 <div class="pd-header">
@@ -281,6 +332,19 @@ $totalNet      = $deliveries->sum('net_value');
                                 <i data-lucide="x" style="width:11px;height:11px"></i> Rejeitar
                             </button>
                         </div>
+                        @elseif($delivery['status_value'] === 'approved' && $project->status->value !== 'delivered')
+                        <div class="action-btns">
+                            <button class="btn-edit"
+                                data-id="{{ $delivery['id'] }}"
+                                data-date="{{ $delivery['delivery_date_raw'] }}"
+                                data-qty="{{ $delivery['quantity'] }}"
+                                data-price="{{ $delivery['unit_price'] }}"
+                                data-quality="{{ $delivery['quality_grade'] }}"
+                                data-notes="{{ $delivery['notes'] }}"
+                                title="Editar entrega">
+                                <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
+                            </button>
+                        </div>
                         @else
                         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>
                         @endif
@@ -427,7 +491,15 @@ loadReceiptsHistory();
 document.addEventListener('click', async function(e) {
     const approveBtn = e.target.closest('.btn-approve');
     const rejectBtn  = e.target.closest('.btn-reject');
+    const editBtn    = e.target.closest('.btn-edit');
+
+    if (editBtn) {
+        openEditModal(editBtn);
+        return;
+    }
+
     if (!approveBtn && !rejectBtn) return;
+    const btn    = approveBtn || rejectBtn;
     const id     = btn.dataset.id;
     const action = approveBtn ? 'approve' : 'reject';
 
@@ -463,6 +535,81 @@ document.addEventListener('click', async function(e) {
         btns.forEach(b => b.disabled = false);
     }
 });
+
+/* ── Editar entrega aprovada ── */
+function openEditModal(btn) {
+    document.getElementById('edit-delivery-id').value = btn.dataset.id;
+    document.getElementById('edit-date').value         = btn.dataset.date  || '';
+    document.getElementById('edit-qty').value          = btn.dataset.qty   || '';
+    document.getElementById('edit-price').value        = btn.dataset.price || '';
+    document.getElementById('edit-quality').value      = btn.dataset.quality || '';
+    document.getElementById('edit-notes').value        = btn.dataset.notes || '';
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+}
+
+// Fechar modal ao clicar fora
+document.getElementById('edit-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+async function saveEditDelivery() {
+    const id    = document.getElementById('edit-delivery-id').value;
+    const date  = document.getElementById('edit-date').value;
+    const qty   = document.getElementById('edit-qty').value;
+    const price = document.getElementById('edit-price').value;
+    if (!date || !qty) { pdToast('Preencha data e quantidade.', 'error'); return; }
+
+    const saveBtn = document.getElementById('edit-save-btn');
+    saveBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/${PD_TENANT}/delivery/deliveries/${id}`, {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+                delivery_date:  date,
+                quantity:       parseFloat(qty),
+                unit_price:     price ? parseFloat(price) : null,
+                quality_grade:  document.getElementById('edit-quality').value || null,
+                notes:          document.getElementById('edit-notes').value   || null,
+            })
+        });
+        const data = await res.json();
+        if (data.success) {
+            pdToast(data.message);
+            closeEditModal();
+            // Atualizar linha na tabela
+            const row = document.getElementById('row-' + id);
+            if (row && data.delivery) {
+                const d = data.delivery;
+                const cells = row.querySelectorAll('td');
+                // col 1 = data, col 4 = qty, col 5 = val líq, col 6 = qual
+                cells[1].textContent = d.delivery_date;
+                cells[4].innerHTML   = `<strong>${parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3})}</strong>`;
+                cells[5].textContent = 'R$ ' + parseFloat(d.net_value).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+                if (d.quality_grade !== undefined) cells[6].textContent = d.quality_grade || '—';
+                // Atualizar data-attrs do botão editar para próxima edição
+                const editBtn = row.querySelector('.btn-edit');
+                if (editBtn) {
+                    const newDate = date; // ISO
+                    editBtn.dataset.date    = newDate;
+                    editBtn.dataset.qty     = d.quantity;
+                    editBtn.dataset.quality = d.quality_grade || '';
+                }
+            }
+        } else {
+            pdToast(data.message || 'Erro ao salvar.', 'error');
+        }
+    } catch(err) {
+        pdToast('Erro de comunicação com o servidor.', 'error');
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
 </script>
 @endsection
 

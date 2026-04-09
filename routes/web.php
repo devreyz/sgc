@@ -103,6 +103,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
+        Route::put('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'updateDelivery'])->name('deliveries.update');
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
         Route::post('/projects/{project}/deliver-to-client', [DeliveryRegistrationController::class, 'deliverToClient'])->name('projects.deliver-to-client');

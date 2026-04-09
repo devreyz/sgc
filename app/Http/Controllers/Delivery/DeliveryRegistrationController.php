@@ -233,42 +233,111 @@ class DeliveryRegistrationController extends Controller
      */
     public function getAssociateDeliveries()
     {
-        $projectId = (int) request()->route('project');
+        $projectId   = (int) request()->route('project');
         $associateId = (int) request()->route('associate');
-        $tenantId = session('tenant_id');
+        $tenantId    = session('tenant_id');
         if (! $tenantId) {
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
 
-        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+        $fromDate     = request()->query('from_date');
+        $toDate       = request()->query('to_date');
+        $approvedOnly = (bool) request()->query('approved_only', false);
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->with(['projectDemand.product', 'product'])
-            ->orderBy('delivery_date', 'desc')
-            ->limit(10)
-            ->get()
-            ->map(function ($delivery) {
-                // Suporta entregas com ou sem demanda específica
-                $productName = $delivery->projectDemand?->product?->name
-                    ?? $delivery->product?->name
-                    ?? '-';
-                $unit = $delivery->projectDemand?->product?->unit
-                    ?? $delivery->product?->unit
-                    ?? 'un';
+            ->orderBy('delivery_date', 'asc');
 
-                return [
-                    'id' => $delivery->id,
-                    'product_name' => $productName,
-                    'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
-                    'quantity' => (float) $delivery->quantity,
-                    'unit' => $unit,
-                    'net_value' => (float) $delivery->net_value,
-                    'status' => $delivery->status->getLabel(),
-                    'status_value' => $delivery->status->value,
-                ];
-            });
+        if ($approvedOnly) {
+            $query->where('status', DeliveryStatus::APPROVED);
+        }
+        if ($fromDate) {
+            $query->whereDate('delivery_date', '>=', $fromDate);
+        }
+        if ($toDate) {
+            $query->whereDate('delivery_date', '<=', $toDate);
+        }
+
+        $deliveries = $query->get()->map(function ($delivery) {
+            $productName = $delivery->projectDemand?->product?->name
+                ?? $delivery->product?->name
+                ?? '-';
+            $unit = $delivery->projectDemand?->product?->unit
+                ?? $delivery->product?->unit
+                ?? 'un';
+
+            return [
+                'id'              => $delivery->id,
+                'product_name'    => $productName,
+                'delivery_date'   => $delivery->delivery_date?->format('d/m/Y') ?? '-',
+                'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
+                'quantity'        => (float) $delivery->quantity,
+                'unit'            => $unit,
+                'gross_value'     => (float) $delivery->gross_value,
+                'net_value'       => (float) $delivery->net_value,
+                'status'          => $delivery->status->getLabel(),
+                'status_value'    => $delivery->status->value,
+            ];
+        });
 
         return response()->json($deliveries);
+    }
+
+    /**
+     * Editar entrega aprovada que ainda não foi entregue ao cliente final.
+     */
+    public function updateDelivery(Request $request)
+    {
+        $deliveryId = (int) $request->route('delivery');
+        $tenantId   = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $delivery = ProductionDelivery::where('tenant_id', $tenantId)
+            ->with('salesProject')
+            ->findOrFail($deliveryId);
+
+        if ($delivery->status !== DeliveryStatus::APPROVED) {
+            return response()->json(['success' => false, 'message' => 'Apenas entregas aprovadas podem ser editadas.'], 400);
+        }
+
+        if ($delivery->salesProject && $delivery->salesProject->status === \App\Enums\ProjectStatus::DELIVERED) {
+            return response()->json(['success' => false, 'message' => 'Não é possível editar entregas de um projeto já entregue ao cliente.'], 400);
+        }
+
+        $validated = $request->validate([
+            'delivery_date' => 'required|date',
+            'quantity'      => 'required|numeric|min:0.001',
+            'unit_price'    => 'nullable|numeric|min:0',
+            'quality_grade' => 'nullable|string|max:50',
+            'notes'         => 'nullable|string|max:1000',
+        ]);
+
+        $delivery->update([
+            'delivery_date' => $validated['delivery_date'],
+            'quantity'      => $validated['quantity'],
+            'unit_price'    => $validated['unit_price'] ?? $delivery->unit_price,
+            'quality_grade' => $validated['quality_grade'] ?? null,
+            'notes'         => $validated['notes'] ?? null,
+        ]);
+
+        $delivery->refresh();
+
+        return response()->json([
+            'success'  => true,
+            'message'  => 'Entrega atualizada com sucesso.',
+            'delivery' => [
+                'id'            => $delivery->id,
+                'delivery_date' => $delivery->delivery_date->format('d/m/Y'),
+                'quantity'      => (float) $delivery->quantity,
+                'net_value'     => (float) $delivery->net_value,
+                'quality_grade' => $delivery->quality_grade,
+            ],
+        ]);
     }
 
     /**
@@ -498,16 +567,19 @@ class DeliveryRegistrationController extends Controller
                     ?? 'un';
 
                 return [
-                    'id' => $delivery->id,
-                    'associate_name' => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
-                    'product_name' => $productName,
-                    'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
-                    'quantity' => (float) $delivery->quantity,
-                    'unit' => $unit,
-                    'net_value' => (float) $delivery->net_value,
-                    'quality_grade' => $delivery->quality_grade,
-                    'status' => $delivery->status->getLabel(),
-                    'status_value' => $delivery->status->value,
+                    'id'               => $delivery->id,
+                    'associate_name'   => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
+                    'product_name'     => $productName,
+                    'delivery_date'    => $delivery->delivery_date?->format('d/m/Y') ?? '-',
+                    'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
+                    'quantity'         => (float) $delivery->quantity,
+                    'unit'             => $unit,
+                    'unit_price'       => (float) $delivery->unit_price,
+                    'net_value'        => (float) $delivery->net_value,
+                    'quality_grade'    => $delivery->quality_grade ?? '',
+                    'notes'            => $delivery->notes ?? '',
+                    'status'           => $delivery->status->getLabel(),
+                    'status_value'     => $delivery->status->value,
                 ];
             });
 
