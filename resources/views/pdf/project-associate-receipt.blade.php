@@ -104,7 +104,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
 .sig-block { display: table-cell; text-align: center; }
 .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 40px; font-size: 11px; font-weight: bold; }
 .sig-role { font-size: 9px; color: #555; margin-top: 3px; }
-.sig-doc  { font-size: 9px; color: #888; margin-top: 1px; }
+.sig-doc  { font-size: 9px; color: #222; margin-top: 1px; }
 .ftr { margin-top: 20px; border-top: 1px solid {{ $lineColor }}; padding-top: 6px; text-align: center; font-size: 8.5px; color: #999; }
 </style>
 </head>
