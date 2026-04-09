@@ -18,6 +18,7 @@ class AssociateReceipt extends Model
         'to_date',
         'notes',
         'acknowledged_at',
+        'delivery_ids',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class AssociateReceipt extends Model
             'receipt_year'    => 'integer',
             'receipt_number'  => 'integer',
             'acknowledged_at' => 'datetime',
+            'delivery_ids'    => 'array',
         ];
     }
 

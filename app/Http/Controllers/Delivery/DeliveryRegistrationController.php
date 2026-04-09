@@ -1189,25 +1189,18 @@ class DeliveryRegistrationController extends Controller
             ->with('user')
             ->findOrFail($associateIds->first());
 
-        // Criar ou reutilizar registro de comprovante
+        // Sempre criar um novo registro de comprovante com número incrementado
+        // e armazenar os IDs das entregas selecionadas para reimpressão posterior.
         $year    = now()->year;
-        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->where('associate_id', $associate->id)
-            ->first();
-
-        if ($receipt) {
-            $receipt->update(['issued_at' => today()]);
-        } else {
-            $receipt = \App\Models\AssociateReceipt::create([
-                'tenant_id'        => $tenantId,
-                'sales_project_id' => $projectId,
-                'associate_id'     => $associate->id,
-                'receipt_year'     => $year,
-                'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
-                'issued_at'        => today(),
-            ]);
-        }
+        $receipt = \App\Models\AssociateReceipt::create([
+            'tenant_id'        => $tenantId,
+            'sales_project_id' => $projectId,
+            'associate_id'     => $associate->id,
+            'receipt_year'     => $year,
+            'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at'        => today(),
+            'delivery_ids'     => $deliveryIds,
+        ]);
 
         // Resumo financeiro
         $summary = [
@@ -1249,10 +1242,19 @@ class DeliveryRegistrationController extends Controller
         // Retornar Base64 para download via JS (POST não permite download direto)
         $base64 = base64_encode($pdf->output());
 
+        $tenantSlug = $this->currentTenant()?->slug ?? '';
+
         return response()->json([
-            'success'  => true,
-            'filename' => $filename,
-            'pdf'      => $base64,
+            'success'        => true,
+            'filename'       => $filename,
+            'pdf'            => $base64,
+            'receipt_id'     => $receipt->id,
+            'receipt_number' => $receipt->formatted_number,
+            'reprint_url'    => route('delivery.projects.receipt-reprint', [
+                'tenant'  => $tenantSlug,
+                'project' => $projectId,
+                'receipt' => $receipt->id,
+            ]),
         ]);
     }
 
@@ -1468,5 +1470,122 @@ class DeliveryRegistrationController extends Controller
                 'message' => 'Erro ao registrar: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Reimprime o PDF de um comprovante já salvo, utilizando os delivery_ids armazenados.
+     */
+    public function reprintReceipt(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $receiptId = (int) $request->route('receipt');
+        $tenantId  = session('tenant_id');
+
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Sessão expirada.');
+        }
+
+        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->findOrFail($receiptId);
+
+        $project   = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
+        $tenant    = $this->currentTenant();
+
+        // Usar os IDs armazenados no comprovante para reproduzir o PDF exato
+        $storedIds = $receipt->delivery_ids ?? [];
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associate->id)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->with('product')
+            ->orderBy('delivery_date');
+
+        if (!empty($storedIds)) {
+            $query->whereIn('id', array_map('intval', $storedIds));
+        }
+
+        $deliveries = $query->get();
+
+        if ($deliveries->isEmpty()) {
+            return redirect()->back()->with('error', 'Não há entregas disponíveis para reimprimir este comprovante.');
+        }
+
+        $summary = [
+            'deliveries_count' => $deliveries->count(),
+            'total_quantity'   => $deliveries->sum('quantity'),
+            'gross_value'      => $deliveries->sum('gross_value'),
+            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
+            'net_value'        => $deliveries->sum('net_value'),
+        ];
+
+        $productsSummary = $deliveries->map(function ($d) {
+            return [
+                'product_name'  => $d->product?->name ?? '—',
+                'unit'          => $d->product?->unit ?? 'un',
+                'delivery_date' => $d->delivery_date,
+                'count'         => 1,
+                'quantity'      => $d->quantity,
+                'unit_price'    => $d->unit_price ?? 0,
+                'gross'         => $d->gross_value,
+                'admin_fee'     => $d->admin_fee_amount,
+                'net'           => $d->net_value,
+            ];
+        })->values()->all();
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+            'tenant'          => $tenant,
+            'project'         => $project,
+            'associate'       => $associate,
+            'receipt'         => $receipt,
+            'summary'         => $summary,
+            'productsSummary' => $productsSummary,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+    }
+
+    /**
+     * Retorna JSON com a lista de comprovantes salvos para um projeto.
+     */
+    public function projectReceiptsList(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $tenantId  = session('tenant_id');
+
+        if (!$tenantId) {
+            return response()->json(['success' => false], 403);
+        }
+
+        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->with('associate.user')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($r) use ($projectId) {
+                $tenantSlug = request()->route('tenant') instanceof \App\Models\Tenant
+                    ? request()->route('tenant')->slug
+                    : (\App\Models\Tenant::find(session('tenant_id'))?->slug ?? '');
+                return [
+                    'id'             => $r->id,
+                    'number'         => $r->formatted_number,
+                    'associate_name' => $r->associate?->user?->name ?? '—',
+                    'issued_at'      => $r->issued_at?->format('d/m/Y') ?? '—',
+                    'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
+                    'reprint_url'    => route('delivery.projects.receipt-reprint', [
+                        'tenant'  => $tenantSlug,
+                        'project' => $projectId,
+                        'receipt' => $r->id,
+                    ]),
+                ];
+            });
+
+        return response()->json(['success' => true, 'receipts' => $receipts]);
     }
 }

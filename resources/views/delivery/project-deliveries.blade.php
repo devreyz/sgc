@@ -206,6 +206,19 @@ $totalNet      = $deliveries->sum('net_value');
 </div>
 @endif
 
+{{-- ── COMPROVANTES GERADOS ── --}}
+<div class="pd-card" style="margin-bottom:1rem;">
+    <div class="pd-card-header">
+        <div class="pd-card-title">
+            <i data-lucide="receipt" style="width:16px;height:16px;color:var(--color-primary)"></i>
+            Comprovantes Gerados
+        </div>
+    </div>
+    <div id="receipts-history" style="padding:.25rem 0;">
+        <p style="font-size:.8rem;color:var(--color-text-secondary)">Carregando...</p>
+    </div>
+</div>
+
 {{-- ── DELIVERIES TABLE ── --}}
 <div class="pd-card">
     <div class="pd-card-header">
@@ -364,8 +377,9 @@ async function generateSelectedReceipt() {
             const a    = document.createElement('a');
             a.href = url; a.download = data.filename; a.click();
             URL.revokeObjectURL(url);
-            pdToast(`Comprovante gerado com ${ids.length} entrega(s)!`);
+            pdToast(`Comprovante nº ${data.receipt_number} gerado com ${ids.length} entrega(s)!`);
             clearSelection();
+            loadReceiptsHistory();
         } else {
             pdToast(data.message || 'Erro ao gerar comprovante.', 'error');
         }
@@ -378,12 +392,42 @@ async function generateSelectedReceipt() {
     }
 }
 
+async function loadReceiptsHistory() {
+    const container = document.getElementById('receipts-history');
+    if (!container) return;
+    try {
+        const res  = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/receipts`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PD_CSRF }
+        });
+        const data = await res.json();
+        if (!data.success || !data.receipts.length) {
+            container.innerHTML = '<p style="font-size:.8rem;color:var(--color-text-secondary);padding:.5rem 0;">Nenhum comprovante gerado ainda.</p>';
+            return;
+        }
+        container.innerHTML = data.receipts.map(r => `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:6px;background:var(--color-bg);border:1px solid var(--color-border);margin-bottom:.4rem;gap:1rem;">
+                <div>
+                    <span style="font-size:.78rem;font-weight:700;color:var(--color-text);">Nº ${r.number}</span>
+                    <span style="font-size:.75rem;color:var(--color-text-secondary);margin-left:.5rem;">${r.associate_name}</span>
+                    <span style="font-size:.72rem;color:var(--color-text-secondary);margin-left:.5rem;">· ${r.issued_at}${r.delivery_count !== '—' ? ' · ' + r.delivery_count + ' entrega(s)' : ''}</span>
+                </div>
+                <a href="${r.reprint_url}" target="_blank" style="font-size:.75rem;color:var(--color-primary);font-weight:600;white-space:nowrap;text-decoration:none;padding:.25rem .6rem;border:1px solid var(--color-primary);border-radius:4px;flex-shrink:0;">
+                    ⬇ Reimprimir
+                </a>
+            </div>
+        `).join('');
+    } catch(e) {
+        container.innerHTML = '<p style="font-size:.8rem;color:var(--color-danger)">Erro ao carregar histórico.</p>';
+    }
+}
+
+// Carregar histórico ao abrir a página
+loadReceiptsHistory();
+
 document.addEventListener('click', async function(e) {
     const approveBtn = e.target.closest('.btn-approve');
     const rejectBtn  = e.target.closest('.btn-reject');
     if (!approveBtn && !rejectBtn) return;
-
-    const btn    = approveBtn || rejectBtn;
     const id     = btn.dataset.id;
     const action = approveBtn ? 'approve' : 'reject';
 

@@ -134,9 +134,11 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     <div class="hdr-right">
         <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
-
-        
-            <span style="color: green; font-size: 16px; font-weight: bold;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</span>
+    
+        <div style="text-align:right; margin-top:6px;">
+            <div style="font-size:9px; color:#666; text-transform:uppercase; letter-spacing:0.04em;">Valor Líquido</div>
+            <div style="color:#1a5c3a; font-size:14px; font-weight:700; margin-top:4px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
+        </div>
         
     </div>
 </div>
@@ -270,7 +272,10 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     @endif
     a quantia líquida de
     <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
-    referente ao pagamento pela entrega dos produtos relacionados acima. Por ser verdade, firmo o presente recibo.</p>
+    referente ao pagamento pela entrega dos produtos relacionados acima. 
+    </p>
+    <p style="text-align: left; font-size: 11px; color: #333; margin: 22px 0 24px;">
+     Por ser verdade, firmo o presente recibo.</p>
 
 <p style="text-align: left; font-size: 10.5px; color: #444; margin-bottom: 0; margin-top: 4px;">
     {{ $tenant->city ?? '________________' }}{{ $tenant->state ? '/' . $tenant->state : '' }},
