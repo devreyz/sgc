@@ -192,6 +192,7 @@ class DeliveryRegistrationController extends Controller
                         'delivered_quantity' => (float) $delivered,
                         'remaining_quantity' => null,         // ilimitado
                         'unit_price' => (float) ($product->cost_price ?? 0),
+                        'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
                         'is_free' => true,
                     ];
                 });
@@ -219,6 +220,7 @@ class DeliveryRegistrationController extends Controller
                     'delivered_quantity' => (float) $delivered,
                     'remaining_quantity' => (float) ($demand->target_quantity - $delivered),
                     'unit_price' => (float) $demand->unit_price,
+                    'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
                     'is_free' => false,
                 ];
             });
@@ -1338,5 +1340,133 @@ class DeliveryRegistrationController extends Controller
             "comprovante-entrega-{$safeName}-projeto-{$project->id}.pdf",
             ['Content-Type' => 'application/pdf']
         );
+    }
+
+    /**
+     * Store multiple delivery entries (batch) for the same product/associate
+     */
+    public function storeBatch(Request $request)
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Selecione uma organização primeiro.'], 403);
+        }
+
+        $isStandalone = (bool) $request->input('is_standalone', false);
+
+        $validated = $request->validate([
+            'sales_project_id'         => $isStandalone ? 'nullable|exists:sales_projects,id' : 'required|exists:sales_projects,id',
+            'project_demand_id'        => 'nullable|exists:project_demands,id',
+            'product_id'               => 'nullable|exists:products,id',
+            'associate_id'             => 'required|exists:associates,id',
+            'entries'                  => 'required|array|min:1|max:50',
+            'entries.*.delivery_date'  => 'required|date',
+            'entries.*.quantity'       => 'required|numeric|min:0.001',
+            'entries.*.quality_grade'  => 'nullable|string|max:50',
+            'entries.*.notes'          => 'nullable|string|max:500',
+        ]);
+
+        $project = null;
+        if (! $isStandalone) {
+            $project = SalesProject::where('tenant_id', $tenantId)->find($validated['sales_project_id']);
+            if (! $project) {
+                return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
+            }
+            if ($project->status !== ProjectStatus::ACTIVE) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'O projeto precisa estar "Em Execução". Status atual: '.$project->status->getLabel(),
+                ], 422);
+            }
+            if (! $project->allow_any_product && empty($validated['project_demand_id'])) {
+                return response()->json(['success' => false, 'message' => 'Selecione o produto da demanda do projeto.'], 422);
+            }
+            if ($project->allow_any_product && empty($validated['product_id'])) {
+                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
+            }
+        } else {
+            if (empty($validated['product_id'])) {
+                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
+            }
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $unitPrice      = 0.0;
+            $productId      = null;
+            $demandId       = null;
+            $adminFeePercent = 0.0;
+
+            if ($isStandalone) {
+                $product        = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
+                $unitPrice      = (float) ($product->cost_price ?? 0);
+                $productId      = $product->id;
+                $adminFeePercent = 0.0;
+            } elseif (! $project->allow_any_product) {
+                $demand         = ProjectDemand::where('tenant_id', $tenantId)->findOrFail($validated['project_demand_id']);
+                $unitPrice      = (float) $demand->unit_price;
+                $productId      = $demand->product_id;
+                $demandId       = $demand->id;
+                $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
+            } else {
+                $product        = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
+                $unitPrice      = (float) ($product->cost_price ?? 0);
+                $productId      = $product->id;
+                $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
+            }
+
+            $created = [];
+
+            foreach ($validated['entries'] as $entry) {
+                $quantity       = (float) $entry['quantity'];
+                $grossValue     = $quantity * $unitPrice;
+                $adminFeeAmount = $grossValue * ($adminFeePercent / 100);
+                $netValue       = $grossValue - $adminFeeAmount;
+
+                $delivery = ProductionDelivery::create([
+                    'tenant_id'         => $tenantId,
+                    'sales_project_id'  => $isStandalone ? null : $validated['sales_project_id'],
+                    'project_demand_id' => $demandId,
+                    'associate_id'      => $validated['associate_id'],
+                    'product_id'        => $productId,
+                    'delivery_date'     => $entry['delivery_date'],
+                    'quantity'          => $quantity,
+                    'unit_price'        => $unitPrice,
+                    'admin_fee_amount'  => $adminFeeAmount,
+                    'net_value'         => $netValue,
+                    'status'            => DeliveryStatus::PENDING,
+                    'quality_grade'     => $entry['quality_grade'] ?? null,
+                    'notes'             => $entry['notes'] ?? null,
+                    'received_by'       => Auth::id(),
+                    'paid'              => false,
+                ]);
+
+                $created[] = [
+                    'id'         => $delivery->id,
+                    'date'       => $entry['delivery_date'],
+                    'quantity'   => $quantity,
+                    'net_value'  => $netValue,
+                ];
+            }
+
+            DB::commit();
+
+            $count = count($created);
+
+            return response()->json([
+                'success'    => true,
+                'message'    => $count.' entrega'.($count > 1 ? 's registradas' : ' registrada').' com sucesso!',
+                'count'      => $count,
+                'deliveries' => $created,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao registrar: '.$e->getMessage(),
+            ], 500);
+        }
     }
 }

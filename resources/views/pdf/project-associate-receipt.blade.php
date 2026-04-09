@@ -67,17 +67,17 @@ body {
     padding: 16mm 18mm 14mm 18mm;
 }
 .hdr { display: table; width: 100%; padding-bottom: 10px; border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
-.hdr-logo { display: table-cell; width: 70px; vertical-align: middle; }
-.hdr-logo img { width: 80px; height: 80px; object-fit: contain; border:none; outline: none; }
-.hdr-org  { display: table-cell; vertical-align: middle; padding-left: 12px; }
-.hdr-org .org-name { font-size: 11px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
+.hdr-logo { display: table-cell; width: 70px; padding-top: 4px; vertical-align: start; }
+.hdr-logo img { width: 72px; height: 72px; object-fit: contain; border: 0px solid #ffffff; outline: none; }
+.hdr-org  { display: table-cell; vertical-align: start; padding-left: 12px; }
+.hdr-org .org-name { font-size: 11px; width: 90%; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
-.hdr-right { display: table-cell; text-align: right; vertical-align: middle; white-space: nowrap; }
+.hdr-right { display: table-cell; text-align: right; vertical-align: start; white-space: nowrap; }
 .hdr-right .doc-type { font-size: 9px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
-.hdr-right .doc-num  { font-size: 13px; font-weight: bold; color: {{ $textColor }}; display: block; }
+.hdr-right .doc-num  { font-size: 15px; font-weight: bold; color: {{ $textColor }}; display: block; }
 .hdr-right .doc-date { font-size: 9.5px; color: #555; display: block; margin-top: 2px; }
 .hdr-right .doc-cheque-label { font-size: 9px; color: #555; display: block; margin-top: 6px; }
-.hdr-right .doc-cheque-box { display: inline-block; min-width: 150px; height: 28px; border: 1px solid #000; margin-top: 6px; text-align: center; font-weight: bold; line-height: 28px; color: #000; }
+.hdr-right .doc-cheque-box { display: inline-block; width: 100px; height: 28px; border: 1px solid #000; margin-top: 6px; text-align: center; font-weight: bold; line-height: 28px; color: #000; }
 .assoc-row { display: table; width: 100%; margin-bottom: 14px; border-bottom: 1px solid {{ $lineColor }}; padding-bottom: 10px; }
 .assoc-col  { display: table-cell; vertical-align: top; padding-right: 20px; }
 .assoc-col-last { display: table-cell; vertical-align: top; }
@@ -91,8 +91,8 @@ body {
 .decl { margin-bottom: 14px; padding: 10px 14px; border: 1px solid {{ $lineColor }}; background: #fafbfc; }
 .decl p { font-size: 11px; line-height: 1.7; color: #222; text-align: justify; }
 .decl strong { color: {{ $textColor }}; }
-.sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 0 0 8px; }
-table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px; }
+.sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 12px 0 8px; }
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px;  }
 table.tbl thead th { border-bottom: 1px solid {{ $lineColor }}; border-top: 1px solid {{ $lineColor }}; padding: 6px 7px; text-align: left; font-size: 12px;  font-family: 'DejaVu Sans', Arial, sans-serif; }
 table.tbl thead th.r { text-align: right; }
 table.tbl tbody td { padding: 6px 7px; border-bottom: 1px solid #e8ecf0; }
@@ -134,36 +134,22 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     <div class="hdr-right">
         <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
-        <span class="doc-cheque-label">Nº Cheque</span>
-        <span class="doc-cheque-box">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+
+        
+            <span style="color: green; font-size: 16px; font-weight: bold;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</span>
+        
     </div>
 </div>
 
-{{-- ═══ ASSOCIADO ═══ --}}
-<div class="assoc-row">
-    <div class="assoc-col" style="width:55%;">
-        <span class="field-label">Produtor / Associado</span>
-        <span class="field-value" style="font-size:13px;">{{ $associate->user->name ?? '—' }}</span>
-    </div>
-    <div class="assoc-col" style="width:30%;">
-        <span class="field-label">CPF</span>
-        <span class="field-value">{{ $associate->cpf_cnpj ?? '—' }}</span>
-    </div>
-    @if(!empty($associate->registration_number))
-    <div class="assoc-col-last" style="width:15%;">
-        <span class="field-label">Matrícula</span>
-        <span class="field-value">{{ $associate->registration_number }}</span>
-    </div>
-    @endif
-</div>
 
 {{-- ═══ PROJETO / PERÍODO ═══ --}}
 <div class="proj-strip">
     @if($isStandalone)
         <div class="proj-cell" style="width:50%;">
-            <span class="proj-label">Referente</span>
-            <span class="proj-value">Entrega de Produtos</span>
+            <span class="proj-label">Produtor / Associado</span>
+            <span class="proj-value">{{ $associate->user->name ?? '—' }}</span>
         </div>
+        
         @if(isset($receipt) && $receipt->from_date)
         <div class="proj-cell" style="width:25%;">
             <span class="proj-label">Período De</span>
@@ -177,53 +163,28 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
         </div>
         @endif
     @else
-        <div class="proj-cell" style="width:{{ ($hasContract || $hasProcess) ? '55%' : '80%' }};">
+    <div class="proj-cell" style="width:50%;">
+            <span class="proj-label">Produtor / Associado</span>
+            <span class="proj-value">{{ $associate->user->name ?? '—' }}</span>
+        </div>
+        <div class="proj-cell" style="width: 50%;">
             <span class="proj-label">Referente</span>
             <span class="proj-value">{{ $project->title }}</span>
         </div>
-        @if($hasContract)
-        <div class="proj-cell" style="width:25%;">
-            <span class="proj-label">Nº Contrato / CPR</span>
-            <span class="proj-value">{{ $project->contract_number }}</span>
-        </div>
-        @elseif($hasProcess)
-        <div class="proj-cell" style="width:25%;">
-            <span class="proj-label">Nº Processo</span>
-            <span class="proj-value">{{ $project->process_number }}</span>
-        </div>
-        @endif
-        <div class="proj-cell-last" style="width:20%;">
-            <span class="proj-label">Taxa Adm.</span>
-            <span class="proj-value">{{ number_format($project->admin_fee_percentage ?? 0, 1) }}%</span>
-        </div>
+        
+       
+        
     @endif
 </div>
 
-{{-- ═══ DECLARAÇÃO ═══ --}}
-<div class="decl">
-    <p>
-    Recebi da <strong>{{ $tenant->name ?? '' }}</strong>
-    @if($tenant?->cnpj)
-        , inscrita no CNPJ sob nº <strong>{{ $tenant->cnpj }}</strong>
-    @endif,
-    referente ao pagamento pela entrega dos produtos relacionados abaixo
-    @if(!$isStandalone)
-        , vinculados ao projeto <strong>{{ $project->title }}</strong>
-    @endif,
-    a quantia líquida de
-    <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
-    já deduzida a taxa administrativa no valor de
-    <strong>R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</strong>.
-</p>
-</div>
 
 {{-- ═══ RESUMO POR PRODUTO ═══ --}}
-<div class="sec-label">Produtos Entregues</div>
+<div class="" style="margin: 36px 0px 24px 0px; text-align: center; text-transform: uppercase; font-weight: bold;">Produtos Entregues</div>
 <table class="tbl">
     <thead>
         <tr>
             <th>Produto</th>
-            <th style="width:12%;">Data Entrega</th>
+            <th style="width:12%;">Data     </th>
             <th class="r" style="width:12%;">Qtd.</th>
             <th class="r" style="width:13%;">Vlr. Unit.</th>
             <th class="r" style="width:15%;">Vlr. Bruto</th>
@@ -273,38 +234,52 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
 </table>
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}
-<div style="display: table; width: 100%; margin-bottom: 20px; border: 1px solid {{ $lineColor }};">
-    <div style="display: table-cell; width: 33%; text-align: center; padding: 9px 8px; border-right: 1px solid {{ $lineColor }};">
-        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Bruto Total</div>
-        <div style="font-size: 13px; font-weight: bold; color: #333; margin-top: 3px;">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</div>
+<div style="display: table; width: 100%; margin-bottom: 12px;">
+    <div style="display: table-cell; vertical-align: top; width: 30%; padding-right: 12px;">
+        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Nº do Cheque</div>
+        @php
+            $__cheque_val = $receipt?->cheque_number ?? $receipt?->numero_cheque ?? $receipt?->cheque ?? $receipt?->check_number ?? null;
+        @endphp
+        @if($__cheque_val)
+            <div style="margin-top: 6px; font-weight: bold;">{{ $__cheque_val }}</div>
+        @else
+            <div style="margin-top: 6px; border-bottom: 1px solid #000; min-width: 220px; height: 20px;"></div>
+        @endif
     </div>
-    <div style="display: table-cell; width: 33%; text-align: center; padding: 9px 8px; border-right: 1px solid {{ $lineColor }};">
-        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">
-            Taxa Adm.
-            @if(!$isStandalone)
-                ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)
-            @endif
+    <div style="display: table-cell; vertical-align: top; width: 70%; text-align: right; padding-left: 12px;">
+        <div style="margin-top: 0; font-size: 11px; color: #333; text-align: right;">
+            <span style="color:#666; text-transform:uppercase; font-size:8px;">Valor Bruto Total:&nbsp;</span>
+            <strong>R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</strong>
         </div>
-        <div style="font-size: 13px; font-weight: bold; color: #c0392b; margin-top: 3px;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</div>
-    </div>
-    <div style="display: table-cell; width: 34%; text-align: center; padding: 9px 8px;">
-        <div style="font-size: 8px; color: #000000; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Valor Líquido a Receber</div>
-        <div style="font-size: 15px; font-weight: bold; color: #000000; margin-top: 3px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
+        <div style="margin-top: 6px; font-size: 11px; color: #333; text-align: right;">
+            <span style="color:#666; text-transform:uppercase; font-size:8px;">Taxa Adm.@if(!$isStandalone) ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)@endif:&nbsp;</span>
+            <strong style="color:#c0392b;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</strong>
+        </div>
+        <div style="margin-top: 6px; font-size: 12px; color: #000; text-align: right;">
+            <span style="color:#666; text-transform:uppercase; font-size:8px;">Valor Líquido a Receber:&nbsp;</span>
+            <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>
+        </div>
     </div>
 </div>
 
 {{-- ═══ CERTIFICAÇÃO E ASSINATURA ═══ --}}
-<p style="text-align: center; font-size: 11px; color: #333; margin: 22px 0 14px;">Por ser verdade, firmo o presente recibo.</p>
+ <p style="text-align: left; font-size: 11px; color: #333; margin: 22px 0 24px;">
+     Recebi da <strong>{{ $tenant->name }}</strong>,
+    @if($tenant?->cnpj)
+        inscrita no CNPJ sob nº <strong>{{ $tenant->cnpj }}</strong>,
+    @endif
+    a quantia líquida de
+    <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
+    referente ao pagamento pela entrega dos produtos relacionados acima. Por ser verdade, firmo o presente recibo.</p>
 
-<p style="text-align: center; font-size: 10.5px; color: #444; margin-bottom: 0; margin-top: 4px;">
-    {{ $tenant->city ?? '________________' }}{{ $tenant->state ? '/' . $tenant->state : '' }},&nbsp;&nbsp;
+<p style="text-align: left; font-size: 10.5px; color: #444; margin-bottom: 0; margin-top: 4px;">
+    {{ $tenant->city ?? '________________' }}{{ $tenant->state ? '/' . $tenant->state : '' }},
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
-<!-- (Campo de nº do cheque movido para o cabeçalho) -->
-<table style="margin: 28px auto 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
+<table style="margin: 28px 0 0 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
     <tr>
-        <td style="text-align: center; padding: 0 30px;">
+        <td style="text-align: left; padding: 0;">
             <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
             <div class="sig-role">Produtor / Associado</div>
             <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>

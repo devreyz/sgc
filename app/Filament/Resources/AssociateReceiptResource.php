@@ -106,7 +106,7 @@ class AssociateReceiptResource extends Resource
                 Tables\Columns\TextColumn::make('formatted_number')
                     ->label('Nº Recibo')
                     ->sortable(['receipt_year', 'receipt_number'])
-                    ->searchable(query: fn ($query, $search) => $query->whereRaw("CONCAT(LPAD(receipt_number,4,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])),
+                    ->searchable(query: fn ($query, $search) => $query->whereRaw("CONCAT(LPAD(receipt_number,3,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])),
 
                 Tables\Columns\TextColumn::make('associate.user.name')
                     ->label('Produtor')
@@ -138,7 +138,7 @@ class AssociateReceiptResource extends Resource
                     ->trueColor('success')
                     ->falseColor('gray')
                     ->tooltip(fn (AssociateReceipt $r) => $r->acknowledged_at
-                        ? 'Assinado em ' . $r->acknowledged_at->format('d/m/Y H:i')
+                        ? 'Assinado em '.$r->acknowledged_at->format('d/m/Y H:i')
                         : 'Aguardando assinatura'),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -177,10 +177,10 @@ class AssociateReceiptResource extends Resource
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('success')
                     ->action(function (AssociateReceipt $record): mixed {
-                        $tenantId  = $record->tenant_id;
-                        $tenant    = Tenant::find($tenantId);
+                        $tenantId = $record->tenant_id;
+                        $tenant = Tenant::find($tenantId);
                         $associate = $record->associate()->with('user')->first();
-                        $project   = $record->project;
+                        $project = $record->project;
 
                         // ── Buscar entregas ──────────────────────────────────
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
@@ -209,30 +209,32 @@ class AssociateReceiptResource extends Resource
                                 ->title('Sem entregas aprovadas')
                                 ->body('Nenhuma entrega aprovada encontrada para este comprovante.')
                                 ->send();
+
                             return null;
                         }
 
                         $summary = [
                             'deliveries_count' => $deliveries->count(),
-                            'total_quantity'   => $deliveries->sum('quantity'),
-                            'gross_value'      => $deliveries->sum('gross_value'),
-                            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
-                            'net_value'        => $deliveries->sum('net_value'),
+                            'total_quantity' => $deliveries->sum('quantity'),
+                            'gross_value' => $deliveries->sum('gross_value'),
+                            'admin_fee' => $deliveries->sum('admin_fee_amount'),
+                            'net_value' => $deliveries->sum('net_value'),
                         ];
 
                         $productsSummary = $deliveries->groupBy('product_id')->map(function ($items) {
-                            $product    = $items->first()->product;
-                            $totalQty   = $items->sum('quantity');
+                            $product = $items->first()->product;
+                            $totalQty = $items->sum('quantity');
                             $totalGross = $items->sum('gross_value');
+
                             return [
                                 'product_name' => $product?->name ?? '—',
-                                'unit'         => $product?->unit ?? 'un',
-                                'count'        => $items->count(),
-                                'quantity'     => $totalQty,
-                                'unit_price'   => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
-                                'gross'        => $totalGross,
-                                'admin_fee'    => $items->sum('admin_fee_amount'),
-                                'net'          => $items->sum('net_value'),
+                                'unit' => $product?->unit ?? 'un',
+                                'count' => $items->count(),
+                                'quantity' => $totalQty,
+                                'unit_price' => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
+                                'gross' => $totalGross,
+                                'admin_fee' => $items->sum('admin_fee_amount'),
+                                'net' => $items->sum('net_value'),
                             ];
                         })->values()->all();
 
@@ -241,18 +243,18 @@ class AssociateReceiptResource extends Resource
 
                         $svc = app(\App\Services\TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
-                            'tenant'          => $tenant,
-                            'project'         => $project,
-                            'associate'       => $associate,
-                            'receipt'         => $record,
-                            'summary'         => $summary,
+                            'tenant' => $tenant,
+                            'project' => $project,
+                            'associate' => $associate,
+                            'receipt' => $record,
+                            'summary' => $summary,
                             'productsSummary' => $productsSummary,
-                            'isSecondCopy'    => $isSecondCopy,
+                            'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 
-                        $safeName     = \Illuminate\Support\Str::slug($associate?->user?->name ?? 'associado');
+                        $safeName = \Illuminate\Support\Str::slug($associate?->user?->name ?? 'associado');
                         $receiptLabel = str_replace('/', '-', $record->formatted_number);
-                        $suffix       = $isSecondCopy ? '-2via' : '';
+                        $suffix = $isSecondCopy ? '-2via' : '';
 
                         return Response::streamDownload(function () use ($pdf) {
                             echo $pdf->output();
@@ -296,9 +298,9 @@ class AssociateReceiptResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListAssociateReceipts::route('/'),
+            'index' => Pages\ListAssociateReceipts::route('/'),
             'create' => Pages\CreateAssociateReceipt::route('/create'),
-            'edit'   => Pages\EditAssociateReceipt::route('/{record}/edit'),
+            'edit' => Pages\EditAssociateReceipt::route('/{record}/edit'),
         ];
     }
 }
