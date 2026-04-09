@@ -682,6 +682,7 @@ class ViewSalesProject extends ViewRecord
             return [
                 'product_name' => $product?->name ?? '—',
                 'unit'         => $product?->unit ?? 'un',
+                'delivery_date' => $items->first()->delivery_date,
                 'count'        => $items->count(),
                 'quantity'     => $totalQty,
                 'unit_price'   => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),

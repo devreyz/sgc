@@ -103,11 +103,13 @@ class AssociateReceiptResource extends Resource
                         Forms\Components\CheckboxList::make('delivery_ids')
                             ->label('Entregas Aprovadas')
                             ->options(function (Get $get, $record) {
-                                $tenantId    = session('tenant_id');
+                                $tenantId = session('tenant_id');
                                 $associateId = $get('associate_id') ?? $record?->associate_id;
-                                $projectId   = $get('sales_project_id') ?? $record?->sales_project_id;
+                                $projectId = $get('sales_project_id') ?? $record?->sales_project_id;
 
-                                if (!$associateId) return [];
+                                if (! $associateId) {
+                                    return [];
+                                }
 
                                 $query = ProductionDelivery::where('tenant_id', $tenantId)
                                     ->where('associate_id', $associateId)
@@ -123,10 +125,10 @@ class AssociateReceiptResource extends Resource
 
                                 return $query->get()->mapWithKeys(fn ($d) => [
                                     (string) $d->id => (
-                                        ($d->delivery_date?->format('d/m/Y') ?? '—') .
-                                        ' — ' . ($d->product?->name ?? 'Produto desconhecido') .
-                                        ' — ' . number_format($d->quantity, 3, ',', '.') . ' ' . ($d->product?->unit ?? 'un') .
-                                        ' — R$ ' . number_format($d->net_value ?? 0, 2, ',', '.')
+                                        ($d->delivery_date?->format('d/m/Y') ?? '—').
+                                        ' — '.($d->product?->name ?? 'Produto desconhecido').
+                                        ' — '.number_format($d->quantity, 3, ',', '.').' '.($d->product?->unit ?? 'un').
+                                        ' — R$ '.number_format($d->net_value ?? 0, 2, ',', '.')
                                     ),
                                 ])->all();
                             })
@@ -188,8 +190,9 @@ class AssociateReceiptResource extends Resource
                     ->label('Entregas')
                     ->formatStateUsing(function ($state) {
                         if (is_array($state) && count($state) > 0) {
-                            return count($state) . ' entrega(s)';
+                            return count($state).' entrega(s)';
                         }
+
                         return '-';
                     })
                     ->badge()
@@ -246,7 +249,7 @@ class AssociateReceiptResource extends Resource
                             ->with('product')
                             ->orderBy('delivery_date');
 
-                        if (!empty($storedIds)) {
+                        if (! empty($storedIds)) {
                             $query->whereIn('id', array_map('intval', $storedIds));
                         } elseif ($record->sales_project_id) {
                             $query->where('sales_project_id', $record->sales_project_id);
@@ -288,6 +291,7 @@ class AssociateReceiptResource extends Resource
                             return [
                                 'product_name' => $product?->name ?? '—',
                                 'unit' => $product?->unit ?? 'un',
+                                'delivery_date' => $items->first()->delivery_date,
                                 'count' => $items->count(),
                                 'quantity' => $totalQty,
                                 'unit_price' => $totalQty > 0 ? $totalGross / $totalQty : ($items->first()->unit_price ?? 0),
@@ -335,14 +339,18 @@ class AssociateReceiptResource extends Resource
                             ->with('product')
                             ->orderBy('delivery_date');
 
-                        if (!empty($ids)) {
+                        if (! empty($ids)) {
                             $query->whereIn('id', array_map('intval', $ids));
                         } elseif ($record->sales_project_id) {
                             $query->where('sales_project_id', $record->sales_project_id);
                         } else {
                             $query->whereNull('sales_project_id');
-                            if ($record->from_date) $query->where('delivery_date', '>=', $record->from_date);
-                            if ($record->to_date)   $query->where('delivery_date', '<=', $record->to_date);
+                            if ($record->from_date) {
+                                $query->where('delivery_date', '>=', $record->from_date);
+                            }
+                            if ($record->to_date) {
+                                $query->where('delivery_date', '<=', $record->to_date);
+                            }
                         }
 
                         $deliveries = $query->get();
@@ -351,38 +359,37 @@ class AssociateReceiptResource extends Resource
                             return new \Illuminate\Support\HtmlString('<p style="padding:1rem;color:#888">Nenhuma entrega encontrada.</p>');
                         }
 
-                        $rows = $deliveries->map(fn ($d) =>
-                            '<tr>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->delivery_date?->format('d/m/Y') ?? '—').'</td>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->product?->name ?? '—').'</td>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">'.number_format($d->quantity, 3, ',', '.').' '.e($d->product?->unit ?? 'un').'</td>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">R$ '.number_format($d->gross_value ?? 0, 2, ',', '.').'</td>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#c0392b">- R$ '.number_format($d->admin_fee_amount ?? 0, 2, ',', '.').'</td>'
-                            . '<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#1a5c3a;font-weight:600">R$ '.number_format($d->net_value ?? 0, 2, ',', '.').'</td>'
-                            . '</tr>'
+                        $rows = $deliveries->map(fn ($d) => '<tr>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->delivery_date?->format('d/m/Y') ?? '—').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->product?->name ?? '—').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">'.number_format($d->quantity, 3, ',', '.').' '.e($d->product?->unit ?? 'un').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">R$ '.number_format($d->gross_value ?? 0, 2, ',', '.').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#c0392b">- R$ '.number_format($d->admin_fee_amount ?? 0, 2, ',', '.').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#1a5c3a;font-weight:600">R$ '.number_format($d->net_value ?? 0, 2, ',', '.').'</td>'
+                            .'</tr>'
                         )->implode('');
 
                         $totalGross = $deliveries->sum('gross_value');
-                        $totalFee   = $deliveries->sum('admin_fee_amount');
-                        $totalNet   = $deliveries->sum('net_value');
+                        $totalFee = $deliveries->sum('admin_fee_amount');
+                        $totalNet = $deliveries->sum('net_value');
 
                         $html = '<div style="overflow-x:auto">'
-                            . '<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
-                            . '<thead><tr style="background:#f4f6f8">'
-                            . '<th style="padding:8px 10px;text-align:left">Data</th>'
-                            . '<th style="padding:8px 10px;text-align:left">Produto</th>'
-                            . '<th style="padding:8px 10px;text-align:right">Qtd.</th>'
-                            . '<th style="padding:8px 10px;text-align:right">Bruto</th>'
-                            . '<th style="padding:8px 10px;text-align:right">Taxa</th>'
-                            . '<th style="padding:8px 10px;text-align:right">Líquido</th>'
-                            . '</tr></thead>'
-                            . '<tbody>'.$rows.'</tbody>'
-                            . '<tfoot><tr style="background:#eef1f5;font-weight:700">'
-                            . '<td colspan="3" style="padding:8px 10px">'.$deliveries->count().' entrega(s)</td>'
-                            . '<td style="padding:8px 10px;text-align:right">R$ '.number_format($totalGross, 2, ',', '.').'</td>'
-                            . '<td style="padding:8px 10px;text-align:right;color:#c0392b">- R$ '.number_format($totalFee, 2, ',', '.').'</td>'
-                            . '<td style="padding:8px 10px;text-align:right;color:#1a5c3a">R$ '.number_format($totalNet, 2, ',', '.').'</td>'
-                            . '</tr></tfoot></table></div>';
+                            .'<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
+                            .'<thead><tr style="background:#f4f6f8">'
+                            .'<th style="padding:8px 10px;text-align:left">Data</th>'
+                            .'<th style="padding:8px 10px;text-align:left">Produto</th>'
+                            .'<th style="padding:8px 10px;text-align:right">Qtd.</th>'
+                            .'<th style="padding:8px 10px;text-align:right">Bruto</th>'
+                            .'<th style="padding:8px 10px;text-align:right">Taxa</th>'
+                            .'<th style="padding:8px 10px;text-align:right">Líquido</th>'
+                            .'</tr></thead>'
+                            .'<tbody>'.$rows.'</tbody>'
+                            .'<tfoot><tr style="background:#eef1f5;font-weight:700">'
+                            .'<td colspan="3" style="padding:8px 10px">'.$deliveries->count().' entrega(s)</td>'
+                            .'<td style="padding:8px 10px;text-align:right">R$ '.number_format($totalGross, 2, ',', '.').'</td>'
+                            .'<td style="padding:8px 10px;text-align:right;color:#c0392b">- R$ '.number_format($totalFee, 2, ',', '.').'</td>'
+                            .'<td style="padding:8px 10px;text-align:right;color:#1a5c3a">R$ '.number_format($totalNet, 2, ',', '.').'</td>'
+                            .'</tr></tfoot></table></div>';
 
                         return new \Illuminate\Support\HtmlString($html);
                     })
