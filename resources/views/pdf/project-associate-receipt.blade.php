@@ -302,7 +302,6 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
-    &nbsp;&nbsp;|&nbsp;&nbsp; Comprovante gerado em {{ now()->format('d/m/Y H:i') }}
     @if($isSecondCopy)
         &nbsp;&nbsp;|&nbsp;&nbsp; <strong>2ª VIA</strong>
     @endif
