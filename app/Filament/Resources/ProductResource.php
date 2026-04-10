@@ -204,7 +204,7 @@ class ProductResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            \App\Filament\Resources\ProductResource\RelationManagers\CustomerPricesRelationManager::class,
         ];
     }
 

@@ -94,6 +94,27 @@ class DemandsRelationManager extends RelationManager
                     ->rows(2)
                     ->placeholder('Observações adicionais sobre esta demanda (opcional)')
                     ->columnSpanFull(),
+
+                Forms\Components\Select::make('customer_id')
+                    ->label('Cliente (opcional)')
+                    ->options(function () {
+                        $project = $this->ownerRecord;
+                        $customers = $project->customers()
+                            ->orderBy('name')
+                            ->pluck('name', 'customers.id');
+                        if ($project->customer_id) {
+                            $customers = $customers->prepend(
+                                $project->customer->name,
+                                $project->customer_id
+                            );
+                        }
+                        return $customers->unique();
+                    })
+                    ->searchable()
+                    ->nullable()
+                    ->placeholder('Todos os clientes')
+                    ->helperText('Preencha somente se esta demanda for específica para um cliente do projeto')
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -101,9 +122,16 @@ class DemandsRelationManager extends RelationManager
     {
         return $table
             ->recordTitleAttribute('product.name')
-            ->modifyQueryUsing(fn ($query) => $query->with(['product', 'deliveries']))
+            ->modifyQueryUsing(fn ($query) => $query->with(['product', 'deliveries', 'customer']))
             ->poll('5s') // Atualizar a cada 5 segundos automaticamente
             ->columns([
+                Tables\Columns\TextColumn::make('customer.name')
+                    ->label('Cliente')
+                    ->placeholder('Todos')
+                    ->limit(20)
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('product.name')
                     ->label('Produto')
                     ->searchable()

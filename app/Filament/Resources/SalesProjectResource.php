@@ -117,6 +117,31 @@ class SalesProjectResource extends Resource
                     ])
                     ->columns(2),
 
+                Forms\Components\Section::make('Clientes Adicionais')
+                    ->description('Vincule outros clientes/compradores a este projeto quando houver mais de um.')
+                    ->schema([
+                        Forms\Components\Select::make('customers')
+                            ->label('Clientes Adicionais')
+                            ->multiple()
+                            ->relationship('customers', 'name')
+                            ->searchable()
+                            ->preload()
+                            ->getSearchResultsUsing(fn (string $search) =>
+                                \App\Models\Customer::where('tenant_id', session('tenant_id'))
+                                    ->where('name', 'like', "%{$search}%")
+                                    ->orderBy('name')
+                                    ->limit(50)
+                                    ->pluck('name', 'id')
+                            )
+                            ->getOptionLabelUsing(fn ($value) =>
+                                \App\Models\Customer::find($value)?->name ?? $value
+                            )
+                            ->helperText('Selecione clientes adicionais. O "Cliente Principal" acima é o responsável principal.')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsed()
+                    ->collapsible(),
+
                 Forms\Components\Section::make('Descrição')
                     ->schema([
                         Forms\Components\Textarea::make('description')

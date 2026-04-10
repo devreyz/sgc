@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -73,11 +74,36 @@ class SalesProject extends Model
     }
 
     /**
-     * Get the customer for this project.
+     * Get the primary customer for this project (backward compatibility).
      */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Get all additional customers for this project (multi-customer pivot).
+     */
+    public function customers(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Customer::class,
+            'sales_project_customers',
+            'sales_project_id',
+            'customer_id'
+        )->withPivot('notes')->withTimestamps();
+    }
+
+    /**
+     * Get all customers (primary + additional) as a merged collection.
+     */
+    public function getAllCustomersAttribute()
+    {
+        $list = $this->customers;
+        if ($this->customer && !$list->contains('id', $this->customer_id)) {
+            $list = $list->prepend($this->customer);
+        }
+        return $list;
     }
 
     /**

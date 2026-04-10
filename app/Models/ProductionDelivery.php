@@ -20,6 +20,7 @@ class ProductionDelivery extends Model
         'sales_project_id',
         'project_demand_id',
         'associate_id',
+        'customer_id',
         'product_id',
         'delivery_date',
         'quantity',
@@ -74,6 +75,14 @@ class ProductionDelivery extends Model
     public function salesProject(): BelongsTo
     {
         return $this->belongsTo(SalesProject::class);
+    }
+
+    /**
+     * Get the customer this delivery is destined to.
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /**

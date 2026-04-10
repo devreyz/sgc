@@ -18,6 +18,7 @@ class ProjectDemand extends Model
     protected $fillable = [
         'sales_project_id',
         'product_id',
+        'customer_id',
         'target_quantity',
         'delivered_quantity',
         'unit_price',
@@ -52,6 +53,14 @@ class ProjectDemand extends Model
     public function salesProject(): BelongsTo
     {
         return $this->belongsTo(SalesProject::class);
+    }
+
+    /**
+     * Get the specific customer for this demand (optional).
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     /**

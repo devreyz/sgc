@@ -154,6 +154,27 @@ class DeliveriesRelationManager extends RelationManager
                     ->rows(2)
                     ->placeholder('Observações sobre a entrega (opcional)')
                     ->columnSpanFull(),
+
+                Forms\Components\Select::make('customer_id')
+                    ->label('Cliente Destino (opcional)')
+                    ->options(function () {
+                        $project = $this->ownerRecord;
+                        $customers = $project->customers()
+                            ->orderBy('name')
+                            ->pluck('name', 'customers.id');
+                        if ($project->customer_id) {
+                            $customers = $customers->prepend(
+                                $project->customer->name,
+                                $project->customer_id
+                            );
+                        }
+                        return $customers->unique();
+                    })
+                    ->searchable()
+                    ->nullable()
+                    ->placeholder('Cliente padrão do projeto')
+                    ->helperText('Preencha somente quando esta entrega for para um cliente específico do projeto')
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -166,6 +187,13 @@ class DeliveriesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('delivery_date')
                     ->label('Data')
                     ->date('d/m/Y')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('customer.name')
+                    ->label('Cliente')
+                    ->placeholder('—')
+                    ->limit(18)
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('associate.user.display_name')
