@@ -127,5 +127,10 @@
         </tr>
     </table>
 </div>
+@if(!empty($hasRoundingDivergence))
+<p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
+    * A soma visual dos itens pode divergir do total devido a arredondamentos de exibição.
+</p>
+@endif
 @endif
 @endsection

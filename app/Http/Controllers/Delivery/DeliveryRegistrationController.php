@@ -1175,35 +1175,16 @@ class DeliveryRegistrationController extends Controller
             ]);
         }
 
-        $summary = [
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity'   => $deliveries->sum('quantity'),
-            'gross_value'      => $deliveries->sum('gross_value'),
-            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
-            'net_value'        => $deliveries->sum('net_value'),
-        ];
-
-        $productsSummary = $deliveries->map(function ($d) {
-            return [
-                'product_name'  => $d->product?->name ?? '—',
-                'unit'          => $d->product?->unit ?? 'un',
-                'delivery_date' => $d->delivery_date,
-                'count'         => 1,
-                'quantity'      => $d->quantity,
-                'unit_price'    => $d->unit_price ?? 0,
-                'gross'         => $d->gross_value,
-                'admin_fee'     => $d->admin_fee_amount,
-                'net'           => $d->net_value,
-            ];
-        })->values()->all();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
             'project'         => $project,
             'associate'       => $associate,
             'receipt'         => $receipt,
-            'summary'         => $summary,
-            'productsSummary' => $productsSummary,
+            'summary'         => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
         ])->setPaper('a4', 'portrait');
 
         $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
@@ -1274,37 +1255,16 @@ class DeliveryRegistrationController extends Controller
             'delivery_ids'     => $deliveryIds,
         ]);
 
-        // Resumo financeiro
-        $summary = [
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity'   => $deliveries->sum('quantity'),
-            'gross_value'      => $deliveries->sum('gross_value'),
-            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
-            'net_value'        => $deliveries->sum('net_value'),
-        ];
-
-        // Listar cada entrega individualmente (não agrupar) para manter datas visíveis
-        $productsSummary = $deliveries->map(function ($d) {
-            return [
-                'product_name'  => $d->product?->name ?? '—',
-                'unit'          => $d->product?->unit ?? 'un',
-                'delivery_date' => $d->delivery_date,
-                'count'         => 1,
-                'quantity'      => $d->quantity,
-                'unit_price'    => $d->unit_price ?? 0,
-                'gross'         => $d->gross_value,
-                'admin_fee'     => $d->admin_fee_amount,
-                'net'           => $d->net_value,
-            ];
-        })->values()->all();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
             'project'         => $project,
             'associate'       => $associate,
             'receipt'         => $receipt,
-            'summary'         => $summary,
-            'productsSummary' => $productsSummary,
+            'summary'         => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
         ])->setPaper('a4', 'portrait');
 
         $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
@@ -1368,28 +1328,7 @@ class DeliveryRegistrationController extends Controller
             return back()->with('error', 'Nenhuma entrega aprovada encontrada para este associado neste projeto.');
         }
 
-        $summary = [
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity' => $deliveries->sum('quantity'),
-            'gross_value' => $deliveries->sum('gross_value'),
-            'admin_fee' => $deliveries->sum('admin_fee_amount'),
-            'net_value' => $deliveries->sum('net_value'),
-        ];
-
-        // Resumo por entrega individual (com datas)
-        $productsSummary = $deliveries->map(function ($d) {
-            return [
-                'product_name'  => $d->product?->name ?? '—',
-                'unit'          => $d->product?->unit ?? 'un',
-                'delivery_date' => $d->delivery_date,
-                'count'         => 1,
-                'quantity'      => $d->quantity,
-                'unit_price'    => $d->unit_price ?? 0,
-                'gross'         => $d->gross_value,
-                'admin_fee'     => $d->admin_fee_amount,
-                'net'           => $d->net_value,
-            ];
-        })->values()->all();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
 
         $svc = app(\App\Services\TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -1400,8 +1339,9 @@ class DeliveryRegistrationController extends Controller
             'project' => $project,
             'associate' => $associate,
             'deliveries' => $deliveries,
-            'summary' => $summary,
-            'productsSummary' => $productsSummary,
+            'summary' => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
         ], array_merge(
             $svc->systemPdfOptions('pdf.project-associate-receipt', 'Comprovante de Entrega'),
             ['paper' => 'a4', 'orientation' => 'portrait']
@@ -1584,35 +1524,16 @@ class DeliveryRegistrationController extends Controller
             return redirect()->back()->with('error', 'Não há entregas disponíveis para reimprimir este comprovante.');
         }
 
-        $summary = [
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity'   => $deliveries->sum('quantity'),
-            'gross_value'      => $deliveries->sum('gross_value'),
-            'admin_fee'        => $deliveries->sum('admin_fee_amount'),
-            'net_value'        => $deliveries->sum('net_value'),
-        ];
-
-        $productsSummary = $deliveries->map(function ($d) {
-            return [
-                'product_name'  => $d->product?->name ?? '—',
-                'unit'          => $d->product?->unit ?? 'un',
-                'delivery_date' => $d->delivery_date,
-                'count'         => 1,
-                'quantity'      => $d->quantity,
-                'unit_price'    => $d->unit_price ?? 0,
-                'gross'         => $d->gross_value,
-                'admin_fee'     => $d->admin_fee_amount,
-                'net'           => $d->net_value,
-            ];
-        })->values()->all();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
             'project'         => $project,
             'associate'       => $associate,
             'receipt'         => $receipt,
-            'summary'         => $summary,
-            'productsSummary' => $productsSummary,
+            'summary'         => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
         ])->setPaper('a4', 'portrait');
 
         $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');

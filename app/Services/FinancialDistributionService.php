@@ -34,17 +34,19 @@ class FinancialDistributionService
             // Usa os valores já persistidos na entrega (calculados no model boot).
             // Isso garante que nunca recalculamos valores antigos.
             $project = $delivery->salesProject;
-            $adminFeePercentage = (float) ($delivery->admin_fee_percentage ?? ($project->admin_fee_percentage ?? 0));
+            $adminFeePercentage = (string) ($delivery->admin_fee_percentage ?? ($project->admin_fee_percentage ?? '0'));
 
-            $grossValue = (float) $delivery->gross_value;
-            $adminFeeAmount = (float) ($delivery->admin_fee_amount ?? round($grossValue * ($adminFeePercentage / 100), 2));
-            $netValue = (float) ($delivery->net_value ?? round($grossValue - $adminFeeAmount, 2));
+            $grossValue = (string) ($delivery->gross_value ?? bcmul((string) $delivery->quantity, (string) $delivery->unit_price, 8));
+            $adminFeeAmount = (string) ($delivery->admin_fee_amount ?? bcmul($grossValue, bcdiv($adminFeePercentage, '100', 8), 8));
+            $netValue = (string) ($delivery->net_value ?? bcsub($grossValue, $adminFeeAmount, 8));
 
             // Calcula cost_price_used se não estiver preenchido
             $costPriceUsed = $delivery->cost_price_used;
             if (!$costPriceUsed && $delivery->unit_price) {
-                if ($adminFeePercentage > 0) {
-                    $costPriceUsed = round($delivery->unit_price - ($delivery->unit_price * ($adminFeePercentage / 100)), 2);
+                $unitPrice = (string) $delivery->unit_price;
+                if (bccomp($adminFeePercentage, '0', 8) > 0) {
+                    $taxPerUnit = bcmul($unitPrice, bcdiv($adminFeePercentage, '100', 8), 8);
+                    $costPriceUsed = bcsub($unitPrice, $taxPerUnit, 8);
                 } else {
                     $costPriceUsed = $delivery->product->cost_price ?? $delivery->unit_price;
                 }
@@ -60,8 +62,8 @@ class FinancialDistributionService
 
             // Get associate's current balance
             $associate = $delivery->associate;
-            $currentBalance = $this->getAssociateBalance($associate);
-            $newBalance = $currentBalance + $netValue;
+            $currentBalance = (string) $this->getAssociateBalance($associate);
+            $newBalance = bcadd($currentBalance, $netValue, 8);
 
             $projectTitle = $project ? $project->title : 'Avulsa';
 
