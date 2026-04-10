@@ -68,6 +68,14 @@ class Customer extends Model
     }
 
     /**
+     * Get the product-specific prices for this customer.
+     */
+    public function productPrices(): HasMany
+    {
+        return $this->hasMany(CustomerProductPrice::class);
+    }
+
+    /**
      * Get the documents for the customer.
      */
     public function documents(): MorphMany

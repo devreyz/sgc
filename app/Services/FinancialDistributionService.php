@@ -31,19 +31,31 @@ class FinancialDistributionService
     public function processDelivery(ProductionDelivery $delivery): array
     {
         return DB::transaction(function () use ($delivery) {
-            // Get the project and its admin fee percentage
+            // Usa os valores já persistidos na entrega (calculados no model boot).
+            // Isso garante que nunca recalculamos valores antigos.
             $project = $delivery->salesProject;
-            $adminFeePercentage = $project->admin_fee_percentage;
+            $adminFeePercentage = (float) ($delivery->admin_fee_percentage ?? ($project->admin_fee_percentage ?? 0));
 
-            // Calculate values
-            $grossValue = $delivery->quantity * $delivery->unit_price;
-            $adminFeeAmount = $grossValue * ($adminFeePercentage / 100);
-            $netValue = $grossValue - $adminFeeAmount;
+            $grossValue = (float) $delivery->gross_value;
+            $adminFeeAmount = (float) ($delivery->admin_fee_amount ?? round($grossValue * ($adminFeePercentage / 100), 2));
+            $netValue = (float) ($delivery->net_value ?? round($grossValue - $adminFeeAmount, 2));
+
+            // Calcula cost_price_used se não estiver preenchido
+            $costPriceUsed = $delivery->cost_price_used;
+            if (!$costPriceUsed && $delivery->unit_price) {
+                if ($adminFeePercentage > 0) {
+                    $costPriceUsed = round($delivery->unit_price - ($delivery->unit_price * ($adminFeePercentage / 100)), 2);
+                } else {
+                    $costPriceUsed = $delivery->product->cost_price ?? $delivery->unit_price;
+                }
+            }
 
             // Update delivery with calculated values (quietly to avoid infinite loop)
             $delivery->updateQuietly([
+                'admin_fee_percentage' => $adminFeePercentage,
                 'admin_fee_amount' => $adminFeeAmount,
                 'net_value' => $netValue,
+                'cost_price_used' => $costPriceUsed,
             ]);
 
             // Get associate's current balance
@@ -51,13 +63,15 @@ class FinancialDistributionService
             $currentBalance = $this->getAssociateBalance($associate);
             $newBalance = $currentBalance + $netValue;
 
+            $projectTitle = $project ? $project->title : 'Avulsa';
+
             // Create credit entry in associate's ledger
             $ledgerEntry = AssociateLedger::create([
                 'associate_id' => $associate->id,
                 'type' => LedgerType::CREDIT,
                 'amount' => $netValue,
                 'balance_after' => $newBalance,
-                'description' => "Entrega de {$delivery->product->name} - Projeto: {$project->title}",
+                'description' => "Entrega de {$delivery->product->name} - Projeto: {$projectTitle}",
                 'notes' => "Valor bruto: R$ " . number_format($grossValue, 2, ',', '.') . 
                           " | Taxa admin ({$adminFeePercentage}%): R$ " . number_format($adminFeeAmount, 2, ',', '.'),
                 'reference_type' => ProductionDelivery::class,

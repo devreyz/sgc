@@ -103,6 +103,14 @@ class Product extends Model
     }
 
     /**
+     * Get customer-specific prices for this product.
+     */
+    public function customerPrices(): HasMany
+    {
+        return $this->hasMany(CustomerProductPrice::class);
+    }
+
+    /**
      * Check if stock is below minimum.
      */
     public function isLowStock(): bool

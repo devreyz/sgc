@@ -24,6 +24,7 @@ class ProductionDelivery extends Model
         'delivery_date',
         'quantity',
         'unit_price',
+        'cost_price_used',
         'admin_fee_percentage',
         'from_stock',
         'admin_fee_amount',
@@ -48,6 +49,7 @@ class ProductionDelivery extends Model
             'delivery_date' => 'date',
             'quantity' => 'decimal:3',
             'unit_price' => 'decimal:2',
+            'cost_price_used' => 'decimal:2',
             'admin_fee_percentage' => 'decimal:2',
             'admin_fee_amount' => 'decimal:2',
             'net_value' => 'decimal:2',
@@ -156,24 +158,39 @@ class ProductionDelivery extends Model
             }
         });
         
-        // Calculate admin fee and net value before saving
+        // Calculate admin fee, cost price and net value before saving
         static::saving(function ($delivery) {
             if ($delivery->unit_price && $delivery->quantity) {
                 $grossValue = $delivery->quantity * $delivery->unit_price;
-                
-                // Get admin fee percentage from project (standalone = 0%)
-                if ($delivery->sales_project_id) {
-                    // Entrega vinculada a projeto: usa taxa do projeto
+
+                // Resolve admin fee percentage: persiste na entrega para histórico
+                if ($delivery->sales_project_id && !$delivery->isDirty('admin_fee_percentage')) {
+                    // Entrega vinculada a projeto: usa taxa do projeto (persiste no registro)
                     $project = $delivery->salesProject;
                     $adminFeePercentage = $project->admin_fee_percentage ?? 10;
+                    $delivery->admin_fee_percentage = $adminFeePercentage;
                 } else {
-                    // Entrega avulsa: usa taxa definida na própria entrega (padrão 0%)
+                    // Entrega avulsa ou taxa já definida manualmente
                     $adminFeePercentage = $delivery->admin_fee_percentage ?? 0;
                 }
 
-                $adminFee = $grossValue * ($adminFeePercentage / 100);
+                $adminFee = round($grossValue * ($adminFeePercentage / 100), 2);
                 $delivery->admin_fee_amount = $adminFee;
-                $delivery->net_value = $grossValue - $adminFee;
+                $delivery->net_value = round($grossValue - $adminFee, 2);
+
+                // Calcula e persiste o cost_price_used (valor de repasse por unidade)
+                if (!$delivery->cost_price_used) {
+                    if ($adminFeePercentage > 0) {
+                        $delivery->cost_price_used = round(
+                            $delivery->unit_price - ($delivery->unit_price * ($adminFeePercentage / 100)),
+                            2
+                        );
+                    } else {
+                        // Sem taxa: usa cost_price do produto como fallback
+                        $product = $delivery->product;
+                        $delivery->cost_price_used = $product?->cost_price ?? $delivery->unit_price;
+                    }
+                }
             }
         });
     }

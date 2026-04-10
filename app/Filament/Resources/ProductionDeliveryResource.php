@@ -8,6 +8,7 @@ use App\Filament\Resources\ProductionDeliveryResource\Pages;
 use App\Filament\Resources\ProductionDeliveryResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
 use App\Models\Product;
+use App\Services\PricingService;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
@@ -153,10 +154,20 @@ class ProductionDeliveryResource extends Resource
                             ->searchable()
                             ->preload()
                             ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
+                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
                                     $product = Product::find($state);
-                                    $set('unit_price', $product?->cost_price ?? 0);
+                                    $projectId = $get('sales_project_id');
+                                    $project = $projectId ? SalesProject::find($projectId) : null;
+                                    $customer = $project?->customer;
+
+                                    $pricing = app(PricingService::class)->resolvePrice(
+                                        $product,
+                                        $customer,
+                                        $project
+                                    );
+
+                                    $set('unit_price', $pricing['sale_price']);
                                 }
                             })
                             ->required(function (callable $get) {
@@ -197,7 +208,8 @@ class ProductionDeliveryResource extends Resource
                             ->afterStateUpdated(function ($state, callable $set) {
                                 if ($state) {
                                     $product = Product::find($state);
-                                    $set('unit_price', $product?->cost_price ?? 0);
+                                    $pricing = app(PricingService::class)->resolvePrice($product);
+                                    $set('unit_price', $pricing['sale_price']);
                                 }
                             })
                             ->helperText('Selecione o produto')
@@ -325,6 +337,7 @@ class ProductionDeliveryResource extends Resource
                                 $isStandalone = (bool) $get('is_standalone');
                                 $fromStock = (bool) $get('from_stock');
                                 $projectId = $get('sales_project_id');
+                                $productId = $get('product_id');
 
                                 $gross = $qty * $price;
                                 $adminRate = 0;
@@ -341,8 +354,16 @@ class ProductionDeliveryResource extends Resource
 
                                 $net = $gross - $adminFee;
 
+                                // Calcular custo unitário (repasse)
+                                if ($adminRate > 0) {
+                                    $costUnit = round($price - ($price * ($adminRate / 100)), 2);
+                                } else {
+                                    $product = $productId ? Product::find($productId) : null;
+                                    $costUnit = $product?->cost_price ?? $price;
+                                }
+
                                 return new \Illuminate\Support\HtmlString(
-                                    '<div class="grid grid-cols-3 gap-4 text-sm">'.
+                                    '<div class="grid grid-cols-4 gap-4 text-sm">'.
                                     '<div class="p-3 bg-gray-100 rounded-lg dark:bg-gray-800">'.
                                     '<div class="text-gray-500 dark:text-gray-400">Valor Bruto</div>'.
                                     '<div class="text-lg font-bold">R$ '.number_format($gross, 2, ',', '.').'</div>'.
@@ -354,6 +375,10 @@ class ProductionDeliveryResource extends Resource
                                     '<div class="p-3 bg-green-50 rounded-lg dark:bg-green-900/20">'.
                                     '<div class="text-gray-500 dark:text-gray-400">Valor Líquido (Produtor)</div>'.
                                     '<div class="text-lg font-bold text-green-600 dark:text-green-400">R$ '.number_format($net, 2, ',', '.').'</div>'.
+                                    '</div>'.
+                                    '<div class="p-3 bg-blue-50 rounded-lg dark:bg-blue-900/20">'.
+                                    '<div class="text-gray-500 dark:text-gray-400">Repasse/Un</div>'.
+                                    '<div class="text-lg font-bold text-blue-600 dark:text-blue-400">R$ '.number_format($costUnit, 2, ',', '.').'</div>'.
                                     '</div>'.
                                     '</div>'
                                 );
@@ -411,6 +436,12 @@ class ProductionDeliveryResource extends Resource
                     ->label('Preço/Un')
                     ->money('BRL')
                     ->toggleable(),
+
+                Tables\Columns\TextColumn::make('cost_price_used')
+                    ->label('Repasse/Un')
+                    ->money('BRL')
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('gross_value')
                     ->label('Bruto')
