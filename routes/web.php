@@ -3,13 +3,14 @@
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
+use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
+use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\ReportController;
-use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
@@ -119,6 +120,13 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');
         Route::get('/projects/{project}/receipts', [DeliveryRegistrationController::class, 'projectReceiptsList'])->name('projects.receipts-list');
+    });
+
+    // Delivery Sheet (Fichas de Entrega) Routes — accessible to registrador, financeiro and admin
+    Route::prefix('delivery/sheet')->name('delivery.sheet.')->middleware(['any.role:registrador_entregas,financeiro,admin'])->group(function () {
+        Route::get('/', [DeliverySheetController::class, 'index'])->name('index');
+        Route::get('/products/{customer}', [DeliverySheetController::class, 'productsForCustomer'])->name('products');
+        Route::post('/generate', [DeliverySheetController::class, 'generate'])->name('generate');
     });
 
     // PDV (Point of Sale) Routes

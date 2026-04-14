@@ -15,6 +15,9 @@
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
+    <a href="{{ route('delivery.sheet.index', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="file-text" style="width:14px;height:14px"></i> Fichas
+    </a>
     <form action="{{ route('logout') }}" method="POST" style="display:inline">
         @csrf
         <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
