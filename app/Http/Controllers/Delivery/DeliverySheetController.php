@@ -108,10 +108,11 @@ class DeliverySheetController extends Controller
         }
 
         $request->validate([
-            'customer_id'  => 'required|integer',
-            'product_ids'  => 'required|array|min:1',
+            'customer_id'   => 'required|integer',
+            'product_ids'   => 'required|array|min:1',
             'product_ids.*' => 'integer',
-            'sheet_date'   => 'nullable|date',
+            'sheet_date'    => 'nullable|date',
+            'layout'        => 'nullable|in:landscape,portrait',
         ]);
 
         $tenantModel = $this->currentTenant();
@@ -155,13 +156,16 @@ class DeliverySheetController extends Controller
             ? \Carbon\Carbon::parse($request->sheet_date)->format('d/m/Y')
             : now()->format('d/m/Y');
 
+        $layout = $request->input('layout', 'landscape'); // 'landscape' | 'portrait'
+
         $pdf = Pdf::loadView('pdf.delivery-sheet', [
             'tenant'    => $tenantModel,
             'customer'  => $customer,
             'items'     => $items,
             'sheetDate' => $sheetDate,
+            'layout'    => $layout,
         ])
-        ->setPaper('a4', 'landscape')
+        ->setPaper('a4', $layout)
         ->setOption('defaultFont', 'DejaVu Sans')
         ->setOption('isHtml5ParserEnabled', true)
         ->setOption('isRemoteEnabled', true);

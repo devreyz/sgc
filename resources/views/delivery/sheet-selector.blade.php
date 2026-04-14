@@ -150,12 +150,28 @@
 <div class="sheet-card" id="generate-card" style="display:none">
     <h2><i data-lucide="printer" style="width:16px;height:16px"></i> 3. Gerar Ficha</h2>
 
+    <div class="form-group">
+        <label class="form-label">Orientação do PDF</label>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;padding:.5rem .9rem;border:1px solid var(--color-border);border-radius:var(--radius-md);transition:.15s;" id="lbl-landscape">
+                <input type="radio" name="layout" value="landscape" checked style="accent-color:var(--color-primary)">
+                <i data-lucide="layout-panel-left" style="width:15px;height:15px"></i>
+                <span style="font-size:.85rem;font-weight:600;">Paisagem — 2 vias (A4 horizontal)</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;padding:.5rem .9rem;border:1px solid var(--color-border);border-radius:var(--radius-md);transition:.15s;" id="lbl-portrait">
+                <input type="radio" name="layout" value="portrait" style="accent-color:var(--color-primary)">
+                <i data-lucide="file" style="width:15px;height:15px"></i>
+                <span style="font-size:.85rem;font-weight:600;">Retrato — 1 via (A4 vertical, folha inteira)</span>
+            </label>
+        </div>
+    </div>
+
     <button type="submit" class="btn-primary" id="generate-btn" disabled>
         <i data-lucide="download" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:4px"></i>
         Gerar e Baixar PDF
     </button>
-    <p class="preview-note">
-        O PDF será gerado em A4 horizontal com duas vias (organização e produtor) e duas colunas de produtos em cada via.
+    <p class="preview-note" id="preview-note">
+        Paisagem: uma página com duas colunas de produtos (org e produtor lado a lado).
     </p>
 </div>
 
@@ -252,6 +268,21 @@
         });
         updateCount();
     });
+
+    // Layout radio: highlight selected + update preview note
+    const layoutNotes = {
+        landscape: 'Paisagem: uma página com duas colunas de produtos (org e produtor lado a lado).',
+        portrait:  'Retrato: página inteira para uma única via, colunas mais largas — ideal para listas maiores.',
+    };
+    document.querySelectorAll('input[name="layout"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            document.getElementById('preview-note').textContent = layoutNotes[radio.value] || '';
+            document.getElementById('lbl-landscape').style.borderColor = radio.value === 'landscape' ? 'var(--color-primary)' : 'var(--color-border)';
+            document.getElementById('lbl-portrait').style.borderColor  = radio.value === 'portrait'  ? 'var(--color-primary)' : 'var(--color-border)';
+        });
+    });
+    // Set initial highlight
+    document.getElementById('lbl-landscape').style.borderColor = 'var(--color-primary)';
 
     // Show loader on submit
     document.getElementById('sheet-form').addEventListener('submit', function () {
