@@ -18,7 +18,6 @@ class Product extends Model
 
     protected $hidden = [
         'tenant_id',
-        'cost_price',
         'deleted_at',
     ];
 
