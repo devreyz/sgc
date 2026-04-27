@@ -85,13 +85,16 @@ class DeliverySheetController extends Controller
 
         $result = $products->map(function ($p) use ($customPrices) {
             $override = $customPrices->get($p->id);
+            $price    = $override ? (float) $override->sale_price : (float) $p->sale_price;
             return [
                 'id'         => $p->id,
                 'name'       => $p->name,
                 'unit'       => $p->unit,
-                'sale_price' => $override ? (float) $override->sale_price : (float) $p->sale_price,
+                'sale_price' => $price,
                 'has_custom' => (bool) $override,
             ];
+        })->filter(function ($item) {
+            return $item['sale_price'] > 0;
         });
 
         return response()->json($result->values());
@@ -141,15 +144,18 @@ class DeliverySheetController extends Controller
             ->get()
             ->keyBy('product_id');
 
-        // Monta itens com preço resolvido
+        // Monta itens com preço resolvido — exclui produtos sem preço definido (0 ou null)
         $items = $products->map(function ($p) use ($customPrices) {
-            $override = $customPrices->get($p->id);
+            $override   = $customPrices->get($p->id);
+            $price      = $override ? (float) $override->sale_price : (float) $p->sale_price;
             return [
                 'id'         => $p->id,
                 'name'       => $p->name,
                 'unit'       => $p->unit,
-                'sale_price' => $override ? (float) $override->sale_price : (float) $p->sale_price,
+                'sale_price' => $price,
             ];
+        })->filter(function ($item) {
+            return $item['sale_price'] > 0;
         })->values()->all();
 
         $sheetDate = $request->sheet_date
