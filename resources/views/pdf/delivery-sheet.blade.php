@@ -148,15 +148,14 @@ body {
 ])
 
 @else
-{{-- ══ LANDSCAPE: duas vias lado a lado ════════════════════ --}}
+{{-- ══ LANDSCAPE: duas vias lado a lado (sem divisor de corte) ════════════════════ --}}
 <table class="outer"><tbody><tr>
 @for($via = 1; $via <= 2; $via++)
-    @if($via === 2)<td class="divider" style="width:1%"></td>@endif
-    <td>
-    @include('pdf.partials.delivery-sheet-via', [
-        'colA' => $colA, 'colB' => $colB, 'maxRows' => $maxRows,
-        'isPortrait' => false,
-    ])
+    <td style="vertical-align:top;width:50%;padding:0 4mm;">
+        @include('pdf.partials.delivery-sheet-via', [
+            'colA' => $colA, 'colB' => $colB, 'maxRows' => $maxRows,
+            'isPortrait' => false,
+        ])
     </td>
 @endfor
 </tr></tbody></table>

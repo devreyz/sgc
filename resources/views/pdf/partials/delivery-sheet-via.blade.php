@@ -25,7 +25,7 @@
     </td>
     @endif
     <td style="vertical-align:middle;padding-left:5px;">
-        <div class="hdr-title">Ficha de Entrega</div>
+        <div class="hdr-title">Ficha de Entrega - {{ $displayName }}</div>
         <div class="hdr-org">{{ $orgName }}</div>
         @if($orgCnpj)<div class="hdr-cnpj">CNPJ: {{ $orgCnpj }}</div>@endif
     </td>
@@ -40,10 +40,7 @@
 
 {{-- ── Info: cliente e produtor ── --}}
 <table class="info">
-    <tr>
-        <td class="lbl">Cliente</td>
-        <td class="val">{{ $displayName }}</td>
-    </tr>
+   
     @if($clientCity)
     <tr>
         <td class="lbl">Cidade</td>
@@ -108,13 +105,13 @@
 
 {{-- espaçador pós-produtos --}}
 <div style="height:10px;font-size:1px;">&nbsp;</div>
-
+<!-- 
 {{-- ── Total Líquido ── --}}
 <table style="width:100%;border-collapse:collapse;">
     <tr>
-        <td class="tot-lbl">Total Líquido — após taxa de 10% (R$):</td>
+        <td class="tot-lbl">Total Líquido (R$):</td>
         <td class="tot-val2">&nbsp;</td>
     </tr>
-</table>
+</table> -->
 
 </td></tr></tbody></table>
