@@ -12,11 +12,11 @@
 @php
     $padH = $isPortrait ? '0' : '5mm';
 @endphp
-<table style="width:100%;border-collapse:collapse;"><tbody><tr>
+<table style="width:100%;border-collapse:collapse; padding-bottom: 5px;"><tbody><tr>
 <td style="padding:0 {{ $padH }};vertical-align:top;">
 
 {{-- ── Cabeçalho ── --}}
-<table style="width:100%;border-collapse:collapse;border-bottom:1.5px solid #1a1a1a;padding-bottom:5px;">
+<table style="width:100%;border-collapse:collapse;border-bottom:1.5px solid #1a1a1a; padding-bottom:5px;">
 <tbody><tr>
     @if($hasLogo)
     <td style="width:{{ $isPortrait ? '20mm' : '14mm' }};vertical-align:middle;">
@@ -33,6 +33,7 @@
         <span class="hdr-date-lbl">Data:</span>
         <span class="hdr-date-blank">&nbsp;</span>
     </td>
+    
 </tr></tbody></table>
 
 {{-- espaçador pós-cabeçalho --}}
@@ -41,12 +42,12 @@
 {{-- ── Info: cliente e produtor ── --}}
 <table class="info">
    
-    @if($clientCity)
+    <!-- @if($clientCity)
     <tr>
         <td class="lbl">Cidade</td>
         <td class="val">{{ $clientCity }}</td>
     </tr>
-    @endif
+    @endif -->
     <tr>
         <td class="lbl">Produtor</td>
         <td class="val blank">&nbsp;</td>
