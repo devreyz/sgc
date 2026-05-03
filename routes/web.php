@@ -98,12 +98,16 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/register/{project?}', [DeliveryRegistrationController::class, 'register'])->name('register');
         Route::post('/register', [DeliveryRegistrationController::class, 'store'])->name('store');
         Route::post('/register-batch', [DeliveryRegistrationController::class, 'storeBatch'])->name('store-batch');
+        Route::get('/customers', [DeliveryRegistrationController::class, 'getCustomers'])->name('customers');
+        Route::delete('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'deleteDelivery'])->name('deliveries.delete');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');
         Route::get('/projects/{project}/stock-summary', [DeliveryRegistrationController::class, 'getProjectStockSummary'])->name('projects.stock-summary');
         Route::get('/projects/{project}/associates/{associate}/deliveries', [DeliveryRegistrationController::class, 'getAssociateDeliveries'])->name('associates.deliveries');
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
+        Route::post('/deliveries/{delivery}/distribute', [DeliveryRegistrationController::class, 'distribute'])->name('deliveries.distribute');
+        Route::delete('/distributions/{distribution}', [DeliveryRegistrationController::class, 'deleteDistribution'])->name('distributions.delete');
         Route::put('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'updateDelivery'])->name('deliveries.update');
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
@@ -115,6 +119,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
 
         // Lista pública (autenticada) de produtores por projeto
+        Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');
         Route::get('/projects/{project}/producers', [DeliveryRegistrationController::class, 'projectProducers'])->name('projects.producers');
         Route::get('/projects/{project}/associates/{associate}/receipt', [DeliveryRegistrationController::class, 'generateAssociateReceiptPdf'])->name('projects.associate-receipt');
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');

@@ -12,6 +12,9 @@
     <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
     </a>
+    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
+    </a>
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
@@ -116,6 +119,12 @@
     .pd-toast.error   { border-left:3px solid var(--color-danger); }
     @keyframes pd-fi { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
+    /* Distribution */
+    .btn-distribute { background:rgba(99,102,241,.12); color:#4f46e5; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.22rem .5rem; font-size:.7rem; transition:.15s; }
+    .btn-distribute:hover:not(:disabled) { background:#4f46e5; color:#fff; }
+    .dist-badge { display:inline-flex; align-items:center; gap:.2rem; font-size:.65rem; font-weight:600; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .45rem; white-space:nowrap; margin-top:.18rem; }
+    .dist-customers { font-size:.68rem; color:var(--color-text-secondary); margin-top:.18rem; }
+
     /* Selection bar */
     .selection-bar { position:fixed; bottom:0; left:0; right:0; background:var(--color-surface); border-top:2px solid var(--color-primary); padding:.75rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; z-index:99998; box-shadow:0 -4px 18px rgba(0,0,0,.14); transform:translateY(100%); transition:transform .25s ease; }
     .selection-bar.visible { transform:translateY(0); }
@@ -135,46 +144,16 @@
 
 <div id="pd-toasts"></div>
 
-{{-- ── MODAL EDITAR ENTREGA ── --}}
-<div class="modal-overlay hidden" id="edit-modal">
-    <div class="modal-box">
-        <div class="modal-title">
-            <i data-lucide="pencil" style="width:16px;height:16px;color:#2563eb"></i>
-            Editar Entrega
-        </div>
-        <input type="hidden" id="edit-delivery-id">
-        <div class="form-row">
-            <div class="form-group">
-                <label class="form-label">Data da Entrega *</label>
-                <input type="date" id="edit-date" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Quantidade *</label>
-                <input type="number" id="edit-qty" class="form-control" step="0.001" min="0.001" required>
-            </div>
-        </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label class="form-label">Preço Unitário</label>
-                <input type="number" id="edit-price" class="form-control" step="0.01" min="0">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Classificação</label>
-                <input type="text" id="edit-quality" class="form-control" maxlength="50" placeholder="Ex: A, B, Premium…">
-            </div>
-        </div>
-        <div class="form-group">
-            <label class="form-label">Observações</label>
-            <textarea id="edit-notes" class="form-control" rows="2" maxlength="1000" placeholder="Observações opcionais..."></textarea>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-ghost btn-sm" onclick="closeEditModal()">Cancelar</button>
-            <button class="btn btn-primary btn-sm" id="edit-save-btn" onclick="saveEditDelivery()">
-                <i data-lucide="save" style="width:13px;height:13px"></i> Salvar
-            </button>
-        </div>
-    </div>
-</div>
+{{-- ── COMPONENTES CENTRALIZADOS ── --}}
+<x-delivery.edit-delivery-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+/>
+<x-delivery.dist-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+/>
 
 {{-- ── PROJECT HEADER ── --}}
 <div class="pd-header">
@@ -313,17 +292,29 @@ $totalNet      = $deliveries->sum('net_value');
                 <tr id="row-{{ $delivery['id'] }}" class="{{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}">
                     <td class="chk-cell">
                         @if($delivery['status_value'] === 'approved')
-                        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['net_value'] }}">
+                        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}">
                         @endif
                     </td>
                     <td style="white-space:nowrap;">{{ $delivery['delivery_date'] }}</td>
                     <td style="font-weight:500;">{{ $delivery['associate_name'] }}</td>
                     <td>{{ $delivery['product_name'] }}</td>
                     <td style="white-space:nowrap;font-weight:600;">{{ number_format($delivery['quantity'], 3, ',', '.') }} <small style="font-weight:400;font-size:.72em;">{{ $delivery['unit'] }}</small></td>
-                    <td style="white-space:nowrap;color:var(--color-success);font-weight:600;">R$ {{ number_format($delivery['net_value'], 2, ',', '.') }}</td>
+                    <td style="white-space:nowrap;font-weight:600;">
+                        @if($delivery['dist_net_value'] > 0)
+                            <span style="color:var(--color-success)">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
+                        @else
+                            <span style="color:var(--color-text-muted);font-size:.78rem">— sem distrib.</span>
+                        @endif
+                    </td>
                     <td>{{ $delivery['quality_grade'] ?? '—' }}</td>
                     <td>
                         <span class="badge-status {{ $delivery['status_value'] }}">{{ $delivery['status'] }}</span>
+                        @if($delivery['distributed_qty'] > 0)
+                        <div class="dist-badge">
+                            <i data-lucide="git-branch" style="width:9px;height:9px"></i>
+                            {{ number_format($delivery['distributed_qty'], 2, ',', '.') }} {{ $delivery['unit'] }} distrib.
+                        </div>
+                        @endif
                     </td>
                     <td>
                         @if($delivery['status_value'] === 'pending')
@@ -334,9 +325,6 @@ $totalNet      = $deliveries->sum('net_value');
                             <button class="btn-reject" data-id="{{ $delivery['id'] }}" title="Rejeitar">
                                 <i data-lucide="x" style="width:11px;height:11px"></i> Rejeitar
                             </button>
-                        </div>
-                        @elseif($delivery['status_value'] === 'approved' && $project->status->value !== 'delivered')
-                        <div class="action-btns">
                             <button class="btn-edit"
                                 data-id="{{ $delivery['id'] }}"
                                 data-date="{{ $delivery['delivery_date_raw'] }}"
@@ -344,6 +332,33 @@ $totalNet      = $deliveries->sum('net_value');
                                 data-price="{{ $delivery['unit_price'] }}"
                                 data-quality="{{ $delivery['quality_grade'] }}"
                                 data-notes="{{ $delivery['notes'] }}"
+                                data-unit="{{ $delivery['unit'] }}"
+                                data-distributions="{{ json_encode($delivery['distributions']) }}"
+                                title="Editar entrega">
+                                <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
+                            </button>
+                        </div>
+                        @elseif($delivery['status_value'] === 'approved')
+                        <div class="action-btns">
+                            <button class="btn-distribute"
+                                data-id="{{ $delivery['id'] }}"
+                                data-product="{{ $delivery['product_name'] }}"
+                                data-unit="{{ $delivery['unit'] }}"
+                                data-qty="{{ $delivery['quantity'] }}"
+                                data-distributed="{{ $delivery['distributed_qty'] }}"
+                                data-existing="{{ json_encode($delivery['distributions']) }}"
+                                title="Distribuir para clientes">
+                                <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
+                            </button>
+                            <button class="btn-edit"
+                                data-id="{{ $delivery['id'] }}"
+                                data-date="{{ $delivery['delivery_date_raw'] }}"
+                                data-qty="{{ $delivery['quantity'] }}"
+                                data-price="{{ $delivery['unit_price'] }}"
+                                data-quality="{{ $delivery['quality_grade'] }}"
+                                data-notes="{{ $delivery['notes'] }}"
+                                data-unit="{{ $delivery['unit'] }}"
+                                data-distributions="{{ json_encode($delivery['distributions']) }}"
                                 title="Editar entrega">
                                 <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
                             </button>
@@ -364,8 +379,8 @@ $totalNet      = $deliveries->sum('net_value');
 <div class="selection-bar" id="selection-bar">
     <div class="selection-bar-info">
         <i data-lucide="check-square" style="width:16px;height:16px;color:var(--color-primary)"></i>
-        <span id="sel-count">0</span> entrega(s) selecionada(s)
-        &nbsp;—&nbsp;
+        <span id="sel-count">0</span> recepção(ões) selecionada(s)
+        &nbsp;·&nbsp; Distribuído:
         <span style="color:var(--color-success)">R$ <span id="sel-total">0,00</span></span>
     </div>
     <div class="selection-bar-actions">
@@ -377,9 +392,10 @@ $totalNet      = $deliveries->sum('net_value');
 </div>
 
 <script>
-const PD_TENANT   = '{{ $currentTenant->slug }}';
-const PD_CSRF     = '{{ csrf_token() }}';
-const PD_PROJECT  = {{ $project->id }};
+const PD_TENANT    = '{{ $currentTenant->slug }}';
+const PD_CSRF      = '{{ csrf_token() }}';
+const PD_PROJECT   = {{ $project->id }};
+const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 
 function pdToast(msg, type = 'success') {
     const c = document.getElementById('pd-toasts');
@@ -492,16 +508,15 @@ async function loadReceiptsHistory() {
 loadReceiptsHistory();
 
 document.addEventListener('click', async function(e) {
-    const approveBtn = e.target.closest('.btn-approve');
-    const rejectBtn  = e.target.closest('.btn-reject');
-    const editBtn    = e.target.closest('.btn-edit');
+    const approveBtn  = e.target.closest('.btn-approve');
+    const rejectBtn   = e.target.closest('.btn-reject');
+    const editBtn     = e.target.closest('.btn-edit');
+    const distBtn     = e.target.closest('.btn-distribute');
 
-    if (editBtn) {
-        openEditModal(editBtn);
-        return;
-    }
-
+    if (editBtn)  { EditModal.openFromBtn(editBtn); return; }
+    if (distBtn)  { DistModal.openFromBtn(distBtn); return; }
     if (!approveBtn && !rejectBtn) return;
+
     const btn    = approveBtn || rejectBtn;
     const id     = btn.dataset.id;
     const action = approveBtn ? 'approve' : 'reject';
@@ -521,13 +536,60 @@ document.addEventListener('click', async function(e) {
         if (data.success) {
             pdToast(data.message);
             if (row) {
-                const statusBadge = row.querySelector('.badge-status');
-                const actionCell  = row.querySelector('.action-btns');
-                if (statusBadge) {
-                    statusBadge.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
-                    statusBadge.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
+                // Update status badge
+                const statusCell = row.cells[7]; // 0-chk,1-date,2-assoc,3-prod,4-qty,5-val,6-qual,7-status,8-actions
+                if (statusCell) {
+                    const badge = statusCell.querySelector('.badge-status');
+                    if (badge) {
+                        badge.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
+                        badge.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
+                    }
                 }
-                if (actionCell) actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+                // Update action buttons
+                const actionCell = row.cells[8];
+                if (actionCell) {
+                    if (action === 'approve') {
+                        // Build distribute + edit buttons
+                        const qty  = parseFloat(row.querySelector('.btn-edit')?.dataset.qty || row.dataset.qty || 0);
+                        const date = row.querySelector('.btn-approve')?.dataset.date || '';
+                        const btnRow = row.querySelector('.action-btns');
+                        if (btnRow) {
+                            btnRow.innerHTML = `
+                                <button class="btn-distribute"
+                                    data-id="${id}"
+                                    data-product="${esc(row.cells[3]?.textContent || '')}"
+                                    data-unit=""
+                                    data-qty="${qty}"
+                                    data-distributed="0"
+                                    data-existing="[]"
+                                    title="Distribuir para clientes">
+                                    <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
+                                </button>
+                                <button class="btn-edit"
+                                    data-id="${id}"
+                                    data-date="${date}"
+                                    data-qty="${qty}"
+                                    data-price=""
+                                    data-quality=""
+                                    data-notes=""
+                                    data-unit=""
+                                    data-distributions="[]"
+                                    title="Editar entrega">
+                                    <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
+                                </button>
+                            `;
+                        }
+                        // Add checkbox for receipt generation (net=0 until distributions created)
+                        const chkCell = row.cells[0];
+                        if (chkCell && !chkCell.querySelector('input')) {
+                            chkCell.innerHTML = `<input type="checkbox" class="delivery-chk" value="${id}" data-associate="" data-net="0">`;
+                        }
+                        row.classList.add('approved-row');
+                    } else {
+                        actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+                    }
+                }
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         } else {
             pdToast(data.message || 'Erro ao processar.', 'error');
@@ -539,80 +601,50 @@ document.addEventListener('click', async function(e) {
     }
 });
 
-/* ── Editar entrega aprovada ── */
-function openEditModal(btn) {
-    document.getElementById('edit-delivery-id').value = btn.dataset.id;
-    document.getElementById('edit-date').value         = btn.dataset.date  || '';
-    document.getElementById('edit-qty').value          = btn.dataset.qty   || '';
-    document.getElementById('edit-price').value        = btn.dataset.price || '';
-    document.getElementById('edit-quality').value      = btn.dataset.quality || '';
-    document.getElementById('edit-notes').value        = btn.dataset.notes || '';
-    document.getElementById('edit-modal').classList.remove('hidden');
-}
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function closeEditModal() {
-    document.getElementById('edit-modal').classList.add('hidden');
-}
-
-// Fechar modal ao clicar fora
-document.getElementById('edit-modal')?.addEventListener('click', function(e) {
-    if (e.target === this) closeEditModal();
-});
-
-async function saveEditDelivery() {
-    const id    = document.getElementById('edit-delivery-id').value;
-    const date  = document.getElementById('edit-date').value;
-    const qty   = document.getElementById('edit-qty').value;
-    const price = document.getElementById('edit-price').value;
-    if (!date || !qty) { pdToast('Preencha data e quantidade.', 'error'); return; }
-
-    const saveBtn = document.getElementById('edit-save-btn');
-    saveBtn.disabled = true;
-
-    try {
-        const res = await fetch(`/${PD_TENANT}/delivery/deliveries/${id}`, {
-            method: 'PUT',
-            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                delivery_date:  date,
-                quantity:       parseFloat(qty),
-                unit_price:     price ? parseFloat(price) : null,
-                quality_grade:  document.getElementById('edit-quality').value || null,
-                notes:          document.getElementById('edit-notes').value   || null,
-            })
-        });
-        const data = await res.json();
-        if (data.success) {
-            pdToast(data.message);
-            closeEditModal();
-            // Atualizar linha na tabela
-            const row = document.getElementById('row-' + id);
-            if (row && data.delivery) {
-                const d = data.delivery;
-                const cells = row.querySelectorAll('td');
-                // col 1 = data, col 4 = qty, col 5 = val líq, col 6 = qual
-                cells[1].textContent = d.delivery_date;
-                cells[4].innerHTML   = `<strong>${parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3})}</strong>`;
-                cells[5].textContent = 'R$ ' + parseFloat(d.net_value).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-                if (d.quality_grade !== undefined) cells[6].textContent = d.quality_grade || '—';
-                // Atualizar data-attrs do botão editar para próxima edição
-                const editBtn = row.querySelector('.btn-edit');
-                if (editBtn) {
-                    const newDate = date; // ISO
-                    editBtn.dataset.date    = newDate;
-                    editBtn.dataset.qty     = d.quantity;
-                    editBtn.dataset.quality = d.quality_grade || '';
-                }
-            }
-        } else {
-            pdToast(data.message || 'Erro ao salvar.', 'error');
+/* ── EditModal callbacks (component x-delivery.edit-delivery-modal) ── */
+EditModal.onSaved = function(d) {
+    pdToast('Entrega atualizada!');
+    const id  = d.id;
+    const row = document.getElementById('row-' + id);
+    if (row) {
+        row.cells[1].textContent = d.delivery_date;
+        row.cells[4].innerHTML   = parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3}) + ' <small>' + '' + '</small>';
+        // col 5 = líquido (distribuições) — não atualiza aqui pois dependeria de nova API call
+        if (d.quality_grade !== undefined) row.cells[6].textContent = d.quality_grade || '—';
+        const editBtn = row.querySelector('.btn-edit');
+        if (editBtn) {
+            editBtn.dataset.date    = d.delivery_date;
+            editBtn.dataset.qty     = d.quantity;
+            editBtn.dataset.quality = d.quality_grade || '';
         }
-    } catch(err) {
-        pdToast('Erro de comunicação com o servidor.', 'error');
-    } finally {
-        saveBtn.disabled = false;
+        const distBtn = row.querySelector('.btn-distribute');
+        if (distBtn) distBtn.dataset.qty = d.quantity;
     }
-}
+};
+
+/* ── DistModal callbacks (component x-delivery.dist-modal) ── */
+window._DistModalReload = function() {
+    pdToast('Distribuição salva!');
+    setTimeout(() => location.reload(), 600);
+};
+window._DistModalOnDelete = function(receptionId, data) {
+    pdToast('Distribuição removida.');
+    // Update distributed_qty badge on the row
+    const row = document.getElementById('row-' + receptionId);
+    if (row) {
+        const badge = row.querySelector('.dist-badge');
+        if (data.dist_total_qty > 0) {
+            if (badge) badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg> ' + parseFloat(data.dist_total_qty).toLocaleString('pt-BR',{minimumFractionDigits:2}) + ' distrib.';
+        } else {
+            badge?.remove();
+        }
+        // Update net column
+        const distBtn = row.querySelector('.btn-distribute');
+        if (distBtn) distBtn.dataset.distributed = data.dist_total_qty;
+    }
+};
 </script>
 @endsection
 

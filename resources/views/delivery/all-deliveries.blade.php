@@ -12,6 +12,9 @@
     <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">
         <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
     </a>
+    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
+    </a>
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
@@ -83,7 +86,8 @@
     .report-btn i { width:.85rem; height:.85rem; }
     .report-separator { width:1px; height:28px; background:var(--color-border); margin:0 .25rem; }
 
-    /* Receipt Modal */
+    .btn-distribute { background:rgba(99,102,241,.12); color:#4f46e5; }
+    .btn-distribute:hover:not(:disabled) { background:#4f46e5; color:#fff; }
     .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,.5); z-index:9000; justify-content:center; align-items:center; backdrop-filter:blur(3px); }
     .modal-overlay.active { display:flex; }
     .receipt-modal { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:90%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
@@ -283,6 +287,19 @@
                                 <i data-lucide="x" style="width:11px;height:11px"></i> Rejeitar
                             </button>
                         </div>
+                        @elseif($d->status->value === 'approved' && is_null($d->customer_id))
+                        <div class="action-btns">
+                            <button class="btn-xs btn-distribute"
+                                data-id="{{ $d->id }}"
+                                data-product="{{ optional($d->product)->name ?? '-' }}"
+                                data-unit="{{ optional($d->product)->unit ?? 'un' }}"
+                                data-qty="{{ $d->quantity }}"
+                                data-distributed="{{ $d->distributions->sum('quantity') }}"
+                                data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity])) }}"
+                                title="Distribuir para clientes">
+                                <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
+                            </button>
+                        </div>
                         @else
                         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>
                         @endif
@@ -300,11 +317,23 @@
 
 @endsection
 
+<!-- Distribution Modal -->
+<div class="modal-overlay" id="distModal" style="display:none"><!-- removido: substituído por x-delivery.dist-modal --></div>
+
+{{-- Componente unificado de distribuição --}}
+<x-delivery.dist-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+/>
+
 @push('scripts')
 <script>
 const TENANT_SLUG = '{{ $currentTenant->slug }}';
-const CSRF_TOKEN = '{{ csrf_token() }}';
+const CSRF_TOKEN  = '{{ csrf_token() }}';
+const ALL_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 
+/* ── Receipt Modal ── */
 function openReceiptModal() {
     document.getElementById('receiptModal').classList.add('active');
 }
@@ -315,26 +344,32 @@ document.getElementById('receiptModal').addEventListener('click', function(e) {
     if (e.target === this) closeReceiptModal();
 });
 
-// ── Inline approve/reject ──
+/* ── Distribute button click → component DistModal ── */
+document.addEventListener('click', function(e) {
+    const distBtn = e.target.closest('.btn-distribute');
+    if (distBtn) { DistModal.openFromBtn(distBtn); return; }
+});
+
+/* ── Inline approve/reject ── */
 document.addEventListener('click', async function(e) {
     const approveBtn = e.target.closest('.btn-approve');
     const rejectBtn  = e.target.closest('.btn-reject');
     if (!approveBtn && !rejectBtn) return;
 
-    const btn = approveBtn || rejectBtn;
-    const id  = btn.dataset.id;
+    const btn    = approveBtn || rejectBtn;
+    const id     = btn.dataset.id;
     const action = approveBtn ? 'approve' : 'reject';
 
     if (!confirm(action === 'approve' ? 'Aprovar esta entrega?' : 'Rejeitar esta entrega?')) return;
 
     btn.disabled = true;
-    const row = document.getElementById('row-' + id);
+    const row     = document.getElementById('row-' + id);
     const allBtns = row ? row.querySelectorAll('.btn-xs') : [btn];
     allBtns.forEach(b => b.disabled = true);
 
     try {
-        const res = await fetch(`/${TENANT_SLUG}/delivery/deliveries/${id}/${action}`, {
-            method: 'POST',
+        const res  = await fetch(`/${TENANT_SLUG}/delivery/deliveries/${id}/${action}`, {
+            method : 'POST',
             headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Content-Type': 'application/json', 'Accept': 'application/json' }
         });
         const data = await res.json();
@@ -343,10 +378,16 @@ document.addEventListener('click', async function(e) {
                 const statusCell = row.querySelector('.badge-status');
                 const actionCell = row.querySelector('.action-btns');
                 if (statusCell) {
-                    statusCell.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
+                    statusCell.className  = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
                     statusCell.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
                 }
-                if (actionCell) actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+                if (actionCell) {
+                    if (action === 'approve') {
+                        location.reload();
+                    } else {
+                        actionCell.innerHTML = '<span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>';
+                    }
+                }
             }
         } else {
             alert(data.message || 'Erro ao processar.');
@@ -357,5 +398,9 @@ document.addEventListener('click', async function(e) {
         allBtns.forEach(b => b.disabled = false);
     }
 });
+
+function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 </script>
 @endpush

@@ -69,11 +69,12 @@ class SalesProjectResource extends Resource
                             ->helperText('Status só pode ser alterado por ações específicas'),
 
                         Forms\Components\Select::make('customer_id')
-                            ->label('Cliente')
+                            ->label('Cliente (opcional)')
                             ->relationship('customer', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->nullable()
+                            ->helperText('Referência opcional. Clientes reais são definidos nas distribuições das entregas.'),
 
                         Forms\Components\TextInput::make('contract_number')
                             ->label('Nº Contrato')
@@ -117,8 +118,8 @@ class SalesProjectResource extends Resource
                     ])
                     ->columns(2),
 
-                Forms\Components\Section::make('Clientes Adicionais')
-                    ->description('Vincule outros clientes/compradores a este projeto quando houver mais de um.')
+                Forms\Components\Section::make('Clientes (Referência)')
+                    ->description('Associação de referência — clientes reais são definidos via distribuição de entregas.')
                     ->schema([
                         Forms\Components\Select::make('customers')
                             ->label('Clientes Adicionais')
@@ -136,7 +137,7 @@ class SalesProjectResource extends Resource
                             ->getOptionLabelUsing(fn ($value) =>
                                 \App\Models\Customer::find($value)?->name ?? $value
                             )
-                            ->helperText('Selecione clientes adicionais. O "Cliente Principal" acima é o responsável principal.')
+                            ->helperText('Opcional. O vínculo financeiro real acontece nas distribuições de cada entrega.')
                             ->columnSpanFull(),
                     ])
                     ->collapsed()
@@ -277,94 +278,147 @@ class SalesProjectResource extends Resource
                     ->label('Receber Pagamento')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
+                    ->modalWidth('3xl')
                     ->visible(fn (SalesProject $record) => $record->canReceivePayment())
-                    ->form([
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->label('Data do Pagamento')
-                            ->required()
-                            ->default(now()),
+                    ->form(function (SalesProject $record): array {
+                        // Montar lista de todos os clientes do projeto
+                        $customers = collect();
+                        if ($record->customer_id && $record->customer) {
+                            $customers->put($record->customer_id, $record->customer->name);
+                        }
+                        foreach ($record->customers as $c) {
+                            $customers->put($c->id, $c->name);
+                        }
 
-                        Forms\Components\TextInput::make('received_amount')
-                            ->label('Valor Recebido')
-                            ->numeric()
-                            ->required()
-                            ->prefix('R$')
-                            ->default(fn (SalesProject $record) => $record->total_delivered_value),
+                        // Total esperado por distribuições aprovadas
+                        $totalByClient = \App\Models\ProductionDelivery::where('sales_project_id', $record->id)
+                            ->where('status', 'approved')
+                            ->whereNotNull('parent_delivery_id')
+                            ->whereNotNull('customer_id')
+                            ->selectRaw('customer_id, SUM(gross_value) as total_gross')
+                            ->groupBy('customer_id')
+                            ->pluck('total_gross', 'customer_id');
 
-                        Forms\Components\Select::make('bank_account_id')
-                            ->label('Conta Bancária')
-                            ->relationship('paymentBankAccount', 'name')
-                            ->options(BankAccount::where('status', true)->pluck('name', 'id'))
-                            ->required()
-                            ->searchable()
-                            ->helperText('Conta onde o valor foi depositado'),
+                        return [
+                            Forms\Components\Placeholder::make('_info')
+                                ->label('Pagamentos a Receber')
+                                ->content(new \Illuminate\Support\HtmlString(
+                                    '<p class="text-sm text-gray-500">Registre os pagamentos recebidos de cada cliente. Você pode receber de múltiplos clientes em uma única operação.</p>'
+                                )),
 
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Forma de Pagamento')
-                            ->options(PaymentMethod::class)
-                            ->required(),
+                            Forms\Components\Repeater::make('client_payments')
+                                ->label('Pagamentos por Cliente')
+                                ->schema([
+                                    Forms\Components\Select::make('customer_id')
+                                        ->label('Cliente')
+                                        ->options($customers->toArray())
+                                        ->required()
+                                        ->searchable(),
 
-                        Forms\Components\TextInput::make('document_number')
-                            ->label('Número do Documento')
-                            ->maxLength(100),
+                                    Forms\Components\TextInput::make('amount')
+                                        ->label('Valor Recebido (R$)')
+                                        ->numeric()
+                                        ->required()
+                                        ->prefix('R$')
+                                        ->minValue(0.01),
 
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Observações')
-                            ->rows(3),
-                    ])
+                                    Forms\Components\TextInput::make('document_number')
+                                        ->label('Nº Documento / NF')
+                                        ->maxLength(100),
+                                ])
+                                ->defaultItems(1)
+                                ->addActionLabel('+ Adicionar cliente')
+                                ->columns(3)
+                                ->columnSpanFull()
+                                ->minItems(1),
+
+                            Forms\Components\DatePicker::make('payment_date')
+                                ->label('Data do Recebimento')
+                                ->required()
+                                ->default(now()),
+
+                            Forms\Components\Select::make('bank_account_id')
+                                ->label('Conta Bancária de Destino')
+                                ->options(BankAccount::where('status', true)->pluck('name', 'id'))
+                                ->required()
+                                ->searchable()
+                                ->helperText('Conta onde o valor foi depositado'),
+
+                            Forms\Components\Select::make('payment_method')
+                                ->label('Forma de Pagamento')
+                                ->options(PaymentMethod::class)
+                                ->required(),
+
+                            Forms\Components\Textarea::make('notes')
+                                ->label('Observações')
+                                ->rows(2),
+                        ];
+                    })
                     ->action(function (SalesProject $record, array $data) {
                         DB::transaction(function () use ($record, $data) {
-                            // Atualizar projeto
+                            $clientPayments = $data['client_payments'] ?? [];
+                            $totalReceived  = array_sum(array_column($clientPayments, 'amount'));
+                            $bankAccount    = BankAccount::find($data['bank_account_id']);
+
+                            foreach ($clientPayments as $cp) {
+                                $amount     = (float) $cp['amount'];
+                                $customerId = (int) ($cp['customer_id'] ?? 0);
+                                $customer   = \App\Models\Customer::find($customerId);
+                                $docNum     = $cp['document_number'] ?? null;
+
+                                // Registrar pagamento do cliente
+                                ProjectPayment::create([
+                                    'tenant_id'         => $record->tenant_id,
+                                    'sales_project_id'  => $record->id,
+                                    'type'              => 'client_payment',
+                                    'status'            => ProjectPaymentStatus::DEPOSITED,
+                                    'amount'            => $amount,
+                                    'description'       => 'Pagamento recebido de ' . ($customer?->name ?? "Cliente #{$customerId}"),
+                                    'payment_date'      => $data['payment_date'],
+                                    'bank_account_id'   => $data['bank_account_id'],
+                                    'payment_method'    => $data['payment_method'],
+                                    'document_number'   => $docNum,
+                                    'notes'             => $data['notes'] ?? null,
+                                    'created_by'        => auth()->id(),
+                                    'approved_by'       => auth()->id(),
+                                    'approved_at'       => now(),
+                                ]);
+
+                                // Movimentação de caixa por cliente
+                                if ($bankAccount) {
+                                    $newBalance = $bankAccount->current_balance + $amount;
+                                    CashMovement::create([
+                                        'tenant_id'       => $record->tenant_id,
+                                        'type'            => CashMovementType::INCOME,
+                                        'amount'          => $amount,
+                                        'balance_after'   => $newBalance,
+                                        'description'     => 'Recebimento de ' . ($customer?->name ?? "Cliente #{$customerId}") . ' — Projeto: ' . $record->title,
+                                        'movement_date'   => $data['payment_date'],
+                                        'bank_account_id' => $data['bank_account_id'],
+                                        'reference_type'  => SalesProject::class,
+                                        'reference_id'    => $record->id,
+                                        'payment_method'  => $data['payment_method'],
+                                        'document_number' => $docNum,
+                                        'notes'           => $data['notes'] ?? null,
+                                        'created_by'      => auth()->id(),
+                                    ]);
+                                    $bankAccount->update(['current_balance' => $newBalance]);
+                                    $bankAccount->refresh();
+                                }
+                            }
+
+                            // Atualizar status e total recebido no projeto
                             $record->update([
-                                'status' => ProjectStatus::PAYMENT_RECEIVED,
-                                'payment_received_date' => $data['payment_date'],
-                                'received_amount' => $data['received_amount'],
+                                'status'                  => ProjectStatus::PAYMENT_RECEIVED,
+                                'payment_received_date'   => $data['payment_date'],
+                                'received_amount'         => ($record->received_amount ?? 0) + $totalReceived,
                                 'payment_bank_account_id' => $data['bank_account_id'],
                             ]);
-
-                            // Registrar pagamento do cliente
-                            ProjectPayment::create([
-                                'sales_project_id' => $record->id,
-                                'type' => 'client_payment',
-                                'status' => ProjectPaymentStatus::DEPOSITED,
-                                'amount' => $data['received_amount'],
-                                'description' => 'Pagamento recebido do cliente '.$record->customer->name,
-                                'payment_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'payment_method' => $data['payment_method'],
-                                'document_number' => $data['document_number'] ?? null,
-                                'notes' => $data['notes'] ?? null,
-                                'created_by' => auth()->id(),
-                                'approved_by' => auth()->id(),
-                                'approved_at' => now(),
-                            ]);
-
-                            // Registrar movimento de caixa (entrada)
-                            $bankAccount = BankAccount::find($data['bank_account_id']);
-                            $newBalance = $bankAccount->current_balance + $data['received_amount'];
-
-                            CashMovement::create([
-                                'type' => CashMovementType::INCOME,
-                                'amount' => $data['received_amount'],
-                                'balance_after' => $newBalance,
-                                'description' => 'Recebimento do projeto: '.$record->title,
-                                'movement_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'reference_type' => SalesProject::class,
-                                'reference_id' => $record->id,
-                                'payment_method' => $data['payment_method'],
-                                'document_number' => $data['document_number'] ?? null,
-                                'notes' => $data['notes'] ?? null,
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            // Atualizar saldo da conta
-                            $bankAccount->update(['current_balance' => $newBalance]);
                         });
 
                         Notification::make()
                             ->success()
-                            ->title('Pagamento recebido com sucesso')
+                            ->title('Pagamento(s) registrado(s) com sucesso')
                             ->send();
                     }),
 
@@ -440,6 +494,7 @@ class SalesProjectResource extends Resource
         return [
             RelationManagers\DemandsRelationManager::class,
             RelationManagers\DeliveriesRelationManager::class,
+            RelationManagers\AssociatePaymentsRelationManager::class,
         ];
     }
 

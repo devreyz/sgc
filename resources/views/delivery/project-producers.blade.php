@@ -12,6 +12,9 @@
     <a href="{{ route('delivery.all-deliveries', ['tenant' => $tenant->slug]) }}" class="nav-tab">
         <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
     </a>
+    <a href="{{ route('delivery.projects-list', ['tenant' => $tenant->slug]) }}" class="nav-tab">
+        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
+    </a>
     <a href="{{ route('delivery.register', ['tenant' => $tenant->slug]) }}" class="nav-tab">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
@@ -242,6 +245,32 @@
             Líquido: <strong style="color:var(--color-success)">R$ <span id="modal-sel-total">0,00</span></strong>
         </div>
 
+        {{-- Colunas opcionais --}}
+        <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.6rem .9rem;margin-bottom:.75rem;background:var(--color-bg);">
+            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);margin-bottom:.5rem;">
+                Colunas do comprovante
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;">
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
+                    <input type="checkbox" id="col-unit-price" name="visible_columns[]" value="unit_price" checked style="accent-color:var(--color-primary);width:14px;height:14px;">
+                    Vlr. Unitário
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
+                    <input type="checkbox" id="col-gross" name="visible_columns[]" value="gross" checked style="accent-color:var(--color-primary);width:14px;height:14px;">
+                    Vlr. Bruto
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
+                    <input type="checkbox" id="col-admin-fee" name="visible_columns[]" value="admin_fee" style="accent-color:var(--color-primary);width:14px;height:14px;">
+                    Taxa Adm.
+                </label>
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
+                    <input type="checkbox" id="col-net" name="visible_columns[]" value="net" style="accent-color:var(--color-primary);width:14px;height:14px;">
+                    Vlr. Líquido
+                </label>
+            </div>
+            <div style="font-size:.7rem;color:var(--color-text-secondary);margin-top:.4rem;">Produto, Cliente, Data e Qtd. aparecem sempre. Os totais ficam no resumo financeiro.</div>
+        </div>
+
         <div style="display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--color-border);padding-top:.75rem;">
             <button class="btn btn-ghost btn-sm" onclick="closeReceiptModal()">Cancelar</button>
             <button class="btn btn-primary btn-sm" id="modal-gen-btn" onclick="generateModalReceipt()">
@@ -341,12 +370,13 @@ async function loadModalDeliveries() {
         // Cabeçalho
         html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .6rem;background:var(--color-bg);font-size:.72rem;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">
             <input type="checkbox" id="modal-sel-all" style="width:15px;height:15px;cursor:pointer;accent-color:var(--color-primary);">
-            <span style="flex:1">Produto</span><span style="width:75px;text-align:right">Data</span><span style="width:70px;text-align:right">Qtd</span><span style="width:70px;text-align:right">Líquido</span>
+            <span style="flex:1">Produto</span><span style="width:80px;text-align:left">Cliente</span><span style="width:75px;text-align:right">Data</span><span style="width:70px;text-align:right">Qtd</span><span style="width:70px;text-align:right">Líquido</span>
         </div>`;
         data.forEach(d => {
             html += `<div class="delivery-item">
                 <input type="checkbox" class="modal-delivery-chk" value="${d.id}" data-net="${d.net_value}" checked>
                 <span style="flex:1">${d.product_name}</span>
+                <span style="width:80px;font-size:.75rem;color:var(--color-text-secondary)">${d.customer_name ?? ''}</span>
                 <span style="width:75px;text-align:right;white-space:nowrap;">${d.delivery_date}</span>
                 <span style="width:70px;text-align:right;white-space:nowrap;">${parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3})} ${d.unit}</span>
                 <span style="width:70px;text-align:right;white-space:nowrap;color:var(--color-success);">R$\u00a0${parseFloat(d.net_value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
@@ -372,6 +402,11 @@ async function generateModalReceipt() {
     if (!checks.length) { ppToast('Selecione ao menos uma entrega.', 'error'); return; }
 
     const ids = Array.from(checks).map(c => parseInt(c.value));
+
+    // Colunas selecionadas
+    const visibleColumns = Array.from(document.querySelectorAll('input[name="visible_columns[]"]:checked'))
+        .map(c => c.value);
+
     const btn = document.getElementById('modal-gen-btn');
     btn.disabled = true;
     btn.innerHTML = 'Gerando...';
@@ -380,7 +415,7 @@ async function generateModalReceipt() {
         const res  = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/receipt-selected`, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': PP_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ delivery_ids: ids })
+            body: JSON.stringify({ delivery_ids: ids, visible_columns: visibleColumns })
         });
         const data = await res.json();
         if (data.success) {

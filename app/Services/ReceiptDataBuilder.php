@@ -7,9 +7,10 @@ use Illuminate\Support\Collection;
 class ReceiptDataBuilder
 {
     /**
-     * Build summary and productsSummary arrays from a collection of deliveries.
+     * Build summary and productsSummary arrays from a collection of distributions.
+     * Each distribution represents a financial sale (customer, qty, price, net_value).
      *
-     * @param  Collection  $deliveries
+     * @param  Collection  $deliveries  — must be distributions (parent_delivery_id NOT NULL)
      * @return array{summary: array, productsSummary: array, hasRoundingDivergence: bool}
      */
     public static function fromDeliveries(Collection $deliveries): array
@@ -25,6 +26,7 @@ class ReceiptDataBuilder
         $productsSummary = $deliveries->map(function ($d) {
             return [
                 'product_name'  => $d->product?->name ?? '—',
+                'customer_name' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
                 'unit'          => $d->product?->unit ?? 'un',
                 'delivery_date' => $d->delivery_date,
                 'count'         => 1,

@@ -80,16 +80,44 @@ class ViewSalesProject extends ViewRecord
                 ->color('success')
                 ->modalHeading('Registrar Entrega ao Cliente')
                 ->modalIcon('heroicon-o-truck')
+                ->modalWidth('3xl')
                 ->form(function (SalesProject $record): array {
-                    // Buscar produtos entregues (aprovados) neste projeto agrupados por produto
+                    // Clientes do projeto (primary + pivot)
+                    $customerOptions = collect();
+                    if ($record->customer_id && $record->customer) {
+                        $customerOptions->put($record->customer_id, $record->customer->name);
+                    }
+                    foreach ($record->customers as $c) {
+                        $customerOptions->put($c->id, $c->name);
+                    }
+
+                    // Distribuições aprovadas por produto x cliente para pré-preencher
+                    $distsByProductCustomer = ProductionDelivery::where('sales_project_id', $record->id)
+                        ->where('status', DeliveryStatus::APPROVED)
+                        ->whereNotNull('parent_delivery_id')
+                        ->whereNotNull('customer_id')
+                        ->selectRaw('product_id, customer_id, SUM(quantity) as total_dist')
+                        ->groupBy('product_id', 'customer_id')
+                        ->get()
+                        ->groupBy('product_id');
+
+                    // Produtos com estoque disponível
                     $approvedByProduct = ProductionDelivery::where('sales_project_id', $record->id)
                         ->where('status', DeliveryStatus::APPROVED)
+                        ->whereNull('parent_delivery_id') // recepções = base do estoque
                         ->with('product')
                         ->selectRaw('product_id, SUM(quantity) as total_qty')
                         ->groupBy('product_id')
                         ->get();
 
                     $fields = [
+                        Forms\Components\Select::make('customer_id')
+                            ->label('Cliente Destino')
+                            ->options($customerOptions->toArray())
+                            ->required()
+                            ->searchable()
+                            ->helperText('Selecione o cliente que receberá a entrega.'),
+
                         Forms\Components\DatePicker::make('delivery_date')
                             ->label('Data da Entrega')
                             ->default(today())
@@ -102,17 +130,18 @@ class ViewSalesProject extends ViewRecord
                         if (! $product) {
                             continue;
                         }
-                        $approved = (float) $item->total_qty;
                         $currentStock = (float) $product->current_stock;
-                        $max = min($approved, $currentStock);
+                        if ($currentStock <= 0) {
+                            continue;
+                        }
 
                         $fields[] = Forms\Components\TextInput::make("quantities.{$product->id}")
                             ->label("{$product->name} ({$product->unit})")
-                            ->helperText("Aprovado no projeto: {$approved} {$product->unit} | Estoque atual: {$currentStock} {$product->unit}")
+                            ->helperText("Estoque disponível: {$currentStock} {$product->unit}")
                             ->numeric()
                             ->minValue(0)
-                            ->maxValue($max)
-                            ->default($max)
+                            ->maxValue($currentStock)
+                            ->default(0)
                             ->step(0.001)
                             ->suffix($product->unit);
                     }
@@ -133,11 +162,17 @@ class ViewSalesProject extends ViewRecord
                             ->title('Quantidade Inválida')
                             ->body('Informe ao menos uma quantidade maior que zero para entregar.')
                             ->send();
+
                         return;
                     }
 
+                    $customerId = (int) ($data['customer_id'] ?? 0);
+                    $customerName = $customerId
+                        ? (\App\Models\Customer::find($customerId)?->name ?? "Cliente #{$customerId}")
+                        : 'Cliente';
+
                     try {
-                        DB::transaction(function () use ($record, $data, $quantities) {
+                        DB::transaction(function () use ($record, $data, $quantities, $customerId, $customerName) {
                             $stockService = app(StockService::class);
                             $deliveryDate = $data['delivery_date'] ?? now()->toDateString();
                             $notes = $data['notes'] ?? null;
@@ -157,13 +192,14 @@ class ViewSalesProject extends ViewRecord
                                         'movement_date' => is_string($deliveryDate)
                                             ? $deliveryDate
                                             : $deliveryDate->toDateString(),
-                                        'notes' => trim("Entrega ao cliente - Projeto: {$record->title}" . ($notes ? " | {$notes}" : '')),
+                                        'notes' => trim("Entrega a {$customerName} - Projeto: {$record->title}".($notes ? " | {$notes}" : '')),
+                                        'customer_id' => $customerId ?: null,
                                     ]
                                 );
                             }
 
                             $record->update([
-                                'status'         => ProjectStatus::DELIVERED,
+                                'status' => ProjectStatus::DELIVERED,
                                 'delivered_date' => $deliveryDate,
                             ]);
                         });
@@ -171,7 +207,7 @@ class ViewSalesProject extends ViewRecord
                         Notification::make()
                             ->success()
                             ->title('Entregue ao Cliente!')
-                            ->body('A entrega foi registrada e o estoque atualizado com sucesso.')
+                            ->body("Entrega registrada para {$customerName}. Estoque atualizado.")
                             ->send();
 
                         $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
@@ -207,13 +243,13 @@ class ViewSalesProject extends ViewRecord
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
                 ->visible(fn (SalesProject $record): bool => in_array($record->status, [
-                        ProjectStatus::AWAITING_DELIVERY,
-                        ProjectStatus::DELIVERED,
-                        ProjectStatus::AWAITING_PAYMENT,
-                        ProjectStatus::PAYMENT_RECEIVED,
-                        ProjectStatus::ASSOCIATES_PAID,
-                        ProjectStatus::COMPLETED,
-                    ])),
+                    ProjectStatus::AWAITING_DELIVERY,
+                    ProjectStatus::DELIVERED,
+                    ProjectStatus::AWAITING_PAYMENT,
+                    ProjectStatus::PAYMENT_RECEIVED,
+                    ProjectStatus::ASSOCIATES_PAID,
+                    ProjectStatus::COMPLETED,
+                ])),
 
             // ── Grupo: Relatórios PDF ──
             Actions\ActionGroup::make([
@@ -330,11 +366,13 @@ class ViewSalesProject extends ViewRecord
                     ->label('Comprovante Associado')
                     ->icon('heroicon-o-document-check')
                     ->color('warning')
+                    ->modalWidth('xl')
                     ->form(function (SalesProject $record): array {
                         $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
                             ->whereHas('productionDeliveries', fn ($q) => $q
                                 ->where('sales_project_id', $record->id)
-                                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                                ->whereNotNull('parent_delivery_id')
+                                ->where('status', DeliveryStatus::APPROVED)
                             )
                             ->with('user')
                             ->get()
@@ -347,11 +385,67 @@ class ViewSalesProject extends ViewRecord
                                 ->required()
                                 ->searchable()
                                 ->placeholder('Selecione o associado'),
-                            Forms\Components\TextInput::make('receipt_year')
-                                ->label('Ano do Comprovante')
-                                ->numeric()
-                                ->default(now()->year)
+                            Forms\Components\DatePicker::make('date_from')
+                                ->label('Período — De')
+                                ->displayFormat('d/m/Y')
+                                ->placeholder('Sem filtro (todas as distribuições)'),
+                            Forms\Components\DatePicker::make('date_to')
+                                ->label('Período — Até')
+                                ->displayFormat('d/m/Y')
+                                ->placeholder('Sem filtro'),
+                            Forms\Components\DatePicker::make('issued_at')
+                                ->label('Data de Emissão')
+                                ->default(today())
+                                ->displayFormat('d/m/Y')
                                 ->required(),
+                            Forms\Components\CheckboxList::make('visible_columns')
+                                ->label('Colunas da tabela')
+                                ->options([
+                                    'unit_price' => 'Vlr. Unitário',
+                                    'gross' => 'Vlr. Bruto',
+                                    'admin_fee' => 'Taxa Adm.',
+                                    'net' => 'Vlr. Líquido',
+                                ])
+                                ->default(['unit_price', 'gross'])
+                                ->columns(2)
+                                ->helperText('Produto, Cliente, Data e Qtd. são sempre exibidos. Os totais financeiros aparecem sempre no resumo abaixo da tabela.'),
+                        ];
+                    })
+                    ->action(function (SalesProject $record, array $data) {
+                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id'], $data);
+                    }),
+
+                Actions\Action::make('receiptByAssociateStatement')
+                    ->label('Comprovante 2 Vias')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('gray')
+                    ->modalWidth('xl')
+                    ->form(function (SalesProject $record): array {
+                        $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                            ->whereHas('productionDeliveries', fn ($q) => $q
+                                ->where('sales_project_id', $record->id)
+                                ->whereNotNull('parent_delivery_id')
+                                ->where('status', DeliveryStatus::APPROVED)
+                            )
+                            ->with('user')
+                            ->get()
+                            ->pluck('user.name', 'id');
+
+                        return [
+                            Forms\Components\Select::make('associate_id')
+                                ->label('Associado')
+                                ->options($associates)
+                                ->required()
+                                ->searchable()
+                                ->placeholder('Selecione o associado'),
+                            Forms\Components\DatePicker::make('date_from')
+                                ->label('Período — De')
+                                ->displayFormat('d/m/Y')
+                                ->placeholder('Sem filtro'),
+                            Forms\Components\DatePicker::make('date_to')
+                                ->label('Período — Até')
+                                ->displayFormat('d/m/Y')
+                                ->placeholder('Sem filtro'),
                             Forms\Components\DatePicker::make('issued_at')
                                 ->label('Data de Emissão')
                                 ->default(today())
@@ -360,7 +454,7 @@ class ViewSalesProject extends ViewRecord
                         ];
                     })
                     ->action(function (SalesProject $record, array $data) {
-                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id'], $data);
+                        return $this->generateAssociatePaymentStatement($record, (int) $data['associate_id'], $data);
                     }),
             ])
                 ->label('Relatórios PDF')
@@ -433,13 +527,13 @@ class ViewSalesProject extends ViewRecord
             ->with(['associate.user', 'product'])
             ->orderBy('delivery_date');
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->where('delivery_date', '>=', $filters['date_from']);
         }
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->where('delivery_date', '<=', $filters['date_to']);
         }
-        if (!empty($filters['associate_id'])) {
+        if (! empty($filters['associate_id'])) {
             $query->where('associate_id', $filters['associate_id']);
         }
 
@@ -497,15 +591,15 @@ class ViewSalesProject extends ViewRecord
             'generated_at' => now()->format('d/m/Y H:i'),
             'filters' => [
                 'project' => $record->title,
-                'date_from' => !empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => !empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+                'date_from' => ! empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => ! empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
             ],
             'groups' => $groups,
             'totals' => $totals,
             'visible_sections' => $tmplCfg['visible_sections'],
             'visible_columns' => $tmplCfg['visible_columns'],
             'primaryColor' => $tmplCfg['primary_color'],
-            'accentColor'  => $tmplCfg['accent_color'],
+            'accentColor' => $tmplCfg['accent_color'],
         ], [
             'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
             'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
@@ -513,7 +607,7 @@ class ViewSalesProject extends ViewRecord
             'orientation' => $tmplCfg['paper_orientation'],
             'title' => 'Relatório de Entregas por Associado',
             'primary_color' => $tmplCfg['primary_color'],
-            'accent_color'  => $tmplCfg['accent_color'],
+            'accent_color' => $tmplCfg['accent_color'],
         ]);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -528,16 +622,17 @@ class ViewSalesProject extends ViewRecord
 
         $query = $record->deliveries()
             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-            ->with(['associate.user', 'product'])
+            ->whereNotNull('parent_delivery_id')
+            ->with(['associate.user', 'product', 'customer'])
             ->orderBy('delivery_date');
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->where('delivery_date', '>=', $filters['date_from']);
         }
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->where('delivery_date', '<=', $filters['date_to']);
         }
-        if (!empty($filters['product_id'])) {
+        if (! empty($filters['product_id'])) {
             $query->where('product_id', $filters['product_id']);
         }
 
@@ -595,15 +690,15 @@ class ViewSalesProject extends ViewRecord
             'generated_at' => now()->format('d/m/Y H:i'),
             'filters' => [
                 'project' => $record->title,
-                'date_from' => !empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => !empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+                'date_from' => ! empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => ! empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
             ],
             'groups' => $groups,
             'totals' => $totals,
             'visible_sections' => $tmplCfg['visible_sections'],
             'visible_columns' => $tmplCfg['visible_columns'],
             'primaryColor' => $tmplCfg['primary_color'],
-            'accentColor'  => $tmplCfg['accent_color'],
+            'accentColor' => $tmplCfg['accent_color'],
         ], [
             'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
             'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
@@ -611,7 +706,7 @@ class ViewSalesProject extends ViewRecord
             'orientation' => $tmplCfg['paper_orientation'],
             'title' => 'Relatório de Entregas por Produto',
             'primary_color' => $tmplCfg['primary_color'],
-            'accent_color'  => $tmplCfg['accent_color'],
+            'accent_color' => $tmplCfg['accent_color'],
         ]);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -626,47 +721,49 @@ class ViewSalesProject extends ViewRecord
 
         $associate = \App\Models\Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
 
-        $deliveries = $record->deliveries()
+        // Buscar SOMENTE distribuições (parent_delivery_id NOT NULL) aprovadas do associado
+        $query = $record->deliveries()
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
-            ->with('product')
-            ->orderBy('delivery_date')
-            ->get();
+            ->whereNotNull('parent_delivery_id')
+            ->with(['product', 'customer'])
+            ->orderBy('delivery_date');
 
-        if ($deliveries->isEmpty()) {
+        if (! empty($formData['date_from'])) {
+            $query->where('delivery_date', '>=', $formData['date_from']);
+        }
+        if (! empty($formData['date_to'])) {
+            $query->where('delivery_date', '<=', $formData['date_to']);
+        }
+
+        $distributions = $query->get();
+
+        if ($distributions->isEmpty()) {
             Notification::make()
                 ->warning()
-                ->title('Sem entregas aprovadas')
-                ->body('Nenhuma entrega aprovada encontrada para este associado neste projeto.')
+                ->title('Sem distribuições aprovadas')
+                ->body('Nenhuma distribuição aprovada encontrada para este associado neste projeto no período informado.')
                 ->send();
 
             return null;
         }
 
-        // Criar/recuperar registro de comprovante
-        $year = (int) ($formData['receipt_year'] ?? now()->year);
-        $issuedAt = !empty($formData['issued_at']) ? $formData['issued_at'] : today();
+        $year = now()->year;
+        $issuedAt = ! empty($formData['issued_at']) ? $formData['issued_at'] : today();
 
-        // Reutiliza registro existente para o mesmo associado+projeto, atualizando a data de emissão
-        $receipt = AssociateReceipt::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $record->id)
-            ->where('associate_id', $associateId)
-            ->first();
+        // Sempre cria um novo recibo com número incrementado a cada geração
+        $receipt = AssociateReceipt::create([
+            'tenant_id' => $tenantId,
+            'sales_project_id' => $record->id,
+            'associate_id' => $associateId,
+            'receipt_year' => $year,
+            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at' => $issuedAt,
+            'delivery_ids' => $distributions->pluck('id')->all(),
+        ]);
 
-        if ($receipt) {
-            $receipt->update(['issued_at' => $issuedAt]);
-        } else {
-            $receipt = AssociateReceipt::create([
-                'tenant_id'        => $tenantId,
-                'sales_project_id' => $record->id,
-                'associate_id'     => $associateId,
-                'receipt_year'     => $year,
-                'receipt_number'   => AssociateReceipt::nextNumber($tenantId, $year),
-                'issued_at'        => $issuedAt,
-            ]);
-        }
-
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions);
+        $visibleColumns = $formData['visible_columns'] ?? ['unit_price', 'gross'];
 
         $svc = app(\App\Services\TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -677,6 +774,8 @@ class ViewSalesProject extends ViewRecord
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+            'visible_columns' => $visibleColumns,
+            'isSecondCopy' => false,
         ], [
             'paper' => 'a4',
             'orientation' => 'portrait',
@@ -691,12 +790,88 @@ class ViewSalesProject extends ViewRecord
         }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
     }
 
+    protected function generateAssociatePaymentStatement(SalesProject $record, int $associateId, array $formData = []): mixed
+    {
+        $tenantId = session('tenant_id');
+        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+
+        $associate = \App\Models\Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
+
+        $query = $record->deliveries()
+            ->where('associate_id', $associateId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
+            ->with(['product', 'customer'])
+            ->orderBy('delivery_date');
+
+        if (! empty($formData['date_from'])) {
+            $query->where('delivery_date', '>=', $formData['date_from']);
+        }
+        if (! empty($formData['date_to'])) {
+            $query->where('delivery_date', '<=', $formData['date_to']);
+        }
+
+        $distributions = $query->get();
+
+        if ($distributions->isEmpty()) {
+            Notification::make()
+                ->warning()
+                ->title('Sem distribuições aprovadas')
+                ->body('Nenhuma distribuição aprovada encontrada para este associado neste projeto no período informado.')
+                ->send();
+
+            return null;
+        }
+
+        $year = now()->year;
+        $issuedAt = ! empty($formData['issued_at']) ? $formData['issued_at'] : today();
+
+        // Sempre cria um novo recibo com número incrementado a cada geração
+        $receipt = AssociateReceipt::create([
+            'tenant_id' => $tenantId,
+            'sales_project_id' => $record->id,
+            'associate_id' => $associateId,
+            'receipt_year' => $year,
+            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at' => $issuedAt,
+            'delivery_ids' => $distributions->pluck('id')->all(),
+        ]);
+
+        $totalNet = $distributions->sum('net_value');
+
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.associate-payment-statement', [
+            'tenant' => $tenant,
+            'project' => $record,
+            'payment' => null,
+            'distributions' => $distributions,
+            'associate_name' => $associate->user->name ?? '—',
+            'cpf' => $associate->cpf_cnpj ?? '—',
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'amount_paid' => $totalNet,
+            'balance' => 0,
+        ], [
+            'paper' => 'a4',
+            'orientation' => 'portrait',
+            'title' => 'Comprovante de Distribuições — 2 Vias',
+        ]);
+
+        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+
+        return Response::streamDownload(function () use ($pdf) {
+            echo $pdf->output();
+        }, "comprovante-2vias-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+    }
+
     protected function generateFinalReport(SalesProject $record, array $filters = [])
     {
         $record->load([
             'customer',
             'demands.product',
-            'deliveries' => fn ($q) => $q->where('status', DeliveryStatus::APPROVED)->with(['associate.user', 'product']),
+            'deliveries' => fn ($q) => $q->where('status', DeliveryStatus::APPROVED)
+                ->whereNotNull('parent_delivery_id')
+                ->with(['associate.user', 'product', 'customer']),
         ]);
 
         // Agrupar entregas por associado
@@ -773,39 +948,40 @@ class ViewSalesProject extends ViewRecord
             );
 
             return [
-                'visible_sections'   => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
-                'visible_columns'    => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
-                'paper_size'         => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
-                'paper_orientation'  => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
-                'primary_color'      => $themeColors['primary'],
-                'accent_color'       => $themeColors['accent'],
-                'header_layout_id'   => $tmpl->header_layout_id,
-                'footer_layout_id'   => $tmpl->footer_layout_id,
+                'visible_sections' => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
+                'visible_columns' => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
+                'paper_size' => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
+                'paper_orientation' => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
+                'primary_color' => $themeColors['primary'],
+                'accent_color' => $themeColors['accent'],
+                'header_layout_id' => $tmpl->header_layout_id,
+                'footer_layout_id' => $tmpl->footer_layout_id,
             ];
         }
 
         return array_merge([
-            'visible_sections'  => null,
-            'visible_columns'   => null,
-            'paper_size'        => 'a4',
+            'visible_sections' => null,
+            'visible_columns' => null,
+            'paper_size' => 'a4',
             'paper_orientation' => 'landscape',
-            'primary_color'     => null,
-            'accent_color'      => null,
-            'header_layout_id'  => null,
-            'footer_layout_id'  => null,
+            'primary_color' => null,
+            'accent_color' => null,
+            'header_layout_id' => null,
+            'footer_layout_id' => null,
         ], $defaults);
     }
 
     protected function exportDeliveriesPdf(SalesProject $record, array $columns, array $filters = [])
     {
         $query = $record->deliveries()
-            ->with(['associate.user', 'product'])
+            ->whereNotNull('parent_delivery_id')
+            ->with(['associate.user', 'product', 'customer'])
             ->orderBy('delivery_date', 'desc');
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->where('delivery_date', '>=', $filters['date_from']);
         }
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->where('delivery_date', '<=', $filters['date_to']);
         }
 
@@ -931,7 +1107,7 @@ class ViewSalesProject extends ViewRecord
                                 Infolists\Components\TextEntry::make('total_net_to_associates')
                                     ->label('Total Líquido (Produtores)')
                                     ->formatStateUsing(function (SalesProject $record): string {
-                                        $netTotal = $record->deliveries()->where('status', 'approved')->sum('net_value');
+                                        $netTotal = $record->deliveries()->where('status', 'approved')->whereNotNull('parent_delivery_id')->sum('net_value');
 
                                         return 'R$ '.number_format($netTotal, 2, ',', '.');
                                     })
@@ -986,19 +1162,21 @@ class ViewSalesProject extends ViewRecord
                             ->getStateUsing(function (SalesProject $record): array {
                                 return $record->deliveries()
                                     ->where('status', DeliveryStatus::APPROVED)
+                                    ->whereNotNull('parent_delivery_id')
                                     ->with('associate.user')
                                     ->get()
                                     ->groupBy('associate_id')
                                     ->map(function ($items) {
                                         $assoc = $items->first()->associate;
+
                                         return [
-                                            'name'         => $assoc?->user?->name ?? '—',
-                                            'cpf'          => $assoc?->cpf_cnpj ?? '—',
+                                            'name' => $assoc?->user?->name ?? '—',
+                                            'cpf' => $assoc?->cpf_cnpj ?? '—',
                                             'registration' => $assoc?->registration_number ?? '—',
-                                            'deliveries'   => $items->count(),
-                                            'quantity'     => number_format($items->sum('quantity'), 3, ',', '.'),
-                                            'gross'        => 'R$ '.number_format($items->sum('gross_value'), 2, ',', '.'),
-                                            'net'          => 'R$ '.number_format($items->sum('net_value'), 2, ',', '.'),
+                                            'deliveries' => $items->count(),
+                                            'quantity' => number_format($items->sum('quantity'), 3, ',', '.'),
+                                            'gross' => 'R$ '.number_format($items->sum('gross_value'), 2, ',', '.'),
+                                            'net' => 'R$ '.number_format($items->sum('net_value'), 2, ',', '.'),
                                         ];
                                     })
                                     ->values()

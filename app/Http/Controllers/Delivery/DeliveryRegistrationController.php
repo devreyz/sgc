@@ -7,11 +7,13 @@ use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\PricingService;
 use App\Services\StockService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -98,7 +100,12 @@ class DeliveryRegistrationController extends Controller
 
         $currentTenant = $this->currentTenant();
 
-        return view('delivery.dashboard', compact('projects', 'stats', 'currentTenant'));
+        $customers = Customer::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'trade_name']);
+
+        return view('delivery.dashboard', compact('projects', 'stats', 'currentTenant', 'customers'));
     }
 
     /**
@@ -106,52 +113,263 @@ class DeliveryRegistrationController extends Controller
      */
     public function register()
     {
-        $projectRoute = request()->route('project');
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
-        $isStandalone = ! $projectRoute;
-        $standaloneProducts = collect();
+        $projectRoute = request()->route('project');
 
+        $projects = SalesProject::where('tenant_id', $tenantId)
+            ->where('status', ProjectStatus::ACTIVE->value)
+            ->with('customer')
+            ->orderBy('title')
+            ->get()
+            ->map(fn ($p) => [
+                'id'                  => $p->id,
+                'title'               => $p->title,
+                'customer_name'       => $p->customer->name ?? '-',
+                'allow_any_product'   => (bool) $p->allow_any_product,
+                'admin_fee_percentage' => (float) ($p->admin_fee_percentage ?? 10),
+            ]);
+
+        // Pre-select project if provided via URL
+        $selectedProject = null;
         if ($projectRoute) {
-            $project = SalesProject::where('tenant_id', $tenantId)
-                ->with(['customer', 'demands.product', 'deliveries'])
-                ->find($projectRoute);
-
-            if (! $project) {
-                return redirect()->route('delivery.dashboard', ['tenant' => request()->route('tenant')])
-                    ->with('error', 'Projeto não encontrado.');
+            $selectedProject = $projects->firstWhere('id', (int) $projectRoute);
+            if (! $selectedProject) {
+                return redirect()
+                    ->route('delivery.dashboard', ['tenant' => request()->route('tenant')])
+                    ->with('error', 'Projeto não encontrado ou não está em execução.');
             }
-
-            // Bloquear acesso a projetos em rascunho
-            if ($project->status === ProjectStatus::DRAFT) {
-                return redirect()->route('delivery.dashboard', ['tenant' => request()->route('tenant')])
-                    ->with('error', 'Este projeto está em rascunho. Inicie o projeto antes de registrar entregas.');
-            }
-
-            $projects = collect([$project]);
-        } else {
-            // Modo avulso: sem projeto vinculado — carregar produtos ativos
-            $projects = collect();
-            $standaloneProducts = Product::where('tenant_id', $tenantId)
-                ->where('status', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'unit', 'cost_price', 'sale_price']);
         }
 
         $associates = Associate::where('tenant_id', $tenantId)
             ->with('user')
-            ->whereHas('user', function ($q) {
-                $q->where('status', true);
-            })
+            ->whereHas('user', fn ($q) => $q->where('status', true))
             ->orderBy('id')
-            ->get();
+            ->get()
+            ->map(fn ($a) => [
+                'id'                  => $a->id,
+                'name'                => $a->user->name ?? "Associado #{$a->id}",
+                'registration_number' => $a->registration_number,
+            ]);
+
+        $standaloneProducts = Product::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'unit', 'cost_price']);
+
+        $customers = Customer::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'trade_name']);
 
         $currentTenant = $this->currentTenant();
 
-        return view('delivery.register', compact('projects', 'associates', 'currentTenant', 'isStandalone', 'standaloneProducts'));
+        return view('delivery.register', compact(
+            'projects', 'associates', 'currentTenant', 'standaloneProducts', 'selectedProject', 'customers'
+        ));
+    }
+
+    /**
+     * Return active customers list (JSON) for distribution selectors
+     */
+    public function getCustomers()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Tenant não encontrado'], 403);
+        }
+
+        $customers = Customer::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'trade_name']);
+
+        return response()->json($customers);
+    }
+
+    /**
+     * Distribute an approved reception delivery to one or more customers.
+     * Creates child ProductionDelivery records (distribution records).
+     */
+    public function distribute(Request $request)
+    {
+        $deliveryId = (int) $request->route('delivery');
+        $tenantId   = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $validated = $request->validate([
+            'distributions'                  => 'required|array|min:1|max:50',
+            'distributions.*.customer_id'    => 'required|integer|exists:customers,id',
+            'distributions.*.quantity'       => 'required|numeric|min:0.001',
+        ]);
+
+        $reception = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNull('parent_delivery_id')
+            ->findOrFail($deliveryId);
+
+        if ($reception->status !== DeliveryStatus::APPROVED) {
+            return response()->json(['success' => false, 'message' => 'Somente entregas aprovadas podem ser distribuídas.'], 422);
+        }
+
+        // Sum of already-distributed quantities for this reception
+        $alreadyDistributed = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $deliveryId)
+            ->sum('quantity');
+
+        $newTotal = collect($validated['distributions'])->sum('quantity');
+
+        if (($alreadyDistributed + $newTotal) > $reception->quantity) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A soma das distribuições (' . number_format($alreadyDistributed + $newTotal, 3, ',', '.') .
+                    ') excede a quantidade recebida (' . number_format($reception->quantity, 3, ',', '.') . ').',
+            ], 422);
+        }
+
+        // Validate customers belong to this tenant
+        $customerIds = collect($validated['distributions'])->pluck('customer_id')->unique();
+        $validCount  = Customer::where('tenant_id', $tenantId)->whereIn('id', $customerIds)->count();
+        if ($validCount !== $customerIds->count()) {
+            return response()->json(['success' => false, 'message' => 'Cliente inválido.'], 422);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $pricingService = app(PricingService::class);
+            $project = $reception->salesProject;
+            $product = $reception->product;
+            $adminFeePercent = (string) ($project?->admin_fee_percentage ?? '10');
+
+            $created = [];
+            foreach ($validated['distributions'] as $dist) {
+                $customer = Customer::find((int) $dist['customer_id']);
+
+                // Resolve customer-specific price and calculate financial values
+                $pricing = $pricingService->resolveAndCalculate(
+                    $product,
+                    (string) $dist['quantity'],
+                    $adminFeePercent,
+                    $customer,
+                    $project
+                );
+
+                $child = ProductionDelivery::create([
+                    'tenant_id'           => $tenantId,
+                    'sales_project_id'    => $reception->sales_project_id,
+                    'project_demand_id'   => $reception->project_demand_id,
+                    'associate_id'        => $reception->associate_id,
+                    'product_id'          => $reception->product_id,
+                    'customer_id'         => (int) $dist['customer_id'],
+                    'parent_delivery_id'  => $reception->id,
+                    'delivery_date'       => $reception->delivery_date,
+                    'quantity'            => (float) $dist['quantity'],
+                    'unit_price'          => $pricing['unit_price'],
+                    'cost_price_used'     => $pricing['cost_price_used'],
+                    'admin_fee_percentage'=> $adminFeePercent,
+                    'admin_fee_amount'    => $pricing['admin_fee_amount'],
+                    'net_value'           => $pricing['net_value'],
+                    // Distributions are auto-approved: the parent was already approved
+                    // and distribution = the act of validating the sale.
+                    'status'              => DeliveryStatus::APPROVED,
+                    'quality_grade'       => $reception->quality_grade,
+                    'received_by'         => Auth::id(),
+                    'approved_by'         => Auth::id(),
+                    'approved_at'         => now(),
+                    'paid'                => false,
+                ]);
+                $created[] = $child->id;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success'      => true,
+                'message'      => count($created) . ' distribuição(ões) criada(s).',
+                'created_ids'  => $created,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json(['success' => false, 'message' => 'Erro: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete an individual distribution (child delivery — parent_delivery_id NOT NULL)
+     * Only if project is not yet finalized/delivered.
+     */
+    public function deleteDistribution(Request $request)
+    {
+        $distributionId = (int) $request->route('distribution');
+        $tenantId       = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $distribution = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->findOrFail($distributionId);
+
+        // Block if the parent project is already delivered
+        if ($distribution->salesProject && $distribution->salesProject->status === \App\Enums\ProjectStatus::DELIVERED) {
+            return response()->json(['success' => false, 'message' => 'Não é possível remover distribuições de um projeto já entregue.'], 400);
+        }
+
+        $distribution->delete();
+
+        // Return updated totals for the parent reception
+        $parentId    = $distribution->parent_delivery_id;
+        $distTotal   = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $parentId)
+            ->sum('quantity');
+        $distNetTotal = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $parentId)
+            ->sum('net_value');
+
+        return response()->json([
+            'success'          => true,
+            'message'          => 'Distribuição removida.',
+            'dist_total_qty'   => (float) $distTotal,
+            'dist_total_net'   => (float) $distNetTotal,
+        ]);
+    }
+
+    /**
+     * Delete a pending delivery (only PENDING, only same session owner)
+     */
+    public function deleteDelivery(Request $request)
+    {
+        $deliveryId = (int) $request->route('delivery');
+        $tenantId   = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $delivery = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('received_by', Auth::id())
+            ->findOrFail($deliveryId);
+
+        if (! in_array($delivery->status, [DeliveryStatus::PENDING, DeliveryStatus::REJECTED])) {
+            return response()->json(['success' => false, 'message' => 'Apenas entregas pendentes ou rejeitadas podem ser excluídas.'], 400);
+        }
+
+        // Also delete child distributions
+        ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $deliveryId)
+            ->delete();
+
+        $delivery->delete();
+
+        return response()->json(['success' => true, 'message' => 'Entrega excluída.']);
     }
 
     /**
@@ -244,10 +462,12 @@ class DeliveryRegistrationController extends Controller
         $toDate       = request()->query('to_date');
         $approvedOnly = (bool) request()->query('approved_only', false);
 
+        // SOMENTE distribuições (parent_delivery_id NOT NULL) — verdade financeira
         $query = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
-            ->with(['projectDemand.product', 'product'])
+            ->whereNotNull('parent_delivery_id')
+            ->with(['product', 'customer', 'parentDelivery.projectDemand.product'])
             ->orderBy('delivery_date', 'asc');
 
         if ($approvedOnly) {
@@ -261,16 +481,21 @@ class DeliveryRegistrationController extends Controller
         }
 
         $deliveries = $query->get()->map(function ($delivery) {
-            $productName = $delivery->projectDemand?->product?->name
+            // Nome do produto: via demanda da recepção pai, ou diretamente
+            $productName = $delivery->parentDelivery?->projectDemand?->product?->name
                 ?? $delivery->product?->name
                 ?? '-';
-            $unit = $delivery->projectDemand?->product?->unit
+            $unit = $delivery->parentDelivery?->projectDemand?->product?->unit
                 ?? $delivery->product?->unit
                 ?? 'un';
+            $customerName = optional($delivery->customer)->trade_name
+                ?? optional($delivery->customer)->name
+                ?? '—';
 
             return [
                 'id'              => $delivery->id,
                 'product_name'    => $productName,
+                'customer_name'   => $customerName,
                 'delivery_date'   => $delivery->delivery_date?->format('d/m/Y') ?? '-',
                 'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
                 'quantity'        => (float) $delivery->quantity,
@@ -301,8 +526,8 @@ class DeliveryRegistrationController extends Controller
             ->with('salesProject')
             ->findOrFail($deliveryId);
 
-        if ($delivery->status !== DeliveryStatus::APPROVED) {
-            return response()->json(['success' => false, 'message' => 'Apenas entregas aprovadas podem ser editadas.'], 400);
+        if (! in_array($delivery->status, [DeliveryStatus::PENDING, DeliveryStatus::APPROVED])) {
+            return response()->json(['success' => false, 'message' => 'Apenas entregas pendentes ou aprovadas podem ser editadas.'], 400);
         }
 
         if ($delivery->salesProject && $delivery->salesProject->status === \App\Enums\ProjectStatus::DELIVERED) {
@@ -487,13 +712,13 @@ class DeliveryRegistrationController extends Controller
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'message' => 'Entrega registrada com sucesso!',
+                'success'  => true,
+                'message'  => 'Entrega registrada com sucesso!',
                 'delivery' => [
-                    'id' => $delivery->id,
-                    'quantity' => (float) $delivery->quantity,
+                    'id'        => $delivery->id,
+                    'quantity'  => (float) $delivery->quantity,
                     'net_value' => (float) $delivery->net_value,
-                    'status' => $delivery->status->getLabel(),
+                    'status'    => $delivery->status->getLabel(),
                 ],
             ]);
         } catch (\Exception $e) {
@@ -554,7 +779,8 @@ class DeliveryRegistrationController extends Controller
 
         $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
-            ->with(['associate.user', 'projectDemand.product', 'product'])
+            ->whereNull('parent_delivery_id')
+            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -566,6 +792,13 @@ class DeliveryRegistrationController extends Controller
                     ?? $delivery->product?->unit
                     ?? 'un';
 
+                $distributions = $delivery->distributions->map(fn($d) => [
+                    'id'       => $d->id,
+                    'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
+                    'qty'      => (float) $d->quantity,
+                    'net'      => (float) $d->net_value,
+                ]);
+
                 return [
                     'id'               => $delivery->id,
                     'associate_name'   => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
@@ -576,16 +809,24 @@ class DeliveryRegistrationController extends Controller
                     'unit'             => $unit,
                     'unit_price'       => (float) $delivery->unit_price,
                     'net_value'        => (float) $delivery->net_value,
+                    'dist_net_value'   => (float) $distributions->sum('net'),
                     'quality_grade'    => $delivery->quality_grade ?? '',
                     'notes'            => $delivery->notes ?? '',
                     'status'           => $delivery->status->getLabel(),
                     'status_value'     => $delivery->status->value,
+                    'distributions'    => $distributions->toArray(),
+                    'distributed_qty'  => (float) $distributions->sum('qty'),
                 ];
             });
 
+        $customers = Customer::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'trade_name']);
+
         $currentTenant = $this->currentTenant();
 
-        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant'));
+        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant', 'customers'));
     }
 
     /**
@@ -704,6 +945,7 @@ class DeliveryRegistrationController extends Controller
 
         $validated = $request->validate([
             'delivery_date' => 'nullable|date',
+            'customer_id'   => 'nullable|integer',
             'quantities'    => 'required|array|min:1',
             'quantities.*'  => 'numeric|min:0',
             'notes'         => 'nullable|string|max:500',
@@ -801,6 +1043,51 @@ class DeliveryRegistrationController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Lista todos os projetos do tenant (qualquer status), incluindo finalizados.
+     * Apenas visualização — não permite editar projetos finalizados.
+     */
+    public function projectsList()
+    {
+        $tenantId = session('tenant_id');
+        if (!$tenantId) {
+            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
+        }
+
+        $tenant = $this->currentTenant();
+
+        $query = SalesProject::where('tenant_id', $tenantId)
+            ->with('customer')
+            ->withCount([
+                'deliveries as deliveries_approved_count' => fn ($q) => $q
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED),
+            ])
+            ->withSum(
+                ['deliveries as net_total' => fn ($q) => $q
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED)],
+                'net_value'
+            )
+            ->orderByDesc('created_at');
+
+        if ($statusFilter = request('status')) {
+            $query->where('status', $statusFilter);
+        }
+
+        if ($search = request('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('contract_number', 'like', "%{$search}%")
+                  ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
+            });
+        }
+
+        $projects = $query->paginate(20)->appends(request()->query());
+
+        return view('delivery.projects-list', compact('projects', 'tenant'));
+    }
+
     public function allDeliveries()
     {
         $tenantId = session('tenant_id');
@@ -811,7 +1098,8 @@ class DeliveryRegistrationController extends Controller
         $currentTenant = $this->currentTenant();
 
         $query = ProductionDelivery::where('tenant_id', $tenantId)
-            ->with(['salesProject', 'associate.user', 'product', 'receiver', 'approver']);
+            ->whereNull('parent_delivery_id')  // exclude distribution children
+            ->with(['salesProject', 'associate.user', 'product', 'receiver', 'approver', 'distributions.customer']);
 
         // Permanecer com filtros via query string
         $statusFilter = request('status');
@@ -845,9 +1133,10 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('title')
             ->pluck('title', 'id');
 
-        // Resumo de estoque por produto (entregas aprovadas)
+        // Resumo de estoque por produto (recepções aprovadas — parent_delivery_id IS NULL)
         $stockSummary = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('status', DeliveryStatus::APPROVED)
+            ->whereNull('parent_delivery_id')
             ->with('product')
             ->select('product_id', DB::raw('SUM(quantity) as total_quantity'), DB::raw('COUNT(*) as total_deliveries'))
             ->groupBy('product_id')
@@ -859,10 +1148,10 @@ class DeliveryRegistrationController extends Controller
             ]);
 
         $stats = [
-            'total' => ProductionDelivery::where('tenant_id', $tenantId)->count(),
-            'pending' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::PENDING)->count(),
-            'approved' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::APPROVED)->count(),
-            'rejected' => ProductionDelivery::where('tenant_id', $tenantId)->where('status', DeliveryStatus::REJECTED)->count(),
+            'total' => ProductionDelivery::where('tenant_id', $tenantId)->whereNull('parent_delivery_id')->count(),
+            'pending' => ProductionDelivery::where('tenant_id', $tenantId)->whereNull('parent_delivery_id')->where('status', DeliveryStatus::PENDING)->count(),
+            'approved' => ProductionDelivery::where('tenant_id', $tenantId)->whereNull('parent_delivery_id')->where('status', DeliveryStatus::APPROVED)->count(),
+            'rejected' => ProductionDelivery::where('tenant_id', $tenantId)->whereNull('parent_delivery_id')->where('status', DeliveryStatus::REJECTED)->count(),
         ];
 
         $associates = Associate::where('tenant_id', $tenantId)
@@ -871,7 +1160,12 @@ class DeliveryRegistrationController extends Controller
             ->get()
             ->mapWithKeys(fn ($a) => [$a->id => $a->user->name ?? "#{$a->id}"]);
 
-        return view('delivery.all-deliveries', compact('deliveries', 'projects', 'stockSummary', 'stats', 'currentTenant', 'statusFilter', 'projectFilter', 'dateFrom', 'dateTo', 'search', 'associates'));
+        $customers = Customer::where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'trade_name']);
+
+        return view('delivery.all-deliveries', compact('deliveries', 'projects', 'stockSummary', 'stats', 'currentTenant', 'statusFilter', 'projectFilter', 'dateFrom', 'dateTo', 'search', 'associates', 'customers'));
     }
 
     // ────────────────────────────────────────────────────────
@@ -883,8 +1177,12 @@ class DeliveryRegistrationController extends Controller
      */
     private function buildFilteredDeliveriesQuery(int $tenantId): \Illuminate\Database\Eloquent\Builder
     {
+        // Reports use DISTRIBUTIONS only: financial truth lives on child records (parent_delivery_id NOT NULL).
+        // Receptions (parent_delivery_id IS NULL) have unit_price=0 and no customer — they are
+        // the physical intake records, not the sales/financial records.
         $query = ProductionDelivery::where('tenant_id', $tenantId)
-            ->with(['salesProject', 'associate.user', 'product']);
+            ->whereNotNull('parent_delivery_id')
+            ->with(['salesProject', 'associate.user', 'product', 'customer']);
 
         // Relatórios nunca exibem entregas rejeitadas ou canceladas
         $query->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value]);
@@ -946,6 +1244,7 @@ class DeliveryRegistrationController extends Controller
             'associate' => $d->associate?->user?->name ?? '—',
             'product' => $d->product?->name ?? '—',
             'unit' => $d->product?->unit ?? 'un',
+            'customer' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
             'quantity' => (float) $d->quantity,
             'unit_price' => (float) $d->unit_price,
             'gross_value' => (float) $d->gross_value,
@@ -1100,9 +1399,11 @@ class DeliveryRegistrationController extends Controller
 
         $tenant = $this->currentTenant();
 
+        // SOMENTE distribuições (parent_delivery_id NOT NULL) — verdade financeira
         $producers = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
             ->with('associate.user')
             ->get()
             ->groupBy('associate_id')
@@ -1143,16 +1444,19 @@ class DeliveryRegistrationController extends Controller
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
         $tenant    = $this->currentTenant();
 
-        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+        // Comprovante usa DISTRIBUIÇÕES: verdade financeira (customer, price, net_value)
+        $distributions = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
-            ->with('product')
+            ->whereNotNull('parent_delivery_id')
+            ->with(['product', 'customer'])
             ->orderBy('delivery_date')
+            ->orderBy('id')
             ->get();
 
-        if ($deliveries->isEmpty()) {
-            return redirect()->back()->with('error', 'Nenhuma entrega aprovada encontrada para este produtor neste projeto.');
+        if ($distributions->isEmpty()) {
+            return redirect()->back()->with('error', 'Nenhuma distribuição aprovada encontrada para este produtor. Distribua as recepções antes de gerar o comprovante.');
         }
 
         // Criar ou reutilizar registro de comprovante
@@ -1175,7 +1479,7 @@ class DeliveryRegistrationController extends Controller
             ]);
         }
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
@@ -1219,31 +1523,32 @@ class DeliveryRegistrationController extends Controller
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $tenant  = $this->currentTenant();
 
-        // Buscar entregas selecionadas — somente aprovadas, do mesmo tenant/projeto
-        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+        // Aceitar IDs de DISTRIBUIÇÕES diretamente (parent_delivery_id NOT NULL)
+        $distributions = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
+            ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED)
             ->whereIn('id', $deliveryIds)
-            ->with(['product', 'associate.user'])
+            ->with(['product', 'customer', 'associate.user'])
             ->orderBy('delivery_date')
+            ->orderBy('id')
             ->get();
 
-        if ($deliveries->isEmpty()) {
-            return response()->json(['success' => false, 'message' => 'Nenhuma entrega aprovada encontrada entre as selecionadas.'], 422);
+        if ($distributions->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'Nenhuma distribuição aprovada encontrada para os IDs selecionados.'], 422);
         }
 
-        // Verificar que todas pertencem ao mesmo associado
-        $associateIds = $deliveries->pluck('associate_id')->unique();
+        // Verificar que todas as distribuições pertencem ao mesmo associado
+        $associateIds = $distributions->pluck('associate_id')->unique();
         if ($associateIds->count() > 1) {
-            return response()->json(['success' => false, 'message' => 'Selecione entregas de um mesmo produtor para gerar o comprovante.'], 422);
+            return response()->json(['success' => false, 'message' => 'Selecione distribuições de um mesmo produtor para gerar o comprovante.'], 422);
         }
 
         $associate = Associate::where('tenant_id', $tenantId)
             ->with('user')
             ->findOrFail($associateIds->first());
 
-        // Sempre criar um novo registro de comprovante com número incrementado
-        // e armazenar os IDs das entregas selecionadas para reimpressão posterior.
+        // Criar novo comprovante armazenando os IDs das recepções originais selecionadas
         $year    = now()->year;
         $receipt = \App\Models\AssociateReceipt::create([
             'tenant_id'        => $tenantId,
@@ -1252,10 +1557,17 @@ class DeliveryRegistrationController extends Controller
             'receipt_year'     => $year,
             'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
             'issued_at'        => today(),
-            'delivery_ids'     => $deliveryIds,
+            'delivery_ids'     => $distributions->pluck('id')->all(),
         ]);
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions);
+
+        $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
+        if (!is_array($visibleColumns)) {
+            $visibleColumns = ['unit_price', 'gross'];
+        }
+        $allowedCols = ['unit_price', 'gross', 'admin_fee', 'net'];
+        $visibleColumns = array_values(array_filter($visibleColumns, fn($c) => in_array($c, $allowedCols)));
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
@@ -1265,6 +1577,7 @@ class DeliveryRegistrationController extends Controller
             'summary'         => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+            'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
         $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');

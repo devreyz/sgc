@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -21,6 +22,7 @@ class ProjectPayment extends Model
         'type',
         'status',
         'amount',
+        'balance_remaining',
         'description',
         'payment_date',
         'expected_date',
@@ -30,6 +32,9 @@ class ProjectPayment extends Model
         'associate_id',
         'production_delivery_id',
         'notes',
+        'receipt_number',
+        'finalized_at',
+        'finalized_by',
         'created_by',
         'approved_by',
         'approved_at',
@@ -41,9 +46,11 @@ class ProjectPayment extends Model
             'status' => ProjectPaymentStatus::class,
             'payment_method' => PaymentMethod::class,
             'amount' => 'decimal:2',
+            'balance_remaining' => 'decimal:2',
             'payment_date' => 'date',
             'expected_date' => 'date',
             'approved_at' => 'datetime',
+            'finalized_at' => 'datetime',
         ];
     }
 
@@ -117,6 +124,35 @@ class ProjectPayment extends Model
     public function scopeAssociatePayments($query)
     {
         return $query->where('type', 'associate_payment');
+    }
+
+    /**
+     * Get distributions linked to this payment.
+     */
+    public function distributions()
+    {
+        return $this->hasMany(ProductionDelivery::class, 'project_payment_id');
+    }
+
+    /**
+     * Check if this payment is finalized (immutable).
+     */
+    public function isFinalized(): bool
+    {
+        return !is_null($this->finalized_at);
+    }
+
+    /**
+     * Generate the next receipt number for associate payments in a year.
+     */
+    public static function nextReceiptNumber(int $tenantId, int $year): string
+    {
+        $max = static::where('tenant_id', $tenantId)
+            ->where('type', 'associate_payment')
+            ->whereNotNull('receipt_number')
+            ->where('receipt_number', 'like', "PAG-{$year}-%")
+            ->count();
+        return sprintf('PAG-%d-%04d', $year, $max + 1);
     }
 
     /**

@@ -189,11 +189,24 @@ class DeliveriesRelationManager extends RelationManager
                     ->date('d/m/Y')
                     ->sortable(),
 
+                // ── Tipo: Recepção / Distribuição / Direto ──
+                Tables\Columns\BadgeColumn::make('tipo')
+                    ->label('Tipo')
+                    ->getStateUsing(function ($record): string {
+                        if (!is_null($record->parent_delivery_id)) return 'Distribuição';
+                        if (is_null($record->customer_id))         return 'Recepção';
+                        return 'Direto';
+                    })
+                    ->colors([
+                        'warning' => 'Recepção',
+                        'info'    => 'Distribuição',
+                        'success' => 'Direto',
+                    ]),
+
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
                     ->placeholder('—')
-                    ->limit(18)
-                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->limit(20)
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('associate.user.display_name')
@@ -207,9 +220,28 @@ class DeliveriesRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('quantity')
                     ->label('Quantidade')
-                    ->formatStateUsing(fn ($state, $record): string => 
+                    ->formatStateUsing(fn ($state, $record): string =>
                         number_format($state, 2, ',', '.') . ' ' . $record->product->unit
                     ),
+
+                // Coluna de progresso de distribuição (só visível em recepções)
+                Tables\Columns\TextColumn::make('distribuicao')
+                    ->label('Distribuído')
+                    ->getStateUsing(function ($record): string {
+                        if (!is_null($record->parent_delivery_id) || !is_null($record->customer_id)) {
+                            return '—';
+                        }
+                        $distributed = $record->distributed_quantity;
+                        $total       = (float) $record->quantity;
+                        $remaining   = $record->remaining_quantity;
+                        $pct         = $total > 0 ? round($distributed / $total * 100) : 0;
+                        return number_format($distributed, 2, ',', '.') . '/' . number_format($total, 2, ',', '.') . ' (' . $pct . '%)';
+                    })
+                    ->color(function ($record): string {
+                        if (!is_null($record->parent_delivery_id) || !is_null($record->customer_id)) return 'gray';
+                        return $record->remaining_quantity <= 0.001 ? 'success' : 'warning';
+                    })
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('unit_price')
                     ->label('Preço/Un')
@@ -262,128 +294,35 @@ class DeliveriesRelationManager extends RelationManager
                     ->toggleable(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('tipo')
+                    ->label('Tipo de Entrega')
+                    ->options([
+                        'receptions'    => 'Recepções (entradas de campo)',
+                        'distributions' => 'Distribuições (entregas a clientes)',
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data) {
+                        if ($data['value'] === 'receptions') {
+                            $query->whereNull('parent_delivery_id');
+                        } elseif ($data['value'] === 'distributions') {
+                            $query->whereNotNull('parent_delivery_id');
+                        }
+                    })
+                    ->default('distributions'),
+
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options(DeliveryStatus::class),
+
                 Tables\Filters\SelectFilter::make('associate_id')
                     ->label('Associado')
                     ->relationship('associate.user', 'name'),
+
+                Tables\Filters\Filter::make('unpaid')
+                    ->label('Não Pagas')
+                    ->query(fn (\Illuminate\Database\Eloquent\Builder $q) => $q->where('paid', false)
+                        ->whereNotNull('parent_delivery_id')),
             ])
             ->headerActions([
-                Tables\Actions\Action::make('pay_all_for_associate')
-                    ->label('Pagar Tudo do Associado')
-                    ->icon('heroicon-o-banknotes')
-                    ->color('secondary')
-                    ->modalHeading('Pagar todas entregas de um associado')
-                    ->form([
-                        Forms\Components\Select::make('associate_id')
-                            ->label('Associado')
-                            ->options(fn () => $this->ownerRecord->deliveries
-                                ->where('paid', false)
-                                ->mapWithKeys(fn ($d) => [$d->associate_id => $d->associate->user->name])
-                                ->unique()
-                                ->toArray())
-                            ->required(),
-
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->label('Data do Pagamento')
-                            ->required()
-                            ->default(now()),
-
-                        Forms\Components\Select::make('bank_account_id')
-                            ->label('Conta para Pagamento')
-                            ->options(BankAccount::where('status', true)->pluck('name', 'id'))
-                            ->required()
-                            ->default(fn () => $this->ownerRecord->payment_bank_account_id)
-                            ->helperText('Conta de onde sairá o pagamento'),
-
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Forma de Pagamento')
-                            ->options(PaymentMethod::class)
-                            ->required()
-                            ->default(PaymentMethod::TRANSFERENCIA),
-
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Observações')
-                            ->rows(3),
-                    ])
-                    ->action(function (array $data) {
-                        DB::transaction(function () use ($data) {
-                            $associateId = $data['associate_id'];
-                            $deliveries = $this->ownerRecord->deliveries()->where('associate_id', $associateId)->where('paid', false)->get();
-
-                            if ($deliveries->isEmpty()) {
-                                Notification::make()->warning()->title('Nenhuma entrega pendente para este associado')->send();
-                                return;
-                            }
-
-                            $totalForAssociate = $deliveries->sum('net_value');
-
-                            $payment = ProjectPayment::create([
-                                'sales_project_id' => $this->ownerRecord->id,
-                                'type' => 'associate_payment',
-                                'status' => ProjectPaymentStatus::PAID,
-                                'amount' => $totalForAssociate,
-                                'description' => "Pagamento consolidado de " . $deliveries->count() . " entrega(s) do projeto {$this->ownerRecord->title}",
-                                'payment_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'payment_method' => $data['payment_method'],
-                                'associate_id' => $associateId,
-                                'notes' => $data['notes'] ?? null,
-                                'created_by' => auth()->id(),
-                                'approved_by' => auth()->id(),
-                                'approved_at' => now(),
-                            ]);
-
-                            foreach ($deliveries as $delivery) {
-                                $delivery->update([
-                                    'paid' => true,
-                                    'paid_date' => $data['payment_date'],
-                                    'project_payment_id' => $payment->id,
-                                ]);
-                            }
-
-                            $associate = $deliveries->first()->associate;
-                            $currentBalance = $associate->current_balance ?? 0;
-
-                            AssociateLedger::create([
-                                'associate_id' => $associate->id,
-                                'type' => LedgerType::DEBIT,
-                                'category' => LedgerCategory::PRODUCAO,
-                                'amount' => $totalForAssociate,
-                                'balance_after' => $currentBalance - $totalForAssociate,
-                                'description' => "Pagamento consolidado recebido ({$deliveries->count()} entrega(s)) - Projeto: {$this->ownerRecord->title}",
-                                'reference_type' => ProjectPayment::class,
-                                'reference_id' => $payment->id,
-                                'transaction_date' => $data['payment_date'],
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            $bankAccount = BankAccount::find($data['bank_account_id']);
-                            $newBalance = $bankAccount->current_balance - $totalForAssociate;
-
-                            CashMovement::create([
-                                'type' => CashMovementType::EXPENSE,
-                                'amount' => $totalForAssociate,
-                                'balance_after' => $newBalance,
-                                'description' => "Pagamento ao associado {$associate->user->name} - Consolidado - Projeto: {$this->ownerRecord->title}",
-                                'movement_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'reference_type' => ProjectPayment::class,
-                                'reference_id' => $payment->id,
-                                'payment_method' => $data['payment_method'],
-                                'notes' => $data['notes'] ?? null,
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            $bankAccount->update(['current_balance' => $newBalance]);
-
-                            $this->ownerRecord->increment('associates_paid_amount', $totalForAssociate);
-                        });
-
-                        Notification::make()->success()->title('Pagamento consolidado realizado')->send();
-                    })
-                    ->visible(fn () => $this->ownerRecord->deliveries->where('paid', false)->count() > 0),
                 Tables\Actions\CreateAction::make()
                     ->label('Nova Entrega')
                     ->icon('heroicon-o-plus')
@@ -470,7 +409,7 @@ class DeliveriesRelationManager extends RelationManager
                     ->label('Pagar')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
-                    ->visible(fn ($record): bool => $record->canBePaid())
+                    ->visible(fn ($record): bool => false) // DESATIVADO — centralize em "Pagamentos a Associados"
                     ->form([
                         Forms\Components\Placeholder::make('info')
                             ->content(fn ($record) => new \Illuminate\Support\HtmlString(
@@ -578,149 +517,141 @@ class DeliveriesRelationManager extends RelationManager
                     }),
 
                 Tables\Actions\ViewAction::make(),
+
+                // ── Ação: Distribuir entre clientes ──────────────────────────
+                Tables\Actions\Action::make('distribute')
+                    ->label('Distribuir')
+                    ->icon('heroicon-o-arrows-pointing-out')
+                    ->color('info')
+                    ->modalHeading(fn ($record) => 'Distribuir entrega: ' . $record->product->name)
+                    ->modalDescription(fn ($record) => new \Illuminate\Support\HtmlString(
+                        '<div class="space-y-1 text-sm">'
+                        . '<p><strong>Associado:</strong> ' . ($record->associate?->user?->name ?? '—') . '</p>'
+                        . '<p><strong>Total recebido:</strong> ' . number_format($record->quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'
+                        . '<p><strong>Já distribuído:</strong> ' . number_format($record->distributed_quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'
+                        . '<p class="font-semibold text-warning-600"><strong>Disponível:</strong> ' . number_format($record->remaining_quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'
+                        . '</div>'
+                    ))
+                    ->form(function ($record) {
+                        $project = $this->ownerRecord;
+                        $customerOptions = collect();
+
+                        // Clientes disponíveis: primário + pivot
+                        if ($project->customer_id) {
+                            $customerOptions->put($project->customer_id, $project->customer->name ?? '—');
+                        }
+                        foreach ($project->customers as $c) {
+                            $customerOptions->put($c->id, $c->name);
+                        }
+
+                        return [
+                            Forms\Components\Repeater::make('distributions')
+                                ->label('Distribuição por cliente')
+                                ->schema([
+                                    Forms\Components\Select::make('customer_id')
+                                        ->label('Cliente')
+                                        ->options($customerOptions->toArray())
+                                        ->required()
+                                        ->searchable(),
+
+                                    Forms\Components\TextInput::make('quantity')
+                                        ->label('Quantidade')
+                                        ->numeric()
+                                        ->required()
+                                        ->minValue(0.001)
+                                        ->suffix($record->product->unit)
+                                        ->helperText('Quantidade destinada a este cliente'),
+
+                                    Forms\Components\TextInput::make('unit_price')
+                                        ->label('Preço unitário (R$)')
+                                        ->numeric()
+                                        ->prefix('R$')
+                                        ->required()
+                                        ->minValue(0.01)
+                                        ->default(fn ($get) => $record->unit_price)
+                                        ->helperText('Preço específico para este cliente'),
+                                ])
+                                ->minItems(1)
+                                ->addActionLabel('+ Adicionar cliente')
+                                ->columns(3)
+                                ->columnSpanFull()
+                                ->helperText('A soma das quantidades não pode ultrapassar ' . number_format($record->remaining_quantity, 3, ',', '.') . ' ' . $record->product->unit),
+                        ];
+                    })
+                    ->action(function ($record, array $data) {
+                        $distributions = $data['distributions'] ?? [];
+
+                        // Validar soma das quantidades
+                        $totalDistributing = array_sum(array_column($distributions, 'quantity'));
+                        if ($totalDistributing > $record->remaining_quantity + 0.0001) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Quantidade inválida')
+                                ->body('A soma (' . number_format($totalDistributing, 3, ',', '.') . ') ultrapassa o disponível (' . number_format($record->remaining_quantity, 3, ',', '.') . ').')
+                                ->send();
+                            return;
+                        }
+
+                        $project = $this->ownerRecord;
+
+                        DB::transaction(function () use ($record, $distributions, $project) {
+                            foreach ($distributions as $dist) {
+                                \App\Models\ProductionDelivery::create([
+                                    'parent_delivery_id'  => $record->id,
+                                    'tenant_id'           => $record->tenant_id,
+                                    'sales_project_id'    => $record->sales_project_id,
+                                    'project_demand_id'   => $record->project_demand_id,
+                                    'associate_id'        => $record->associate_id,
+                                    'customer_id'         => $dist['customer_id'],
+                                    'product_id'          => $record->product_id,
+                                    'delivery_date'       => $record->delivery_date,
+                                    'quantity'            => $dist['quantity'],
+                                    'unit_price'          => $dist['unit_price'],
+                                    'admin_fee_percentage'=> $project->admin_fee_percentage,
+                                    'status'              => DeliveryStatus::PENDING,
+                                    'quality_grade'       => $record->quality_grade,
+                                    'notes'               => 'Distribuição da recepção #' . $record->id,
+                                    'received_by'         => auth()->id(),
+                                ]);
+                            }
+                        });
+
+                        Notification::make()
+                            ->success()
+                            ->title('Distribuição criada')
+                            ->body(count($distributions) . ' registro(s) de distribuição criados.')
+                            ->send();
+
+                        $this->ownerRecord->refresh();
+                    })
+                    ->visible(fn ($record): bool =>
+                        is_null($record->parent_delivery_id)
+                        && is_null($record->customer_id)
+                        && $record->remaining_quantity > 0.001
+                    ),
+
                 Tables\Actions\EditAction::make()
-                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+                    ->visible(fn ($record): bool =>
+                        $record->status === DeliveryStatus::PENDING
+                        && !$record->paid
+                        && is_null($record->project_payment_id)
+                    ),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+                    ->visible(fn ($record): bool =>
+                        $record->status === DeliveryStatus::PENDING
+                        && !$record->paid
+                        && is_null($record->project_payment_id)
+                    ),
+                Tables\Actions\Action::make('locked')
+                    ->label('Faturado')
+                    ->icon('heroicon-o-lock-closed')
+                    ->color('warning')
+                    ->disabled()
+                    ->tooltip('Este registro já foi faturado e não pode ser alterado.')
+                    ->visible(fn ($record): bool => !is_null($record->project_payment_id) || $record->paid),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('pay_all')
-                        ->label('Pagar Selecionadas')
-                        ->icon('heroicon-o-banknotes')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->deselectRecordsAfterCompletion()
-                        ->form([
-                            Forms\Components\Placeholder::make('summary')
-                                ->label('Resumo do Pagamento')
-                                ->content(function ($records) {
-                                    $total = $records->sum('net_value');
-                                    $count = $records->count();
-                                    $associates = $records->map(fn($r) => $r->associate?->user?->getTenantName())->filter()->unique()->implode(', ');
-                                    
-                                    return new \Illuminate\Support\HtmlString(
-                                        '<div class="space-y-2 text-sm">'.
-                                        '<p><strong>Total de Entregas:</strong> ' . $count . '</p>' .
-                                        '<p><strong>Associado(s):</strong> ' . $associates . '</p>' .
-                                        '<p class="text-lg font-bold text-success-600 mt-3"><strong>Valor Total:</strong> R$ ' . number_format($total, 2, ',', '.') . '</p>' .
-                                        '</div>'
-                                    );
-                                }),
-
-                            Forms\Components\DatePicker::make('payment_date')
-                                ->label('Data do Pagamento')
-                                ->required()
-                                ->default(now()),
-
-                            Forms\Components\Select::make('bank_account_id')
-                                ->label('Conta para Pagamento')
-                                ->options(BankAccount::where('status', true)->pluck('name', 'id'))
-                                ->required()
-                                ->default(fn () => $this->ownerRecord->payment_bank_account_id)
-                                ->helperText('Conta de onde sairá o pagamento'),
-
-                            Forms\Components\Select::make('payment_method')
-                                ->label('Forma de Pagamento')
-                                ->options(PaymentMethod::class)
-                                ->required()
-                                ->default(PaymentMethod::TRANSFERENCIA),
-
-                            Forms\Components\Textarea::make('notes')
-                                ->label('Observações')
-                                ->rows(3),
-                        ])
-                        ->action(function ($records, array $data) {
-                            $paidCount = 0;
-                            $totalPaid = 0;
-
-                            DB::transaction(function () use ($records, $data, &$paidCount, &$totalPaid) {
-                                $bankAccount = BankAccount::find($data['bank_account_id']);
-                                
-                                // Agrupar entregas por associado
-                                $deliveriesByAssociate = $records->groupBy('associate_id');
-
-                                foreach ($deliveriesByAssociate as $associateId => $deliveries) {
-                                    $associate = $deliveries->first()->associate;
-                                    $totalForAssociate = $deliveries->sum('net_value');
-                                    
-                                    // Criar um único pagamento por associado
-                                    $payment = ProjectPayment::create([
-                                        'sales_project_id' => $this->ownerRecord->id,
-                                        'type' => 'associate_payment',
-                                        'status' => ProjectPaymentStatus::PAID,
-                                        'amount' => $totalForAssociate,
-                                        'description' => "Pagamento de {$deliveries->count()} entrega(s) do projeto {$this->ownerRecord->title}",
-                                        'payment_date' => $data['payment_date'],
-                                        'bank_account_id' => $data['bank_account_id'],
-                                        'payment_method' => $data['payment_method'],
-                                        'associate_id' => $associateId,
-                                        'notes' => $data['notes'] ?? null,
-                                        'created_by' => auth()->id(),
-                                        'approved_by' => auth()->id(),
-                                        'approved_at' => now(),
-                                    ]);
-
-                                    // Atualizar cada entrega deste associado
-                                    foreach ($deliveries as $delivery) {
-                                        $delivery->update([
-                                            'paid' => true,
-                                            'paid_date' => $data['payment_date'],
-                                            'project_payment_id' => $payment->id,
-                                        ]);
-                                        $paidCount++;
-                                    }
-
-                                    // Registrar no ledger do associado (débito - associado recebeu o pagamento)
-                                    $currentBalance = $associate->current_balance ?? 0;
-                                    AssociateLedger::create([
-                                        'associate_id' => $associateId,
-                                        'type' => LedgerType::DEBIT,
-                                        'category' => LedgerCategory::PRODUCAO,
-                                        'amount' => $totalForAssociate,
-                                        'balance_after' => $currentBalance - $totalForAssociate,
-                                        'description' => "Pagamento recebido - {$deliveries->count()} entrega(s) - Projeto: {$this->ownerRecord->title}",
-                                        'reference_type' => ProjectPayment::class,
-                                        'reference_id' => $payment->id,
-                                        'transaction_date' => $data['payment_date'],
-                                        'created_by' => auth()->id(),
-                                    ]);
-
-                                    // Registrar movimento de caixa (saída)
-                                    $newBalance = $bankAccount->current_balance - $totalForAssociate;
-
-                                    CashMovement::create([
-                                        'type' => CashMovementType::EXPENSE,
-                                        'amount' => $totalForAssociate,
-                                        'balance_after' => $newBalance,
-                                        'description' => "Pagamento ao associado {$associate->user->name} - {$deliveries->count()} entrega(s) - Projeto: {$this->ownerRecord->title}",
-                                        'movement_date' => $data['payment_date'],
-                                        'bank_account_id' => $data['bank_account_id'],
-                                        'reference_type' => ProjectPayment::class,
-                                        'reference_id' => $payment->id,
-                                        'payment_method' => $data['payment_method'],
-                                        'notes' => $data['notes'] ?? null,
-                                        'created_by' => auth()->id(),
-                                    ]);
-
-                                    // Atualizar saldo da conta
-                                    $bankAccount->update(['current_balance' => $newBalance]);
-                                    $bankAccount->refresh();
-
-                                    // Atualizar valor total pago no projeto
-                                    $this->ownerRecord->increment('associates_paid_amount', $totalForAssociate);
-                                    $totalPaid += $totalForAssociate;
-                                }
-                            });
-
-                            Notification::make()
-                                ->success()
-                                ->title('Pagamentos realizados com sucesso')
-                                ->body("{$paidCount} entrega(s) paga(s). Total: R$ " . number_format($totalPaid, 2, ',', '.'))
-                                ->send();
-                        })
-                        ->visible(fn ($records) => $records && $records->every(fn ($r) => $r->canBePaid())),
-
                     Tables\Actions\DeleteBulkAction::make()
                         ->visible(fn () => auth()->user()->isSuperAdmin()),
                 ]),
@@ -730,3 +661,4 @@ class DeliveriesRelationManager extends RelationManager
             ->emptyStateIcon('heroicon-o-truck');
     }
 }
+

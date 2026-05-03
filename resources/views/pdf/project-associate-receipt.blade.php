@@ -92,14 +92,29 @@ body {
 .decl p { font-size: 11px; line-height: 1.7; color: #222; text-align: justify; }
 .decl strong { color: {{ $textColor }}; }
 .sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 12px 0 8px; }
-table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 10px;  }
-table.tbl thead th { border-bottom: 1px solid {{ $lineColor }}; border-top: 1px solid {{ $lineColor }}; padding: 6px 7px; text-align: left; font-size: 12px;  font-family: 'DejaVu Sans', Arial, sans-serif; }
+/* ─── Tabela de entregas (estilo limpo) ─── */
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; }
+table.tbl thead tr { background: #e5e7eb; }
+table.tbl thead th { border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; font-size: 8pt; font-weight: 700; color: #374151; }
 table.tbl thead th.r { text-align: right; }
-table.tbl tbody td { padding: 6px 7px; border-bottom: 1px solid #e8ecf0; }
+table.tbl tbody td { border: 1px solid #e5e7eb; padding: 4px 6px; }
 table.tbl tbody td.r { text-align: right; }
-table.tbl tbody tr:nth-child(even) td { background: #f7f9fb; }
-table.tbl tfoot td { padding: 7px 7px; font-weight: bold; background: #eef1f5; border-top: 2px solid {{ $primaryColor }}; }
-table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12px; }
+table.tbl tbody tr:nth-child(even) td { background: #f9fafb; }
+table.tbl tfoot td { padding: 5px 6px; font-weight: 700; background: #f3f4f6; border-top: 2px solid #9ca3af; font-size: 8.5pt; }
+table.tbl tfoot td.r { text-align: right; color: #059669; }
+/* ─── Resumo financeiro ─── */
+.fin-summary { display: table; width: 100%; margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8.5pt; }
+.fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 8px 10px; border-right: 1px solid #e2e8f0; }
+.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 8px 12px; }
+.fin-label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 3px; }
+.fin-cheque-box { border: 1px solid #9ca3af; background: #fff; border-radius: 2px; padding: 4px 8px; font-size: 9pt; font-weight: 700; min-height: 22px; }
+.fin-cheque-empty { border-bottom: 1px solid #374151; height: 20px; width: 100%; }
+.fin-row { display: table; width: 100%; padding: 2px 0; }
+.fin-row-label { display: table-cell; color: #4b5563; font-size: 8pt; padding: 1px 0; }
+.fin-row-val   { display: table-cell; text-align: right; white-space: nowrap; font-size: 8.5pt; padding: 1px 0; }
+.fin-total { background: #ecfdf5; font-weight: 700; }
+.c-danger { color: #dc2626; }
+.c-success { color: #059669; }
 .sig-area { margin-top: 30px; display: table; width: 55%; page-break-inside: avoid; }
 .sig-block { display: table-cell; text-align: center; }
 .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 40px; font-size: 11px; font-weight: bold; }
@@ -180,18 +195,27 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
 </div>
 
 
-{{-- ═══ RESUMO POR PRODUTO ═══ --}}
-<div class="" style="margin: 36px 0px 24px 0px; text-align: center; text-transform: uppercase; font-weight: bold;">Produtos Entregues</div>
+@php
+    // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
+    $vcols        = $visible_columns ?? ['unit_price', 'gross', 'admin_fee', 'net'];
+    $showUnitPrice = in_array('unit_price', $vcols);
+    $showGross     = in_array('gross',      $vcols);
+    $showAdminFee  = in_array('admin_fee',  $vcols);
+    $showNet       = in_array('net',        $vcols);
+@endphp
+{{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
+<div style="margin: 14px 0 8px; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a5f; border-left: 3px solid #1e3a5f; padding-left: 7px;">Entregas por Cliente</div>
 <table class="tbl">
     <thead>
         <tr>
             <th>Produto</th>
-            <th style="width:12%;">Data     </th>
-            <th class="r" style="width:12%;">Qtd.</th>
-            <th class="r" style="width:13%;">Vlr. Unit.</th>
-            <th class="r" style="width:15%;">Vlr. Bruto</th>
-            <th class="r" style="width:13%;">Taxa Adm.</th>
-            <th class="r" style="width:18%;">Vlr. Líquido</th>
+            <th>Cliente</th>
+            <th style="width:11%;">Data</th>
+            <th class="r" style="width:9%;">Qtd.</th>
+            @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
+            @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
+            @if($showAdminFee)<th class="r" style="width:10%;">Taxa Adm.</th>@endif
+            @if($showNet)<th class="r" style="width:13%;">Vlr. Líquido</th>@endif
         </tr>
     </thead>
     <tbody>
@@ -199,67 +223,67 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
         @php
             $deliveryDate = '—';
             if (!empty($ps['delivery_date'])) {
-                $d = $ps['delivery_date'];
-                if (is_object($d) && method_exists($d, 'format')) {
-                    $deliveryDate = $d->format('d/m/Y');
+                $dv = $ps['delivery_date'];
+                if (is_object($dv) && method_exists($dv, 'format')) {
+                    $deliveryDate = $dv->format('d/m/Y');
                 } else {
-                    try {
-                        $deliveryDate = \Carbon\Carbon::parse($d)->format('d/m/Y');
-                    } catch (\Exception $e) {
-                        $deliveryDate = $d;
-                    }
+                    try { $deliveryDate = \Carbon\Carbon::parse($dv)->format('d/m/Y'); }
+                    catch (\Exception $e) { $deliveryDate = $dv; }
                 }
             }
         @endphp
         <tr>
             <td><strong>{{ $ps['product_name'] }}</strong></td>
+            <td>{{ $ps['customer_name'] ?? '—' }}</td>
             <td>{{ $deliveryDate }}</td>
-            <td class="r">{{ number_format($ps['quantity'], 3, ',', '.') }} {{ $ps['unit'] }}</td>
-            <td class="r">R$ {{ number_format($ps['unit_price'] ?? 0, 2, ',', '.') }}</td>
-            <td class="r">R$ {{ number_format($ps['gross'], 2, ',', '.') }}</td>
-            <td class="r" style="color:#c0392b;">- R$ {{ number_format($ps['admin_fee'], 2, ',', '.') }}</td>
-            <td class="r" style="color:#1a5c3a;">R$ {{ number_format($ps['net'], 2, ',', '.') }}</td>
+            <td class="r">{{ number_format($ps['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
+            @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($ps['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
+            @if($showGross)<td class="r">R$&nbsp;{{ number_format($ps['gross'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($ps['admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($ps['net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td><strong>TOTAL</strong></td>
-            <td></td>
-            <td class="r"></td>
-            <td class="r"></td>
-            <td class="r">R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</td>
-            <td class="r" style="color:#c0392b;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>
-            <td class="r">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</td>
+            <td colspan="4"><strong>TOTAL</strong></td>
+            @if($showUnitPrice)<td class="r"></td>@endif
+            @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showNet)<td class="r">R$&nbsp;{{ number_format($summary['net_value'], 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
 </table>
 
-{{-- ═══ RESUMO FINANCEIRO ═══ --}}
-<div style="display: table; width: 100%; margin-bottom: 12px;">
-    <div style="display: table-cell; vertical-align: top; width: 30%; padding-right: 12px;">
-        <div style="font-size: 8px; color: #666; text-transform: uppercase; font-family: 'DejaVu Sans', Arial, sans-serif;">Nº do Cheque</div>
-        @php
-            $__cheque_val = $receipt?->cheque_number ?? $receipt?->numero_cheque ?? $receipt?->cheque ?? $receipt?->check_number ?? null;
-        @endphp
+{{-- ═══ RESUMO FINANCEIRO + CHEQUE ═══ --}}
+@php
+    $__cheque_val = $receipt?->cheque_number ?? $receipt?->check_number ?? null;
+    $__adminFeeLabel = !$isStandalone
+        ? 'Taxa Adm. (' . number_format($project->admin_fee_percentage ?? 0, 1) . '%)'
+        : 'Taxa Administrativa';
+@endphp
+<div class="fin-summary">
+    <div class="fin-left">
+        <span class="fin-label">Nº do Cheque / Documento</span>
         @if($__cheque_val)
-            <div style="margin-top: 6px; font-weight: bold;">{{ $__cheque_val }}</div>
+            <div class="fin-cheque-box">{{ $__cheque_val }}</div>
         @else
-            <div style="margin-top: 6px; border-bottom: 1px solid #000; min-width: 220px; height: 20px;"></div>
+            <div class="fin-cheque-empty"></div>
+            <span style="font-size:7pt;color:#9ca3af;margin-top:3px;display:block;">Preencher se aplicável</span>
         @endif
     </div>
-    <div style="display: table-cell; vertical-align: top; width: 70%; text-align: right; padding-left: 12px;">
-        <div style="margin-top: 0; font-size: 11px; color: #333; text-align: right;">
-            <span style="color:#666; text-transform:uppercase; font-size:8px;">Valor Bruto Total:&nbsp;</span>
-            <strong>R$ {{ number_format($summary['gross_value'], 2, ',', '.') }}</strong>
+    <div class="fin-right">
+        <div class="fin-row">
+            <span class="fin-row-label">Valor Bruto Total</span>
+            <span class="fin-row-val">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</span>
         </div>
-        <div style="margin-top: 6px; font-size: 11px; color: #333; text-align: right;">
-            <span style="color:#666; text-transform:uppercase; font-size:8px;">Taxa Adm.@if(!$isStandalone) ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)@endif:&nbsp;</span>
-            <strong style="color:#c0392b;">- R$ {{ number_format($summary['admin_fee'], 2, ',', '.') }}</strong>
+        <div class="fin-row">
+            <span class="fin-row-label">{{ $__adminFeeLabel }}</span>
+            <span class="fin-row-val c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</span>
         </div>
-        <div style="margin-top: 6px; font-size: 12px; color: #000; text-align: right;">
-            <span style="color:#666; text-transform:uppercase; font-size:8px;">Valor Líquido a Receber:&nbsp;</span>
-            <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>
+        <div class="fin-row fin-total">
+            <span class="fin-row-label" style="font-weight:700">Valor Líquido a Receber</span>
+            <span class="fin-row-val c-success" style="font-size:9.5pt;font-weight:700">R$&nbsp;{{ number_format($summary['net_value'], 2, ',', '.') }}</span>
         </div>
     </div>
 </div>
@@ -278,7 +302,7 @@ table.tbl tfoot td.r { text-align: right; color: {{ $textColor }}; font-size: 12
     @endif
     a quantia líquida de
     <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
-    referente ao pagamento pela entrega dos produtos relacionados acima. 
+    referente ao pagamento pelas entregas dos produtos relacionados acima, conforme os preços acordados por cliente. 
     </p>
     <p style="text-align: left; font-size: 11px; color: #333; margin: 22px 0 24px;">
      Por ser verdade, firmo o presente recibo.</p>

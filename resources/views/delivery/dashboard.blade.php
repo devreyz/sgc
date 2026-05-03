@@ -12,6 +12,9 @@
     <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
     </a>
+    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
+    </a>
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
@@ -423,6 +426,15 @@
         </div>
         <div class="dp-modal-sub" id="modal-deliver-sub">Informe as quantidades a serem baixadas do estoque.</div>
         <div class="dp-form-group">
+            <label>Cliente <span style="color:var(--color-danger)">*</span></label>
+            <select id="deliver-customer" style="width:100%;padding:.45rem .6rem;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface);color:var(--color-text);font-size:.9rem">
+                <option value="">Selecionar cliente…</option>
+                @foreach($customers as $c)
+                    <option value="{{ $c->id }}">{{ $c->trade_name ?: $c->name }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="dp-form-group">
             <label>Data da Entrega</label>
             <input type="date" id="deliver-date" value="{{ now()->format('Y-m-d') }}">
         </div>
@@ -538,10 +550,13 @@ document.getElementById('modal-deliver-btn').addEventListener('click', async () 
     const btn = document.getElementById('modal-deliver-btn');
     const sp = document.getElementById('modal-deliver-spinner');
     btn.disabled = true; sp.style.display = 'inline-block';
+    const customerId = document.getElementById('deliver-customer').value;
+    if (!customerId) { toast('Selecione o cliente para a entrega.', 'error'); btn.disabled = false; sp.style.display = 'none'; return; }
     const quantities = {};
     document.querySelectorAll('.deliver-qty').forEach(i => { quantities[i.dataset.product] = parseFloat(i.value)||0; });
     const data = await apiPost(`/${TENANT}/delivery/projects/${_deliverProjectId}/deliver-to-client`, {
         delivery_date: document.getElementById('deliver-date').value,
+        customer_id: parseInt(customerId),
         notes: document.getElementById('deliver-notes').value,
         quantities
     });

@@ -7,6 +7,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -17,6 +18,7 @@ class ProductionDelivery extends Model
     use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'parent_delivery_id',
         'sales_project_id',
         'project_demand_id',
         'associate_id',
@@ -67,6 +69,57 @@ class ProductionDelivery extends Model
             ->logOnly(['quantity', 'unit_price', 'status', 'admin_fee_amount', 'net_value'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    /**
+     * Get the parent (reception) delivery this distribution was created from.
+     */
+    public function parentDelivery(): BelongsTo
+    {
+        return $this->belongsTo(ProductionDelivery::class, 'parent_delivery_id');
+    }
+
+    /**
+     * Get the child distributions created from this reception delivery.
+     */
+    public function distributions(): HasMany
+    {
+        return $this->hasMany(ProductionDelivery::class, 'parent_delivery_id');
+    }
+
+    /**
+     * Whether this is a reception record (no parent, no customer).
+     */
+    public function isReception(): bool
+    {
+        return is_null($this->parent_delivery_id) && is_null($this->customer_id);
+    }
+
+    /**
+     * Whether this is a distribution record (has parent).
+     */
+    public function isDistribution(): bool
+    {
+        return !is_null($this->parent_delivery_id);
+    }
+
+    /**
+     * Total quantity already distributed to customers from this reception.
+     */
+    public function getDistributedQuantityAttribute(): float
+    {
+        if ($this->isDistribution()) {
+            return 0;
+        }
+        return (float) $this->distributions()->whereNotIn('status', ['rejected', 'cancelled'])->sum('quantity');
+    }
+
+    /**
+     * Quantity still available for distribution.
+     */
+    public function getRemainingQuantityAttribute(): float
+    {
+        return max(0, (float) $this->quantity - $this->distributed_quantity);
     }
 
     /**
@@ -168,7 +221,14 @@ class ProductionDelivery extends Model
         });
         
         // Calculate admin fee, cost price and net value before saving (BCMath)
+        // Registros de recepção (sem cliente, sem parent) não calculam financeiro —
+        // o cálculo ocorre nas distribuições filhas.
         static::saving(function ($delivery) {
+            // Pula cálculo financeiro em registros de recepção pura
+            if (is_null($delivery->customer_id) && is_null($delivery->parent_delivery_id)) {
+                return;
+            }
+
             if ($delivery->unit_price && $delivery->quantity) {
                 $qty   = (string) $delivery->quantity;
                 $price = (string) $delivery->unit_price;

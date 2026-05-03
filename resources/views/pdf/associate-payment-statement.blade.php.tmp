@@ -1,0 +1,233 @@
+@extends('pdf.partials.header')
+
+@section('content')
+@php
+    /** @var \App\Models\Tenant          $tenant */
+    /** @var \App\Models\SalesProject    $project */
+    /** @var \App\Models\ProjectPayment  $payment */
+    /** @var \Illuminate\Support\Collection $distributions */
+    $associateName  = $associate_name ?? '—';
+    $cpf            = $cpf ?? '—';
+    $genAt          = $generated_at ?? now()->format('d/m/Y H:i');
+    $adminFee       = optional($project)->admin_fee_percentage ?? 0;
+
+    $totalGross     = $distributions->sum('gross_value');
+    $totalFees      = $distributions->sum(fn ($d) => $d->gross_value - $d->net_value);
+    $totalNet       = $distributions->sum('net_value');
+    $amountPaid     = (float) optional($payment)->amount;
+    $balance        = (float) optional($payment)->balance_remaining;
+    $payMethod      = optional($payment)->payment_method?->getLabel() ?? '—';
+    $docNum         = optional($payment)->document_number ?? '—';
+    $payDate        = optional($payment)->payment_date?->format('d/m/Y') ?? '—';
+    $receiptNum     = optional($payment)->receipt_number ?? '—';
+
+    $copies = [
+        '1ª VIA — ASSOCIADO',
+        '2ª VIA — ASSOCIAÇÃO / COOPERATIVA',
+    ];
+@endphp
+
+{{-- ====== ESTILOS ====== --}}
+<style>
+    body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.5pt; color: #1a1a1a; }
+
+    .copy-block {
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        padding: 10px 12px 8px;
+        margin-bottom: 8px;
+        page-break-inside: avoid;
+    }
+
+    .copy-header {
+        background: #1e40af;
+        color: #fff;
+        padding: 5px 8px;
+        border-radius: 3px;
+        margin-bottom: 8px;
+    }
+    .copy-header-inner {
+        display: table;
+        width: 100%;
+    }
+    .copy-label  { display: table-cell; font-size: 9pt; font-weight: 700; }
+    .receipt-num { display: table-cell; text-align: right; font-size: 8.5pt; }
+
+    .info-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+        font-size: 8pt;
+    }
+    .info-table td { padding: 2px 4px; }
+    .info-label { font-weight: 700; color: #374151; white-space: nowrap; }
+
+    .dist-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 8px;
+        font-size: 8pt;
+    }
+    .dist-table thead tr { background: #e5e7eb; }
+    .dist-table th, .dist-table td { border: 1px solid #e5e7eb; padding: 3px 5px; }
+    .dist-table tbody tr:nth-child(even) { background: #f9fafb; }
+    .dist-table tfoot .total-row { font-weight: 700; background: #f3f4f6; border-top: 2px solid #9ca3af; }
+
+    .financial-summary {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 6px 10px;
+        margin-bottom: 8px;
+        font-size: 8.5pt;
+    }
+    .fs-label { padding: 2px 4px; color: #4b5563; }
+    .fs-value { padding: 2px 4px; text-align: right; white-space: nowrap; }
+    .fs-highlight td { background: #ecfdf5; font-size: 9pt; }
+    .fs-paid td      { background: #d1fae5; font-size: 9.5pt; }
+    .fs-balance td   { background: #fffbeb; color: #92400e; font-size: 9pt; }
+    .danger  { color: #dc2626; }
+    .success { color: #059669; }
+    .warning { color: #d97706; }
+    .bold    { font-weight: 700; }
+
+    .signatures { margin-top: 12px; margin-bottom: 6px; }
+    .sig-table  { width: 100%; border-collapse: collapse; }
+    .sig-cell   { width: 50%; padding: 0 10px; text-align: center; }
+    .sig-line   { border-top: 1px solid #374151; margin-bottom: 3px; }
+    .sig-label  { font-size: 7.5pt; color: #6b7280; }
+
+    .footer-note { font-size: 7pt; color: #9ca3af; text-align: center; margin-top: 4px; }
+    .page-divider { border: none; border-top: 2px dashed #9ca3af; margin: 16px 0; }
+</style>
+
+@foreach ($copies as $copyTitle)
+<div class="copy-block">
+
+    {{-- CABEÇALHO --}}
+    <div class="copy-header">
+        <div class="copy-header-inner">
+            <span class="copy-label">{{ $copyTitle }}</span>
+            <span class="receipt-num">Extrato Nº {{ $receiptNum }}</span>
+        </div>
+    </div>
+
+    {{-- DADOS DO PROJETO E ASSOCIADO --}}
+    <table class="info-table">
+        <tr>
+            <td class="info-label" style="width:140px">Projeto</td>
+            <td>{{ optional($project)->title ?? '—' }}</td>
+            <td class="info-label" style="width:90px">Data</td>
+            <td>{{ $payDate }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Associado</td>
+            <td>{{ $associateName }}</td>
+            <td class="info-label">CPF/CNPJ</td>
+            <td>{{ $cpf }}</td>
+        </tr>
+        <tr>
+            <td class="info-label">Forma de Pgto</td>
+            <td>{{ $payMethod }}</td>
+            <td class="info-label">Doc/Comprov.</td>
+            <td>{{ $docNum }}</td>
+        </tr>
+    </table>
+
+    {{-- TABELA DE DISTRIBUIÇÕES --}}
+    <table class="dist-table">
+        <thead>
+            <tr>
+                <th style="text-align:center;width:60px">Data</th>
+                <th>Produto</th>
+                <th>Cliente</th>
+                <th style="text-align:right;width:70px">Qtd</th>
+                <th style="text-align:right;width:70px">Bruto</th>
+                <th style="text-align:center;width:50px">Taxa %</th>
+                <th style="text-align:right;width:75px">Líquido</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($distributions as $d)
+            @php
+                $dGross  = (float) $d->gross_value;
+                $dNet    = (float) $d->net_value;
+                $dFeeAmt = $dGross - $dNet;
+                $dFeeP   = $dGross > 0 ? round($dFeeAmt / $dGross * 100, 1) : 0;
+            @endphp
+            <tr>
+                <td style="text-align:center">{{ $d->delivery_date?->format('d/m/Y') ?? '—' }}</td>
+                <td>{{ optional($d->product)->name ?? '—' }}</td>
+                <td>{{ optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '—' }}</td>
+                <td style="text-align:right">{{ number_format((float)$d->quantity, 3, ',', '.') }}&nbsp;{{ optional($d->product)->unit ?? '' }}</td>
+                <td style="text-align:right">R$&nbsp;{{ number_format($dGross, 2, ',', '.') }}</td>
+                <td style="text-align:center">{{ number_format($dFeeP, 1, ',', '.') }}%</td>
+                <td style="text-align:right;font-weight:600;color:#059669">R$&nbsp;{{ number_format($dNet, 2, ',', '.') }}</td>
+            </tr>
+            @endforeach
+        </tbody>
+        <tfoot>
+            <tr class="total-row">
+                <td colspan="4" style="text-align:right">Subtotais:</td>
+                <td style="text-align:right">R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</td>
+                <td></td>
+                <td style="text-align:right;color:#059669">R$&nbsp;{{ number_format($totalNet, 2, ',', '.') }}</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    {{-- RESUMO FINANCEIRO --}}
+    <div class="financial-summary">
+        <table style="width:100%;border-collapse:collapse">
+            <tr>
+                <td class="fs-label">Total Bruto das Distribuições</td>
+                <td class="fs-value">R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td class="fs-label">Taxa Administrativa ({{ $adminFee }}%)</td>
+                <td class="fs-value danger">- R$&nbsp;{{ number_format($totalFees, 2, ',', '.') }}</td>
+            </tr>
+            <tr class="fs-highlight">
+                <td class="fs-label">Líquido das Distribuições</td>
+                <td class="fs-value success">R$&nbsp;{{ number_format($totalNet, 2, ',', '.') }}</td>
+            </tr>
+            <tr class="fs-paid">
+                <td class="fs-label bold">Valor Pago Neste Extrato</td>
+                <td class="fs-value success bold">R$&nbsp;{{ number_format($amountPaid, 2, ',', '.') }}</td>
+            </tr>
+            @if ($balance > 0)
+            <tr class="fs-balance">
+                <td class="fs-label">Saldo em Aberto (Parcelas Futuras)</td>
+                <td class="fs-value warning bold">R$&nbsp;{{ number_format($balance, 2, ',', '.') }}</td>
+            </tr>
+            @endif
+        </table>
+    </div>
+
+    {{-- ASSINATURAS --}}
+    <div class="signatures">
+        <table class="sig-table">
+            <tr>
+                <td class="sig-cell">
+                    <div class="sig-line"></div>
+                    <div class="sig-label">Associado / Beneficiário<br><small>{{ $associateName }}</small></div>
+                </td>
+                <td class="sig-cell">
+                    <div class="sig-line"></div>
+                    <div class="sig-label">Responsável da Organização<br><small>Carimbo / Assinatura</small></div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="footer-note">
+        Emitido em: {{ $genAt }} &bull; Documento não fiscal &bull; Extrato Nº {{ $receiptNum }}
+    </div>
+
+</div>
+@if (!$loop->last)
+<hr class="page-divider">
+@endif
+@endforeach
+
+@endsection

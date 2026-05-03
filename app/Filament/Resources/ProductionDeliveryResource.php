@@ -475,6 +475,27 @@ class ProductionDeliveryResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (DeliveryStatus $state): string => $state->getLabel())
                     ->color(fn (DeliveryStatus $state): string => $state->getColor()),
+
+                Tables\Columns\TextColumn::make('customer.trade_name')
+                    ->label('Cliente (Dist.)')
+                    ->getStateUsing(fn ($record) => optional($record->customer)->trade_name ?? optional($record->customer)->name)
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\IconColumn::make('paid')
+                    ->label('Pago')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-badge')
+                    ->falseIcon('heroicon-o-clock')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('paid_date')
+                    ->label('Data Pagamento')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('sales_project_id')
@@ -580,7 +601,7 @@ class ProductionDeliveryResource extends Resource
                             Notification::make()->title('Erro ao aprovar: '.$e->getMessage())->danger()->send();
                         }
                     })
-                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING && is_null($record->parent_delivery_id)),
 
                 Tables\Actions\Action::make('reject')
                     ->label('Rejeitar')
@@ -597,7 +618,26 @@ class ProductionDeliveryResource extends Resource
                         'notes' => ($record->notes ? $record->notes."\n\n" : '').
                                   'REJEITADO: '.$data['rejection_reason'],
                     ]))
-                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING && is_null($record->parent_delivery_id)),
+
+                Tables\Actions\Action::make('pay_single')
+                    ->label('Pagar')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Confirmar Pagamento')
+                    ->form([
+                        Forms\Components\DatePicker::make('paid_date')
+                            ->label('Data do Pagamento')
+                            ->required()
+                            ->default(today())
+                            ->displayFormat('d/m/Y'),
+                    ])
+                    ->action(fn ($record, array $data) => $record->update([
+                        'paid'      => true,
+                        'paid_date' => $data['paid_date'],
+                    ]))
+                    ->visible(fn ($record): bool => false), // Pagamentos centralizados no Projeto de Venda
 
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
@@ -615,9 +655,9 @@ class ProductionDeliveryResource extends Resource
                         ->action(function ($records) {
                             $successCount = 0;
                             foreach ($records as $record) {
-                                if ($record->status !== DeliveryStatus::PENDING) {
-                                    continue;
-                                }
+                                // Aprovar apenas recepções pendentes (não distribuições)
+                                if ($record->status !== DeliveryStatus::PENDING) continue;
+                                if (!is_null($record->parent_delivery_id)) continue;
                                 try {
                                     DB::transaction(function () use ($record) {
                                         $stockService = app(StockService::class);
@@ -649,6 +689,49 @@ class ProductionDeliveryResource extends Resource
                                 }
                             }
                             Notification::make()->title("{$successCount} entregas aprovadas com sucesso.")->success()->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    Tables\Actions\BulkAction::make('pay_associates')
+                        ->label('Pagar Associados')
+                        ->icon('heroicon-o-banknotes')
+                        ->color('success')
+                        ->requiresConfirmation()
+                        ->modalHeading('Confirmar Pagamento')
+                        ->modalDescription(fn ($records) => 'Marcar como pagas ' . $records->count() . ' distribuição(ões) aprovadas. Total líquido: R$ ' . number_format($records->where('status', DeliveryStatus::APPROVED)->whereNotNull('parent_delivery_id')->sum('net_value'), 2, ',', '.'))
+                        ->form([
+                            Forms\Components\DatePicker::make('paid_date')
+                                ->label('Data do Pagamento')
+                                ->required()
+                                ->default(today())
+                                ->displayFormat('d/m/Y'),
+                            Forms\Components\Textarea::make('notes')
+                                ->label('Observação (opcional)')
+                                ->rows(2),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $paidCount = 0;
+                            $total = 0;
+                            foreach ($records as $record) {
+                                // Só paga distribuições aprovadas não pagas
+                                if (is_null($record->parent_delivery_id)) continue;
+                                if ($record->status !== DeliveryStatus::APPROVED) continue;
+                                if ($record->paid) continue;
+
+                                $record->update([
+                                    'paid'      => true,
+                                    'paid_date' => $data['paid_date'],
+                                    'notes'     => $data['notes']
+                                        ? ($record->notes ? $record->notes . "\n" : '') . 'PAGO: ' . $data['notes']
+                                        : $record->notes,
+                                ]);
+                                $paidCount++;
+                                $total += (float) $record->net_value;
+                            }
+                            Notification::make()
+                                ->title("{$paidCount} distribuição(ões) marcada(s) como pagas. Total: R$ " . number_format($total, 2, ',', '.'))
+                                ->success()
+                                ->send();
                         })
                         ->deselectRecordsAfterCompletion(),
 
@@ -690,7 +773,9 @@ class ProductionDeliveryResource extends Resource
                             ->default('all'),
                     ])
                     ->action(function (array $data) {
-                        $query = ProductionDelivery::with(['salesProject', 'associate.user', 'product'])
+                        // Query distributions only: financial truth is on child records
+                        $query = ProductionDelivery::with(['salesProject', 'associate.user', 'product', 'customer'])
+                            ->whereNotNull('parent_delivery_id')
                             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value]);
 
                         if ($data['status_filter'] !== 'all') {
@@ -774,8 +859,9 @@ class ProductionDeliveryResource extends Resource
 
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->whereNull('sales_project_id')
+                            ->whereNotNull('parent_delivery_id')
                             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-                            ->with(['associate.user', 'product']);
+                            ->with(['associate.user', 'product', 'customer']);
 
                         if (! empty($data['date_from'])) {
                             $query->whereDate('delivery_date', '>=', $data['date_from']);
@@ -874,8 +960,9 @@ class ProductionDeliveryResource extends Resource
 
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->whereNull('sales_project_id')
+                            ->whereNotNull('parent_delivery_id')
                             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-                            ->with(['associate.user', 'product']);
+                            ->with(['associate.user', 'product', 'customer']);
 
                         if (! empty($data['date_from'])) {
                             $query->whereDate('delivery_date', '>=', $data['date_from']);

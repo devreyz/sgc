@@ -12,13 +12,16 @@
     <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
     </a>
+    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
+        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
+    </a>
     <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">
         <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
     </a>
     <a href="{{ route('delivery.sheet.index', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
         <i data-lucide="file-text" style="width:14px;height:14px"></i> Fichas
     </a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+    <form action="{{ route('logout') }}" method="POST" style="display:inline">
         @csrf
         <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
             <i data-lucide="log-out" style="width:14px;height:14px"></i> Sair
@@ -29,1376 +32,1357 @@
 
 @section('content')
 <style>
-    * { box-sizing: border-box; }
-    
-    .container {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 1rem;
-        min-height: calc(100dvh - 180px);
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .form-card {
-        background: var(--color-surface);
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        box-shadow: var(--shadow-md);
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .step {
-        display: none;
-        animation: fadeIn 0.3s ease-out;
-    }
-    
-    .step.active {
-        display: flex;
-        flex: 1;
-        flex-direction: column;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .step-header {
-        margin-bottom: 1.5rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .step-title {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: var(--color-text);
-        margin-bottom: 0.25rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .step-subtitle {
-        color: var(--color-text-secondary);
-        font-size: 0.875rem;
-    }
-    
-    .summary-box {
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .summary-title {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--color-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.5rem;
-    }
-    
-    .summary-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem;
-        background: var(--color-surface);
-        border-radius: var(--radius-sm);
-        margin-top: 0.5rem;
-    }
-    
-    .summary-item i { color: var(--color-primary); }
-    
-    .summary-text {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--color-text);
-    }
-    
-    .form-group {
-        margin-bottom: 1.5rem;
-        flex: 1;
-    }
-    
-    .form-label {
-        display: block;
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-        margin-bottom: 0.5rem;
-    }
-    
-    .required { color: var(--color-danger); }
-    
-    .form-input, .form-select, .form-textarea {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-size: 1rem;
-        background: var(--color-bg);
-        transition: all 0.2s;
-    }
-    
-    .form-input:focus, .form-select:focus, .form-textarea:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-    }
-    
-    .form-textarea {
-        resize: vertical;
-        min-height: 80px;
-    }
-    
-    .form-hint {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-        margin-top: 0.25rem;
-    }
-    
-    .select-box {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem;
-        border: 2px dashed var(--color-border);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all 0.2s;
-        background: var(--color-bg);
-    }
-    
-    .select-box:hover {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.05);
-    }
-    
-    .select-box.selected {
-        border-style: solid;
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.1);
-    }
-    
-    .select-box i { color: var(--color-text-secondary); }
-    .select-box.selected i { color: var(--color-primary); }
-    
-    .select-box-content {
-        flex: 1;
-    }
-    
-    .select-box-label {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-        margin-bottom: 0.25rem;
-    }
-    
-    .select-box-value {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: var(--color-text);
-    }
-    
-    .quality-badges {
-        display: flex;
-        gap: 0.5rem;
-    }
-    
-    .quality-badge {
-        flex: 1;
-        padding: 0.75rem;
-        border: 2px solid var(--color-border);
-        border-radius: var(--radius-md);
-        background: var(--color-bg);
-        cursor: pointer;
-        transition: all 0.2s;
-        text-align: center;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-    
-    .quality-badge:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .quality-badge.active {
-        border-color: var(--color-primary);
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn {
-        padding: 0.875rem 1.5rem;
-        border: none;
-        border-radius: var(--radius-md);
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        text-decoration: none;
-    }
-    
-    .btn-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn-primary:hover {
-        background: var(--color-primary-dark);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-    
-    .btn-secondary {
-        background: var(--color-bg);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-    }
-    
-    .btn-secondary:hover {
-        background: var(--color-surface);
-        border-color: var(--color-primary);
-    }
-    
-    .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-    
-    .step-actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: auto;
-        padding-top: 1.5rem;
-    }
-    
-    .step-actions .btn {
-        flex: 1;
-    }
-    
-    .modal {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 10000;
-        padding: 1rem;
-        overflow-y: auto;
-    }
-    
-    .modal.active {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .modal-content {
-        width: 100%;
-        max-width: 600px;
-        background: var(--color-surface);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
-        max-height: 90dvh;
-        display: flex;
-        flex-direction: column;
-    }
+/* ─── Reset ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 
-    /* Mobile/Tablet: modal posicionado no topo para facilitar busca */
-    @media (max-width: 768px) {
-        .modal.active {
-            align-items: flex-start;
-            padding-top: 0.375rem;
-            padding-left: 0.375rem;
-            padding-right: 0.375rem;
-        }
-        .modal-content {
-            max-height: calc(100dvh - 0.75rem);
-            /* manter cantos inferiores arredondados em mobile */
-        }
-    }
+/* ─── Page wrapper ──────────────────────────────── */
+.reg-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 0.75rem 1rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
 
-    /* Card selecionado */
-    .item-card.selected {
-        border-color: var(--color-primary) !important;
-        background: rgba(16, 185, 129, 0.08) !important;
-    }
-    .item-card.selected .item-name { color: var(--color-primary); }
-    
-    .modal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .modal-title {
-        font-size: 1.125rem;
-        font-weight: 700;
-        color: var(--color-text);
-    }
-    
-    .modal-close {
-        width: 32px;
-        height: 32px;
-        border: none;
-        background: var(--color-bg);
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--color-text-secondary);
-        transition: all 0.2s;
-    }
-    
-    .modal-close:hover {
-        background: var(--color-danger);
-        color: white;
-    }
-    
-    .modal-body {
-        padding: 1.5rem;
-        overflow-y: auto;
-        flex: 1;
-        
-    }
-    
-    .search-input {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-    
-    .search-input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-    }
-    
-    .item-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-    
-    .item-card {
-        padding: 1rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        cursor: pointer;
-        transition: all 0.2s;
-        background: var(--color-bg);
-    }
-    
-    .item-card:hover {
-        border-color: var(--color-primary);
-        background: rgba(16, 185, 129, 0.05);
-        transform: translateX(4px);
-    }
-    
-    .item-name {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-        margin-bottom: 0.25rem;
-    }
-    
-    .item-meta {
-        font-size: 0.75rem;
-        color: var(--color-text-secondary);
-    }
-    
-    .info-card {
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5rem 0;
-    }
-    
-    .info-row:not(:last-child) {
-        border-bottom: 1px solid var(--color-border);
-    }
-    
-    .info-label {
-        font-size: 0.875rem;
-        color: var(--color-text-secondary);
-    }
-    
-    .info-value {
-        font-weight: 600;
-        font-size: 0.875rem;
-        color: var(--color-text);
-    }
-    
-    .info-value.success { color: var(--color-success); }
-    .info-value.warning { color: var(--color-warning); }
-    
-    .alert {
-        padding: 0.875rem 1rem;
-        border-radius: var(--radius-md);
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .alert-success {
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        color: var(--color-success);
-    }
-    
-    .alert-error {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        color: var(--color-danger);
-    }
-    
-    @media (max-width: 640px) {
-        .container { padding: 0.5rem; }
-        .form-card { padding: 1rem; }
-        .step-actions { flex-direction: column-reverse; }
-        .quality-badges { flex-direction: column; }
-    }
+/* ─── Cards ─────────────────────────────────────── */
+.card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+.card-header {
+    padding: 0.875rem 1rem 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+}
+.card-body {
+    padding: 0.75rem 1rem 1rem;
+}
 
-    /* ===== Entry Card (Step 3) ===== */
-    .entry-card {
-        background: var(--color-bg);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-    }
-    .entry-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.75rem;
-    }
-    .entry-num {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: var(--color-text-secondary);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .entry-remove {
-        width: 28px; height: 28px;
-        border: 1px solid var(--color-border);
-        background: var(--color-surface);
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        color: var(--color-text-secondary);
-        transition: all 0.2s;
-    }
-    .entry-remove:hover { background: var(--color-danger); border-color: var(--color-danger); color: white; }
-    .mode-tabs { display: flex; gap: 0.35rem; }
-    .mode-tab {
-        flex: 1;
-        padding: 0.4rem 0.25rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        font-size: 0.75rem; font-weight: 600;
-        cursor: pointer; transition: all 0.2s;
-        color: var(--color-text-secondary);
-        text-align: center;
-    }
-    .mode-tab:hover { border-color: var(--color-primary); color: var(--color-primary); }
-    .mode-tab.active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
-    .quality-mini { display: flex; gap: 0.35rem; margin-top: 0.25rem; }
-    .qbadge {
-        flex: 1; padding: 0.35rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-sm);
-        background: var(--color-surface);
-        font-size: 0.875rem; font-weight: 700;
-        cursor: pointer; transition: all 0.2s;
-        text-align: center; color: var(--color-text-secondary);
-    }
-    .qbadge.active { border-color: var(--color-primary); background: var(--color-primary); color: white; }
-    .qbadge:hover:not(.active) { border-color: var(--color-primary); color: var(--color-primary); }
-    #entries-list { margin-bottom: 0.5rem; }
-    #add-entry-btn { margin-bottom: 0.75rem; }
-    #batch-summary { margin-bottom: 1rem; }
+/* ─── Project bar ────────────────────────────────── */
+.project-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+}
+.project-bar-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    flex-shrink: 0;
+}
+.project-bar-info {
+    flex: 1;
+    min-width: 0;
+}
+.project-bar-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.project-bar-sub {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-top: 1px;
+}
+.project-bar-btn {
+    flex-shrink: 0;
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    font-size: 0.8rem;
+    color: var(--color-text);
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+.project-bar-btn:hover {
+    background: var(--color-border);
+}
+
+/* ─── Selector rows ──────────────────────────────── */
+.selector-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 50%, #f8f9fa);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+}
+.selector-row:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)); }
+.selector-row.selected { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); }
+.selector-row.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.sel-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s;
+}
+.selector-row.selected .sel-icon { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); }
+.sel-info { flex: 1; min-width: 0; }
+.sel-label { font-size: 0.72rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+.sel-value { font-size: 0.9rem; font-weight: 500; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sel-meta { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 1px; }
+.sel-chevron { color: var(--color-text-muted); flex-shrink: 0; }
+.selector-row.selected .sel-chevron { color: var(--color-primary); }
+
+/* ─── Form fields ────────────────────────────────── */
+.form-divider { height: 1px; background: var(--color-border); margin: 0.5rem 0; }
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+@media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
+
+.field-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    margin-bottom: 0.3rem;
+    display: block;
+}
+.field-input {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    color: var(--color-text);
+    background: var(--color-surface);
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+}
+.field-input:focus { border-color: var(--color-primary); }
+
+/* Quality pills */
+.quality-pills { display: flex; gap: 0.4rem; }
+.q-pill {
+    flex: 1;
+    padding: 0.5rem 0;
+    text-align: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--color-text-muted);
+    background: transparent;
+}
+.q-pill:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.q-pill.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.q-pill[data-q="B"].active { background: #f59e0b; border-color: #f59e0b; }
+.q-pill[data-q="C"].active { background: #ef4444; border-color: #ef4444; }
+
+/* Submit */
+.btn-submit {
+    width: 100%;
+    padding: 0.85rem;
+    margin-top: 0.75rem;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    letter-spacing: 0.02em;
+}
+.btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ─── Session list ───────────────────────────────── */
+.session-empty {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+.session-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.session-item:last-child { border-bottom: none; }
+.si-info { flex: 1; min-width: 0; }
+.si-product { font-size: 0.88rem; font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.si-meta { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 1px; }
+.si-qty { font-size: 0.88rem; font-weight: 600; color: var(--color-text); flex-shrink: 0; }
+.si-status {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+}
+.si-status.pending { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309; }
+.si-status.approved { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); }
+.si-delete {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.si-delete:hover { border-color: var(--color-danger); color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+
+/* Session item action buttons */
+.si-actions { display: flex; gap: 0.25rem; flex-shrink: 0; align-items: center; }
+.si-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    color: var(--color-text-muted);
+}
+.si-btn-approve:hover { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+.si-btn-edit:hover    { border-color: #6366f1; color: #6366f1; background: color-mix(in srgb, #6366f1 8%, transparent); }
+.si-btn-dist          { color: #4f46e5; border-color: #c7d2fe; }
+.si-btn-dist:hover    { background: #eef2ff; border-color: #4f46e5; }
+.si-btn-delete:hover  { border-color: var(--color-danger); color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+.si-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.si-dist-info { font-size: 0.68rem; font-weight: 600; color: #4f46e5; white-space: nowrap; }
+
+/* ─── Modals ─────────────────────────────────────── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 9000;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+}
+.modal-overlay.open { display: flex; }
+@media (min-width: 600px) {
+    .modal-overlay { align-items: center; padding: 1.5rem; }
+}
+.modal-box {
+    background: var(--color-surface);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    width: 100%;
+    max-width: 560px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -4px 32px rgba(0,0,0,0.15);
+    overflow: hidden;
+}
+@media (min-width: 600px) {
+    .modal-box { border-radius: var(--radius-lg); max-height: 75vh; }
+}
+.modal-header {
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.modal-title { font-size: 0.95rem; font-weight: 600; color: var(--color-text); }
+.modal-close {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.modal-close:hover { background: var(--color-border); }
+.modal-search-wrap {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+}
+.modal-search {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.9rem;
+    color: var(--color-text);
+    background: var(--color-surface);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+}
+.modal-search:focus { border-color: var(--color-primary); }
+.modal-list { overflow-y: auto; flex: 1; }
+.modal-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+.modal-item:last-child { border-bottom: none; }
+.modal-item:hover { background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); }
+.modal-item.highlighted { background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); }
+.mi-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.mi-avatar.product { border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-secondary) 12%, transparent); color: var(--color-secondary); }
+.mi-avatar.project { border-radius: var(--radius-md); background: color-mix(in srgb, #f59e0b 12%, transparent); color: #b45309; }
+.mi-info { flex: 1; min-width: 0; }
+.mi-name { font-size: 0.9rem; font-weight: 500; color: var(--color-text); }
+.mi-sub { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px; }
+.mi-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+.mi-badge.green { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); }
+.mi-badge.amber { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #92400e; }
+.mi-badge.red   { background: color-mix(in srgb, #ef4444 15%, transparent); color: #991b1b; }
+.modal-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+}
+
+/* ─── Toast ──────────────────────────────────────── */
+#toast-root {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+}
+.toast {
+    padding: 0.65rem 1.1rem;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: var(--shadow-md);
+    animation: toastIn 0.2s ease;
+    pointer-events: all;
+    max-width: 360px;
+    text-align: center;
+}
+.toast.success { background: var(--color-primary-dark); }
+.toast.error   { background: var(--color-danger); }
+.toast.info    { background: #374151; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
-<div class="container">
-    <div id="alert-container"></div>
-    
-    <div class="form-card">
-        <form id="delivery-form">
-            @csrf
-            
-            <!-- Step 1: Projeto e Produto -->
-            <div class="step active" data-step="1">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="package"></i>
-                        Passo 1 — Projeto e Produto
-                    </h2>
-                    @if($isStandalone)
+<div class="reg-page">
 
-                    <p class="step-subtitle">Registre uma entrega avulsa sem vínculo com projeto</p>
+    {{-- ─── PROJECT BAR ──────────────────────────────── --}}
+    <div class="project-bar" id="project-bar">
+        <div class="project-bar-icon">
+            <i data-lucide="folder-open" style="width:18px;height:18px"></i>
+        </div>
+        <div class="project-bar-info">
+            <div class="project-bar-title" id="pb-title">
+                @if($selectedProject) {{ $selectedProject['title'] }} @else Nenhum projeto selecionado @endif
+            </div>
+            <div class="project-bar-sub" id="pb-sub">
+                @if($selectedProject) {{ $selectedProject['customer_name'] }} @else Selecione um projeto para começar @endif
+            </div>
+        </div>
+        @if(!$selectedProject)
+        <button class="project-bar-btn" onclick="openModal('project')" id="pb-btn">
+            Selecionar
+        </button>
+        @else
+        <span id="pb-badge" style="font-size:0.72rem;font-weight:600;padding:0.2rem 0.55rem;border-radius:999px;background:color-mix(in srgb, var(--color-primary) 15%, transparent);color:var(--color-primary-dark);">
+            ATIVO
+        </span>
+        @endif
+    </div>
 
-                    @else
+    {{-- ─── ENTRY CARD ───────────────────────────────── --}}
+    <div class="card">
+        <div class="card-header">Nova Entrega</div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
 
-                    <p class="step-subtitle">Selecione o projeto e o produto a ser entregue</p>
-
-                    @endif
-
+            {{-- Associate selector --}}
+            <div class="selector-row" id="sel-assoc" onclick="openModal('assoc')">
+                <div class="sel-icon">
+                    <i data-lucide="user" style="width:16px;height:16px"></i>
                 </div>
-
-
-
-                @if($isStandalone)
-
-                    {{-- Modo avulso: sem projeto vinculado --}}
-
-                    <input type="hidden" name="is_standalone" value="1">
-
-                    <input type="hidden" id="project_id" name="sales_project_id" value="">
-
-                    <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.25rem;">
-
-                        <span style="display:inline-flex;align-items:center;gap:0.35rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;padding:0.35rem 0.85rem;border-radius:99px;font-size:0.82rem;font-weight:600;letter-spacing:0.02em;">
-
-                            <i data-lucide="zap" style="width:14px;height:14px;"></i>
-
-                            Entrega Avulsa
-
-                        </span>
-
-                        <span style="color:var(--color-text-muted);font-size:0.88rem;">sem vínculo com projeto</span>
-
-                    </div>
-
-                @elseif($projects->count() === 1)
-
-                    <input type="hidden" id="project_id" name="sales_project_id" value="{{ $projects->first()->id }}">
-
-                    <div class="summary-box">
-
-                        <div class="summary-title">Projeto Selecionado</div>
-
-                        <div class="summary-item">
-
-                            <i data-lucide="folder"></i>
-
-                            <span class="summary-text">{{ $projects->first()->title }}</span>
-
-                        </div>
-
-                    </div>
-
-                @else
-
-                    <div class="form-group">
-
-                        <label class="form-label">Projeto <span class="required">*</span></label>
-
-                        <div class="select-box" id="project-select-box">
-
-                            <i data-lucide="folder" style="width:20px;height:20px;"></i>
-
-                            <div class="select-box-content">
-
-                                <div class="select-box-label">Nenhum projeto selecionado</div>
-
-                                <div class="select-box-value">Clique para escolher</div>
-
-                            </div>
-
-                            <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
-
-                        </div>
-
-                        <input type="hidden" id="project_id" name="sales_project_id">
-
-                    </div>
-
-                @endif
-                
-                <div class="form-group">
-                    <label class="form-label">Produto <span class="required">*</span></label>
-                    <div class="select-box" id="product-select-box">
-                        <i data-lucide="box" style="width:20px;height:20px;"></i>
-                        <div class="select-box-content">
-                            <div class="select-box-label">Nenhum produto selecionado</div>
-                            <div class="select-box-value">{{ $isStandalone ? 'Clique para escolher' : 'Selecione um projeto primeiro' }}</div>
-                        </div>
-                        <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
-                    </div>
-                    <input type="hidden" id="demand_id" name="project_demand_id">
-                    <input type="hidden" id="product_id_free" name="product_id">
+                <div class="sel-info">
+                    <div class="sel-label">Associado</div>
+                    <div class="sel-value" id="assoc-value">Nenhum selecionado</div>
                 </div>
-                
-                <div id="product-info"></div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn btn-primary" id="next-1">
-                        Próximo
-                        <i data-lucide="arrow-right"></i>
-                    </button>
+                <div class="sel-chevron">
+                    <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
                 </div>
             </div>
-            
-            <!-- Step 2: Associado -->
-            <div class="step" data-step="2">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="user"></i>
-                        Passo 2 — Associado
-                    </h2>
-                    <p class="step-subtitle">Selecione quem está entregando o produto</p>
+
+            {{-- Product selector --}}
+            <div class="selector-row disabled" id="sel-product" onclick="openModal('product')">
+                <div class="sel-icon">
+                    <i data-lucide="package" style="width:16px;height:16px"></i>
                 </div>
-                
-                <div class="summary-box">
-                    <div class="summary-title">Seleções Anteriores</div>
-                    <div class="summary-item" id="summary-product">
-                        <i data-lucide="box"></i>
-                        <span class="summary-text">—</span>
-                    </div>
+                <div class="sel-info">
+                    <div class="sel-label">Produto</div>
+                    <div class="sel-value" id="product-value">Nenhum selecionado</div>
+                    <div class="sel-meta" id="product-meta" style="display:none"></div>
                 </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Associado <span class="required">*</span></label>
-                    <div class="select-box" id="associate-select-box">
-                        <i data-lucide="user" style="width:20px;height:20px;"></i>
-                        <div class="select-box-content">
-                            <div class="select-box-label">Nenhum associado selecionado</div>
-                            <div class="select-box-value">Clique para buscar</div>
-                        </div>
-                        <i data-lucide="chevron-right" style="width:16px;height:16px;"></i>
-                    </div>
-                    <input type="hidden" id="associate_id" name="associate_id">
-                </div>
-                
-                <div class="step-actions">
-                    <button type="button" class="btn btn-secondary" id="back-1">
-                        <i data-lucide="arrow-left"></i>
-                        Voltar
-                    </button>
-                    <button type="button" class="btn btn-primary" id="next-2">
-                        Próximo
-                        <i data-lucide="arrow-right"></i>
-                    </button>
+                <div class="sel-chevron">
+                    <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
                 </div>
             </div>
-            
-            <!-- Step 3: Registros de Entrega -->
-            <div class="step" data-step="3">
-                <div class="step-header">
-                    <h2 class="step-title">
-                        <i data-lucide="clipboard-list"></i>
-                        Passo 3 — Registros de Entrega
-                    </h2>
-                    <p class="step-subtitle">Adicione uma ou mais entregas para datas diferentes</p>
+
+            {{-- Entry fields (appear after both are selected) --}}
+            <div id="entry-fields" style="display:none">
+                <div class="form-divider"></div>
+
+                <div class="form-grid">
+                    <div>
+                        <label class="field-label" for="f-qty">Quantidade <span id="f-unit-lbl"></span></label>
+                        <input class="field-input" type="number" id="f-qty" min="0.001" step="0.001" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="field-label">Qualidade</label>
+                        <div class="quality-group quality-pills" id="quality-group">
+                            <button class="q-pill active" data-q="A">A</button>
+                            <button class="q-pill" data-q="B">B</button>
+                            <button class="q-pill" data-q="C">C</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label" for="f-date">Data</label>
+                        <input class="field-input" type="date" id="f-date" value="{{ date('Y-m-d') }}">
+                    </div>
+                    <div>
+                        <label class="field-label" for="f-notes">Observações</label>
+                        <input class="field-input" type="text" id="f-notes" placeholder="Opcional">
+                    </div>
                 </div>
 
-                <div class="summary-box">
-                    <div class="summary-title">Resumo</div>
-                    <div class="summary-item" id="summary-product-2">
-                        <i data-lucide="box"></i>
-                        <span class="summary-text">—</span>
-                    </div>
-                    <div class="summary-item" id="summary-associate">
-                        <i data-lucide="user"></i>
-                        <span class="summary-text">—</span>
-                    </div>
-                </div>
-
-                <div id="entries-list"></div>
-
-                <button type="button" id="add-entry-btn" class="btn btn-secondary">
-                    <i data-lucide="plus"></i>
-                    Adicionar outra data
+                <button class="btn-submit" id="btn-submit" disabled onclick="submitEntry()">
+                    Registrar Entrega
                 </button>
-
-                <div id="batch-summary" class="info-card"></div>
-
-                <div class="step-actions">
-                    <button type="button" class="btn btn-secondary" id="back-2">
-                        <i data-lucide="arrow-left"></i>
-                        Voltar
-                    </button>
-                    <button type="button" class="btn btn-primary" id="submit-batch-btn">
-                        <i data-lucide="check"></i>
-                        <span class="btn-text">Salvar Entrega</span>
-                    </button>
-                </div>
             </div>
-        </form>
+
+        </div>
     </div>
+
+    {{-- ─── SESSION LIST ─────────────────────────────── --}}
+    <div class="card">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:1rem;">
+            <span id="session-list-title">Registros desta sessão</span>
+            <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
+        </div>
+        <div id="session-list" style="min-height:60px">
+            <div class="session-empty" id="session-empty">Selecione um projeto para ver os registros desta sessão</div>
+        </div>
+    </div>
+
 </div>
 
-<!-- Modal de Seleção de Projeto -->
-<div class="modal" id="project-modal">
-    <div class="modal-content">
+{{-- ─────────────────── MODALS ──────────────────── --}}
+
+{{-- Project modal --}}
+<div class="modal-overlay" id="modal-project" onclick="closeModalOnBackdrop(event, 'project')">
+    <div class="modal-box">
         <div class="modal-header">
-            <h3 class="modal-title">Selecionar Projeto</h3>
-            <button type="button" class="modal-close" id="close-project-modal">
-                <i data-lucide="x"></i>
+            <span class="modal-title">Selecionar Projeto</span>
+            <button class="modal-close" onclick="closeModal('project')">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
             </button>
         </div>
-        <div class="modal-body">
-            <input type="text" class="search-input" id="project-search" placeholder="Buscar projeto...">
-            <div class="item-list" id="project-list">
-                @foreach($projects as $project)
-                <div class="item-card" data-id="{{ $project->id }}" data-name="{{ strtolower($project->title) }}">
-                    <div class="item-name">{{ $project->title }}</div>
-                    <div class="item-meta">{{ $project->customer->name ?? '' }}</div>
-                </div>
-                @endforeach
-            </div>
+        <div class="modal-search-wrap">
+            <input class="modal-search" type="search" id="search-project" placeholder="Buscar projeto..." oninput="filterList('project')" autocomplete="off">
         </div>
+        <div class="modal-list" id="list-project"></div>
     </div>
 </div>
 
-<!-- Modal de Seleção de Produto -->
-<div class="modal" id="product-modal">
-    <div class="modal-content">
+{{-- Associate modal --}}
+<div class="modal-overlay" id="modal-assoc" onclick="closeModalOnBackdrop(event, 'assoc')">
+    <div class="modal-box">
         <div class="modal-header">
-            <h3 class="modal-title">Selecionar Produto</h3>
-            <button type="button" class="modal-close" id="close-product-modal">
-                <i data-lucide="x"></i>
+            <span class="modal-title">Selecionar Associado</span>
+            <button class="modal-close" onclick="closeModal('assoc')">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
             </button>
         </div>
-        <div class="modal-body">
-            <input type="text" class="search-input" id="product-search" placeholder="Buscar produto...">
-            <div class="item-list" id="product-list"></div>
+        <div class="modal-search-wrap">
+            <input class="modal-search" type="search" id="search-assoc" placeholder="Buscar por nome ou registro..." oninput="filterList('assoc')" autocomplete="off">
         </div>
+        <div class="modal-list" id="list-assoc"></div>
     </div>
 </div>
 
-<!-- Modal de Seleção de Associado -->
-<div class="modal" id="associate-modal">
-    <div class="modal-content">
+{{-- Product modal --}}
+<div class="modal-overlay" id="modal-product" onclick="closeModalOnBackdrop(event, 'product')">
+    <div class="modal-box">
         <div class="modal-header">
-            <h3 class="modal-title">Selecionar Associado</h3>
-            <button type="button" class="modal-close" id="close-associate-modal">
-                <i data-lucide="x"></i>
+            <span class="modal-title">Selecionar Produto</span>
+            <button class="modal-close" onclick="closeModal('product')">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
             </button>
         </div>
-        <div class="modal-body">
-            <input type="text" class="search-input" id="associate-search" placeholder="Buscar por nome ou documento...">
-            <div class="item-list" id="associate-list">
-                @foreach($associates as $associate)
-                <div class="item-card" data-id="{{ $associate->id }}" data-name="{{ strtolower($associate->user->name ?? '') }}" data-doc="{{ $associate->cpf_cnpj ?? '' }}">
-                    <div class="item-name">{{ $associate->user->name ?? 'Associado #' . $associate->id }}</div>
-                    <div class="item-meta">{{ $associate->cpf_cnpj ?? '—' }}</div>
-                </div>
-                @endforeach
-            </div>
+        <div class="modal-search-wrap">
+            <input class="modal-search" type="search" id="search-product" placeholder="Buscar produto..." oninput="filterList('product')" autocomplete="off">
+        </div>
+        <div class="modal-list" id="list-product">
+            <div class="modal-empty">Selecione um projeto primeiro</div>
         </div>
     </div>
 </div>
 
+{{-- Toast root --}}
+<div id="toast-root"></div>
 
-@push('scripts')
+{{-- ─────────────── MODAL EDITAR ENTREGA (legado — mantido para compatibilidade com salvEdit()) ──────────────── --}}
+<div class="modal-overlay" id="modal-edit" onclick="closeModalOnBackdrop(event, 'edit')">
+    <div class="modal-box" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Editar Entrega</span>
+            <button class="modal-close" onclick="closeModal('edit')" aria-label="Fechar">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
+            </button>
+        </div>
+        <div style="padding:1rem;display:flex;flex-direction:column;gap:.75rem">
+            <div>
+                <label class="field-label">Quantidade <span id="edit-unit-lbl" style="font-weight:400;color:var(--color-text-muted)"></span></label>
+                <input class="field-input" type="number" id="edit-qty" min="0.001" step="0.001" style="margin-top:.35rem">
+            </div>
+            <div>
+                <label class="field-label">Data da entrega</label>
+                <input class="field-input" type="date" id="edit-date" style="margin-top:.35rem">
+            </div>
+            <div>
+                <label class="field-label">Qualidade</label>
+                <div class="quality-group" id="edit-quality-pills" style="margin-top:.35rem">
+                    <button type="button" class="q-pill active" data-q="A">A</button>
+                    <button type="button" class="q-pill" data-q="B">B</button>
+                    <button type="button" class="q-pill" data-q="C">C</button>
+                </div>
+            </div>
+            <button type="button" class="btn-submit" id="edit-save-btn" onclick="saveEdit()" style="margin-top:.25rem">Salvar</button>
+        </div>
+    </div>
+</div>
+
+{{-- ─────────────── MODAL DISTRIBUIR ENTREGA (componente unificado) ──────────── --}}
+<x-delivery.dist-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+/>
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let state = { project: null, product: null, associate: null, products: [], adminFee: 0 };
+(function () {
+'use strict';
 
-    const isStandalone = {{ $isStandalone ? 'true' : 'false' }};
+/* ─── Constants ──────────────────────────────────── */
+const TENANT      = @json($currentTenant->slug);
+const CSRF        = @json(csrf_token());
+const ITEMS_KEY   = 'sgc_items_' + TENANT + '_' + new Date().toISOString().slice(0, 10);
 
-    @if($isStandalone)
-    const standaloneProductsData = {!! json_encode($standaloneProducts->map(function($p) {
-        return [
-            'id' => null,
-            'product_id' => $p->id,
-            'product_name' => $p->name,
-            'product_unit' => $p->unit ?? 'un',
-            'unit_price' => (float) ($p->sale_price ?? $p->cost_price ?? 0),
-            'is_free' => false,
-            'is_standalone' => true,
-            'delivered_quantity' => 0,
-            'remaining_quantity' => null,
-        ];
-    })->values()->all()) !!};
-    @else
-    const standaloneProductsData = [];
-    @endif
-    
-    const form = document.getElementById('delivery-form');
-    const steps = document.querySelectorAll('.step');
-    const projectModal = document.getElementById('project-modal');
-    const productModal = document.getElementById('product-modal');
-    const associateModal = document.getElementById('associate-modal');
+const ROUTES = {
+    demands : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/demands',
+    store   : '/' + TENANT + '/delivery/register',
+    del     : (id) => '/' + TENANT + '/delivery/deliveries/' + id,
+};
 
-    // Teleportar modais para document.body para sair do stacking context do .bento-container
-    [projectModal, productModal, associateModal].forEach(m => { if (m) document.body.appendChild(m); });
-    
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+/* ─── PHP data ───────────────────────────────────── */
+const ALL_PROJECTS   = @json($projects);
+const ALL_ASSOCIATES = @json($associates);
+const ALL_CUSTOMERS  = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
+const INITIAL_PROJECT = @json($selectedProject);  // null or project object
 
-    // ===== Alert helper =====
-    function showAlert(msg, type) {
-        const container = document.getElementById('alert-container');
-        if (!container) return;
-        container.innerHTML = `<div class="alert alert-${type}"><i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i> ${msg}</div>`;
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        setTimeout(() => { container.innerHTML = ''; }, 5000);
+/* ─── State ──────────────────────────────────────── */
+const S = {
+    project   : null,  // {id, title, customerName, allowAny, adminFee}
+    associate : null,  // {id, name, regNum}
+    product   : null,  // demand object from API
+    demands   : [],    // loaded from API for current project
+    quality   : 'A',
+    submitting: false,
+    items     : [],    // session items (localStorage)
+    /* track loading to avoid double fetch */
+    loadingProjectId: null,
+};
+
+/* ─── DOM refs ───────────────────────────────────── */
+const $ = (id) => document.getElementById(id);
+
+/* ─── Init ───────────────────────────────────────── */
+function init() {
+    if (INITIAL_PROJECT) {
+        applyProject(INITIAL_PROJECT);
+        loadDemands(INITIAL_PROJECT.id);
+    }
+    loadSessionItems();
+    renderSessionItems();
+    bindQualityPills();
+    bindQtyInput();
+}
+
+/* ─── Project ────────────────────────────────────── */
+function applyProject(proj) {
+    S.project = {
+        id           : proj.id,
+        title        : proj.title,
+        customerName : proj.customer_name,
+        allowAny     : proj.allow_any_product,
+        adminFee     : proj.admin_fee_percentage,
+    };
+    $('pb-title').textContent = proj.title;
+    $('pb-sub').textContent   = proj.customer_name;
+    // Enable product selector
+    $('sel-product').classList.remove('disabled');
+    // If demands not yet loaded, reset
+    if (S.loadingProjectId !== proj.id) {
+        S.demands = [];
+        S.product = null;
+        resetProductSelector();
+    }
+    renderSessionItems();
+}
+
+async function loadDemands(projectId) {
+    if (S.loadingProjectId === projectId) return; // already loading
+    S.loadingProjectId = projectId;
+    S.demands = [];
+    S.product = null;
+    resetProductSelector();
+
+    try {
+        const res  = await fetch(ROUTES.demands(projectId), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        S.demands = await res.json();
+    } catch (e) {
+        toast('Erro ao carregar produtos: ' + e.message, 'error');
+    } finally {
+        S.loadingProjectId = null;
+    }
+}
+
+/* ─── Associate ──────────────────────────────────── */
+function selectAssociate(assoc) {
+    S.associate = assoc;
+    const el = $('sel-assoc');
+    el.classList.add('selected');
+    $('assoc-value').textContent = assoc.name;
+    closeModal('assoc');
+    checkFormReady();
+    renderSessionItems();
+}
+
+/* ─── Product ────────────────────────────────────── */
+function selectProduct(demand) {
+    S.product = demand;
+    const el = $('sel-product');
+    el.classList.add('selected');
+    $('product-value').textContent = demand.product_name;
+    const meta = $('product-meta');
+    if (demand.target_quantity !== null) {
+        meta.textContent =
+            'Entregue: ' + fmtQty(demand.delivered_quantity, demand.product_unit) +
+            ' | Restante: ' + fmtQty(Math.max(0, demand.remaining_quantity), demand.product_unit);
+        meta.style.display = 'block';
+    } else {
+        meta.textContent = 'Entregue: ' + fmtQty(demand.delivered_quantity, demand.product_unit);
+        meta.style.display = 'block';
+    }
+    $('f-unit-lbl').textContent = '(' + (demand.product_unit || 'un') + ')';
+    closeModal('product');
+    checkFormReady();
+}
+
+function resetProductSelector() {
+    S.product = null;
+    const el = $('sel-product');
+    el.classList.remove('selected');
+    $('product-value').textContent = 'Nenhum selecionado';
+    $('product-meta').style.display = 'none';
+    checkFormReady();
+}
+
+/* ─── Form logic ─────────────────────────────────── */
+function bindQualityPills() {
+    document.querySelectorAll('.quality-group .q-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const group = btn.closest('.quality-group');
+            group.querySelectorAll('.q-pill').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Only update state for the main entry form
+            if (group.id !== 'edit-quality-pills') S.quality = btn.dataset.q;
+        });
+    });
+}
+
+function bindQtyInput() {
+    $('f-qty').addEventListener('input', checkFormReady);
+}
+
+function checkFormReady() {
+    const hasProject = !!S.project;
+    const hasAssoc   = !!S.associate;
+    const hasProd    = !!S.product;
+    const hasQty     = parseFloat($('f-qty')?.value || 0) > 0;
+
+    const showForm = hasAssoc && hasProd;
+    $('entry-fields').style.display = showForm ? '' : 'none';
+
+    if ($('btn-submit')) {
+        $('btn-submit').disabled = !(hasProject && hasAssoc && hasProd && hasQty) || S.submitting;
     }
 
-    // ===== Step navigation =====
-    function showStep(n) {
-        steps.forEach((step, idx) => step.classList.toggle('active', idx === n - 1));
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    // enable/disable product selector based on project
+    const selProd = $('sel-product');
+    if (hasProject) {
+        selProd.classList.remove('disabled');
+    } else {
+        selProd.classList.add('disabled');
     }
+}
 
-    document.getElementById('next-1')?.addEventListener('click', () => {
-        if (!state.product || (!isStandalone && !state.project)) { showAlert('Selecione o projeto e o produto', 'error'); return; }
-        updateSummary(); showStep(2);
-    });
-    document.getElementById('next-2')?.addEventListener('click', () => {
-        if (!state.associate) { showAlert('Selecione um associado', 'error'); return; }
-        updateSummary(); initEntries(); showStep(3);
-    });
-    document.getElementById('back-1')?.addEventListener('click', () => showStep(1));
-    document.getElementById('back-2')?.addEventListener('click', () => showStep(2));
+/* ─── Submit ─────────────────────────────────────── */
+async function submitEntry() {
+    if (S.submitting) return;
 
-    // ===== Project Selection =====
+    const qty  = parseFloat($('f-qty').value || 0);
+    const date = $('f-date').value;
 
-    @if($isStandalone)
+    if (!S.project)   return toast('Selecione um projeto.', 'error');
+    if (!S.associate) return toast('Selecione um associado.', 'error');
+    if (!S.product)   return toast('Selecione um produto.', 'error');
+    if (qty <= 0)     return toast('Informe a quantidade.', 'error');
+    if (!date)        return toast('Informe a data.', 'error');
 
-        // Modo avulso: pré-carregar produtos avulsos
+    S.submitting = true;
+    checkFormReady();
 
-        loadStandaloneProductList();
+    const payload = {
+        sales_project_id  : S.project.id,
+        project_demand_id : S.product.id ?? null,
+        product_id        : S.product.product_id ?? null,
+        associate_id      : S.associate.id,
+        delivery_date     : date,
+        quantity          : qty,
+        quality_grade     : S.quality,
+        notes             : $('f-notes').value.trim() || null,
+        is_standalone     : false,
+    };
 
-    @elseif($projects->count() === 1)
-
-        state.project = { id: '{{ $projects->first()->id }}', name: '{{ addslashes($projects->first()->title) }}' };
-
-        document.getElementById('project_id').value = state.project.id;
-
-        loadProducts(state.project.id);
-
-    @else
-
-        document.getElementById('project-select-box')?.addEventListener('click', () => projectModal.classList.add('active'));
-
-    @endif
-
-    document.getElementById('close-project-modal')?.addEventListener('click', () => projectModal.classList.remove('active'));
-
-    document.getElementById('project-search')?.addEventListener('input', function() {
-        const q = this.value.toLowerCase();
-        document.querySelectorAll('#project-list .item-card').forEach(card => {
-            card.style.display = card.dataset.name.includes(q) ? '' : 'none';
+    try {
+        const res  = await fetch(ROUTES.store, {
+            method : 'POST',
+            headers: {
+                'Content-Type'     : 'application/json',
+                'X-CSRF-TOKEN'     : CSRF,
+                'X-Requested-With' : 'XMLHttpRequest',
+            },
+            body: JSON.stringify(payload),
         });
-    });
+        const data = await res.json();
 
-    document.querySelectorAll('#project-list .item-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const name = this.querySelector('.item-name').textContent;
-            state.project = { id, name };
-            document.getElementById('project_id').value = id;
-
-            const box = document.getElementById('project-select-box');
-            box.classList.add('selected');
-            box.querySelector('.select-box-label').textContent = 'Projeto selecionado';
-            box.querySelector('.select-box-value').textContent = name;
-
-            // Reset produto ao trocar projeto
-            state.product = null;
-            document.getElementById('demand_id').value = '';
-            document.getElementById('product_id_free').value = '';
-            const pBox = document.getElementById('product-select-box');
-            pBox.classList.remove('selected');
-            pBox.querySelector('.select-box-label').textContent = 'Nenhum produto selecionado';
-            pBox.querySelector('.select-box-value').textContent = 'Clique para escolher';
-            document.getElementById('product-info').innerHTML = '';
-
-            projectModal.classList.remove('active');
-            loadProducts(id);
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
-
-    // ===== Product Selection =====
-    document.getElementById('product-select-box')?.addEventListener('click', () => {
-        if (!isStandalone && !state.project) { showAlert('Selecione um projeto primeiro', 'error'); return; }
-        productModal.classList.add('active');
-    });
-    document.getElementById('close-product-modal')?.addEventListener('click', () => productModal.classList.remove('active'));
-
-    document.getElementById('product-search')?.addEventListener('input', function() {
-        const q = this.value.toLowerCase();
-        document.querySelectorAll('#product-list .item-card').forEach(card => {
-            card.style.display = card.dataset.name.includes(q) ? '' : 'none';
-        });
-    });
-
-    async function loadProducts(projectId) {
-        const productBox = document.getElementById('product-select-box');
-        productBox.querySelector('.select-box-value').textContent = 'Carregando...';
-        try {
-            const segments = window.location.pathname.split('/');
-            const tenantIdx = segments.indexOf('delivery') - 1;
-            const tenantSlug = segments[tenantIdx];
-            const res = await fetch('/' + tenantSlug + '/delivery/projects/' + projectId + '/demands');
-            const products = await res.json();
-            state.products = products;
-
-            const list = document.getElementById('product-list');
-            if (!products.length) {
-                list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-text-muted)">Nenhum produto disponível para este projeto.</div>';
-            } else {
-                list.innerHTML = products.map(p => {
-                    const safeProduct = JSON.stringify(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    const meta = p.is_free
-                        ? '<span style="color:var(--color-primary)">Projeto livre · Qualquer quantidade</span>'
-                        : 'Restante: <strong>' + formatNum(p.remaining_quantity) + ' ' + p.product_unit + '</strong>';
-                    return '<div class="item-card" data-id="' + (p.id || '') + '" data-name="' + p.product_name.toLowerCase() + '" data-product=\'' + safeProduct + '\'>'
-                        + '<div class="item-name">' + p.product_name + '</div>'
-                        + '<div class="item-meta">' + meta + '</div>'
-                        + '</div>';
-                }).join('');
-            }
-
-            list.querySelectorAll('.item-card').forEach(card => {
-                card.addEventListener('click', function() {
-                    const product = JSON.parse(this.dataset.product);
-                    state.product = product;
-                    state.adminFee = product.admin_fee_percentage ?? 0;
-
-                    // Highlight do card selecionado
-                    list.querySelectorAll('.item-card').forEach(c => c.classList.remove('selected'));
-                    this.classList.add('selected');
-
-                    if (product.is_free) {
-                        document.getElementById('demand_id').value = '';
-                        document.getElementById('product_id_free').value = product.product_id;
-                    } else {
-                        document.getElementById('demand_id').value = product.id;
-                        document.getElementById('product_id_free').value = '';
-                    }
-
-                    const box = document.getElementById('product-select-box');
-                    box.classList.add('selected');
-                    box.querySelector('.select-box-label').textContent = 'Produto selecionado';
-                    box.querySelector('.select-box-value').textContent = product.product_name;
-
-                    showProductInfo(product);
-                    // Pequeno delay para o utilizador ver o highlight antes de fechar
-                    setTimeout(() => productModal.classList.remove('active'), 150);
-                    if (typeof lucide !== 'undefined') lucide.createIcons();
-                });
+        if (data.success) {
+            toast('Entrega registrada!', 'success');
+            addSessionItem({
+                id           : data.delivery.id,
+                projectId    : S.project.id,
+                associateId  : S.associate.id,
+                productName  : S.product.product_name,
+                productUnit  : S.product.product_unit || 'un',
+                associateName: S.associate.name,
+                qty          : qty,
+                date         : date,
+                quality      : S.quality,
+                status       : 'pending',
             });
-
-            productBox.querySelector('.select-box-value').textContent = 'Clique para escolher';
-        } catch (e) {
-            showAlert('Erro ao carregar produtos', 'error');
-            productBox.querySelector('.select-box-value').textContent = 'Erro – tente novamente';
-        }
-    }
-
-
-
-    @if($isStandalone)
-
-    function loadStandaloneProductList() {
-
-        const list = document.getElementById('product-list');
-
-        if (!standaloneProductsData || !standaloneProductsData.length) {
-
-            list.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--color-text-muted)">Nenhum produto disponível.</div>';
-
-            return;
-
-        }
-
-        list.innerHTML = standaloneProductsData.map((p, i) => {
-
-            return '<div class="item-card" data-idx="' + i + '" data-name="' + p.product_name.toLowerCase() + '">' +
-
-                '<div class="item-name">' + p.product_name + '</div>' +
-
-                '<div class="item-meta" style="color:var(--color-text-muted)">Unidade: <strong>' + p.product_unit + '</strong></div>' +
-
-                '</div>';
-
-        }).join('');
-
-        list.querySelectorAll('.item-card').forEach(card => {
-
-            card.addEventListener('click', function() {
-
-                const product = standaloneProductsData[parseInt(this.dataset.idx)];
-
-                state.product = product;
-                state.adminFee = product.admin_fee_percentage ?? 0;
-
-                // Highlight do card selecionado
-                list.querySelectorAll('.item-card').forEach(c => c.classList.remove('selected'));
-                this.classList.add('selected');
-
-                document.getElementById('demand_id').value = '';
-
-                document.getElementById('product_id_free').value = product.product_id;
-
-                const box = document.getElementById('product-select-box');
-
-                box.classList.add('selected');
-
-                box.querySelector('.select-box-label').textContent = 'Produto selecionado';
-
-                box.querySelector('.select-box-value').textContent = product.product_name;
-
-                showProductInfo(product);
-
-                setTimeout(() => productModal.classList.remove('active'), 150);
-
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-
-            });
-
-        });
-
-    }
-
-    @endif
-
-    function showProductInfo(product) {
-        const el = document.getElementById('product-info');
-        if (!el) return; // proteção caso o elemento não esteja presente no DOM
-
-        if (product.is_standalone) {
-            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Unidade</span><span class="info-value">' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Modo</span><span class="info-value success">Entrega Avulsa</span></div></div>';
-        } else if (product.is_free) {
-            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Já Entregue (este projeto)</span><span class="info-value success">' + formatNum(product.delivered_quantity) + ' ' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Sem limite de quantidade</span><span class="info-value" style="color:var(--color-primary)">∞</span></div></div>';
+            // Reset product + form, keep associate + project
+            S.product = null;
+            resetProductSelector();
+            $('f-qty').value  = '';
+            $('f-notes').value = '';
+            // Reset quality to A
+            document.querySelectorAll('#quality-group .q-pill').forEach(b => b.classList.remove('active'));
+            document.querySelector('#quality-group .q-pill[data-q="A"]').classList.add('active');
+            S.quality = 'A';
+            checkFormReady();
+            // Reload demands to reflect new delivered_quantity
+            if (S.project) loadDemands(S.project.id);
         } else {
-            el.innerHTML = '<div class="info-card"><div class="info-row"><span class="info-label">Já Entregue</span><span class="info-value success">' + formatNum(product.delivered_quantity) + ' ' + product.product_unit + '</span></div><div class="info-row"><span class="info-label">Ainda Falta</span><span class="info-value warning">' + formatNum(product.remaining_quantity) + ' ' + product.product_unit + '</span></div></div>';
+            toast(data.message || 'Erro ao registrar.', 'error');
         }
+    } catch (e) {
+        toast('Erro de comunicação: ' + e.message, 'error');
+    } finally {
+        S.submitting = false;
+        checkFormReady();
+    }
+}
 
-        const qEl = document.getElementById('quantity-hint');
-        if (qEl) qEl.textContent = 'Unidade: ' + product.product_unit;
+/* ─── Session list ───────────────────────────────── */
+function loadSessionItems() {
+    try {
+        S.items = JSON.parse(localStorage.getItem(ITEMS_KEY) || '[]');
+    } catch {
+        S.items = [];
+    }
+}
+
+function saveSessionItems() {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(S.items));
+}
+
+function addSessionItem(item) {
+    if (item.distributedQty  === undefined) item.distributedQty  = 0;
+    if (item.distributions   === undefined) item.distributions   = [];
+    S.items.unshift(item);
+    saveSessionItems();
+    renderSessionItems();
+}
+
+function renderSessionItems() {
+    const list  = $('session-list');
+    const count = $('session-count');
+    const empty = $('session-empty');
+
+    const projectId = S.project?.id ?? null;
+
+    // Atualizar título do card com o projeto selecionado
+    const titleEl = $('session-list-title');
+    if (titleEl) {
+        titleEl.textContent = S.project
+            ? 'Registros — ' + S.project.title
+            : 'Registros desta sessão';
     }
 
-    // ===== Associate Selection =====
-    document.getElementById('associate-select-box')?.addEventListener('click', () => associateModal.classList.add('active'));
-    document.getElementById('close-associate-modal')?.addEventListener('click', () => associateModal.classList.remove('active'));
+    // Sem projeto: mostrar apenas entregas avulsas (sem projectId), ou mensagem orientando
+    // Com projeto: mostrar SOMENTE entregas deste projeto (filtro estrito)
+    const filtered = projectId
+        ? S.items.filter(i => i.projectId === projectId)
+        : S.items.filter(i => !i.projectId);
 
-    document.getElementById('associate-search')?.addEventListener('input', function() {
-        const q = this.value.toLowerCase();
-        document.querySelectorAll('#associate-list .item-card').forEach(card => {
-            card.style.display = (card.dataset.name.includes(q) || (card.dataset.doc || '').includes(q)) ? '' : 'none';
-        });
-    });
-
-    document.querySelectorAll('#associate-list .item-card').forEach(card => {
-        card.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const name = this.querySelector('.item-name').textContent;
-            state.associate = { id, name };
-            document.getElementById('associate_id').value = id;
-            const box = document.getElementById('associate-select-box');
-            box.classList.add('selected');
-            box.querySelector('.select-box-label').textContent = 'Associado selecionado';
-            box.querySelector('.select-box-value').textContent = name;
-            // Highlight do card selecionado
-            document.querySelectorAll('#associate-list .item-card').forEach(c => c.classList.remove('selected'));
-            this.classList.add('selected');
-            setTimeout(() => associateModal.classList.remove('active'), 150);
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        });
-    });
-
-    // ===== STEP 3: ENTRIES MANAGEMENT =====
-
-    function initEntries() {
-        const list = document.getElementById('entries-list');
-        list.innerHTML = '';
-        addEntry();
+    // Mensagem de estado vazio adequada ao contexto
+    if (empty) {
+        empty.textContent = projectId
+            ? 'Nenhum registro nesta sessão para este projeto'
+            : 'Selecione um projeto para ver os registros desta sessão';
     }
 
-    function addEntry() {
-        const list = document.getElementById('entries-list');
-        const card = createEntryCard(list.children.length);
-        list.appendChild(card);
-        updateEntryNumbers();
-        updateBatchSummary();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    // Clear current content (except the empty placeholder element)
+    Array.from(list.children).forEach(c => { if (c !== empty) c.remove(); });
+
+    if (filtered.length === 0) {
+        if (empty) empty.style.display = 'block';
+        count.textContent = '';
+        return;
     }
+    if (empty) empty.style.display = 'none';
+    count.textContent = filtered.length + ' registro' + (filtered.length !== 1 ? 's' : '');
 
-    function createEntryCard(idx) {
-        const today = new Date().toISOString().slice(0, 10);
-        const unit  = state.product ? state.product.product_unit : 'un';
-        const el    = document.createElement('div');
-        el.className    = 'entry-card';
-        el.dataset.mode = 'qty';
-        el.innerHTML = [
-            '<div class="entry-header">',
-            '  <span class="entry-num">Entrega #' + (idx + 1) + '</span>',
-            '  <button type="button" class="entry-remove"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>',
-            '</div>',
-            '<div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;">',
-            '  <div style="flex:1.4;">',
-            '    <label class="form-label" style="font-size:0.75rem;">Data <span style="color:var(--color-danger)">*</span></label>',
-            '    <input type="date" class="form-input entry-date" value="' + today + '" style="padding:0.5rem 0.75rem;font-size:0.875rem;">',
-            '  </div>',
-            '  <div style="flex:1;">',
-            '    <label class="form-label" style="font-size:0.75rem;">Qualidade</label>',
-            '    <div class="quality-mini">',
-            '      <button type="button" class="qbadge active" data-grade="A">A</button>',
-            '      <button type="button" class="qbadge" data-grade="B">B</button>',
-            '      <button type="button" class="qbadge" data-grade="C">C</button>',
-            '    </div>',
-            '  </div>',
-            '</div>',
-            '<div style="margin-bottom:0.625rem;">',
-            '  <label class="form-label" style="font-size:0.75rem;">Inserir por</label>',
-            '  <div class="mode-tabs">',
-            '    <button type="button" class="mode-tab active" data-mode="qty">Qtd (' + unit + ')</button>',
-            '    <button type="button" class="mode-tab" data-mode="bruto">R$ Bruto</button>',
-            '    <button type="button" class="mode-tab" data-mode="liquido">R$ L&iacute;quido</button>',
-            '  </div>',
-            '</div>',
-            '<div>',
-            '  <label class="form-label entry-amount-label" style="font-size:0.75rem;">Quantidade (' + unit + ') <span style="color:var(--color-danger)">*</span></label>',
-            '  <input type="number" class="form-input entry-amount" step="0.001" min="0.001" placeholder="0.000" style="font-size:1.05rem;padding:0.625rem 0.75rem;">',
-            '  <div class="form-hint entry-calc-hint" style="min-height:1.2em;margin-top:0.3rem;"></div>',
-            '</div>',
-        ].join('\n');
+    // Helper: build a session item element
+    function buildItemEl(item) {
+        const el = document.createElement('div');
+        el.className = 'session-item';
+        el.dataset.id = item.id;
 
-        el.querySelectorAll('.mode-tab').forEach(btn => {
-            btn.addEventListener('click', function () {
-                el.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                el.dataset.mode = this.dataset.mode;
-                updateAmountLabel(el);
-                recalcEntry(el);
-            });
-        });
+        const isPending = item.status !== 'approved';
+        const distQty   = item.distributedQty || 0;
+        const distInfo  = !isPending && distQty > 0
+            ? '<span class="si-dist-info">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
+            : '';
 
-        el.querySelectorAll('.qbadge').forEach(btn => {
-            btn.addEventListener('click', function () {
-                el.querySelectorAll('.qbadge').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
+        const btnApprove = isPending
+            ? '<button class="si-btn si-btn-approve" data-action="approve" data-id="' + item.id + '" title="Aprovar"><i data-lucide="check" style="width:13px;height:13px"></i></button>'
+            : '';
+        const btnEdit = isPending
+            ? '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar quantidade"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>'
+            : '';
+        const btnDist = !isPending
+            ? '<button class="si-btn si-btn-dist" data-action="distribute" data-id="' + item.id + '" title="Distribuir para clientes"><i data-lucide="git-branch" style="width:13px;height:13px"></i></button>'
+            : '';
+        const btnDelete = isPending
+            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
+            : '';
 
-        el.querySelector('.entry-amount').addEventListener('input', () => recalcEntry(el));
-        el.querySelector('.entry-date').addEventListener('change', () => updateBatchSummary());
-
-        el.querySelector('.entry-remove').addEventListener('click', () => {
-            if (document.querySelectorAll('#entries-list .entry-card').length <= 1) {
-                showAlert('Precisa ter ao menos um registro.', 'error'); return;
-            }
-            el.remove();
-            updateEntryNumbers();
-            updateBatchSummary();
-        });
+        el.innerHTML =
+            '<div class="si-info">' +
+                '<div class="si-product">' + esc(item.productName) + '</div>' +
+                '<div class="si-meta">' + esc(item.associateName) + ' &middot; ' + fmtDate(item.date) + (item.quality ? ' &middot; ' + item.quality : '') + '</div>' +
+            '</div>' +
+            '<div class="si-qty">' + fmtQty(item.qty, item.productUnit) + '</div>' +
+            distInfo +
+            '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' + (isPending ? 'Pendente' : 'Aprovada') + '</span>' +
+            '<div class="si-actions">' + btnApprove + btnEdit + btnDist + btnDelete + '</div>';
 
         return el;
     }
 
-    function updateAmountLabel(card) {
-        const mode  = card.dataset.mode;
-        const unit  = state.product ? state.product.product_unit : 'un';
-        const label = card.querySelector('.entry-amount-label');
-        if (!label) return;
-        const req = ' <span style="color:var(--color-danger)">*</span>';
-        if (mode === 'qty')    label.innerHTML = 'Quantidade (' + unit + ')' + req;
-        else if (mode === 'bruto')   label.innerHTML = 'Valor Bruto (R$)' + req;
-        else                         label.innerHTML = 'Valor L&iacute;quido (R$)' + req;
+    // Helper: build a section header element
+    function buildSectionHeader(label) {
+        const h = document.createElement('div');
+        h.style.cssText = 'font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);padding:.55rem .85rem .25rem;border-top:1px solid var(--color-border);margin-top:.25rem';
+        h.textContent = label;
+        return h;
     }
 
-    function getEntryQty(card) {
-        const mode      = card.dataset.mode;
-        const amount    = parseFloat(card.querySelector('.entry-amount').value) || 0;
-        const unitPrice = state.product ? (parseFloat(state.product.unit_price) || 0) : 0;
-        const feeRate   = (state.adminFee || 0) / 100;
-        if (amount <= 0) return 0;
-        if (mode === 'qty')   return amount;
-        if (mode === 'bruto') return unitPrice > 0 ? amount / unitPrice : 0;
-        const gross = feeRate < 1 ? amount / (1 - feeRate) : 0;
-        return unitPrice > 0 ? gross / unitPrice : 0;
+    // If an associate is selected, split into two groups
+    if (S.associate) {
+        const assocItems  = filtered.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
+        const othersItems = filtered.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
+
+        if (assocItems.length > 0) {
+            list.appendChild(buildSectionHeader(S.associate.name));
+            assocItems.forEach(item => list.appendChild(buildItemEl(item)));
+        }
+        if (othersItems.length > 0) {
+            list.appendChild(buildSectionHeader('Outros produtores'));
+            othersItems.forEach(item => list.appendChild(buildItemEl(item)));
+        }
+        if (assocItems.length === 0 && othersItems.length === 0) {
+            if (empty) empty.style.display = 'block';
+            count.textContent = '';
+        }
+    } else {
+        filtered.forEach(item => list.appendChild(buildItemEl(item)));
     }
 
-    function recalcEntry(card) {
-        const mode      = card.dataset.mode;
-        const amount    = parseFloat(card.querySelector('.entry-amount').value) || 0;
-        const unitPrice = state.product ? (parseFloat(state.product.unit_price) || 0) : 0;
-        const feeRate   = (state.adminFee || 0) / 100;
-        const unit      = state.product ? state.product.product_unit : 'un';
-        const hint      = card.querySelector('.entry-calc-hint');
-        if (!hint) return;
-        if (amount <= 0) { hint.textContent = ''; updateBatchSummary(); return; }
-        let qty, gross, net;
-        if (mode === 'qty') {
-            qty = amount; gross = qty * unitPrice; net = gross * (1 - feeRate);
-            hint.textContent = unitPrice > 0
-                ? '= R\u0024 ' + formatMoney(gross) + ' bruto / R\u0024 ' + formatMoney(net) + ' l\u00edquido'
-                : '';
-        } else if (mode === 'bruto') {
-            gross = amount; qty = unitPrice > 0 ? gross / unitPrice : 0; net = gross * (1 - feeRate);
-            hint.innerHTML = formatNum(qty) + '\u00a0' + unit + ' \u00b7 R\u0024\u00a0' + formatMoney(net) + ' l\u00edquido';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function deleteItem(id, btn) {
+    if (!confirm('Excluir este registro?')) return;
+    btn.disabled = true;
+
+    try {
+        const res  = await fetch(ROUTES.del(id), {
+            method : 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await res.json();
+        if (data.success || res.status === 200) {
+            S.items = S.items.filter(i => i.id !== id);
+            saveSessionItems();
+            renderSessionItems();
+            toast('Registro excluído.', 'info');
         } else {
-            net = amount; gross = feeRate < 1 ? net / (1 - feeRate) : 0; qty = unitPrice > 0 ? gross / unitPrice : 0;
-            hint.innerHTML = formatNum(qty) + '\u00a0' + unit + ' \u00b7 R\u0024\u00a0' + formatMoney(gross) + ' bruto';
+            toast(data.message || 'Não foi possível excluir.', 'error');
+            btn.disabled = false;
         }
-        updateBatchSummary();
+    } catch (e) {
+        toast('Erro: ' + e.message, 'error');
+        btn.disabled = false;
     }
+}
 
-    function updateEntryNumbers() {
-        document.querySelectorAll('#entries-list .entry-card').forEach((card, i) => {
-            const el = card.querySelector('.entry-num');
-            if (el) el.textContent = 'Entrega #' + (i + 1);
-        });
-    }
-
-    function updateBatchSummary() {
-        const cards     = document.querySelectorAll('#entries-list .entry-card');
-        let totalQty = 0, totalGross = 0, totalNet = 0;
-        const unitPrice = state.product ? (parseFloat(state.product.unit_price) || 0) : 0;
-        const feeRate   = (state.adminFee || 0) / 100;
-        const unit      = state.product ? state.product.product_unit : 'un';
-        cards.forEach(card => {
-            const qty = getEntryQty(card);
-            totalQty   += qty;
-            const g     = qty * unitPrice;
-            totalGross += g;
-            totalNet   += g * (1 - feeRate);
-        });
-        const el = document.getElementById('batch-summary');
-        if (!el) return;
-        const feeLabel = state.adminFee > 0 ? ' (taxa ' + state.adminFee + '%)' : '';
-        el.innerHTML = [
-            '<div class="info-row"><span class="info-label">' + cards.length + ' registro(s)</span><span class="info-value">' + formatNum(totalQty) + ' ' + unit + '</span></div>',
-            unitPrice > 0 ? '<div class="info-row"><span class="info-label">Valor Bruto</span><span class="info-value">R$ ' + formatMoney(totalGross) + '</span></div>' : '',
-            unitPrice > 0 ? '<div class="info-row"><span class="info-label">Valor L&iacute;quido' + feeLabel + '</span><span class="info-value success">R$ ' + formatMoney(totalNet) + '</span></div>' : '',
-        ].join('');
-        const btn = document.getElementById('submit-batch-btn');
-        if (btn) {
-            const span = btn.querySelector('.btn-text');
-            if (span) span.textContent = cards.length > 1 ? 'Salvar ' + cards.length + ' Entregas' : 'Salvar Entrega';
-        }
-    }
-
-    document.getElementById('add-entry-btn')?.addEventListener('click', addEntry);
-
-    // ===== Batch Submit =====
-    document.getElementById('submit-batch-btn')?.addEventListener('click', async function () {
-        const cards = Array.from(document.querySelectorAll('#entries-list .entry-card'));
-        if (!state.product)   { showAlert('Selecione o produto', 'error');   return; }
-        if (!state.associate) { showAlert('Selecione o associado', 'error'); return; }
-        const entries = [];
-        let valid = true;
-        for (const card of cards) {
-            const date    = card.querySelector('.entry-date')?.value;
-            const qty     = getEntryQty(card);
-            const quality = card.querySelector('.qbadge.active')?.dataset.grade || 'A';
-            if (!date || qty <= 0) {
-                showAlert('Preencha a data e o valor de todas as entregas.', 'error');
-                card.querySelector('.entry-amount')?.focus();
-                valid = false; break;
-            }
-            entries.push({ delivery_date: date, quantity: parseFloat(qty.toFixed(6)), quality_grade: quality });
-        }
-        if (!valid) return;
-        this.disabled = true;
-        const btnText = this.querySelector('.btn-text');
-        if (btnText) btnText.textContent = 'Salvando...';
-        const segs = window.location.pathname.split('/');
-        const slug = segs[segs.indexOf('delivery') - 1];
-        const data = {
-            is_standalone:     isStandalone,
-            sales_project_id:  document.getElementById('project_id')?.value || null,
-            project_demand_id: document.getElementById('demand_id')?.value   || null,
-            product_id:        document.getElementById('product_id_free')?.value || null,
-            associate_id:      document.getElementById('associate_id')?.value,
-            entries,
-        };
-        try {
-            const res = await fetch('/' + slug + '/delivery/register-batch', {
-                method:  'POST',
-                headers: {
-                    'X-CSRF-TOKEN':  document.querySelector('[name="_token"]').value,
-                    'Content-Type':  'application/json',
-                    'Accept':        'application/json',
-                },
-                body: JSON.stringify(data),
-            });
-            const result = await res.json();
-            if (result.success) {
-                showAlert(result.message, 'success');
-                setTimeout(() => {
-                    const pid = state.project ? state.project.id : null;
-                    if (pid) window.location.href = '/' + slug + '/delivery/register/' + pid;
-                    else     window.location.reload();
-                }, 1500);
-            } else {
-                showAlert(result.message, 'error');
-                this.disabled = false;
-                if (btnText) btnText.textContent = entries.length > 1 ? 'Salvar ' + entries.length + ' Entregas' : 'Salvar Entrega';
-            }
-        } catch (err) {
-            showAlert('Erro ao conectar. Verifique a conexão.', 'error');
-            this.disabled = false;
-            if (btnText) btnText.textContent = 'Salvar Entrega';
-        }
-    });
-
-    // ===== Update Summary =====
-    function updateSummary() {
-        if (state.product) {
-            document.querySelectorAll('[id^="summary-product"]').forEach(el => {
-                const span = el.querySelector('.summary-text');
-                if (span) span.textContent = state.product.product_name;
-            });
-        }
-        if (state.associate) {
-            const el = document.getElementById('summary-associate');
-            if (el) { const span = el.querySelector('.summary-text'); if (span) span.textContent = state.associate.name; }
-        }
-    }
-
-    function formatNum(n) {
-        if (n === null || n === undefined) return '∞';
-        return parseFloat(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
-    }
-    function formatMoney(n) {
-        return parseFloat(n).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-
-    // Fechar modais ao clicar fora
-    [projectModal, productModal, associateModal].forEach(modal => {
-        if (modal) {
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) modal.classList.remove('active');
-            });
-        }
-    });
+/* ─── Session list action delegation ────────────── */
+document.addEventListener('click', function (e) {
+    const btn = e.target.closest('[data-action]');
+    if (!btn || !btn.closest('#session-list')) return;
+    const id     = parseInt(btn.dataset.id);
+    const action = btn.dataset.action;
+    if (action === 'approve')         approveItem(id, btn);
+    else if (action === 'edit')       openEditModal(id);
+    else if (action === 'distribute') openDistributeModal(id);
+    else if (action === 'delete')     deleteItem(id, btn);
 });
+
+/* ─── Approve ────────────────────────────────────── */
+async function approveItem(id, btn) {
+    if (!confirm('Aprovar esta entrega?')) return;
+    btn.disabled = true;
+    try {
+        const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + id + '/approve', {
+            method : 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await res.json();
+        if (data.success) {
+            const item = S.items.find(i => i.id === id);
+            if (item) { item.status = 'approved'; saveSessionItems(); }
+            renderSessionItems();
+            toast('Entrega aprovada!', 'success');
+        } else {
+            toast(data.message || 'Erro ao aprovar.', 'error');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        toast('Erro: ' + e.message, 'error');
+        btn.disabled = false;
+    }
+}
+
+/* ─── Edit modal ─────────────────────────────────── */
+let editingId = null;
+
+function openEditModal(id) {
+    const item = S.items.find(i => i.id === id);
+    if (!item) return;
+    editingId = id;
+    $('edit-qty').value  = item.qty;
+    $('edit-date').value = item.date;
+    $('edit-unit-lbl').textContent = '(' + (item.productUnit || 'un') + ')';
+    document.querySelectorAll('#edit-quality-pills .q-pill').forEach(b => {
+        b.classList.toggle('active', b.dataset.q === (item.quality || 'A'));
+    });
+    openModal('edit');
+}
+
+async function saveEdit() {
+    const item = S.items.find(i => i.id === editingId);
+    if (!editingId || !item) return;
+    const qty  = parseFloat($('edit-qty').value || 0);
+    const date = $('edit-date').value;
+    const qual = document.querySelector('#edit-quality-pills .q-pill.active')?.dataset.q || 'A';
+    if (qty <= 0) { toast('Quantidade inválida.', 'error'); return; }
+    const saveBtn = $('edit-save-btn');
+    saveBtn.disabled = true;
+    try {
+        const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + editingId, {
+            method : 'PUT',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body   : JSON.stringify({ quantity: qty, delivery_date: date, quality_grade: qual }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            item.qty     = qty;
+            item.date    = date;
+            item.quality = qual;
+            saveSessionItems();
+            renderSessionItems();
+            closeModal('edit');
+            toast('Entrega atualizada.', 'success');
+        } else {
+            toast(data.message || 'Erro ao editar.', 'error');
+        }
+    } catch (e) {
+        toast('Erro: ' + e.message, 'error');
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+/* ─── Distribute modal ───────────────────────────── */
+let distRegId = null;
+
+function openDistributeModal(id) {
+    const item = S.items.find(i => i.id === id);
+    if (!item) return;
+    if (item.status !== 'approved') { toast('Aprove a entrega antes de distribuir.', 'info'); return; }
+    distRegId = id;
+
+    DistModal.open({
+        id:          id,
+        product:     item.productName,
+        unit:        item.productUnit || 'un',
+        qty:         item.qty,
+        distributed: item.distributedQty || 0,
+        existing:    (item.distributions || []).map(d => ({ id: 0, customer: d.customer, qty: d.qty, net: 0 })),
+    });
+}
+
+window._DistModalReload = function(data) {
+    // Atualiza estado local em vez de recarregar a página
+    if (!distRegId) { location.reload(); return; }
+    const item = S.items.find(i => i.id === distRegId);
+    if (!item) { location.reload(); return; }
+    // Recarrega o item do servidor para ter os dados precisos
+    fetch('/' + TENANT + '/delivery/deliveries/' + distRegId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    }).then(r => r.ok ? r.json() : null).then(d => {
+        if (d && d.distributed_qty !== undefined) {
+            item.distributedQty  = d.distributed_qty;
+            item.distributions   = (d.distributions || []).map(x => ({ customer: x.customer, qty: x.qty }));
+            saveSessionItems();
+            renderSessionItems();
+        }
+        toast('Distribuição salva!', 'success');
+    }).catch(() => {
+        toast('Distribuição salva!', 'success');
+        renderSessionItems();
+    });
+    distRegId = null;
+};
+
+
+
+/* ─── Modals ─────────────────────────────────────── */
+function openModal(type) {
+    if (type === 'product' && !S.project) {
+        toast('Selecione um projeto primeiro.', 'info');
+        return;
+    }
+    if (type === 'product' && S.demands.length === 0 && S.loadingProjectId) {
+        toast('Aguarde, carregando produtos…', 'info');
+        return;
+    }
+
+    const overlay = $('modal-' + type);
+    overlay.classList.add('open');
+
+    // Focus search
+    const search = $('search-' + type);
+    if (search) { search.value = ''; setTimeout(() => search.focus(), 50); }
+
+    // Render list
+    renderModalList(type);
+}
+
+function closeModal(type) {
+    const overlay = $('modal-' + type);
+    overlay.classList.remove('open');
+}
+
+function closeModalOnBackdrop(event, type) {
+    if (event.target === $('modal-' + type)) closeModal(type);
+}
+
+function filterList(type) {
+    renderModalList(type);
+}
+
+function renderModalList(type) {
+    const list   = $('list-' + type);
+    const search = ($('search-' + type)?.value || '').toLowerCase().trim();
+
+    if (type === 'project') {
+        renderProjectList(list, search);
+    } else if (type === 'assoc') {
+        renderAssocList(list, search);
+    } else if (type === 'product') {
+        renderProductList(list, search);
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function renderProjectList(list, search) {
+    const items = ALL_PROJECTS.filter(p =>
+        !search ||
+        p.title.toLowerCase().includes(search) ||
+        (p.customer_name || '').toLowerCase().includes(search)
+    );
+    if (items.length === 0) {
+        list.innerHTML = '<div class="modal-empty">Nenhum projeto encontrado</div>';
+        return;
+    }
+    list.innerHTML = items.map((p, i) =>
+        '<div class="modal-item' + (S.project?.id === p.id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
+            '<div class="mi-avatar project">' + initials(p.title) + '</div>' +
+            '<div class="mi-info">' +
+                '<div class="mi-name">' + esc(p.title) + '</div>' +
+                '<div class="mi-sub">' + esc(p.customer_name) + '</div>' +
+            '</div>' +
+        '</div>'
+    ).join('');
+    list.querySelectorAll('.modal-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx);
+            selectProject(items[idx]);
+        });
+    });
+}
+
+function renderAssocList(list, search) {
+    const items = ALL_ASSOCIATES.filter(a =>
+        !search ||
+        a.name.toLowerCase().includes(search) ||
+        (a.registration_number || '').toLowerCase().includes(search)
+    );
+    if (items.length === 0) {
+        list.innerHTML = '<div class="modal-empty">Nenhum associado encontrado</div>';
+        return;
+    }
+    list.innerHTML = items.map((a, i) =>
+        '<div class="modal-item' + (S.associate?.id === a.id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
+            '<div class="mi-avatar">' + initials(a.name) + '</div>' +
+            '<div class="mi-info">' +
+                '<div class="mi-name">' + esc(a.name) + '</div>' +
+                '<div class="mi-sub">' + (a.registration_number ? 'Reg: ' + esc(a.registration_number) : '') + '</div>' +
+            '</div>' +
+        '</div>'
+    ).join('');
+    list.querySelectorAll('.modal-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx);
+            selectAssociate(items[idx]);
+        });
+    });
+}
+
+function renderProductList(list, search) {
+    if (!S.project) {
+        list.innerHTML = '<div class="modal-empty">Selecione um projeto primeiro</div>';
+        return;
+    }
+    if (S.loadingProjectId) {
+        list.innerHTML = '<div class="modal-empty">Carregando produtos…</div>';
+        return;
+    }
+    const items = S.demands.filter(d =>
+        !search ||
+        d.product_name.toLowerCase().includes(search)
+    );
+    if (items.length === 0) {
+        list.innerHTML = '<div class="modal-empty">Nenhum produto encontrado</div>';
+        return;
+    }
+    list.innerHTML = items.map((d, i) => {
+        const hasTarget  = d.target_quantity !== null;
+        const delivered  = d.delivered_quantity || 0;
+        const remaining  = hasTarget ? Math.max(0, d.remaining_quantity) : null;
+        const completed  = hasTarget && remaining <= 0;
+        const badgeClass = completed ? 'red' : (remaining !== null && remaining < d.target_quantity * 0.2 ? 'amber' : 'green');
+        const badgeText  = hasTarget
+            ? (completed ? 'Meta atingida' : 'Rest: ' + fmtQty(remaining, d.product_unit))
+            : 'Livre';
+
+        return '<div class="modal-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
+            '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
+            '<div class="mi-info">' +
+                '<div class="mi-name">' + esc(d.product_name) + '</div>' +
+                '<div class="mi-sub">Entregue: ' + fmtQty(delivered, d.product_unit) + (hasTarget ? ' / Meta: ' + fmtQty(d.target_quantity, d.product_unit) : '') + '</div>' +
+            '</div>' +
+            '<span class="mi-badge ' + badgeClass + '">' + badgeText + '</span>' +
+        '</div>';
+    }).join('');
+    list.querySelectorAll('.modal-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx);
+            selectProduct(items[idx]);
+        });
+    });
+}
+
+function selectProject(proj) {
+    applyProject(proj);
+    closeModal('project');
+    loadDemands(proj.id);
+}
+
+/* ─── Keyboard: close modal on Escape ───────────── */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        ['project', 'assoc', 'product', 'edit', 'dist'].forEach(t => closeModal(t));
+    }
+});
+
+/* ─── Toast ──────────────────────────────────────── */
+function toast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    $('toast-root').appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+}
+
+/* ─── Helpers ────────────────────────────────────── */
+function fmtQty(n, unit) {
+    const num = parseFloat(n) || 0;
+    const str = num % 1 === 0 ? num.toString() : num.toFixed(2).replace(/\.?0+$/, '');
+    return str + (unit ? '\u00a0' + unit : '');
+}
+function fmtDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return d + '/' + m;
+}
+function esc(str) {
+    return (str || '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function initials(name) {
+    return (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+/* ─── Boot ───────────────────────────────────────── */
+init();
+checkFormReady();
+
+/* ─── Expose to global (needed for HTML onclick="") ─ */
+window.openModal            = openModal;
+window.closeModal           = closeModal;
+window.closeModalOnBackdrop = closeModalOnBackdrop;
+window.filterList           = filterList;
+window.submitEntry          = submitEntry;
+window.deleteItem           = deleteItem;
+window.saveEdit             = saveEdit;
+window.addDistRegRow        = function() {}; // removido (usar DistModal component)
+window.saveDist             = function() {}; // removido (usar DistModal component)
+
+})();
 </script>
-@endpush
 @endsection

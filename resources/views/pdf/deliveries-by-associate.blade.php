@@ -63,7 +63,7 @@
         <div class="group-title">{{ $group['associate_name'] }}</div>
         <div class="group-subtitle">
             @if($group['cpf'])CPF: {{ $group['cpf'] }} | @endif
-            {{ $group['deliveries_count'] }} entrega(s) |
+            {{ $group['deliveries_count'] }} distribuição(s) |
             Qtd: {{ number_format($group['total_quantity'], 2, ',', '.') }} |
             Bruto: R$ {{ number_format($group['gross_value'], 2, ',', '.') }} |
             Líquido: R$ {{ number_format($group['net_value'], 2, ',', '.') }}
@@ -76,6 +76,7 @@
                 @if($showCol('date'))<th style="width:60px;">Data</th>@endif
                 @if($showCol('project'))<th>Projeto</th>@endif
                 @if($showCol('product'))<th>Produto</th>@endif
+                <th>Cliente</th>
                 @if($showCol('quantity'))<th class="text-right" style="width:65px;">Qtd</th>@endif
                 @if($showCol('unit_value'))<th class="text-right" style="width:65px;">Vlr Unit.</th>@endif
                 @if($showCol('gross_value'))<th class="text-right" style="width:70px;">Vlr Bruto</th>@endif
@@ -88,8 +89,9 @@
             @foreach($group['deliveries'] as $d)
             <tr>
                 @if($showCol('date'))<td>{{ $d['delivery_date'] }}</td>@endif
-                @if($showCol('project'))<td>{{ \Illuminate\Support\Str::limit($d['project'], 25) }}</td>@endif
+                @if($showCol('project'))<td>{{ \Illuminate\Support\Str::limit($d['project'], 22) }}</td>@endif
                 @if($showCol('product'))<td>{{ $d['product'] }}</td>@endif
+                <td>{{ $d['customer'] ?? '—' }}</td>
                 @if($showCol('quantity'))<td class="text-right">{{ number_format($d['quantity'], 2, ',', '.') }}</td>@endif
                 @if($showCol('unit_value'))<td class="text-right">R$ {{ number_format($d['unit_price'], 2, ',', '.') }}</td>@endif
                 @if($showCol('gross_value'))<td class="text-right">R$ {{ number_format($d['gross_value'], 2, ',', '.') }}</td>@endif
@@ -114,7 +116,7 @@
         @if($showSection('totals'))
         <tfoot>
             <tr>
-                <td colspan="3"><strong>SUBTOTAL — {{ $group['associate_name'] }}</strong></td>
+                <td colspan="4"><strong>SUBTOTAL — {{ $group['associate_name'] }}</strong></td>
                 @if($showCol('quantity'))<td class="text-right"><strong>{{ number_format($group['total_quantity'], 2, ',', '.') }}</strong></td>@endif
                 @if($showCol('unit_value'))<td></td>@endif
                 @if($showCol('gross_value'))<td class="text-right"><strong>R$ {{ number_format($group['gross_value'], 2, ',', '.') }}</strong></td>@endif
@@ -135,7 +137,7 @@
         <tr>
             <td class="label">Total de Associados:</td>
             <td class="value">{{ $totals['associates_count'] }}</td>
-            <td class="label">Total de Entregas:</td>
+            <td class="label">Total de Distribuições:</td>
             <td class="value">{{ $totals['deliveries_count'] }}</td>
         </tr>
         <tr>

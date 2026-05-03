@@ -171,6 +171,14 @@ class SalesProject extends Model
     }
 
     /**
+     * Get only associate payments for this project.
+     */
+    public function associatePayments(): HasMany
+    {
+        return $this->hasMany(ProjectPayment::class)->where('type', 'associate_payment');
+    }
+
+    /**
      * Get the cash movements related to this project.
      */
     public function cashMovements(): MorphMany
@@ -180,21 +188,27 @@ class SalesProject extends Model
 
     /**
      * Calculate the total delivered value.
+     * Exclui registros de recepção pura (sem cliente e sem parent) para evitar double-counting.
      */
     public function getTotalDeliveredValueAttribute(): float
     {
+        // Sum from distributions only: gross_value = qty × customer sale_price
         return $this->deliveries()
             ->where('status', 'approved')
+            ->whereNotNull('parent_delivery_id')
             ->sum('gross_value');
     }
 
     /**
      * Calculate the total admin fees collected.
+     * Exclui registros de recepção pura.
      */
     public function getTotalAdminFeesAttribute(): float
     {
+        // Sum from distributions only
         return $this->deliveries()
             ->where('status', 'approved')
+            ->whereNotNull('parent_delivery_id')
             ->sum('admin_fee_amount');
     }
 
@@ -223,11 +237,14 @@ class SalesProject extends Model
 
     /**
      * Calculate the total value to pay associates.
+     * Exclui registros de recepção pura.
      */
     public function getTotalAssociatesPaymentAttribute(): float
     {
+        // Sum from distributions: net_value on distributions = what associate receives
         return $this->deliveries()
             ->where('status', 'approved')
+            ->whereNotNull('parent_delivery_id')
             ->sum('net_value');
     }
 
