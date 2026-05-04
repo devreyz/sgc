@@ -447,6 +447,59 @@ class DeliveryRegistrationController extends Controller
     }
 
     /**
+     * Get all reception deliveries (parent_delivery_id IS NULL) for a project — used by
+     * the register page to show full persistent history instead of localStorage-only.
+     */
+    public function getProjectDeliveries()
+    {
+        $projectId = (int) request()->route('project');
+        $tenantId  = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Tenant não encontrado'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        if (! $project) {
+            return response()->json(['error' => 'Projeto não encontrado'], 404);
+        }
+
+        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->whereNull('parent_delivery_id')
+            ->with(['associate', 'projectDemand.product', 'product'])
+            ->orderBy('delivery_date', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($d) {
+                $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
+                $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
+                $associateName = $d->associate?->name ?? '—';
+                $associateId   = $d->associate_id;
+
+                $distQty = ProductionDelivery::where('parent_delivery_id', $d->id)
+                    ->where('status', '!=', DeliveryStatus::CANCELLED->value)
+                    ->sum('quantity');
+
+                return [
+                    'id'             => $d->id,
+                    'projectId'      => $d->sales_project_id,
+                    'associateId'    => $associateId,
+                    'productName'    => $productName,
+                    'productUnit'    => $productUnit,
+                    'associateName'  => $associateName,
+                    'qty'            => (float) $d->quantity,
+                    'date'           => $d->delivery_date?->format('Y-m-d') ?? '',
+                    'quality'        => $d->quality_grade ?? '',
+                    'status'         => $d->status?->value === 'approved' ? 'approved' : 'pending',
+                    'distributedQty' => (float) $distQty,
+                    'distributions'  => [],
+                ];
+            });
+
+        return response()->json($deliveries);
+    }
+
+    /**
      * Get associate deliveries for a project
      */
     public function getAssociateDeliveries()

@@ -545,7 +545,7 @@
             <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
         </div>
         <div id="session-list" style="min-height:60px">
-            <div class="session-empty" id="session-empty">Selecione um projeto para ver os registros desta sessão</div>
+            <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
     </div>
 
@@ -651,12 +651,13 @@
 /* ─── Constants ──────────────────────────────────── */
 const TENANT      = @json($currentTenant->slug);
 const CSRF        = @json(csrf_token());
-const ITEMS_KEY   = 'sgc_items_' + TENANT + '_' + new Date().toISOString().slice(0, 10);
+const ITEMS_KEY   = 'sgc_items_' + TENANT;
 
 const ROUTES = {
-    demands : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/demands',
-    store   : '/' + TENANT + '/delivery/register',
-    del     : (id) => '/' + TENANT + '/delivery/deliveries/' + id,
+    demands    : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/demands',
+    deliveries : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/deliveries-json',
+    store      : '/' + TENANT + '/delivery/register',
+    del        : (id)  => '/' + TENANT + '/delivery/deliveries/' + id,
 };
 
 /* ─── PHP data ───────────────────────────────────── */
@@ -672,10 +673,10 @@ const S = {
     product   : null,  // demand object from API
     demands   : [],    // loaded from API for current project
     quality   : 'A',
-    submitting: false,
-    items     : [],    // session items (localStorage)
-    /* track loading to avoid double fetch */
-    loadingProjectId: null,
+    submitting        : false,
+    items             : [],    // deliveries loaded from server (+ optimistic local adds)
+    loadingProjectId  : null,
+    loadingDeliveries : false,
 };
 
 /* ─── DOM refs ───────────────────────────────────── */
@@ -686,9 +687,10 @@ function init() {
     if (INITIAL_PROJECT) {
         applyProject(INITIAL_PROJECT);
         loadDemands(INITIAL_PROJECT.id);
+        // deliveries loaded inside applyProject → loadProjectDeliveries
+    } else {
+        renderSessionItems();
     }
-    loadSessionItems();
-    renderSessionItems();
     bindQualityPills();
     bindQtyInput();
 }
@@ -706,13 +708,35 @@ function applyProject(proj) {
     $('pb-sub').textContent   = proj.customer_name;
     // Enable product selector
     $('sel-product').classList.remove('disabled');
-    // If demands not yet loaded, reset
+    // Reset product selection when project changes
     if (S.loadingProjectId !== proj.id) {
         S.demands = [];
         S.product = null;
         resetProductSelector();
     }
-    renderSessionItems();
+    // Load full delivery history from server
+    loadProjectDeliveries(proj.id);
+}
+
+async function loadProjectDeliveries(projectId) {
+    if (S.loadingDeliveries) return;
+    S.loadingDeliveries = true;
+    // Show loading state
+    const empty = $('session-empty');
+    if (empty) { empty.textContent = 'Carregando histórico…'; empty.style.display = 'block'; }
+    try {
+        const res = await fetch(ROUTES.deliveries(projectId), {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        if (!res.ok) throw new Error('Erro ' + res.status);
+        S.items = await res.json();
+    } catch (e) {
+        toast('Erro ao carregar histórico: ' + e.message, 'error');
+        S.items = [];
+    } finally {
+        S.loadingDeliveries = false;
+        renderSessionItems();
+    }
 }
 
 async function loadDemands(projectId) {
@@ -924,8 +948,8 @@ function renderSessionItems() {
     const titleEl = $('session-list-title');
     if (titleEl) {
         titleEl.textContent = S.project
-            ? 'Registros — ' + S.project.title
-            : 'Registros desta sessão';
+            ? 'Histórico — ' + S.project.title
+            : 'Histórico de entregas';
     }
 
     // Sem projeto: mostrar apenas entregas avulsas (sem projectId), ou mensagem orientando
@@ -937,8 +961,8 @@ function renderSessionItems() {
     // Mensagem de estado vazio adequada ao contexto
     if (empty) {
         empty.textContent = projectId
-            ? 'Nenhum registro nesta sessão para este projeto'
-            : 'Selecione um projeto para ver os registros desta sessão';
+            ? 'Nenhuma entrega registrada para este projeto'
+            : 'Selecione um projeto para ver o histórico de entregas';
     }
 
     // Clear current content (except the empty placeholder element)
