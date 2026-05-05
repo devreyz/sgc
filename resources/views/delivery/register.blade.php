@@ -998,8 +998,8 @@ function renderSessionItems() {
             ? '<button class="si-btn si-btn-dist" data-action="distribute" data-id="' + item.id + '" title="Distribuir para clientes"><i data-lucide="git-branch" style="width:13px;height:13px"></i></button>'
             : '';
         const btnDelete = isPending
-            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
-            : '';
+            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir" aria-label="Excluir entrega"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
+            : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir entrega aprovada" aria-label="Excluir entrega aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>';
 
         el.innerHTML =
             '<div class="si-info">' +
@@ -1046,8 +1046,11 @@ function renderSessionItems() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-async function deleteItem(id, btn) {
-    if (!confirm('Excluir este registro?')) return;
+async function deleteItem(id, btn, isApproved = false) {
+    const msg = isApproved
+        ? 'Excluir esta entrega aprovada? As distribuições associadas também serão removidas.'
+        : 'Excluir este registro?';
+    if (!confirm(msg)) return;
     btn.disabled = true;
 
     try {
@@ -1080,7 +1083,8 @@ document.addEventListener('click', function (e) {
     if (action === 'approve')         approveItem(id, btn);
     else if (action === 'edit')       openEditModal(id);
     else if (action === 'distribute') openDistributeModal(id);
-    else if (action === 'delete')     deleteItem(id, btn);
+    else if (action === 'delete')          deleteItem(id, btn);
+    else if (action === 'delete-approved') deleteItem(id, btn, true);
 });
 
 /* ─── Approve ────────────────────────────────────── */

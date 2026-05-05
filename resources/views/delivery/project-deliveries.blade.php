@@ -85,9 +85,16 @@
     .btn-ghost:hover { background:var(--color-bg); color:var(--color-text); }
     .btn-sm { padding:.3rem .6rem; font-size:.73rem; }
     .btn-xs { padding:.22rem .5rem; font-size:.7rem; }
-    .action-btns { display:flex; gap:.3rem; }
-    .btn-edit    { background:rgba(59,130,246,.12); color:#2563eb; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.22rem .5rem; font-size:.7rem; transition:.15s; }
+    .action-btns { display:flex; gap:.3rem; flex-wrap:wrap; }
+    .btn-approve { background:rgba(16,185,129,.12); color:#059669; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.28rem .6rem; font-size:.75rem; transition:.15s; white-space:nowrap; }
+    .btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
+    .btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.28rem .6rem; font-size:.75rem; transition:.15s; white-space:nowrap; }
+    .btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
+    .btn-edit    { background:rgba(59,130,246,.12); color:#2563eb; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.28rem .6rem; font-size:.75rem; transition:.15s; white-space:nowrap; }
     .btn-edit:hover { background:#2563eb; color:#fff; }
+    .btn-delete-approved { background:rgba(239,68,68,.08); color:#dc2626; border-radius:var(--radius-md); border:none; cursor:pointer; font-weight:600; display:inline-flex; align-items:center; gap:.2rem; padding:.28rem .6rem; font-size:.75rem; transition:.15s; white-space:nowrap; }
+    .btn-delete-approved:hover:not(:disabled) { background:var(--color-danger); color:#fff; }
+    .btn-approve:disabled, .btn-reject:disabled, .btn-edit:disabled, .btn-distribute:disabled, .btn-delete-approved:disabled { opacity:.45; cursor:not-allowed; }
 
     /* Edit modal */
     .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100000; }
@@ -347,7 +354,8 @@ $totalNet      = $deliveries->sum('net_value');
                                 data-qty="{{ $delivery['quantity'] }}"
                                 data-distributed="{{ $delivery['distributed_qty'] }}"
                                 data-existing="{{ json_encode($delivery['distributions']) }}"
-                                title="Distribuir para clientes">
+                                title="Distribuir para clientes"
+                                aria-label="Distribuir entrega para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>
                             <button class="btn-edit"
@@ -359,8 +367,15 @@ $totalNet      = $deliveries->sum('net_value');
                                 data-notes="{{ $delivery['notes'] }}"
                                 data-unit="{{ $delivery['unit'] }}"
                                 data-distributions="{{ json_encode($delivery['distributions']) }}"
-                                title="Editar entrega">
+                                title="Editar entrega"
+                                aria-label="Editar entrega">
                                 <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
+                            </button>
+                            <button class="btn-delete-approved"
+                                data-id="{{ $delivery['id'] }}"
+                                title="Excluir entrega aprovada (remove distribuições)"
+                                aria-label="Excluir entrega aprovada">
+                                <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
                             </button>
                         </div>
                         @else
@@ -645,6 +660,33 @@ window._DistModalOnDelete = function(receptionId, data) {
         if (distBtn) distBtn.dataset.distributed = data.dist_total_qty;
     }
 };
+
+/* ── Delete approved delivery ── */
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-delete-approved');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!confirm('Excluir esta entrega aprovada? Esta ação também removerá as distribuições associadas e não pode ser desfeita.')) return;
+    btn.disabled = true;
+    const row = document.getElementById('row-' + id);
+    try {
+        const res  = await fetch(`/${PD_TENANT}/delivery/deliveries/${id}`, {
+            method : 'DELETE',
+            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+            row?.remove();
+            pdToast('Entrega excluída.');
+        } else {
+            alert(data.message || 'Erro ao excluir.');
+            btn.disabled = false;
+        }
+    } catch(err) {
+        alert('Erro de comunicação com o servidor.');
+        btn.disabled = false;
+    }
+});
 </script>
 @endsection
 

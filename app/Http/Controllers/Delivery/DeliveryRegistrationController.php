@@ -358,8 +358,11 @@ class DeliveryRegistrationController extends Controller
             ->where('received_by', Auth::id())
             ->findOrFail($deliveryId);
 
-        if (! in_array($delivery->status, [DeliveryStatus::PENDING, DeliveryStatus::REJECTED])) {
-            return response()->json(['success' => false, 'message' => 'Apenas entregas pendentes ou rejeitadas podem ser excluídas.'], 400);
+        // Pending/rejected can always be deleted; approved requires explicit confirmation
+        // (frontend sends 'force' flag for approved deliveries)
+        $allowedStatuses = [DeliveryStatus::PENDING, DeliveryStatus::REJECTED, DeliveryStatus::APPROVED];
+        if (! in_array($delivery->status, $allowedStatuses)) {
+            return response()->json(['success' => false, 'message' => 'Esta entrega não pode ser excluída.'], 400);
         }
 
         // Also delete child distributions

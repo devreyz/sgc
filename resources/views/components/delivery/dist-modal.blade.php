@@ -133,52 +133,72 @@
     min-width: 70px; text-align: right;
 }
 .dm-del-btn {
-    width: 22px; height: 22px; border: none;
+    width: 30px; height: 30px; border: 1px solid transparent;
     background: transparent; cursor: pointer;
-    color: var(--color-danger); font-size: .85rem;
+    color: var(--color-danger); font-size: .9rem;
     border-radius: var(--radius-md); flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
-    opacity: .65; transition: opacity .15s, background .15s;
+    opacity: .65; transition: opacity .15s, background .15s, border-color .15s;
 }
-.dm-del-btn:hover { opacity: 1; background: rgba(220,38,38,.12); }
+.dm-del-btn:hover { opacity: 1; background: rgba(220,38,38,.12); border-color: var(--color-danger); }
+.dm-del-btn:focus { outline: none; opacity: 1; border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(220,38,38,.2); }
 
 /* ── New-row inputs ───────────────────────────────────────────────────── */
 .dm-row {
     display: flex; gap: .4rem; align-items: center;
 }
 .dm-row select {
-    flex: 1; font-size: .85rem;
-    padding: .4rem .55rem;
-    border: 1px solid var(--color-border);
+    flex: 1; font-size: .88rem;
+    padding: .5rem .65rem;
+    border: 1.5px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface); color: var(--color-text);
+    transition: border-color .15s, box-shadow .15s;
+    min-height: 40px;
+}
+.dm-row select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 .dm-row input[type=number] {
-    width: 95px; font-size: .85rem;
-    padding: .4rem .55rem;
-    border: 1px solid var(--color-border);
+    width: 110px; font-size: .88rem;
+    padding: .5rem .65rem;
+    border: 1.5px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface); color: var(--color-text);
+    transition: border-color .15s, box-shadow .15s;
+    min-height: 40px;
+}
+.dm-row input[type=number]:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 .dm-row .dm-rm-btn {
-    width: 28px; height: 28px; flex-shrink: 0;
-    border: 1px solid var(--color-border); background: transparent;
+    width: 36px; height: 40px; flex-shrink: 0;
+    border: 1.5px solid var(--color-border); background: transparent;
     border-radius: var(--radius-md); cursor: pointer;
-    color: var(--color-danger); font-size: 1.1rem; line-height: 1;
+    color: var(--color-danger); font-size: 1.2rem; line-height: 1;
     display: flex; align-items: center; justify-content: center;
+    transition: background .15s, border-color .15s;
 }
-.dm-row .dm-rm-btn:hover { background: rgba(220,38,38,.1); }
+.dm-row .dm-rm-btn:hover { background: rgba(220,38,38,.12); border-color: var(--color-danger); }
+.dm-row .dm-rm-btn:focus { outline: none; border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(220,38,38,.2); }
 
 /* ── Add-row button ───────────────────────────────────────────────────── */
 .dm-add-btn {
-    font-size: .79rem; color: #4f46e5;
+    font-size: .82rem; color: #4f46e5;
     background: transparent;
     border: 1.5px dashed #c7d2fe;
     border-radius: var(--radius-md);
-    padding: .32rem .8rem; cursor: pointer;
+    padding: .45rem 1rem; cursor: pointer;
     text-align: left; transition: .15s; align-self: flex-start;
+    min-height: 38px; display: inline-flex; align-items: center; gap: .35rem;
+    font-weight: 600;
 }
 .dm-add-btn:hover { background: #ede9fe; border-color: #4f46e5; }
+.dm-add-btn:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,.2); }
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
 .dm-foot {
@@ -206,7 +226,7 @@
                 </div>
                 <div id="dm-subtitle" class="dm-subtitle"></div>
             </div>
-            <button class="dm-close-btn" onclick="DistModal.close()">✕</button>
+            <button class="dm-close-btn" onclick="DistModal.close()" aria-label="Fechar modal de distribuição">✕</button>
         </div>
 
         {{-- Progress bar --}}
@@ -240,16 +260,17 @@
             <div id="dm-new-section">
                 <div class="dm-section-lbl">Adicionar distribuições</div>
                 <div id="dm-new-rows" style="display:flex;flex-direction:column;gap:.4rem"></div>
-                <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.addRow()">
-                    + Adicionar cliente
+                <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.addRow()" aria-label="Adicionar linha de distribuição">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Adicionar cliente
                 </button>
             </div>
         </div>
 
         {{-- Footer --}}
         <div class="dm-foot">
-            <button class="btn btn-ghost btn-sm" onclick="DistModal.close()">Cancelar</button>
-            <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()">
+            <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar modal">Cancelar</button>
+            <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
                      fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
@@ -327,7 +348,7 @@ function renderExisting(existing) {
             <span class="dm-existing-customer">${esc(d.customer)}</span>
             <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
             <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
-            <button class="dm-del-btn" title="Remover distribuição"
+            <button class="dm-del-btn" title="Remover distribuição" aria-label="Remover distribuição de ${esc(d.customer)}"
                     onclick="DistModal.deleteExisting(${d.id})"
                     style="${d.id ? '' : 'display:none'}">✕</button>
         </div>
@@ -335,11 +356,16 @@ function renderExisting(existing) {
 }
 
 /* ── Build one new-row ──────────────────────────────────────────────── */
-function buildRow() {
+function buildRow(autofocus = false) {
     const row = document.createElement('div');
     row.className = 'dm-row';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', 'Linha de distribuição');
+
+    const rowIdx = $('dm-new-rows').children.length + 1;
 
     const sel = document.createElement('select');
+    sel.setAttribute('aria-label', 'Selecionar cliente para distribuição ' + rowIdx);
     sel.innerHTML = '<option value="">Selecionar cliente…</option>' +
         DM_CUSTOMERS.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
 
@@ -348,11 +374,13 @@ function buildRow() {
     inp.min         = '0.001';
     inp.step        = '0.001';
     inp.placeholder = '0';
+    inp.setAttribute('aria-label', 'Quantidade para distribuição ' + rowIdx);
     inp.addEventListener('input', updateProgress);
 
     const rm = document.createElement('button');
     rm.type      = 'button';
     rm.className = 'dm-rm-btn';
+    rm.setAttribute('aria-label', 'Remover esta linha de distribuição');
     rm.textContent = '×';
     rm.onclick = () => { row.remove(); updateProgress(); };
 
@@ -405,6 +433,9 @@ window.DistModal = {
         // Open
         $('dm-overlay').classList.add('dm-open');
         $('dm-save-btn').disabled = false;
+
+        // Focus first select for keyboard accessibility
+        setTimeout(() => $('dm-new-rows').querySelector('select')?.focus(), 80);
     },
 
     close() {
@@ -413,8 +444,10 @@ window.DistModal = {
     },
 
     addRow() {
-        $('dm-new-rows').appendChild(buildRow());
+        const row = buildRow();
+        $('dm-new-rows').appendChild(row);
         updateProgress();
+        setTimeout(() => row.querySelector('select')?.focus(), 30);
     },
 
     /** Delete an existing (already-saved) distribution */

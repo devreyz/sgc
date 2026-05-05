@@ -74,6 +74,8 @@
     .btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
     .btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; }
     .btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
+    .btn-delete-approved { background:rgba(239,68,68,.08); color:#dc2626; }
+    .btn-delete-approved:hover:not(:disabled) { background:var(--color-danger); color:#fff; }
 
     /* Reports Section */
     .reports-bar { background:var(--color-surface); border-radius:var(--radius-lg); padding:1rem 1.25rem; border:1px solid var(--color-border); margin-bottom:1.25rem; }
@@ -299,6 +301,9 @@
                                 title="Distribuir para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>
+                            <button class="btn-xs btn-delete-approved" data-id="{{ $d->id }}" title="Excluir entrega aprovada" aria-label="Excluir entrega aprovada">
+                                <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+                            </button>
                         </div>
                         @else
                         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>
@@ -310,7 +315,7 @@
         </table>
     </div>
     <div class="pagination-wrap">
-        {{ $deliveries->links() }}
+        {{ $deliveries->links('vendor.pagination.bento') }}
     </div>
     @endif
 </div>
@@ -402,5 +407,31 @@ document.addEventListener('click', async function(e) {
 function esc(s) {
     return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+/* ── Delete approved delivery ── */
+document.addEventListener('click', async function(e) {
+    const btn = e.target.closest('.btn-delete-approved');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (!confirm('Excluir esta entrega aprovada? Esta ação também removerá as distribuições associadas e não pode ser desfeita.')) return;
+    btn.disabled = true;
+    const row = document.getElementById('row-' + id);
+    try {
+        const res  = await fetch(`/${TENANT_SLUG}/delivery/deliveries/${id}`, {
+            method : 'DELETE',
+            headers: { 'X-CSRF-TOKEN': CSRF_TOKEN, 'Accept': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+            row?.remove();
+        } else {
+            alert(data.message || 'Erro ao excluir.');
+            btn.disabled = false;
+        }
+    } catch(err) {
+        alert('Erro de comunicação com o servidor.');
+        btn.disabled = false;
+    }
+});
 </script>
 @endpush
