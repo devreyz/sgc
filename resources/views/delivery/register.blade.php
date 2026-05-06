@@ -1177,31 +1177,19 @@ function openDistributeModal(id) {
         unit:        item.productUnit || 'un',
         qty:         item.qty,
         distributed: item.distributedQty || 0,
-        existing:    (item.distributions || []).map(d => ({ id: 0, customer: d.customer, qty: d.qty, net: 0 })),
+        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer: d.customer, qty: d.qty, net: d.net || 0 })),
     });
 }
 
 window._DistModalReload = function(data) {
-    // Atualiza estado local em vez de recarregar a página
-    if (!distRegId) { location.reload(); return; }
-    const item = S.items.find(i => i.id === distRegId);
-    if (!item) { location.reload(); return; }
-    // Recarrega o item do servidor para ter os dados precisos
-    fetch('/' + TENANT + '/delivery/deliveries/' + distRegId, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
-    }).then(r => r.ok ? r.json() : null).then(d => {
-        if (d && d.distributed_qty !== undefined) {
-            item.distributedQty  = d.distributed_qty;
-            item.distributions   = (d.distributions || []).map(x => ({ customer: x.customer, qty: x.qty }));
-            saveSessionItems();
-            renderSessionItems();
-        }
+    // Atualiza estado local recarregando as entregas do projeto do servidor
+    if (!distRegId || !S.project) { location.reload(); return; }
+    distRegId = null;
+    loadProjectDeliveries(S.project.id).then(() => {
         toast('Distribuição salva!', 'success');
     }).catch(() => {
         toast('Distribuição salva!', 'success');
-        renderSessionItems();
     });
-    distRegId = null;
 };
 
 

@@ -469,7 +469,7 @@ class DeliveryRegistrationController extends Controller
         $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
-            ->with(['associate', 'projectDemand.product', 'product'])
+            ->with(['associate', 'projectDemand.product', 'product', 'distributions.customer'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -479,9 +479,12 @@ class DeliveryRegistrationController extends Controller
                 $associateName = $d->associate?->name ?? '—';
                 $associateId   = $d->associate_id;
 
-                $distQty = ProductionDelivery::where('parent_delivery_id', $d->id)
-                    ->where('status', '!=', DeliveryStatus::CANCELLED->value)
-                    ->sum('quantity');
+                $distributions = $d->distributions->map(fn($dist) => [
+                    'id'       => $dist->id,
+                    'customer' => optional($dist->customer)->trade_name ?? optional($dist->customer)->name ?? '?',
+                    'qty'      => (float) $dist->quantity,
+                    'net'      => (float) $dist->net_value,
+                ]);
 
                 return [
                     'id'             => $d->id,
@@ -494,8 +497,8 @@ class DeliveryRegistrationController extends Controller
                     'date'           => $d->delivery_date?->format('Y-m-d') ?? '',
                     'quality'        => $d->quality_grade ?? '',
                     'status'         => $d->status?->value === 'approved' ? 'approved' : 'pending',
-                    'distributedQty' => (float) $distQty,
-                    'distributions'  => [],
+                    'distributedQty' => (float) $distributions->sum('qty'),
+                    'distributions'  => $distributions->values()->all(),
                 ];
             });
 
