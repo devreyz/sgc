@@ -134,6 +134,18 @@ class AssociateResource extends Resource
                                         return $user->id;
                                     }),
 
+                                Forms\Components\TextInput::make('nickname')
+                                    ->label('Apelido')
+                                    ->maxLength(100)
+                                    ->placeholder('Como é conhecido(a) — opcional')
+                                    ->helperText('Exibido na lista de seleção durante o registro de entregas'),
+
+                                Forms\Components\TextInput::make('nickname')
+                                    ->label('Apelido')
+                                    ->maxLength(100)
+                                    ->placeholder('Como é conhecido(a) — opcional')
+                                    ->helperText('Exibido na lista de seleção durante o registro de entregas'),
+
                                 Forms\Components\TextInput::make('cpf_cnpj')
                                     ->label('CPF/CNPJ')
                                     ->required()

@@ -18,6 +18,7 @@ class Associate extends Model
 
     protected $fillable = [
         'user_id',
+        'nickname',
         'cpf_cnpj',
         'rg',
         'dap_caf',

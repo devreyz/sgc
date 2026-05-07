@@ -764,7 +764,7 @@ function selectAssociate(assoc) {
     S.associate = assoc;
     const el = $('sel-assoc');
     el.classList.add('selected');
-    $('assoc-value').textContent = assoc.name;
+    $('assoc-value').textContent = assoc.nickname || assoc.name;
     closeModal('assoc');
     checkFormReady();
     renderSessionItems();
@@ -1275,6 +1275,7 @@ function renderAssocList(list, search) {
     const items = ALL_ASSOCIATES.filter(a =>
         !search ||
         a.name.toLowerCase().includes(search) ||
+        (a.nickname || '').toLowerCase().includes(search) ||
         (a.registration_number || '').toLowerCase().includes(search)
     );
     if (items.length === 0) {
@@ -1283,9 +1284,9 @@ function renderAssocList(list, search) {
     }
     list.innerHTML = items.map((a, i) =>
         '<div class="modal-item' + (S.associate?.id === a.id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
-            '<div class="mi-avatar">' + initials(a.name) + '</div>' +
+            '<div class="mi-avatar">' + initials(a.nickname || a.name) + '</div>' +
             '<div class="mi-info">' +
-                '<div class="mi-name">' + esc(a.name) + '</div>' +
+                '<div class="mi-name">' + esc(a.nickname || a.name) + (a.nickname ? ' <span style="font-size:.75rem;font-weight:400;color:var(--color-text-muted)">' + esc(a.name) + '</span>' : '') + '</div>' +
                 '<div class="mi-sub">' + (a.registration_number ? 'Reg: ' + esc(a.registration_number) : '') + '</div>' +
             '</div>' +
         '</div>'

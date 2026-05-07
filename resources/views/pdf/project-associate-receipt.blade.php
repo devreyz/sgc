@@ -312,13 +312,23 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
 </p>
 
-<table style="margin: 28px 0 0 0; page-break-inside: avoid; width: 80%; border-collapse: collapse;">
+<table style="margin: 28px 0 0 0; page-break-inside: avoid; width: 100%; border-collapse: collapse;">
     <tr>
-        <td style="text-align: left; padding: 0;">
+        <td style="text-align: left; padding: 0; width: 48%;">
             <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
             <div class="sig-role">Produtor / Associado</div>
             <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>
         </td>
+        @if($tenant->legal_representative_name)
+        <td style="width: 4%;"></td>
+        <td style="text-align: left; padding: 0; width: 48%;">
+            <div class="sig-line">{{ $tenant->legal_representative_name }}</div>
+            <div class="sig-role">{{ $tenant->legal_representative_role ?? 'Responsável pela Organização' }}</div>
+            @if($tenant->legal_representative_cpf)
+            <div class="sig-doc">CPF: {{ $tenant->legal_representative_cpf }}</div>
+            @endif
+        </td>
+        @endif
     </tr>
 </table>
 

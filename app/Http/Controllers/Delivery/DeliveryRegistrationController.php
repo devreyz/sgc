@@ -152,6 +152,7 @@ class DeliveryRegistrationController extends Controller
             ->map(fn ($a) => [
                 'id'                  => $a->id,
                 'name'                => $a->user->name ?? "Associado #{$a->id}",
+                'nickname'            => $a->nickname ?? null,
                 'registration_number' => $a->registration_number,
             ]);
 
