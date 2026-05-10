@@ -197,7 +197,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @php
     // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
-    $vcols        = $visible_columns ?? ['unit_price', 'gross', 'admin_fee', 'net'];
+    $vcols        = $visible_columns ?? ['unit_price', 'gross'];
     $showUnitPrice = in_array('unit_price', $vcols);
     $showGross     = in_array('gross',      $vcols);
     $showAdminFee  = in_array('admin_fee',  $vcols);
