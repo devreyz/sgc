@@ -402,6 +402,7 @@ class DeliveryRegistrationController extends Controller
                     $delivered = ProductionDelivery::where('tenant_id', $tenantId)
                         ->where('sales_project_id', $projectId)
                         ->where('product_id', $product->id)
+                        ->whereNull('parent_delivery_id')   // apenas recepções, não distribuições
                         ->where('status', '!=', DeliveryStatus::CANCELLED->value)
                         ->sum('quantity');
 
@@ -430,6 +431,7 @@ class DeliveryRegistrationController extends Controller
             ->map(function ($demand) use ($tenantId) {
                 $delivered = ProductionDelivery::where('tenant_id', $tenantId)
                     ->where('project_demand_id', $demand->id)
+                    ->whereNull('parent_delivery_id')   // apenas recepções, não distribuições
                     ->where('status', '!=', DeliveryStatus::CANCELLED->value)
                     ->sum('quantity');
 
@@ -1079,10 +1081,12 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['error' => 'Projeto não encontrado'], 404);
         }
 
-        // Agrupa entregas aprovadas por produto para saber o que entrou no estoque
+        // Agrupa apenas RECEPÇÕES aprovadas por produto (parent_delivery_id IS NULL)
+        // para evitar duplicidade com as distribuições que derivam das mesmas recepções
         $approvedByProduct = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('status', DeliveryStatus::APPROVED)
+            ->whereNull('parent_delivery_id')
             ->with('product')
             ->selectRaw('product_id, SUM(quantity) as total_qty')
             ->groupBy('product_id')

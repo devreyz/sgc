@@ -122,6 +122,7 @@ class ProjectDemand extends Model
     {
         $this->delivered_quantity = $this->deliveries()
             ->where('status', \App\Enums\DeliveryStatus::APPROVED->value)
+            ->whereNull('parent_delivery_id') // apenas recepções, não distribuições
             ->sum('quantity');
         $this->saveQuietly(); // Save without triggering events
     }

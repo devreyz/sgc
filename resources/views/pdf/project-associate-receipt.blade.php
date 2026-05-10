@@ -197,7 +197,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @php
     // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
-    $vcols        = $visible_columns ?? ['unit_price', 'gross'];
+    $vcols         = $visible_columns ?? ['unit_price', 'gross'];
     $showUnitPrice = in_array('unit_price', $vcols);
     $showGross     = in_array('gross',      $vcols);
     $showAdminFee  = in_array('admin_fee',  $vcols);
@@ -209,8 +209,8 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     <thead>
         <tr>
             <th>Produto</th>
-            <th>Cliente</th>
             <th style="width:11%;">Data</th>
+            <th>Cliente</th>
             <th class="r" style="width:9%;">Qtd.</th>
             @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
@@ -221,32 +221,51 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     <tbody>
         @foreach($productsSummary as $ps)
         @php
-            $deliveryDate = '—';
+            $rowCount  = count($ps['distributions']);
+            // +1 para incluir a linha de subtotal no rowspan quando há múltiplas distribuições
+            $spanCount = $rowCount + ($rowCount > 1 ? 1 : 0);
+            $groupDate = '—';
             if (!empty($ps['delivery_date'])) {
                 $dv = $ps['delivery_date'];
-                if (is_object($dv) && method_exists($dv, 'format')) {
-                    $deliveryDate = $dv->format('d/m/Y');
-                } else {
-                    try { $deliveryDate = \Carbon\Carbon::parse($dv)->format('d/m/Y'); }
-                    catch (\Exception $e) { $deliveryDate = $dv; }
+                try {
+                    $groupDate = (is_object($dv) && method_exists($dv, 'format'))
+                        ? $dv->format('d/m/Y')
+                        : \Carbon\Carbon::parse($dv)->format('d/m/Y');
+                } catch (\Exception $e) {
+                    $groupDate = (string) $dv;
                 }
             }
         @endphp
+        @foreach($ps['distributions'] as $di => $dist)
         <tr>
-            <td><strong>{{ $ps['product_name'] }}</strong></td>
-            <td>{{ $ps['customer_name'] ?? '—' }}</td>
-            <td>{{ $deliveryDate }}</td>
-            <td class="r">{{ number_format($ps['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
-            @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($ps['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
-            @if($showGross)<td class="r">R$&nbsp;{{ number_format($ps['gross'], 2, ',', '.') }}</td>@endif
-            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($ps['admin_fee'], 2, ',', '.') }}</td>@endif
-            @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($ps['net'], 2, ',', '.') }}</td>@endif
+            @if($di === 0)
+            <td rowspan="{{ $spanCount }}" style="vertical-align:middle;background:#f8fafc;"><strong>{{ $ps['product_name'] }}</strong></td>
+            <td rowspan="{{ $spanCount }}" style="vertical-align:middle;white-space:nowrap;background:#f8fafc;">{{ $groupDate }}</td>
+            @endif
+            <td>{{ $dist['customer_name'] }}</td>
+            <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
+            @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
+            @if($showGross)<td class="r">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($dist['admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($dist['net'], 2, ',', '.') }}</td>@endif
         </tr>
+        @endforeach
+        @if($rowCount > 1)
+        {{-- Linha de subtotal por entrega (produto+data cobertos pelo rowspan acima) --}}
+        <tr style="background:#eef2f7;">
+            <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
+            <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
+            @if($showUnitPrice)<td style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
+            @if($showGross)<td class="r" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r c-danger" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">-&nbsp;R$&nbsp;{{ number_format($ps['total_admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showNet)<td class="r c-success" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_net'], 2, ',', '.') }}</td>@endif
+        </tr>
+        @endif
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="4"><strong>TOTAL</strong></td>
+            <td colspan="4"><strong>TOTAL GERAL</strong></td>
             @if($showUnitPrice)<td class="r"></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
