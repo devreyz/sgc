@@ -1488,6 +1488,75 @@ class DeliveryRegistrationController extends Controller
     }
 
     /**
+     * Verifica se já existem comprovantes de um associado num projeto e retorna JSON.
+     * Usado pelo modal de geração de comprovante no portal externo.
+     */
+    public function checkAssociateReceipt(Request $request)
+    {
+        $projectId   = (int) $request->route('project');
+        $associateId = (int) $request->route('associate');
+        $tenantId    = session('tenant_id');
+
+        if (!$tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->orderBy('id')
+            ->get();
+
+        $tenantSlug = $this->currentTenant()?->slug ?? '';
+
+        $receiptData = $receipts->map(fn($r) => [
+            'id'         => $r->id,
+            'number'     => $r->formatted_number,
+            'issued_at'  => $r->issued_at?->format('d/m/Y') ?? '—',
+            'reprint_url' => route('delivery.projects.receipt-reprint', [
+                'tenant'  => $tenantSlug,
+                'project' => $projectId,
+                'receipt' => $r->id,
+            ]),
+        ]);
+
+        // Total de distribuições aprovadas deste associado neste projeto
+        $totalDist = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
+            ->count();
+
+        // Verificar distribuições não cobertas (só relevante quando múltiplos comprovantes)
+        $uncoveredCount = 0;
+        if ($receipts->count() > 1) {
+            $coveredIds = $receipts
+                ->flatMap(fn($r) => $r->delivery_ids ?? [])
+                ->unique()
+                ->map('intval')
+                ->all();
+
+            $uncoveredCount = ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('sales_project_id', $projectId)
+                ->where('associate_id', $associateId)
+                ->where('status', DeliveryStatus::APPROVED)
+                ->whereNotNull('parent_delivery_id')
+                ->whereNotIn('id', empty($coveredIds) ? [0] : $coveredIds)
+                ->count();
+        }
+
+        return response()->json([
+            'success'         => true,
+            'has_receipts'    => $receipts->count() > 0,
+            'receipt_count'   => $receipts->count(),
+            'receipts'        => $receiptData->all(),
+            'total_dist'      => $totalDist,
+            'uncovered_count' => $uncoveredCount,
+        ]);
+    }
+
+    /**
      * Gera e faz download do comprovante PDF de um produtor em um projeto (portal externo).
      */
     public function generateAssociateReceiptPdf()
@@ -1620,6 +1689,26 @@ class DeliveryRegistrationController extends Controller
             'delivery_ids'     => $distributions->pluck('id')->all(),
         ]);
 
+        // Verificar distribuições não cobertas pelos comprovantes deste associado/projeto
+        $allReceipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associate->id)
+            ->get();
+
+        $coveredIds = $allReceipts
+            ->flatMap(fn($r) => $r->delivery_ids ?? [])
+            ->unique()
+            ->map('intval')
+            ->all();
+
+        $uncoveredCount = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associate->id)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
+            ->whereNotIn('id', empty($coveredIds) ? [0] : $coveredIds)
+            ->count();
+
         $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions);
 
         $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
@@ -1650,12 +1739,13 @@ class DeliveryRegistrationController extends Controller
         $tenantSlug = $this->currentTenant()?->slug ?? '';
 
         return response()->json([
-            'success'        => true,
-            'filename'       => $filename,
-            'pdf'            => $base64,
-            'receipt_id'     => $receipt->id,
-            'receipt_number' => $receipt->formatted_number,
-            'reprint_url'    => route('delivery.projects.receipt-reprint', [
+            'success'         => true,
+            'filename'        => $filename,
+            'pdf'             => $base64,
+            'receipt_id'      => $receipt->id,
+            'receipt_number'  => $receipt->formatted_number,
+            'uncovered_count' => $uncoveredCount,
+            'reprint_url'     => route('delivery.projects.receipt-reprint', [
                 'tenant'  => $tenantSlug,
                 'project' => $projectId,
                 'receipt' => $receipt->id,
@@ -1878,8 +1968,16 @@ class DeliveryRegistrationController extends Controller
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant    = $this->currentTenant();
 
-        // Usar os IDs armazenados no comprovante para reproduzir o PDF exato
-        $storedIds = $receipt->delivery_ids ?? [];
+        // Quando há apenas 1 comprovante para este associado/projeto,
+        // sempre usa TODAS as distribuições atuais (independente dos IDs armazenados).
+        // Quando há múltiplos comprovantes, usa os IDs armazenados para reproduzir exatamente.
+        $receiptCount = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $receipt->associate_id)
+            ->count();
+
+        $storedIds = ($receiptCount > 1) ? ($receipt->delivery_ids ?? []) : [];
+
         $query = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associate->id)
@@ -1889,6 +1987,9 @@ class DeliveryRegistrationController extends Controller
 
         if (!empty($storedIds)) {
             $query->whereIn('id', array_map('intval', $storedIds));
+        } else {
+            // Único comprovante: inclui todas as distribuições aprovadas
+            $query->whereNotNull('parent_delivery_id');
         }
 
         $deliveries = $query->get();

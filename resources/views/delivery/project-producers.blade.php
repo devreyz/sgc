@@ -207,89 +207,127 @@
     @endif
 </div>
 
-{{-- ── MODAL: COMPROVANTE POR PERÍODO ── --}}
-<div class="modal-overlay hidden" id="receipt-modal">
+{{-- ── MODAL: COMPROVANTE (multi-estado) ── --}}
+<div class="modal-overlay hidden" id="receipt-modal" role="dialog" aria-modal="true" aria-labelledby="rm-title">
     <div class="modal-box">
-        <div class="modal-title">
+        <div class="modal-title" id="rm-title">
             <i data-lucide="file-down" style="width:16px;height:16px;color:var(--color-primary)"></i>
-            Gerar Comprovante
+            Comprovante de Entrega
         </div>
         <div style="font-size:.82rem;color:var(--color-text-secondary);margin-bottom:1rem;">
             Produtor: <strong id="modal-assoc-name">—</strong>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label class="form-label">Data Início</label>
-                <input type="date" id="modal-from" class="form-control">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Data Fim</label>
-                <input type="date" id="modal-to" class="form-control">
-            </div>
-        </div>
-        <div style="display:flex;gap:.5rem;margin-bottom:.75rem;">
-            <button class="btn btn-ghost btn-sm" onclick="loadModalDeliveries()" style="flex:1;">
-                <i data-lucide="search" style="width:12px;height:12px"></i> Buscar entregas
-            </button>
-            <button class="btn btn-ghost btn-sm" onclick="clearModalDates()">
-                <i data-lucide="x" style="width:12px;height:12px"></i> Limpar datas
-            </button>
+
+        {{-- Estado: verificando --}}
+        <div id="rm-checking" style="padding:1.5rem 0;text-align:center;font-size:.85rem;color:var(--color-text-secondary);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 style="animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-right:.4rem;">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+            Verificando comprovantes existentes…
         </div>
 
-        <div id="modal-deliveries-area" style="min-height:60px;max-height:300px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-md);margin-bottom:.75rem;">
-            <p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Defina um período ou clique em "Buscar entregas" para ver todas.</p>
-        </div>
-
-        <div style="font-size:.8rem;color:var(--color-text-secondary);margin-bottom:.75rem;">
-            <strong id="modal-sel-count">0</strong> entrega(s) selecionada(s) &nbsp;·&nbsp;
-            Líquido: <strong style="color:var(--color-success)">R$ <span id="modal-sel-total">0,00</span></strong>
-        </div>
-
-        {{-- Colunas opcionais --}}
-        <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.6rem .9rem;margin-bottom:.75rem;background:var(--color-bg);">
-            <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);margin-bottom:.5rem;">
-                Colunas do comprovante
+        {{-- Estado: sem comprovante --}}
+        <div id="rm-no-receipt" class="hidden">
+            <div class="rm-info rm-info-blue">
+                <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0"></i>
+                <span>Nenhum comprovante gerado ainda. <strong id="rm-dist-count">0</strong> distribuição(ões) aprovada(s) serão incluídas automaticamente.</span>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem;">
-                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
-                    <input type="checkbox" id="col-unit-price" name="visible_columns[]" value="unit_price" checked style="accent-color:var(--color-primary);width:14px;height:14px;">
-                    Vlr. Unitário
-                </label>
-                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
-                    <input type="checkbox" id="col-gross" name="visible_columns[]" value="gross" checked style="accent-color:var(--color-primary);width:14px;height:14px;">
-                    Vlr. Bruto
-                </label>
-                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
-                    <input type="checkbox" id="col-admin-fee" name="visible_columns[]" value="admin_fee" style="accent-color:var(--color-primary);width:14px;height:14px;">
-                    Taxa Adm.
-                </label>
-                <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer;">
-                    <input type="checkbox" id="col-net" name="visible_columns[]" value="net" style="accent-color:var(--color-primary);width:14px;height:14px;">
-                    Vlr. Líquido
-                </label>
+            <div class="rm-col-selector">
+                <div class="rm-col-title">Colunas do comprovante</div>
+                <div class="rm-col-grid">
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="unit_price" checked> Vlr. Unitário</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="gross" checked> Vlr. Bruto</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="admin_fee"> Taxa Adm.</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="net"> Vlr. Líquido</label>
+                </div>
             </div>
-            <div style="font-size:.7rem;color:var(--color-text-secondary);margin-top:.4rem;">Produto, Cliente, Data e Qtd. aparecem sempre. Os totais ficam no resumo financeiro.</div>
+            <div class="rm-footer">
+                <button class="btn btn-ghost btn-sm" onclick="closeReceiptModal()">Cancelar</button>
+                <button class="btn btn-primary btn-sm" id="rm-btn-gen-all" onclick="generateAllDeliveries()">
+                    <i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante
+                </button>
+            </div>
         </div>
 
-        <div style="display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--color-border);padding-top:.75rem;">
-            <button class="btn btn-ghost btn-sm" onclick="closeReceiptModal()">Cancelar</button>
-            <button class="btn btn-primary btn-sm" id="modal-gen-btn" onclick="generateModalReceipt()">
-                <i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar PDF
-            </button>
+        {{-- Estado: tem comprovante(s) --}}
+        <div id="rm-has-receipt" class="hidden">
+            <div class="rm-info rm-info-yellow">
+                <i data-lucide="alert-triangle" style="width:15px;height:15px;flex-shrink:0"></i>
+                <span>Já existe(m) <strong id="rm-receipt-count">0</strong> comprovante(s) para este produtor neste projeto.</span>
+            </div>
+            <div id="rm-receipts-list" style="margin:.6rem 0;display:flex;flex-direction:column;gap:.35rem;"></div>
+            <div id="rm-uncovered-warn" class="rm-info rm-info-red hidden">
+                <i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i>
+                <span><strong id="rm-uncovered-count">0</strong> distribuição(ões) ainda não estão cobertas por nenhum comprovante!</span>
+            </div>
+            <div class="rm-footer" style="margin-top:.75rem;">
+                <button class="btn btn-ghost btn-sm" onclick="closeReceiptModal()">Fechar</button>
+                <button class="btn btn-primary btn-sm" onclick="enterSelectingMode()">
+                    <i data-lucide="plus-circle" style="width:13px;height:13px"></i> Criar comprovante adicional
+                </button>
+            </div>
+        </div>
+
+        {{-- Estado: selecionando entregas para comprovante adicional --}}
+        <div id="rm-selecting" class="hidden">
+            <div class="rm-info rm-info-blue" style="margin-bottom:.75rem;">
+                <i data-lucide="info" style="width:15px;height:15px;flex-shrink:0"></i>
+                <span>Selecione as distribuições que farão parte deste comprovante adicional:</span>
+            </div>
+            <div id="rm-sel-area" style="min-height:60px;max-height:260px;overflow-y:auto;border:1px solid var(--color-border);border-radius:var(--radius-md);margin-bottom:.6rem;">
+                <p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Carregando distribuições…</p>
+            </div>
+            <div style="font-size:.8rem;color:var(--color-text-secondary);margin-bottom:.6rem;">
+                <strong id="rm-sel-count">0</strong> selecionada(s) &nbsp;·&nbsp;
+                Líquido: <strong style="color:var(--color-success)">R$ <span id="rm-sel-total">0,00</span></strong>
+            </div>
+            <div class="rm-col-selector">
+                <div class="rm-col-title">Colunas do comprovante</div>
+                <div class="rm-col-grid">
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="unit_price" checked> Vlr. Unitário</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="gross" checked> Vlr. Bruto</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="admin_fee"> Taxa Adm.</label>
+                    <label class="rm-col-lbl"><input type="checkbox" class="rm-col-chk" value="net"> Vlr. Líquido</label>
+                </div>
+            </div>
+            <div class="rm-footer">
+                <button class="btn btn-ghost btn-sm" onclick="showHasReceiptState()">← Voltar</button>
+                <button class="btn btn-primary btn-sm" id="rm-btn-gen-sel" onclick="generateSelectedReceipt()">
+                    <i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar PDF
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100000; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.modal-overlay { position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:100000; }
 .modal-overlay.hidden { display:none; }
-.modal-box { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:min(520px,95vw); box-shadow:0 8px 32px rgba(0,0,0,.22); }
-.modal-title { font-size:1rem; font-weight:700; margin-bottom:.75rem; display:flex; align-items:center; gap:.4rem; }
-.form-group { margin-bottom:.75rem; }
-.form-label { display:block; font-size:.72rem; font-weight:600; margin-bottom:.25rem; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.03em; }
-.form-control { width:100%; padding:.42rem .7rem; border:1px solid var(--color-border); border-radius:var(--radius-md); font-size:.86rem; background:var(--color-bg); color:var(--color-text); }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
-.delivery-item { display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; border-bottom:1px solid var(--color-border); font-size:.8rem; }
+.modal-box { background:var(--color-surface);border-radius:var(--radius-lg);padding:1.5rem;width:min(540px,95vw);max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.22); }
+.modal-title { font-size:1rem;font-weight:700;margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem; }
+.hidden { display:none !important; }
+
+.rm-info { display:flex;align-items:flex-start;gap:.5rem;padding:.6rem .9rem;border-radius:var(--radius-md);font-size:.82rem;margin-bottom:.6rem; }
+.rm-info-blue  { background:#eff6ff;border:1px solid #93c5fd;color:#1e40af; }
+.rm-info-yellow { background:#fef9c3;border:1px solid #fde047;color:#78350f; }
+.rm-info-red   { background:#fef2f2;border:1px solid #fca5a5;color:#991b1b; }
+
+.rm-receipt-item { display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:.82rem; }
+.rm-receipt-item a { color:var(--color-primary);text-decoration:none;font-size:.75rem;font-weight:600;white-space:nowrap; }
+.rm-receipt-item a:hover { text-decoration:underline; }
+
+.rm-col-selector { border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.6rem .9rem;margin-bottom:.75rem;background:var(--color-bg); }
+.rm-col-title { font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--color-text-secondary);margin-bottom:.5rem; }
+.rm-col-grid { display:grid;grid-template-columns:1fr 1fr;gap:.25rem .75rem; }
+.rm-col-lbl { display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer; }
+.rm-col-lbl input { width:14px;height:14px;accent-color:var(--color-primary); }
+
+.rm-footer { display:flex;gap:.5rem;justify-content:flex-end;border-top:1px solid var(--color-border);padding-top:.75rem; }
+
+.delivery-item { display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;border-bottom:1px solid var(--color-border);font-size:.8rem; }
 .delivery-item:last-child { border-bottom:none; }
 .delivery-item input[type=checkbox] { width:15px;height:15px;cursor:pointer;accent-color:var(--color-primary);flex-shrink:0; }
 </style>
@@ -300,8 +338,11 @@
 const PP_TENANT  = '{{ $tenant->slug }}';
 const PP_CSRF    = '{{ csrf_token() }}';
 const PP_PROJECT = {{ $project->id }};
-let   PP_ASSOCIATE = null;
+let   PP_ASSOCIATE     = null;
+let   PP_ALL_DIST_IDS  = [];   // IDs de todas as distribuições aprovadas do associado
+let   PP_CHECK_DATA    = null; // último resultado de receipt-check
 
+/* ── Toasts ── */
 function ppToast(msg, type = 'success') {
     const c = document.getElementById('pp-toasts');
     const el = document.createElement('div');
@@ -312,16 +353,62 @@ function ppToast(msg, type = 'success') {
     setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.remove(), 300); }, 4500);
 }
 
-function openReceiptModal(associateId, name) {
-    PP_ASSOCIATE = associateId;
+/* ── Estado modal ── */
+function setModalState(state) {
+    ['checking','no-receipt','has-receipt','selecting'].forEach(s => {
+        document.getElementById('rm-' + s).classList.add('hidden');
+    });
+    document.getElementById('rm-' + state).classList.remove('hidden');
+}
+
+/* ── Abrir modal ── */
+async function openReceiptModal(associateId, name) {
+    PP_ASSOCIATE    = associateId;
+    PP_ALL_DIST_IDS = [];
+    PP_CHECK_DATA   = null;
     document.getElementById('modal-assoc-name').textContent = name;
-    document.getElementById('modal-from').value = '';
-    document.getElementById('modal-to').value   = '';
-    document.getElementById('modal-sel-count').textContent = '0';
-    document.getElementById('modal-sel-total').textContent = '0,00';
-    document.getElementById('modal-deliveries-area').innerHTML =
-        '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Defina um período ou clique em "Buscar entregas" para ver todas.</p>';
     document.getElementById('receipt-modal').classList.remove('hidden');
+    setModalState('checking');
+
+    try {
+        const res  = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${associateId}/receipt-check`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PP_CSRF }
+        });
+        PP_CHECK_DATA = await res.json();
+
+        document.getElementById('rm-dist-count').textContent = PP_CHECK_DATA.total_dist ?? 0;
+        document.getElementById('rm-receipt-count').textContent = PP_CHECK_DATA.receipt_count ?? 0;
+
+        if (!PP_CHECK_DATA.has_receipts) {
+            setModalState('no-receipt');
+        } else {
+            // Montar lista de comprovantes existentes
+            const listEl = document.getElementById('rm-receipts-list');
+            listEl.innerHTML = '';
+            (PP_CHECK_DATA.receipts || []).forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'rm-receipt-item';
+                item.innerHTML = `
+                    <span><strong>Nº ${r.number}</strong> &mdash; emitido em ${r.issued_at}</span>
+                    <a href="${r.reprint_url}" target="_blank">
+                        <i data-lucide="printer" style="width:12px;height:12px;vertical-align:middle"></i> Reimprimir
+                    </a>`;
+                listEl.appendChild(item);
+            });
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            // Aviso distribuições não cobertas
+            const uncovWarn = document.getElementById('rm-uncovered-warn');
+            const uncovCount = PP_CHECK_DATA.uncovered_count ?? 0;
+            document.getElementById('rm-uncovered-count').textContent = uncovCount;
+            uncovWarn.classList.toggle('hidden', uncovCount === 0);
+
+            setModalState('has-receipt');
+        }
+    } catch(err) {
+        ppToast('Erro ao verificar comprovantes.', 'error');
+        closeReceiptModal();
+    }
 }
 
 function closeReceiptModal() {
@@ -333,83 +420,113 @@ document.getElementById('receipt-modal')?.addEventListener('click', function(e) 
     if (e.target === this) closeReceiptModal();
 });
 
-function clearModalDates() {
-    document.getElementById('modal-from').value = '';
-    document.getElementById('modal-to').value   = '';
-}
-
-function updateModalSummary() {
-    const checks = document.querySelectorAll('.modal-delivery-chk:checked');
-    let total = 0;
-    checks.forEach(c => total += parseFloat(c.dataset.net || 0));
-    document.getElementById('modal-sel-count').textContent = checks.length;
-    document.getElementById('modal-sel-total').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-}
-
-async function loadModalDeliveries() {
+/* ── Gerar comprovante com TODAS as distribuições (caso único comprovante) ── */
+async function generateAllDeliveries() {
     if (!PP_ASSOCIATE) return;
-    const from = document.getElementById('modal-from').value;
-    const to   = document.getElementById('modal-to').value;
-    const area = document.getElementById('modal-deliveries-area');
-    area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Carregando...</p>';
+    const btn = document.getElementById('rm-btn-gen-all');
+    btn.disabled = true;
+    btn.textContent = 'Gerando…';
 
     try {
-        let url = `/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${PP_ASSOCIATE}/deliveries?approved_only=1`;
-        if (from) url += `&from_date=${from}`;
-        if (to)   url += `&to_date=${to}`;
+        // Primeiro busca todos os IDs de distribuições aprovadas
+        const distRes  = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${PP_ASSOCIATE}/deliveries?approved_only=1`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PP_CSRF }
+        });
+        const distData = await distRes.json();
 
-        const res  = await fetch(url, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PP_CSRF } });
-        const data = await res.json();
-
-        if (!data.length) {
-            area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Nenhuma entrega aprovada encontrada neste período.</p>';
+        if (!distData.length) {
+            ppToast('Nenhuma distribuição aprovada encontrada para este produtor.', 'error');
             return;
         }
 
-        let html = '<div style="padding:.3rem 0;">';
-        // Cabeçalho
-        html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .6rem;background:var(--color-bg);font-size:.72rem;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;">
-            <input type="checkbox" id="modal-sel-all" style="width:15px;height:15px;cursor:pointer;accent-color:var(--color-primary);">
-            <span style="flex:1">Produto</span><span style="width:80px;text-align:left">Cliente</span><span style="width:75px;text-align:right">Data</span><span style="width:70px;text-align:right">Qtd</span><span style="width:70px;text-align:right">Líquido</span>
+        const ids = distData.map(d => d.id);
+        const visibleColumns = Array.from(document.querySelectorAll('#rm-no-receipt .rm-col-chk:checked')).map(c => c.value);
+
+        await doGenerateReceipt(ids, visibleColumns, btn, 'Gerar Comprovante');
+    } catch(err) {
+        ppToast('Erro ao gerar comprovante.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+/* ── Entrar no modo de seleção (comprovante adicional) ── */
+async function enterSelectingMode() {
+    setModalState('selecting');
+    const area = document.getElementById('rm-sel-area');
+    area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Carregando distribuições…</p>';
+
+    try {
+        const res  = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${PP_ASSOCIATE}/deliveries?approved_only=1`, {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PP_CSRF }
+        });
+        const data = await res.json();
+
+        if (!data.length) {
+            area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Nenhuma distribuição aprovada encontrada.</p>';
+            return;
+        }
+
+        PP_ALL_DIST_IDS = data.map(d => d.id);
+
+        let html = '<div>';
+        html += `<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .6rem;background:var(--color-bg);font-size:.72rem;font-weight:700;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--color-border);">
+            <input type="checkbox" id="rm-sel-all" style="width:15px;height:15px;cursor:pointer;accent-color:var(--color-primary);">
+            <span style="flex:1">Produto</span><span style="width:80px">Cliente</span><span style="width:75px;text-align:right">Data</span><span style="width:70px;text-align:right">Qtd</span><span style="width:72px;text-align:right">Líquido</span>
         </div>`;
         data.forEach(d => {
             html += `<div class="delivery-item">
-                <input type="checkbox" class="modal-delivery-chk" value="${d.id}" data-net="${d.net_value}" checked>
+                <input type="checkbox" class="rm-dist-chk" value="${d.id}" data-net="${d.net_value}">
                 <span style="flex:1">${d.product_name}</span>
                 <span style="width:80px;font-size:.75rem;color:var(--color-text-secondary)">${d.customer_name ?? ''}</span>
-                <span style="width:75px;text-align:right;white-space:nowrap;">${d.delivery_date}</span>
-                <span style="width:70px;text-align:right;white-space:nowrap;">${parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3})} ${d.unit}</span>
-                <span style="width:70px;text-align:right;white-space:nowrap;color:var(--color-success);">R$\u00a0${parseFloat(d.net_value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                <span style="width:75px;text-align:right;white-space:nowrap">${d.delivery_date}</span>
+                <span style="width:70px;text-align:right;white-space:nowrap">${parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3})} ${d.unit}</span>
+                <span style="width:72px;text-align:right;white-space:nowrap;color:var(--color-success)">R$\u00a0${parseFloat(d.net_value).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
             </div>`;
         });
         html += '</div>';
         area.innerHTML = html;
 
-        // Ativar seleção
-        document.getElementById('modal-sel-all')?.addEventListener('change', function() {
-            document.querySelectorAll('.modal-delivery-chk').forEach(c => c.checked = this.checked);
-            updateModalSummary();
+        document.getElementById('rm-sel-all')?.addEventListener('change', function() {
+            document.querySelectorAll('.rm-dist-chk').forEach(c => c.checked = this.checked);
+            updateSelSummary();
         });
-        document.querySelectorAll('.modal-delivery-chk').forEach(c => c.addEventListener('change', updateModalSummary));
-        updateModalSummary();
+        document.querySelectorAll('.rm-dist-chk').forEach(c => c.addEventListener('change', updateSelSummary));
+        updateSelSummary();
     } catch(err) {
-        area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-danger)">Erro ao carregar entregas.</p>';
+        area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-danger)">Erro ao carregar distribuições.</p>';
     }
 }
 
-async function generateModalReceipt() {
-    const checks = document.querySelectorAll('.modal-delivery-chk:checked');
-    if (!checks.length) { ppToast('Selecione ao menos uma entrega.', 'error'); return; }
+function showHasReceiptState() {
+    setModalState('has-receipt');
+}
+
+function updateSelSummary() {
+    const checks = document.querySelectorAll('.rm-dist-chk:checked');
+    let total = 0;
+    checks.forEach(c => total += parseFloat(c.dataset.net || 0));
+    document.getElementById('rm-sel-count').textContent  = checks.length;
+    document.getElementById('rm-sel-total').textContent   = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+/* ── Gerar comprovante adicional (seleção) ── */
+async function generateSelectedReceipt() {
+    const checks = document.querySelectorAll('.rm-dist-chk:checked');
+    if (!checks.length) { ppToast('Selecione ao menos uma distribuição.', 'error'); return; }
 
     const ids = Array.from(checks).map(c => parseInt(c.value));
+    const visibleColumns = Array.from(document.querySelectorAll('#rm-selecting .rm-col-chk:checked')).map(c => c.value);
+    const btn = document.getElementById('rm-btn-gen-sel');
 
-    // Colunas selecionadas
-    const visibleColumns = Array.from(document.querySelectorAll('input[name="visible_columns[]"]:checked'))
-        .map(c => c.value);
+    await doGenerateReceipt(ids, visibleColumns, btn, 'Gerar PDF');
+}
 
-    const btn = document.getElementById('modal-gen-btn');
+/* ── Função central de geração via POST ── */
+async function doGenerateReceipt(ids, visibleColumns, btn, originalLabel) {
     btn.disabled = true;
-    btn.innerHTML = 'Gerando...';
+    btn.textContent = 'Gerando…';
 
     try {
         const res  = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/receipt-selected`, {
@@ -418,7 +535,9 @@ async function generateModalReceipt() {
             body: JSON.stringify({ delivery_ids: ids, visible_columns: visibleColumns })
         });
         const data = await res.json();
+
         if (data.success) {
+            // Download do PDF
             const byteChars = atob(data.pdf);
             const byteArray = new Uint8Array(byteChars.length);
             for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
@@ -427,7 +546,14 @@ async function generateModalReceipt() {
             const a    = document.createElement('a');
             a.href = url; a.download = data.filename; a.click();
             URL.revokeObjectURL(url);
+
             ppToast(`Comprovante nº ${data.receipt_number} gerado com ${ids.length} entrega(s)!`);
+
+            // Aviso de distribuições não cobertas
+            if ((data.uncovered_count ?? 0) > 0) {
+                ppToast(`⚠️ Atenção: ${data.uncovered_count} distribuição(ões) ainda não estão cobertas por nenhum comprovante!`, 'error');
+            }
+
             closeReceiptModal();
         } else {
             ppToast(data.message || 'Erro ao gerar comprovante.', 'error');
@@ -436,7 +562,7 @@ async function generateModalReceipt() {
         ppToast('Erro de comunicação com o servidor.', 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar PDF';
+        btn.innerHTML = `<i data-lucide="file-down" style="width:13px;height:13px"></i> ${originalLabel}`;
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }

@@ -122,6 +122,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         // Lista pública (autenticada) de produtores por projeto
         Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');
         Route::get('/projects/{project}/producers', [DeliveryRegistrationController::class, 'projectProducers'])->name('projects.producers');
+        Route::get('/projects/{project}/associates/{associate}/receipt-check', [DeliveryRegistrationController::class, 'checkAssociateReceipt'])->name('projects.associate-receipt-check');
         Route::get('/projects/{project}/associates/{associate}/receipt', [DeliveryRegistrationController::class, 'generateAssociateReceiptPdf'])->name('projects.associate-receipt');
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');

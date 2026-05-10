@@ -94,6 +94,38 @@ class AssociateReceiptResource extends Resource
                             ->label('Observações')
                             ->rows(2)
                             ->columnSpanFull(),
+
+                        Forms\Components\Placeholder::make('existing_receipt_warning')
+                            ->label('')
+                            ->content(function (Get $get, $record) {
+                                $projectId   = $get('sales_project_id');
+                                $associateId = $get('associate_id');
+                                if (! $projectId || ! $associateId) {
+                                    return '';
+                                }
+                                $query = AssociateReceipt::where('tenant_id', session('tenant_id'))
+                                    ->where('sales_project_id', $projectId)
+                                    ->where('associate_id', $associateId);
+                                // Excluir o próprio registro na edição
+                                if ($record?->id) {
+                                    $query->where('id', '!=', $record->id);
+                                }
+                                $count = $query->count();
+                                if ($count === 0) {
+                                    return '';
+                                }
+                                $label = $count === 1 ? '1 comprovante' : "{$count} comprovantes";
+
+                                return new \Illuminate\Support\HtmlString(
+                                    '<div style="background:#fef9c3;border:1px solid #ca8a04;border-radius:6px;padding:.65rem 1rem;color:#78350f;">'
+                                    .'<strong>⚠️ Atenção:</strong> Já existe(m) <strong>'.$label.'</strong> para este produtor neste projeto. '
+                                    .'Criar um comprovante adicional permite dividir as distribuições entre múltiplos comprovantes. '
+                                    .'Quando houver mais de um comprovante, certifique-se de que todas as distribuições estão cobertas.'
+                                    .'</div>'
+                                );
+                            })
+                            ->live()
+                            ->columnSpanFull(),
                     ])
                     ->columns(2),
 
@@ -242,8 +274,19 @@ class AssociateReceiptResource extends Resource
                         $project = $record->project;
 
                         // ── Buscar entregas ──────────────────────────────────
-                        // Prioriza IDs explicitamente vinculados; caso contrário filtra por projeto/período
+                        // Quando há apenas 1 comprovante para este associado/projeto,
+                        // usa TODAS as distribuições atuais (padrão único comprovante).
+                        // Quando há múltiplos, usa os IDs armazenados (comprovante parcial).
                         $storedIds = $record->delivery_ids ?? [];
+                        $receiptCount = AssociateReceipt::where('tenant_id', $tenantId)
+                            ->where('sales_project_id', $record->sales_project_id)
+                            ->where('associate_id', $record->associate_id)
+                            ->count();
+
+                        // Único comprovante → ignora IDs armazenados, carrega todos atuais
+                        if ($receiptCount <= 1) {
+                            $storedIds = [];
+                        }
 
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->where('associate_id', $record->associate_id)
@@ -311,6 +354,14 @@ class AssociateReceiptResource extends Resource
                     ->modalHeading(fn (AssociateReceipt $r) => 'Entregas — Comprovante Nº '.$r->formatted_number)
                     ->modalContent(function (AssociateReceipt $record) {
                         $ids = $record->delivery_ids ?? [];
+                        $receiptCount = AssociateReceipt::where('tenant_id', $record->tenant_id)
+                            ->where('sales_project_id', $record->sales_project_id)
+                            ->where('associate_id', $record->associate_id)
+                            ->count();
+                        // Único comprovante → usa todas as distribuições atuais
+                        if ($receiptCount <= 1) {
+                            $ids = [];
+                        }
 
                         $query = ProductionDelivery::where('tenant_id', $record->tenant_id)
                             ->where('associate_id', $record->associate_id)
