@@ -1447,6 +1447,463 @@ class DeliveryRegistrationController extends Controller
     }
 
     /**
+     * PDF: Relatório completo de distribuições por cliente (uso interno).
+     * Agrupa por cliente → produto, exibindo associado, quantidade e valor bruto.
+     */
+    public function reportDistributionsByCustomer()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            abort(403);
+        }
+
+        $tenant  = $this->currentTenant();
+        $filters = $this->resolveFilterLabels($tenantId);
+
+        // Apenas distribuições (parent_delivery_id NOT NULL), sem REJECTED/CANCELLED
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->with(['salesProject', 'associate.user', 'product', 'customer']);
+
+        if ($pid = request('project_id')) {
+            $query->where('sales_project_id', $pid);
+        }
+        if ($dateFrom = request('date_from')) {
+            $query->whereDate('delivery_date', '>=', $dateFrom);
+        }
+        if ($dateTo = request('date_to')) {
+            $query->whereDate('delivery_date', '<=', $dateTo);
+        }
+        if ($cid = request('customer_id')) {
+            $query->where('customer_id', (int) $cid);
+        }
+
+        $distributions = $query->orderBy('delivery_date')->orderByDesc('id')->get();
+
+        // Agrupar por cliente → produto
+        $groups = [];
+        foreach ($distributions as $d) {
+            $customerId  = $d->customer_id ?? 0;
+            $customerName = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
+            $productId   = $d->product_id ?? 0;
+            $productName = $d->product?->name ?? 'Desconhecido';
+            $unit        = $d->product?->unit ?? 'un';
+
+            if (! isset($groups[$customerId])) {
+                $groups[$customerId] = [
+                    'customer_name' => $customerName,
+                    'products'      => [],
+                    'total_qty'     => 0.0,
+                    'total_gross'   => 0.0,
+                ];
+            }
+            if (! isset($groups[$customerId]['products'][$productId])) {
+                $groups[$customerId]['products'][$productId] = [
+                    'product_name' => $productName,
+                    'unit'         => $unit,
+                    'rows'         => [],
+                    'total_qty'    => 0.0,
+                    'total_gross'  => 0.0,
+                ];
+            }
+
+            $qty   = (float) $d->quantity;
+            $gross = (float) $d->gross_value;
+            $groups[$customerId]['products'][$productId]['rows'][] = [
+                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                'associate'     => $d->associate?->user?->name ?? '—',
+                'quantity'      => $qty,
+                'unit_price'    => (float) $d->unit_price,
+                'gross'         => $gross,
+                'unit'          => $unit,
+            ];
+            $groups[$customerId]['products'][$productId]['total_qty']   += $qty;
+            $groups[$customerId]['products'][$productId]['total_gross']  += $gross;
+            $groups[$customerId]['total_qty']   += $qty;
+            $groups[$customerId]['total_gross']  += $gross;
+        }
+
+        // Reindexar e ordenar
+        $groups = collect($groups)
+            ->sortKeys()
+            ->map(fn ($g) => array_merge($g, [
+                'products' => collect($g['products'])->sortKeys()->values()->all(),
+            ]))
+            ->values()
+            ->all();
+
+        $totals = [
+            'distributions_count' => $distributions->count(),
+            'customers_count'     => count($groups),
+            'total_qty'           => $distributions->sum('quantity'),
+            'total_gross'         => $distributions->sum('gross_value'),
+        ];
+
+        $singleCustomer = count($groups) === 1 ? $groups[0]['customer_name'] : null;
+        $title = $singleCustomer
+            ? 'Distribuições — ' . $singleCustomer
+            : 'Relatório de Distribuições por Cliente';
+
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.distributions-by-customer', [
+            'tenant'       => $tenant,
+            'title'        => $title,
+            'subtitle'     => isset($filters['project']) ? $filters['project'] : null,
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'filters'      => $filters,
+            'groups'       => $groups,
+            'totals'       => $totals,
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.distributions-by-customer', $title),
+            ['paper' => 'a4', 'orientation' => 'portrait']
+        ));
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            'distribuicoes-por-cliente-'.now()->format('Y-m-d').'.pdf',
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
+     * PDF: Relatório compacto de distribuições por cliente (uso para cobrança).
+     * Exibe produto, quantidade total e valor total — sem detalhes de associado.
+     */
+    public function reportDistributionsByCustomerCompact()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            abort(403);
+        }
+
+        $tenant  = $this->currentTenant();
+        $filters = $this->resolveFilterLabels($tenantId);
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->with(['product', 'customer']);
+
+        if ($pid = request('project_id')) {
+            $query->where('sales_project_id', $pid);
+        }
+        if ($dateFrom = request('date_from')) {
+            $query->whereDate('delivery_date', '>=', $dateFrom);
+        }
+        if ($dateTo = request('date_to')) {
+            $query->whereDate('delivery_date', '<=', $dateTo);
+        }
+        if ($cid = request('customer_id')) {
+            $query->where('customer_id', (int) $cid);
+        }
+
+        $distributions = $query->orderBy('delivery_date')->get();
+
+        // Agrupar por cliente → produto (compacto: só totais)
+        $groups = [];
+        foreach ($distributions as $d) {
+            $customerId   = $d->customer_id ?? 0;
+            $customerName = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
+            $productId    = $d->product_id ?? 0;
+            $productName  = $d->product?->name ?? 'Desconhecido';
+            $unit         = $d->product?->unit ?? 'un';
+
+            if (! isset($groups[$customerId])) {
+                $groups[$customerId] = [
+                    'customer_name' => $customerName,
+                    'products'      => [],
+                    'total_qty'     => 0.0,
+                    'total_gross'   => 0.0,
+                ];
+            }
+            if (! isset($groups[$customerId]['products'][$productId])) {
+                $groups[$customerId]['products'][$productId] = [
+                    'product_name' => $productName,
+                    'unit'         => $unit,
+                    'total_qty'    => 0.0,
+                    'total_gross'  => 0.0,
+                ];
+            }
+
+            $qty   = (float) $d->quantity;
+            $gross = (float) $d->gross_value;
+            $groups[$customerId]['products'][$productId]['total_qty']   += $qty;
+            $groups[$customerId]['products'][$productId]['total_gross']  += $gross;
+            $groups[$customerId]['total_qty']   += $qty;
+            $groups[$customerId]['total_gross']  += $gross;
+        }
+
+        $groups = collect($groups)
+            ->sortKeys()
+            ->map(fn ($g) => array_merge($g, [
+                'products' => collect($g['products'])->sortKeys()->values()->all(),
+            ]))
+            ->values()
+            ->all();
+
+        $totals = [
+            'customers_count' => count($groups),
+            'total_qty'       => $distributions->sum('quantity'),
+            'total_gross'     => $distributions->sum('gross_value'),
+        ];
+
+        $singleCustomer = count($groups) === 1 ? $groups[0]['customer_name'] : null;
+        $title = $singleCustomer
+            ? 'Resumo de Distribuições — ' . $singleCustomer
+            : 'Relatório de Distribuições — Resumo por Cliente';
+
+        $svc = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $svc->generateSystemPdf('pdf.distributions-by-customer-compact', [
+            'tenant'       => $tenant,
+            'title'        => $title,
+            'subtitle'     => isset($filters['project']) ? $filters['project'] : null,
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'filters'      => $filters,
+            'groups'       => $groups,
+            'totals'       => $totals,
+        ], array_merge(
+            $svc->systemPdfOptions('pdf.distributions-by-customer-compact', $title),
+            ['paper' => 'a4', 'orientation' => 'portrait']
+        ));
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            'distribuicoes-por-cliente-resumo-'.now()->format('Y-m-d').'.pdf',
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
+     * JSON: Retorna clientes disponíveis e datas de entrega sugeridas para o modal de seleção.
+     */
+    public function customerDeliveryOptions()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            return response()->json(['error' => 'Não autenticado'], 403);
+        }
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->with(['customer', 'salesProject'])
+            ->select(['id', 'customer_id', 'sales_project_id', 'delivery_date']);
+
+        if ($pid = request('project_id')) {
+            $query->where('sales_project_id', (int) $pid);
+        }
+
+        $distributions = $query->orderBy('delivery_date')->get();
+
+        // Clientes únicos
+        $customers = $distributions
+            ->filter(fn ($d) => $d->customer_id)
+            ->groupBy('customer_id')
+            ->map(fn ($items) => [
+                'id'   => $items->first()->customer_id,
+                'name' => $items->first()->customer?->trade_name ?? $items->first()->customer?->name ?? 'Sem nome',
+            ])
+            ->values()
+            ->sortBy('name')
+            ->values()
+            ->all();
+
+        // Agrupar datas únicas por proximidade (gap ≤ 2 dias = mesmo grupo)
+        $sortedDates = $distributions
+            ->filter(fn ($d) => $d->delivery_date)
+            ->pluck('delivery_date')
+            ->map(fn ($d) => $d->format('Y-m-d'))
+            ->unique()->sort()->values()->all();
+
+        $dateGroups = [];
+        $curr = null;
+        foreach ($sortedDates as $ds) {
+            if ($curr === null) {
+                $curr = ['from' => $ds, 'to' => $ds, 'count' => 1];
+            } else {
+                $gap = (int) \Carbon\Carbon::parse($curr['to'])->diffInDays(\Carbon\Carbon::parse($ds));
+                if ($gap <= 2) {
+                    $curr['to'] = $ds;
+                    $curr['count']++;
+                } else {
+                    $dateGroups[] = $curr;
+                    $curr = ['from' => $ds, 'to' => $ds, 'count' => 1];
+                }
+            }
+        }
+        if ($curr !== null) $dateGroups[] = $curr;
+
+        $dateGroups = array_map(function ($g) {
+            $from = \Carbon\Carbon::parse($g['from']);
+            $to   = \Carbon\Carbon::parse($g['to']);
+            if ($g['from'] === $g['to']) {
+                $label = $from->format('d/m/Y');
+            } elseif ($from->format('m/Y') === $to->format('m/Y')) {
+                $label = $from->format('d') . ' a ' . $to->format('d/m/Y');
+            } else {
+                $label = $from->format('d/m') . ' a ' . $to->format('d/m/Y');
+            }
+            return [
+                'label'     => $label,
+                'date_from' => $g['from'],
+                'date_to'   => $g['to'],
+                'count'     => $g['count'],
+            ];
+        }, $dateGroups);
+
+        // Também meses (agrupamento secundário)
+        $datesByMonth = $distributions
+            ->filter(fn ($d) => $d->delivery_date)
+            ->groupBy(fn ($d) => $d->delivery_date->format('Y-m'))
+            ->map(fn ($items, $ym) => [
+                'label'     => \Carbon\Carbon::parse($ym . '-01')->translatedFormat('F \d\e Y'),
+                'date_from' => $items->min('delivery_date')->format('Y-m-d'),
+                'date_to'   => $items->max('delivery_date')->format('Y-m-d'),
+                'count'     => $items->count(),
+            ])
+            ->sortKeys()->values()->all();
+
+        return response()->json([
+            'customers'      => $customers,
+            'date_groups'    => $dateGroups,
+            'dates_by_month' => $datesByMonth,
+            'all_dates'      => $sortedDates,
+        ]);
+    }
+
+    /**
+     * PDF: Relatório de entregas individual por cliente (Declaração/Extrato).
+     * Um cliente por relatório, período selecionável. Layout B&W limpo.
+     */
+    public function reportCustomerDeliveryStatement()
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            abort(403);
+        }
+
+        $customerId = (int) request('customer_id');
+        if (! $customerId) {
+            abort(422, 'customer_id é obrigatório.');
+        }
+
+        $tenant   = $this->currentTenant();
+        $dateFrom = request('date_from');
+        $dateTo   = request('date_to');
+        $showUnitPrice = request('col_unit_price', '1') !== '0';
+        $showTotal     = request('col_total', '1') !== '0';
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->where('customer_id', $customerId)
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->with(['product', 'associate.user', 'salesProject'])
+            ->orderBy('delivery_date')
+            ->orderBy('id');
+
+        if ($dateFrom) {
+            $query->whereDate('delivery_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('delivery_date', '<=', $dateTo);
+        }
+
+        $distributions = $query->get();
+
+        if ($distributions->isEmpty()) {
+            abort(404, 'Nenhuma distribuição encontrada para este cliente no período selecionado.');
+        }
+
+        // Carregar o cliente
+        $customer = $distributions->first()->customer;
+
+        // Agrupar por produto
+        $productGroups = [];
+        foreach ($distributions as $d) {
+            $productId   = $d->product_id ?? 0;
+            $productName = $d->product?->name ?? 'Desconhecido';
+            $unit        = $d->product?->unit ?? 'un';
+
+            if (! isset($productGroups[$productId])) {
+                $productGroups[$productId] = [
+                    'product_name' => $productName,
+                    'unit'         => $unit,
+                    'rows'         => [],
+                    'total_qty'    => 0.0,
+                    'total_gross'  => 0.0,
+                ];
+            }
+
+            $qty   = (float) $d->quantity;
+            $gross = (float) $d->gross_value;
+            $productGroups[$productId]['rows'][] = [
+                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                'quantity'      => $qty,
+                'unit_price'    => (float) $d->unit_price,
+                'gross'         => $gross,
+                'unit'          => $unit,
+            ];
+            $productGroups[$productId]['total_qty']   += $qty;
+            $productGroups[$productId]['total_gross']  += $gross;
+        }
+
+        $productGroups = collect($productGroups)->values()->all();
+
+        // Período formatado
+        $periodLabel = null;
+        if ($dateFrom && $dateTo) {
+            $periodLabel = \Carbon\Carbon::parse($dateFrom)->format('d/m/Y')
+                . ' a '
+                . \Carbon\Carbon::parse($dateTo)->format('d/m/Y');
+        } elseif ($dateFrom) {
+            $periodLabel = 'A partir de ' . \Carbon\Carbon::parse($dateFrom)->format('d/m/Y');
+        } elseif ($dateTo) {
+            $periodLabel = 'Até ' . \Carbon\Carbon::parse($dateTo)->format('d/m/Y');
+        } else {
+            $minDate = $distributions->min('delivery_date');
+            $maxDate = $distributions->max('delivery_date');
+            $periodLabel = $minDate && $maxDate
+                ? $minDate->format('d/m/Y') . ' a ' . $maxDate->format('d/m/Y')
+                : 'Todas as datas';
+        }
+
+        $totals = [
+            'total_qty'   => $distributions->sum('quantity'),
+            'total_gross' => $distributions->sum('gross_value'),
+            'items_count' => $distributions->count(),
+        ];
+
+        // Projeto(s) associado(s) às distribuições
+        $projectNames = $distributions->pluck('salesProject.title')->filter()->unique()->values()->all();
+        $projectLabel = count($projectNames) === 1
+            ? $projectNames[0]
+            : (count($projectNames) > 1 ? implode(', ', $projectNames) : null);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.customer-delivery-statement', [
+            'tenant'          => $tenant,
+            'customer'        => $customer,
+            'period_label'    => $periodLabel,
+            'product_groups'  => $productGroups,
+            'project_label'   => $projectLabel,
+            'totals'          => $totals,
+            'generated_at'    => now()->format('d/m/Y H:i'),
+            'show_unit_price' => $showUnitPrice,
+            'show_total'      => $showTotal,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'relatorio-entregas-'
+            . \Illuminate\Support\Str::slug($customer?->trade_name ?? $customer?->name ?? 'cliente')
+            . '-' . now()->format('Y-m-d') . '.pdf';
+
+        return response()->streamDownload(
+            fn () => print ($pdf->output()),
+            $filename,
+            ['Content-Type' => 'application/pdf']
+        );
+    }
+
+    /**
      * Lista pública (autenticada) dos produtores que entregaram em um projeto.
      * Requer auth + role registrador_entregas ou acima.
      */

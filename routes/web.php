@@ -118,6 +118,10 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/reports/by-associate', [DeliveryRegistrationController::class, 'reportByAssociate'])->name('reports.by-associate');
         Route::get('/reports/by-product', [DeliveryRegistrationController::class, 'reportByProduct'])->name('reports.by-product');
         Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
+        Route::get('/reports/distributions-by-customer', [DeliveryRegistrationController::class, 'reportDistributionsByCustomer'])->name('reports.distributions-by-customer');
+        Route::get('/reports/distributions-by-customer-compact', [DeliveryRegistrationController::class, 'reportDistributionsByCustomerCompact'])->name('reports.distributions-by-customer-compact');
+        Route::get('/reports/customer-delivery-options', [DeliveryRegistrationController::class, 'customerDeliveryOptions'])->name('reports.customer-delivery-options');
+        Route::get('/reports/customer-delivery-statement', [DeliveryRegistrationController::class, 'reportCustomerDeliveryStatement'])->name('reports.customer-delivery-statement');
 
         // Lista pública (autenticada) de produtores por projeto
         Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');

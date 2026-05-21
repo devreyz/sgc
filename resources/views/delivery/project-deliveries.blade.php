@@ -239,12 +239,127 @@ $totalNet      = $deliveries->sum('net_value');
         <a href="{{ route('delivery.reports.by-product', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank">
             <i data-lucide="box" style="width:13px;height:13px"></i> Por Produto
         </a>
+        <a href="{{ route('delivery.reports.distributions-by-customer', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank">
+            <i data-lucide="building-2" style="width:13px;height:13px"></i> Distribuições por Cliente
+        </a>
+        <a href="{{ route('delivery.reports.distributions-by-customer-compact', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank" style="border-color:#059669;color:#059669;">
+            <i data-lucide="file-check" style="width:13px;height:13px"></i> Resumo p/ Cobrança
+        </a>
+        <button type="button" class="report-btn" onclick="openCustomerReportModal()" style="border-color:#1d4ed8;color:#1d4ed8;background:#eff6ff;">
+            <i data-lucide="file-badge" style="width:13px;height:13px"></i> Relatório Individual por Cliente
+        </button>
         <a href="{{ route('delivery.projects.producers', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="report-btn">
             <i data-lucide="clipboard-list" style="width:13px;height:13px"></i> Comprovantes Produtores
         </a>
     </div>
 </div>
 @endif
+
+{{-- ── MODAL: RELATÓRIO POR CLIENTE ── --}}
+<div class="modal-overlay hidden" id="customerReportModal">
+    <div class="modal-box" style="width:min(560px,96vw);max-height:90vh;overflow-y:auto;">
+        <div class="modal-title">
+            <i data-lucide="file-badge" style="width:18px;height:18px;color:#1d4ed8"></i>
+            Relatório por Cliente
+        </div>
+
+        <div id="crm-step-loading" style="text-align:center;padding:2rem 0;color:var(--color-text-secondary);">
+            <svg style="width:32px;height:32px;animation:crm-spin 1s linear infinite;" fill="none" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/>
+                <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+            <p style="margin-top:.5rem;font-size:.82rem;">Carregando opções...</p>
+        </div>
+        <style>@keyframes crm-spin{to{transform:rotate(360deg)}}</style>
+
+        <div id="crm-step-form" style="display:none;">
+            {{-- Tipo de relatório --}}
+            <div class="form-group">
+                <label class="form-label">Tipo de Relatório</label>
+                <div style="display:flex;gap:.35rem;flex-wrap:wrap;" id="crm-type-btns">
+                    <button type="button" class="crm-type-btn active" data-type="statement">Extrato Simples</button>
+                    <button type="button" class="crm-type-btn" data-type="full">Com Associados</button>
+                    <button type="button" class="crm-type-btn" data-type="compact">Resumo Compacto</button>
+                </div>
+                <div id="crm-type-desc" style="font-size:.72rem;color:var(--color-text-secondary);margin-top:.35rem;min-height:1rem;"></div>
+            </div>
+
+            {{-- Cliente --}}
+            <div class="form-group">
+                <label class="form-label">Cliente *</label>
+                <select id="crm-customer" class="form-control" onchange="crmOnCustomerChange()">
+                    <option value="">— Selecione um cliente —</option>
+                </select>
+            </div>
+
+            {{-- Período --}}
+            <div class="form-group">
+                <label class="form-label">Período de Entregas</label>
+                <div id="crm-date-chips" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.45rem;min-height:.5rem;"></div>
+                <details style="margin-bottom:.4rem;">
+                    <summary style="font-size:.7rem;color:var(--color-text-secondary);cursor:pointer;padding:.1rem 0;list-style:none;">
+                        <span id="crm-month-toggle">▸ Ver por mês</span>
+                    </summary>
+                    <div id="crm-month-chips" style="display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;padding-left:.25rem;"></div>
+                </details>
+                <div style="font-size:.7rem;color:var(--color-text-secondary);margin-bottom:.4rem;">
+                    Ou defina manualmente:
+                </div>
+                <div class="form-row">
+                    <div>
+                        <label class="form-label" style="font-size:.7rem;">De</label>
+                        <input type="date" id="crm-date-from" class="form-control" oninput="crmClearActiveChip()">
+                    </div>
+                    <div>
+                        <label class="form-label" style="font-size:.7rem;">Até</label>
+                        <input type="date" id="crm-date-to" class="form-control" oninput="crmClearActiveChip()">
+                    </div>
+                </div>
+                <div style="margin-top:.4rem;display:flex;gap:.4rem;">
+                    <button type="button" class="report-btn" style="font-size:.7rem;padding:.25rem .55rem;" onclick="crmSetAllDates()">Todo o período</button>
+                    <button type="button" class="report-btn" style="font-size:.7rem;padding:.25rem .55rem;" onclick="crmClearDates()">Limpar</button>
+                </div>
+            </div>
+
+            <div id="crm-availability" style="display:none;margin-bottom:.75rem;padding:.45rem .7rem;border-radius:4px;font-size:.77rem;"></div>
+
+            {{-- Colunas (só para Extrato Simples) --}}
+            <div id="crm-col-section" class="form-group" style="margin-bottom:.75rem;">
+                <label class="form-label">Colunas exibidas</label>
+                <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.25rem;">
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="checkbox" id="crm-col-unit-price" checked style="width:14px;height:14px;"> Preço Unitário
+                    </label>
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="checkbox" id="crm-col-total" checked style="width:14px;height:14px;"> Preço Total
+                    </label>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="closeCustomerReportModal()">Cancelar</button>
+                <button type="button" class="btn btn-sm" id="crm-btn-generate"
+                    style="background:#1d4ed8;color:#fff;" onclick="crmGenerate()" disabled>
+                    <i data-lucide="download" style="width:13px;height:13px"></i> Gerar PDF
+                </button>
+            </div>
+        </div>
+
+        <div id="crm-step-error" style="display:none;padding:1.5rem 0;text-align:center;color:var(--color-danger);">
+            <p style="font-size:.85rem;">Erro ao carregar opções. Tente novamente.</p>
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-top:.75rem;" onclick="crmLoadOptions()">Tentar novamente</button>
+        </div>
+    </div>
+</div>
+<style>
+.crm-type-btn {
+    padding:.3rem .7rem; border-radius:6px; border:1px solid #d1d5db;
+    font-size:.75rem; cursor:pointer; background:#f9fafb; color:#374151;
+    transition:.12s; white-space:nowrap;
+}
+.crm-type-btn.active { background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+.crm-type-btn:hover:not(.active) { background:#f3f4f6; border-color:#9ca3af; }
+</style>
 
 {{-- ── COMPROVANTES GERADOS ── --}}
 <div class="pd-card" style="margin-bottom:1rem;">
@@ -687,6 +802,240 @@ document.addEventListener('click', async function(e) {
         btn.disabled = false;
     }
 });
+
+/* ═══════════════════════════════════════════════════════════
+   MODAL — RELATÓRIO POR CLIENTE
+════════════════════════════════════════════════════════════ */
+let _crmOptions    = null;
+let _crmActiveChip = null;
+let _crmType       = 'statement';
+
+const _crmTypeDesc = {
+    statement: 'Data · produto · valor por item — para cobrar o cliente.',
+    full:      'Inclui associado (origem) por linha — para conferência interna.',
+    compact:   'Só totais por produto — visão rápida de cobrança.',
+};
+
+const _crmEndpoints = {
+    statement: 'customer-delivery-statement',
+    full:      'distributions-by-customer',
+    compact:   'distributions-by-customer-compact',
+};
+
+// Tipo de relatório
+document.getElementById('crm-type-btns').addEventListener('click', function(e) {
+    const btn = e.target.closest('.crm-type-btn');
+    if (!btn) return;
+    _crmType = btn.dataset.type;
+    document.querySelectorAll('.crm-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('crm-type-desc').textContent = _crmTypeDesc[_crmType] || '';
+    document.getElementById('crm-col-section').style.display = _crmType === 'statement' ? 'block' : 'none';
+});
+
+// Inicializar descrição
+document.getElementById('crm-type-desc').textContent = _crmTypeDesc['statement'];
+
+function openCustomerReportModal() {
+    document.getElementById('customerReportModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    crmLoadOptions();
+}
+
+function closeCustomerReportModal() {
+    document.getElementById('customerReportModal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('customerReportModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCustomerReportModal();
+});
+
+async function crmLoadOptions() {
+    document.getElementById('crm-step-loading').style.display = '';
+    document.getElementById('crm-step-form').style.display = 'none';
+    document.getElementById('crm-step-error').style.display = 'none';
+
+    try {
+        const url = `/${PD_TENANT}/delivery/reports/customer-delivery-options?project_id=${PD_PROJECT}`;
+        const res  = await fetch(url, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PD_CSRF } });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        _crmOptions = await res.json();
+        crmRenderForm();
+    } catch(e) {
+        document.getElementById('crm-step-loading').style.display = 'none';
+        document.getElementById('crm-step-error').style.display = '';
+    }
+}
+
+function crmRenderForm() {
+    document.getElementById('crm-step-loading').style.display = 'none';
+    document.getElementById('crm-step-form').style.display = '';
+
+    const sel = document.getElementById('crm-customer');
+    sel.innerHTML = '<option value="">— Selecione um cliente —</option>';
+    (_crmOptions.customers || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id; opt.textContent = c.name;
+        sel.appendChild(opt);
+    });
+
+    // Chips por período de entrega (agrupados por proximidade)
+    crmRenderDateChips(_crmOptions.date_groups || []);
+    // Chips por mês (colapsável)
+    crmRenderMonthChips(_crmOptions.dates_by_month || []);
+
+    crmUpdateGenerateBtn();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function crmRenderDateChips(groups) {
+    const container = document.getElementById('crm-date-chips');
+    container.innerHTML = '';
+    if (!groups.length) return;
+    groups.forEach((g, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.from = g.date_from;
+        btn.dataset.to   = g.date_to;
+        btn.dataset.idx  = idx;
+        btn.innerHTML = `${g.label}${g.count > 1 ? ` <span style="opacity:.55;font-size:.78em;">(${g.count})</span>` : ''}`;
+        btn.style.cssText = `
+            padding:.28rem .65rem; border-radius:999px; border:1px solid #bbb;
+            font-size:.72rem; font-weight:600; cursor:pointer; background:#f5f5f5;
+            color:#333; transition:.12s; white-space:nowrap;
+        `;
+        btn.addEventListener('click', () => crmSelectChip(btn, g));
+        container.appendChild(btn);
+    });
+}
+
+function crmRenderMonthChips(months) {
+    const container = document.getElementById('crm-month-chips');
+    container.innerHTML = '';
+    months.forEach((m, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.dataset.from = m.date_from;
+        btn.dataset.to   = m.date_to;
+        btn.dataset.idx  = 'm' + idx;
+        btn.innerHTML = `${m.label} <span style="opacity:.6;font-size:.8em;">(${m.count})</span>`;
+        btn.style.cssText = `
+            padding:.25rem .6rem; border-radius:999px; border:1px solid #d1d5db;
+            font-size:.7rem; cursor:pointer; background:#f9fafb; color:#555; white-space:nowrap;
+        `;
+        btn.addEventListener('click', () => crmSelectChip(btn, m));
+        container.appendChild(btn);
+    });
+}
+
+function crmSelectChip(btn, period) {
+    if (_crmActiveChip) {
+        _crmActiveChip.style.background = _crmActiveChip.dataset.idx?.startsWith('m') ? '#f9fafb' : '#f5f5f5';
+        _crmActiveChip.style.color = _crmActiveChip.dataset.idx?.startsWith('m') ? '#555' : '#333';
+        _crmActiveChip.style.borderColor = _crmActiveChip.dataset.idx?.startsWith('m') ? '#d1d5db' : '#bbb';
+    }
+    _crmActiveChip = btn;
+    btn.style.background = '#1d4ed8';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#1d4ed8';
+
+    document.getElementById('crm-date-from').value = period.date_from;
+    document.getElementById('crm-date-to').value   = period.date_to;
+    crmUpdateAvailability();
+    crmUpdateGenerateBtn();
+}
+
+function crmClearActiveChip() {
+    if (_crmActiveChip) {
+        _crmActiveChip.style.background = _crmActiveChip.dataset.idx?.startsWith('m') ? '#f9fafb' : '#f5f5f5';
+        _crmActiveChip.style.color = _crmActiveChip.dataset.idx?.startsWith('m') ? '#555' : '#333';
+        _crmActiveChip.style.borderColor = _crmActiveChip.dataset.idx?.startsWith('m') ? '#d1d5db' : '#bbb';
+        _crmActiveChip = null;
+    }
+    crmUpdateAvailability();
+    crmUpdateGenerateBtn();
+}
+
+function crmSetAllDates() {
+    if (!_crmOptions?.all_dates?.length) return;
+    crmClearActiveChip();
+    document.getElementById('crm-date-from').value = _crmOptions.all_dates[0];
+    document.getElementById('crm-date-to').value   = _crmOptions.all_dates[_crmOptions.all_dates.length - 1];
+    crmUpdateAvailability();
+    crmUpdateGenerateBtn();
+}
+
+function crmClearDates() {
+    crmClearActiveChip();
+    document.getElementById('crm-date-from').value = '';
+    document.getElementById('crm-date-to').value   = '';
+    crmUpdateAvailability();
+    crmUpdateGenerateBtn();
+}
+
+function crmOnCustomerChange() {
+    crmUpdateAvailability();
+    crmUpdateGenerateBtn();
+}
+
+function crmUpdateAvailability() {
+    const customerId = document.getElementById('crm-customer').value;
+    const dateFrom   = document.getElementById('crm-date-from').value;
+    const dateTo     = document.getElementById('crm-date-to').value;
+    const box        = document.getElementById('crm-availability');
+
+    if (!customerId) { box.style.display = 'none'; return; }
+
+    if (dateFrom && dateTo && dateTo < dateFrom) {
+        box.style.cssText = 'display:block;background:#fef2f2;border-left:3px solid #dc2626;padding:.4rem .7rem;font-size:.77rem;color:#991b1b;margin-bottom:.75rem;border-radius:0 4px 4px 0;';
+        box.textContent = '⚠ A data final deve ser igual ou posterior à data inicial.';
+        return;
+    }
+
+    box.style.cssText = 'display:block;background:#f0fdf4;border-left:3px solid #16a34a;padding:.4rem .7rem;font-size:.77rem;color:#166534;margin-bottom:.75rem;border-radius:0 4px 4px 0;';
+    if (!dateFrom && !dateTo) {
+        box.textContent = 'Sem filtro de data — todas as entregas disponíveis serão incluídas.';
+    } else {
+        const from = dateFrom ? new Date(dateFrom).toLocaleDateString('pt-BR') : '—';
+        const to   = dateTo   ? new Date(dateTo).toLocaleDateString('pt-BR')   : '—';
+        box.textContent = `Período: ${from} a ${to}`;
+    }
+}
+
+function crmUpdateGenerateBtn() {
+    const btn        = document.getElementById('crm-btn-generate');
+    const customerId = document.getElementById('crm-customer').value;
+    const dateFrom   = document.getElementById('crm-date-from').value;
+    const dateTo     = document.getElementById('crm-date-to').value;
+    btn.disabled = !customerId || (dateFrom && dateTo && dateTo < dateFrom);
+}
+
+function crmGenerate() {
+    const customerId = document.getElementById('crm-customer').value;
+    if (!customerId) return;
+
+    const dateFrom = document.getElementById('crm-date-from').value;
+    const dateTo   = document.getElementById('crm-date-to').value;
+
+    const params = new URLSearchParams({ customer_id: customerId });
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo)   params.set('date_to',   dateTo);
+    params.set('project_id', PD_PROJECT);
+
+    if (_crmType === 'statement') {
+        const colUP  = document.getElementById('crm-col-unit-price');
+        const colTot = document.getElementById('crm-col-total');
+        if (colUP  && !colUP.checked)  params.set('col_unit_price', '0');
+        if (colTot && !colTot.checked) params.set('col_total', '0');
+    }
+
+    const endpoint = _crmEndpoints[_crmType] || 'customer-delivery-statement';
+    const url = `/${PD_TENANT}/delivery/reports/${endpoint}?${params.toString()}`;
+    window.open(url, '_blank');
+    closeCustomerReportModal();
+}
+
 </script>
 @endsection
 
