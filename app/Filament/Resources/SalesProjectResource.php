@@ -151,6 +151,55 @@ class SalesProjectResource extends Resource
                             ->columnSpanFull(),
                     ])
                     ->collapsed(),
+
+                Forms\Components\Section::make('Controle de Participação')
+                    ->description('Restrinja quais associados podem registrar entregas neste projeto.')
+                    ->icon('heroicon-o-user-group')
+                    ->schema([
+                        Forms\Components\Toggle::make('restrict_participants')
+                            ->label('Restringir participantes do projeto')
+                            ->helperText('Quando ativado, apenas os associados selecionados abaixo poderão registrar entregas.')
+                            ->default(false)
+                            ->live()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Select::make('associates')
+                            ->label('Associados participantes')
+                            ->multiple()
+                            ->relationship('associates', 'id')
+                            ->getSearchResultsUsing(fn (string $search) =>
+                                \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                                    ->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                                    ->with('user')
+                                    ->limit(50)
+                                    ->get()
+                                    ->pluck('user.name', 'id')
+                            )
+                            ->getOptionLabelUsing(fn ($value) =>
+                                \App\Models\Associate::with('user')->find($value)?->user?->name ?? $value
+                            )
+                            ->preload(false)
+                            ->searchable()
+                            ->visible(fn (Forms\Get $get): bool => (bool) $get('restrict_participants'))
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsed()
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Limites de Faturamento')
+                    ->description('Defina limites financeiros e de quantidade por associado.')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->schema([
+                        Forms\Components\TextInput::make('max_total_value_per_associate')
+                            ->label('Limite máximo por associado (R$)')
+                            ->numeric()
+                            ->prefix('R$')
+                            ->nullable()
+                            ->helperText('Valor máximo acumulado que cada associado pode faturar neste projeto. Deixe em branco para sem limite.')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsed()
+                    ->collapsible(),
             ]);
     }
 
@@ -495,6 +544,7 @@ class SalesProjectResource extends Resource
             RelationManagers\DemandsRelationManager::class,
             RelationManagers\DeliveriesRelationManager::class,
             RelationManagers\AssociatePaymentsRelationManager::class,
+            RelationManagers\AssociateProductLimitsRelationManager::class,
         ];
     }
 

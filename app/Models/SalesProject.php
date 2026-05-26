@@ -42,6 +42,8 @@ class SalesProject extends Model
         'associates_paid_amount',
         'payment_bank_account_id',
         'allow_any_product',
+        'restrict_participants',
+        'max_total_value_per_associate',
         'completion_notes',
         'completed_at',
     ];
@@ -61,6 +63,8 @@ class SalesProject extends Model
             'admin_fee_collected' => 'decimal:2',
             'associates_paid_amount' => 'decimal:2',
             'allow_any_product' => 'boolean',
+            'restrict_participants' => 'boolean',
+            'max_total_value_per_associate' => 'decimal:2',
             'completed_at' => 'datetime',
         ];
     }
@@ -104,6 +108,74 @@ class SalesProject extends Model
             $list = $list->prepend($this->customer);
         }
         return $list;
+    }
+
+    /**
+     * Get the allowed associates for this project (when restrict_participants = true).
+     */
+    public function projectAssociates(): HasMany
+    {
+        return $this->hasMany(ProjectAssociate::class);
+    }
+
+    /**
+     * Get the associates (via pivot) allowed in this project.
+     */
+    public function associates(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Associate::class,
+            'project_associates',
+            'sales_project_id',
+            'associate_id'
+        )->withTimestamps();
+    }
+
+    /**
+     * Get the per-associate per-product quantity limits.
+     */
+    public function associateProductLimits(): HasMany
+    {
+        return $this->hasMany(ProjectAssociateProductLimit::class);
+    }
+
+    /**
+     * Check if an associate is allowed to deliver in this project.
+     */
+    public function isAssociateAllowed(int $associateId): bool
+    {
+        if (! $this->restrict_participants) {
+            return true;
+        }
+
+        return $this->projectAssociates()->where('associate_id', $associateId)->exists();
+    }
+
+    /**
+     * Get the total gross value already delivered by an associate in this project
+     * (only approved + pending, not cancelled/rejected).
+     */
+    public function getAssociateTotalValue(int $associateId): float
+    {
+        return (float) $this->deliveries()
+            ->where('associate_id', $associateId)
+            ->whereNull('parent_delivery_id') // recepções
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->value('total');
+    }
+
+    /**
+     * Get the total quantity already delivered by an associate for a product in this project.
+     */
+    public function getAssociateProductQuantity(int $associateId, int $productId): float
+    {
+        return (float) $this->deliveries()
+            ->where('associate_id', $associateId)
+            ->where('product_id', $productId)
+            ->whereNull('parent_delivery_id') // recepções
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->sum('quantity');
     }
 
     /**

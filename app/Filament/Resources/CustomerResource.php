@@ -7,12 +7,14 @@ use App\Filament\Traits\HasExportActions;
 use App\Models\Customer;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Traits\TenantScoped;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Unique;
 
 class CustomerResource extends Resource
@@ -200,6 +202,121 @@ class CustomerResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('duplicate')
+                    ->label('Duplicar')
+                    ->icon('heroicon-o-document-duplicate')
+                    ->color('info')
+                    ->modalHeading('Duplicar Cliente')
+                    ->modalDescription('Preencha os dados do novo cliente. Os preços personalizados por produto serão copiados automaticamente.')
+                    ->modalSubmitActionLabel('Criar Cópia')
+                    ->form(fn (Customer $record): array => [
+                        Forms\Components\Section::make('Dados do Novo Cliente')
+                            ->schema([
+                                Forms\Components\Select::make('type')
+                                    ->label('Tipo')
+                                    ->options([
+                                        'prefeitura' => 'Prefeitura',
+                                        'escola' => 'Escola',
+                                        'creche' => 'Creche',
+                                        'hospital' => 'Hospital',
+                                        'outros' => 'Outros',
+                                    ])
+                                    ->required()
+                                    ->default($record->type),
+
+                                Forms\Components\TextInput::make('name')
+                                    ->label('Razão Social')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->default('Cópia de '.$record->name),
+
+                                Forms\Components\TextInput::make('trade_name')
+                                    ->label('Nome Fantasia')
+                                    ->maxLength(255)
+                                    ->default($record->trade_name),
+
+                                Forms\Components\TextInput::make('cnpj')
+                                    ->label('CNPJ')
+                                    ->mask('99.999.999/9999-99')
+                                    ->maxLength(18)
+                                    ->required()
+                                    ->helperText('Insira um CNPJ diferente do cliente original.'),
+
+                                Forms\Components\TextInput::make('responsible_name')
+                                    ->label('Nome do Responsável')
+                                    ->maxLength(255)
+                                    ->default($record->responsible_name),
+
+                                Forms\Components\TextInput::make('email')
+                                    ->label('E-mail')
+                                    ->email()
+                                    ->maxLength(255)
+                                    ->default($record->email),
+
+                                Forms\Components\TextInput::make('phone')
+                                    ->label('Telefone')
+                                    ->tel()
+                                    ->mask('(99) 99999-9999')
+                                    ->maxLength(20)
+                                    ->default($record->phone),
+
+                                Forms\Components\TextInput::make('city')
+                                    ->label('Cidade')
+                                    ->maxLength(255)
+                                    ->default($record->city),
+
+                                Forms\Components\Select::make('state')
+                                    ->label('Estado')
+                                    ->options([
+                                        'AC' => 'Acre', 'AL' => 'Alagoas', 'AP' => 'Amapá', 'AM' => 'Amazonas',
+                                        'BA' => 'Bahia', 'CE' => 'Ceará', 'DF' => 'Distrito Federal',
+                                        'ES' => 'Espírito Santo', 'GO' => 'Goiás', 'MA' => 'Maranhão',
+                                        'MT' => 'Mato Grosso', 'MS' => 'Mato Grosso do Sul', 'MG' => 'Minas Gerais',
+                                        'PA' => 'Pará', 'PB' => 'Paraíba', 'PR' => 'Paraná', 'PE' => 'Pernambuco',
+                                        'PI' => 'Piauí', 'RJ' => 'Rio de Janeiro', 'RN' => 'Rio Grande do Norte',
+                                        'RS' => 'Rio Grande do Sul', 'RO' => 'Rondônia', 'RR' => 'Roraima',
+                                        'SC' => 'Santa Catarina', 'SP' => 'São Paulo', 'SE' => 'Sergipe',
+                                        'TO' => 'Tocantins',
+                                    ])
+                                    ->searchable()
+                                    ->default($record->state),
+                            ])
+                            ->columns(2),
+                    ])
+                    ->action(function (Customer $record, array $data): void {
+                        DB::transaction(function () use ($record, $data): void {
+                            $tenantId = session('tenant_id');
+
+                            $newCustomer = $record->replicate();
+                            $newCustomer->tenant_id = $tenantId;
+                            $newCustomer->name = $data['name'];
+                            $newCustomer->trade_name = $data['trade_name'] ?? null;
+                            $newCustomer->cnpj = $data['cnpj'];
+                            $newCustomer->type = $data['type'];
+                            $newCustomer->responsible_name = $data['responsible_name'] ?? null;
+                            $newCustomer->email = $data['email'] ?? null;
+                            $newCustomer->phone = $data['phone'] ?? null;
+                            $newCustomer->city = $data['city'] ?? null;
+                            $newCustomer->state = $data['state'] ?? null;
+                            $newCustomer->save();
+
+                            $pricesCopied = 0;
+                            foreach ($record->productPrices()->get() as $price) {
+                                $newPrice = $price->replicate();
+                                $newPrice->tenant_id = $tenantId;
+                                $newPrice->customer_id = $newCustomer->id;
+                                $newPrice->deleted_at = null;
+                                $newPrice->save();
+                                $pricesCopied++;
+                            }
+
+                            Notification::make()
+                                ->title('Cliente duplicado com sucesso!')
+                                ->body('Novo cliente criado.'.($pricesCopied > 0 ? " {$pricesCopied} preço(s) copiado(s)." : ''))
+                                ->success()
+                                ->send();
+                        });
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

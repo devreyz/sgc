@@ -677,6 +677,56 @@ class DeliveryRegistrationController extends Controller
             if ($project->allow_any_product && empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
             }
+
+            // Validação: participante restrito
+            if ($project->restrict_participants) {
+                $isAllowed = \App\Models\ProjectAssociate::where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->exists();
+                if (! $isAllowed) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este associado não está na lista de participantes deste projeto.',
+                    ], 422);
+                }
+            }
+
+            // Validação: limite de faturamento por associado
+            if ($project->max_total_value_per_associate) {
+                $accumulated = (float) \App\Models\ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->whereNull('parent_delivery_id')
+                    ->whereNotIn('status', ['cancelled', 'rejected'])
+                    ->selectRaw('SUM(quantity * unit_price) as total')
+                    ->value('total');
+
+                // Calcular o valor estimado da nova entrega
+                $newEntryPrice = 0.0;
+                if (! $project->allow_any_product && ! empty($validated['project_demand_id'])) {
+                    $tempDemand = \App\Models\ProjectDemand::find($validated['project_demand_id']);
+                    $newEntryPrice = $tempDemand ? (float) $tempDemand->unit_price : 0.0;
+                } elseif (! empty($validated['product_id'])) {
+                    $tempProduct = \App\Models\Product::find($validated['product_id']);
+                    $newEntryPrice = $tempProduct ? (float) ($tempProduct->cost_price ?? 0) : 0.0;
+                }
+
+                $newEntryValue = (float) $validated['quantity'] * $newEntryPrice;
+                $limit = (float) $project->max_total_value_per_associate;
+
+                if (($accumulated + $newEntryValue) > $limit) {
+                    $remaining = max(0, $limit - $accumulated);
+                    return response()->json([
+                        'success' => false,
+                        'message' => sprintf(
+                            'Limite máximo de faturamento atingido para este projeto. Limite: R$ %s | Já entregue: R$ %s | Disponível: R$ %s.',
+                            number_format($limit, 2, ',', '.'),
+                            number_format($accumulated, 2, ',', '.'),
+                            number_format($remaining, 2, ',', '.')
+                        ),
+                    ], 422);
+                }
+            }
         } else {
             // Modo avulso: product_id é obrigatório
             if (empty($validated['product_id'])) {
@@ -745,6 +795,39 @@ class DeliveryRegistrationController extends Controller
                     'message' => 'Entrega já registrada recentemente para este produto/associado/data.',
                     'existing' => ['id' => $duplicate->id],
                 ], 409);
+            }
+
+            // Validação: limite de quantidade por produto/associado no projeto
+            if (! $isStandalone && $project && $productId) {
+                $productLimit = \App\Models\ProjectAssociateProductLimit::where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->where('product_id', $productId)
+                    ->first();
+
+                if ($productLimit) {
+                    $accumulatedQty = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                        ->where('sales_project_id', $project->id)
+                        ->where('associate_id', $validated['associate_id'])
+                        ->where('product_id', $productId)
+                        ->whereNull('parent_delivery_id')
+                        ->whereNotIn('status', ['cancelled', 'rejected'])
+                        ->sum('quantity');
+
+                    $maxQty = (float) $productLimit->max_quantity;
+                    if (($accumulatedQty + $quantity) > $maxQty) {
+                        DB::rollBack();
+                        $remaining = max(0, $maxQty - $accumulatedQty);
+                        return response()->json([
+                            'success' => false,
+                            'message' => sprintf(
+                                'Limite de quantidade por produto atingido para este associado. Limite: %s | Já entregue: %s | Disponível: %s.',
+                                number_format($maxQty, 3, ',', '.'),
+                                number_format($accumulatedQty, 3, ',', '.'),
+                                number_format($remaining, 3, ',', '.')
+                            ),
+                        ], 422);
+                    }
+                }
             }
 
             $grossValue = $quantity * $unitPrice;
@@ -2322,6 +2405,45 @@ class DeliveryRegistrationController extends Controller
             if ($project->allow_any_product && empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
             }
+
+            // Validação: participante restrito (batch)
+            if ($project->restrict_participants) {
+                $isAllowed = \App\Models\ProjectAssociate::where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->exists();
+                if (! $isAllowed) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Este associado não está na lista de participantes deste projeto.',
+                    ], 422);
+                }
+            }
+
+            // Validação: limite de faturamento por associado (batch) — pré-check antes de iniciar transação
+            if ($project->max_total_value_per_associate) {
+                $accumulated = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->whereNull('parent_delivery_id')
+                    ->whereNotIn('status', ['cancelled', 'rejected'])
+                    ->selectRaw('SUM(quantity * unit_price) as total')
+                    ->value('total');
+
+                $batchTotalValue = collect($validated['entries'])->sum(fn ($e) => (float) $e['quantity']) * 0.0; // placeholder; preciso do unit_price
+                // Preço será calculado mais adiante, então fazemos o check com estimativa zero
+                // O check real será feito dentro da transação (abaixo), mas sinalizamos cedo para UX
+                $limit = (float) $project->max_total_value_per_associate;
+                if ($accumulated >= $limit) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => sprintf(
+                            'Limite máximo de faturamento atingido para este projeto. Limite: R$ %s | Já entregue: R$ %s.',
+                            number_format($limit, 2, ',', '.'),
+                            number_format($accumulated, 2, ',', '.')
+                        ),
+                    ], 422);
+                }
+            }
         } else {
             if (empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
@@ -2356,9 +2478,71 @@ class DeliveryRegistrationController extends Controller
 
             $created = [];
 
+            // Pré-carregar limite por produto/associado para validação no loop
+            $productLimit = null;
+            if (! $isStandalone && $project && $productId) {
+                $productLimit = \App\Models\ProjectAssociateProductLimit::where('sales_project_id', $project->id)
+                    ->where('associate_id', $validated['associate_id'])
+                    ->where('product_id', $productId)
+                    ->first();
+            }
+
+            $accumulatedQtyInSession = 0.0; // rastreia quantidade acumulada durante o batch
+            $accumulatedValueInSession = 0.0;
+
+            // Qty já acumulada antes deste batch (para limites)
+            $preBatchQty = $productLimit ? (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('sales_project_id', $project->id)
+                ->where('associate_id', $validated['associate_id'])
+                ->where('product_id', $productId)
+                ->whereNull('parent_delivery_id')
+                ->whereNotIn('status', ['cancelled', 'rejected'])
+                ->sum('quantity') : 0.0;
+
+            $preBatchValue = ($project && $project->max_total_value_per_associate) ? (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('sales_project_id', $project->id)
+                ->where('associate_id', $validated['associate_id'])
+                ->whereNull('parent_delivery_id')
+                ->whereNotIn('status', ['cancelled', 'rejected'])
+                ->selectRaw('SUM(quantity * unit_price) as total')
+                ->value('total') : 0.0;
+
             foreach ($validated['entries'] as $entry) {
                 $quantity       = (float) $entry['quantity'];
                 $grossValue     = $quantity * $unitPrice;
+
+                // Validação intra-batch: limite de faturamento por associado
+                if ($project && $project->max_total_value_per_associate) {
+                    $limit = (float) $project->max_total_value_per_associate;
+                    if (($preBatchValue + $accumulatedValueInSession + $grossValue) > $limit) {
+                        DB::rollBack();
+                        $remaining = max(0, $limit - $preBatchValue - $accumulatedValueInSession);
+                        return response()->json([
+                            'success' => false,
+                            'message' => sprintf(
+                                'Limite máximo de faturamento atingido para este projeto. Disponível: R$ %s.',
+                                number_format($remaining, 2, ',', '.')
+                            ),
+                        ], 422);
+                    }
+                }
+
+                // Validação intra-batch: limite de quantidade por produto
+                if ($productLimit) {
+                    $maxQty = (float) $productLimit->max_quantity;
+                    if (($preBatchQty + $accumulatedQtyInSession + $quantity) > $maxQty) {
+                        DB::rollBack();
+                        $remaining = max(0, $maxQty - $preBatchQty - $accumulatedQtyInSession);
+                        return response()->json([
+                            'success' => false,
+                            'message' => sprintf(
+                                'Limite de quantidade por produto atingido. Disponível: %s.',
+                                number_format($remaining, 3, ',', '.')
+                            ),
+                        ], 422);
+                    }
+                }
+
                 $adminFeeAmount = $grossValue * ($adminFeePercent / 100);
                 $netValue       = $grossValue - $adminFeeAmount;
 
@@ -2379,6 +2563,9 @@ class DeliveryRegistrationController extends Controller
                     'received_by'       => Auth::id(),
                     'paid'              => false,
                 ]);
+
+                $accumulatedQtyInSession   += $quantity;
+                $accumulatedValueInSession += $grossValue;
 
                 $created[] = [
                     'id'         => $delivery->id,

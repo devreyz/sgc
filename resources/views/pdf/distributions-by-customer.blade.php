@@ -1,58 +1,139 @@
-@extends('pdf.partials.header')
+@php
+    $logoPath = null; $hasLogo = false;
+    if ($tenant && !empty($tenant->logo)) {
+        $raw = trim($tenant->logo);
+        if (preg_match('/^https?:\/\//i', $raw) || str_starts_with($raw, '//')) {
+            $logoPath = $raw; $hasLogo = true;
+        } else {
+            $c1 = public_path('storage/' . $raw);
+            if (file_exists($c1)) { $logoPath = $c1; $hasLogo = true; }
+            else { $c2 = public_path($raw); if (file_exists($c2)) { $logoPath = $c2; $hasLogo = true; }
+            else { $logoPath = asset('storage/' . ltrim($raw, '/')); $hasLogo = true; } }
+        }
+    }
+    $isSingle = count($groups) === 1;
+    $periodLabel = null;
+    if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
+        $periodLabel = ($filters['date_from'] ?? '—') . ' a ' . ($filters['date_to'] ?? '—');
+    }
+@endphp
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4 portrait; margin: 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10px; color: #111; padding: 14mm 18mm 12mm 18mm; }
+/* Cabeçalho */
+.hdr { display: table; width: 100%; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 14px; }
+.hdr-logo { display: table-cell; width: 56px; vertical-align: middle; }
+.hdr-logo img { width: 52px; height: 52px; object-fit: contain; }
+.hdr-org { display: table-cell; vertical-align: middle; padding-left: 10px; }
+.hdr-org .name { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: .3px; }
+.hdr-org .meta { font-size: 8px; color: #555; margin-top: 2px; line-height: 1.6; }
+.hdr-right { display: table-cell; text-align: right; vertical-align: middle; }
+.hdr-right .doc-title { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .4px; display: block; }
+.hdr-right .doc-sub { font-size: 9px; color: #444; display: block; margin-top: 2px; }
+.hdr-right .doc-gen { font-size: 7.5px; color: #999; display: block; margin-top: 2px; }
+/* Cards de resumo */
+.summary-row { display: table; width: 100%; margin-bottom: 14px; }
+.summary-cell { display: table-cell; text-align: center; padding: 7px 4px; border: 1px solid #e8e8e8; background: #f8f8f8; }
+.summary-val { font-size: 13px; font-weight: bold; color: #222; }
+.summary-lbl { font-size: 7px; color: #777; text-transform: uppercase; letter-spacing: .3px; margin-top: 2px; }
+/* Cabeçalho de cliente */
+.cust-hdr { display: table; width: 100%; margin: 10px 0 5px; padding-bottom: 3px; border-bottom: 1px solid #ccc; }
+.cust-name { display: table-cell; font-size: 10px; font-weight: bold; }
+.cust-meta { display: table-cell; text-align: right; font-size: 8.5px; color: #555; }
+/* Rótulo de produto */
+.prod-lbl { font-size: 8px; font-weight: bold; color: #333; padding: 3px 5px; background: #f0f0f0; border-left: 2px solid #888; margin-bottom: 2px; }
+.prod-lbl span { font-weight: normal; color: #777; margin-left: 5px; }
+/* Tabela */
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+table.tbl thead th { background: #ebebeb; border-bottom: 1.5px solid #333; padding: 4px 6px; font-size: 7pt; text-align: left; text-transform: uppercase; letter-spacing: .25px; font-weight: 700; color: #222; }
+table.tbl thead th.r { text-align: right; }
+table.tbl tbody td { padding: 3px 6px; font-size: 8.5pt; border-bottom: 1px solid #e8e8e8; }
+table.tbl tbody td.r { text-align: right; }
+table.tbl tbody tr:nth-child(even) td { background: #f8f8f8; }
+table.tbl tfoot td { padding: 4px 6px; font-weight: 700; font-size: 8.5pt; background: #e6e6e6; border-top: 1.5px solid #333; }
+table.tbl tfoot td.r { text-align: right; }
+/* Linha de total do cliente */
+.cust-total-line { text-align: right; font-size: 8px; font-weight: bold; padding: 3px 0 10px; border-bottom: 1px dashed #ddd; color: #333; }
+/* Total geral escuro */
+.grand-total { display: table; width: 100%; margin-top: 14px; padding: 8px 10px; background: #222; }
+.grand-total .lbl { display: table-cell; font-size: 9px; font-weight: bold; color: #fff; letter-spacing: .4px; }
+.grand-total .val { display: table-cell; text-align: right; font-size: 11px; font-weight: bold; color: #fff; }
+/* Rodapé */
+.ftr { margin-top: 14px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 7.5px; color: #aaa; text-align: center; }
+</style>
+</head>
+<body>
 
-@section('content')
-@php $isSingle = count($groups) === 1; @endphp
-
-{{-- Filtros --}}
-@if(isset($filters) && count(array_filter($filters)))
-<div class="info-box mb-2">
-    <table><tr>
-        @if(!empty($filters['project']))<td class="label">Projeto:</td><td class="value">{{ $filters['project'] }}</td>@endif
-        @if(!empty($filters['date_from']) || !empty($filters['date_to']))
-            <td class="label">Período:</td>
-            <td class="value">{{ $filters['date_from'] ?? '—' }} a {{ $filters['date_to'] ?? '—' }}</td>
-        @endif
-    </tr></table>
+{{-- Cabeçalho --}}
+<div class="hdr">
+    <div class="hdr-logo">@if($hasLogo)<img src="{{ $logoPath }}" alt="">@endif</div>
+    <div class="hdr-org">
+        <div class="name">{{ $tenant->name ?? '' }}</div>
+        <div class="meta">
+            @if($tenant?->cnpj)CNPJ: {{ $tenant->cnpj }}<br>@endif
+            @if($tenant?->city){{ $tenant->city }}@if($tenant?->state) / {{ $tenant->state }}@endif@endif
+        </div>
+    </div>
+    <div class="hdr-right">
+        <span class="doc-title">{{ $title ?? 'Distribuições por Cliente' }}</span>
+        @if(!empty($subtitle))<span class="doc-sub">{{ $subtitle }}</span>@endif
+        @if($periodLabel)<span class="doc-sub">Período: {{ $periodLabel }}</span>@endif
+        <span class="doc-gen">Emitido em {{ $generated_at }}</span>
+    </div>
 </div>
-@endif
 
-{{-- Resumo --}}
-<div class="summary-cards">
-    <div class="summary-card"><div class="card-value">{{ count($groups) }}</div><div class="card-label">{{ count($groups) === 1 ? 'Cliente' : 'Clientes' }}</div></div>
-    <div class="summary-card"><div class="card-value info">{{ $totals['distributions_count'] ?? 0 }}</div><div class="card-label">Distribuições</div></div>
-    <div class="summary-card"><div class="card-value">{{ number_format($totals['total_qty'] ?? 0, 3, ',', '.') }}</div><div class="card-label">Qtd. Total</div></div>
-    <div class="summary-card"><div class="card-value success">R$ {{ number_format($totals['total_gross'] ?? 0, 2, ',', '.') }}</div><div class="card-label">Valor Total</div></div>
+{{-- Cards de resumo --}}
+<div class="summary-row">
+    <div class="summary-cell">
+        <div class="summary-val">{{ count($groups) }}</div>
+        <div class="summary-lbl">{{ count($groups) === 1 ? 'Cliente' : 'Clientes' }}</div>
+    </div>
+    <div class="summary-cell">
+        <div class="summary-val">{{ $totals['distributions_count'] ?? 0 }}</div>
+        <div class="summary-lbl">Distribuições</div>
+    </div>
+    <div class="summary-cell">
+        <div class="summary-val">{{ number_format($totals['total_qty'] ?? 0, 3, ',', '.') }}</div>
+        <div class="summary-lbl">Qtd. Total</div>
+    </div>
+    <div class="summary-cell">
+        <div class="summary-val">R$ {{ number_format($totals['total_gross'] ?? 0, 2, ',', '.') }}</div>
+        <div class="summary-lbl">Valor Total</div>
+    </div>
 </div>
 
+{{-- Grupos por cliente --}}
 @foreach($groups as $group)
-<div class="no-break">
-    {{-- Nome do cliente (simples, sem caixa grossa) --}}
+<div>
     @if(!$isSingle)
-    <div style="margin:12px 0 5px;font-size:10px;font-weight:bold;border-bottom:1px solid #ccc;padding-bottom:3px;display:table;width:100%;">
-        <span style="display:table-cell;">{{ $group['customer_name'] }}</span>
-        <span style="display:table-cell;text-align:right;font-size:8.5px;font-weight:normal;color:#555;">
+    <div class="cust-hdr">
+        <span class="cust-name">{{ $group['customer_name'] }}</span>
+        <span class="cust-meta">
             Qtd: {{ number_format($group['total_qty'], 3, ',', '.') }}
-            &nbsp;&middot;&nbsp;
-            Total: R$ {{ number_format($group['total_gross'], 2, ',', '.') }}
+            &middot; R$ {{ number_format($group['total_gross'], 2, ',', '.') }}
         </span>
     </div>
     @endif
 
     @foreach($group['products'] as $prod)
     <div style="margin-bottom:8px;">
-        {{-- Produto --}}
-        <div style="font-size:8px;font-weight:bold;color:#333;padding:3px 5px;background:#f0f0f0;border-left:2px solid #888;margin-bottom:2px;">
+        <div class="prod-lbl">
             {{ $prod['product_name'] }}
-            <span style="font-weight:normal;color:#777;margin-left:5px;">Qtd: {{ number_format($prod['total_qty'],3,',','.') }} {{ $prod['unit'] }} &middot; R$ {{ number_format($prod['total_gross'],2,',','.') }}</span>
+            <span>Qtd: {{ number_format($prod['total_qty'],3,',','.') }} {{ $prod['unit'] }} &middot; R$ {{ number_format($prod['total_gross'],2,',','.') }}</span>
         </div>
-        <table class="data-table compact">
+        <table class="tbl">
             <thead>
                 <tr>
                     <th style="width:60px;">Data</th>
                     <th>Associado (origem)</th>
-                    <th class="text-right" style="width:80px;">Qtd. ({{ $prod['unit'] }})</th>
-                    <th class="text-right" style="width:68px;">Vlr. Unit.</th>
-                    <th class="text-right" style="width:80px;">Total</th>
+                    <th class="r" style="width:80px;">Qtd. ({{ $prod['unit'] }})</th>
+                    <th class="r" style="width:68px;">Vlr. Unit.</th>
+                    <th class="r" style="width:82px;">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -60,19 +141,19 @@
                 <tr>
                     <td>{{ $row['delivery_date'] }}</td>
                     <td>{{ $row['associate'] }}</td>
-                    <td class="text-right">{{ number_format($row['quantity'],3,',','.') }}</td>
-                    <td class="text-right">R$&nbsp;{{ number_format($row['unit_price'],2,',','.') }}</td>
-                    <td class="text-right text-bold">R$&nbsp;{{ number_format($row['gross'],2,',','.') }}</td>
+                    <td class="r">{{ number_format($row['quantity'],3,',','.') }}</td>
+                    <td class="r">R$&nbsp;{{ number_format($row['unit_price'],2,',','.') }}</td>
+                    <td class="r"><strong>R$&nbsp;{{ number_format($row['gross'],2,',','.') }}</strong></td>
                 </tr>
                 @endforeach
             </tbody>
             @if(count($prod['rows']) > 1)
             <tfoot>
                 <tr>
-                    <td colspan="2" style="font-style:italic;">Subtotal</td>
-                    <td class="text-right">{{ number_format($prod['total_qty'],3,',','.') }}</td>
+                    <td colspan="2" style="font-style:italic;font-weight:normal;">Subtotal</td>
+                    <td class="r">{{ number_format($prod['total_qty'],3,',','.') }}</td>
                     <td></td>
-                    <td class="text-right text-success">R$&nbsp;{{ number_format($prod['total_gross'],2,',','.') }}</td>
+                    <td class="r">R$&nbsp;{{ number_format($prod['total_gross'],2,',','.') }}</td>
                 </tr>
             </tfoot>
             @endif
@@ -81,7 +162,7 @@
     @endforeach
 
     @if(!$isSingle)
-    <div style="text-align:right;font-size:8.5px;font-weight:bold;color:#333;padding:3px 0 10px;border-bottom:1px dashed #ddd;">
+    <div class="cust-total-line">
         Total {{ $group['customer_name'] }}: R$ {{ number_format($group['total_gross'],2,',','.') }}
     </div>
     @endif
@@ -89,9 +170,17 @@
 @endforeach
 
 {{-- Total geral --}}
-<div style="margin-top:14px;padding:7px 10px;background:#f0f0f0;border-top:1.5px solid #333;display:table;width:100%;">
-    <span style="display:table-cell;font-size:9px;font-weight:bold;">TOTAL GERAL</span>
-    <span style="display:table-cell;text-align:right;font-size:10px;font-weight:bold;">R$ {{ number_format($totals['total_gross']??0,2,',','.') }}</span>
+<div class="grand-total">
+    <span class="lbl">TOTAL GERAL</span>
+    <span class="val">R$ {{ number_format($totals['total_gross']??0,2,',','.') }}</span>
 </div>
 
-@endsection
+{{-- Rodapé --}}
+<div class="ftr">
+    {{ $tenant->name ?? '' }}
+    @if($tenant?->cnpj) &middot; CNPJ: {{ $tenant->cnpj }}@endif
+    &middot; Gerado em {{ $generated_at }}
+</div>
+
+</body>
+</html>
