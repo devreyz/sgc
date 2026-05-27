@@ -6,104 +6,133 @@
 
 @php
     $routeTenant = request()->route('tenant');
-    $routeSlug = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
-    $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
+    $routeSlug   = is_string($routeTenant) ? $routeTenant : (is_object($routeTenant) ? ($routeTenant->slug ?? null) : null);
+    $tenantSlug  = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
 @section('navigation')
 <nav class="nav-tabs">
-    <a href="{{ $tenantSlug ? route('associate.dashboard', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ $tenantSlug ? route('associate.projects', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Projetos</a>
-    <a href="{{ $tenantSlug ? route('associate.deliveries', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab active">Entregas</a>
-    <a href="{{ $tenantSlug ? route('associate.ledger', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Extrato</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+    <a href="{{ $tenantSlug ? route('associate.dashboard',  ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
+    <a href="{{ $tenantSlug ? route('associate.projects',   ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Projetos</a>
+    <a href="{{ $tenantSlug ? route('associate.deliveries', ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab active">Entregas</a>
+    <a href="{{ $tenantSlug ? route('associate.ledger',     ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Extrato</a>
+    <form action="{{ route('logout') }}" method="POST" style="display:inline;">
         @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
+        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;border:none;font-family:inherit;">Sair</button>
     </form>
 </nav>
 @endsection
 
 @section('content')
 <div class="bento-grid">
-    <!-- Filters -->
-    <div class="bento-card col-span-full">
-        <form method="GET" class="flex gap-4 items-center" style="flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                    <option value="">Todos</option>
-                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pendente</option>
-                    <option value="approved" {{ request('status') === 'approved' ? 'selected' : '' }}>Aprovada</option>
-                    <option value="delivered" {{ request('status') === 'delivered' ? 'selected' : '' }}>Entregue</option>
-                </select>
+
+    {{-- ── STATS ───────────────────────────────────────────────────────────── --}}
+    <div class="bento-card col-span-full" style="padding:1.25rem;">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;">
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;">Total</div>
+                <div style="font-size:1.6rem;font-weight:700;line-height:1.1;">{{ $deliveryStats['total'] }}</div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">Data Inicial</label>
-                <input type="date" name="start_date" class="form-input" value="{{ request('start_date') }}">
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;">Aprovadas</div>
+                <div style="font-size:1.6rem;font-weight:700;line-height:1.1;color:var(--color-success);">{{ $deliveryStats['approved'] }}</div>
             </div>
-            <div style="flex: 1; min-width: 200px;">
-                <label class="form-label">Data Final</label>
-                <input type="date" name="end_date" class="form-input" value="{{ request('end_date') }}">
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;">Pendentes</div>
+                <div style="font-size:1.6rem;font-weight:700;line-height:1.1;color:var(--color-warning);">{{ $deliveryStats['pending'] }}</div>
             </div>
-            <div style="margin-top: auto; display: flex; gap: 0.5rem;">
-                <button type="submit" class="btn btn-primary">Filtrar</button>
-                <a href="{{ $tenantSlug ? route('associate.deliveries', ['tenant' => $tenantSlug]) : url('/') }}" class="btn btn-outline">Limpar</a>
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem;">Valor Total</div>
+                <div style="font-size:1.35rem;font-weight:700;line-height:1.1;color:var(--color-success);">R$ {{ number_format($deliveryStats['total_value'],2,',','.') }}</div>
             </div>
+        </div>
+    </div>
+
+    {{-- ── FILTROS ──────────────────────────────────────────────────────────── --}}
+    <div class="bento-card col-span-full" style="padding:1rem 1.25rem;">
+        <form method="GET" style="display:flex;flex-direction:column;gap:.625rem;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.625rem;">
+                <div>
+                    <label class="form-label" style="font-size:.7rem;">Status</label>
+                    <select name="status" class="form-select" style="font-size:.775rem;" onchange="this.form.submit()">
+                        <option value="">Todos</option>
+                        <option value="pending"   {{ request('status') === 'pending'   ? 'selected' : '' }}>Pendente</option>
+                        <option value="approved"  {{ request('status') === 'approved'  ? 'selected' : '' }}>Aprovado</option>
+                        <option value="rejected"  {{ request('status') === 'rejected'  ? 'selected' : '' }}>Rejeitado</option>
+                        <option value="cancelled" {{ request('status') === 'cancelled' ? 'selected' : '' }}>Cancelado</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:.7rem;">Projeto</label>
+                    <select name="project_id" class="form-select" style="font-size:.775rem;" onchange="this.form.submit()">
+                        <option value="">Todos</option>
+                        @foreach($myProjects as $proj)
+                        <option value="{{ $proj->id }}" {{ request('project_id') == $proj->id ? 'selected' : '' }}>{{ Str::limit($proj->title, 30) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:.7rem;">De</label>
+                    <input type="date" name="start_date" class="form-input" value="{{ request('start_date') }}" style="font-size:.775rem;" onchange="this.form.submit()">
+                </div>
+                <div>
+                    <label class="form-label" style="font-size:.7rem;">Até</label>
+                    <input type="date" name="end_date" class="form-input" value="{{ request('end_date') }}" style="font-size:.775rem;" onchange="this.form.submit()">
+                </div>
+            </div>
+            @if(request()->hasAny(['status','project_id','start_date','end_date']))
+            <a href="{{ $tenantSlug ? route('associate.deliveries',['tenant'=>$tenantSlug]) : url('/') }}" class="btn btn-outline" style="font-size:.775rem;padding:.45rem .875rem;align-self:flex-start;">
+                Limpar filtros
+            </a>
+            @endif
         </form>
     </div>
 
-    <!-- Deliveries List -->
-    <div class="bento-card col-span-full">
-        <h2 class="font-bold mb-4" style="font-size: 1.25rem;">Lista de Entregas ({{ $deliveries->total() }})</h2>
-
-        @if($deliveries->count() > 0)
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Projeto</th>
-                            <th>Cliente</th>
-                            <th>Produto</th>
-                            <th>Quantidade</th>
-                            <th>Valor Total</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($deliveries as $delivery)
-                        <tr>
-                            <td>{{ $delivery->delivery_date ? $delivery->delivery_date->format('d/m/Y') : '-' }}</td>
-                            <td>
-                                <div class="font-semibold">{{ $delivery->project->title ?? '-' }}</div>
-                            </td>
-                            <td>{{ $delivery->project->customer->name ?? '-' }}</td>
-                            <td>{{ $delivery->project->product->name ?? '-' }}</td>
-                            <td class="font-semibold">{{ $delivery->quantity }}</td>
-                            <td class="font-bold text-primary">R$ {{ number_format($delivery->total_value ?? 0, 2, ',', '.') }}</td>
-                            <td>
-                                <span class="badge badge-{{ $delivery->status->value === 'delivered' ? 'success' : ($delivery->status->value === 'approved' ? 'secondary' : 'warning') }}">
-                                    {{ $delivery->status->getLabel() }}
-                                </span>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            @if($deliveries->hasPages())
-                <div style="margin-top: 1.5rem; display: flex; justify-content: center;">
-                    {{ $deliveries->links() }}
-                </div>
-            @endif
+    {{-- ── LISTA DE ENTREGAS ────────────────────────────────────────────────── --}}
+    <div class="bento-card col-span-full" style="padding:1.25rem;">
+        @if($deliveries->isEmpty())
+            <p style="color:var(--color-text-muted);font-size:.875rem;text-align:center;padding:2rem 0;">Nenhuma entrega encontrada.</p>
         @else
-            <div style="text-align: center; padding: 3rem;">
-                <p class="text-muted" style="font-size: 1.125rem;">Nenhuma entrega encontrada.</p>
-                <p class="text-muted text-sm" style="margin-top: 0.5rem;">As entregas dos seus projetos aparecerão aqui.</p>
-            </div>
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:520px;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--color-border);text-align:left;">
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">DATA</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">PRODUTO</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">PROJETO</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);text-align:right;">QTD</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);text-align:right;">VALOR</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">STATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($deliveries as $dl)
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:.625rem .625rem;white-space:nowrap;font-size:.775rem;">{{ $dl->delivery_date?->format('d/m/Y') ?? '—' }}</td>
+                        <td style="padding:.625rem .625rem;font-size:.775rem;">{{ $dl->product?->name ?? '—' }}</td>
+                        <td style="padding:.625rem .625rem;font-size:.725rem;color:var(--color-text-muted);max-width:140px;">{{ Str::limit($dl->salesProject?->title ?? '—', 25) }}</td>
+                        <td style="padding:.625rem .625rem;text-align:right;font-weight:600;font-size:.775rem;">{{ rtrim(rtrim(number_format((float)$dl->quantity,3,',','.'), '0'),',') }}</td>
+                        <td style="padding:.625rem .625rem;text-align:right;font-weight:700;color:var(--color-success);font-size:.8rem;">
+                            R$ {{ number_format((float)$dl->quantity * (float)$dl->unit_price, 2,',','.') }}
+                        </td>
+                        <td style="padding:.625rem .625rem;">
+                            <span class="badge badge-{{ $dl->status->value === 'approved' ? 'success' : ($dl->status->value === 'cancelled' ? 'danger' : ($dl->status->value === 'rejected' ? 'danger' : 'warning')) }}" style="font-size:.65rem;">
+                                {{ $dl->status->getLabel() }}
+                            </span>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        @if($deliveries->hasPages())
+        <div style="margin-top:1.25rem;display:flex;justify-content:center;">
+            {{ $deliveries->withQueryString()->links() }}
+        </div>
+        @endif
         @endif
     </div>
+
 </div>
 @endsection

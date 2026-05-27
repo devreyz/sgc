@@ -64,7 +64,8 @@ class CustomerResource extends Resource
                             ->label('CNPJ')
                             ->mask('99.999.999/9999-99')
                             ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
-                                return $rule->where('tenant_id', session('tenant_id'));
+                                // Ignora registros soft-deleted na checagem de unicidade
+                                return $rule->where('tenant_id', session('tenant_id'))->whereNull('deleted_at');
                             })
                             ->required()
                             ->maxLength(18),
@@ -284,9 +285,25 @@ class CustomerResource extends Resource
                             ->columns(2),
                     ])
                     ->action(function (Customer $record, array $data): void {
-                        DB::transaction(function () use ($record, $data): void {
-                            $tenantId = session('tenant_id');
+                        $tenantId = session('tenant_id');
 
+                        // Checa se já existe cliente ativo com o mesmo CNPJ antes de tentar salvar
+                        $conflict = Customer::where('tenant_id', $tenantId)
+                            ->where('cnpj', $data['cnpj'])
+                            ->whereNull('deleted_at')
+                            ->where('id', '!=', $record->id)
+                            ->exists();
+
+                        if ($conflict) {
+                            Notification::make()
+                                ->title('CNPJ já cadastrado')
+                                ->body('Já existe um cliente ativo com o CNPJ ' . $data['cnpj'] . '. Utilize um CNPJ diferente.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        DB::transaction(function () use ($record, $data, $tenantId): void {
                             $newCustomer = $record->replicate();
                             $newCustomer->tenant_id = $tenantId;
                             $newCustomer->name = $data['name'];
