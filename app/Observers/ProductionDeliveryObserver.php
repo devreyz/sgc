@@ -4,7 +4,6 @@ namespace App\Observers;
 
 use App\Enums\DeliveryStatus;
 use App\Models\ProductionDelivery;
-use App\Services\FinancialDistributionService;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Log;
 
@@ -16,7 +15,6 @@ class ProductionDeliveryObserver
     private static bool $processing = false;
 
     public function __construct(
-        protected FinancialDistributionService $financialService,
         protected NotificationService $notificationService
     ) {}
 
@@ -76,14 +74,11 @@ class ProductionDeliveryObserver
                 if ($delivery->projectDemand) {
                     $delivery->projectDemand->updateDeliveredQuantity();
                 }
-                
-                // Process the financial distribution (Split 90/10)
-                $result = $this->financialService->processDelivery($delivery);
 
-                // Notify associate about the credit
-                if (isset($result['ledger_entry'])) {
-                    $this->notificationService->notifyAssociateLedgerCredit($result['ledger_entry']);
-                }
+                // NÃO gerar movimentações financeiras aqui.
+                // O faturamento agora é um processo explícito via DistributionBillingService.
+                // Distribuições aguardam faturamento manual pelo gestor (billing_status = unbilled).
+
             } catch (\Throwable $e) {
                 Log::error('Error processing delivery approval: ' . $e->getMessage(), [
                     'delivery_id' => $delivery->id,

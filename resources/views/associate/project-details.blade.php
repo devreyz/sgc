@@ -98,7 +98,7 @@
                 <div class="big-num">R$ {{ number_format($financialLimit['max'],2,',','.') }}</div>
             </div>
             <div>
-                <div class="num-lbl">Faturado</div>
+                <div class="num-lbl">Total Entregue (Estimativa)</div>
                 <div class="big-num" style="color:var(--color-{{ $financialLimit['is_full'] ? 'danger' : ($financialLimit['is_near'] ? 'warning' : 'success') }});">
                     R$ {{ number_format($financialLimit['accumulated'],2,',','.') }}
                 </div>
@@ -122,6 +122,48 @@
         </div>
     </div>
     @endif
+
+    {{-- ── ESTADOS FINANCEIROS DAS DISTRIBUIÇÕES ────────────────────────────── --}}
+    <div class="bento-card col-span-full" style="padding:1.25rem;">
+        <h2 style="font-weight:700;font-size:.9375rem;margin-bottom:1rem;">Financeiro das Distribuições</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:1rem;margin-bottom:1rem;">
+            <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius-md);padding:.875rem;">
+                <div class="num-lbl" style="color:#92400e;">🟡 Pendente de Faturamento</div>
+                <div class="big-num" style="font-size:1.3rem;color:#d97706;">R$ {{ number_format($financialStates['unbilled'],2,',','.') }}</div>
+                <div style="font-size:.7rem;color:#92400e;margin-top:.2rem;">distribuído, aguardando faturamento</div>
+            </div>
+            <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.3);border-radius:var(--radius-md);padding:.875rem;">
+                <div class="num-lbl" style="color:#1e40af;">🔵 Faturado (a receber)</div>
+                <div class="big-num" style="font-size:1.3rem;color:#2563eb;">R$ {{ number_format($financialStates['billed'],2,',','.') }}</div>
+                <div style="font-size:.7rem;color:#1e40af;margin-top:.2rem;">faturado, aguardando pagamento</div>
+            </div>
+            <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:var(--radius-md);padding:.875rem;">
+                <div class="num-lbl" style="color:#065f46;">🟢 Pago</div>
+                <div class="big-num" style="font-size:1.3rem;color:#059669;">R$ {{ number_format($financialStates['paid'],2,',','.') }}</div>
+                <div style="font-size:.7rem;color:#065f46;margin-top:.2rem;">já recebido</div>
+            </div>
+        </div>
+        @if($financialStates['total'] > 0)
+        @php
+            $fsTotal   = $financialStates['total'];
+            $wUnbilled = $fsTotal > 0 ? ($financialStates['unbilled'] / $fsTotal * 100) : 0;
+            $wBilled   = $fsTotal > 0 ? ($financialStates['billed']   / $fsTotal * 100) : 0;
+            $wPaid     = $fsTotal > 0 ? ($financialStates['paid']     / $fsTotal * 100) : 0;
+        @endphp
+        <div style="display:flex;height:12px;border-radius:999px;overflow:hidden;background:var(--color-border);">
+            @if($wUnbilled > 0)<div style="width:{{ $wUnbilled }}%;background:#f59e0b;"></div>@endif
+            @if($wBilled > 0)<div style="width:{{ $wBilled }}%;background:#3b82f6;"></div>@endif
+            @if($wPaid > 0)<div style="width:{{ $wPaid }}%;background:#10b981;"></div>@endif
+        </div>
+        <div style="display:flex;gap:1.25rem;font-size:.7rem;margin-top:.4rem;color:var(--color-text-muted);">
+            <span>🟡 Pendente</span>
+            <span>🔵 Faturado</span>
+            <span>🟢 Pago</span>
+        </div>
+        @else
+        <p style="font-size:.8125rem;color:var(--color-text-muted);font-style:italic;">Nenhuma distribuição processada ainda neste projeto.</p>
+        @endif
+    </div>
 
     {{-- ── LIMITES POR PRODUTO ─────────────────────────────────────────────── --}}
     @if($productLimits->isNotEmpty())
@@ -255,6 +297,54 @@
         @endif
         @endif
     </div>
+
+    {{-- ── COMPROVANTES DE PAGAMENTO ────────────────────────────────────────── --}}
+    @if($receipts->isNotEmpty())
+    <div class="bento-card" style="padding:1.25rem;margin-top:1.25rem;">
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem;">
+            <span style="font-size:1.1rem;">🧾</span>
+            <span style="font-weight:700;font-size:1rem;">Comprovantes de Pagamento</span>
+        </div>
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:.8125rem;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--color-border);">
+                        <th style="text-align:left;padding:.5rem .75rem;color:var(--color-text-muted);font-weight:600;font-size:.7rem;">Nº RECIBO</th>
+                        <th style="text-align:left;padding:.5rem .75rem;color:var(--color-text-muted);font-weight:600;font-size:.7rem;">DATA</th>
+                        <th style="text-align:left;padding:.5rem .75rem;color:var(--color-text-muted);font-weight:600;font-size:.7rem;">PERÍODO</th>
+                        <th style="text-align:right;padding:.5rem .75rem;color:var(--color-text-muted);font-weight:600;font-size:.7rem;">ENTREGAS</th>
+                        <th style="text-align:left;padding:.5rem .75rem;color:var(--color-text-muted);font-weight:600;font-size:.7rem;">OBSERVAÇÃO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($receipts as $receipt)
+                    <tr style="border-bottom:1px solid var(--color-border);">
+                        <td style="padding:.625rem .75rem;">
+                            <span style="font-weight:700;color:var(--color-primary);">{{ $receipt->formatted_number }}</span>
+                        </td>
+                        <td style="padding:.625rem .75rem;">
+                            {{ $receipt->issued_at?->format('d/m/Y') ?? '—' }}
+                        </td>
+                        <td style="padding:.625rem .75rem;color:var(--color-text-muted);">
+                            @if($receipt->from_date && $receipt->to_date)
+                                {{ $receipt->from_date->format('d/m/Y') }} – {{ $receipt->to_date->format('d/m/Y') }}
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td style="padding:.625rem .75rem;text-align:right;">
+                            <span class="badge badge-success">{{ count($receipt->delivery_ids ?? []) }}</span>
+                        </td>
+                        <td style="padding:.625rem .75rem;color:var(--color-text-muted);">
+                            {{ $receipt->notes ?? '—' }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
 
 </div>
 @endsection

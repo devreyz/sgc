@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -43,6 +44,8 @@ class ProductionDelivery extends Model
         'paid_date',
         'project_payment_id',
         'stock_movement_id',
+        'billing_status',
+        'distribution_billing_id',
     ];
 
     protected function casts(): array
@@ -60,6 +63,7 @@ class ProductionDelivery extends Model
             'approved_at' => 'datetime',
             'paid' => 'boolean',
             'paid_date' => 'date',
+            'billing_status' => BillingStatus::class,
         ];
     }
 
@@ -85,6 +89,14 @@ class ProductionDelivery extends Model
     public function distributions(): HasMany
     {
         return $this->hasMany(ProductionDelivery::class, 'parent_delivery_id');
+    }
+
+    /**
+     * Get the billing batch this distribution belongs to.
+     */
+    public function distributionBilling(): BelongsTo
+    {
+        return $this->belongsTo(DistributionBilling::class, 'distribution_billing_id');
     }
 
     /**

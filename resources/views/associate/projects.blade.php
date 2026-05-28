@@ -73,6 +73,7 @@
             @php
                 $ld   = $projectLimitData[$project->id] ?? ['max'=>null,'accumulated'=>0,'remaining'=>null,'percent'=>null,'is_near'=>false,'is_full'=>false];
                 $plim = $productLimitData[$project->id] ?? collect();
+                $fs   = $financialStateData[$project->id] ?? ['unbilled'=>0,'billed'=>0,'paid'=>0,'total'=>0];
                 $pct  = $ld['percent'];
                 $bar  = $pct === null ? '' : ($pct >= 100 ? 'prog-red' : ($pct >= 80 ? 'prog-yellow' : 'prog-green'));
                 $st   = $project->status->value ?? '';
@@ -151,6 +152,29 @@
                         <div class="prog-wrap" style="height:5px;"><div class="prog-bar {{ $pb }}" style="width:{{ min($pp,100) }}%;"></div></div>
                     </div>
                     @endforeach
+                </div>
+                @endif
+
+                {{-- Estados Financeiros das Distribuições --}}
+                @if($fs['total'] > 0)
+                <div style="border-top:1px solid var(--color-border);padding-top:.625rem;">
+                    <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:600;margin-bottom:.4rem;">FINANCEIRO (DISTRIBUIÇÕES)</div>
+                    @php
+                        $fsT = max($fs['total'], 0.01);
+                        $wU = round($fs['unbilled'] / $fsT * 100, 1);
+                        $wB = round($fs['billed']   / $fsT * 100, 1);
+                        $wP = round($fs['paid']     / $fsT * 100, 1);
+                    @endphp
+                    <div style="display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--color-border);margin-bottom:.35rem;">
+                        @if($wU > 0)<div style="width:{{ $wU }}%;background:#f59e0b;"></div>@endif
+                        @if($wB > 0)<div style="width:{{ $wB }}%;background:#3b82f6;"></div>@endif
+                        @if($wP > 0)<div style="width:{{ $wP }}%;background:#10b981;"></div>@endif
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--color-text-muted);">
+                        @if($fs['unbilled'] > 0)<span style="color:#d97706;">🟡 R$ {{ number_format($fs['unbilled'],2,',','.') }}</span>@endif
+                        @if($fs['billed'] > 0)<span style="color:#2563eb;">🔵 R$ {{ number_format($fs['billed'],2,',','.') }}</span>@endif
+                        @if($fs['paid'] > 0)<span style="color:#059669;">🟢 R$ {{ number_format($fs['paid'],2,',','.') }}</span>@endif
+                    </div>
                 </div>
                 @endif
 

@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\StockMovementReason;
 use App\Filament\Resources\ProductionDeliveryResource\Pages;
 use App\Filament\Resources\ProductionDeliveryResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
+use App\Models\AssociateReceipt;
 use App\Models\Product;
 use App\Services\PricingService;
 use App\Models\ProductionDelivery;
@@ -21,6 +23,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +49,19 @@ class ProductionDeliveryResource extends Resource
     {
         return $form
             ->schema([
+                // Aviso de bloqueio pós-faturamento
+                Forms\Components\Placeholder::make('billing_locked_notice')
+                    ->label('')
+                    ->content(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED
+                        ? new \Illuminate\Support\HtmlString(
+                            '<div style="background:rgba(245,158,11,.1);border:1px solid #f59e0b;border-radius:8px;padding:.75rem 1rem;color:#92400e;font-size:.875rem;">'
+                            . '🔒 <strong>Distribuição faturada</strong> — Os campos financeiros e de quantidade estão bloqueados para edição. '
+                            . 'Status: <strong>' . $record->billing_status->getLabel() . '</strong>'
+                            . '</div>'
+                        )
+                        : '')
+                    ->visible(fn (string $operation, ?Model $record) => $operation === 'edit' && $record?->billing_status !== BillingStatus::UNBILLED),
+
                 Forms\Components\Section::make('Tipo de Entrega')
                     ->schema([
                         Forms\Components\Toggle::make('is_standalone')
@@ -245,6 +261,8 @@ class ProductionDeliveryResource extends Resource
                             ->searchable()
                             ->preload()
                             ->required(fn (callable $get) => !$get('from_stock'))
+                            ->disabled(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED)
+                            ->dehydrated(true)
                             ->helperText(fn (callable $get) => $get('from_stock')
                                 ? 'Opcional ao usar do estoque interno'
                                 : 'Quem está fazendo a entrega'),
@@ -253,13 +271,17 @@ class ProductionDeliveryResource extends Resource
                             ->label('Data da Entrega')
                             ->required()
                             ->default(now())
-                            ->maxDate(now()),
+                            ->maxDate(now())
+                            ->disabled(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED)
+                            ->dehydrated(true),
 
                         Forms\Components\TextInput::make('quantity')
                             ->label('Quantidade')
                             ->numeric()
                             ->required()
                             ->minValue(0.01)
+                            ->disabled(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED)
+                            ->dehydrated(true)
                             ->reactive()
                             ->hint(function (callable $get) {
                                 $productId = $get('product_id');
@@ -282,7 +304,9 @@ class ProductionDeliveryResource extends Resource
                             ->label('Preço Unitário')
                             ->numeric()
                             ->prefix('R$')
-                            ->disabled(function (callable $get) {
+                            ->disabled(function (callable $get, ?Model $record) {
+                                // Bloquear se já faturado/pago
+                                if ($record && $record->billing_status !== BillingStatus::UNBILLED) return true;
                                 if ($get('is_standalone') || $get('from_stock')) return false;
                                 $projectId = $get('sales_project_id');
                                 if (!$projectId) return true;
@@ -476,6 +500,13 @@ class ProductionDeliveryResource extends Resource
                     ->formatStateUsing(fn (DeliveryStatus $state): string => $state->getLabel())
                     ->color(fn (DeliveryStatus $state): string => $state->getColor()),
 
+                Tables\Columns\TextColumn::make('billing_status')
+                    ->label('Faturamento')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state instanceof \App\Enums\BillingStatus ? $state->getLabel() : '—')
+                    ->color(fn ($state) => $state instanceof \App\Enums\BillingStatus ? $state->getColor() : 'gray')
+                    ->placeholder('—'),
+
                 Tables\Columns\TextColumn::make('customer.trade_name')
                     ->label('Cliente (Dist.)')
                     ->getStateUsing(fn ($record) => optional($record->customer)->trade_name ?? optional($record->customer)->name)
@@ -542,7 +573,7 @@ class ProductionDeliveryResource extends Resource
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Aprovar Entrega')
-                    ->modalDescription('Ao aprovar, o valor líquido será creditado ao produtor e o estoque será atualizado.')
+                    ->modalDescription('Ao aprovar, o estoque será atualizado. O faturamento ocorre em etapa separada, via Distribuições.')
                     ->action(function ($record) {
                         try {
                             DB::transaction(function () use ($record) {
@@ -577,9 +608,8 @@ class ProductionDeliveryResource extends Resource
                                     );
                                 }
 
-                                // 2. Atualizar entrega — o observer (ProductionDeliveryObserver)
-                                //    chama FinancialDistributionService::processDelivery() no
-                                //    evento 'updated', que cria a entrada de ledger automaticamente.
+                                // 2. Atualizar entrega.
+                                // O observer atualiza a demanda; crédito financeiro ocorre no faturamento explícito.
                                 $record->update([
                                     'status'            => DeliveryStatus::APPROVED,
                                     'approved_by'       => Auth::id(),
@@ -594,7 +624,7 @@ class ProductionDeliveryResource extends Resource
                             });
 
                             Notification::make()
-                                ->title('Entrega aprovada! Estoque atualizado e crédito gerado para o produtor.')
+                                ->title('Entrega aprovada! Estoque atualizado. Faturamento pendente na aba Distribuições.')
                                 ->success()
                                 ->send();
                         } catch (\Exception $e) {
@@ -634,8 +664,9 @@ class ProductionDeliveryResource extends Resource
                             ->displayFormat('d/m/Y'),
                     ])
                     ->action(fn ($record, array $data) => $record->update([
-                        'paid'      => true,
-                        'paid_date' => $data['paid_date'],
+                        'paid'           => true,
+                        'paid_date'      => $data['paid_date'],
+                        'billing_status' => BillingStatus::PAID,
                     ]))
                     ->visible(fn ($record): bool => false), // Pagamentos centralizados no Projeto de Venda
 
@@ -670,8 +701,7 @@ class ProductionDeliveryResource extends Resource
                                         }
 
 
-                                        // O observer cria o ledger automaticamente via
-                                        // FinancialDistributionService::processDelivery()
+                                        // O observer apenas atualiza a demanda; crédito financeiro ocorre no faturamento.
                                         $record->update([
                                             'status'            => DeliveryStatus::APPROVED,
                                             'approved_by'       => Auth::id(),
@@ -698,7 +728,7 @@ class ProductionDeliveryResource extends Resource
                         ->color('success')
                         ->requiresConfirmation()
                         ->modalHeading('Confirmar Pagamento')
-                        ->modalDescription(fn ($records) => 'Marcar como pagas ' . $records->count() . ' distribuição(ões) aprovadas. Total líquido: R$ ' . number_format($records->where('status', DeliveryStatus::APPROVED)->whereNotNull('parent_delivery_id')->sum('net_value'), 2, ',', '.'))
+                        ->modalDescription(fn ($records) => 'Marcar como pagas ' . $records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->count() . ' distribuição(ões) faturadas. Total líquido: R$ ' . number_format($records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->sum('net_value'), 2, ',', '.'))
                         ->form([
                             Forms\Components\DatePicker::make('paid_date')
                                 ->label('Data do Pagamento')
@@ -710,24 +740,67 @@ class ProductionDeliveryResource extends Resource
                                 ->rows(2),
                         ])
                         ->action(function ($records, array $data) {
-                            $paidCount = 0;
-                            $total = 0;
-                            foreach ($records as $record) {
-                                // Só paga distribuições aprovadas não pagas
-                                if (is_null($record->parent_delivery_id)) continue;
-                                if ($record->status !== DeliveryStatus::APPROVED) continue;
-                                if ($record->paid) continue;
+                            // Filtrar apenas distribuições faturadas (BILLED) elegíveis
+                            $eligible = $records->filter(fn ($r) =>
+                                !is_null($r->parent_delivery_id)
+                                && $r->status === DeliveryStatus::APPROVED
+                                && $r->billing_status === BillingStatus::BILLED
+                            );
 
-                                $record->update([
-                                    'paid'      => true,
-                                    'paid_date' => $data['paid_date'],
-                                    'notes'     => $data['notes']
-                                        ? ($record->notes ? $record->notes . "\n" : '') . 'PAGO: ' . $data['notes']
-                                        : $record->notes,
-                                ]);
-                                $paidCount++;
-                                $total += (float) $record->net_value;
+                            if ($eligible->isEmpty()) {
+                                Notification::make()
+                                    ->title('Nenhuma distribuição elegível selecionada')
+                                    ->body('Selecione distribuições aprovadas e faturadas (status: Faturado).')
+                                    ->warning()
+                                    ->send();
+                                return;
                             }
+
+                            $paidCount = 0;
+                            $total     = 0;
+                            $tenantId  = session('tenant_id');
+                            $year      = now()->year;
+
+                            DB::transaction(function () use ($eligible, $data, $tenantId, $year, &$paidCount, &$total) {
+                                // Agrupar por associado + projeto para criar um recibo por grupo
+                                $grouped = $eligible->groupBy(fn ($r) => $r->associate_id . '_' . ($r->sales_project_id ?? 0));
+
+                                foreach ($grouped as $groupKey => $groupRecords) {
+                                    $first      = $groupRecords->first();
+                                    $associateId = $first->associate_id;
+                                    $projectId  = $first->sales_project_id;
+                                    $deliveryIds = $groupRecords->pluck('id')->toArray();
+
+                                    // Criar comprovante de pagamento
+                                    AssociateReceipt::create([
+                                        'tenant_id'       => $tenantId,
+                                        'sales_project_id' => $projectId,
+                                        'associate_id'    => $associateId,
+                                        'receipt_year'    => $year,
+                                        'receipt_number'  => AssociateReceipt::nextNumber($tenantId, $year),
+                                        'issued_at'       => $data['paid_date'],
+                                        'from_date'       => $groupRecords->min('delivery_date'),
+                                        'to_date'         => $groupRecords->max('delivery_date'),
+                                        'notes'           => $data['notes'] ?? null,
+                                        'delivery_ids'    => $deliveryIds,
+                                    ]);
+
+                                    // Marcar cada distribuição como PAID
+                                    foreach ($groupRecords as $record) {
+                                        $record->update([
+                                            'paid'           => true,
+                                            'paid_date'      => $data['paid_date'],
+                                            'billing_status' => BillingStatus::PAID,
+                                            'notes'          => $data['notes']
+                                                ? ($record->notes ? $record->notes . "\n" : '') . 'PAGO: ' . $data['notes']
+                                                : $record->notes,
+                                        ]);
+                                        $paidCount++;
+                                        $total += (float) $record->net_value;
+                                    }
+                                }
+                            });
+
                             Notification::make()
                                 ->title("{$paidCount} distribuição(ões) marcada(s) como pagas. Total: R$ " . number_format($total, 2, ',', '.'))
                                 ->success()
@@ -737,6 +810,64 @@ class ProductionDeliveryResource extends Resource
 
                     Tables\Actions\DeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
+
+                    Tables\Actions\BulkAction::make('bill_distributions')
+                        ->label('Faturar Selecionadas')
+                        ->icon('heroicon-o-banknotes')
+                        ->color('warning')
+                        ->requiresConfirmation()
+                        ->modalHeading('Confirmar Faturamento')
+                        ->modalDescription(fn ($records) => 'Faturar ' . $records->whereNotNull('parent_delivery_id')->where('billing_status', 'unbilled')->where('status', 'approved')->count() . ' distribuição(ões) aprovadas e não faturadas.')
+                        ->form([
+                            Forms\Components\DatePicker::make('billing_date')
+                                ->label('Data do Faturamento')
+                                ->required()
+                                ->default(today())
+                                ->displayFormat('d/m/Y'),
+                            Forms\Components\TextInput::make('reference')
+                                ->label('Referência (opcional)'),
+                            Forms\Components\Textarea::make('notes')
+                                ->label('Observações')
+                                ->rows(2),
+                        ])
+                        ->action(function ($records, array $data) {
+                            $ids = $records
+                                ->whereNotNull('parent_delivery_id')
+                                ->where('status', \App\Enums\DeliveryStatus::APPROVED)
+                                ->where('billing_status', \App\Enums\BillingStatus::UNBILLED)
+                                ->pluck('id')
+                                ->toArray();
+
+                            if (empty($ids)) {
+                                Notification::make()
+                                    ->title('Nenhuma distribuição elegível selecionada')
+                                    ->body('Selecione distribuições aprovadas e não faturadas.')
+                                    ->warning()
+                                    ->send();
+                                return;
+                            }
+
+                            try {
+                                $service = app(\App\Services\DistributionBillingService::class);
+                                $service->billDistributions($ids, [
+                                    'billing_date' => $data['billing_date'],
+                                    'reference'    => $data['reference'] ?? null,
+                                    'notes'        => $data['notes'] ?? null,
+                                ]);
+
+                                Notification::make()
+                                    ->title(count($ids) . ' distribuição(ões) faturadas com sucesso.')
+                                    ->success()
+                                    ->send();
+                            } catch (\Throwable $e) {
+                                Notification::make()
+                                    ->title('Erro ao faturar')
+                                    ->body($e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ])
             ->headerActions([

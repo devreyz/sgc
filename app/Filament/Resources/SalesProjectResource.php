@@ -545,6 +545,7 @@ class SalesProjectResource extends Resource
             RelationManagers\DeliveriesRelationManager::class,
             RelationManagers\AssociatePaymentsRelationManager::class,
             RelationManagers\AssociateProductLimitsRelationManager::class,
+            RelationManagers\FeesRelationManager::class,
         ];
     }
 

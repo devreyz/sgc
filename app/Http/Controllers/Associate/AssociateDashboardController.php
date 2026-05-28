@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Associate;
 
+use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
@@ -20,6 +21,29 @@ class AssociateDashboardController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+    }
+
+    /**
+     * Compute financial breakdown from distributions (unbilled/billed/paid).
+     */
+    private function computeFinancialStates(int $tenantId, int $projectId, int $associateId): array
+    {
+        $base = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', 'approved');
+
+        $unbilled = (float) (clone $base)->where('billing_status', BillingStatus::UNBILLED->value)->sum('net_value');
+        $billed   = (float) (clone $base)->where('billing_status', BillingStatus::BILLED->value)->sum('net_value');
+        $paid     = (float) (clone $base)->where('billing_status', BillingStatus::PAID->value)->sum('net_value');
+
+        return [
+            'unbilled' => $unbilled,
+            'billed'   => $billed,
+            'paid'     => $paid,
+            'total'    => $unbilled + $billed + $paid,
+        ];
     }
 
     /**
@@ -116,21 +140,28 @@ class AssociateDashboardController extends Controller
             ->where('associate_id', $associate->id)
             ->whereNull('parent_delivery_id');
 
+        // Distribuições (fónte da verdade financeira)
+        $baseDistributions = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('associate_id', $associate->id)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', 'approved');
+
         $stats = [
-            'active_projects'          => $this->allowedProjectsQuery($tenantId, $associate->id)
+            'active_projects'     => $this->allowedProjectsQuery($tenantId, $associate->id)
                 ->where('status', ProjectStatus::ACTIVE->value)
                 ->count(),
-            'pending_deliveries'       => (clone $baseDeliveries)->where('status', DeliveryStatus::PENDING->value)->count(),
-            'earnings_this_month'      => (clone $baseDeliveries)
-                ->where('status', DeliveryStatus::APPROVED->value)
-                ->whereMonth('delivery_date', now()->month)
-                ->whereYear('delivery_date', now()->year)
-                ->selectRaw('SUM(quantity * unit_price) as total')->value('total') ?? 0,
-            'unpaid_value'             => (clone $baseDeliveries)
-                ->where('status', DeliveryStatus::APPROVED->value)
-                ->where('paid', false)
-                ->selectRaw('SUM(net_value) as total')->value('total') ?? 0,
-            'current_balance'          => $associate->current_balance ?? 0,
+            'pending_deliveries'  => (clone $baseDeliveries)->where('status', DeliveryStatus::PENDING->value)->count(),
+            // Faturado este mês (billing_status = billed ou paid, criado no mês atual)
+            'earnings_this_month' => (float) ((clone $baseDistributions)
+                ->whereIn('billing_status', [BillingStatus::BILLED->value, BillingStatus::PAID->value])
+                ->whereMonth('updated_at', now()->month)
+                ->whereYear('updated_at', now()->year)
+                ->sum('net_value') ?? 0),
+            // Faturado mas ainda não pago ao associado
+            'unpaid_value'        => (float) ((clone $baseDistributions)
+                ->where('billing_status', BillingStatus::BILLED->value)
+                ->sum('net_value') ?? 0),
+            'current_balance'     => $associate->current_balance ?? 0,
         ];
 
         // ─── Active projects with limit data ─────────────────────────────────
@@ -214,10 +245,13 @@ class AssociateDashboardController extends Controller
             $productLimitData[$project->id] = $this->computeProductLimits(
                 $tenantId, $project->id, $associate->id
             );
+            $financialStateData[$project->id] = $this->computeFinancialStates(
+                $tenantId, $project->id, $associate->id
+            );
         }
 
         return view('associate.projects', compact(
-            'associate', 'projects', 'projectLimitData', 'productLimitData'
+            'associate', 'projects', 'projectLimitData', 'productLimitData', 'financialStateData'
         ));
     }
 
@@ -261,7 +295,8 @@ class AssociateDashboardController extends Controller
         $maxValue = $project->max_total_value_per_associate
             ? (float) $project->max_total_value_per_associate
             : null;
-        $financialLimit = $this->computeFinancialLimit($tenantId, $project->id, $associate->id, $maxValue);
+        $financialLimit  = $this->computeFinancialLimit($tenantId, $project->id, $associate->id, $maxValue);
+        $financialStates = $this->computeFinancialStates($tenantId, $project->id, $associate->id);
 
         // Product limits
         $productLimits = $this->computeProductLimits($tenantId, $project->id, $associate->id);
@@ -296,9 +331,16 @@ class AssociateDashboardController extends Controller
             ->whereNotIn('status', ['cancelled', 'rejected'])
             ->sum('quantity');
 
+        // Recibos de pagamento deste associado neste projeto
+        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('associate_id', $associate->id)
+            ->orderByDesc('issued_at')
+            ->get();
+
         return view('associate.project-details', compact(
-            'associate', 'project', 'financialLimit', 'productLimits',
-            'myDeliveries', 'myTotalQty'
+            'associate', 'project', 'financialLimit', 'financialStates', 'productLimits',
+            'myDeliveries', 'myTotalQty', 'receipts'
         ));
     }
 

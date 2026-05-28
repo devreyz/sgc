@@ -140,6 +140,14 @@ class SalesProject extends Model
     }
 
     /**
+     * Get the flexible fees for this project.
+     */
+    public function fees(): HasMany
+    {
+        return $this->hasMany(ProjectFee::class);
+    }
+
+    /**
      * Check if an associate is allowed to deliver in this project.
      */
     public function isAssociateAllowed(int $associateId): bool
