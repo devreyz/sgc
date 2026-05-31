@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Associate;
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
+use App\Enums\ReceiptStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
 use App\Models\AssociateLedger;
+use App\Models\AssociateReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectAssociate;
 use App\Models\ProjectAssociateProductLimit;
@@ -24,25 +26,57 @@ class AssociateDashboardController extends Controller
     }
 
     /**
-     * Compute financial breakdown from distributions (unbilled/billed/paid).
+     * Compute financial breakdown using AssociateReceipt as source of truth.
+     *
+     * Fluxo novo (via comprovante):
+     *   unbilled → distribuições sem associate_receipt_id E billing_status = UNBILLED
+     *   billed   → recibos com status=PENDING_PAYMENT + distribuições com BILLED sem recibo
+     *   paid     → recibos com status=PAID + distribuições com PAID sem recibo (fluxo legado)
      */
     private function computeFinancialStates(int $tenantId, int $projectId, int $associateId): array
     {
-        $base = ProductionDelivery::where('tenant_id', $tenantId)
+        // ── Distribuições aprovadas (base) ──────────────────────────────────
+        $baseDistributions = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->whereNotNull('parent_delivery_id')
-            ->where('status', 'approved');
+            ->where('status', DeliveryStatus::APPROVED->value);
 
-        $unbilled = (float) (clone $base)->where('billing_status', BillingStatus::UNBILLED->value)->sum('net_value');
-        $billed   = (float) (clone $base)->where('billing_status', BillingStatus::BILLED->value)->sum('net_value');
-        $paid     = (float) (clone $base)->where('billing_status', BillingStatus::PAID->value)->sum('net_value');
+        // ── Distribuições SEM comprovante vinculado (fluxo legado / não coberto) ──
+        $withoutReceipt = (clone $baseDistributions)->whereNull('associate_receipt_id');
+
+        $unbilled = (float) (clone $withoutReceipt)
+            ->where('billing_status', BillingStatus::UNBILLED->value)
+            ->sum('net_value');
+
+        // Faturados no fluxo legado (sem recibo novo)
+        $billedLegacy = (float) (clone $withoutReceipt)
+            ->where('billing_status', BillingStatus::BILLED->value)
+            ->sum('net_value');
+
+        // Pagos no fluxo legado (sem recibo novo)
+        $paidLegacy = (float) (clone $withoutReceipt)
+            ->where('billing_status', BillingStatus::PAID->value)
+            ->sum('net_value');
+
+        // ── Comprovantes (fluxo novo) ───────────────────────────────────────
+        $receiptsBase = AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId);
+
+        $pendingNet = (float) (clone $receiptsBase)
+            ->where('status', ReceiptStatus::PENDING_PAYMENT->value)
+            ->sum('total_net');
+
+        $paidNet = (float) (clone $receiptsBase)
+            ->where('status', ReceiptStatus::PAID->value)
+            ->sum('total_net');
 
         return [
             'unbilled' => $unbilled,
-            'billed'   => $billed,
-            'paid'     => $paid,
-            'total'    => $unbilled + $billed + $paid,
+            'billed'   => $billedLegacy + $pendingNet,
+            'paid'     => $paidLegacy   + $paidNet,
+            'total'    => $unbilled + $billedLegacy + $pendingNet + $paidLegacy + $paidNet,
         ];
     }
 
@@ -338,9 +372,39 @@ class AssociateDashboardController extends Controller
             ->orderByDesc('issued_at')
             ->get();
 
+        // Distribuições agrupadas por organização/cliente para exibição resumida
+        $distributionsByOrg = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('associate_id', $associate->id)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', 'approved')
+            ->with('customer.organization')
+            ->get()
+            ->groupBy(fn ($d) => $d->customer?->organization_id ?? 0)
+            ->map(function ($items, $orgId) {
+                $org = $items->first()?->customer?->organization;
+                return [
+                    'organization_name' => $org?->name ?? 'Sem organização',
+                    'organization_id'   => $orgId,
+                    'total_gross'       => $items->sum('gross_value'),
+                    'total_net'         => $items->sum('net_value'),
+                    'count'             => $items->count(),
+                    'customers'         => $items->groupBy('customer_id')
+                        ->map(fn ($cItems) => [
+                            'customer_name' => $cItems->first()?->customer?->trade_name
+                                ?? $cItems->first()?->customer?->name ?? '?',
+                            'total_gross'   => $cItems->sum('gross_value'),
+                            'total_net'     => $cItems->sum('net_value'),
+                            'count'         => $cItems->count(),
+                        ])->values()->all(),
+                ];
+            })
+            ->sortBy('organization_name')
+            ->values();
+
         return view('associate.project-details', compact(
             'associate', 'project', 'financialLimit', 'financialStates', 'productLimits',
-            'myDeliveries', 'myTotalQty', 'receipts'
+            'myDeliveries', 'myTotalQty', 'receipts', 'distributionsByOrg'
         ));
     }
 

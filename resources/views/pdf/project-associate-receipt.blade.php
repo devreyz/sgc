@@ -276,10 +276,22 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 {{-- ═══ RESUMO FINANCEIRO + CHEQUE ═══ --}}
 @php
-    $__cheque_val = $receipt?->cheque_number ?? $receipt?->check_number ?? null;
-    $__adminFeeLabel = !$isStandalone
-        ? 'Taxa Adm. (' . number_format($project->admin_fee_percentage ?? 0, 1) . '%)'
-        : 'Taxa Administrativa';
+    $__cheque_val  = $receipt?->cheque_number ?? $receipt?->check_number ?? null;
+    $__feeBreakdown = $feeBreakdown ?? null;
+
+    // Agrupa: descontos e acréscimos a partir do breakdown (se disponível)
+    $__discounts = [];
+    $__accruals  = [];
+    if (! empty($__feeBreakdown['fees'])) {
+        foreach ($__feeBreakdown['fees'] as $__f) {
+            if (($__f['nature'] ?? 'discount') === 'accrual') {
+                $__accruals[] = $__f;
+            } else {
+                $__discounts[] = $__f;
+            }
+        }
+    }
+    $__hasFeeDetail = ! empty($__feeBreakdown['has_detail']) && (! empty($__discounts) || ! empty($__accruals));
 @endphp
 <div class="fin-summary">
     <div class="fin-left">
@@ -296,11 +308,51 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             <span class="fin-row-label">Valor Bruto Total</span>
             <span class="fin-row-val">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</span>
         </div>
-        <div class="fin-row">
-            <span class="fin-row-label">{{ $__adminFeeLabel }}</span>
-            <span class="fin-row-val c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</span>
-        </div>
-        <div class="fin-row fin-total">
+
+        @if($__hasFeeDetail)
+            {{-- Descontos detalhados --}}
+            @if(! empty($__discounts))
+                <div class="fin-row" style="margin-top:2px">
+                    <span class="fin-row-label" style="font-size:7.5pt;color:#6b7280;font-style:italic">Descontos</span>
+                    <span class="fin-row-val" style="font-size:7.5pt;color:#6b7280"></span>
+                </div>
+                @foreach($__discounts as $__fd)
+                    <div class="fin-row" style="padding-left:8px">
+                        <span class="fin-row-label">{{ $__fd['name'] }}@if($__fd['label']) ({{ $__fd['label'] }})@endif</span>
+                        <span class="fin-row-val c-danger">-&nbsp;R$&nbsp;{{ number_format($__fd['amount'], 2, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            @endif
+            {{-- Acréscimos detalhados --}}
+            @if(! empty($__accruals))
+                <div class="fin-row" style="margin-top:2px">
+                    <span class="fin-row-label" style="font-size:7.5pt;color:#6b7280;font-style:italic">Acréscimos</span>
+                    <span class="fin-row-val" style="font-size:7.5pt;color:#6b7280"></span>
+                </div>
+                @foreach($__accruals as $__fa)
+                    <div class="fin-row" style="padding-left:8px">
+                        <span class="fin-row-label">{{ $__fa['name'] }}@if($__fa['label']) ({{ $__fa['label'] }})@endif</span>
+                        <span class="fin-row-val c-success">+&nbsp;R$&nbsp;{{ number_format($__fa['amount'], 2, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            @endif
+        @else
+            {{-- Fallback: exibe somente o total das taxas --}}
+            @if($summary['admin_fee'] > 0)
+                <div class="fin-row">
+                    <span class="fin-row-label">
+                        @if(! $isStandalone && isset($project))
+                            Taxa Adm. ({{ number_format($project->admin_fee_percentage ?? 0, 1) }}%)
+                        @else
+                            Taxas
+                        @endif
+                    </span>
+                    <span class="fin-row-val c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</span>
+                </div>
+            @endif
+        @endif
+
+        <div class="fin-row fin-total" style="margin-top:3px;border-top:1px solid #d1d5db;padding-top:3px">
             <span class="fin-row-label" style="font-weight:700">Valor Líquido a Receber</span>
             <span class="fin-row-val c-success" style="font-size:9.5pt;font-weight:700">R$&nbsp;{{ number_format($summary['net_value'], 2, ',', '.') }}</span>
         </div>

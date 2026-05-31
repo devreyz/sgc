@@ -27,8 +27,6 @@ class Product extends Model
         'category_id',
         'type',
         'unit',
-        'cost_price',
-        'sale_price',
         'current_stock',
         'min_stock',
         'max_stock',
@@ -43,8 +41,6 @@ class Product extends Model
     {
         return [
             'type' => ProductType::class,
-            'cost_price' => 'decimal:2',
-            'sale_price' => 'decimal:2',
             'current_stock' => 'decimal:3',
             'min_stock' => 'decimal:3',
             'max_stock' => 'decimal:3',
@@ -56,7 +52,7 @@ class Product extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'sku', 'type', 'current_stock', 'cost_price', 'sale_price', 'status'])
+            ->logOnly(['name', 'sku', 'type', 'current_stock', 'status'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -99,14 +95,6 @@ class Product extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
-    }
-
-    /**
-     * Get customer-specific prices for this product.
-     */
-    public function customerPrices(): HasMany
-    {
-        return $this->hasMany(CustomerProductPrice::class);
     }
 
     /**

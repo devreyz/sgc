@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -20,6 +21,8 @@ class Customer extends Model
         'trade_name',
         'cnpj',
         'type',
+        'organization_id',
+        'price_table_id',
         'responsible_name',
         'responsible_role',
         'email',
@@ -52,6 +55,22 @@ class Customer extends Model
     }
 
     /**
+     * Organização à qual este cliente pertence (ex: escola → município).
+     */
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
+    }
+
+    /**
+     * Tabela de preços padrão deste cliente.
+     */
+    public function priceTable(): BelongsTo
+    {
+        return $this->belongsTo(PriceTable::class);
+    }
+
+    /**
      * Get the sales projects for the customer.
      */
     public function salesProjects(): HasMany
@@ -65,14 +84,6 @@ class Customer extends Model
     public function revenues(): HasMany
     {
         return $this->hasMany(Revenue::class);
-    }
-
-    /**
-     * Get the product-specific prices for this customer.
-     */
-    public function productPrices(): HasMany
-    {
-        return $this->hasMany(CustomerProductPrice::class);
     }
 
     /**

@@ -118,7 +118,16 @@ table.tbl tfoot td.r { text-align: right; }
 
 {{-- Cliente --}}
 <div class="client-block">
-    <div class="client-name">{{ $customerName }} - {{ $project_label }}</div>
+    <div class="client-name">{{ $customerName }}@if($project_label) — {{ $project_label }}@endif</div>
+    @if(!empty($organization))
+    <div style="font-size:10pt;color:#555;margin-top:2pt;">
+        <strong>Organização:</strong> {{ $organization->name }}
+        @if($organization->cnpj) &middot; CNPJ: {{ $organization->cnpj }}@endif
+    </div>
+    @endif
+    @if($customerDoc)
+    <div style="font-size:9pt;color:#777;margin-top:1pt;">CNPJ/CPF: {{ $customerDoc }}</div>
+    @endif
 </div>
 
 {{-- Tabela única com todos os produtos --}}

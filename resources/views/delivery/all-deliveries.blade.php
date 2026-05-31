@@ -202,12 +202,53 @@
         <a href="{{ route('delivery.reports.by-product', array_merge(['tenant' => $currentTenant->slug], request()->only('status', 'project_id', 'date_from', 'date_to', 'search'))) }}" class="report-btn" target="_blank">
             <i data-lucide="box"></i> Agrupado por Produto
         </a>
-        <a href="{{ route('delivery.reports.distributions-by-customer', array_merge(['tenant' => $currentTenant->slug], request()->only('project_id', 'date_from', 'date_to'))) }}" class="report-btn" target="_blank">
-            <i data-lucide="building-2"></i> Distribuições por Cliente
-        </a>
-        <a href="{{ route('delivery.reports.distributions-by-customer-compact', array_merge(['tenant' => $currentTenant->slug], request()->only('project_id', 'date_from', 'date_to'))) }}" class="report-btn" target="_blank" style="border-color:#059669;color:#059669;">
-            <i data-lucide="file-check"></i> Resumo p/ Cobrança
-        </a>
+    </div>
+    {{-- Relatórios de distribuição com filtro de organização --}}
+    <div style="margin-top:.75rem;">
+        <form method="GET" id="dist-report-form" style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;">
+            <input type="hidden" name="tenant" value="{{ $currentTenant->slug }}">
+            @foreach(request()->only('project_id','date_from','date_to') as $k => $v)
+            <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+            @endforeach
+            <div class="filter-group">
+                <label style="font-size:.68rem;">Organização (distribuições)</label>
+                <select name="organization_id" style="min-width:180px;font-size:.82rem;padding:.35rem .55rem;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-bg);color:var(--color-text);">
+                    <option value="">Todas as organizações</option>
+                    @foreach($organizations as $orgId => $orgName)
+                    <option value="{{ $orgId }}" {{ request('organization_id') == $orgId ? 'selected' : '' }}>{{ $orgName }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <a id="dist-full-btn" href="{{ route('delivery.reports.distributions-by-customer', array_merge(['tenant' => $currentTenant->slug], request()->only('project_id', 'date_from', 'date_to', 'organization_id'))) }}" class="report-btn" target="_blank">
+                <i data-lucide="building-2"></i> Distribuições por Org/Cliente
+            </a>
+            <a id="dist-compact-btn" href="{{ route('delivery.reports.distributions-by-customer-compact', array_merge(['tenant' => $currentTenant->slug], request()->only('project_id', 'date_from', 'date_to', 'organization_id'))) }}" class="report-btn" target="_blank" style="border-color:#059669;color:#059669;">
+                <i data-lucide="file-check"></i> Resumo p/ Cobrança
+            </a>
+        </form>
+    </div>
+    <script>
+    (function(){
+        const sel = document.querySelector('[name="organization_id"]');
+        if (!sel) return;
+        function updateLinks() {
+            const oid = sel.value;
+            function applyOrg(id) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                const url = new URL(btn.href, location.href);
+                if (oid) url.searchParams.set('organization_id', oid);
+                else url.searchParams.delete('organization_id');
+                btn.href = url.toString();
+            }
+            applyOrg('dist-full-btn');
+            applyOrg('dist-compact-btn');
+        }
+        sel.addEventListener('change', updateLinks);
+        updateLinks();
+    })();
+    </script>
+    <div style="margin-top:.75rem;" class="reports-row">
         <div class="report-separator"></div>
         <button type="button" class="report-btn primary" onclick="openReceiptModal()">
             <i data-lucide="file-signature"></i> Comprovante por Associado (Projeto)

@@ -2,15 +2,12 @@
 
 namespace App\Filament\Resources\SalesProjectResource\RelationManagers;
 
-use App\Enums\CashMovementType;
-use App\Enums\DeliveryStatus;
 use App\Enums\PaymentMethod;
-use App\Enums\ProjectPaymentStatus;
+use App\Enums\ReceiptStatus;
 use App\Models\Associate;
+use App\Models\AssociateReceipt;
 use App\Models\BankAccount;
-use App\Models\CashMovement;
-use App\Models\ProductionDelivery;
-use App\Models\ProjectPayment;
+use App\Services\AssociateReceiptService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -19,21 +16,17 @@ use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class AssociatePaymentsRelationManager extends RelationManager
 {
-    protected static string $relationship = 'associatePayments';
+    protected static string $relationship = 'associateReceipts';
 
-    protected static ?string $title = 'Pagamentos a Associados';
+    protected static ?string $title = 'Comprovantes de Associados';
 
-    protected static ?string $modelLabel = 'Pagamento';
+    protected static ?string $modelLabel = 'Comprovante';
 
-    protected static ?string $pluralModelLabel = 'Pagamentos';
+    protected static ?string $pluralModelLabel = 'Comprovantes';
 
     public function isReadOnly(): bool
     {
@@ -42,81 +35,69 @@ class AssociatePaymentsRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        return $form->schema([
-            Forms\Components\TextInput::make('description')
-                ->label('Descrição')
-                ->required()
-                ->maxLength(255),
-        ]);
+        return $form->schema([]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->defaultSort('payment_date', 'desc')
+            ->defaultSort('issued_at', 'desc')
             ->columns([
-                Tables\Columns\TextColumn::make('receipt_number')
-                    ->label('Extrato Nº')
+                Tables\Columns\TextColumn::make('formatted_number')
+                    ->label('Nº Comprovante')
                     ->badge()
                     ->color('primary'),
 
                 Tables\Columns\TextColumn::make('associate.user.name')
                     ->label('Associado')
-                    ->getStateUsing(fn ($record) => optional(optional($record->associate)->user)->name ?? '—')
                     ->searchable(),
-
-                Tables\Columns\TextColumn::make('payment_date')
-                    ->label('Data')
-                    ->date('d/m/Y')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('amount')
-                    ->label('Valor Pago')
-                    ->money('BRL')
-                    ->color('success')
-                    ->weight('bold'),
-
-                Tables\Columns\TextColumn::make('balance_remaining')
-                    ->label('Saldo em Aberto')
-                    ->money('BRL')
-                    ->color(fn ($record) => $record->balance_remaining > 0 ? 'warning' : 'gray')
-                    ->formatStateUsing(fn ($state) => $state > 0 ? 'R$ ' . number_format($state, 2, ',', '.') : '—'),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state->getLabel())
-                    ->color(fn ($state) => $state->getColor()),
+                    ->formatStateUsing(fn ($state) => $state instanceof ReceiptStatus ? $state->getLabel() : $state)
+                    ->color(fn ($state) => $state instanceof ReceiptStatus ? $state->getColor() : 'gray'),
 
-                Tables\Columns\IconColumn::make('finalized_at')
-                    ->label('Faturado')
-                    ->boolean()
-                    ->getStateUsing(fn ($record) => !is_null($record->finalized_at))
-                    ->trueIcon('heroicon-o-lock-closed')
-                    ->falseIcon('heroicon-o-lock-open')
-                    ->trueColor('danger')
-                    ->falseColor('gray'),
+                Tables\Columns\TextColumn::make('total_gross')
+                    ->label('Bruto')
+                    ->money('BRL')
+                    ->placeholder('—'),
 
-                Tables\Columns\TextColumn::make('distributions_count')
-                    ->label('Distribs.')
-                    ->getStateUsing(fn ($record) => $record->distributions()->count()),
+                Tables\Columns\TextColumn::make('total_net')
+                    ->label('Líquido')
+                    ->money('BRL')
+                    ->color('success')
+                    ->weight('bold')
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('issued_at')
+                    ->label('Emitido em')
+                    ->date('d/m/Y')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('paid_at')
+                    ->label('Pago em')
+                    ->date('d/m/Y')
+                    ->placeholder('—')
+                    ->sortable(),
             ])
             ->headerActions([
                 Tables\Actions\Action::make('pay_associate')
-                    ->label('Pagar Associado')
+                    ->label('Registrar Pagamento')
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
                     ->form(function () {
-                        $project = $this->ownerRecord;
+                        $project  = $this->ownerRecord;
+                        $tenantId = session('tenant_id');
 
-                        // Associados que têm distribuições aprovadas não pagas neste projeto
-                        $associateIds = ProductionDelivery::where('sales_project_id', $project->id)
-                            ->where('status', DeliveryStatus::APPROVED)
-                            ->whereNotNull('parent_delivery_id')
-                            ->where('paid', false)
-                            ->whereNotNull('associate_id')
-                            ->pluck('associate_id')
-                            ->unique();
+                        // Associados que têm comprovantes pendentes neste projeto
+                        $pendingReceipts = AssociateReceipt::where('tenant_id', $tenantId)
+                            ->where('sales_project_id', $project->id)
+                            ->whereIn('status', [ReceiptStatus::DRAFT->value, ReceiptStatus::PENDING_PAYMENT->value])
+                            ->with('associate.user')
+                            ->get();
+
+                        $associateIds = $pendingReceipts->pluck('associate_id')->unique();
 
                         $associateOptions = Associate::whereIn('id', $associateIds)
                             ->with('user')
@@ -127,7 +108,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                             ->toArray();
 
                         return [
-                            Forms\Components\Section::make('Associado e Período')
+                            Forms\Components\Section::make('Associado')
                                 ->schema([
                                     Forms\Components\Select::make('associate_id')
                                         ->label('Associado')
@@ -135,85 +116,77 @@ class AssociatePaymentsRelationManager extends RelationManager
                                         ->required()
                                         ->searchable()
                                         ->live()
-                                        ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                            // Reset seleção ao trocar associado
-                                            $set('selected_distribution_ids', []);
-                                            $set('amount_paid', null);
-                                        })
-                                        ->helperText('Apenas associados com distribuições aprovadas não pagas.'),
+                                        ->afterStateUpdated(fn (Set $set) => $set('receipt_id', null))
+                                        ->helperText('Apenas associados com comprovantes pendentes de pagamento.'),
                                 ])
                                 ->columns(1),
 
-                            Forms\Components\Section::make('Distribuições a Pagar')
+                            Forms\Components\Section::make('Comprovante a Pagar')
                                 ->schema([
-                                    Forms\Components\CheckboxList::make('selected_distribution_ids')
-                                        ->label('Selecione as distribuições')
-                                        ->options(function (Get $get) {
+                                    Forms\Components\Select::make('receipt_id')
+                                        ->label('Comprovante')
+                                        ->options(function (Get $get) use ($project, $tenantId) {
                                             $associateId = $get('associate_id');
-                                            if (!$associateId) return [];
+                                            if (! $associateId) {
+                                                return [];
+                                            }
 
-                                            return ProductionDelivery::where('sales_project_id', $this->ownerRecord->id)
+                                            return AssociateReceipt::where('tenant_id', $tenantId)
+                                                ->where('sales_project_id', $project->id)
                                                 ->where('associate_id', $associateId)
-                                                ->where('status', DeliveryStatus::APPROVED)
-                                                ->whereNotNull('parent_delivery_id')
-                                                ->where('paid', false)
-                                                ->with(['product', 'customer'])
-                                                ->orderBy('delivery_date')
+                                                ->whereIn('status', [ReceiptStatus::DRAFT->value, ReceiptStatus::PENDING_PAYMENT->value])
                                                 ->get()
-                                                ->mapWithKeys(fn ($d) => [
-                                                    $d->id => sprintf(
-                                                        '%s · %s · %s · R$ %s (Líq.)',
-                                                        $d->delivery_date?->format('d/m/Y') ?? '—',
-                                                        optional($d->product)->name ?? '—',
-                                                        optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '—',
-                                                        number_format($d->net_value, 2, ',', '.')
+                                                ->mapWithKeys(fn ($r) => [
+                                                    $r->id => sprintf(
+                                                        'Nº %s — %s — R$ %s (%s)',
+                                                        $r->formatted_number,
+                                                        $r->issued_at?->format('d/m/Y') ?? '—',
+                                                        $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : '?',
+                                                        $r->status?->getLabel() ?? 'Rascunho'
                                                     ),
                                                 ])
                                                 ->toArray();
                                         })
+                                        ->required()
+                                        ->searchable()
                                         ->live()
                                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
-                                            if (empty($state)) {
+                                            if (! $state) {
                                                 $set('amount_paid', null);
-                                                $set('_total_selected', null);
                                                 return;
                                             }
-                                            $total = ProductionDelivery::whereIn('id', $state)->sum('net_value');
-                                            $set('amount_paid', round($total, 2));
-                                            $set('_total_selected', round($total, 2));
+                                            $receipt = AssociateReceipt::find($state);
+                                            if ($receipt?->total_net) {
+                                                $set('amount_paid', number_format((float) $receipt->total_net, 2, '.', ''));
+                                            }
                                         })
-                                        ->columns(1)
-                                        ->bulkToggleable()
-                                        ->helperText('Marque todas as distribuições que serão pagas agora.'),
-                                ])
-                                ->visible(fn (Get $get) => (bool) $get('associate_id')),
+                                        ->helperText('Selecione o comprovante que será pago.'),
 
-                            Forms\Components\Section::make('Valores')
-                                ->schema([
-                                    Forms\Components\Placeholder::make('total_selected_display')
-                                        ->label('Total das distribuições selecionadas')
+                                    Forms\Components\Placeholder::make('receipt_summary')
+                                        ->label('Resumo do Comprovante')
                                         ->content(function (Get $get) {
-                                            $ids = $get('selected_distribution_ids') ?? [];
-                                            if (empty($ids)) return '—';
-                                            $total = ProductionDelivery::whereIn('id', $ids)->sum('net_value');
+                                            $id = $get('receipt_id');
+                                            if (! $id) {
+                                                return '—';
+                                            }
+                                            $r = AssociateReceipt::find($id);
+                                            if (! $r) {
+                                                return '—';
+                                            }
+                                            $distCount = count($r->delivery_ids ?? []);
+                                            $gross     = $r->total_gross ? 'R$ '.number_format((float) $r->total_gross, 2, ',', '.') : '—';
+                                            $net       = $r->total_net   ? 'R$ '.number_format((float) $r->total_net, 2, ',', '.') : '—';
                                             return new \Illuminate\Support\HtmlString(
-                                                '<span style="font-size:1.1rem;font-weight:700;color:#059669;">R$ ' . number_format($total, 2, ',', '.') . '</span>'
+                                                "<div style='font-size:.85rem;line-height:1.6'>"
+                                                ."<strong>Distribuições:</strong> {$distCount} &nbsp;|&nbsp; "
+                                                ."<strong>Bruto:</strong> {$gross} &nbsp;|&nbsp; "
+                                                ."<strong>Líquido:</strong> <span style='color:#059669;font-weight:700'>{$net}</span>"
+                                                .'</div>'
                                             );
                                         })
                                         ->live(),
-
-                                    Forms\Components\TextInput::make('amount_paid')
-                                        ->label('Valor a Pagar Agora')
-                                        ->numeric()
-                                        ->required()
-                                        ->prefix('R$')
-                                        ->live()
-                                        ->helperText('Pode ser menor que o total se for pagamento parcial (gera saldo em aberto).'),
-
-                                    Forms\Components\Hidden::make('_total_selected'),
                                 ])
-                                ->visible(fn (Get $get) => !empty($get('selected_distribution_ids')))
-                                ->columns(2),
+                                ->visible(fn (Get $get) => (bool) $get('associate_id')),
 
                             Forms\Components\Section::make('Dados do Pagamento')
                                 ->schema([
@@ -237,204 +210,114 @@ class AssociatePaymentsRelationManager extends RelationManager
                                         ->searchable()
                                         ->helperText('Conta de onde sairá o pagamento'),
 
+                                    Forms\Components\TextInput::make('amount_paid')
+                                        ->label('Valor Pago')
+                                        ->numeric()
+                                        ->required()
+                                        ->prefix('R$')
+                                        ->helperText('Preenchido automaticamente com o líquido do comprovante.'),
+
                                     Forms\Components\TextInput::make('document_number')
                                         ->label('Nº do Documento / Comprovante')
                                         ->maxLength(100),
 
-                                    Forms\Components\Textarea::make('notes')
+                                    Forms\Components\Textarea::make('payment_notes')
                                         ->label('Observações')
                                         ->rows(2)
                                         ->columnSpanFull(),
                                 ])
-                                ->visible(fn (Get $get) => !empty($get('selected_distribution_ids')))
+                                ->visible(fn (Get $get) => (bool) $get('receipt_id'))
                                 ->columns(2),
                         ];
                     })
                     ->modalWidth('4xl')
-                    ->modalHeading('Pagar Associado')
-                    ->modalSubmitActionLabel('Confirmar Pagamento e Gerar Extrato')
+                    ->modalHeading('Registrar Pagamento a Associado')
+                    ->modalSubmitActionLabel('Confirmar Pagamento')
                     ->action(function (array $data) {
-                        $project    = $this->ownerRecord;
-                        $tenantId   = session('tenant_id');
-                        $year       = now()->year;
-
-                        $ids         = $data['selected_distribution_ids'] ?? [];
-                        $amountPaid  = (float) $data['amount_paid'];
-                        $associateId = (int) $data['associate_id'];
-
-                        if (empty($ids) || $amountPaid <= 0) {
-                            Notification::make()->warning()->title('Selecione distribuições e informe o valor.')->send();
+                        $receiptId = $data['receipt_id'] ?? null;
+                        if (! $receiptId) {
+                            Notification::make()->warning()->title('Selecione um comprovante.')->send();
                             return;
                         }
 
-                        $distributions = ProductionDelivery::whereIn('id', $ids)
-                            ->where('sales_project_id', $project->id)
-                            ->where('associate_id', $associateId)
-                            ->where('paid', false)
-                            ->get();
-
-                        if ($distributions->isEmpty()) {
-                            Notification::make()->warning()->title('Nenhuma distribuição válida encontrada.')->send();
+                        $receipt = AssociateReceipt::find($receiptId);
+                        if (! $receipt || $receipt->isLocked()) {
+                            Notification::make()->warning()->title('Comprovante inválido ou já pago.')->send();
                             return;
                         }
 
-                        $totalDistValue = $distributions->sum('net_value');
-                        $balance        = max(0, round($totalDistValue - $amountPaid, 2));
-
-                        DB::transaction(function () use (
-                            $project, $tenantId, $year, $distributions, $associateId,
-                            $amountPaid, $totalDistValue, $balance, $data
-                        ) {
-                            // 1. Criar registro de pagamento
-                            $receiptNumber = ProjectPayment::nextReceiptNumber($tenantId, $year);
-
-                            $payment = ProjectPayment::create([
-                                'tenant_id'         => $tenantId,
-                                'sales_project_id'  => $project->id,
-                                'type'              => 'associate_payment',
-                                'status'            => ProjectPaymentStatus::PAID,
-                                'associate_id'      => $associateId,
-                                'amount'            => $amountPaid,
-                                'balance_remaining' => $balance,
-                                'description'       => 'Pagamento ao associado — ' . $distributions->count() . ' distribuição(ões)',
-                                'payment_date'      => $data['payment_date'],
-                                'payment_method'    => $data['payment_method'],
-                                'bank_account_id'   => $data['bank_account_id'] ?? null,
-                                'document_number'   => $data['document_number'] ?? null,
-                                'notes'             => $data['notes'] ?? null,
-                                'receipt_number'    => $receiptNumber,
-                                'finalized_at'      => now(),
-                                'finalized_by'      => Auth::id(),
-                                'created_by'        => Auth::id(),
-                                'approved_by'       => Auth::id(),
-                                'approved_at'       => now(),
+                        try {
+                            app(AssociateReceiptService::class)->payReceipt($receipt, [
+                                'payment_date'   => $data['payment_date'],
+                                'payment_method' => $data['payment_method'],
+                                'bank_account_id'=> $data['bank_account_id'] ?? null,
+                                'amount_paid'    => $data['amount_paid'],
+                                'document_number'=> $data['document_number'] ?? null,
+                                'payment_notes'  => $data['payment_notes'] ?? null,
+                                'paid_by'        => Auth::id(),
                             ]);
 
-                            // 2. Marcar distribuições como pagas
-                            $distributions->each(fn ($d) => $d->update([
-                                'paid'               => true,
-                                'paid_date'          => $data['payment_date'],
-                                'project_payment_id' => $payment->id,
-                            ]));
-
-                            // 3. Atualizar campo de controle no projeto
-                            $project->increment('associates_paid_amount', $amountPaid);
-
-                            // 4. Movimentação de caixa (saída) se conta informada
-                            if (!empty($data['bank_account_id'])) {
-                                $bankAccount = BankAccount::find($data['bank_account_id']);
-                                if ($bankAccount) {
-                                    $newBalance = $bankAccount->current_balance - $amountPaid;
-                                    CashMovement::create([
-                                        'tenant_id'       => $tenantId,
-                                        'type'            => CashMovementType::EXPENSE,
-                                        'amount'          => $amountPaid,
-                                        'balance_after'   => $newBalance,
-                                        'description'     => "Pgto associado #{$associateId} — Projeto: {$project->title} — Extrato {$payment->receipt_number}",
-                                        'movement_date'   => $data['payment_date'],
-                                        'bank_account_id' => $data['bank_account_id'],
-                                        'payment_method'  => $data['payment_method'],
-                                        'document_number' => $data['document_number'] ?? null,
-                                        'reference_type'  => ProjectPayment::class,
-                                        'reference_id'    => $payment->id,
-                                        'created_by'      => Auth::id(),
-                                    ]);
-                                    $bankAccount->update(['current_balance' => $newBalance]);
-                                }
-                            }
-                        });
-
-                        Notification::make()
-                            ->success()
-                            ->title("Pagamento registrado! {$distributions->count()} distribuição(ões) marcada(s) como pagas.")
-                            ->body('Saldo em aberto: R$ ' . number_format($balance, 2, ',', '.'))
-                            ->send();
+                            Notification::make()
+                                ->success()
+                                ->title('Pagamento registrado com sucesso!')
+                                ->body("Comprovante {$receipt->formatted_number} marcado como PAGO.")
+                                ->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Erro ao registrar pagamento')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('download_pdf')
-                    ->label('Extrato PDF')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('info')
-                    ->action(function ($record) {
-                        $project      = $this->ownerRecord;
-                        $tenant       = \App\Models\Tenant::find(session('tenant_id'));
-                        $distributions = $record->distributions()
-                            ->with(['product', 'customer', 'parentDelivery.projectDemand.product'])
-                            ->orderBy('delivery_date')
-                            ->get();
-
-                        $associateName = optional(optional($record->associate)->user)->name ?? '—';
-                        $cpf           = optional($record->associate)->cpf_cnpj ?? '—';
-
-                        $svc = app(\App\Services\TemplatedPdfService::class);
-                        $pdf = $svc->generateSystemPdf('pdf.associate-payment-statement', [
-                            'tenant'        => $tenant,
-                            'project'       => $project,
-                            'payment'       => $record,
-                            'associate_name' => $associateName,
-                            'cpf'           => $cpf,
-                            'distributions' => $distributions,
-                            'generated_at'  => now()->format('d/m/Y H:i'),
-                        ], array_merge(
-                            $svc->systemPdfOptions('pdf.associate-payment-statement', 'Extrato'),
-                            ['paper' => 'a4', 'orientation' => 'portrait']
-                        ));
-
-                        return \Illuminate\Support\Facades\Response::streamDownload(
-                            fn () => print($pdf->output()),
-                            "extrato-{$record->receipt_number}.pdf",
-                            ['Content-Type' => 'application/pdf']
-                        );
-                    }),
-
                 Tables\Actions\Action::make('view_details')
                     ->label('Detalhes')
                     ->icon('heroicon-o-eye')
                     ->color('gray')
                     ->modalWidth('2xl')
-                    ->modalHeading(fn ($record) => "Extrato {$record->receipt_number}")
-                    ->form(fn ($record) => [
-                        Forms\Components\Placeholder::make('info')
-                            ->content(function () use ($record) {
-                                $distributions = $record->distributions()
-                                    ->with(['product', 'customer'])
-                                    ->orderBy('delivery_date')
-                                    ->get();
+                    ->modalHeading(fn (AssociateReceipt $record) => "Comprovante {$record->formatted_number}")
+                    ->modalContent(function (AssociateReceipt $record) {
+                        $deliveries = \App\Models\ProductionDelivery::whereIn(
+                            'id', array_map('intval', $record->delivery_ids ?? [])
+                        )->with('product', 'customer')->orderBy('delivery_date')->get();
 
-                                $rows = $distributions->map(fn ($d) => sprintf(
-                                    '<tr><td>%s</td><td>%s</td><td>%s</td><td style="text-align:right">%s</td><td style="text-align:right;color:#059669;font-weight:600">R$ %s</td></tr>',
-                                    $d->delivery_date?->format('d/m/Y') ?? '—',
-                                    optional($d->product)->name ?? '—',
-                                    optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '—',
-                                    number_format($d->quantity, 3, ',', '.') . ' ' . (optional($d->product)->unit ?? ''),
-                                    number_format($d->net_value, 2, ',', '.')
-                                ))->join('');
+                        $rows = $deliveries->map(fn ($d) => sprintf(
+                            '<tr><td style="padding:.4rem">%s</td><td style="padding:.4rem">%s</td><td style="padding:.4rem">%s</td>'
+                            .'<td style="padding:.4rem;text-align:right">%s</td>'
+                            .'<td style="padding:.4rem;text-align:right;color:#059669;font-weight:600">R$ %s</td></tr>',
+                            $d->delivery_date?->format('d/m/Y') ?? '—',
+                            optional($d->product)->name ?? '—',
+                            optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '—',
+                            number_format($d->quantity, 3, ',', '.'),
+                            number_format($d->net_value, 2, ',', '.')
+                        ))->implode('');
 
-                                return new \Illuminate\Support\HtmlString(
-                                    '<table style="width:100%;border-collapse:collapse;font-size:.85rem">'
-                                    . '<thead><tr style="background:#f3f4f6;font-weight:700">'
-                                    . '<th style="padding:.4rem;text-align:left">Data</th>'
-                                    . '<th style="padding:.4rem;text-align:left">Produto</th>'
-                                    . '<th style="padding:.4rem;text-align:left">Cliente</th>'
-                                    . '<th style="padding:.4rem;text-align:right">Qtd</th>'
-                                    . '<th style="padding:.4rem;text-align:right">Líquido</th>'
-                                    . '</tr></thead><tbody>' . $rows . '</tbody>'
-                                    . '<tfoot><tr style="font-weight:700;border-top:2px solid #e5e7eb">'
-                                    . '<td colspan="4" style="padding:.4rem">Total das Distribuições</td>'
-                                    . '<td style="padding:.4rem;text-align:right;color:#059669">R$ ' . number_format($distributions->sum('net_value'), 2, ',', '.') . '</td>'
-                                    . '</tr>'
-                                    . '<tr><td colspan="4" style="padding:.4rem">Valor Pago</td>'
-                                    . '<td style="padding:.4rem;text-align:right;font-weight:700">R$ ' . number_format($record->amount, 2, ',', '.') . '</td></tr>'
-                                    . ($record->balance_remaining > 0
-                                        ? '<tr><td colspan="4" style="padding:.4rem;color:#d97706">Saldo em Aberto</td>'
-                                          . '<td style="padding:.4rem;text-align:right;color:#d97706;font-weight:700">R$ ' . number_format($record->balance_remaining, 2, ',', '.') . '</td></tr>'
-                                        : '')
-                                    . '</tfoot></table>'
-                                );
-                            }),
-                    ])
-                    ->action(fn () => null),
+                        $gross = $record->total_gross ? 'R$ '.number_format((float) $record->total_gross, 2, ',', '.') : '—';
+                        $net   = $record->total_net   ? 'R$ '.number_format((float) $record->total_net, 2, ',', '.') : '—';
+                        $paid  = $record->paid_at ? $record->paid_at->format('d/m/Y') : '—';
+
+                        $html = '<div style="font-size:.85rem">'
+                            .'<div style="margin-bottom:.75rem;padding:.5rem .75rem;background:#f3f4f6;border-radius:4px">'
+                            .'<strong>Status:</strong> '.($record->status?->getLabel() ?? '—')
+                            .' &nbsp;|&nbsp; <strong>Bruto:</strong> '.$gross
+                            .' &nbsp;|&nbsp; <strong>Líquido:</strong> '.$net
+                            .($record->paid_at ? ' &nbsp;|&nbsp; <strong>Pago em:</strong> '.$paid : '')
+                            .'</div>'
+                            .'<table style="width:100%;border-collapse:collapse">'
+                            .'<thead><tr style="background:#f3f4f6;font-weight:700">'
+                            .'<th style="padding:.4rem;text-align:left">Data</th>'
+                            .'<th style="padding:.4rem;text-align:left">Produto</th>'
+                            .'<th style="padding:.4rem;text-align:left">Cliente</th>'
+                            .'<th style="padding:.4rem;text-align:right">Qtd</th>'
+                            .'<th style="padding:.4rem;text-align:right">Líquido DB</th>'
+                            .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
+
+                        return new \Illuminate\Support\HtmlString($html);
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar'),
             ]);
     }
 }

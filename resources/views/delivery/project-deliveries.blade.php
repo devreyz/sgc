@@ -469,6 +469,7 @@ $totalNet      = $deliveries->sum('net_value');
                                 data-qty="{{ $delivery['quantity'] }}"
                                 data-distributed="{{ $delivery['distributed_qty'] }}"
                                 data-existing="{{ json_encode($delivery['distributions']) }}"
+                                data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
                                 title="Distribuir para clientes"
                                 aria-label="Distribuir entrega para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
@@ -692,6 +693,7 @@ document.addEventListener('click', async function(e) {
                                     data-qty="${qty}"
                                     data-distributed="0"
                                     data-existing="[]"
+                                    data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}"
                                     title="Distribuir para clientes">
                                     <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                                 </button>
@@ -732,6 +734,9 @@ document.addEventListener('click', async function(e) {
 });
 
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* Participants list for this project (filtered customers) */
+const DM_PROJECT_PARTICIPANTS = @json($customers->pluck('id')->values()->all());
 
 /* ── EditModal callbacks (component x-delivery.edit-delivery-modal) ── */
 EditModal.onSaved = function(d) {

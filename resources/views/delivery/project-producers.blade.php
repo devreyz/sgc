@@ -385,17 +385,43 @@ async function openReceiptModal(associateId, name) {
             // Montar lista de comprovantes existentes
             const listEl = document.getElementById('rm-receipts-list');
             listEl.innerHTML = '';
+            const allPaid = (PP_CHECK_DATA.receipts || []).every(r => r.is_paid);
             (PP_CHECK_DATA.receipts || []).forEach(r => {
+                const statusColors = {
+                    'draft':           { bg: '#f3f4f6', text: '#374151', label: r.status_label },
+                    'pending_payment': { bg: '#fef9c3', text: '#78350f', label: r.status_label },
+                    'paid':            { bg: '#d1fae5', text: '#065f46', label: r.status_label },
+                };
+                const sc = statusColors[r.status] ?? statusColors['draft'];
+                const netBadge = r.total_net
+                    ? `<span style="font-size:.72rem;color:#059669;font-weight:700;margin-left:.4rem">R$\u00a0${r.total_net}</span>`
+                    : '';
+                const statusBadge = `<span style="display:inline-block;padding:1px 7px;border-radius:999px;font-size:.68rem;font-weight:600;background:${sc.bg};color:${sc.text}">${sc.label}</span>`;
                 const item = document.createElement('div');
                 item.className = 'rm-receipt-item';
                 item.innerHTML = `
-                    <span><strong>Nº ${r.number}</strong> &mdash; emitido em ${r.issued_at}</span>
+                    <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+                        <strong>Nº ${r.number}</strong>
+                        ${statusBadge}
+                        ${netBadge}
+                        <span style="color:#6b7280;font-size:.75rem">&mdash; ${r.issued_at}</span>
+                    </div>
                     <a href="${r.reprint_url}" target="_blank">
                         <i data-lucide="printer" style="width:12px;height:12px;vertical-align:middle"></i> Reimprimir
                     </a>`;
                 listEl.appendChild(item);
             });
             if (typeof lucide !== 'undefined') lucide.createIcons();
+
+            // Se todos os comprovantes estão pagos, ocultar botão de criar adicional
+            const addBtn = document.querySelector('#rm-has-receipt .btn-primary');
+            if (addBtn) {
+                if (allPaid && (PP_CHECK_DATA.uncovered_count ?? 0) === 0) {
+                    addBtn.style.display = 'none';
+                } else {
+                    addBtn.style.display = '';
+                }
+            }
 
             // Aviso distribuições não cobertas
             const uncovWarn = document.getElementById('rm-uncovered-warn');

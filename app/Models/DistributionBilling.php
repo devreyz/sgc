@@ -24,6 +24,7 @@ class DistributionBilling extends Model
         'total_admin_fee',
         'total_net',
         'total_distributions',
+        'fee_snapshot',
         'notes',
         'created_by',
     ];
@@ -31,12 +32,13 @@ class DistributionBilling extends Model
     protected function casts(): array
     {
         return [
-            'billing_date'  => 'date',
-            'period_start'  => 'date',
-            'period_end'    => 'date',
-            'total_gross'   => 'decimal:4',
+            'billing_date'    => 'date',
+            'period_start'    => 'date',
+            'period_end'      => 'date',
+            'total_gross'     => 'decimal:4',
             'total_admin_fee' => 'decimal:4',
-            'total_net'     => 'decimal:4',
+            'total_net'       => 'decimal:4',
+            'fee_snapshot'    => 'array',
         ];
     }
 

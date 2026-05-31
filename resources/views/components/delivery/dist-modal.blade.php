@@ -4,7 +4,7 @@
         <x-delivery.dist-modal
             :tenant-slug="$currentTenant->slug"
             :csrf="csrf_token()"
-            :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+            :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name,'organization_name'=>optional($c->organization)->short_name??optional($c->organization)->name])->values()->all()"
         />
 
     O componente expõe window.DistModal com:
@@ -356,7 +356,7 @@ function renderExisting(existing) {
 }
 
 /* ── Build one new-row ──────────────────────────────────────────────── */
-function buildRow(autofocus = false) {
+function buildRow(preselectId = null, autofocus = false) {
     const row = document.createElement('div');
     row.className = 'dm-row';
     row.setAttribute('role', 'group');
@@ -367,7 +367,7 @@ function buildRow(autofocus = false) {
     const sel = document.createElement('select');
     sel.setAttribute('aria-label', 'Selecionar cliente para distribuição ' + rowIdx);
     sel.innerHTML = '<option value="">Selecionar cliente…</option>' +
-        DM_CUSTOMERS.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+        DM_CUSTOMERS.map(c => `<option value="${c.id}"${c.id == preselectId ? ' selected' : ''}>${esc(c.name)}${c.organization_name ? ' · ' + esc(c.organization_name) : ''}</option>`).join('');
 
     const inp = document.createElement('input');
     inp.type        = 'number';
@@ -396,7 +396,9 @@ window.DistModal = {
     /** Open from a data-* button (used by project-deliveries & all-deliveries) */
     openFromBtn(btn) {
         let existing = [];
-        try { existing = JSON.parse(btn.dataset.existing || '[]'); } catch {}
+        let participants = [];
+        try { existing     = JSON.parse(btn.dataset.existing     || '[]'); } catch {}
+        try { participants = JSON.parse(btn.dataset.participants  || '[]'); } catch {}
         this.open({
             id:          btn.dataset.id,
             product:     btn.dataset.product || '-',
@@ -404,6 +406,7 @@ window.DistModal = {
             qty:         parseFloat(btn.dataset.qty) || 0,
             distributed: parseFloat(btn.dataset.distributed) || 0,
             existing,
+            participants,
         });
     },
 
@@ -423,9 +426,20 @@ window.DistModal = {
         // Existing
         renderExisting(cfg.existing || []);
 
-        // New rows — start with one blank
+        // New rows — pre-populate per participant if available, else one blank row
         $('dm-new-rows').innerHTML = '';
-        $('dm-new-rows').appendChild(buildRow());
+        const participants = Array.isArray(cfg.participants) ? cfg.participants : [];
+        // Determine which customers are already fully existing (all listed = skip pre-populating those)
+        const existingIds = new Set((cfg.existing || []).map(d => d.customer_id));
+        // Filter participants to those not yet in existing
+        const toPreload = participants.filter(id => DM_CUSTOMERS.some(c => c.id == id));
+        if (toPreload.length > 0) {
+            toPreload.forEach(id => {
+                $('dm-new-rows').appendChild(buildRow(id));
+            });
+        } else {
+            $('dm-new-rows').appendChild(buildRow());
+        }
 
         // Progress
         updateProgress();

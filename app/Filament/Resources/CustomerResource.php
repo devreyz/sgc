@@ -12,6 +12,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Traits\TenantScoped;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,8 @@ class CustomerResource extends Resource
     protected static ?string $modelLabel = 'Cliente';
 
     protected static ?string $pluralModelLabel = 'Clientes';
+
+    protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?int $navigationSort = 2;
 
@@ -75,6 +78,28 @@ class CustomerResource extends Resource
                             ->maxLength(20),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('Organização e Tabela de Preços')
+                    ->description('Vincule este cliente a uma organização (ex: município) e a uma tabela de preços padrão.')
+                    ->schema([
+                        Forms\Components\Select::make('organization_id')
+                            ->label('Organização')
+                            ->relationship('organization', 'name', fn ($query) => $query->where('tenant_id', session('tenant_id'))->where('active', true))
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('— Nenhuma —')
+                            ->helperText('Ex: Município de Itacarambi, CONAB, Estado de MG'),
+
+                        Forms\Components\Select::make('price_table_id')
+                            ->label('Tabela de Preços')
+                            ->relationship('priceTable', 'name', fn ($query) => $query->where('tenant_id', session('tenant_id'))->where('active', true))
+                            ->searchable()
+                            ->preload()
+                            ->placeholder('— Usar preços padrão do produto —')
+                            ->helperText('Preços desta tabela serão usados nas distribuições para este cliente'),
+                    ])
+                    ->columns(2)
+                    ->collapsed(fn (?Model $record) => $record === null),
 
                 Forms\Components\Section::make('Endereço')
                     ->schema([
@@ -162,6 +187,16 @@ class CustomerResource extends Resource
                     ->label('Razão Social')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('organization.name')
+                    ->label('Organização')
+                    ->placeholder('—')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('priceTable.name')
+                    ->label('Tabela de Preços')
+                    ->placeholder('—')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('cnpj')
                     ->label('CNPJ')
@@ -345,9 +380,7 @@ class CustomerResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            \App\Filament\Resources\CustomerResource\RelationManagers\ProductPricesRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array

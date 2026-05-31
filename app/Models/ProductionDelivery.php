@@ -46,6 +46,10 @@ class ProductionDelivery extends Model
         'stock_movement_id',
         'billing_status',
         'distribution_billing_id',
+        'associate_receipt_id',
+        'billing_receipt_id',
+        'price_table_id',
+        'price_source',
     ];
 
     protected function casts(): array
@@ -63,7 +67,10 @@ class ProductionDelivery extends Model
             'approved_at' => 'datetime',
             'paid' => 'boolean',
             'paid_date' => 'date',
-            'billing_status' => BillingStatus::class,
+            'billing_status'        => BillingStatus::class,
+            'associate_receipt_id'  => 'integer',
+            'billing_receipt_id'    => 'integer',
+            'price_table_id'        => 'integer',
         ];
     }
 
@@ -97,6 +104,17 @@ class ProductionDelivery extends Model
     public function distributionBilling(): BelongsTo
     {
         return $this->belongsTo(DistributionBilling::class, 'distribution_billing_id');
+    }
+
+    /** Comprovante (AssociateReceipt) que cobre esta distribuição. */
+    public function associateReceipt(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\AssociateReceipt::class, 'associate_receipt_id');
+    }
+
+    public function billingReceipt(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\CustomerBillingReceipt::class, 'billing_receipt_id');
     }
 
     /**
@@ -196,6 +214,11 @@ class ProductionDelivery extends Model
     public function projectPayment(): BelongsTo
     {
         return $this->belongsTo(ProjectPayment::class, 'project_payment_id');
+    }
+
+    public function priceTable(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PriceTable::class, 'price_table_id');
     }
 
     /**

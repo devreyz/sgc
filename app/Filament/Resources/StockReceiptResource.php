@@ -62,7 +62,7 @@ class StockReceiptResource extends Resource
                         ->afterStateUpdated(function ($state, callable $set) {
                             if ($state) {
                                 $product = Product::find($state);
-                                $set('unit_cost', $product?->cost_price ?? null);
+                                $set('unit_cost', null);
                             }
                         }),
 

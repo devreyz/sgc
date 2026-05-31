@@ -73,7 +73,7 @@ class DeliveriesRelationManager extends RelationManager
                     ->afterStateUpdated(function ($state, callable $set) {
                         if ($state) {
                             $product = \App\Models\Product::find($state);
-                            $set('unit_price', $product?->cost_price ?? 0);
+                            $set('unit_price', 0);
                         }
                     })
                     ->required(fn () => (bool) ($this->ownerRecord->allow_any_product ?? false))

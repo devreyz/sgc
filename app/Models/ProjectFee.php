@@ -15,7 +15,9 @@ class ProjectFee extends Model
         'tenant_id',
         'sales_project_id',
         'name',
-        'type',   // 'percentage' | 'fixed'
+        'type',       // 'percentage' | 'fixed'
+        'nature',     // 'discount' | 'accrual'
+        'sort_order',
         'value',
         'active',
         'notes',
@@ -25,8 +27,9 @@ class ProjectFee extends Model
     protected function casts(): array
     {
         return [
-            'value'  => 'decimal:4',
-            'active' => 'boolean',
+            'value'      => 'decimal:4',
+            'active'     => 'boolean',
+            'sort_order' => 'integer',
         ];
     }
 
@@ -57,10 +60,24 @@ class ProjectFee extends Model
         return (string) $this->value;
     }
 
+    public function getNatureLabel(): string
+    {
+        return $this->nature === 'accrual' ? 'Acréscimo' : 'Desconto';
+    }
+
     public function getTypeLabel(): string
     {
         return $this->type === 'percentage'
             ? number_format((float) $this->value, 2, ',', '.') . '%'
             : 'R$ ' . number_format((float) $this->value, 2, ',', '.');
+    }
+
+    /**
+     * Label completo para exibição em comprovantes/relatórios.
+     * Ex: "Taxa Administrativa (5,50%)" ou "Frete (R$ 150,00)"
+     */
+    public function getFullLabel(): string
+    {
+        return $this->name . ' (' . $this->getTypeLabel() . ')';
     }
 }

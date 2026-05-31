@@ -3,13 +3,17 @@
 namespace App\Filament\Resources;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\ReceiptStatus;
 use App\Filament\Resources\AssociateReceiptResource\Pages;
 use App\Filament\Traits\TenantScoped;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
+use App\Models\BankAccount;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\AssociateReceiptService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -220,6 +224,26 @@ class AssociateReceiptResource extends Resource
                         ? 'Assinado em '.$r->acknowledged_at->format('d/m/Y H:i')
                         : 'Aguardando assinatura'),
 
+                // ── Status financeiro do comprovante ──────────────────────────
+                Tables\Columns\TextColumn::make('status')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state?->getLabel() ?? 'Rascunho')
+                    ->color(fn ($state) => $state?->getColor() ?? 'gray'),
+
+                // ── Valor líquido congelado ────────────────────────────────────
+                Tables\Columns\TextColumn::make('total_net')
+                    ->label('Valor Líquido')
+                    ->money('BRL')
+                    ->placeholder('—')
+                    ->tooltip('Valor congelado no momento da geração do comprovante'),
+
+                Tables\Columns\TextColumn::make('amount_paid')
+                    ->label('Pago')->money('BRL')->placeholder('—')
+                    ->color(fn ($state, AssociateReceipt $record) =>
+                        $record->status === ReceiptStatus::PAID ? 'success' : 'info')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('delivery_ids')
                     ->label('Entregas')
                     ->formatStateUsing(function ($state) {
@@ -320,7 +344,7 @@ class AssociateReceiptResource extends Resource
                             return null;
                         }
 
-                        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries);
+                        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
 
                         // ── Marcar como segunda via se já foi assinado ───────
                         $isSecondCopy = $record->acknowledged_at !== null;
@@ -334,6 +358,7 @@ class AssociateReceiptResource extends Resource
                             'summary' => $receiptData['summary'],
                             'productsSummary' => $receiptData['productsSummary'],
                             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+                            'feeBreakdown' => $receiptData['feeBreakdown'],
                             'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 
@@ -391,20 +416,51 @@ class AssociateReceiptResource extends Resource
                             return new \Illuminate\Support\HtmlString('<p style="padding:1rem;color:#888">Nenhuma entrega encontrada.</p>');
                         }
 
+                        // ── Recalcular taxas via calculator (valores corretos sempre) ──
+                        $project   = $record->project;
+                        $calcMap   = [];
+                        if ($project) {
+                            $calculator = app(\App\Services\ProjectFinancialCalculator::class);
+                            foreach ($deliveries as $d) {
+                                $gross = (string) ($d->gross_value ?? 0);
+                                if (bccomp($gross, '0', 4) > 0) {
+                                    $res = $calculator->calculate($project, $gross);
+                                    $calcMap[$d->id] = [
+                                        'fee' => (float) $res['total_fee'],
+                                        'net' => (float) $res['net'],
+                                    ];
+                                } else {
+                                    $calcMap[$d->id] = ['fee' => 0.0, 'net' => 0.0];
+                                }
+                            }
+                        }
+
+                        $getFee = fn($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['fee'] : (float) ($d->admin_fee_amount ?? 0);
+                        $getNet = fn($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['net'] : (float) ($d->net_value ?? 0);
+
+                        $totalGross = (float) $deliveries->sum('gross_value');
+                        $totalFee   = array_sum(array_map($getFee, $deliveries->all()));
+                        $totalNet   = array_sum(array_map($getNet, $deliveries->all()));
+
                         $rows = $deliveries->map(fn ($d) => '<tr>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->delivery_date?->format('d/m/Y') ?? '—').'</td>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->product?->name ?? '—').'</td>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->customer?->trade_name ?? $d->customer?->name ?? '—').'</td>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">'.number_format($d->quantity, 3, ',', '.').' '.e($d->product?->unit ?? 'un').'</td>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right">R$ '.number_format($d->gross_value ?? 0, 2, ',', '.').'</td>'
-                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#c0392b">- R$ '.number_format($d->admin_fee_amount ?? 0, 2, ',', '.').'</td>'
-                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#1a5c3a;font-weight:600">R$ '.number_format($d->net_value ?? 0, 2, ',', '.').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#c0392b">- R$ '.number_format($getFee($d), 2, ',', '.').'</td>'
+                            .'<td style="padding:6px 10px;border-bottom:1px solid #eee;text-align:right;color:#1a5c3a;font-weight:600">R$ '.number_format($getNet($d), 2, ',', '.').'</td>'
                             .'</tr>'
                         )->implode('');
 
-                        $totalGross = $deliveries->sum('gross_value');
-                        $totalFee = $deliveries->sum('admin_fee_amount');
-                        $totalNet = $deliveries->sum('net_value');
+                        // ── Nota: se snapshot congelado está disponível, mostra também ──
+                        $frozenNote = '';
+                        if ($record->total_net && abs($record->total_net - $totalNet) > 0.01) {
+                            $frozenNote = '<div style="margin-top:.5rem;padding:.5rem .75rem;background:#fef9c3;border:1px solid #fde047;border-radius:4px;font-size:.78rem;color:#78350f;">'
+                                .'⚠️ Valor congelado no comprovante: <strong>R$ '.number_format($record->total_net, 2, ',', '.').'</strong>'
+                                .' — Este valor foi calculado no momento da geração do PDF.'
+                                .'</div>';
+                        }
 
                         $html = '<div style="overflow-x:auto">'
                             .'<table style="width:100%;border-collapse:collapse;font-size:.875rem">'
@@ -423,7 +479,8 @@ class AssociateReceiptResource extends Resource
                             .'<td style="padding:8px 10px;text-align:right">R$ '.number_format($totalGross, 2, ',', '.').'</td>'
                             .'<td style="padding:8px 10px;text-align:right;color:#c0392b">- R$ '.number_format($totalFee, 2, ',', '.').'</td>'
                             .'<td style="padding:8px 10px;text-align:right;color:#1a5c3a">R$ '.number_format($totalNet, 2, ',', '.').'</td>'
-                            .'</tr></tfoot></table></div>';
+                            .'</tr></tfoot></table></div>'
+                            .$frozenNote;
 
                         return new \Illuminate\Support\HtmlString($html);
                     })
@@ -458,7 +515,101 @@ class AssociateReceiptResource extends Resource
                     }),
 
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn (AssociateReceipt $r) => ! $r->isLocked()),
+
+                // ── PAGAR COMPROVANTE (parcial ou total) ──────────────────────
+                Tables\Actions\Action::make('addPayment')
+                    ->label(fn (AssociateReceipt $r) => $r->status === ReceiptStatus::PARTIALLY_PAID
+                        ? 'Registrar Parcela'
+                        : 'Pagar Comprovante')
+                    ->icon('heroicon-o-banknotes')
+                    ->color('success')
+                    ->visible(fn (AssociateReceipt $r) => in_array($r->status, [
+                        ReceiptStatus::PENDING_PAYMENT,
+                        ReceiptStatus::PARTIALLY_PAID,
+                    ]))
+                    ->modalHeading(fn (AssociateReceipt $r) => 'Registrar Pagamento — ' . $r->formatted_number)
+                    ->modalDescription(fn (AssociateReceipt $r) =>
+                        'Total: R$ ' . number_format((float) $r->total_net, 2, ',', '.') .
+                        ' | Pago: R$ ' . number_format((float) ($r->amount_paid ?? 0), 2, ',', '.') .
+                        ' | Restante: R$ ' . number_format($r->remaining_amount, 2, ',', '.'))
+                    ->form(function (AssociateReceipt $record) {
+                        $remaining = $record->remaining_amount;
+                        return [
+                            Forms\Components\TextInput::make('amount')
+                                ->label('Valor a Pagar (R$)')
+                                ->default(number_format($remaining, 2, '.', ''))
+                                ->required()->numeric()->minValue(0.01)
+                                ->helperText('Máximo: R$ ' . number_format($remaining, 2, ',', '.')),
+
+                            Forms\Components\DatePicker::make('payment_date')
+                                ->label('Data do Pagamento')
+                                ->default(today())
+                                ->required()
+                                ->native(false),
+
+                            Forms\Components\Select::make('payment_method')
+                                ->label('Forma de Pagamento')
+                                ->options(collect(PaymentMethod::cases())
+                                    ->mapWithKeys(fn ($m) => [$m->value => $m->getLabel()])
+                                    ->toArray())
+                                ->required(),
+
+                            Forms\Components\Select::make('bank_account_id')
+                                ->label('Conta Bancária (opcional)')
+                                ->options(fn () => BankAccount::where('tenant_id', session('tenant_id'))
+                                    ->where('status', true)
+                                    ->pluck('name', 'id')
+                                    ->toArray())
+                                ->placeholder('— Nenhuma —')
+                                ->helperText('Se informada, registra saída no caixa da cooperativa'),
+
+                            Forms\Components\TextInput::make('document_number')
+                                ->label('Nº Documento / Comprovante')
+                                ->placeholder('Opcional'),
+
+                            Forms\Components\Textarea::make('notes')
+                                ->label('Observações')
+                                ->rows(2)
+                                ->placeholder('Opcional'),
+                        ];
+                    })
+                    ->action(function (AssociateReceipt $record, array $data): void {
+                        try {
+                            app(AssociateReceiptService::class)->addPayment($record, $data);
+                            $fresh = $record->fresh();
+                            $body = $fresh->status === ReceiptStatus::PAID
+                                ? 'Comprovante quitado integralmente.'
+                                : 'Saldo restante: R$ ' . number_format($fresh->remaining_amount, 2, ',', '.');
+                            Notification::make()->success()->title('Pagamento registrado')->body($body)->send();
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Erro ao processar pagamento')
+                                ->body($e->getMessage())
+                                ->send();
+                        }
+                    }),
+
+                // ── HISTÓRICO DE PAGAMENTOS ───────────────────────────────────
+                Tables\Actions\Action::make('viewPayments')
+                    ->label('Histórico de Pagamentos')
+                    ->icon('heroicon-o-clock')->color('gray')
+                    ->visible(fn (AssociateReceipt $r) => in_array($r->status, [
+                        ReceiptStatus::PARTIALLY_PAID,
+                        ReceiptStatus::PAID,
+                    ]))
+                    ->modalHeading(fn (AssociateReceipt $r) => 'Pagamentos — ' . $r->formatted_number)
+                    ->modalContent(function (AssociateReceipt $record): \Illuminate\Contracts\View\View {
+                        $payments = $record->payments()->with('bankAccount')->get();
+                        return view('filament.modals.receipt-payments-history', [
+                            'receipt'  => $record,
+                            'payments' => $payments,
+                            'label'    => 'Pagamento',
+                        ]);
+                    })
+                    ->modalSubmitAction(false),
             ])
             ->defaultSort('receipt_year', 'desc')
             ->defaultSort('receipt_number', 'desc');

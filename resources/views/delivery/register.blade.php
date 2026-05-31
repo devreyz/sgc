@@ -294,6 +294,99 @@
 .si-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .si-dist-info { font-size: 0.68rem; font-weight: 600; color: #4f46e5; white-space: nowrap; }
 
+/* ─── Session item: card layout ─────────────────── */
+.session-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+}
+.session-item:last-child { border-bottom: none; }
+.si-row1 { display: flex; align-items: flex-start; gap: 0.5rem; }
+.si-row2 { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+.si-product {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
+    flex: 1;
+    min-width: 0;
+    line-height: 1.3;
+}
+.si-qty-badge {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-text);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.si-assoc {
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.si-date-qual {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+/* Filter bar */
+.history-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-border) 30%, transparent);
+    flex-wrap: wrap;
+}
+.history-filter label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+.history-filter input[type=date] {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    color: var(--color-text);
+    background: var(--color-surface);
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+    flex: 1;
+    max-width: 140px;
+}
+.history-filter input[type=date]:focus { border-color: var(--color-primary); }
+.history-filter .hf-clear {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem 0.4rem;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+}
+.history-filter .hf-clear:hover { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+/* Date selector row */
+.sel-date-display {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--color-text);
+    flex: 1;
+}
+
 /* ─── Modals ─────────────────────────────────────── */
 .modal-overlay {
     display: none;
@@ -488,6 +581,23 @@
                 </div>
             </div>
 
+            {{-- Date selector --}}
+            <div class="selector-row" id="sel-date" onclick="focusDateInput()">
+                <div class="sel-icon">
+                    <i data-lucide="calendar" style="width:16px;height:16px"></i>
+                </div>
+                <div class="sel-info">
+                    <div class="sel-label">Data da entrega</div>
+                    <div class="sel-date-display" id="date-display">{{ date('d/m/Y') }}</div>
+                </div>
+                <input type="date" id="f-date" value="{{ date('Y-m-d') }}"
+                    style="position:absolute;opacity:0;pointer-events:none;width:0;height:0"
+                    onchange="onDateChange(this.value)">
+                <div class="sel-chevron">
+                    <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
+                </div>
+            </div>
+
             {{-- Product selector --}}
             <div class="selector-row disabled" id="sel-product" onclick="openModal('product')">
                 <div class="sel-icon">
@@ -521,10 +631,6 @@
                         </div>
                     </div>
                     <div>
-                        <label class="field-label" for="f-date">Data</label>
-                        <input class="field-input" type="date" id="f-date" value="{{ date('Y-m-d') }}">
-                    </div>
-                    <div>
                         <label class="field-label" for="f-notes">Observações</label>
                         <input class="field-input" type="text" id="f-notes" placeholder="Opcional">
                     </div>
@@ -540,9 +646,16 @@
 
     {{-- ─── SESSION LIST ─────────────────────────────── --}}
     <div class="card">
-        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:1rem;">
+        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:1rem;padding-bottom:.6rem;">
             <span id="session-list-title">Registros desta sessão</span>
             <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
+        </div>
+        <div class="history-filter" id="history-filter" style="display:none">
+            <label>Filtrar:</label>
+            <input type="date" id="filter-date-from" oninput="renderSessionItems()" placeholder="De">
+            <span style="font-size:.75rem;color:var(--color-text-muted)">—</span>
+            <input type="date" id="filter-date-to" oninput="renderSessionItems()" placeholder="Até">
+            <button class="hf-clear" onclick="clearFilter()">Limpar</button>
         </div>
         <div id="session-list" style="min-height:60px">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
@@ -641,7 +754,7 @@
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
-    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name,'organization_name'=>$c->organization?->short_name??$c->organization?->name])->values()->all()"
 />
 
 <script>
@@ -813,6 +926,25 @@ function bindQualityPills() {
     });
 }
 
+function onDateChange(val) {
+    if (!val) return;
+    const [y, m, d] = val.split('-');
+    $('date-display').textContent = d + '/' + m + '/' + y;
+    $('sel-date').classList.add('selected');
+}
+
+function focusDateInput() {
+    const inp = $('f-date');
+    // Try to show native date picker
+    try { inp.showPicker(); } catch(e) { inp.focus(); inp.click(); }
+}
+
+function clearFilter() {
+    $('filter-date-from').value = '';
+    $('filter-date-to').value   = '';
+    renderSessionItems();
+}
+
 function bindQtyInput() {
     $('f-qty').addEventListener('input', checkFormReady);
 }
@@ -958,6 +1090,18 @@ function renderSessionItems() {
         ? S.items.filter(i => i.projectId === projectId)
         : S.items.filter(i => !i.projectId);
 
+    // Aplica filtro de data sobre os itens do projeto
+    const dateFrom    = ($('filter-date-from')?.value || '').trim();
+    const dateTo      = ($('filter-date-to')?.value || '').trim();
+    const usingFilter = !!(dateFrom || dateTo);
+    const renderList  = usingFilter
+        ? filtered.filter(i => {
+            if (dateFrom && i.date < dateFrom) return false;
+            if (dateTo   && i.date > dateTo)   return false;
+            return true;
+        })
+        : filtered;
+
     // Mensagem de estado vazio adequada ao contexto
     if (empty) {
         empty.textContent = projectId
@@ -968,15 +1112,20 @@ function renderSessionItems() {
     // Clear current content (except the empty placeholder element)
     Array.from(list.children).forEach(c => { if (c !== empty) c.remove(); });
 
-    if (filtered.length === 0) {
-        if (empty) empty.style.display = 'block';
+    if (renderList.length === 0) {
+        if (empty) {
+            empty.textContent = usingFilter
+                ? 'Nenhuma entrega encontrada para o período selecionado'
+                : (projectId ? 'Nenhuma entrega registrada para este projeto' : 'Selecione um projeto para ver o histórico de entregas');
+            empty.style.display = 'block';
+        }
         count.textContent = '';
         return;
     }
     if (empty) empty.style.display = 'none';
-    count.textContent = filtered.length + ' registro' + (filtered.length !== 1 ? 's' : '');
+    count.textContent = renderList.length + (usingFilter ? '/' + filtered.length : '') + ' registro' + (renderList.length !== 1 ? 's' : '');
 
-    // Helper: build a session item element
+    // Helper: build a session item element (card layout)
     function buildItemEl(item) {
         const el = document.createElement('div');
         el.className = 'session-item';
@@ -985,31 +1134,39 @@ function renderSessionItems() {
         const isPending = item.status !== 'approved';
         const distQty   = item.distributedQty || 0;
         const distInfo  = !isPending && distQty > 0
-            ? '<span class="si-dist-info">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
+            ? '<span class="si-dist-info" style="font-size:.72rem;font-weight:600;color:#4f46e5">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
             : '';
 
+        const statusHtml = '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' + (isPending ? 'Pendente' : 'Aprovada') + '</span>';
+
         const btnApprove = isPending
-            ? '<button class="si-btn si-btn-approve" data-action="approve" data-id="' + item.id + '" title="Aprovar"><i data-lucide="check" style="width:13px;height:13px"></i></button>'
+            ? '<button class="si-btn si-btn-approve" data-action="approve" data-id="' + item.id + '" title="Aprovar entrega"><i data-lucide="check" style="width:13px;height:13px"></i></button>'
             : '';
-        const btnEdit = isPending
-            ? '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar quantidade"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>'
-            : '';
+        // Edit always available (pending: edit freely; approved: restricted fields)
+        const btnEdit = '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar entrega"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>';
         const btnDist = !isPending
             ? '<button class="si-btn si-btn-dist" data-action="distribute" data-id="' + item.id + '" title="Distribuir para clientes"><i data-lucide="git-branch" style="width:13px;height:13px"></i></button>'
             : '';
         const btnDelete = isPending
-            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir" aria-label="Excluir entrega"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
-            : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir entrega aprovada" aria-label="Excluir entrega aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>';
+            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
+            : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>';
 
+        // Card: row1 = product + qty; row2 = associate + date/quality + status; row3 = actions
+        const dateStr = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
         el.innerHTML =
-            '<div class="si-info">' +
+            '<div class="si-row1">' +
                 '<div class="si-product">' + esc(item.productName) + '</div>' +
-                '<div class="si-meta">' + esc(item.associateName) + ' &middot; ' + fmtDate(item.date) + (item.quality ? ' &middot; ' + item.quality : '') + '</div>' +
+                '<div class="si-qty-badge">' + fmtQty(item.qty, item.productUnit) + '</div>' +
             '</div>' +
-            '<div class="si-qty">' + fmtQty(item.qty, item.productUnit) + '</div>' +
-            distInfo +
-            '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' + (isPending ? 'Pendente' : 'Aprovada') + '</span>' +
-            '<div class="si-actions">' + btnApprove + btnEdit + btnDist + btnDelete + '</div>';
+            '<div class="si-row2">' +
+                '<span class="si-assoc">' + esc(item.associateName) + '</span>' +
+                '<span class="si-date-qual">' + dateStr + (item.quality ? ' &middot; ' + item.quality : '') + '</span>' +
+                statusHtml +
+                distInfo +
+            '</div>' +
+            '<div class="si-actions" style="display:flex;gap:.25rem;flex-wrap:wrap;">' +
+                btnApprove + btnEdit + btnDist + btnDelete +
+            '</div>';
 
         return el;
     }
@@ -1024,8 +1181,8 @@ function renderSessionItems() {
 
     // If an associate is selected, split into two groups
     if (S.associate) {
-        const assocItems  = filtered.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
-        const othersItems = filtered.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
+        const assocItems  = renderList.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
+        const othersItems = renderList.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
 
         if (assocItems.length > 0) {
             list.appendChild(buildSectionHeader(S.associate.name));
@@ -1040,7 +1197,7 @@ function renderSessionItems() {
             count.textContent = '';
         }
     } else {
-        filtered.forEach(item => list.appendChild(buildItemEl(item)));
+        renderList.forEach(item => list.appendChild(buildItemEl(item)));
     }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -1397,6 +1554,10 @@ window.filterList           = filterList;
 window.submitEntry          = submitEntry;
 window.deleteItem           = deleteItem;
 window.saveEdit             = saveEdit;
+window.focusDateInput       = focusDateInput;
+window.renderSessionItems   = renderSessionItems;
+window.clearFilter          = clearFilter;
+window.onDateChange         = onDateChange;
 window.addDistRegRow        = function() {}; // removido (usar DistModal component)
 window.saveDist             = function() {}; // removido (usar DistModal component)
 

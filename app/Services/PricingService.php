@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Customer;
-use App\Models\CustomerProductPrice;
+use App\Models\PriceTable;
 use App\Models\Product;
 use App\Models\SalesProject;
 
@@ -14,6 +14,10 @@ use App\Models\SalesProject;
  * - Internamente todos os cálculos usam BCMath com 8 casas decimais.
  * - Valores são armazenados no banco com 4 casas decimais.
  * - O arredondamento para 2 casas só ocorre na exibição (views/PDFs/relatórios).
+ *
+ * Hierarquia de resolução de preço:
+ *  1. PriceTable do cliente → PriceTableItem  → "price_table"
+ *  2. Fallback: preço zero (sem tabela configurada) → "unpriced"
  */
 class PricingService
 {
@@ -21,65 +25,40 @@ class PricingService
     private const SCALE = 8;
 
     /**
-     * Resolve o preço correto de um produto com base na prioridade:
+     * Resolve o preço correto de um produto com base na prioridade.
      *
-     * 1. Preço específico para o cliente dentro do projeto
-     * 2. Preço específico para o cliente (sem projeto)
-     * 3. Valor padrão do produto (sale_price / cost_price)
-     *
-     * @return array{sale_price: string, cost_price: string|null, source: string}
+     * @return array{sale_price: string, cost_price: string|null, source: string, price_table_id: int|null}
      */
     public function resolvePrice(
         Product $product,
         ?Customer $customer = null,
         ?SalesProject $project = null
     ): array {
-        $defaultSalePrice = (string) ($product->sale_price ?? '0');
-        $defaultCostPrice = (string) ($product->cost_price ?? '0');
+        // 1. PriceTable vinculada ao cliente
+        if ($customer?->price_table_id) {
+            $priceTable = $customer->priceTable;
+            if ($priceTable && $priceTable->active) {
+                $item = $priceTable->items()
+                    ->where('product_id', $product->id)
+                    ->first();
 
-        if (!$customer) {
-            return [
-                'sale_price' => $defaultSalePrice,
-                'cost_price' => $defaultCostPrice,
-                'source' => 'product_default',
-            ];
-        }
-
-        // 1. Preço específico: cliente + produto + projeto
-        if ($project) {
-            $projectPrice = CustomerProductPrice::forCustomerProduct($customer->id, $product->id)
-                ->where('project_id', $project->id)
-                ->active()
-                ->first();
-
-            if ($projectPrice) {
-                return [
-                    'sale_price' => (string) $projectPrice->sale_price,
-                    'cost_price' => $projectPrice->cost_price !== null ? (string) $projectPrice->cost_price : null,
-                    'source' => 'customer_project',
-                ];
+                if ($item) {
+                    return [
+                        'sale_price'     => (string) $item->sale_price,
+                        'cost_price'     => $item->cost_price !== null ? (string) $item->cost_price : null,
+                        'source'         => 'price_table',
+                        'price_table_id' => $priceTable->id,
+                    ];
+                }
             }
         }
 
-        // 2. Preço específico: cliente + produto (sem projeto)
-        $customerPrice = CustomerProductPrice::forCustomerProduct($customer->id, $product->id)
-            ->whereNull('project_id')
-            ->active()
-            ->first();
-
-        if ($customerPrice) {
-            return [
-                'sale_price' => (string) $customerPrice->sale_price,
-                'cost_price' => $customerPrice->cost_price !== null ? (string) $customerPrice->cost_price : null,
-                'source' => 'customer',
-            ];
-        }
-
-        // 3. Fallback: valores padrão do produto
+        // 2. Fallback: produto sem preço configurado
         return [
-            'sale_price' => $defaultSalePrice,
-            'cost_price' => $defaultCostPrice,
-            'source' => 'product_default',
+            'sale_price'     => '0',
+            'cost_price'     => null,
+            'source'         => 'unpriced',
+            'price_table_id' => null,
         ];
     }
 
@@ -129,6 +108,7 @@ class PricingService
 
     /**
      * Resolve preço e calcula valores de entrega em uma única chamada.
+     * Retorna também price_source e price_table_id para rastreabilidade.
      */
     public function resolveAndCalculate(
         Product $product,
@@ -146,7 +126,8 @@ class PricingService
             $pricing['cost_price']
         );
 
-        $values['price_source'] = $pricing['source'];
+        $values['price_source']   = $pricing['source'];
+        $values['price_table_id'] = $pricing['price_table_id'];
 
         return $values;
     }
@@ -154,6 +135,18 @@ class PricingService
     // ──────────────────────────────────────────────────────────────
     // Helpers de exibição
     // ──────────────────────────────────────────────────────────────
+
+    /**
+     * Label legível da fonte de preço.
+     */
+    public static function priceSourceLabel(string $source): string
+    {
+        return match ($source) {
+            'price_table' => 'Tabela de preços',
+            'unpriced'    => 'Sem preço configurado',
+            default       => $source,
+        };
+    }
 
     /**
      * Arredonda para exibição (2 casas) — usar APENAS em views/PDFs.

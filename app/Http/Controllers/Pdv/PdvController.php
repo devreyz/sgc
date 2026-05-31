@@ -77,7 +77,7 @@ class PdvController extends Controller
     {
         $products = Product::where('tenant_id', $this->tenantId())
             ->where('status', true)
-            ->select('id', 'name', 'sku', 'sale_price', 'current_stock', 'unit')
+            ->select('id', 'name', 'sku', 'current_stock', 'unit')
             ->orderBy('name')
             ->limit(100)
             ->get();

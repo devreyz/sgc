@@ -11,7 +11,7 @@
             else { $logoPath = asset('storage/' . ltrim($raw, '/')); $hasLogo = true; } }
         }
     }
-    $isSingle = count($groups) === 1;
+    $isSingleCustomer = ($totals['customers_count'] ?? 0) === 1;
     $periodLabel = null;
     if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
         $periodLabel = ($filters['date_from'] ?? '—') . ' a ' . ($filters['date_to'] ?? '—');
@@ -36,8 +36,10 @@ body { font-family: 'DejaVu Sans', Arial, sans-serif; font-size: 10px; color: #1
 .hdr-right .doc-title { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: .4px; display: block; }
 .hdr-right .doc-sub { font-size: 9px; color: #444; display: block; margin-top: 2px; }
 .hdr-right .doc-gen { font-size: 7.5px; color: #999; display: block; margin-top: 2px; }
+/* Cabeçalho de organização */
+.org-hdr { background: #2d3748; color: #fff; padding: 5px 8px; margin: 12px 0 4px; font-size: 10px; font-weight: bold; }
 /* Cabeçalho de cliente */
-.cust-hdr { font-size: 10px; font-weight: bold; padding-bottom: 3px; margin: 10px 0 5px; border-bottom: 1px solid #ccc; }
+.cust-hdr { font-size: 9.5px; font-weight: bold; padding: 3px 5px 3px; margin: 6px 0 4px; border-bottom: 1px solid #aaa; border-left: 3px solid #666; padding-left: 6px; }
 /* Tabela */
 table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
 table.tbl thead th { background: #ebebeb; border-bottom: 1.5px solid #333; padding: 5px 6px; font-size: 7.5pt; text-align: left; text-transform: uppercase; letter-spacing: .25px; font-weight: 700; color: #222; }
@@ -75,39 +77,51 @@ table.tbl tfoot td.r { text-align: right; }
     </div>
 </div>
 
-{{-- Grupos por cliente --}}
-@foreach($groups as $group)
-<div style="margin-bottom:14px;">
-    @if(!$isSingle)
-    <div class="cust-hdr">{{ $group['customer_name'] }}</div>
-    @endif
-    <table class="tbl">
-        <thead>
-            <tr>
-                <th>Produto</th>
-                <th class="r" style="width:130px;">Qtd. Total Recebida</th>
-                <th class="r" style="width:120px;">Valor Total (R$)</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($group['products'] as $prod)
-            <tr>
-                <td><strong>{{ $prod['product_name'] }}</strong></td>
-                <td class="r">{{ number_format($prod['total_qty'],3,',','.') }}&nbsp;{{ $prod['unit'] }}</td>
-                <td class="r"><strong>R$&nbsp;{{ number_format($prod['total_gross'],2,',','.') }}</strong></td>
-            </tr>
-            @endforeach
-        </tbody>
-        <tfoot>
-            <tr>
-                <td style="font-style:italic;font-weight:normal;">
-                    Total@if(!$isSingle) &mdash; {{ $group['customer_name'] }}@endif
-                </td>
-                <td class="r">{{ number_format($group['total_qty'],3,',','.') }}</td>
-                <td class="r">R$&nbsp;{{ number_format($group['total_gross'],2,',','.') }}</td>
-            </tr>
-        </tfoot>
-    </table>
+{{-- Grupos por Organização → Cliente → Produto --}}
+@foreach($groups as $org)
+<div style="margin-bottom:16px;">
+    <div class="org-hdr">
+        🏛️ {{ $org['organization_name'] }}
+        <span style="float:right;font-size:8.5px;font-weight:normal;color:#cbd5e0;">
+            R$ {{ number_format($org['total_gross'],2,',','.') }}
+            · {{ number_format($org['total_qty'],3,',','.') }} un.
+        </span>
+    </div>
+
+    @foreach($org['customers'] as $customer)
+    <div style="margin-bottom:10px;">
+        @if(!$isSingleCustomer)
+        <div class="cust-hdr">{{ $customer['customer_name'] }}</div>
+        @endif
+        <table class="tbl">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th class="r" style="width:130px;">Qtd. Total Recebida</th>
+                    <th class="r" style="width:120px;">Valor Total (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($customer['products'] as $prod)
+                <tr>
+                    <td><strong>{{ $prod['product_name'] }}</strong></td>
+                    <td class="r">{{ number_format($prod['total_qty'],3,',','.') }}&nbsp;{{ $prod['unit'] }}</td>
+                    <td class="r"><strong>R$&nbsp;{{ number_format($prod['total_gross'],2,',','.') }}</strong></td>
+                </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td style="font-style:italic;font-weight:normal;">
+                        Total@if(!$isSingleCustomer) — {{ $customer['customer_name'] }}@endif
+                    </td>
+                    <td class="r">{{ number_format($customer['total_qty'],3,',','.') }}</td>
+                    <td class="r">R$&nbsp;{{ number_format($customer['total_gross'],2,',','.') }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @endforeach
 </div>
 @endforeach
 

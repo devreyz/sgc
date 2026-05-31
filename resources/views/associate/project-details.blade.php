@@ -165,6 +165,37 @@
         @endif
     </div>
 
+    {{-- ── DISTRIBUIÇÕES POR ORGANIZAÇÃO ──────────────────────────────────── --}}
+    @if($distributionsByOrg->isNotEmpty())
+    <div class="bento-card col-span-full" style="padding:1.25rem;">
+        <h2 style="font-weight:700;font-size:.9375rem;margin-bottom:.875rem;">Distribuições por Organização</h2>
+        <div style="display:flex;flex-direction:column;gap:.625rem;">
+            @foreach($distributionsByOrg as $org)
+            <details style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;">
+                <summary style="padding:.75rem 1rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between;background:var(--color-bg-subtle,#f9fafb);list-style:none;user-select:none;">
+                    <span style="font-weight:600;font-size:.875rem;">🏛️ {{ $org['organization_name'] }}</span>
+                    <span style="font-size:.8125rem;font-weight:700;color:var(--color-success);">
+                        R$ {{ number_format($org['total_net'], 2, ',', '.') }}
+                        <span style="font-weight:400;color:var(--color-text-muted);font-size:.75rem;">({{ $org['count'] }} distrib.)</span>
+                    </span>
+                </summary>
+                <div style="padding:.75rem 1rem;border-top:1px solid var(--color-border);">
+                    @foreach($org['customers'] as $c)
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:.375rem 0;border-bottom:1px solid var(--color-border);">
+                        <span style="font-size:.8125rem;">{{ $c['customer_name'] }}</span>
+                        <div style="text-align:right;font-size:.8125rem;">
+                            <span style="font-weight:700;color:var(--color-success);">R$ {{ number_format($c['total_net'], 2, ',', '.') }}</span>
+                            <span style="color:var(--color-text-muted);font-size:.7rem;"> · {{ $c['count'] }}×</span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </details>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     {{-- ── LIMITES POR PRODUTO ─────────────────────────────────────────────── --}}
     @if($productLimits->isNotEmpty())
     <div class="bento-card col-span-full" style="padding:1.25rem;">

@@ -301,7 +301,7 @@ class PdvService
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('sku', 'like', "%{$query}%");
             })
-            ->select('id', 'name', 'sku', 'sale_price', 'current_stock', 'unit')
+            ->select('id', 'name', 'sku', 'current_stock', 'unit')
             ->orderBy('name')
             ->limit($limit)
             ->get();

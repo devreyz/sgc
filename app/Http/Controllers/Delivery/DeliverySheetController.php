@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Delivery;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\CustomerProductPrice;
 use App\Models\Product;
 use App\Models\Tenant;
+use App\Services\PricingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -47,7 +47,7 @@ class DeliverySheetController extends Controller
         $products = Product::where('tenant_id', $tenantId)
             ->where('status', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'unit', 'sale_price']);
+            ->get(['id', 'name', 'unit']);
 
         return view('delivery.sheet-selector', compact('tenant', 'customers', 'products'));
     }
@@ -64,38 +64,28 @@ class DeliverySheetController extends Controller
 
         $customerId = is_object($customer) ? $customer->id : $customer;
 
+        $customerModel = Customer::where('tenant_id', $tenantId)
+            ->with('priceTable.items')
+            ->find($customerId);
+
         $products = Product::where('tenant_id', $tenantId)
             ->where('status', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'unit', 'sale_price']);
+            ->get(['id', 'name', 'unit']);
 
-        // Preços específicos deste cliente
-        $customPrices = CustomerProductPrice::where('tenant_id', $tenantId)
-            ->where('customer_id', $customerId)
-            ->whereNull('project_id')
-            ->whereNull('deleted_at')
-            ->where(function ($q) {
-                $q->whereNull('start_date')->orWhere('start_date', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })
-            ->get()
-            ->keyBy('product_id');
+        $pricingService = app(PricingService::class);
 
-        $result = $products->map(function ($p) use ($customPrices) {
-            $override = $customPrices->get($p->id);
-            $price    = $override ? (float) $override->sale_price : (float) $p->sale_price;
+        $result = $products->map(function ($p) use ($pricingService, $customerModel) {
+            $pricing = $pricingService->resolvePrice($p, $customerModel);
+            $price   = (float) $pricing['sale_price'];
             return [
                 'id'         => $p->id,
                 'name'       => $p->name,
                 'unit'       => $p->unit,
                 'sale_price' => $price,
-                'has_custom' => (bool) $override,
+                'has_custom' => $pricing['source'] === 'price_table',
             ];
-        })->filter(function ($item) {
-            return $item['sale_price'] > 0;
-        });
+        })->filter(fn ($item) => $item['sale_price'] > 0);
 
         return response()->json($result->values());
     }
@@ -121,6 +111,7 @@ class DeliverySheetController extends Controller
         $tenantModel = $this->currentTenant();
 
         $customer = Customer::where('tenant_id', $tenantId)
+            ->with('priceTable.items')
             ->findOrFail($request->customer_id);
 
         $productIds = $request->product_ids;
@@ -128,35 +119,20 @@ class DeliverySheetController extends Controller
         $products = Product::where('tenant_id', $tenantId)
             ->whereIn('id', $productIds)
             ->orderBy('name')
-            ->get(['id', 'name', 'unit', 'sale_price']);
+            ->get(['id', 'name', 'unit']);
 
-        // Preços específicos por cliente
-        $customPrices = CustomerProductPrice::where('tenant_id', $tenantId)
-            ->where('customer_id', $customer->id)
-            ->whereNull('project_id')
-            ->whereNull('deleted_at')
-            ->where(function ($q) {
-                $q->whereNull('start_date')->orWhere('start_date', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })
-            ->get()
-            ->keyBy('product_id');
+        $pricingService = app(PricingService::class);
 
-        // Monta itens com preço resolvido — exclui produtos sem preço definido (0 ou null)
-        $items = $products->map(function ($p) use ($customPrices) {
-            $override   = $customPrices->get($p->id);
-            $price      = $override ? (float) $override->sale_price : (float) $p->sale_price;
+        // Monta itens com preço resolvido via PriceTable — exclui sem preço
+        $items = $products->map(function ($p) use ($pricingService, $customer) {
+            $pricing = $pricingService->resolvePrice($p, $customer);
             return [
                 'id'         => $p->id,
                 'name'       => $p->name,
                 'unit'       => $p->unit,
-                'sale_price' => $price,
+                'sale_price' => (float) $pricing['sale_price'],
             ];
-        })->filter(function ($item) {
-            return $item['sale_price'] > 0;
-        })->values()->all();
+        })->filter(fn ($item) => $item['sale_price'] > 0)->values()->all();
 
         $sheetDate = $request->sheet_date
             ? \Carbon\Carbon::parse($request->sheet_date)->format('d/m/Y')

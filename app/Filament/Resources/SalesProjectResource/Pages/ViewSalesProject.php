@@ -30,29 +30,28 @@ class ViewSalesProject extends ViewRecord
     {
         return [
             // ── Ação principal do projeto ──
-            Actions\Action::make('finalize')
-                ->label('Finalizar Coleta')
-                ->icon('heroicon-o-archive-box-arrow-down')
+            Actions\Action::make('closeDeliveries')
+                ->label('Encerrar Entregas')
+                ->icon('heroicon-o-archive-box')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Finalizar Recebimento de Entregas')
-                ->modalDescription('Deseja encerrar o recebimento de entregas dos associados? Não será possível adicionar mais entregas. A próxima etapa será a entrega ao cliente.')
-                ->modalIcon('heroicon-o-archive-box-arrow-down')
+                ->modalHeading('Encerrar Recebimento de Entregas')
+                ->modalDescription('Ao encerrar, o projeto não aceitará mais novas recepções de associados. Distribuições e faturamentos ainda serão permitidos.')
+                ->modalIcon('heroicon-o-archive-box')
                 ->form([
                     Forms\Components\Textarea::make('completion_notes')
                         ->label('Observações')
-                        ->placeholder('Notas sobre o encerramento do recebimento (opcional)')
+                        ->placeholder('Notas sobre o encerramento (opcional)')
                         ->rows(3),
                 ])
                 ->action(function (SalesProject $record, array $data) {
-                    // Verificar entregas pendentes
                     $pendingCount = $record->deliveries()->where('status', DeliveryStatus::PENDING)->count();
 
                     if ($pendingCount > 0) {
                         Notification::make()
                             ->warning()
                             ->title('Entregas Pendentes')
-                            ->body("Existem {$pendingCount} entrega(s) pendente(s). Aprove ou rejeite antes de finalizar.")
+                            ->body("Existem {$pendingCount} entrega(s) pendente(s). Aprove ou rejeite antes de encerrar.")
                             ->persistent()
                             ->send();
 
@@ -60,14 +59,14 @@ class ViewSalesProject extends ViewRecord
                     }
 
                     $record->update([
-                        'status' => ProjectStatus::AWAITING_DELIVERY,
+                        'status'           => ProjectStatus::DELIVERIES_CLOSED,
                         'completion_notes' => $data['completion_notes'] ?? null,
                     ]);
 
                     Notification::make()
                         ->success()
-                        ->title('Recebimento Finalizado!')
-                        ->body('O projeto aguarda a entrega ao cliente. Use a ação "Entregar ao Cliente" para registrar a saída do estoque.')
+                        ->title('Entregas Encerradas!')
+                        ->body('O projeto não aceita mais novas recepções. Distribuições e faturamentos ainda são permitidos.')
                         ->send();
 
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
@@ -219,18 +218,18 @@ class ViewSalesProject extends ViewRecord
                             ->send();
                     }
                 })
-                ->visible(fn (SalesProject $record): bool => $record->status === ProjectStatus::AWAITING_DELIVERY),
+                ->visible(fn (SalesProject $record): bool => false), // removido: deliverToClient
 
             Actions\Action::make('reopen')
-                ->label('Reabrir')
+                ->label('Reabrir Entregas')
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Reabrir Projeto')
-                ->modalDescription('Deseja reabrir este projeto para mais entregas?')
+                ->modalHeading('Reabrir Recebimento de Entregas')
+                ->modalDescription('Deseja reabrir o projeto para receber novas entregas dos associados?')
                 ->action(function (SalesProject $record) {
                     $record->update([
-                        'status' => ProjectStatus::ACTIVE,
+                        'status'       => ProjectStatus::ACTIVE,
                         'completed_at' => null,
                     ]);
 
@@ -243,12 +242,58 @@ class ViewSalesProject extends ViewRecord
                     $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
                 })
                 ->visible(fn (SalesProject $record): bool => in_array($record->status, [
-                    ProjectStatus::AWAITING_DELIVERY,
-                    ProjectStatus::DELIVERED,
-                    ProjectStatus::AWAITING_PAYMENT,
-                    ProjectStatus::PAYMENT_RECEIVED,
-                    ProjectStatus::ASSOCIATES_PAID,
+                    ProjectStatus::DELIVERIES_CLOSED,
+                    ProjectStatus::SUSPENDED,
+                    ProjectStatus::ARCHIVED,
+                ])),
+
+            Actions\Action::make('completeProject')
+                ->label('Concluir Projeto')
+                ->icon('heroicon-o-check-circle')
+                ->color('success')
+                ->requiresConfirmation()
+                ->modalHeading('Concluir Projeto')
+                ->modalDescription('Marcar este projeto como concluído definitivamente? Ele poderá ser reaberto se necessário.')
+                ->action(function (SalesProject $record) {
+                    $record->update([
+                        'status'       => ProjectStatus::COMPLETED,
+                        'completed_at' => now(),
+                    ]);
+
+                    Notification::make()
+                        ->success()
+                        ->title('Projeto Concluído')
+                        ->body('O projeto foi marcado como concluído.')
+                        ->send();
+
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
+                })
+                ->visible(fn (SalesProject $record): bool => in_array($record->status, [
+                    ProjectStatus::ACTIVE,
+                    ProjectStatus::DELIVERIES_CLOSED,
+                ])),
+
+            Actions\Action::make('archiveProject')
+                ->label('Arquivar')
+                ->icon('heroicon-o-archive-box-arrow-down')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Arquivar Projeto')
+                ->modalDescription('O projeto será ocultado das operações normais. Pode ser reaberto quando necessário.')
+                ->action(function (SalesProject $record) {
+                    $record->update(['status' => ProjectStatus::ARCHIVED]);
+
+                    Notification::make()
+                        ->success()
+                        ->title('Projeto Arquivado')
+                        ->send();
+
+                    $this->redirect($this->getResource()::getUrl('view', ['record' => $record]));
+                })
+                ->visible(fn (SalesProject $record): bool => in_array($record->status, [
                     ProjectStatus::COMPLETED,
+                    ProjectStatus::CANCELLED,
+                    ProjectStatus::DELIVERIES_CLOSED,
                 ])),
 
             // ── Grupo: Relatórios PDF ──
@@ -762,7 +807,11 @@ class ViewSalesProject extends ViewRecord
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions);
+        // Congelar snapshot financeiro e vincular distribuições ao comprovante
+        app(\App\Services\AssociateReceiptService::class)
+            ->freezeReceipt($receipt, $distributions, $record);
+
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $record);
         $visibleColumns = $formData['visible_columns'] ?? ['unit_price', 'gross'];
 
         $svc = app(\App\Services\TemplatedPdfService::class);
@@ -774,6 +823,7 @@ class ViewSalesProject extends ViewRecord
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
             'visible_columns' => $visibleColumns,
             'isSecondCopy' => false,
         ], [
@@ -836,6 +886,10 @@ class ViewSalesProject extends ViewRecord
             'issued_at' => $issuedAt,
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
+
+        // Congelar snapshot financeiro e vincular distribuições ao comprovante
+        app(\App\Services\AssociateReceiptService::class)
+            ->freezeReceipt($receipt, $distributions, $record);
 
         $totalNet = $distributions->sum('net_value');
 

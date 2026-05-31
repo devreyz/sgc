@@ -2,11 +2,11 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\TenantMiddleware;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Navigation\NavigationItem;
 use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -18,7 +18,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use App\Http\Middleware\TenantMiddleware;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -76,7 +75,7 @@ class AdminPanelProvider extends PanelProvider
                     ->gridColumns([
                         'default' => 1,
                         'sm' => 2,
-                        'lg' => 3
+                        'lg' => 3,
                     ])
                     ->sectionColumnSpan(1)
                     ->checkboxListColumns([
@@ -105,6 +104,23 @@ class AdminPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->maxContentWidth('full')
+            ->renderHook(
+                'panels::global-search.before',
+                fn (): string => Blade::render('
+                    @php
+                        $tenantSlug = session("tenant_slug");
+                        $hubUrl = $tenantSlug ? "/" . $tenantSlug . "/delivery" : "/";
+                    @endphp
+                    <a href="{{ $hubUrl }}"
+                       title="Voltar ao Hub"
+                       style="display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border-radius:.5rem;background:rgba(16,185,129,.1);font-size:.8rem;font-weight:600;text-decoration:none;border:1px solid rgba(16,185,129,.25);transition:background .15s,border-color .15s;white-space:nowrap"
+                       onmouseover="this.style.background=\'rgba(16,185,129,.18)\';this.style.borderColor=\'rgba(16,185,129,.5)\'"
+                       onmouseout="this.style.background=\'rgba(16,185,129,.1)\';this.style.borderColor=\'rgba(16,185,129,.25)\'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        Voltar ao Hub
+                    </a>
+                ')
+            )
             ->renderHook(
                 'panels::head.end',
                 fn (): string => Blade::render('

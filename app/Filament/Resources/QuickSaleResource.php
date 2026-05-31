@@ -55,7 +55,7 @@ class QuickSaleResource extends Resource
                         ->afterStateUpdated(function ($state, callable $set) {
                             if ($state) {
                                 $product = Product::find($state);
-                                $set('unit_price', $product?->sale_price ?? 0);
+                                $set('unit_price', 0);
                             }
                         })
                         ->helperText('Saldo verificado na confirmação'),

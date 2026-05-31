@@ -13,7 +13,7 @@ class ProductBriefResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'sku' => $this->sku,
-            'sale_price' => $this->sale_price,
+            'sale_price' => 0,
             'current_stock' => $this->current_stock,
             'unit' => $this->unit,
         ];

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ProjectStatus;
 use App\Enums\ProjectType;
+use App\Models\AssociateReceipt;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -86,6 +87,16 @@ class SalesProject extends Model
     }
 
     /**
+     * Organizations linked to this project (ex: Municipality, CONAB).
+     */
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class, 'sales_project_organizations', 'sales_project_id', 'organization_id')
+                    ->withPivot('notes')
+                    ->withTimestamps();
+    }
+
+    /**
      * Get all additional customers for this project (multi-customer pivot).
      */
     public function customers(): BelongsToMany
@@ -145,6 +156,14 @@ class SalesProject extends Model
     public function fees(): HasMany
     {
         return $this->hasMany(ProjectFee::class);
+    }
+
+    /**
+     * Taxas de faturamento ao cliente — separadas das taxas do associado (project_fees).
+     */
+    public function customerFees(): HasMany
+    {
+        return $this->hasMany(\App\Models\CustomerProjectFee::class);
     }
 
     /**
@@ -259,6 +278,22 @@ class SalesProject extends Model
     }
 
     /**
+     * Get associate receipts for this project.
+     */
+    public function associateReceipts(): HasMany
+    {
+        return $this->hasMany(AssociateReceipt::class, 'sales_project_id');
+    }
+
+    /**
+     * Get customer billing receipts for this project.
+     */
+    public function customerBillingReceipts(): HasMany
+    {
+        return $this->hasMany(\App\Models\CustomerBillingReceipt::class, 'sales_project_id');
+    }
+
+    /**
      * Get the cash movements related to this project.
      */
     public function cashMovements(): MorphMany
@@ -363,28 +398,19 @@ class SalesProject extends Model
     }
 
     /**
-     * Check if can mark as delivered.
+     * Check if can close deliveries (encerrar recebimento de novas entregas).
      */
-    public function canMarkAsDelivered(): bool
+    public function canCloseDeliveries(): bool
     {
-        return $this->status === ProjectStatus::ACTIVE && $this->allDeliveriesApproved();
+        return $this->status === ProjectStatus::ACTIVE;
     }
 
     /**
-     * Check if can receive payment.
+     * Check if can complete project.
      */
-    public function canReceivePayment(): bool
+    public function canComplete(): bool
     {
-        return in_array($this->status, [ProjectStatus::AWAITING_DELIVERY, ProjectStatus::DELIVERED, ProjectStatus::AWAITING_PAYMENT]);
-    }
-
-    /**
-     * Check if can pay associates.
-     */
-    public function canPayAssociates(): bool
-    {
-        return $this->status === ProjectStatus::PAYMENT_RECEIVED && 
-               $this->pending_associates_payment > 0;
+        return in_array($this->status, [ProjectStatus::ACTIVE, ProjectStatus::DELIVERIES_CLOSED]);
     }
 
     /**
@@ -399,24 +425,6 @@ class SalesProject extends Model
         
         $totalPaid = $this->deliveries()->where('paid', true)->count();
         return $totalApproved === $totalPaid;
-    }
-
-    /**
-     * Check if can complete project (collect admin fee).
-     */
-    public function canCompleteProject(): bool
-    {
-        return $this->status === ProjectStatus::PAYMENT_RECEIVED && 
-               $this->allDeliveriesPaid() &&
-               $this->available_admin_fee > 0;
-    }
-
-    /**
-     * Check if can collect admin fee.
-     */
-    public function canCollectAdminFee(): bool
-    {
-        return $this->canCompleteProject();
     }
 
     /**
