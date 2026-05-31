@@ -348,9 +348,11 @@ function renderExisting(existing) {
             <span class="dm-existing-customer">${esc(d.customer)}</span>
             <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
             <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
-            <button class="dm-del-btn" title="Remover distribuição" aria-label="Remover distribuição de ${esc(d.customer)}"
-                    onclick="DistModal.deleteExisting(${d.id})"
-                    style="${d.id ? '' : 'display:none'}">✕</button>
+            ${d.billed
+                ? `<span title="Distribuição faturada — não pode ser removida" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#4f46e5;flex-shrink:0;" aria-label="Faturado"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`
+                : (d.id ? `<button class="dm-del-btn" title="Remover distribuição" aria-label="Remover distribuição de ${esc(d.customer)}"
+                    onclick="DistModal.deleteExisting(${d.id})">✕</button>` : '')
+            }
         </div>
     `).join('');
 }
@@ -509,9 +511,12 @@ window.DistModal = {
             const inp = row.querySelector('input');
             const cid = sel?.value;
             const qty = parseFloat(inp?.value || 0);
-            if (!cid && qty === 0) continue;
-            if (!cid) { alert('Selecione o cliente para cada linha.'); return; }
-            if (qty <= 0) { alert('Informe a quantidade para cada cliente.'); return; }
+            // Skip completely empty rows
+            if (!cid && qty <= 0) continue;
+            // Customer selected but no qty — skip silently
+            if (cid && qty <= 0) continue;
+            // Qty informed but no customer — warn
+            if (!cid && qty > 0) { alert('Selecione o cliente para a linha com quantidade informada.'); return; }
             distributions.push({ customer_id: parseInt(cid), quantity: qty });
         }
         if (!distributions.length) { alert('Adicione pelo menos uma distribuição.'); return; }

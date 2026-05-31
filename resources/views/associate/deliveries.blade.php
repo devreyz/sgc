@@ -103,6 +103,7 @@
                         <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);text-align:right;">QTD</th>
                         <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);text-align:right;">VALOR</th>
                         <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">STATUS</th>
+                        <th style="padding:.5rem .625rem;font-size:.7rem;font-weight:600;color:var(--color-text-muted);">FATURAMENTO</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -119,6 +120,20 @@
                             <span class="badge badge-{{ $dl->status->value === 'approved' ? 'success' : ($dl->status->value === 'cancelled' ? 'danger' : ($dl->status->value === 'rejected' ? 'danger' : 'warning')) }}" style="font-size:.65rem;">
                                 {{ $dl->status->getLabel() }}
                             </span>
+                        </td>
+                        <td style="padding:.625rem .625rem;">
+                            @if($dl->billing_status instanceof \App\Enums\BillingStatus && $dl->billing_status !== \App\Enums\BillingStatus::UNBILLED)
+                                @php $bColor = match($dl->billing_status) {
+                                    \App\Enums\BillingStatus::PAID   => ['bg' => 'rgba(16,185,129,.15)', 'txt' => '#059669'],
+                                    \App\Enums\BillingStatus::BILLED => ['bg' => 'rgba(99,102,241,.12)', 'txt' => '#4f46e5'],
+                                    default                          => ['bg' => 'rgba(245,158,11,.12)', 'txt' => '#d97706'],
+                                }; @endphp
+                                <span style="display:inline-flex;align-items:center;padding:.15rem .45rem;border-radius:99px;font-size:.65rem;font-weight:600;background:{{ $bColor['bg'] }};color:{{ $bColor['txt'] }};">
+                                    {{ $dl->billing_status->getLabel() }}
+                                </span>
+                            @else
+                                <span style="font-size:.7rem;color:var(--color-text-muted);">—</span>
+                            @endif
                         </td>
                     </tr>
                     @endforeach

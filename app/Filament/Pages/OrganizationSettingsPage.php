@@ -16,6 +16,15 @@ class OrganizationSettingsPage extends Page implements HasForms
     use InteractsWithForms;
     use HasPageShield;
 
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+        return parent::canAccess();
+    }
+
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';
 
     protected static string $view = 'filament.pages.organization-settings';

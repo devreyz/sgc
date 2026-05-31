@@ -312,6 +312,7 @@
                     <th>Qtd</th>
                     <th>Val. Bruto</th>
                     <th>Status</th>
+                    <th>Faturado</th>
                     <th>Qual.</th>
                     <th>Ações</th>
                 </tr>
@@ -327,6 +328,20 @@
                     <td style="white-space:nowrap;">R$ {{ number_format($d->gross_value, 2, ',', '.') }}</td>
                     <td>
                         <span class="badge-status {{ $d->status->value }}">{{ $d->status->getLabel() }}</span>
+                    </td>
+                    <td>
+                        @php
+                            $paidDists   = $d->distributions->filter(fn($dist) => $dist->billing_status === \App\Enums\BillingStatus::PAID)->count();
+                            $billedDists = $d->distributions->filter(fn($dist) => $dist->billing_status === \App\Enums\BillingStatus::BILLED)->count();
+                            $totalDists  = $d->distributions->count();
+                        @endphp
+                        @if($totalDists > 0 && $paidDists === $totalDists)
+                            <span style="display:inline-flex;align-items:center;padding:.15rem .5rem;border-radius:99px;font-size:.68rem;font-weight:600;background:rgba(16,185,129,.15);color:#059669;">Pago</span>
+                        @elseif($paidDists > 0 || $billedDists > 0)
+                            <span style="display:inline-flex;align-items:center;padding:.15rem .5rem;border-radius:99px;font-size:.68rem;font-weight:600;background:rgba(99,102,241,.12);color:#4f46e5;">Faturado</span>
+                        @else
+                            <span style="font-size:.68rem;color:var(--color-text-muted);">—</span>
+                        @endif
                     </td>
                     <td>{{ $d->quality_grade ?? '-' }}</td>
                     <td>
@@ -347,7 +362,7 @@
                                 data-unit="{{ optional($d->product)->unit ?? 'un' }}"
                                 data-qty="{{ $d->quantity }}"
                                 data-distributed="{{ $d->distributions->sum('quantity') }}"
-                                data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity])) }}"
+                                data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity, 'net' => (float)$dist->net_value, 'billed' => $dist->billing_status instanceof \App\Enums\BillingStatus && $dist->billing_status !== \App\Enums\BillingStatus::UNBILLED])) }}"
                                 title="Distribuir para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>

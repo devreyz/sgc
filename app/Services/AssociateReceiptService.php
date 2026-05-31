@@ -334,12 +334,16 @@ class AssociateReceiptService
             );
         }
 
-        $amount    = bcadd((string) $data['amount'], '0', 8);
-        $remaining = bcsub($netValue, (string) ($receipt->amount_paid ?? 0), 8);
-        if (bccomp($amount, '0', 8) <= 0) {
+        $amount    = bcadd((string) round((float) $data['amount'], 2), '0', 8);
+        $remaining = bcsub(
+            bcadd($netValue, '0', 8),
+            bcadd((string) round((float) ($receipt->amount_paid ?? 0), 2), '0', 8),
+            8
+        );
+        if (bccomp($amount, '0', 2) <= 0) {
             throw new \RuntimeException('O valor do pagamento deve ser maior que zero.');
         }
-        if (bccomp($amount, $remaining, 8) > 0) {
+        if (bccomp($amount, $remaining, 2) > 0) {
             throw new \RuntimeException(
                 'O valor informado (R$ ' . number_format((float) $amount, 2, ',', '.') .
                 ') excede o saldo restante (R$ ' . number_format((float) $remaining, 2, ',', '.') . ').'

@@ -993,6 +993,7 @@ class DeliveryRegistrationController extends Controller
                     'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
                     'qty'      => (float) $d->quantity,
                     'net'      => (float) $d->net_value,
+                    'billed'   => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
                 ]);
 
                 return [
@@ -1012,6 +1013,7 @@ class DeliveryRegistrationController extends Controller
                     'status_value'     => $delivery->status->value,
                     'distributions'    => $distributions->toArray(),
                     'distributed_qty'  => (float) $distributions->sum('qty'),
+                    'has_billed'       => $distributions->contains('billed', true),
                 ];
             });
 

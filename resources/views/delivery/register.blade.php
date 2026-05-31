@@ -1131,41 +1131,63 @@ function renderSessionItems() {
         el.className = 'session-item';
         el.dataset.id = item.id;
 
-        const isPending = item.status !== 'approved';
-        const distQty   = item.distributedQty || 0;
-        const distInfo  = !isPending && distQty > 0
-            ? '<span class="si-dist-info" style="font-size:.72rem;font-weight:600;color:#4f46e5">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
+        const isPending  = item.status !== 'approved';
+        const isBilled   = !!item.has_billed;
+        const distQty    = item.distributedQty || 0;
+        const dateStr    = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
+        const qualStr    = item.quality ? ' · ' + item.quality : '';
+
+        // ── Tags row ──────────────────────────────────────────
+        const statusHtml = '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' +
+            (isPending ? 'Pendente' : 'Aprovada') + '</span>';
+
+        const billedTag = isBilled
+            ? '<span style="display:inline-flex;align-items:center;gap:.25rem;padding:.1rem .4rem;border-radius:99px;font-size:.65rem;font-weight:600;background:rgba(99,102,241,.12);color:#4f46e5;">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
+              'Faturado</span>'
             : '';
 
-        const statusHtml = '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' + (isPending ? 'Pendente' : 'Aprovada') + '</span>';
+        const distTag = !isPending && distQty > 0
+            ? '<span class="si-dist-info">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
+            : '';
 
+        // ── Action buttons ──────────────────────────────────────
         const btnApprove = isPending
             ? '<button class="si-btn si-btn-approve" data-action="approve" data-id="' + item.id + '" title="Aprovar entrega"><i data-lucide="check" style="width:13px;height:13px"></i></button>'
             : '';
-        // Edit always available (pending: edit freely; approved: restricted fields)
-        const btnEdit = '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar entrega"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>';
+
+        const btnEdit = isBilled
+            ? '<button class="si-btn" disabled title="Entrega faturada — edição bloqueada" style="opacity:.4;cursor:not-allowed;color:#4f46e5;">' +
+              '<i data-lucide="lock" style="width:13px;height:13px"></i></button>'
+            : '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar entrega"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>';
+
         const btnDist = !isPending
             ? '<button class="si-btn si-btn-dist" data-action="distribute" data-id="' + item.id + '" title="Distribuir para clientes"><i data-lucide="git-branch" style="width:13px;height:13px"></i></button>'
             : '';
+
         const btnDelete = isPending
             ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
-            : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>';
+            : (isBilled ? '' : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>');
 
-        // Card: row1 = product + qty; row2 = associate + date/quality + status; row3 = actions
-        const dateStr = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
         el.innerHTML =
+            // Row 1 — product + qty
             '<div class="si-row1">' +
                 '<div class="si-product">' + esc(item.productName) + '</div>' +
                 '<div class="si-qty-badge">' + fmtQty(item.qty, item.productUnit) + '</div>' +
             '</div>' +
-            '<div class="si-row2">' +
+            // Row 2 — associate + date/quality (secondary info)
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;min-width:0;">' +
                 '<span class="si-assoc">' + esc(item.associateName) + '</span>' +
-                '<span class="si-date-qual">' + dateStr + (item.quality ? ' &middot; ' + item.quality : '') + '</span>' +
-                statusHtml +
-                distInfo +
+                '<span class="si-date-qual">' + dateStr + qualStr + '</span>' +
             '</div>' +
-            '<div class="si-actions" style="display:flex;gap:.25rem;flex-wrap:wrap;">' +
-                btnApprove + btnEdit + btnDist + btnDelete +
+            // Row 3 — tags (left) + actions (right)
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;flex-wrap:wrap;">' +
+                '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;">' +
+                    statusHtml + billedTag + distTag +
+                '</div>' +
+                '<div class="si-actions">' +
+                    btnApprove + btnEdit + btnDist + btnDelete +
+                '</div>' +
             '</div>';
 
         return el;
@@ -1235,6 +1257,7 @@ async function deleteItem(id, btn, isApproved = false) {
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-action]');
     if (!btn || !btn.closest('#session-list')) return;
+    if (btn.disabled) return;
     const id     = parseInt(btn.dataset.id);
     const action = btn.dataset.action;
     if (action === 'approve')         approveItem(id, btn);
@@ -1334,7 +1357,7 @@ function openDistributeModal(id) {
         unit:        item.productUnit || 'un',
         qty:         item.qty,
         distributed: item.distributedQty || 0,
-        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer: d.customer, qty: d.qty, net: d.net || 0 })),
+        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer: d.customer, qty: d.qty, net: d.net || 0, billed: !!d.billed })),
     });
 }
 
