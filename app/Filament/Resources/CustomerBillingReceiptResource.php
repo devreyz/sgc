@@ -446,7 +446,7 @@ class CustomerBillingReceiptResource extends Resource
 
                         return Response::streamDownload(
                             fn () => print ($pdf->output()),
-                            "cobranca-{$label}-{$name}.pdf",
+                            "comprovante-{$label}-{$name}.pdf",
                             ['Content-Type' => 'application/pdf']
                         );
                     }),
@@ -484,13 +484,13 @@ class CustomerBillingReceiptResource extends Resource
                             return null;
                         }
                         $label = str_replace('/', '-', $record->formatted_number);
-                        $name  = \Illuminate\Support\Str::slug(
+                        $name = \Illuminate\Support\Str::slug(
                             $record->customer?->name ?? $record->organization?->name ?? 'cobranca'
                         );
 
                         return Excel::download(
                             new CustomerBillingReceiptExport($record, $columns),
-                            "cobranca-{$label}-{$name}.xlsx"
+                            "comprovante-{$label}-{$name}.xlsx"
                         );
                     }),
 
@@ -680,9 +680,18 @@ class CustomerBillingReceiptResource extends Resource
             }
         }
 
+        // Período das entregas (primeira → última data)
+        $dates = $distributions->pluck('delivery_date')->filter()->sort();
+        $periodLabel = $dates->isNotEmpty()
+            ? ($dates->first()->format('d/m/Y') === $dates->last()->format('d/m/Y')
+                ? $dates->first()->format('d/m/Y')
+                : $dates->first()->format('d/m/Y').' a '.$dates->last()->format('d/m/Y'))
+            : null;
+
         return compact(
             'tenant', 'project', 'customer', 'receipt',
-            'productRows', 'totalGross', 'totalFees', 'totalNet', 'feeBreakdown'
+            'productRows', 'totalGross', 'totalFees', 'totalNet', 'feeBreakdown',
+            'periodLabel'
         );
     }
 
@@ -701,7 +710,7 @@ class CustomerBillingReceiptResource extends Resource
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
         // Agrupa distribuições pela tabela de preço do cliente (null → chave 0)
-        $byPriceTable = $distributions->groupBy(fn($d) => $d->customer?->price_table_id ?? 0);
+        $byPriceTable = $distributions->groupBy(fn ($d) => $d->customer?->price_table_id ?? 0);
 
         $priceGroups = $byPriceTable->map(function ($groupDists) {
             $groupCustomers = $groupDists->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
@@ -712,38 +721,46 @@ class CustomerBillingReceiptResource extends Resource
                 $pid = $d->product_id;
                 if (! isset($table[$pid])) {
                     $table[$pid] = [
-                        'product'     => $d->product?->name ?? 'Produto #'.$pid,
-                        'unit'        => $d->product?->unit ?? 'kg',
-                        'unit_price'  => (float) $d->unit_price,
+                        'product' => $d->product?->name ?? 'Produto #'.$pid,
+                        'unit' => $d->product?->unit ?? 'kg',
+                        'unit_price' => (float) $d->unit_price,
                         'by_customer' => [],
-                        'total_qty'   => 0.0,
+                        'total_qty' => 0.0,
                         'total_gross' => 0.0,
                     ];
                 }
                 $cid = $d->customer_id;
                 $qty = (float) $d->quantity;
                 $table[$pid]['by_customer'][$cid] = ($table[$pid]['by_customer'][$cid] ?? 0.0) + $qty;
-                $table[$pid]['total_qty']   += $qty;
+                $table[$pid]['total_qty'] += $qty;
                 $table[$pid]['total_gross'] += $qty * (float) $d->unit_price;
             }
 
             return [
                 'price_table_name' => $ptName,
-                'customers'        => $groupCustomers,
-                'table'            => $table,
-                'subtotal_gross'   => array_sum(array_column($table, 'total_gross')),
+                'customers' => $groupCustomers,
+                'table' => $table,
+                'subtotal_gross' => array_sum(array_column($table, 'total_gross')),
             ];
         })->values()->all();
 
-        $totalGross          = collect($priceGroups)->sum('subtotal_gross');
-        $totalFees           = (float) ($receipt->total_fees ?? 0);
-        $totalNet            = (float) ($receipt->total_net ?? $totalGross);
+        $totalGross = collect($priceGroups)->sum('subtotal_gross');
+        $totalFees = (float) ($receipt->total_fees ?? 0);
+        $totalNet = (float) ($receipt->total_net ?? $totalGross);
         $multiplePriceTables = count($priceGroups) > 1;
+
+        // Período das entregas (primeira → última data)
+        $dates = $distributions->pluck('delivery_date')->filter()->sort();
+        $periodLabel = $dates->isNotEmpty()
+            ? ($dates->first()->format('d/m/Y') === $dates->last()->format('d/m/Y')
+                ? $dates->first()->format('d/m/Y')
+                : $dates->first()->format('d/m/Y').' a '.$dates->last()->format('d/m/Y'))
+            : null;
 
         return compact(
             'tenant', 'project', 'organization', 'receipt',
             'customers', 'priceGroups', 'multiplePriceTables',
-            'totalGross', 'totalFees', 'totalNet'
+            'totalGross', 'totalFees', 'totalNet', 'periodLabel'
         );
     }
 

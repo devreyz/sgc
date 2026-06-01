@@ -120,7 +120,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     <div class="hdr-right">
         <span class="doc-type">Distribuição de Produtos — Cliente</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
-        <span class="doc-date">Emissão: {{ $issuedAt }}</span>
+        @if(!empty($periodLabel))
+        <span class="doc-date" style="margin-top:1px;">Período: {{ $periodLabel }}</span>
+        @endif
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:9px; color:#666; text-transform:uppercase; letter-spacing:0.04em;">Valor Líquido</div>
             <div style="color:#1a5c3a; font-size:14px; font-weight:700; margin-top:4px;">

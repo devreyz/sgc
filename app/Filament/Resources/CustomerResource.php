@@ -70,7 +70,7 @@ class CustomerResource extends Resource
                                 // Ignora registros soft-deleted na checagem de unicidade
                                 return $rule->where('tenant_id', session('tenant_id'))->whereNull('deleted_at');
                             })
-                            ->required()
+                            ->nullable()
                             ->maxLength(18),
 
                         Forms\Components\TextInput::make('ie')
@@ -322,20 +322,22 @@ class CustomerResource extends Resource
                     ->action(function (Customer $record, array $data): void {
                         $tenantId = session('tenant_id');
 
-                        // Checa se já existe cliente ativo com o mesmo CNPJ antes de tentar salvar
-                        $conflict = Customer::where('tenant_id', $tenantId)
-                            ->where('cnpj', $data['cnpj'])
-                            ->whereNull('deleted_at')
-                            ->where('id', '!=', $record->id)
-                            ->exists();
+                        // Checa duplicidade de CNPJ somente se preenchido
+                        if (! empty($data['cnpj'])) {
+                            $conflict = Customer::where('tenant_id', $tenantId)
+                                ->where('cnpj', $data['cnpj'])
+                                ->whereNull('deleted_at')
+                                ->where('id', '!=', $record->id)
+                                ->exists();
 
-                        if ($conflict) {
-                            Notification::make()
-                                ->title('CNPJ já cadastrado')
-                                ->body('Já existe um cliente ativo com o CNPJ ' . $data['cnpj'] . '. Utilize um CNPJ diferente.')
-                                ->danger()
-                                ->send();
-                            return;
+                            if ($conflict) {
+                                Notification::make()
+                                    ->title('CNPJ já cadastrado')
+                                    ->body('Já existe um cliente ativo com o CNPJ ' . $data['cnpj'] . '. Utilize um CNPJ diferente.')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
                         }
 
                         DB::transaction(function () use ($record, $data, $tenantId): void {

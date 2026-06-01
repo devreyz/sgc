@@ -150,7 +150,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     <div class="hdr-right">
         <span class="doc-type">Relatório de Distribuição de Produtos</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
-        <span class="doc-date">Emissão: {{ $issuedAt }}</span>
+        @if($periodLabel)
+        <span class="doc-date" style="margin-top:1px;">Período: {{ $periodLabel }}</span>
+        @endif
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:8px; color:#666; text-transform:uppercase;">Valor a Receber</div>
             <div style="color:#059669; font-size:13px; margin-top:3px;">
@@ -278,7 +280,6 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
-    &nbsp;|&nbsp; {{ $customers->count() }} cliente(s) listado(s)
     &nbsp;|&nbsp; Emitido em {{ now()->format('d/m/Y H:i') }}
 </div>
 
