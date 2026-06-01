@@ -431,7 +431,12 @@ $totalNet      = $deliveries->sum('net_value');
                     <td>{{ $delivery['quality_grade'] ?? '—' }}</td>
                     <td>
                         <span class="badge-status {{ $delivery['status_value'] }}">{{ $delivery['status'] }}</span>
-                        @if($delivery['distributed_qty'] > 0)
+                        @if($delivery['has_billed'])
+                        <div style="display:inline-flex;align-items:center;gap:.2rem;font-size:.65rem;font-weight:600;color:#4f46e5;background:#eef2ff;border-radius:99px;padding:.1rem .45rem;white-space:nowrap;margin-top:.18rem;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Faturado
+                        </div>
+                        @elseif($delivery['distributed_qty'] > 0)
                         <div class="dist-badge">
                             <i data-lucide="git-branch" style="width:9px;height:9px"></i>
                             {{ number_format($delivery['distributed_qty'], 2, ',', '.') }} {{ $delivery['unit'] }} distrib.
@@ -474,6 +479,11 @@ $totalNet      = $deliveries->sum('net_value');
                                 aria-label="Distribuir entrega para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>
+                            @if($delivery['has_billed'])
+                            <button class="btn-edit" disabled title="Entrega faturada — edição bloqueada" style="opacity:.4;cursor:not-allowed;">
+                                <i data-lucide="lock" style="width:11px;height:11px"></i> Bloqueado
+                            </button>
+                            @else
                             <button class="btn-edit"
                                 data-id="{{ $delivery['id'] }}"
                                 data-date="{{ $delivery['delivery_date_raw'] }}"
@@ -493,6 +503,7 @@ $totalNet      = $deliveries->sum('net_value');
                                 aria-label="Excluir entrega aprovada">
                                 <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
                             </button>
+                            @endif
                         </div>
                         @else
                         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>

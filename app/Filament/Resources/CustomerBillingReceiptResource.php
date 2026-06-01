@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Enums\CustomerReceiptStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\PaymentMethod;
+use App\Exports\CustomerBillingReceiptExport;
 use App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 use App\Filament\Traits\TenantScoped;
 use App\Models\BankAccount;
@@ -25,6 +26,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Response;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerBillingReceiptResource extends Resource
 {
@@ -419,7 +421,7 @@ class CustomerBillingReceiptResource extends Resource
                         $customer = $record->customer;
                         $organization = $record->organization;
                         $distributions = ProductionDelivery::whereIn('id', $record->delivery_ids)
-                            ->with(['product', 'customer'])->orderBy('delivery_date')->get();
+                            ->with(['product', 'customer.priceTable'])->orderBy('delivery_date')->get();
 
                         $isOrgReport = $organization && ! $customer;
 
@@ -446,6 +448,49 @@ class CustomerBillingReceiptResource extends Resource
                             fn () => print ($pdf->output()),
                             "cobranca-{$label}-{$name}.pdf",
                             ['Content-Type' => 'application/pdf']
+                        );
+                    }),
+
+                // ── Exportar Excel ────────────────────────────────────────────
+                Tables\Actions\Action::make('exportExcel')
+                    ->label('Excel')
+                    ->icon('heroicon-o-table-cells')
+                    ->color('success')
+                    ->modalHeading(fn (CustomerBillingReceipt $r) => 'Exportar Excel — '.$r->formatted_number)
+                    ->modalDescription('Selecione as colunas que deseja incluir na planilha exportada.')
+                    ->form([
+                        Forms\Components\CheckboxList::make('columns')
+                            ->label('Colunas')
+                            ->options(CustomerBillingReceiptExport::AVAILABLE_COLUMNS)
+                            ->default(CustomerBillingReceiptExport::DEFAULT_COLUMNS)
+                            ->columns(3)
+                            ->bulkToggleable()
+                            ->required(),
+                    ])
+                    ->modalSubmitActionLabel('Exportar')
+                    ->action(function (CustomerBillingReceipt $record, array $data): mixed {
+                        $columns = $data['columns'] ?? CustomerBillingReceiptExport::DEFAULT_COLUMNS;
+                        if (empty($columns)) {
+                            Notification::make()->warning()
+                                ->title('Selecione ao menos uma coluna')->send();
+
+                            return null;
+                        }
+                        if (empty($record->delivery_ids)) {
+                            Notification::make()->warning()
+                                ->title('Sem distribuições')
+                                ->body('Adicione distribuições antes de exportar.')->send();
+
+                            return null;
+                        }
+                        $label = str_replace('/', '-', $record->formatted_number);
+                        $name  = \Illuminate\Support\Str::slug(
+                            $record->customer?->name ?? $record->organization?->name ?? 'cobranca'
+                        );
+
+                        return Excel::download(
+                            new CustomerBillingReceiptExport($record, $columns),
+                            "cobranca-{$label}-{$name}.xlsx"
                         );
                     }),
 
@@ -652,38 +697,53 @@ class CustomerBillingReceiptResource extends Resource
         ?SalesProject $project,
         ?Organization $organization
     ): array {
-        // Clientes distintos presentes nas distribuições
+        // Todos os clientes distintos (para o rodapé)
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
-        // Monta tabela produto × cliente
-        // Estrutura: [ product_id => [ 'product'=>..., 'unit'=>..., 'unit_price'=>..., 'by_customer'=>[customer_id=>qty], 'total_qty'=>..., 'total_gross'=>... ] ]
-        $table = [];
-        foreach ($distributions as $d) {
-            $pid = $d->product_id;
-            if (! isset($table[$pid])) {
-                $table[$pid] = [
-                    'product' => $d->product?->name ?? 'Produto #'.$pid,
-                    'unit' => $d->product?->unit ?? 'kg',
-                    'unit_price' => (float) $d->unit_price,
-                    'by_customer' => [],
-                    'total_qty' => 0.0,
-                    'total_gross' => 0.0,
-                ];
-            }
-            $cid = $d->customer_id;
-            $qty = (float) $d->quantity;
-            $table[$pid]['by_customer'][$cid] = ($table[$pid]['by_customer'][$cid] ?? 0.0) + $qty;
-            $table[$pid]['total_qty'] += $qty;
-            $table[$pid]['total_gross'] += $qty * (float) $d->unit_price;
-        }
+        // Agrupa distribuições pela tabela de preço do cliente (null → chave 0)
+        $byPriceTable = $distributions->groupBy(fn($d) => $d->customer?->price_table_id ?? 0);
 
-        $totalGross = array_sum(array_column($table, 'total_gross'));
-        $totalFees = (float) ($receipt->total_fees ?? 0);
-        $totalNet = (float) ($receipt->total_net ?? $totalGross);
+        $priceGroups = $byPriceTable->map(function ($groupDists) {
+            $groupCustomers = $groupDists->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
+            $ptName = $groupCustomers->first()?->priceTable?->name ?? 'Tabela Padrão';
+
+            $table = [];
+            foreach ($groupDists as $d) {
+                $pid = $d->product_id;
+                if (! isset($table[$pid])) {
+                    $table[$pid] = [
+                        'product'     => $d->product?->name ?? 'Produto #'.$pid,
+                        'unit'        => $d->product?->unit ?? 'kg',
+                        'unit_price'  => (float) $d->unit_price,
+                        'by_customer' => [],
+                        'total_qty'   => 0.0,
+                        'total_gross' => 0.0,
+                    ];
+                }
+                $cid = $d->customer_id;
+                $qty = (float) $d->quantity;
+                $table[$pid]['by_customer'][$cid] = ($table[$pid]['by_customer'][$cid] ?? 0.0) + $qty;
+                $table[$pid]['total_qty']   += $qty;
+                $table[$pid]['total_gross'] += $qty * (float) $d->unit_price;
+            }
+
+            return [
+                'price_table_name' => $ptName,
+                'customers'        => $groupCustomers,
+                'table'            => $table,
+                'subtotal_gross'   => array_sum(array_column($table, 'total_gross')),
+            ];
+        })->values()->all();
+
+        $totalGross          = collect($priceGroups)->sum('subtotal_gross');
+        $totalFees           = (float) ($receipt->total_fees ?? 0);
+        $totalNet            = (float) ($receipt->total_net ?? $totalGross);
+        $multiplePriceTables = count($priceGroups) > 1;
 
         return compact(
             'tenant', 'project', 'organization', 'receipt',
-            'customers', 'table', 'totalGross', 'totalFees', 'totalNet'
+            'customers', 'priceGroups', 'multiplePriceTables',
+            'totalGross', 'totalFees', 'totalNet'
         );
     }
 

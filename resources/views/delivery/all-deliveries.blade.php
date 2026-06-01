@@ -355,6 +355,12 @@
                             </button>
                         </div>
                         @elseif($d->status->value === 'approved' && is_null($d->customer_id))
+                        @php
+                            $hasBilledDists = $d->distributions->contains(fn($dist) =>
+                                $dist->billing_status instanceof \App\Enums\BillingStatus
+                                && $dist->billing_status !== \App\Enums\BillingStatus::UNBILLED
+                            );
+                        @endphp
                         <div class="action-btns">
                             <button class="btn-xs btn-distribute"
                                 data-id="{{ $d->id }}"
@@ -366,9 +372,15 @@
                                 title="Distribuir para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>
+                            @if($hasBilledDists)
+                            <button class="btn-xs" disabled title="Entrega faturada — exclusão bloqueada" style="opacity:.4;cursor:not-allowed;display:inline-flex;align-items:center;gap:.2rem;padding:.22rem .5rem;font-size:.7rem;background:rgba(239,68,68,.08);color:#dc2626;border-radius:var(--radius-md);border:none;">
+                                <i data-lucide="lock" style="width:11px;height:11px"></i> Bloqueado
+                            </button>
+                            @else
                             <button class="btn-xs btn-delete-approved" data-id="{{ $d->id }}" title="Excluir entrega aprovada" aria-label="Excluir entrega aprovada">
                                 <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
                             </button>
+                            @endif
                         </div>
                         @else
                         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>

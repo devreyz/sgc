@@ -520,7 +520,11 @@ class DeliveryRegistrationController extends Controller
                     'qty'              => (float) $dist->quantity,
                     'net'              => (float) $dist->net_value,
                     'price_source'     => $dist->price_source,
+                    'billed'           => $dist->billing_status instanceof BillingStatus
+                                         && $dist->billing_status !== BillingStatus::UNBILLED,
                 ]);
+
+                $hasBilled = $distributions->contains('billed', true);
 
                 return [
                     'id'             => $d->id,
@@ -535,6 +539,7 @@ class DeliveryRegistrationController extends Controller
                     'status'         => $d->status?->value === 'approved' ? 'approved' : 'pending',
                     'distributedQty' => (float) $distributions->sum('qty'),
                     'distributions'  => $distributions->values()->all(),
+                    'has_billed'     => $hasBilled,
                 ];
             });
 

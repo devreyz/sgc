@@ -298,6 +298,7 @@
 .session-item {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     gap: 0.3rem;
     padding: 0.7rem 1rem;
     border-bottom: 1px solid var(--color-border);
@@ -1138,7 +1139,9 @@ function renderSessionItems() {
         const qualStr    = item.quality ? ' · ' + item.quality : '';
 
         // ── Tags row ──────────────────────────────────────────
-        const statusHtml = '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' +
+        // Só mostra badge de status se NÃO for faturado (faturado já implica aprovado)
+        const statusHtml = isBilled ? '' :
+            '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' +
             (isPending ? 'Pendente' : 'Aprovada') + '</span>';
 
         const billedTag = isBilled
@@ -1176,16 +1179,16 @@ function renderSessionItems() {
                 '<div class="si-qty-badge">' + fmtQty(item.qty, item.productUnit) + '</div>' +
             '</div>' +
             // Row 2 — associate + date/quality (secondary info)
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:.4rem;min-width:0;">' +
                 '<span class="si-assoc">' + esc(item.associateName) + '</span>' +
-                '<span class="si-date-qual">' + dateStr + qualStr + '</span>' +
+                '<span class="si-date-qual" style="margin-left:auto;">' + dateStr + qualStr + '</span>' +
             '</div>' +
-            // Row 3 — tags (left) + actions (right)
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:.4rem;flex-wrap:wrap;">' +
-                '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;">' +
+            // Row 3 — tags (flex:1) + actions (flex-shrink:0, always right)
+            '<div style="display:flex;align-items:center;gap:.4rem;">' +
+                '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;flex:1;min-width:0;">' +
                     statusHtml + billedTag + distTag +
                 '</div>' +
-                '<div class="si-actions">' +
+                '<div class="si-actions" style="flex-shrink:0;">' +
                     btnApprove + btnEdit + btnDist + btnDelete +
                 '</div>' +
             '</div>';

@@ -25,7 +25,7 @@ $issuedAt      = $receipt->issued_at?->format('d/m/Y') ?? now()->format('d/m/Y')
 $primaryColor  = '#0a0a0a';
 $lineColor     = '#c0c8d4';
 $customerCount = $customers->count();
-$manyClients   = $customerCount > 4;
+$manyClients   = collect($priceGroups)->max(fn($g) => $g['customers']->count()) > 4;
 
 /**
  * Formata quantidade sem zeros decimais desnecessários.
@@ -174,18 +174,28 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     @endif
 </div>
 
-{{-- ═══ TABELA PRODUTO × CLIENTE ═══ --}}
-<div class="sec-label">Entregas por Produto e Cliente</div>
+{{-- ═══ TABELA PRODUTO × CLIENTE (agrupada por tabela de preço) ═══ --}}
+@if(!$multiplePriceTables)
+<div class="sec-label">Entregas</div>
+@endif
 
-@php
-    $clientColSpan = $customers->count() + 2; // vlr.unit + clientes + total_qty + total_R$
-@endphp
+@foreach($priceGroups as $group)
+@php $groupCustomers = $group['customers']; @endphp
+
+@if($multiplePriceTables)
+<div style="font-size:8.5pt; font-weight:700; background:#f1f5f9; padding:4px 8px; margin:10px 0 5px; border-left:3px solid {{ $primaryColor }}; color:#1e293b;">
+    Tabela de Preço: {{ $group['price_table_name'] }}
+    <span style="float:right; font-size:8pt; font-weight:400; color:#64748b;">
+        {{ $groupCustomers->count() }} cliente(s) &nbsp;·&nbsp; R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}
+    </span>
+</div>
+@endif
 
 <table class="main-tbl">
     <thead>
         <tr>
             <th style="width:22%">Produto</th>
-            @foreach($customers as $c)
+            @foreach($groupCustomers as $c)
             <th class="r">{{ $c->name }}</th>
             @endforeach
             <th class="r" style="width:9%; white-space:nowrap;">Vlr. Unit.</th>
@@ -194,10 +204,10 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         </tr>
     </thead>
     <tbody>
-        @foreach($table as $row)
+        @foreach($group['table'] as $row)
         <tr>
             <td>{{ $row['product'] }}</td>
-            @foreach($customers as $c)
+            @foreach($groupCustomers as $c)
                 @php $qty = $row['by_customer'][$c->id] ?? null; @endphp
                 @if($qty !== null)
                 <td class="r">{{ fmtQtyOrg((float) $qty) }}</td>
@@ -213,15 +223,28 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            {{-- Span: Produto + Vlr.Unit. + todas as colunas de clientes --}}
-            <td colspan="{{ 2 + $customers->count() }}">Total Geral</td>
-            {{-- Coluna Qtd Total: em branco (não cabe somar unidades heterogêneas) --}}
+            <td colspan="{{ 2 + $groupCustomers->count() }}">{{ $multiplePriceTables ? 'Subtotal — '.$group['price_table_name'] : 'Total Geral' }}</td>
             <td></td>
-            {{-- Apenas o total financeiro --}}
-            <td class="r">R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</td>
+            <td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>
         </tr>
     </tfoot>
 </table>
+
+@if($multiplePriceTables && !$loop->last)
+<div style="border-top:1px dashed #d1d5db; margin:6px 0 2px;"></div>
+@endif
+@endforeach
+
+@if($multiplePriceTables)
+<div style="display:table; width:100%; margin:4px 0 12px;">
+    <div style="display:table-cell;"></div>
+    <div style="display:table-cell; text-align:right; white-space:nowrap;">
+        <span style="background:#e2e8f0; padding:3px 10px; border-radius:4px; font-size:8.5pt;">
+            <strong>Total Geral: R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</strong>
+        </span>
+    </div>
+</div>
+@endif
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}
 <div class="fin-summary">
