@@ -151,8 +151,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="2"><strong>Totais</strong></td>
-                <td class="r"><strong>{{ number_format($totals['total_qty'], 3, ',', '.') }}</strong></td>
+                <td colspan="2"><strong>Total</strong></td>
+                <td class="r"></td>
                 @if($show_unit_price)<td></td>@endif
                 @if($show_total)<td class="r"><strong>R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</strong></td>@endif
             </tr>
@@ -199,7 +199,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                     @endphp
                     <td class="r">{{ number_format($dateSum, 3, ',', '.') }}</td>
                 @endforeach
-                <td class="r"><strong>{{ number_format($totals['total_qty'], 3, ',', '.') }}</strong></td>
+                <td class="r"></td>
                 <td class="r"><strong>R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</strong></td>
             </tr>
         </tfoot>
@@ -229,7 +229,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         <tfoot>
             <tr>
                 <td><strong>Total Geral</strong></td>
-                <td class="r"><strong>{{ number_format($totals['total_qty'], 3, ',', '.') }}</strong></td>
+                <td class="r"></td>
                 @if($show_unit_price)<td></td>@endif
                 @if($show_total)<td class="r"><strong>R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</strong></td>@endif
             </tr>
@@ -237,11 +237,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </table>
 @endif
 
-{{-- total geral para todos os layouts --}}
-<div class="grand-total">
-    <span class="lbl">TOTAL GERAL</span>
-    <span class="val">R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</span>
-</div>
+
 
 <div class="ftr">
     {{ $tenant->name ?? '' }}
