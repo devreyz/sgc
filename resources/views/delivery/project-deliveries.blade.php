@@ -256,6 +256,7 @@ $totalNet      = $deliveries->sum('net_value');
 @endif
 
 {{-- ── MODAL: RELATÓRIO POR CLIENTE ── --}}
+{{-- ── MODAL: RELATÓRIO POR CLIENTE ── --}}
 <div class="modal-overlay hidden" id="customerReportModal">
     <div class="modal-box" style="width:min(560px,96vw);max-height:90vh;overflow-y:auto;">
         <div class="modal-title">
@@ -323,9 +324,28 @@ $totalNet      = $deliveries->sum('net_value');
 
             <div id="crm-availability" style="display:none;margin-bottom:.75rem;padding:.45rem .7rem;border-radius:4px;font-size:.77rem;"></div>
 
-            {{-- Colunas (só para Extrato Simples) --}}
-           <div id="crm-col-section" class="form-group" style="margin-bottom:.75rem;">
-                <label class="form-label">Opções de exibição</label>
+            {{-- Layout de exibição (apenas para Extrato Simples) --}}
+            <div id="crm-layout-section" class="form-group" style="margin-bottom:.75rem;">
+                <label class="form-label">Formato do Extrato</label>
+                <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.25rem;">
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="radio" name="layout" value="grouped" checked> Agrupado por produto
+                    </label>
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="radio" name="layout" value="ungrouped"> Lista detalhada (não agrupado)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="radio" name="layout" value="matrix"> Matriz produto × data
+                    </label>
+                </div>
+                <div id="crm-layout-hint" style="font-size:.65rem;color:var(--color-text-secondary);margin-top:.25rem;">
+                    ⚡ Matriz exibe quantidade por produto em cada data de entrega
+                </div>
+            </div>
+
+            {{-- Colunas (só para Extrato Simples nos modos agrupado/lista) --}}
+            <div id="crm-col-section" class="form-group" style="margin-bottom:.75rem;">
+                <label class="form-label">Colunas exibidas</label>
                 <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.25rem;">
                     <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
                         <input type="checkbox" id="crm-col-unit-price" checked style="width:14px;height:14px;"> Preço Unitário
@@ -333,9 +353,9 @@ $totalNet      = $deliveries->sum('net_value');
                     <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
                         <input type="checkbox" id="crm-col-total" checked style="width:14px;height:14px;"> Preço Total
                     </label>
-                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
-                        <input type="checkbox" id="crm-ungrouped" style="width:14px;height:14px;"> Listar entregas individualmente (sem agrupar por produto)
-                    </label>
+                </div>
+                <div id="crm-col-hint" style="font-size:.65rem;color:var(--color-text-secondary);margin-top:.25rem;">
+                    ℹ️ As opções acima não se aplicam ao formato Matriz
                 </div>
             </div>
 
@@ -541,6 +561,159 @@ const PD_TENANT    = '{{ $currentTenant->slug }}';
 const PD_CSRF      = '{{ csrf_token() }}';
 const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
+
+// Variável global para controlar o tipo de relatório selecionado
+let _crmType = 'statement';
+let _crmEndpoints = {
+    statement: 'customer-delivery-statement',
+    full: 'customer-delivery-full',
+    compact: 'customer-delivery-compact'
+};
+
+// Função para alternar visibilidade das opções conforme o tipo/layout selecionado
+function crmOnTypeChange(type) {
+    _crmType = type;
+    
+    const layoutSection = document.getElementById('crm-layout-section');
+    const colSection = document.getElementById('crm-col-section');
+    
+    if (type === 'statement') {
+        if (layoutSection) layoutSection.style.display = 'block';
+        if (colSection) colSection.style.display = 'block';
+        
+        // Atualizar hint conforme layout selecionado
+        crmUpdateColHint();
+    } else {
+        if (layoutSection) layoutSection.style.display = 'none';
+        if (colSection) colSection.style.display = 'none';
+    }
+}
+
+// Função para atualizar hint das colunas conforme layout selecionado
+function crmUpdateColHint() {
+    const selectedLayout = document.querySelector('input[name="layout"]:checked')?.value || 'grouped';
+    const colHint = document.getElementById('crm-col-hint');
+    const colCheckboxes = document.getElementById('crm-col-section');
+    
+    if (colHint) {
+        if (selectedLayout === 'matrix') {
+            colHint.innerHTML = '🔒 As opções de colunas não se aplicam ao formato Matriz (exibe apenas quantidades)';
+            // Desabilitar checkboxes no modo matriz
+            const chkUnit = document.getElementById('crm-col-unit-price');
+            const chkTotal = document.getElementById('crm-col-total');
+            if (chkUnit) chkUnit.disabled = true;
+            if (chkTotal) chkTotal.disabled = true;
+        } else {
+            colHint.innerHTML = 'ℹ️ Selecione quais colunas deseja exibir no relatório';
+            const chkUnit = document.getElementById('crm-col-unit-price');
+            const chkTotal = document.getElementById('crm-col-total');
+            if (chkUnit) chkUnit.disabled = false;
+            if (chkTotal) chkTotal.disabled = false;
+        }
+    }
+}
+
+// Função principal para gerar o PDF
+function crmGenerate() {
+    const customerId = document.getElementById('crm-customer').value;
+    if (!customerId) {
+        alert('Selecione um cliente');
+        return;
+    }
+
+    const dateFrom = document.getElementById('crm-date-from').value;
+    const dateTo   = document.getElementById('crm-date-to').value;
+    
+    // Obter layout selecionado (apenas para extrato simples)
+    let layout = 'grouped';
+    const layoutRadio = document.querySelector('input[name="layout"]:checked');
+    if (_crmType === 'statement' && layoutRadio) {
+        layout = layoutRadio.value;
+    }
+
+    const params = new URLSearchParams({ 
+        customer_id: customerId,
+        layout: layout
+    });
+    
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo)   params.set('date_to',   dateTo);
+    params.set('project_id', PD_PROJECT);
+
+    // Opções de colunas (apenas para extrato simples e quando não for matriz)
+    if (_crmType === 'statement' && layout !== 'matrix') {
+        const colUP  = document.getElementById('crm-col-unit-price');
+        const colTot = document.getElementById('crm-col-total');
+        if (colUP  && !colUP.checked)  params.set('col_unit_price', '0');
+        if (colTot && !colTot.checked) params.set('col_total', '0');
+    }
+
+    const endpoint = _crmEndpoints[_crmType] || 'customer-delivery-statement';
+    const url = `/${PD_TENANT}/delivery/reports/${endpoint}?${params.toString()}`;
+    
+    window.open(url, '_blank');
+    closeCustomerReportModal();
+}
+
+// Função para carregar opções (clientes, etc)
+function crmLoadOptions() {
+    // Seu código existente para carregar clientes
+    // ...
+    
+    // Após carregar, configurar event listeners
+    setTimeout(() => {
+        // Event listeners para os botões de tipo
+        document.querySelectorAll('.crm-type-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.crm-type-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                crmOnTypeChange(this.dataset.type);
+            });
+        });
+        
+        // Event listener para mudança de layout
+        document.querySelectorAll('input[name="layout"]').forEach(radio => {
+            radio.addEventListener('change', crmUpdateColHint);
+        });
+        
+        // Inicializar
+        crmOnTypeChange('statement');
+    }, 100);
+}
+
+// Função chamada quando cliente muda
+function crmOnCustomerChange() {
+    const btnGenerate = document.getElementById('crm-btn-generate');
+    const customerId = document.getElementById('crm-customer').value;
+    if (btnGenerate) {
+        btnGenerate.disabled = !customerId;
+    }
+}
+
+// Funções auxiliares de datas
+function crmClearActiveChip() {
+    // Limpar chips ativos quando datas manuais são alteradas
+    document.querySelectorAll('#crm-date-chips .chip-active, #crm-month-chips .chip-active')
+        .forEach(chip => chip.classList.remove('chip-active'));
+}
+
+function crmSetAllDates() {
+    // Definir todo o período (limpar datas)
+    document.getElementById('crm-date-from').value = '';
+    document.getElementById('crm-date-to').value = '';
+    crmClearActiveChip();
+}
+
+function crmClearDates() {
+    document.getElementById('crm-date-from').value = '';
+    document.getElementById('crm-date-to').value = '';
+    crmClearActiveChip();
+}
+
+function closeCustomerReportModal() {
+    const modal = document.getElementById('customerReportModal');
+    if (modal) modal.classList.add('hidden');
+}
 
 function pdToast(msg, type = 'success') {
     const c = document.getElementById('pd-toasts');
@@ -827,18 +1000,11 @@ document.addEventListener('click', async function(e) {
 ════════════════════════════════════════════════════════════ */
 let _crmOptions    = null;
 let _crmActiveChip = null;
-let _crmType       = 'statement';
 
 const _crmTypeDesc = {
     statement: 'Data · produto · valor por item — para cobrar o cliente.',
     full:      'Inclui associado (origem) por linha — para conferência interna.',
     compact:   'Só totais por produto — visão rápida de cobrança.',
-};
-
-const _crmEndpoints = {
-    statement: 'customer-delivery-statement',
-    full:      'distributions-by-customer',
-    compact:   'distributions-by-customer-compact',
 };
 
 // Tipo de relatório
@@ -1036,9 +1202,9 @@ function crmGenerate() {
 
     const dateFrom = document.getElementById('crm-date-from').value;
     const dateTo   = document.getElementById('crm-date-to').value;
-    const ungrouped = document.getElementById('crm-ungrouped')?.checked ? '1' : '0';
+    const layout   = document.querySelector('input[name="layout"]:checked')?.value || 'grouped';
 
-    const params = new URLSearchParams({ customer_id: customerId, ungrouped: ungrouped });
+    const params = new URLSearchParams({ customer_id: customerId, layout: layout });
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo)   params.set('date_to',   dateTo);
     params.set('project_id', PD_PROJECT);
