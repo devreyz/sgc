@@ -98,8 +98,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
     <div class="hdr-right">
         <span class="doc-type">Extrato de Entregas</span>
-        <span class="doc-num">{{ $customer->name ?? $customer->trade_name ?? 'Cliente' }}</span>
-        @if($period_label)<span class="doc-date">Período: {{ $period_label }}</span>@endif
+        <span class="doc-num">{{ $customer->name ?? $customer->trade_name ??  $organization->name ?? 'Cliente' }}</span>
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:8px; color:#666;">Valor Total</div>
             <div style="color:#059669; font-size:13px;">R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</div>
@@ -117,9 +116,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         @if($project_label)
             <span class="strip-label">Projeto</span>
             <span class="strip-value">{{ $project_label }}</span>
-        @elseif($organization)
-            <span class="strip-label">Organização</span>
-            <span class="strip-value">{{ $organization->name ?? '' }}</span>
+        
         @endif
     </div>
 </div>
