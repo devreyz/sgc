@@ -324,14 +324,17 @@ $totalNet      = $deliveries->sum('net_value');
             <div id="crm-availability" style="display:none;margin-bottom:.75rem;padding:.45rem .7rem;border-radius:4px;font-size:.77rem;"></div>
 
             {{-- Colunas (só para Extrato Simples) --}}
-            <div id="crm-col-section" class="form-group" style="margin-bottom:.75rem;">
-                <label class="form-label">Colunas exibidas</label>
+           <div id="crm-col-section" class="form-group" style="margin-bottom:.75rem;">
+                <label class="form-label">Opções de exibição</label>
                 <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.25rem;">
                     <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
                         <input type="checkbox" id="crm-col-unit-price" checked style="width:14px;height:14px;"> Preço Unitário
                     </label>
                     <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
                         <input type="checkbox" id="crm-col-total" checked style="width:14px;height:14px;"> Preço Total
+                    </label>
+                    <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;cursor:pointer;">
+                        <input type="checkbox" id="crm-ungrouped" style="width:14px;height:14px;"> Listar entregas individualmente (sem agrupar por produto)
                     </label>
                 </div>
             </div>
@@ -1033,8 +1036,9 @@ function crmGenerate() {
 
     const dateFrom = document.getElementById('crm-date-from').value;
     const dateTo   = document.getElementById('crm-date-to').value;
+    const ungrouped = document.getElementById('crm-ungrouped')?.checked ? '1' : '0';
 
-    const params = new URLSearchParams({ customer_id: customerId });
+    const params = new URLSearchParams({ customer_id: customerId, ungrouped: ungrouped });
     if (dateFrom) params.set('date_from', dateFrom);
     if (dateTo)   params.set('date_to',   dateTo);
     params.set('project_id', PD_PROJECT);
@@ -1051,7 +1055,6 @@ function crmGenerate() {
     window.open(url, '_blank');
     closeCustomerReportModal();
 }
-
 </script>
 @endsection
 

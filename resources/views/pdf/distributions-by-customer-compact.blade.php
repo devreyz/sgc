@@ -61,18 +61,30 @@ table.tbl tfoot td.r { text-align: right; }
 
 {{-- Cabeçalho --}}
 <div class="hdr">
-    <div class="hdr-logo">@if($hasLogo)<img src="{{ $logoPath }}" alt="">@endif</div>
+    <div class="hdr-logo">
+        @if($hasLogo)
+            <img src="{{ $logoPath }}" alt="">
+        @endif
+    </div>
     <div class="hdr-org">
         <div class="name">{{ $tenant->name ?? '' }}</div>
         <div class="meta">
-            @if($tenant?->cnpj)CNPJ: {{ $tenant->cnpj }}<br>@endif
-            @if($tenant?->city){{ $tenant->city }}@if($tenant?->state) / {{ $tenant->state }}@endif@endif
+            @if($tenant?->cnpj)
+                CNPJ: {{ $tenant->cnpj }}<br>
+            @endif
+            @if($tenant?->city)
+                {{ $tenant->city }}@if($tenant?->state) / {{ $tenant->state }}@endif
+            @endif
         </div>
     </div>
     <div class="hdr-right">
         <span class="doc-title">{{ $title ?? 'Resumo de Distribuições' }}</span>
-        @if(!empty($subtitle))<span class="doc-sub">{{ $subtitle }}</span>@endif
-        @if($periodLabel)<span class="doc-sub">Período: {{ $periodLabel }}</span>@endif
+        @if(!empty($subtitle))
+            <span class="doc-sub">{{ $subtitle }}</span>
+        @endif
+        @if($periodLabel)
+            <span class="doc-sub">Período: {{ $periodLabel }}</span>
+        @endif
         <span class="doc-gen">Emitido em {{ $generated_at }}</span>
     </div>
 </div>
@@ -91,7 +103,7 @@ table.tbl tfoot td.r { text-align: right; }
     @foreach($org['customers'] as $customer)
     <div style="margin-bottom:10px;">
         @if(!$isSingleCustomer)
-        <div class="cust-hdr">{{ $customer['customer_name'] }}</div>
+            <div class="cust-hdr">{{ $customer['customer_name'] }}</div>
         @endif
         <table class="tbl">
             <thead>
@@ -134,7 +146,9 @@ table.tbl tfoot td.r { text-align: right; }
 {{-- Rodapé --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
-    @if($tenant?->cnpj) &middot; CNPJ: {{ $tenant->cnpj }}@endif
+    @if($tenant?->cnpj)
+        &middot; CNPJ: {{ $tenant->cnpj }}
+    @endif
     &middot; Gerado em {{ $generated_at }}
 </div>
 
