@@ -109,16 +109,17 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 {{-- ═══ DADOS DO CLIENTE / PROJETO ═══ --}}
 <div class="strip">
     <div class="strip-cell" style="width:50%;">
-        <span class="strip-label">Periodo</span>
-        <span class="strip-value">{{ $period_label }}</span>
-    </div>
-    <div class="strip-cell" style="width:50%;">
         @if($project_label)
             <span class="strip-label">Projeto</span>
             <span class="strip-value">{{ $project_label }}</span>
         
         @endif
     </div>
+    <div class="strip-cell" style="width:50%;">
+        <span class="strip-label">Periodo</span>
+        <span class="strip-value">{{ $period_label }}</span>
+    </div>
+    
 </div>
 
 {{-- ═══ CONTEÚDO CONFORME LAYOUT ═══ --}}
@@ -166,6 +167,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                     <th class="c" style="width:{{ max(45, intval(85/count($dates))) }}px;">{{ $dateLabel }}</th>
                 @endforeach
                 <th class="r">Total Qtd.</th>
+                <th class="r">Preço Unit. (R$)</th>
                 <th class="r">Valor Total (R$)</th>
             </tr>
         </thead>
@@ -182,6 +184,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                     <td class="r">{{ $prod['dates'][$dateKey] ?? 0 ? number_format($prod['dates'][$dateKey] ?? 0, 3, ',', '.') : '—' }}</td>
                 @endforeach
                 <td class="r">{{ $totalQty ? number_format($totalQty, 3, ',', '.') : '—' }}</td>
+                <td class="r">{{ $unitPrice ? number_format($unitPrice, 2, ',', '.') : '—' }}</td>
                 <td class="r">R$ {{ $totalValue ? number_format($totalValue, 2, ',', '.') : '—' }}</td>
             </tr>
             @endforeach
