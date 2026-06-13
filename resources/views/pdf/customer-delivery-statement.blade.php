@@ -110,9 +110,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 {{-- ═══ DADOS DO CLIENTE / PROJETO ═══ --}}
 <div class="strip">
     <div class="strip-cell" style="width:50%;">
-        <span class="strip-label">Cliente</span>
-        <span class="strip-value">{{ $customer->name ?? $customer->trade_name ?? '—' }}</span>
-        @if($customer->cpf_cnpj)<span class="strip-value" style="font-size:8px;">{{ $customer->cpf_cnpj }}</span>@endif
+        <span class="strip-label">Periodo</span>
+        <span class="strip-value">{{ $period_label }}</span>
     </div>
     <div class="strip-cell" style="width:50%;">
         @if($project_label)
@@ -183,10 +182,10 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             <tr>
                 <td>{{ $prod['product_name'] }} ({{ $prod['unit'] }})</td>
                 @foreach($dates as $dateKey => $dateLabel)
-                    <td class="r">{{ number_format($prod['dates'][$dateKey] ?? 0, 3, ',', '.') }}</td>
+                    <td class="r">{{ $prod['dates'][$dateKey] ?? 0 ? number_format($prod['dates'][$dateKey] ?? 0, 3, ',', '.') : '—' }}</td>
                 @endforeach
-                <td class="r">{{ number_format($totalQty, 3, ',', '.') }}</td>
-                <td class="r">R$ {{ number_format($totalValue, 2, ',', '.') }}</td>
+                <td class="r">{{ $totalQty ? number_format($totalQty, 3, ',', '.') : '—' }}</td>
+                <td class="r">R$ {{ $totalValue ? number_format($totalValue, 2, ',', '.') : '—' }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -197,10 +196,10 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                     @php
                         $dateSum = collect($matrix['products'])->sum(fn($p) => $p['dates'][$dateKey] ?? 0);
                     @endphp
-                    <td class="r">{{ number_format($dateSum, 3, ',', '.') }}</td>
+                    <td class="r">{{ $dateSum ? number_format($dateSum, 3, ',', '.') : '—' }}</td>
                 @endforeach
                 <td class="r"></td>
-                <td class="r"><strong>R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</strong></td>
+                <td class="r"><strong>R$ {{ $totals['total_gross'] ? number_format($totals['total_gross'], 2, ',', '.') : '—' }}</strong></td>
             </tr>
         </tfoot>
     </table>
@@ -220,9 +219,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @foreach($product_groups as $group)
             <tr>
                 <td>{{ $group['product_name'] }} ({{ $group['unit'] }})</td>
-                <td class="r">{{ number_format($group['total_qty'], 3, ',', '.') }}</td>
-                @if($show_unit_price)<td class="r">{{ number_format($group['unit_price'], 2, ',', '.') }}</td>@endif
-                @if($show_total)<td class="r">R$ {{ number_format($group['total_gross'], 2, ',', '.') }}</td>@endif
+                <td class="r">{{ $group['total_qty'] ? number_format($group['total_qty'], 3, ',', '.') : '—' }}</td>
+                @if($show_unit_price)<td class="r">{{ $group['unit_price'] ? number_format($group['unit_price'], 2, ',', '.') : '—' }}</td>@endif
+                @if($show_total)<td class="r">R$ {{ $group['total_gross'] ? number_format($group['total_gross'], 2, ',', '.') : '—' }}</td>@endif
             </tr>
             @endforeach
         </tbody>
@@ -231,7 +230,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                 <td><strong>Total Geral</strong></td>
                 <td class="r"></td>
                 @if($show_unit_price)<td></td>@endif
-                @if($show_total)<td class="r"><strong>R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</strong></td>@endif
+                @if($show_total)<td class="r"><strong>R$ {{ $totals['total_gross'] ? number_format($totals['total_gross'], 2, ',', '.') : '—' }}</strong></td>@endif
             </tr>
         </tfoot>
     </table>
