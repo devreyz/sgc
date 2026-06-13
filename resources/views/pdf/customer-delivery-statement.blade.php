@@ -199,6 +199,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                     <td class="r">{{ $dateSum ? number_format($dateSum, 3, ',', '.') : '—' }}</td>
                 @endforeach
                 <td class="r"></td>
+                <td></td>
                 <td class="r"><strong>R$ {{ $totals['total_gross'] ? number_format($totals['total_gross'], 2, ',', '.') : '—' }}</strong></td>
             </tr>
         </tfoot>
