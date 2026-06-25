@@ -42,9 +42,9 @@
     $receiptLabel = isset($receipt) ? $receipt->formatted_number : '—';
     $issuedAt     = isset($receipt) ? $receipt->issued_at->format('d/m/Y') : now()->format('d/m/Y');
 
-    $primaryColor = '#0a0a0a';
+    $primaryColor = '#333';
     $lineColor    = '#c0c8d4';
-    $textColor    = '#000000';
+    $textColor    = '#333';
 
     $isSecondCopy = $isSecondCopy ?? false;
     $isStandalone = empty($project);
@@ -62,7 +62,7 @@
 body {
     font-family: 'DejaVu Sans', Arial, sans-serif;
     font-size: 11px;
-    color: {{ $textColor }};
+    color: #1e3a5f;
     background: #fff;
     padding: 16mm 18mm 14mm 18mm;
 }
@@ -82,14 +82,14 @@ body {
 .assoc-col  { display: table-cell; vertical-align: top; padding-right: 20px; }
 .assoc-col-last { display: table-cell; vertical-align: top; }
 .field-label { font-size: 8.5px; color: #777; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 2px; }
-.field-value { font-size: 12px; font-weight: bold; color: #111; }
+.field-value { font-size: 12px; font-weight: bold; color: #333; }
 .proj-strip { background: #f4f6f8; border-left: 3px solid {{ $primaryColor }}; padding: 8px 12px; margin-bottom: 14px; display: table; width: 100%; }
 .proj-cell { display: table-cell; vertical-align: top; padding-right: 20px; }
 .proj-cell-last { display: table-cell; vertical-align: top; }
 .proj-label { font-size: 8.5px; color: #666; display: block; }
-.proj-value { font-size: 10.5px; font-weight: bold; color: #111; }
+.proj-value { font-size: 10.5px; font-weight: bold; color: #333; }
 .decl { margin-bottom: 14px; padding: 10px 14px; border: 1px solid {{ $lineColor }}; background: #fafbfc; }
-.decl p { font-size: 11px; line-height: 1.7; color: #222; text-align: justify; }
+.decl p { font-size: 11px; line-height: 1.7; color: #333; text-align: justify; }
 .decl strong { color: {{ $textColor }}; }
 .sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 12px 0 8px; }
 /* ─── Tabela de entregas (estilo limpo) ─── */
@@ -119,7 +119,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .sig-block { display: table-cell; text-align: center; }
 .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 40px; font-size: 11px; font-weight: bold; }
 .sig-role { font-size: 9px; color: #555; margin-top: 3px; }
-.sig-doc  { font-size: 9px; color: #222; margin-top: 1px; }
+.sig-doc  { font-size: 9px; color: #333; margin-top: 1px; }
 .ftr { margin-top: 20px; border-top: 1px solid {{ $lineColor }}; padding-top: 6px; text-align: center; font-size: 8.5px; color: #999; }
 </style>
 </head>
