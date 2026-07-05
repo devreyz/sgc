@@ -6,7 +6,8 @@ $overDistributed = $distQty > $totalQty;
 $distDisplayPercent = $overDistributed ? 100 : $distPercent;
 @endphp
 <div class="mobile-card status-{{ $delivery['status_value'] }} variant-c"
-     id="row-{{ $delivery['id'] }}"
+     id="mobile-row-{{ $delivery['id'] }}"
+     data-delivery-id="{{ $delivery['id'] }}"
      data-total-qty="{{ $totalQty }}"
      data-unit="{{ $delivery['unit'] }}"
      style="padding:0; border-radius:var(--radius-md); overflow:hidden;"

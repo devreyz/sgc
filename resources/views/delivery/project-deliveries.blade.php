@@ -754,7 +754,8 @@ document.addEventListener('click', async function(e) {
             const data = await res.json();
             if (data.success) {
                 // Remove both desktop row and mobile card
-                document.getElementById('row-' + id)?.remove();
+                document.getElementById('desktop-row-' + id)?.remove();
+                document.getElementById('mobile-row-' + id)?.remove();
                 pdToast('Entrega excluída.');
             } else {
                 pdToast(data.message || 'Erro ao excluir.', 'error');
@@ -775,8 +776,8 @@ document.addEventListener('click', async function(e) {
         if (!confirmed) return;
 
         // Find both desktop row and mobile card
-        const row  = document.getElementById('row-' + id);
-        const card = document.getElementById('row-' + id); // same ID used for both
+        const row  = document.getElementById('desktop-row-' + id);
+        const card = document.getElementById('mobile-row-' + id);
         const btns = document.querySelectorAll(`.btn-approve[data-id="${id}"], .btn-reject[data-id="${id}"]`);
         btns.forEach(b => b.disabled = true);
 
@@ -789,14 +790,14 @@ document.addEventListener('click', async function(e) {
             if (data.success) {
                 pdToast(data.message);
                 // Update badge everywhere
-                document.querySelectorAll(`#row-${id} .badge-status`).forEach(badge => {
+                document.querySelectorAll(`[data-delivery-id="${id}"] .badge-status`).forEach(badge => {
                     badge.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
                     badge.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
                 });
                 // Update actions and add checkbox if approved
                 if (action === 'approve') {
                     // Desktop: update action cell
-                    const rowEl = document.querySelector(`#desktop-tbody #row-${id}`);
+                    const rowEl = document.getElementById('desktop-row-' + id);
                     if (rowEl) {
                         const actionCell = rowEl.querySelector('.action-btns');
                         if (actionCell) {
@@ -809,7 +810,7 @@ document.addEventListener('click', async function(e) {
                         rowEl.classList.add('approved-row');
                     }
                     // Mobile: update actions
-                    const cardEl = document.querySelector(`.mobile-card#row-${id}`);
+                    const cardEl = document.getElementById('mobile-row-' + id);
                     if (cardEl) {
                         const actions = cardEl.querySelector('.mc-actions');
                         if (actions) {
@@ -870,7 +871,7 @@ const DM_PROJECT_PARTICIPANTS = @json($customers->pluck('id')->values()->all());
 EditModal.onSaved = function(d) {
     pdToast('Entrega atualizada!');
     // Update both views
-    const row = document.getElementById('row-' + d.id);
+    const row = document.getElementById('desktop-row-' + d.id) || document.getElementById('mobile-row-' + d.id);
     if (!row) return;
     // Update date
     const dateEl = row.querySelector('.mc-date, td:nth-child(2)');
@@ -884,16 +885,59 @@ EditModal.onSaved = function(d) {
 };
 
 /* ========== DistModal callbacks ========== */
-window._DistModalReload = function() {
+function replaceDeliveryFragments(payload) {
+    const id = payload.delivery_id;
+    if (!id) return false;
+
+    if (payload.desktop) {
+        const wrapper = document.createElement('tbody');
+        wrapper.innerHTML = payload.desktop.trim();
+        const nextDesktop = wrapper.firstElementChild;
+        document.getElementById('desktop-row-' + id)?.replaceWith(nextDesktop);
+    }
+
+    if (payload.mobile) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = payload.mobile.trim();
+        const nextMobile = wrapper.firstElementChild;
+        document.getElementById('mobile-row-' + id)?.replaceWith(nextMobile);
+    }
+
+    lucide.createIcons();
+    updateSelectionBar();
+    applyFilters();
+    return true;
+}
+
+async function refreshDeliveryItem(id) {
+    const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/deliveries/${id}/fragment`, {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Erro ao atualizar item.');
+    replaceDeliveryFragments(data);
+}
+
+window._DistModalReload = async function(data) {
+    const id = data?.delivery_id;
     pdToast('Distribuição salva!');
-    setTimeout(() => location.reload(), 600);
+    if (!id) return;
+
+    try {
+        await refreshDeliveryItem(id);
+    } catch (e) {
+        pdToast(e.message || 'Distribuicao salva, mas nao foi possivel atualizar o item.', 'error');
+    }
 };
 window._DistModalOnDelete = function(receptionId, data) {
     pdToast('Distribuição removida.');
-    const distQty = data.dist_total_qty || 0;
-    // Update indicator on both views
-    document.querySelectorAll(`#row-${receptionId} .dist-indicator, #row-${receptionId} .mc-dist-indicator`).forEach(indicator => {
-        updateDistIndicator(indicator, indicator.closest('[data-total-qty]')?.dataset?.totalQty, distQty, '');
+    const id = receptionId || data?.parent_delivery_id;
+    if (!id) return;
+    refreshDeliveryItem(id).catch(() => {
+        const distQty = data.dist_total_qty || 0;
+        document.querySelectorAll(`[data-delivery-id="${id}"] .dist-indicator, [data-delivery-id="${id}"] .mc-dist-indicator`).forEach(indicator => {
+            updateDistIndicator(indicator, indicator.closest('[data-total-qty]')?.dataset?.totalQty, distQty, '');
+        });
     });
 };
 

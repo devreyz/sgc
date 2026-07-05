@@ -5,7 +5,8 @@ $distPercent = $totalQty > 0 ? min(round(($distQty / $totalQty) * 100), 100) : 0
 $overDistributed = $distQty > $totalQty;
 $distDisplayPercent = $overDistributed ? 100 : $distPercent;
 @endphp
-<tr id="row-{{ $delivery['id'] }}"
+<tr id="desktop-row-{{ $delivery['id'] }}"
+    data-delivery-id="{{ $delivery['id'] }}"
     class="{{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}"
     data-total-qty="{{ $totalQty }}"
     data-unit="{{ $delivery['unit'] }}"

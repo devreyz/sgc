@@ -40,7 +40,7 @@
     width: 100%;
     max-width: none;
     margin: 0 auto;
-    padding: 0.75rem 1rem 3rem;
+    padding: 0.75rem 1rem 1rem;
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
@@ -61,14 +61,15 @@
 .card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    box-shadow: none;
     min-width: 0;
 }
 .card-header {
-    padding: 0.875rem 1rem 0;
+    padding: 0.9rem 1rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
@@ -83,35 +84,36 @@
 .history-card {
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 @media (min-width: 900px) {
     .entry-card {
         position: sticky;
         top: 1rem;
+        align-self: start;
     }
     .history-card {
-        min-height: calc(100vh - 10rem);
+        min-height: calc(100vh - 8.5rem);
     }
 }
 
 /* ─── Project bar ────────────────────────────────── */
 .project-bar {
-    width: calc(100% - 2rem);
+    width: 100%;
     max-width: none;
-    margin: 0.75rem auto 0;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.875rem 1rem;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-sm);
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+    box-shadow: none;
 }
 @media (max-width: 560px) {
     .project-bar {
-        width: calc(100% - 1rem);
-        margin-top: 0.5rem;
         padding: 0.75rem;
         gap: 0.6rem;
     }
@@ -146,10 +148,10 @@
 }
 .project-bar-btn {
     flex-shrink: 0;
-    padding: 0.4rem 0.75rem;
+    padding: 0.45rem 0.75rem;
     border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--color-primary) 28%, var(--color-border));
+    background: var(--color-surface);
     font-size: 0.8rem;
     color: var(--color-text);
     cursor: pointer;
@@ -157,7 +159,7 @@
     white-space: nowrap;
 }
 .project-bar-btn:hover {
-    background: var(--color-border);
+    background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
 }
 
 /* ─── Selector rows ──────────────────────────────── */
@@ -168,19 +170,19 @@
     padding: 0.75rem 1rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface) 50%, #f8f9fa);
+    background: var(--color-surface);
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s;
     user-select: none;
 }
-.selector-row:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)); }
-.selector-row.selected { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); }
+.selector-row:hover { border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border)); background: color-mix(in srgb, var(--color-primary) 3%, var(--color-surface)); }
+.selector-row.selected { border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border)); background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)); }
 .selector-row.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
 .sel-icon {
     width: 32px;
     height: 32px;
-    border-radius: 50%;
-    background: var(--color-border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-border) 70%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -273,7 +275,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
-    border-left: 4px solid transparent;
+    border-left: 3px solid transparent;
     min-width: 0;
 }
 .mobile-card.status-pending  { border-left-color: #f59e0b; }
@@ -286,7 +288,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.45rem 0.65rem;
-    background: var(--color-bg);
+    background: color-mix(in srgb, var(--color-border) 25%, var(--color-surface));
     border-bottom: 1px solid var(--color-border);
     min-width: 0;
 }
@@ -345,7 +347,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--color-bg);
+    background: color-mix(in srgb, var(--color-border) 25%, var(--color-surface));
     padding: 0.35rem 0.5rem;
     border-radius: 6px;
     min-width: 0;
@@ -448,7 +450,7 @@
 /* Session list */
 #session-list {
     flex: 1;
-    min-height: 60px;
+    min-height: 0;
     padding: 0.6rem;
     display: grid;
     grid-template-columns: 1fr;
@@ -626,6 +628,41 @@
 .toast.error   { background: var(--color-danger); }
 .toast.info    { background: #374151; }
 @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.scroll-top-btn {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 8500;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+    background: var(--color-surface);
+    color: var(--color-primary);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity 0.18s ease, transform 0.18s ease, background 0.15s ease;
+}
+.scroll-top-btn.visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+.scroll-top-btn:hover {
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-surface));
+}
+@media (max-width: 899px) {
+    .scroll-top-btn {
+        display: flex;
+    }
+}
 </style>
 
 <div class="reg-page">
@@ -759,6 +796,10 @@
 
 {{-- ─────────────────── MODALS ──────────────────── --}}
 
+<button type="button" class="scroll-top-btn" id="scroll-top-btn" onclick="scrollToRegisterTop()" aria-label="Voltar ao topo">
+    <i data-lucide="arrow-up" style="width:18px;height:18px"></i>
+</button>
+
 {{-- Project modal --}}
 <div class="modal-overlay" id="modal-project" onclick="closeModalOnBackdrop(event, 'project')">
     <div class="modal-box">
@@ -883,6 +924,8 @@ const S = {
     items             : [],
     loadingProjectId  : null,
     loadingDeliveries : false,
+    dateConfirmed     : false,
+    keyboardStage     : 'project',
 };
 
 /* ─── DOM refs ───────────────────────────────────── */
@@ -928,14 +971,17 @@ document.addEventListener('keydown', function(e) {
 
     if (e.key === 'ArrowDown') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         const idx = modalHighlightIndex[type] + 1;
         highlightModalItem(type, idx);
     } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         const idx = modalHighlightIndex[type] - 1;
         highlightModalItem(type, idx);
     } else if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopImmediatePropagation();
         selectModalHighlight(type);
     }
 });
@@ -966,6 +1012,8 @@ function init() {
     }
     bindQualityPills();
     bindQtyInput();
+    bindScrollTopButton();
+    syncKeyboardStage();
 }
 
 /* ─── Project ────────────────────────────────────── */
@@ -986,6 +1034,7 @@ function applyProject(proj) {
         S.product = null;
         resetProductSelector();
     }
+    syncKeyboardStage();
     loadProjectDeliveries(proj.id);
 }
 
@@ -1035,11 +1084,13 @@ async function loadDemands(projectId) {
 /* ─── Associate ──────────────────────────────────── */
 function selectAssociate(assoc) {
     S.associate = assoc;
+    S.dateConfirmed = false;
     $('sel-assoc').classList.add('selected');
     $('assoc-value').textContent = assoc.nickname || assoc.name;
     closeModal('assoc');
     checkFormReady();
     renderSessionItems();
+    syncKeyboardStage();
 }
 
 /* ─── Product ────────────────────────────────────── */
@@ -1061,6 +1112,7 @@ function selectProduct(demand) {
     $('f-unit-lbl').textContent = '(' + (demand.product_unit || 'un') + ')';
     closeModal('product');
     checkFormReady();
+    syncKeyboardStage();
 }
 
 function resetProductSelector() {
@@ -1070,6 +1122,7 @@ function resetProductSelector() {
     $('product-value').textContent = 'Nenhum selecionado';
     $('product-meta').style.display = 'none';
     checkFormReady();
+    syncKeyboardStage();
 }
 
 /* ─── Form logic ─────────────────────────────────── */
@@ -1089,6 +1142,8 @@ function onDateChange(val) {
     const [y, m, d] = val.split('-');
     $('date-display').textContent = d + '/' + m + '/' + y;
     $('sel-date').classList.add('selected');
+    S.dateConfirmed = true;
+    syncKeyboardStage();
 }
 
 function focusDateInput() {
@@ -1125,6 +1180,26 @@ function checkFormReady() {
     } else {
         selProd.classList.add('disabled');
     }
+}
+
+function syncKeyboardStage() {
+    if (!S.project) {
+        S.keyboardStage = 'project';
+        return;
+    }
+    if (!S.associate) {
+        S.keyboardStage = 'associate';
+        return;
+    }
+    if (!S.dateConfirmed) {
+        S.keyboardStage = 'date';
+        return;
+    }
+    if (!S.product) {
+        S.keyboardStage = 'product';
+        return;
+    }
+    S.keyboardStage = 'qty';
 }
 
 /* ─── Submit ─────────────────────────────────────── */
@@ -1562,6 +1637,19 @@ window._DistModalReload = function(data) {
 };
 
 /* ─── Modals ─────────────────────────────────────── */
+window._DistModalOnDelete = function(receptionId, data) {
+    const id = receptionId || data?.parent_delivery_id;
+    const item = S.items.find(i => i.id === id);
+    if (!item) return;
+
+    item.distributedQty = data.dist_total_qty || 0;
+    item.dist_net_value = data.dist_total_net || 0;
+    item.distributions = (item.distributions || []).filter(d => String(d.id) !== String(data.deleted_id));
+
+    renderSessionItems();
+    toast('Distribuicao removida.', 'success');
+};
+
 function openModal(type) {
     if (type === 'product' && !S.project) {
         toast('Selecione um projeto primeiro.', 'info');
@@ -1600,7 +1688,7 @@ function filterList(type) {
 
 function renderModalList(type) {
     const list   = $('list-' + type);
-    const search = ($('search-' + type)?.value || '').toLowerCase().trim();
+    const search = normalizeSearch($('search-' + type)?.value || '');
 
     if (type === 'project') {
         renderProjectList(list, search);
@@ -1616,8 +1704,8 @@ function renderModalList(type) {
 function renderProjectList(list, search) {
     const items = ALL_PROJECTS.filter(p =>
         !search ||
-        p.title.toLowerCase().includes(search) ||
-        (p.customer_name || '').toLowerCase().includes(search)
+        normalizeSearch(p.title).includes(search) ||
+        normalizeSearch(p.customer_name || '').includes(search)
     );
     if (items.length === 0) {
         list.innerHTML = '<div class="modal-empty">Nenhum projeto encontrado</div>';
@@ -1643,9 +1731,9 @@ function renderProjectList(list, search) {
 function renderAssocList(list, search) {
     const items = ALL_ASSOCIATES.filter(a =>
         !search ||
-        a.name.toLowerCase().includes(search) ||
-        (a.nickname || '').toLowerCase().includes(search) ||
-        (a.registration_number || '').toLowerCase().includes(search)
+        normalizeSearch(a.name).includes(search) ||
+        normalizeSearch(a.nickname || '').includes(search) ||
+        normalizeSearch(a.registration_number || '').includes(search)
     );
     if (items.length === 0) {
         list.innerHTML = '<div class="modal-empty">Nenhum associado encontrado</div>';
@@ -1679,7 +1767,7 @@ function renderProductList(list, search) {
     }
     const items = S.demands.filter(d =>
         !search ||
-        d.product_name.toLowerCase().includes(search)
+        normalizeSearch(d.product_name).includes(search)
     );
     if (items.length === 0) {
         list.innerHTML = '<div class="modal-empty">Nenhum produto encontrado</div>';
@@ -1720,9 +1808,64 @@ function selectProject(proj) {
 }
 
 /* ─── Keyboard ─────────────────────────────────── */
+function hasOpenModal() {
+    return !!document.querySelector('.modal-overlay.open');
+}
+
+function isTypingField(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toUpperCase();
+    return el.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+}
+
+function isInteractiveControl(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toUpperCase();
+    if (tag === 'BUTTON' || tag === 'A') return true;
+    return !!(el.closest && el.closest('[role="button"]'));
+}
+
+function nextRegisterStep() {
+    if (!S.associate) {
+        openModal('assoc');
+        return;
+    }
+    if (!S.dateConfirmed) {
+        focusDateInput();
+        return;
+    }
+    if (!S.product) {
+        if (!S.project) {
+            openModal('project');
+            return;
+        }
+        openModal('product');
+        return;
+    }
+
+    const qty = $('f-qty');
+    if (qty) qty.focus();
+}
+
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         ['project', 'assoc', 'product', 'edit', 'dist'].forEach(t => closeModal(t));
+        return;
+    }
+
+    if (hasOpenModal()) return;
+
+    if (e.key === 'Enter') {
+        if (isInteractiveControl(e.target)) return;
+        e.preventDefault();
+        submitEntry();
+        return;
+    }
+
+    if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+        if (isTypingField(e.target) || isInteractiveControl(e.target)) return;
+        e.preventDefault();
+        nextRegisterStep();
     }
 });
 
@@ -1740,6 +1883,31 @@ function initials(name) {
     return (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
+function normalizeSearch(value) {
+    return (value || '')
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function bindScrollTopButton() {
+    const btn = $('scroll-top-btn');
+    if (!btn) return;
+
+    const toggle = () => {
+        btn.classList.toggle('visible', window.scrollY > 360);
+    };
+
+    toggle();
+    window.addEventListener('scroll', toggle, { passive: true });
+}
+
+function scrollToRegisterTop() {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 /* ─── Boot ───────────────────────────────────────── */
 init();
 checkFormReady();
@@ -1755,6 +1923,7 @@ window.focusDateInput       = focusDateInput;
 window.renderSessionItems   = renderSessionItems;
 window.clearFilter          = clearFilter;
 window.onDateChange         = onDateChange;
+window.scrollToRegisterTop  = scrollToRegisterTop;
 window.addDistRegRow        = function() {};
 window.saveDist             = function() {};
 

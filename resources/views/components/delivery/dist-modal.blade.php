@@ -322,6 +322,18 @@ function focusQtyInput(currentInput, direction) {
     }
 }
 
+function syncOpenButtonsAfterDelete(deliveryId, distributionId, data) {
+    if (!deliveryId) return;
+    document.querySelectorAll(`.btn-distribute[data-id="${deliveryId}"]`).forEach(btn => {
+        let existing = [];
+        try { existing = JSON.parse(btn.dataset.existing || '[]'); } catch {}
+        btn.dataset.existing = JSON.stringify(existing.filter(item => String(item.id) !== String(distributionId)));
+        if (data && data.dist_total_qty !== undefined) {
+            btn.dataset.distributed = data.dist_total_qty;
+        }
+    });
+}
+
 /* ── Progress update (called on every input event) ─────────────────── */
 function updateProgress() {
     const newRows  = $('dm-new-rows').querySelectorAll('.dm-row');
@@ -516,6 +528,7 @@ window.DistModal = {
             if (data.success) {
                 // Remove row from UI
                 document.getElementById('dmex-' + distributionId)?.remove();
+                syncOpenButtonsAfterDelete(_id, distributionId, data);
                 // Update _distQty
                 _distQty  = data.dist_total_qty;
                 // Check if existing section is now empty

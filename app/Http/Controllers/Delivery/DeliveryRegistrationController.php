@@ -40,6 +40,45 @@ class DeliveryRegistrationController extends Controller
         return $tenantId ? Tenant::find($tenantId) : null;
     }
 
+    private function deliveryViewData(ProductionDelivery $delivery): array
+    {
+        $productName = $delivery->projectDemand?->product?->name
+            ?? $delivery->product?->name
+            ?? '-';
+        $unit = $delivery->projectDemand?->product?->unit
+            ?? $delivery->product?->unit
+            ?? 'un';
+
+        $distributions = $delivery->distributions->map(fn ($d) => [
+            'id'          => $d->id,
+            'customer_id' => $d->customer_id,
+            'customer'    => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
+            'qty'         => (float) $d->quantity,
+            'net'         => (float) $d->net_value,
+            'billed'      => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
+        ]);
+
+        return [
+            'id'                => $delivery->id,
+            'associate_name'    => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
+            'product_name'      => $productName,
+            'delivery_date'     => $delivery->delivery_date?->format('d/m/Y') ?? '-',
+            'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
+            'quantity'          => (float) $delivery->quantity,
+            'unit'              => $unit,
+            'unit_price'        => (float) $delivery->unit_price,
+            'net_value'         => (float) $delivery->net_value,
+            'dist_net_value'    => (float) $distributions->sum('net'),
+            'quality_grade'     => $delivery->quality_grade ?? '',
+            'notes'             => $delivery->notes ?? '',
+            'status'            => $delivery->status->getLabel(),
+            'status_value'      => $delivery->status->value,
+            'distributions'     => $distributions->toArray(),
+            'distributed_qty'   => (float) $distributions->sum('qty'),
+            'has_billed'        => $distributions->contains('billed', true),
+        ];
+    }
+
     /**
      * Show delivery dashboard with all active/draft projects
      */
@@ -332,6 +371,7 @@ class DeliveryRegistrationController extends Controller
             return response()->json([
                 'success'      => true,
                 'message'      => count($created) . ' distribuição(ões) criada(s).',
+                'delivery_id'   => $reception->id,
                 'created_ids'  => $created,
             ]);
         } catch (\Exception $e) {
@@ -377,6 +417,8 @@ class DeliveryRegistrationController extends Controller
         return response()->json([
             'success'          => true,
             'message'          => 'Distribuição removida.',
+            'parent_delivery_id' => $parentId,
+            'deleted_id'       => $distributionId,
             'dist_total_qty'   => (float) $distTotal,
             'dist_total_net'   => (float) $distNetTotal,
         ]);
@@ -1001,43 +1043,7 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($delivery) {
-                $productName = $delivery->projectDemand?->product?->name
-                    ?? $delivery->product?->name
-                    ?? '-';
-                $unit = $delivery->projectDemand?->product?->unit
-                    ?? $delivery->product?->unit
-                    ?? 'un';
-
-                $distributions = $delivery->distributions->map(fn($d) => [
-                    'id'       => $d->id,
-                    'customer_id' => $d->customer_id,
-                    'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
-                    'qty'      => (float) $d->quantity,
-                    'net'      => (float) $d->net_value,
-                    'billed'   => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
-                ]);
-
-                return [
-                    'id'               => $delivery->id,
-                    'associate_name'   => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
-                    'product_name'     => $productName,
-                    'delivery_date'    => $delivery->delivery_date?->format('d/m/Y') ?? '-',
-                    'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
-                    'quantity'         => (float) $delivery->quantity,
-                    'unit'             => $unit,
-                    'unit_price'       => (float) $delivery->unit_price,
-                    'net_value'        => (float) $delivery->net_value,
-                    'dist_net_value'   => (float) $distributions->sum('net'),
-                    'quality_grade'    => $delivery->quality_grade ?? '',
-                    'notes'            => $delivery->notes ?? '',
-                    'status'           => $delivery->status->getLabel(),
-                    'status_value'     => $delivery->status->value,
-                    'distributions'    => $distributions->toArray(),
-                    'distributed_qty'  => (float) $distributions->sum('qty'),
-                    'has_billed'       => $distributions->contains('billed', true),
-                ];
-            });
+            ->map(fn ($delivery) => $this->deliveryViewData($delivery));
 
         // Show only the project's additional customers in the distribution modal.
         // Fall back to all tenant customers when no participants are configured.
@@ -1056,6 +1062,46 @@ class DeliveryRegistrationController extends Controller
         $currentTenant = $this->currentTenant();
 
         return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant', 'customers'));
+    }
+
+    public function projectDeliveryFragment()
+    {
+        $projectId = (int) request()->route('project');
+        $deliveryId = (int) request()->route('delivery');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)
+            ->with('customers')
+            ->findOrFail($projectId);
+
+        $deliveryModel = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->whereNull('parent_delivery_id')
+            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer'])
+            ->findOrFail($deliveryId);
+
+        $projectCustomers = $project->customers;
+        if ($projectCustomers->isNotEmpty()) {
+            $customers = $projectCustomers->sortBy('name')->values();
+        } else {
+            $customers = Customer::where('tenant_id', $tenantId)
+                ->where('status', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'trade_name']);
+        }
+
+        $delivery = $this->deliveryViewData($deliveryModel);
+
+        return response()->json([
+            'success' => true,
+            'delivery_id' => $deliveryModel->id,
+            'desktop' => view('delivery.partials.project-delivery-row', compact('delivery', 'customers'))->render(),
+            'mobile' => view('delivery.partials.project-delivery-mobile-card', compact('delivery', 'customers'))->render(),
+        ]);
     }
 
     /**
