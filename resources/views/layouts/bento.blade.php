@@ -9,6 +9,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <!-- Styles -->
     <style>
@@ -48,13 +49,12 @@
         body {
             font-family: 'Inter', sans-serif;
             background: rgba(249, 250, 251, 0.6);
-            rgba(var(--color-bg-rgb, 249 250 251), 0.6)
             color: var(--color-text);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             width: 100%;
-            max-height: 100dvh;
+            min-height: 100dvh;
             max-width: 100vw;
             overflow-x: hidden;
         }
@@ -853,6 +853,727 @@
             background: var(--color-border);
             margin: 1rem 0;
         }
+
+        .btn-hub svg {
+            color: var(--color-primary);
+        }
+
+        .header-titles-carousel {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            height: 1.5rem;
+        }
+
+        .header-title-main,
+        .header-title-tenant {
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .header-title-main {
+            color: var(--color-text);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .header-title-tenant {
+            color: var(--color-primary);
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .app-alert {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+        }
+
+        .app-alert-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            border-radius: 999px;
+            color: #fff;
+        }
+
+        .app-alert p {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .app-alert-success {
+            border-color: rgba(16, 185, 129, 0.2) !important;
+            background: rgba(16, 185, 129, 0.05) !important;
+        }
+
+        .app-alert-success .app-alert-icon {
+            background: var(--color-success);
+        }
+
+        .app-alert-success p {
+            color: var(--color-primary-dark);
+        }
+
+        .app-alert-error {
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            background: rgba(239, 68, 68, 0.05) !important;
+        }
+
+        .app-alert-error .app-alert-icon {
+            background: var(--color-danger);
+        }
+
+        .app-alert-error p {
+            color: #b91c1c;
+        }
+
+        @unless(request()->routeIs('pdv.*') || request()->is('pdv*') || request()->is('*/pdv*'))
+        /* SGC App Shell v2 - shared portal theme */
+        :root {
+            --color-primary: #22c55e;
+            --color-primary-dark: #16a34a;
+            --color-primary-light: #dcfce7;
+            --color-primary-50: #f0fdf4;
+            --color-secondary: #0ea5e9;
+            --color-accent: #0ea5e9;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+            --color-success: #22c55e;
+            --color-info: #0ea5e9;
+            --color-bg: #f8fafc;
+            --color-surface: #ffffff;
+            --color-surface-soft: #f8fafc;
+            --color-border: #e2e8f0;
+            --color-border-soft: #f1f5f9;
+            --color-text: #0f172a;
+            --color-text-secondary: #64748b;
+            --color-text-muted: #94a3b8;
+            --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.05), 0 2px 4px rgba(15, 23, 42, 0.04);
+            --shadow-lg: 0 14px 34px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.04);
+            --shadow-xl: 0 24px 60px rgba(15, 23, 42, 0.14);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --app-header-height: 68px;
+            --app-bottom-nav-height: 72px;
+            --app-content-max: 1440px;
+        }
+
+        html {
+            background: var(--color-bg);
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 18% 0%, rgba(34, 197, 94, 0.10), transparent 28rem),
+                radial-gradient(circle at 92% 8%, rgba(14, 165, 233, 0.10), transparent 30rem),
+                linear-gradient(180deg, #f8fafc 0%, #eef7f2 100%);
+            color: var(--color-text);
+            min-height: 100dvh;
+        }
+
+        body::before {
+            background-image:
+                linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px);
+            background-size: 22px 22px;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 80%);
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 920;
+            min-height: var(--app-header-height);
+            padding: 0.65rem max(1rem, env(safe-area-inset-left));
+            background: rgba(255, 255, 255, 0.86);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.88);
+            box-shadow: var(--shadow-xs);
+            backdrop-filter: blur(18px) saturate(1.18);
+        }
+
+        .header-content {
+            max-width: var(--app-content-max);
+            min-height: 48px;
+            width: 100%;
+            gap: 1rem;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            gap: 0.75rem;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .btn-hub {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            gap: 0.4rem;
+            min-height: 42px;
+            padding: 0.3rem 0.65rem !important;
+            border-radius: 999px !important;
+            border-color: rgba(226, 232, 240, 0.95) !important;
+            background: rgba(248, 250, 252, 0.9) !important;
+            box-shadow: var(--shadow-xs);
+            color: var(--color-text);
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .btn-hub svg {
+            color: var(--color-primary);
+        }
+
+        .btn-hub:hover {
+            background: var(--color-primary-50) !important;
+            border-color: rgba(34, 197, 94, 0.32) !important;
+            color: var(--color-primary-dark);
+        }
+
+        .header-titles-carousel {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            height: 1.5rem;
+            padding-left: 0.15rem;
+        }
+
+        .carousel-item {
+            line-height: 1.35;
+            letter-spacing: 0;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .header-title-main {
+            color: var(--color-text);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .header-title-tenant {
+            color: var(--color-primary-dark);
+            font-size: 0.95rem;
+            font-weight: 700;
+        }
+
+        .header-user {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            min-height: 48px;
+            padding: 0.25rem 0.3rem 0.25rem 0.75rem;
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.72);
+            box-shadow: var(--shadow-xs);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+        }
+
+        .header-user:hover {
+            background: var(--color-primary-50);
+            border-color: rgba(34, 197, 94, 0.25);
+            box-shadow: var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 14px;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            box-shadow: 0 8px 18px rgba(34, 197, 94, 0.16);
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+
+        .header-user:hover .user-avatar {
+            transform: none;
+        }
+
+        .user-info {
+            min-width: 0;
+            max-width: 180px;
+            text-align: right;
+        }
+
+        .user-name {
+            color: var(--color-text);
+            font-weight: 700;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-role {
+            color: var(--color-text-secondary);
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.84);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(18px) saturate(1.12);
+            scrollbar-width: none;
+        }
+
+        .nav-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-tabs form {
+            margin: 0 !important;
+        }
+
+        .nav-tab {
+            min-height: 40px;
+            color: var(--color-text-secondary);
+            font-size: 0.84rem;
+            font-weight: 700;
+            letter-spacing: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0.5rem;
+            border: 1px solid transparent;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            background: var(--color-primary-50);
+            color: var(--color-primary-dark) !important;
+        }
+
+        .nav-tab.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff !important;
+            box-shadow: 0 10px 22px rgba(34, 197, 94, 0.24);
+        }
+
+        .nav-tab button,
+        button.nav-tab {
+            font: inherit;
+        }
+
+        @media (min-width: 1024px) {
+            .nav-tabs {
+                position: fixed;
+                top: calc(var(--app-header-height) + 1rem);
+                left: max(1rem, calc((100vw - var(--app-content-max)) / 2 + 1rem));
+                z-index: 850;
+                width: 232px;
+                max-height: calc(100dvh - var(--app-header-height) - 2rem);
+                padding: 0.55rem;
+                border-radius: 24px;
+                flex-direction: column;
+                gap: 0.35rem;
+                overflow-y: auto;
+            }
+
+            .nav-tabs form {
+                display: block;
+                width: 100%;
+            }
+
+            .nav-tab {
+                width: 100%;
+                min-height: 44px;
+                padding: 0.62rem 0.75rem;
+                border-radius: 16px;
+            }
+
+            button.nav-tab {
+                cursor: pointer;
+                text-align: left;
+            }
+
+            body.has-app-nav .bento-container {
+                padding-left: min(264px, 19vw);
+            }
+        }
+
+        .bento-container {
+            max-width: var(--app-content-max);
+            min-height: calc(100dvh - var(--app-header-height));
+            padding: 1rem;
+            padding-bottom: 1.5rem;
+        }
+
+        .app-alert {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-lg);
+        }
+
+        .app-alert-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            flex-shrink: 0;
+            border-radius: 999px;
+            color: #fff;
+        }
+
+        .app-alert p {
+            margin: 0;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .app-alert-success {
+            border-color: rgba(34, 197, 94, 0.24) !important;
+            background: rgba(240, 253, 244, 0.94) !important;
+        }
+
+        .app-alert-success .app-alert-icon {
+            background: var(--color-success);
+        }
+
+        .app-alert-success p {
+            color: var(--color-primary-dark);
+        }
+
+        .app-alert-error {
+            border-color: rgba(239, 68, 68, 0.22) !important;
+            background: rgba(254, 242, 242, 0.94) !important;
+        }
+
+        .app-alert-error .app-alert-icon {
+            background: var(--color-danger);
+        }
+
+        .app-alert-error p {
+            color: #b91c1c;
+        }
+
+        .bento-grid {
+            gap: 1rem;
+        }
+
+        @media (min-width: 1024px) {
+            .bento-container {
+                padding-top: 1.35rem;
+                padding-right: 1.5rem;
+                padding-bottom: 2rem;
+            }
+
+            .bento-grid {
+                gap: 1.1rem;
+            }
+        }
+
+        .bento-card,
+        .pd-card,
+        .card,
+        .reports-bar,
+        .pd-header,
+        .pd-stat,
+        .mobile-card {
+            border-color: rgba(226, 232, 240, 0.9) !important;
+            border-radius: var(--radius-lg) !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            box-shadow: var(--shadow-sm) !important;
+            backdrop-filter: blur(12px);
+        }
+
+        .bento-card {
+            padding: 1.1rem;
+        }
+
+        .bento-card:hover,
+        .pd-card:hover,
+        .mobile-card:hover {
+            box-shadow: var(--shadow-md) !important;
+            transform: translateY(-1px);
+        }
+
+        .pd-card-header,
+        .card-header {
+            background: linear-gradient(180deg, rgba(248, 250, 252, 0.9), rgba(255, 255, 255, 0.9));
+            border-bottom-color: rgba(226, 232, 240, 0.9) !important;
+        }
+
+        .btn,
+        .btn-primary,
+        .btn-secondary,
+        .btn-outline,
+        .btn-success,
+        .btn-danger,
+        .report-btn,
+        .project-bar-btn,
+        .btn-approve,
+        .btn-reject,
+        .btn-edit,
+        .btn-distribute,
+        .btn-delete-approved {
+            border-radius: var(--radius-md) !important;
+            font-weight: 700;
+            letter-spacing: 0;
+            transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease;
+        }
+
+        .btn:hover,
+        .report-btn:hover,
+        .project-bar-btn:hover,
+        .btn-approve:hover,
+        .btn-reject:hover,
+        .btn-edit:hover,
+        .btn-distribute:hover,
+        .btn-delete-approved:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary,
+        .btn-success {
+            background: var(--color-primary) !important;
+            color: #fff !important;
+        }
+
+        .btn-primary:hover,
+        .btn-success:hover {
+            background: var(--color-primary-dark) !important;
+        }
+
+        input,
+        select,
+        textarea,
+        .form-control,
+        .field-input,
+        .filter-input,
+        .filter-select,
+        .modal-search {
+            border-color: var(--color-border) !important;
+            border-radius: var(--radius-md) !important;
+            background-color: rgba(248, 250, 252, 0.92) !important;
+            color: var(--color-text) !important;
+            box-shadow: none;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus,
+        .form-control:focus,
+        .field-input:focus,
+        .filter-input:focus,
+        .filter-select:focus,
+        .modal-search:focus {
+            outline: none !important;
+            border-color: var(--color-primary) !important;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14) !important;
+            background-color: #fff !important;
+        }
+
+        .table-container,
+        .table-scroll {
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            background: #fff;
+        }
+
+        .table,
+        .data-table {
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table th,
+        .data-table th {
+            background: #f8fafc !important;
+            color: var(--color-text-secondary) !important;
+            letter-spacing: 0.04em;
+        }
+
+        .table td,
+        .data-table td {
+            border-bottom-color: rgba(226, 232, 240, 0.72) !important;
+        }
+
+        .badge,
+        .badge-status,
+        .mi-badge {
+            border-radius: 999px !important;
+            font-weight: 800;
+            letter-spacing: 0;
+        }
+
+        .user-menu-sheet {
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(226, 232, 240, 0.86);
+            backdrop-filter: blur(18px);
+        }
+
+        .user-menu-header {
+            background:
+                radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.28), transparent 12rem),
+                linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+        }
+
+        .user-menu-item {
+            border-radius: var(--radius-lg);
+        }
+
+        @media (max-width: 767px) {
+            :root {
+                --app-header-height: 58px;
+            }
+
+            body.has-app-nav {
+                padding-bottom: calc(var(--app-bottom-nav-height) + env(safe-area-inset-bottom));
+            }
+
+            .header {
+                min-height: var(--app-header-height);
+                padding: 0.45rem 0.75rem;
+            }
+
+            .header-content {
+                min-height: 44px;
+            }
+
+            .btn-hub {
+                min-width: 42px;
+                width: 42px;
+                padding: 0 !important;
+            }
+
+            .btn-hub span {
+                display: none;
+            }
+
+            .header-titles-carousel {
+                height: 1.35rem !important;
+            }
+
+            .carousel-item {
+                font-size: 0.92rem !important;
+            }
+
+            .header-user {
+                min-height: 42px;
+                width: 42px;
+                padding: 0;
+                border-radius: 15px;
+            }
+
+            .user-avatar {
+                width: 38px;
+                height: 38px;
+                border-radius: 13px;
+            }
+
+            .nav-tabs {
+                position: fixed;
+                top: auto;
+                left: 0.75rem;
+                right: 0.75rem;
+                bottom: calc(0.55rem + env(safe-area-inset-bottom));
+                z-index: 850;
+                width: auto;
+                margin: 0;
+                min-height: 58px;
+                padding: 0.35rem;
+                border-radius: 22px;
+                justify-content: flex-start;
+                overflow-x: auto;
+                box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
+            }
+
+            .nav-tabs form {
+                display: contents;
+            }
+
+            .nav-tab {
+                min-width: 48px;
+                min-height: 48px;
+                flex: 1 0 auto;
+                max-width: 64px;
+                padding: 0;
+                border-radius: 17px;
+                font-size: 0;
+                justify-content: center;
+                gap: 0;
+            }
+
+            .nav-tab i,
+            .nav-tab svg {
+                width: 21px !important;
+                height: 21px !important;
+                flex-shrink: 0;
+                margin: 0 !important;
+            }
+
+            .bento-container {
+                padding: 0.85rem 0.75rem 1.25rem !important;
+            }
+
+            .bento-grid {
+                gap: 0.75rem;
+            }
+
+            .bento-card,
+            .pd-card,
+            .card,
+            .reports-bar,
+            .pd-header,
+            .pd-stat,
+            .mobile-card {
+                border-radius: var(--radius-lg) !important;
+            }
+
+            .bento-card {
+                padding: 0.95rem;
+            }
+
+            .table-scroll,
+            .table-container {
+                border-radius: var(--radius-md);
+                margin-left: -0.25rem;
+                margin-right: -0.25rem;
+            }
+
+            .user-menu-sheet {
+                border-radius: 24px 24px 0 0;
+            }
+        }
+        @endunless
     </style>
 
     @stack('styles')
@@ -860,20 +1581,23 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#10b981">
+    <meta name="theme-color" content="#22c55e">
     <link rel="apple-touch-icon" href="/icons/icon-192.svg">
 </head>
-<body>
+@php
+    $portalNavigation = trim($__env->yieldContent('navigation'));
+@endphp
+<body class="{{ $portalNavigation !== '' ? 'has-app-nav' : '' }}">
     <!-- Header -->
     <header class="header">
         <div class="header-content">
-            <div class="header-left" style="overflow: hidden; flex: 1; display: flex; align-items: center; gap: 0.75rem; min-width: 0;">
-                <a href="{{ route('home') }}" class="btn-hub" title="Página Inicial" style="flex-shrink: 0; padding: 0.3rem 0.65rem; font-size: 0.82rem; display: flex; align-items: center; gap: 0.4rem; background: var(--color-bg); border-color: var(--color-border); border-radius: 10px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-primary);">
+            <div class="header-left">
+                <a href="{{ route('home') }}" class="btn-hub" title="Página Inicial">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                     </svg>
-                    <span style="font-weight: 700; color: var(--color-text);">Início</span>
+                    <span>Início</span>
                 </a>
                 
                 @php
@@ -892,12 +1616,12 @@
                     $currentTenantSlug = $currentTenant ? $currentTenant->slug : null;
                 @endphp
 
-                <div class="header-titles-carousel" style="position: relative; height: 1.5rem; flex: 1; min-width: 0;">
-                    <h1 class="carousel-item active" style="margin:0; font-size:1rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div class="header-titles-carousel">
+                    <h1 class="carousel-item header-title-main active">
                         @yield('page-title', 'Dashboard')
                     </h1>
                     @if($currentTenant)
-                        <h1 class="carousel-item" style="margin:0; font-size:0.95rem; font-weight:600; color:var(--color-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        <h1 class="carousel-item header-title-tenant">
                             {{ $currentTenant->name }}
                         </h1>
                     @endif
@@ -1046,25 +1770,25 @@
     </div>
 
     <!-- Navigation -->
-    @yield('navigation')
+    {!! $portalNavigation !!}
 
     <!-- Main Content -->
-    <main class="bento-container" style="padding-top: 0.5rem;">
+    <main class="bento-container">
         @if(session('success'))
-            <div class="bento-card col-span-full" style="padding: 0.75rem 1.25rem; margin-bottom: 1rem; background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-success); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <div class="bento-card app-alert app-alert-success col-span-full">
+                <div class="app-alert-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 </div>
-                <p style="color: var(--color-primary-dark); font-weight: 600; font-size: 0.9rem; margin: 0;">{{ session('success') }}</p>
+                <p>{{ session('success') }}</p>
             </div>
         @endif
 
         @if(session('error'))
-            <div class="bento-card col-span-full" style="padding: 0.75rem 1.25rem; margin-bottom: 1rem; background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2); display: flex; align-items: center; gap: 0.75rem;">
-                <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--color-danger); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <div class="bento-card app-alert app-alert-error col-span-full">
+                <div class="app-alert-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </div>
-                <p style="color: #b91c1c; font-weight: 600; font-size: 0.9rem; margin: 0;">{{ session('error') }}</p>
+                <p>{{ session('error') }}</p>
             </div>
         @endif
 

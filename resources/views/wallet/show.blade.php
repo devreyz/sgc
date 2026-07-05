@@ -16,6 +16,19 @@
         overflow: hidden;
     }
 
+    @media (max-width: 640px) {
+        .membership-card {
+            padding: 1.15rem;
+            border-radius: 18px;
+        }
+
+        .membership-card h3,
+        .membership-card h4,
+        .membership-card p {
+            overflow-wrap: anywhere;
+        }
+    }
+
     .membership-card::before {
         content: '';
         position: absolute;
@@ -59,6 +72,18 @@
     .transaction-item:hover {
         border-color: var(--color-primary);
         transform: translateX(4px);
+    }
+
+    @media (max-width: 640px) {
+        .transaction-item {
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.85rem;
+        }
+
+        .transaction-item:hover {
+            transform: none;
+        }
     }
 
     @media print {

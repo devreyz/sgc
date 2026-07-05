@@ -60,11 +60,12 @@
             max-width: 1200px;
             margin: 0 auto;
             padding: 2rem 1rem;
+            overflow-x: hidden;
         }
 
         @media (max-width: 768px) {
             .print-preview-container {
-                padding: 1rem 0.5rem;
+                padding: 1rem 0.75rem calc(1.25rem + env(safe-area-inset-bottom));
             }
         }
 
@@ -76,6 +77,9 @@
             margin: 0 auto 2rem;
             align-items: center;
             justify-content: center;
+            overflow-x: auto;
+            overscroll-behavior-x: contain;
+            -webkit-overflow-scrolling: touch;
         }
 
         /* Em telas largas, mostrar frente e verso lado a lado */
@@ -93,8 +97,9 @@
         @media (max-width: 480px) {
             .print-area {
                 max-width: 100%;
-                transform: scale(0.9);
-                transform-origin: top center;
+                gap: 1rem;
+                justify-content: flex-start;
+                padding-bottom: 0.35rem;
             }
         }
 
@@ -108,6 +113,14 @@
             position: relative;
             flex-shrink: 0;
             border: 0.1mm solid transparent;
+        }
+
+        @media (max-width: 380px) {
+            .card {
+                transform: scale(0.94);
+                transform-origin: top center;
+                margin-bottom: -0.75rem;
+            }
         }
 
         .card.cut-border {
@@ -519,6 +532,7 @@
             .controls-card {
                 padding: 1rem;
                 margin: 1rem auto 0;
+                border-radius: 18px;
             }
         }
 
@@ -613,8 +627,14 @@
         }
 
         @media (max-width: 480px) {
+            .button-group {
+                gap: 0.6rem;
+            }
+
             .btn-pdf, .btn-close {
-                padding: 0.75rem 1.5rem;
+                justify-content: center;
+                min-height: 46px;
+                padding: 0.75rem 1rem;
                 font-size: 0.9rem;
                 width: 100%;
             }
@@ -664,8 +684,8 @@
         @media print {
             .print-preview-container { background: white; padding: 0; }
             .controls-card, .preview-header { display: none !important; }
-            .card { box-shadow: none; page-break-after: always; }
-            .print-area { margin: 0; }
+            .card { box-shadow: none; page-break-after: always; transform: none !important; }
+            .print-area { margin: 0; overflow: visible; }
         }
     </style>
 
