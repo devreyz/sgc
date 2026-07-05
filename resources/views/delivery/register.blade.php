@@ -226,117 +226,56 @@
 .btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
 .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ─── Session list ───────────────────────────────── */
-.session-empty {
-    text-align: center;
-    padding: 1.5rem;
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-}
-.session-item {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.65rem 1rem;
-    border-bottom: 1px solid var(--color-border);
-}
-.session-item:last-child { border-bottom: none; }
-.si-info { flex: 1; min-width: 0; }
-.si-product { font-size: 0.88rem; font-weight: 600; color: var(--color-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.si-meta { font-size: 0.75rem; color: var(--color-text-muted); margin-top: 1px; }
-.si-qty { font-size: 0.88rem; font-weight: 600; color: var(--color-text); flex-shrink: 0; }
-.si-status {
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.2rem 0.5rem;
-    border-radius: 999px;
-    flex-shrink: 0;
-}
-.si-status.pending { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #b45309; }
-.si-status.approved { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); }
-.si-delete {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--radius-md);
+/* ─── Mobile cards (histórico) ─────────────────── */
+.mobile-card {
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--color-text-muted);
-    flex-shrink: 0;
-    transition: all 0.15s;
-}
-.si-delete:hover { border-color: var(--color-danger); color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
-
-/* Session item action buttons */
-.si-actions { display: flex; gap: 0.25rem; flex-shrink: 0; align-items: center; }
-.si-btn {
-    width: 28px;
-    height: 28px;
     border-radius: var(--radius-md);
-    border: 1px solid var(--color-border);
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.15s;
-    color: var(--color-text-muted);
-}
-.si-btn-approve:hover { border-color: var(--color-primary); color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
-.si-btn-edit:hover    { border-color: #6366f1; color: #6366f1; background: color-mix(in srgb, #6366f1 8%, transparent); }
-.si-btn-dist          { color: #4f46e5; border-color: #c7d2fe; }
-.si-btn-dist:hover    { background: #eef2ff; border-color: #4f46e5; }
-.si-btn-delete:hover  { border-color: var(--color-danger); color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
-.si-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.si-dist-info { font-size: 0.68rem; font-weight: 600; color: #4f46e5; white-space: nowrap; }
-
-/* ─── Session item: card layout ─────────────────── */
-.session-item {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.3rem;
-    padding: 0.7rem 1rem;
-    border-bottom: 1px solid var(--color-border);
-}
-.session-item:last-child { border-bottom: none; }
-.si-row1 { display: flex; align-items: flex-start; gap: 0.5rem; }
-.si-row2 { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.si-product {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--color-text);
-    flex: 1;
-    min-width: 0;
-    line-height: 1.3;
-}
-.si-qty-badge {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--color-text);
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-.si-assoc {
-    font-size: 0.78rem;
-    color: var(--color-text-secondary);
-    font-weight: 500;
-    flex: 1;
-    min-width: 0;
-    white-space: nowrap;
+    margin-bottom: 0.5rem;
     overflow: hidden;
-    text-overflow: ellipsis;
+    border-left: 4px solid transparent;
 }
-.si-date-qual {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    white-space: nowrap;
-    flex-shrink: 0;
+.mobile-card.status-pending  { border-left-color: #f59e0b; }
+.mobile-card.status-approved { border-left-color: #16a34a; }
+.mobile-card.status-rejected { border-left-color: #dc2626; }
+.mobile-card.status-cancelled { border-left-color: #6b7280; }
+
+.badge-status { display:inline-flex; align-items:center; gap:.2rem; padding:.18rem .5rem; border-radius:99px; font-size:.68rem; font-weight:600; text-transform:uppercase; white-space:nowrap; }
+.badge-status.pending  { background:rgba(245,158,11,.14); color:#d97706; }
+.badge-status.approved { background:rgba(16,185,129,.14); color:#059669; }
+.badge-status.rejected { background:rgba(239,68,68,.14); color:#dc2626; }
+.badge-status.cancelled { background:rgba(107,114,128,.14); color:#6b7280; }
+
+/* Ações (mini botões) */
+.btn-approve, .btn-reject, .btn-edit, .btn-distribute, .btn-delete-approved {
+    display:inline-flex; align-items:center; gap:.2rem; font-size:.7rem; font-weight:600;
+    border-radius:var(--radius-md); border:none; cursor:pointer; padding:.25rem .5rem;
+    transition:.15s; white-space:nowrap;
+    background:rgba(16,185,129,.12); color:#059669; /* exemplo */
 }
+.btn-approve { background:rgba(16,185,129,.12); color:#059669; }
+.btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
+.btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; }
+.btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
+.btn-edit    { background:rgba(59,130,246,.12); color:#2563eb; }
+.btn-edit:hover:not(:disabled) { background:#2563eb; color:#fff; }
+.btn-distribute { background:rgba(99,102,241,.12); color:#4f46e5; }
+.btn-distribute:hover:not(:disabled) { background:#4f46e5; color:#fff; }
+.btn-delete-approved { background:rgba(239,68,68,.08); color:#dc2626; }
+.btn-delete-approved:hover:not(:disabled) { background:var(--color-danger); color:#fff; }
+
+.btn-xs { padding:.22rem .5rem; font-size:.7rem; }
+
+/* ─── Distribuição (barra) ─────────────────────── */
+.mc-dist-indicator { display:flex; align-items:center; gap:.3rem; flex:1; min-width:0; }
+.mc-dist-bar-bg { flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; max-width:80px; }
+.mc-dist-bar-fill { height:100%; border-radius:99px; }
+.mc-dist-bar-fill.full { background:#16a34a; }
+.mc-dist-bar-fill.partial { background:#f59e0b; }
+.mc-dist-bar-fill.over { background:#dc2626; }
+.mc-dist-text { font-weight:700; font-size:.72rem; white-space:nowrap; }
+.mc-actions { display:flex; gap:.3rem; margin-left:auto; flex-shrink:0; }
+
 /* Filter bar */
 .history-filter {
     display: flex;
@@ -380,12 +319,16 @@
     white-space: nowrap;
 }
 .history-filter .hf-clear:hover { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
-/* Date selector row */
-.sel-date-display {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--color-text);
-    flex: 1;
+
+/* Session list */
+#session-list {
+    min-height: 60px;
+}
+.session-empty {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
 }
 
 /* ─── Modals ─────────────────────────────────────── */
@@ -408,14 +351,14 @@
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     width: 100%;
     max-width: 560px;
-    max-height: 85vh;
+    max-height: 70vh;
     display: flex;
     flex-direction: column;
     box-shadow: 0 -4px 32px rgba(0,0,0,0.15);
     overflow: hidden;
 }
 @media (min-width: 600px) {
-    .modal-box { border-radius: var(--radius-lg); max-height: 75vh; }
+    .modal-box { border-radius: var(--radius-lg); max-height: 60vh; }
 }
 .modal-header {
     padding: 1rem 1rem 0.75rem;
@@ -562,7 +505,8 @@
         </span>
         @endif
     </div>
-
+    
+      <div>
     {{-- ─── ENTRY CARD ───────────────────────────────── --}}
     <div class="card">
         <div class="card-header">Nova Entrega</div>
@@ -658,9 +602,10 @@
             <input type="date" id="filter-date-to" oninput="renderSessionItems()" placeholder="Até">
             <button class="hf-clear" onclick="clearFilter()">Limpar</button>
         </div>
-        <div id="session-list" style="min-height:60px">
+        <div id="session-list">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
+    </div>
     </div>
 
 </div>
@@ -720,7 +665,7 @@
 {{-- Toast root --}}
 <div id="toast-root"></div>
 
-{{-- ─────────────── MODAL EDITAR ENTREGA (legado — mantido para compatibilidade com salvEdit()) ──────────────── --}}
+{{-- ─────────────── MODAL EDITAR ENTREGA (mantido) ──────────────── --}}
 <div class="modal-overlay" id="modal-edit" onclick="closeModalOnBackdrop(event, 'edit')">
     <div class="modal-box" style="max-width:400px">
         <div class="modal-header">
@@ -751,7 +696,7 @@
     </div>
 </div>
 
-{{-- ─────────────── MODAL DISTRIBUIR ENTREGA (componente unificado) ──────────── --}}
+{{-- ─────────────── MODAL DISTRIBUIR (componente unificado) ──────── --}}
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
@@ -782,13 +727,13 @@ const INITIAL_PROJECT = @json($selectedProject);  // null or project object
 
 /* ─── State ──────────────────────────────────────── */
 const S = {
-    project   : null,  // {id, title, customerName, allowAny, adminFee}
-    associate : null,  // {id, name, regNum}
-    product   : null,  // demand object from API
-    demands   : [],    // loaded from API for current project
+    project   : null,
+    associate : null,
+    product   : null,
+    demands   : [],
     quality   : 'A',
     submitting        : false,
-    items             : [],    // deliveries loaded from server (+ optimistic local adds)
+    items             : [],
     loadingProjectId  : null,
     loadingDeliveries : false,
 };
@@ -796,12 +741,79 @@ const S = {
 /* ─── DOM refs ───────────────────────────────────── */
 const $ = (id) => document.getElementById(id);
 
+/* ─── Highlight state for modals ─────────────────── */
+const modalHighlightIndex = { project: -1, assoc: -1, product: -1 };
+
+function resetModalHighlight(type) {
+    highlightModalItem(type, 0);
+}
+
+function highlightModalItem(type, index) {
+    const list = document.getElementById('list-' + type);
+    if (!list) return;
+    const items = list.querySelectorAll('.modal-item');
+    items.forEach(el => el.classList.remove('highlighted'));
+    if (items.length === 0) {
+        modalHighlightIndex[type] = -1;
+        return;
+    }
+    if (index >= items.length) index = items.length - 1;
+    if (index < 0) index = 0;
+    modalHighlightIndex[type] = index;
+    items[index].classList.add('highlighted');
+    items[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function selectModalHighlight(type) {
+    const index = modalHighlightIndex[type];
+    if (index < 0) return;
+    const items = document.querySelectorAll('#list-' + type + ' .modal-item');
+    if (items[index]) {
+        items[index].click();
+    }
+}
+
+/* ─── Keyboard navigation on modal search inputs ─── */
+document.addEventListener('keydown', function(e) {
+    if (!e.target.classList.contains('modal-search')) return;
+    const type = e.target.id.replace('search-', '');
+    if (!type || !['project','assoc','product'].includes(type)) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const idx = modalHighlightIndex[type] + 1;
+        highlightModalItem(type, idx);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const idx = modalHighlightIndex[type] - 1;
+        highlightModalItem(type, idx);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        selectModalHighlight(type);
+    }
+});
+
+/* ─── Keep highlight in sync with mouse clicks ───── */
+document.addEventListener('click', function(e) {
+    const item = e.target.closest('.modal-item');
+    if (!item) return;
+    const list = item.closest('[id^="list-"]');
+    if (!list) return;
+    const type = list.id.replace('list-', '');
+    const items = list.querySelectorAll('.modal-item');
+    const index = Array.from(items).indexOf(item);
+    if (index >= 0) {
+        modalHighlightIndex[type] = index;
+        items.forEach(el => el.classList.remove('highlighted'));
+        item.classList.add('highlighted');
+    }
+});
+
 /* ─── Init ───────────────────────────────────────── */
 function init() {
     if (INITIAL_PROJECT) {
         applyProject(INITIAL_PROJECT);
         loadDemands(INITIAL_PROJECT.id);
-        // deliveries loaded inside applyProject → loadProjectDeliveries
     } else {
         renderSessionItems();
     }
@@ -820,22 +832,18 @@ function applyProject(proj) {
     };
     $('pb-title').textContent = proj.title;
     $('pb-sub').textContent   = proj.customer_name;
-    // Enable product selector
     $('sel-product').classList.remove('disabled');
-    // Reset product selection when project changes
     if (S.loadingProjectId !== proj.id) {
         S.demands = [];
         S.product = null;
         resetProductSelector();
     }
-    // Load full delivery history from server
     loadProjectDeliveries(proj.id);
 }
 
 async function loadProjectDeliveries(projectId) {
     if (S.loadingDeliveries) return;
     S.loadingDeliveries = true;
-    // Show loading state
     const empty = $('session-empty');
     if (empty) { empty.textContent = 'Carregando histórico…'; empty.style.display = 'block'; }
     try {
@@ -854,7 +862,7 @@ async function loadProjectDeliveries(projectId) {
 }
 
 async function loadDemands(projectId) {
-    if (S.loadingProjectId === projectId) return; // already loading
+    if (S.loadingProjectId === projectId) return;
     S.loadingProjectId = projectId;
     S.demands = [];
     S.product = null;
@@ -876,8 +884,7 @@ async function loadDemands(projectId) {
 /* ─── Associate ──────────────────────────────────── */
 function selectAssociate(assoc) {
     S.associate = assoc;
-    const el = $('sel-assoc');
-    el.classList.add('selected');
+    $('sel-assoc').classList.add('selected');
     $('assoc-value').textContent = assoc.nickname || assoc.name;
     closeModal('assoc');
     checkFormReady();
@@ -921,7 +928,6 @@ function bindQualityPills() {
             const group = btn.closest('.quality-group');
             group.querySelectorAll('.q-pill').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            // Only update state for the main entry form
             if (group.id !== 'edit-quality-pills') S.quality = btn.dataset.q;
         });
     });
@@ -936,7 +942,6 @@ function onDateChange(val) {
 
 function focusDateInput() {
     const inp = $('f-date');
-    // Try to show native date picker
     try { inp.showPicker(); } catch(e) { inp.focus(); inp.click(); }
 }
 
@@ -963,7 +968,6 @@ function checkFormReady() {
         $('btn-submit').disabled = !(hasProject && hasAssoc && hasProd && hasQty) || S.submitting;
     }
 
-    // enable/disable product selector based on project
     const selProd = $('sel-product');
     if (hasProject) {
         selProd.classList.remove('disabled');
@@ -1025,18 +1029,19 @@ async function submitEntry() {
                 date         : date,
                 quality      : S.quality,
                 status       : 'pending',
+                distributedQty: 0,
+                distributions : [],
+                has_billed   : false,
+                dist_net_value: 0,
             });
-            // Reset product + form, keep associate + project
             S.product = null;
             resetProductSelector();
             $('f-qty').value  = '';
             $('f-notes').value = '';
-            // Reset quality to A
             document.querySelectorAll('#quality-group .q-pill').forEach(b => b.classList.remove('active'));
             document.querySelector('#quality-group .q-pill[data-q="A"]').classList.add('active');
             S.quality = 'A';
             checkFormReady();
-            // Reload demands to reflect new delivered_quantity
             if (S.project) loadDemands(S.project.id);
         } else {
             toast(data.message || 'Erro ao registrar.', 'error');
@@ -1049,24 +1054,13 @@ async function submitEntry() {
     }
 }
 
-/* ─── Session list ───────────────────────────────── */
-function loadSessionItems() {
-    try {
-        S.items = JSON.parse(localStorage.getItem(ITEMS_KEY) || '[]');
-    } catch {
-        S.items = [];
-    }
-}
-
-function saveSessionItems() {
-    localStorage.setItem(ITEMS_KEY, JSON.stringify(S.items));
-}
-
+/* ─── Session list (agora com cards mobile) ──────── */
 function addSessionItem(item) {
     if (item.distributedQty  === undefined) item.distributedQty  = 0;
     if (item.distributions   === undefined) item.distributions   = [];
+    if (item.has_billed      === undefined) item.has_billed      = false;
+    if (item.dist_net_value  === undefined) item.dist_net_value  = 0;
     S.items.unshift(item);
-    saveSessionItems();
     renderSessionItems();
 }
 
@@ -1074,24 +1068,22 @@ function renderSessionItems() {
     const list  = $('session-list');
     const count = $('session-count');
     const empty = $('session-empty');
+    const titleEl = $('session-list-title');
 
     const projectId = S.project?.id ?? null;
 
-    // Atualizar título do card com o projeto selecionado
-    const titleEl = $('session-list-title');
+    // Título do card
     if (titleEl) {
         titleEl.textContent = S.project
             ? 'Histórico — ' + S.project.title
             : 'Histórico de entregas';
     }
 
-    // Sem projeto: mostrar apenas entregas avulsas (sem projectId), ou mensagem orientando
-    // Com projeto: mostrar SOMENTE entregas deste projeto (filtro estrito)
+    // Filtra por projeto e data
     const filtered = projectId
         ? S.items.filter(i => i.projectId === projectId)
         : S.items.filter(i => !i.projectId);
 
-    // Aplica filtro de data sobre os itens do projeto
     const dateFrom    = ($('filter-date-from')?.value || '').trim();
     const dateTo      = ($('filter-date-to')?.value || '').trim();
     const usingFilter = !!(dateFrom || dateTo);
@@ -1103,14 +1095,7 @@ function renderSessionItems() {
         })
         : filtered;
 
-    // Mensagem de estado vazio adequada ao contexto
-    if (empty) {
-        empty.textContent = projectId
-            ? 'Nenhuma entrega registrada para este projeto'
-            : 'Selecione um projeto para ver o histórico de entregas';
-    }
-
-    // Clear current content (except the empty placeholder element)
+    // Limpa itens anteriores
     Array.from(list.children).forEach(c => { if (c !== empty) c.remove(); });
 
     if (renderList.length === 0) {
@@ -1126,77 +1111,76 @@ function renderSessionItems() {
     if (empty) empty.style.display = 'none';
     count.textContent = renderList.length + (usingFilter ? '/' + filtered.length : '') + ' registro' + (renderList.length !== 1 ? 's' : '');
 
-    // Helper: build a session item element (card layout)
-    function buildItemEl(item) {
-        const el = document.createElement('div');
-        el.className = 'session-item';
-        el.dataset.id = item.id;
-
-        const isPending  = item.status !== 'approved';
+    // Função para construir o card mobile
+    function buildCard(item) {
+        const distQty   = item.distributedQty || 0;
+        const totalQty  = item.qty || 0;
+        const distPercent = totalQty > 0 ? Math.min(Math.round((distQty / totalQty) * 100), 100) : 0;
+        const overDist   = distQty > totalQty;
+        const displayPercent = overDist ? 100 : distPercent;
+        const statusClass = item.status || 'pending';
+        const isPending  = statusClass === 'pending';
+        const isApproved = statusClass === 'approved';
+        const isRejected = statusClass === 'rejected';
         const isBilled   = !!item.has_billed;
-        const distQty    = item.distributedQty || 0;
+        const netValue   = item.dist_net_value || 0;
+        const quality    = item.quality || '—';
         const dateStr    = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
-        const qualStr    = item.quality ? ' · ' + item.quality : '';
 
-        // ── Tags row ──────────────────────────────────────────
-        // Só mostra badge de status se NÃO for faturado (faturado já implica aprovado)
-        const statusHtml = isBilled ? '' :
-            '<span class="si-status ' + (isPending ? 'pending' : 'approved') + '">' +
-            (isPending ? 'Pendente' : 'Aprovada') + '</span>';
+        const badgeHtml = `<span class="badge-status ${statusClass}">
+            ${statusClass === 'pending' ? 'Pendente' : (statusClass === 'approved' ? 'Aprovada' : 'Rejeitada')}
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.3);font-size:.65rem;font-weight:700;">${quality}</span>
+        </span>`;
 
         const billedTag = isBilled
-            ? '<span style="display:inline-flex;align-items:center;gap:.25rem;padding:.1rem .4rem;border-radius:99px;font-size:.65rem;font-weight:600;background:rgba(99,102,241,.12);color:#4f46e5;">' +
-              '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' +
-              'Faturado</span>'
+            ? '<span style="font-size:.6rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>'
             : '';
 
-        const distTag = !isPending && distQty > 0
-            ? '<span class="si-dist-info">' + fmtQty(distQty, item.productUnit) + ' distrib.</span>'
-            : '';
+        const actionsHtml = (() => {
+            let btns = '';
+            if (isPending) {
+                btns += `<button class="btn-approve btn-xs" data-action="approve" data-id="${item.id}">Aprovar</button>`;
+                btns += `<button class="btn-reject btn-xs" data-action="reject" data-id="${item.id}">Rejeitar</button>`;
+                btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}">Editar</button>`;
+            } else if (isApproved) {
+                btns += `<button class="btn-distribute btn-xs" data-action="distribute" data-id="${item.id}">Distribuir</button>`;
+                if (!isBilled) {
+                    btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}">Editar</button>`;
+                    btns += `<button class="btn-delete-approved btn-xs" data-action="delete-approved" data-id="${item.id}">Excluir</button>`;
+                }
+            } else if (isRejected) {
+                btns += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}">Excluir</button>`;
+            }
+            return btns;
+        })();
 
-        // ── Action buttons ──────────────────────────────────────
-        const btnApprove = isPending
-            ? '<button class="si-btn si-btn-approve" data-action="approve" data-id="' + item.id + '" title="Aprovar entrega"><i data-lucide="check" style="width:13px;height:13px"></i></button>'
-            : '';
-
-        const btnEdit = isBilled
-            ? '<button class="si-btn" disabled title="Entrega faturada — edição bloqueada" style="opacity:.4;cursor:not-allowed;color:#4f46e5;">' +
-              '<i data-lucide="lock" style="width:13px;height:13px"></i></button>'
-            : '<button class="si-btn si-btn-edit" data-action="edit" data-id="' + item.id + '" title="Editar entrega"><i data-lucide="pencil" style="width:13px;height:13px"></i></button>';
-
-        const btnDist = !isPending
-            ? '<button class="si-btn si-btn-dist" data-action="distribute" data-id="' + item.id + '" title="Distribuir para clientes"><i data-lucide="git-branch" style="width:13px;height:13px"></i></button>'
-            : '';
-
-        const btnDelete = isPending
-            ? '<button class="si-btn si-btn-delete" data-action="delete" data-id="' + item.id + '" title="Excluir"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>'
-            : (isBilled ? '' : '<button class="si-btn si-btn-delete" data-action="delete-approved" data-id="' + item.id + '" title="Excluir aprovada"><i data-lucide="trash-2" style="width:13px;height:13px"></i></button>');
-
-        el.innerHTML =
-            // Row 1 — product + qty
-            '<div class="si-row1">' +
-                '<div class="si-product">' + esc(item.productName) + '</div>' +
-                '<div class="si-qty-badge">' + fmtQty(item.qty, item.productUnit) + '</div>' +
-            '</div>' +
-            // Row 2 — associate + date/quality (secondary info)
-            '<div style="display:flex;align-items:center;gap:.4rem;min-width:0;">' +
-                '<span class="si-assoc">' + esc(item.associateName) + '</span>' +
-                '<span class="si-date-qual" style="margin-left:auto;">' + dateStr + qualStr + '</span>' +
-            '</div>' +
-            // Row 3 — tags (flex:1) + actions (flex-shrink:0, always right)
-            '<div style="display:flex;align-items:center;gap:.4rem;">' +
-                '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;flex:1;min-width:0;">' +
-                    statusHtml + billedTag + distTag +
-                '</div>' +
-                '<div class="si-actions" style="flex-shrink:0;">' +
-                    btnApprove + btnEdit + btnDist + btnDelete +
-                '</div>' +
-            '</div>';
-
-        return el;
+        return `
+        <div class="mobile-card status-${statusClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${item.productUnit || ''}">
+            <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--color-bg);border-bottom:1px solid var(--color-border);">
+                <span style="font-weight:700;font-size:.82rem;">${dateStr}</span>
+                ${badgeHtml}
+                ${billedTag}
+            </div>
+            <div style="padding:.5rem .6rem;display:flex;flex-direction:column;gap:.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.76rem;">
+                    <div style="font-weight:bold;">${escHtml(item.associateName)}</div>
+                    <div style="font-weight:600;">${escHtml(item.productName)}</div>
+                    <div><span style="font-weight:700;">${fmtQty(totalQty, item.productUnit)}</span></div>
+                    <div>${netValue > 0 ? '<span style="color:var(--color-success);font-weight:600;">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:.5rem;background:var(--color-bg);padding:.3rem .5rem;border-radius:6px;">
+                    <span style="font-size:.65rem;text-transform:uppercase;color:var(--color-text-secondary);white-space:nowrap;">Distrib.</span>
+                    <div class="mc-dist-indicator" title="${overDist ? 'Excede! Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
+                        <div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : (distPercent >= 100 ? 'full' : 'partial')}" style="width:${displayPercent}%;height:100%;border-radius:99px;"></div></div>
+                        <span class="mc-dist-text">${overDist ? '⚠ ' + distQty.toFixed(1) : distPercent + '%'}</span>
+                    </div>
+                    <div class="mc-actions">${actionsHtml}</div>
+                </div>
+            </div>
+        </div>`;
     }
 
-    // Helper: build a section header element
+    // Função para cabeçalho de seção (associado)
     function buildSectionHeader(label) {
         const h = document.createElement('div');
         h.style.cssText = 'font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);padding:.55rem .85rem .25rem;border-top:1px solid var(--color-border);margin-top:.25rem';
@@ -1204,30 +1188,58 @@ function renderSessionItems() {
         return h;
     }
 
-    // If an associate is selected, split into two groups
+    // Agrupamento opcional por associado
     if (S.associate) {
         const assocItems  = renderList.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
         const othersItems = renderList.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
 
         if (assocItems.length > 0) {
             list.appendChild(buildSectionHeader(S.associate.name));
-            assocItems.forEach(item => list.appendChild(buildItemEl(item)));
+            assocItems.forEach(item => {
+                const card = document.createElement('div');
+                card.innerHTML = buildCard(item);
+                list.appendChild(card.firstElementChild);
+            });
         }
         if (othersItems.length > 0) {
             list.appendChild(buildSectionHeader('Outros produtores'));
-            othersItems.forEach(item => list.appendChild(buildItemEl(item)));
+            othersItems.forEach(item => {
+                const card = document.createElement('div');
+                card.innerHTML = buildCard(item);
+                list.appendChild(card.firstElementChild);
+            });
         }
         if (assocItems.length === 0 && othersItems.length === 0) {
-            if (empty) empty.style.display = 'block';
+            if (empty) { empty.textContent = 'Nenhuma entrega encontrada'; empty.style.display = 'block'; }
             count.textContent = '';
         }
     } else {
-        renderList.forEach(item => list.appendChild(buildItemEl(item)));
+        renderList.forEach(item => {
+            const card = document.createElement('div');
+            card.innerHTML = buildCard(item);
+            list.appendChild(card.firstElementChild);
+        });
     }
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+/* Helpers */
+function fmtQty(n, unit) {
+    const num = parseFloat(n) || 0;
+    const str = num % 1 === 0 ? num.toString() : num.toFixed(2).replace(/\.?0+$/, '');
+    return str + (unit ? '\u00a0' + unit : '');
+}
+function fmtDate(iso) {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return d + '/' + m;
+}
+function escHtml(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ─── Delete item (pendente ou aprovada) ──────────── */
 async function deleteItem(id, btn, isApproved = false) {
     const msg = isApproved
         ? 'Excluir esta entrega aprovada? As distribuições associadas também serão removidas.'
@@ -1243,7 +1255,6 @@ async function deleteItem(id, btn, isApproved = false) {
         const data = await res.json();
         if (data.success || res.status === 200) {
             S.items = S.items.filter(i => i.id !== id);
-            saveSessionItems();
             renderSessionItems();
             toast('Registro excluído.', 'info');
         } else {
@@ -1256,7 +1267,7 @@ async function deleteItem(id, btn, isApproved = false) {
     }
 }
 
-/* ─── Session list action delegation ────────────── */
+/* ─── Action delegation ────────────────────────── */
 document.addEventListener('click', function (e) {
     const btn = e.target.closest('[data-action]');
     if (!btn || !btn.closest('#session-list')) return;
@@ -1268,7 +1279,32 @@ document.addEventListener('click', function (e) {
     else if (action === 'distribute') openDistributeModal(id);
     else if (action === 'delete')          deleteItem(id, btn);
     else if (action === 'delete-approved') deleteItem(id, btn, true);
+    else if (action === 'reject')     rejectItem(id, btn);
 });
+
+/* ─── Rejeitar ─────────────────────────────────── */
+async function rejectItem(id, btn) {
+    if (!confirm('Rejeitar esta entrega?')) return;
+    btn.disabled = true;
+    try {
+        const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + id + '/reject', {
+            method : 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await res.json();
+        if (data.success) {
+            const item = S.items.find(i => i.id === id);
+            if (item) { item.status = 'rejected'; renderSessionItems(); }
+            toast('Entrega rejeitada.', 'info');
+        } else {
+            toast(data.message || 'Erro ao rejeitar.', 'error');
+            btn.disabled = false;
+        }
+    } catch (e) {
+        toast('Erro: ' + e.message, 'error');
+        btn.disabled = false;
+    }
+}
 
 /* ─── Approve ────────────────────────────────────── */
 async function approveItem(id, btn) {
@@ -1282,8 +1318,7 @@ async function approveItem(id, btn) {
         const data = await res.json();
         if (data.success) {
             const item = S.items.find(i => i.id === id);
-            if (item) { item.status = 'approved'; saveSessionItems(); }
-            renderSessionItems();
+            if (item) { item.status = 'approved'; renderSessionItems(); }
             toast('Entrega aprovada!', 'success');
         } else {
             toast(data.message || 'Erro ao aprovar.', 'error');
@@ -1331,7 +1366,6 @@ async function saveEdit() {
             item.qty     = qty;
             item.date    = date;
             item.quality = qual;
-            saveSessionItems();
             renderSessionItems();
             closeModal('edit');
             toast('Entrega atualizada.', 'success');
@@ -1365,7 +1399,6 @@ function openDistributeModal(id) {
 }
 
 window._DistModalReload = function(data) {
-    // Atualiza estado local recarregando as entregas do projeto do servidor
     if (!distRegId || !S.project) { location.reload(); return; }
     distRegId = null;
     loadProjectDeliveries(S.project.id).then(() => {
@@ -1374,8 +1407,6 @@ window._DistModalReload = function(data) {
         toast('Distribuição salva!', 'success');
     });
 };
-
-
 
 /* ─── Modals ─────────────────────────────────────── */
 function openModal(type) {
@@ -1391,12 +1422,12 @@ function openModal(type) {
     const overlay = $('modal-' + type);
     overlay.classList.add('open');
 
-    // Focus search
     const search = $('search-' + type);
     if (search) { search.value = ''; setTimeout(() => search.focus(), 50); }
 
-    // Render list
     renderModalList(type);
+    // Destaca o primeiro item após abrir
+    resetModalHighlight(type);
 }
 
 function closeModal(type) {
@@ -1410,6 +1441,8 @@ function closeModalOnBackdrop(event, type) {
 
 function filterList(type) {
     renderModalList(type);
+    // Sempre reposiciona o destaque para o primeiro item ao filtrar
+    resetModalHighlight(type);
 }
 
 function renderModalList(type) {
@@ -1441,8 +1474,8 @@ function renderProjectList(list, search) {
         '<div class="modal-item' + (S.project?.id === p.id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
             '<div class="mi-avatar project">' + initials(p.title) + '</div>' +
             '<div class="mi-info">' +
-                '<div class="mi-name">' + esc(p.title) + '</div>' +
-                '<div class="mi-sub">' + esc(p.customer_name) + '</div>' +
+                '<div class="mi-name">' + escHtml(p.title) + '</div>' +
+                '<div class="mi-sub">' + escHtml(p.customer_name) + '</div>' +
             '</div>' +
         '</div>'
     ).join('');
@@ -1469,8 +1502,8 @@ function renderAssocList(list, search) {
         '<div class="modal-item' + (S.associate?.id === a.id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
             '<div class="mi-avatar">' + initials(a.nickname || a.name) + '</div>' +
             '<div class="mi-info">' +
-                '<div class="mi-name">' + esc(a.nickname || a.name) + (a.nickname ? ' <span style="font-size:.75rem;font-weight:400;color:var(--color-text-muted)">' + esc(a.name) + '</span>' : '') + '</div>' +
-                '<div class="mi-sub">' + (a.registration_number ? 'Reg: ' + esc(a.registration_number) : '') + '</div>' +
+                '<div class="mi-name">' + escHtml(a.nickname || a.name) + (a.nickname ? ' <span style="font-size:.75rem;font-weight:400;color:var(--color-text-muted)">' + escHtml(a.name) + '</span>' : '') + '</div>' +
+                '<div class="mi-sub">' + (a.registration_number ? 'Reg: ' + escHtml(a.registration_number) : '') + '</div>' +
             '</div>' +
         '</div>'
     ).join('');
@@ -1512,7 +1545,7 @@ function renderProductList(list, search) {
         return '<div class="modal-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
             '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
             '<div class="mi-info">' +
-                '<div class="mi-name">' + esc(d.product_name) + '</div>' +
+                '<div class="mi-name">' + escHtml(d.product_name) + '</div>' +
                 '<div class="mi-sub">Entregue: ' + fmtQty(delivered, d.product_unit) + (hasTarget ? ' / Meta: ' + fmtQty(d.target_quantity, d.product_unit) : '') + '</div>' +
             '</div>' +
             '<span class="mi-badge ' + badgeClass + '">' + badgeText + '</span>' +
@@ -1522,6 +1555,7 @@ function renderProductList(list, search) {
         el.addEventListener('click', () => {
             const idx = parseInt(el.dataset.idx);
             selectProduct(items[idx]);
+            setTimeout(()=> document.getElementById('f-qty').focus(),300)
         });
     });
 }
@@ -1532,7 +1566,7 @@ function selectProject(proj) {
     loadDemands(proj.id);
 }
 
-/* ─── Keyboard: close modal on Escape ───────────── */
+/* ─── Keyboard ─────────────────────────────────── */
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         ['project', 'assoc', 'product', 'edit', 'dist'].forEach(t => closeModal(t));
@@ -1549,21 +1583,6 @@ function toast(msg, type = 'info') {
 }
 
 /* ─── Helpers ────────────────────────────────────── */
-function fmtQty(n, unit) {
-    const num = parseFloat(n) || 0;
-    const str = num % 1 === 0 ? num.toString() : num.toFixed(2).replace(/\.?0+$/, '');
-    return str + (unit ? '\u00a0' + unit : '');
-}
-function fmtDate(iso) {
-    if (!iso) return '';
-    const [y, m, d] = iso.split('-');
-    return d + '/' + m;
-}
-function esc(str) {
-    return (str || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 function initials(name) {
     return (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
@@ -1572,7 +1591,6 @@ function initials(name) {
 init();
 checkFormReady();
 
-/* ─── Expose to global (needed for HTML onclick="") ─ */
 window.openModal            = openModal;
 window.closeModal           = closeModal;
 window.closeModalOnBackdrop = closeModalOnBackdrop;
@@ -1584,8 +1602,8 @@ window.focusDateInput       = focusDateInput;
 window.renderSessionItems   = renderSessionItems;
 window.clearFilter          = clearFilter;
 window.onDateChange         = onDateChange;
-window.addDistRegRow        = function() {}; // removido (usar DistModal component)
-window.saveDist             = function() {}; // removido (usar DistModal component)
+window.addDistRegRow        = function() {};
+window.saveDist             = function() {};
 
 })();
 </script>

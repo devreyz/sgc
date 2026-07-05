@@ -1,0 +1,166 @@
+@php
+$distQty = $delivery['distributed_qty'] ?? 0;
+$totalQty = $delivery['quantity'];
+$distPercent = $totalQty > 0 ? min(round(($distQty / $totalQty) * 100), 100) : 0;
+$overDistributed = $distQty > $totalQty;
+$distDisplayPercent = $overDistributed ? 100 : $distPercent;
+@endphp
+<div class="mobile-card status-{{ $delivery['status_value'] }}"
+     id="row-{{ $delivery['id'] }}"
+     data-total-qty="{{ $totalQty }}"
+     data-unit="{{ $delivery['unit'] }}"
+     style="padding:.35rem .5rem; gap:.1rem;"
+>
+    <div class="mc-row" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:.35rem;">
+            @if($delivery['status_value'] === 'approved')
+            <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" style="width:14px;height:14px;">
+            @endif
+            <span class="mc-date" style="font-size:.73rem;">{{ $delivery['delivery_date'] }}</span>
+            <span style="font-size:.68rem;color:var(--color-text-secondary);">{{ $delivery['associate_name'] }}</span>
+        </div>
+        <span class="badge-status {{ $delivery['status_value'] }}" style="font-size:.6rem;padding:.1rem .35rem;">{{ $delivery['status'] }}</span>
+    </div>
+    <div class="mc-row" style="justify-content:space-between;align-items:center;">
+        <span class="mc-product" style="font-size:.74rem;">{{ $delivery['product_name'] }}</span>
+        <span class="mc-qty" style="font-size:.73rem;">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
+    </div>
+    <div class="mc-row" style="justify-content:space-between;align-items:center;">
+        <div style="display:flex;align-items:center;gap:.5rem;">
+            @if($delivery['dist_net_value'] > 0)
+            <span class="mc-net" style="font-size:.7rem;">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
+            @endif
+            <div class="mc-dist-indicator" style="font-size:.65rem;" title="{{ $overDistributed ? 'Excede!' : ($distPercent >= 100 ? 'Completo' : 'Parcial') }}">
+                <div class="mc-dist-bar-bg" style="width:36px;height:4px;">
+                    <div class="mc-dist-bar-fill {{ $overDistributed ? 'over' : ($distPercent >= 100 ? 'full' : 'partial') }}" style="width:{{ $distDisplayPercent }}%"></div>
+                </div>
+                <span class="mc-dist-text" style="font-size:.6rem;">{{ $overDistributed ? '⚠' : $distPercent.'%' }}</span>
+            </div>
+        </div>
+        <div class="mc-actions" style="gap:.2rem;">
+            @if($delivery['status_value'] === 'pending')
+            <button class="btn-approve btn-xs" data-id="{{ $delivery['id'] }}" style="padding:.15rem .35rem;font-size:.65rem;">✓</button>
+            <button class="btn-reject btn-xs" data-id="{{ $delivery['id'] }}" style="padding:.15rem .35rem;font-size:.65rem;">✗</button>
+            <button class="btn-edit btn-xs" data-id="{{ $delivery['id'] }}" data-date="{{ $delivery['delivery_date_raw'] }}" data-qty="{{ $delivery['quantity'] }}" data-price="{{ $delivery['unit_price'] }}" data-quality="{{ $delivery['quality_grade'] }}" data-notes="{{ $delivery['notes'] }}" data-unit="{{ $delivery['unit'] }}" data-distributions="{{ json_encode($delivery['distributions']) }}" style="padding:.15rem .35rem;font-size:.65rem;">✎</button>
+            @elseif($delivery['status_value'] === 'approved')
+            <button class="btn-distribute btn-xs" data-id="{{ $delivery['id'] }}" data-product="{{ $delivery['product_name'] }}" data-unit="{{ $delivery['unit'] }}" data-qty="{{ $delivery['quantity'] }}" data-distributed="{{ $delivery['distributed_qty'] }}" data-existing="{{ json_encode($delivery['distributions']) }}" data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}" style="padding:.15rem .35rem;font-size:.65rem;">⇢</button>
+            @unless($delivery['has_billed'])
+            <button class="btn-edit btn-xs" data-id="{{ $delivery['id'] }}" data-date="{{ $delivery['delivery_date_raw'] }}" data-qty="{{ $delivery['quantity'] }}" data-price="{{ $delivery['unit_price'] }}" data-quality="{{ $delivery['quality_grade'] }}" data-notes="{{ $delivery['notes'] }}" data-unit="{{ $delivery['unit'] }}" data-distributions="{{ json_encode($delivery['distributions']) }}" style="padding:.15rem .35rem;font-size:.65rem;">✎</button>
+            <button class="btn-delete-approved btn-xs" data-id="{{ $delivery['id'] }}" style="padding:.15rem .35rem;font-size:.65rem;">🗑</button>
+            @endunless
+            @endif
+        </div>
+    </div>
+</div>
+
+
+
+
+@php
+$distQty = $delivery['distributed_qty'] ?? 0;
+$totalQty = $delivery['quantity'];
+$distPercent = $totalQty > 0 ? min(round(($distQty / $totalQty) * 100), 100) : 0;
+$overDistributed = $distQty > $totalQty;
+$distDisplayPercent = $overDistributed ? 100 : $distPercent;
+@endphp
+<div class="mobile-card status-{{ $delivery['status_value'] }} variant-c"
+     id="row-{{ $delivery['id'] }}"
+     data-total-qty="{{ $totalQty }}"
+     data-unit="{{ $delivery['unit'] }}"
+     style="padding:0; border-radius:var(--radius-md); overflow:hidden;"
+>
+    {{-- Cabeçalho --}}
+    <div style="display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; background:var(--color-bg); border-bottom:1px solid var(--color-border);">
+        @if($delivery['status_value'] === 'approved')
+        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" style="flex-shrink:0;">
+        @endif
+        <span style="font-weight:700; white-space:nowrap; font-size:.82rem;">{{ $delivery['delivery_date'] }}</span>
+        <span class="badge-status {{ $delivery['status_value'] }}" style="margin-left:auto;">{{ $delivery['status'] }}</span>
+        @if($delivery['has_billed'])
+        <span style="font-size:.6rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>
+        @endif
+    </div>
+
+    {{-- Corpo --}}
+    <div style="padding:.5rem .6rem; display:flex; flex-direction:column; gap:.5rem;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.3rem .8rem; font-size:.76rem;">
+            <div>
+                <div style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary);">Associado</div>
+                <div style="font-weight:500;">{{ $delivery['associate_name'] }}</div>
+            </div>
+            <div>
+                <div style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary);">Produto</div>
+                <div style="font-weight:600;">{{ $delivery['product_name'] }}</div>
+            </div>
+            <div>
+                <div style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary);">Quantidade</div>
+                <span class="mc-qty" style="font-weight:700;">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
+            </div>
+            <div>
+                <div style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary);">Qual. / Valor</div>
+                <span>{{ $delivery['quality_grade'] ?? '—' }}
+                @if($delivery['dist_net_value'] > 0)
+                · <span style="color:var(--color-success); font-weight:600;">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
+                @endif
+                </span>
+            </div>
+        </div>
+
+        {{-- Distribuição --}}
+        <div style="display:flex; align-items:center; gap:.5rem; background:var(--color-bg); padding:.3rem .5rem; border-radius:6px;">
+            <span style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary);">Distrib.</span>
+            <div class="mc-dist-indicator" style="display:flex; align-items:center; gap:.3rem; flex:1;" title="{{ $overDistributed ? 'Excede! Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
+                <div class="mc-dist-bar-bg" style="flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; max-width:80px;">
+                    <div class="mc-dist-bar-fill {{ $overDistributed ? 'over' : ($distPercent >= 100 ? 'full' : 'partial') }}" style="width:{{ $distDisplayPercent }}%; height:100%; border-radius:99px;"></div>
+                </div>
+                <span class="mc-dist-text" style="font-weight:700; font-size:.72rem;">{{ $overDistributed ? '⚠ '.number_format($distQty,1) : $distPercent }}%</span>
+            </div>
+            @if($overDistributed)
+            <span style="color:#dc2626;font-size:.62rem;">excedente</span>
+            @elseif($distQty > 0 && $distPercent < 100)
+            <span style="color:#d97706;font-size:.62rem;">falta {{ number_format($totalQty - $distQty,2,',','.') }}</span>
+            @endif
+        </div>
+
+        {{-- Ações --}}
+        <div class="mc-actions" style="display:flex; gap:.3rem; justify-content:flex-end;">
+            @if($delivery['status_value'] === 'pending')
+            <button class="btn-approve btn-xs" data-id="{{ $delivery['id'] }}">Aprovar</button>
+            <button class="btn-reject btn-xs" data-id="{{ $delivery['id'] }}">Rejeitar</button>
+            <button class="btn-edit btn-xs"
+                data-id="{{ $delivery['id'] }}"
+                data-date="{{ $delivery['delivery_date_raw'] }}"
+                data-qty="{{ $delivery['quantity'] }}"
+                data-price="{{ $delivery['unit_price'] }}"
+                data-quality="{{ $delivery['quality_grade'] }}"
+                data-notes="{{ $delivery['notes'] }}"
+                data-unit="{{ $delivery['unit'] }}"
+                data-distributions="{{ json_encode($delivery['distributions']) }}"
+            >Editar</button>
+            @elseif($delivery['status_value'] === 'approved')
+            <button class="btn-distribute btn-xs"
+                data-id="{{ $delivery['id'] }}"
+                data-product="{{ $delivery['product_name'] }}"
+                data-unit="{{ $delivery['unit'] }}"
+                data-qty="{{ $delivery['quantity'] }}"
+                data-distributed="{{ $delivery['distributed_qty'] }}"
+                data-existing="{{ json_encode($delivery['distributions']) }}"
+                data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
+            >Distribuir</button>
+            @unless($delivery['has_billed'])
+            <button class="btn-edit btn-xs"
+                data-id="{{ $delivery['id'] }}"
+                data-date="{{ $delivery['delivery_date_raw'] }}"
+                data-qty="{{ $delivery['quantity'] }}"
+                data-price="{{ $delivery['unit_price'] }}"
+                data-quality="{{ $delivery['quality_grade'] }}"
+                data-notes="{{ $delivery['notes'] }}"
+                data-unit="{{ $delivery['unit'] }}"
+                data-distributions="{{ json_encode($delivery['distributions']) }}"
+            >Editar</button>
+            <button class="btn-delete-approved btn-xs" data-id="{{ $delivery['id'] }}">Excluir</button>
+            @endunless
+            @endif
+        </div>
+    </div>
+</div>
