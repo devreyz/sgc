@@ -125,7 +125,7 @@ class DeliveryRegistrationController extends Controller
 
         $projects = SalesProject::where('tenant_id', $tenantId)
             ->where('status', ProjectStatus::ACTIVE->value)
-            ->with('customer')
+            ->with(['customer', 'customers'])
             ->orderBy('title')
             ->get()
             ->map(fn ($p) => [
@@ -134,6 +134,7 @@ class DeliveryRegistrationController extends Controller
                 'customer_name'       => $p->customer->name ?? '-',
                 'allow_any_product'   => (bool) $p->allow_any_product,
                 'admin_fee_percentage' => (float) ($p->admin_fee_percentage ?? 10),
+                'customer_ids'        => $p->customers->pluck('id')->values()->all(),
             ]);
 
         // Pre-select project if provided via URL
@@ -253,12 +254,21 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Cliente inválido.'], 422);
         }
 
+        $project = $reception->salesProject;
+        $project?->loadMissing('customers:id');
+        $allowedCustomerIds = $project?->customers?->pluck('id') ?? collect();
+        if ($allowedCustomerIds->isNotEmpty() && $customerIds->diff($allowedCustomerIds)->isNotEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este projeto permite distribuicao apenas para os clientes vinculados a ele.',
+            ], 422);
+        }
+
         try {
             DB::beginTransaction();
 
             $pricingService = app(PricingService::class);
             $calculator     = app(ProjectFinancialCalculator::class);
-            $project = $reception->salesProject;
             $product = $reception->product;
 
             $created = [];
@@ -494,10 +504,14 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
 
-        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        $project = SalesProject::where('tenant_id', $tenantId)
+            ->with('customers:id')
+            ->find($projectId);
         if (! $project) {
             return response()->json(['error' => 'Projeto não encontrado'], 404);
         }
+
+        $projectCustomerIds = $project->customers->pluck('id')->values()->all();
 
         $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -506,7 +520,7 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($d) {
+            ->map(function ($d) use ($projectCustomerIds) {
                 $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
                 $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
                 $associateName = $d->associate?->user?->name ?? $d->associate?->name ?? '—';
@@ -514,6 +528,7 @@ class DeliveryRegistrationController extends Controller
 
                 $distributions = $d->distributions->map(fn($dist) => [
                     'id'               => $dist->id,
+                    'customer_id'      => $dist->customer_id,
                     'customer'         => optional($dist->customer)->trade_name ?? optional($dist->customer)->name ?? '?',
                     'organization'     => optional($dist->customer?->organization)->short_name
                                         ?? optional($dist->customer?->organization)->name,
@@ -540,6 +555,7 @@ class DeliveryRegistrationController extends Controller
                     'distributedQty' => (float) $distributions->sum('qty'),
                     'distributions'  => $distributions->values()->all(),
                     'has_billed'     => $hasBilled,
+                    'customerIds'     => $projectCustomerIds,
                 ];
             });
 
@@ -995,6 +1011,7 @@ class DeliveryRegistrationController extends Controller
 
                 $distributions = $delivery->distributions->map(fn($d) => [
                     'id'       => $d->id,
+                    'customer_id' => $d->customer_id,
                     'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
                     'qty'      => (float) $d->quantity,
                     'net'      => (float) $d->net_value,

@@ -296,6 +296,7 @@ let _id        = null;  // reception delivery id
 let _unit      = 'un';
 let _totalQty  = 0;
 let _distQty   = 0;     // already distributed (existing, from DB)
+let _activeCustomers = DM_CUSTOMERS;
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -308,6 +309,18 @@ function fmtR(n) {
     return 'R$ ' + parseFloat(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 function $ (id) { return document.getElementById(id); }
+
+function focusQtyInput(currentInput, direction) {
+    const inputs = Array.from($('dm-new-rows').querySelectorAll('.dm-row input[type=number]'));
+    const currentIndex = inputs.indexOf(currentInput);
+    if (currentIndex < 0) return;
+
+    const nextInput = inputs[currentIndex + direction];
+    if (nextInput) {
+        nextInput.focus();
+        nextInput.select();
+    }
+}
 
 /* ── Progress update (called on every input event) ─────────────────── */
 function updateProgress() {
@@ -371,6 +384,11 @@ function buildRow(preselectId = null, autofocus = false) {
     sel.innerHTML = '<option value="">Selecionar cliente…</option>' +
         DM_CUSTOMERS.map(c => `<option value="${c.id}"${c.id == preselectId ? ' selected' : ''}>${esc(c.name)}${c.organization_name ? ' · ' + esc(c.organization_name) : ''}</option>`).join('');
 
+    const activeIds = new Set(_activeCustomers.map(c => String(c.id)));
+    Array.from(sel.options).forEach(option => {
+        if (option.value && !activeIds.has(String(option.value))) option.remove();
+    });
+
     const inp = document.createElement('input');
     inp.type        = 'number';
     inp.min         = '0.001';
@@ -378,6 +396,15 @@ function buildRow(preselectId = null, autofocus = false) {
     inp.placeholder = '0';
     inp.setAttribute('aria-label', 'Quantidade para distribuição ' + rowIdx);
     inp.addEventListener('input', updateProgress);
+    inp.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            focusQtyInput(inp, 1);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            focusQtyInput(inp, -1);
+        }
+    });
 
     const rm = document.createElement('button');
     rm.type      = 'button';
@@ -431,10 +458,13 @@ window.DistModal = {
         // New rows — pre-populate per participant if available, else one blank row
         $('dm-new-rows').innerHTML = '';
         const participants = Array.isArray(cfg.participants) ? cfg.participants : [];
+        _activeCustomers = participants.length > 0
+            ? DM_CUSTOMERS.filter(c => participants.some(id => id == c.id))
+            : DM_CUSTOMERS;
         // Determine which customers are already fully existing (all listed = skip pre-populating those)
-        const existingIds = new Set((cfg.existing || []).map(d => d.customer_id));
+        const existingIds = new Set((cfg.existing || []).map(d => d.customer_id || d.customerId).filter(Boolean).map(String));
         // Filter participants to those not yet in existing
-        const toPreload = participants.filter(id => DM_CUSTOMERS.some(c => c.id == id));
+        const toPreload = participants.filter(id => _activeCustomers.some(c => c.id == id) && !existingIds.has(String(id)));
         if (toPreload.length > 0) {
             toPreload.forEach(id => {
                 $('dm-new-rows').appendChild(buildRow(id));
@@ -450,8 +480,14 @@ window.DistModal = {
         $('dm-overlay').classList.add('dm-open');
         $('dm-save-btn').disabled = false;
 
-        // Focus first select for keyboard accessibility
-        setTimeout(() => $('dm-new-rows').querySelector('select')?.focus(), 80);
+        // Focus first useful field for keyboard accessibility
+        setTimeout(() => {
+            const target = toPreload.length > 0
+                ? $('dm-new-rows').querySelector('input[type=number]')
+                : $('dm-new-rows').querySelector('select');
+            target?.focus();
+            if (target?.select) target.select();
+        }, 80);
     },
 
     close() {

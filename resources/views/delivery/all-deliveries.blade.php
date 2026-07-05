@@ -368,7 +368,7 @@
                                 data-unit="{{ optional($d->product)->unit ?? 'un' }}"
                                 data-qty="{{ $d->quantity }}"
                                 data-distributed="{{ $d->distributions->sum('quantity') }}"
-                                data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity, 'net' => (float)$dist->net_value, 'billed' => $dist->billing_status instanceof \App\Enums\BillingStatus && $dist->billing_status !== \App\Enums\BillingStatus::UNBILLED])) }}"
+                                data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer_id' => $dist->customer_id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity, 'net' => (float)$dist->net_value, 'billed' => $dist->billing_status instanceof \App\Enums\BillingStatus && $dist->billing_status !== \App\Enums\BillingStatus::UNBILLED])) }}"
                                 title="Distribuir para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
                             </button>

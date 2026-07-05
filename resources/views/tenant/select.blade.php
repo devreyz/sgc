@@ -19,7 +19,7 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-emerald-50 min-h-screen">
+<body class="bg-gradient-to-br from-gray-50 to-emerald-50 min-h-dvh">
     <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div class="max-w-xl w-full">
             {{-- Header --}}

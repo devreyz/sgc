@@ -38,7 +38,7 @@
 /* ─── Page wrapper ──────────────────────────────── */
 .reg-page {
     width: 100%;
-    max-width: 1380px;
+    max-width: none;
     margin: 0 auto;
     padding: 0.75rem 1rem 3rem;
     display: grid;
@@ -80,17 +80,24 @@
 .history-card {
     width: 100%;
 }
+.history-card {
+    display: flex;
+    flex-direction: column;
+}
 @media (min-width: 900px) {
     .entry-card {
         position: sticky;
         top: 1rem;
+    }
+    .history-card {
+        min-height: calc(100vh - 10rem);
     }
 }
 
 /* ─── Project bar ────────────────────────────────── */
 .project-bar {
     width: calc(100% - 2rem);
-    max-width: 1380px;
+    max-width: none;
     margin: 0.75rem auto 0;
     display: flex;
     align-items: center;
@@ -440,6 +447,7 @@
 
 /* Session list */
 #session-list {
+    flex: 1;
     min-height: 60px;
     padding: 0.6rem;
     display: grid;
@@ -450,8 +458,6 @@
 @media (min-width: 1180px) {
     #session-list {
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        max-height: 420px;
-        overflow-y: auto;
     }
 }
 .session-section-header {
@@ -970,6 +976,7 @@ function applyProject(proj) {
         customerName : proj.customer_name,
         allowAny     : proj.allow_any_product,
         adminFee     : proj.admin_fee_percentage,
+        customerIds  : proj.customer_ids || proj.customerIds || [],
     };
     $('pb-title').textContent = proj.title;
     $('pb-sub').textContent   = proj.customer_name;
@@ -992,7 +999,10 @@ async function loadProjectDeliveries(projectId) {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         if (!res.ok) throw new Error('Erro ' + res.status);
-        S.items = await res.json();
+        S.items = (await res.json()).map(item => ({
+            ...item,
+            customerIds: item.customerIds || S.project?.customerIds || [],
+        }));
     } catch (e) {
         toast('Erro ao carregar histórico: ' + e.message, 'error');
         S.items = [];
@@ -1174,6 +1184,7 @@ async function submitEntry() {
                 distributions : [],
                 has_billed   : false,
                 dist_net_value: 0,
+                customerIds   : S.project?.customerIds || [],
             });
             S.product = null;
             resetProductSelector();
@@ -1535,7 +1546,8 @@ function openDistributeModal(id) {
         unit:        item.productUnit || 'un',
         qty:         item.qty,
         distributed: item.distributedQty || 0,
-        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer: d.customer, qty: d.qty, net: d.net || 0, billed: !!d.billed })),
+        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer_id: d.customer_id || d.customerId || null, customer: d.customer, qty: d.qty, net: d.net || 0, billed: !!d.billed })),
+        participants: item.customerIds || S.project?.customerIds || [],
     });
 }
 
