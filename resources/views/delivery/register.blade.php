@@ -37,20 +37,33 @@
 
 /* ─── Page wrapper ──────────────────────────────── */
 .reg-page {
-    max-width: 680px;
+    width: 100%;
+    max-width: 1380px;
     margin: 0 auto;
     padding: 0.75rem 1rem 3rem;
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 1rem;
+    align-items: start;
 }
-
+@media (min-width: 900px) {
+    .reg-page {
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        gap: 1.25rem;
+    }
+}
+@media (min-width: 1280px) {
+    .reg-page {
+        grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
+    }
+}
 /* ─── Cards ─────────────────────────────────────── */
 .card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
+    min-width: 0;
 }
 .card-header {
     padding: 0.875rem 1rem 0;
@@ -63,9 +76,22 @@
 .card-body {
     padding: 0.75rem 1rem 1rem;
 }
+.entry-card,
+.history-card {
+    width: 100%;
+}
+@media (min-width: 900px) {
+    .entry-card {
+        position: sticky;
+        top: 1rem;
+    }
+}
 
 /* ─── Project bar ────────────────────────────────── */
 .project-bar {
+    width: calc(100% - 2rem);
+    max-width: 1380px;
+    margin: 0.75rem auto 0;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -74,6 +100,14 @@
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     box-shadow: var(--shadow-sm);
+}
+@media (max-width: 560px) {
+    .project-bar {
+        width: calc(100% - 1rem);
+        margin-top: 0.5rem;
+        padding: 0.75rem;
+        gap: 0.6rem;
+    }
 }
 .project-bar-icon {
     width: 36px;
@@ -231,14 +265,98 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    margin-bottom: 0.5rem;
     overflow: hidden;
     border-left: 4px solid transparent;
+    min-width: 0;
 }
 .mobile-card.status-pending  { border-left-color: #f59e0b; }
 .mobile-card.status-approved { border-left-color: #16a34a; }
 .mobile-card.status-rejected { border-left-color: #dc2626; }
 .mobile-card.status-cancelled { border-left-color: #6b7280; }
+
+.mc-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 0.65rem;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    min-width: 0;
+}
+.mc-date {
+    font-weight: 700;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+.mc-billed {
+    font-size: 0.6rem;
+    color: #4f46e5;
+    background: #eef2ff;
+    border-radius: 99px;
+    padding: 0.1rem 0.35rem;
+    white-space: nowrap;
+}
+.mc-quality {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    font-size: 0.65rem;
+    font-weight: 700;
+}
+.mc-body {
+    padding: 0.6rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+.mc-info-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0.35rem 0.8rem;
+    font-size: 0.76rem;
+}
+.mc-associate,
+.mc-product {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mc-associate { font-weight: 700; }
+.mc-product { font-weight: 600; }
+.mc-qty { font-weight: 700; }
+.mc-net {
+    color: var(--color-success);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.mc-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--color-bg);
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    min-width: 0;
+}
+.mc-footer-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+@media (max-width: 520px) {
+    .mc-info-grid {
+        grid-template-columns: 1fr;
+    }
+    .mc-footer {
+        flex-wrap: wrap;
+    }
+}
 
 .badge-status { display:inline-flex; align-items:center; gap:.2rem; padding:.18rem .5rem; border-radius:99px; font-size:.68rem; font-weight:600; text-transform:uppercase; white-space:nowrap; }
 .badge-status.pending  { background:rgba(245,158,11,.14); color:#d97706; }
@@ -268,13 +386,13 @@
 
 /* ─── Distribuição (barra) ─────────────────────── */
 .mc-dist-indicator { display:flex; align-items:center; gap:.3rem; flex:1; min-width:0; }
-.mc-dist-bar-bg { flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; max-width:80px; }
+.mc-dist-bar-bg { flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; min-width:52px; max-width:120px; }
 .mc-dist-bar-fill { height:100%; border-radius:99px; }
 .mc-dist-bar-fill.full { background:#16a34a; }
 .mc-dist-bar-fill.partial { background:#f59e0b; }
 .mc-dist-bar-fill.over { background:#dc2626; }
 .mc-dist-text { font-weight:700; font-size:.72rem; white-space:nowrap; }
-.mc-actions { display:flex; gap:.3rem; margin-left:auto; flex-shrink:0; }
+.mc-actions { display:flex; gap:.3rem; margin-left:auto; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
 
 /* Filter bar */
 .history-filter {
@@ -323,10 +441,34 @@
 /* Session list */
 #session-list {
     min-height: 60px;
+    padding: 0.6rem;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    align-items: start;
+}
+@media (min-width: 1180px) {
+    #session-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        max-height: 420px;
+        overflow-y: auto;
+    }
+}
+.session-section-header {
+    grid-column: 1 / -1;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    padding: 0.4rem 0.1rem 0;
+    border-top: 1px solid var(--color-border);
+    margin-top: 0.15rem;
 }
 .session-empty {
+    grid-column: 1 / -1;
     text-align: center;
-    padding: 1.5rem;
+    padding: 1rem;
     color: var(--color-text-muted);
     font-size: 0.85rem;
 }
@@ -482,7 +624,11 @@
 
 <div class="reg-page">
 
-    {{-- ─── PROJECT BAR ──────────────────────────────── --}}
+   
+    
+    {{-- ─── ENTRY CARD ───────────────────────────────── --}}
+    <div class="card entry-card">
+         {{-- ─── PROJECT BAR ──────────────────────────────── --}}
     <div class="project-bar" id="project-bar">
         <div class="project-bar-icon">
             <i data-lucide="folder-open" style="width:18px;height:18px"></i>
@@ -505,10 +651,6 @@
         </span>
         @endif
     </div>
-    
-      <div>
-    {{-- ─── ENTRY CARD ───────────────────────────────── --}}
-    <div class="card">
         <div class="card-header">Nova Entrega</div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
 
@@ -590,7 +732,7 @@
     </div>
 
     {{-- ─── SESSION LIST ─────────────────────────────── --}}
-    <div class="card">
+    <div class="card history-card">
         <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:1rem;padding-bottom:.6rem;">
             <span id="session-list-title">Registros desta sessão</span>
             <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
@@ -605,7 +747,6 @@
         <div id="session-list">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
-    </div>
     </div>
 
 </div>
@@ -1129,11 +1270,11 @@ function renderSessionItems() {
 
         const badgeHtml = `<span class="badge-status ${statusClass}">
             ${statusClass === 'pending' ? 'Pendente' : (statusClass === 'approved' ? 'Aprovada' : 'Rejeitada')}
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.3);font-size:.65rem;font-weight:700;">${quality}</span>
+            <span class="mc-quality">${quality}</span>
         </span>`;
 
         const billedTag = isBilled
-            ? '<span style="font-size:.6rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>'
+            ? '<span class="mc-billed">Fat.</span>'
             : '';
 
         const actionsHtml = (() => {
@@ -1156,20 +1297,20 @@ function renderSessionItems() {
 
         return `
         <div class="mobile-card status-${statusClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${item.productUnit || ''}">
-            <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .6rem;background:var(--color-bg);border-bottom:1px solid var(--color-border);">
-                <span style="font-weight:700;font-size:.82rem;">${dateStr}</span>
+            <div class="mc-head">
+                <span class="mc-date">${dateStr}</span>
                 ${badgeHtml}
                 ${billedTag}
             </div>
-            <div style="padding:.5rem .6rem;display:flex;flex-direction:column;gap:.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.76rem;">
-                    <div style="font-weight:bold;">${escHtml(item.associateName)}</div>
-                    <div style="font-weight:600;">${escHtml(item.productName)}</div>
-                    <div><span style="font-weight:700;">${fmtQty(totalQty, item.productUnit)}</span></div>
-                    <div>${netValue > 0 ? '<span style="color:var(--color-success);font-weight:600;">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
+            <div class="mc-body">
+                <div class="mc-info-grid">
+                    <div class="mc-associate" title="${escHtml(item.associateName)}">${escHtml(item.associateName)}</div>
+                    <div class="mc-product" title="${escHtml(item.productName)}">${escHtml(item.productName)}</div>
+                    <div><span class="mc-qty">${fmtQty(totalQty, item.productUnit)}</span></div>
+                    <div>${netValue > 0 ? '<span class="mc-net">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
                 </div>
-                <div style="display:flex;align-items:center;gap:.5rem;background:var(--color-bg);padding:.3rem .5rem;border-radius:6px;">
-                    <span style="font-size:.65rem;text-transform:uppercase;color:var(--color-text-secondary);white-space:nowrap;">Distrib.</span>
+                <div class="mc-footer">
+                    <span class="mc-footer-label">Distrib.</span>
                     <div class="mc-dist-indicator" title="${overDist ? 'Excede! Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
                         <div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : (distPercent >= 100 ? 'full' : 'partial')}" style="width:${displayPercent}%;height:100%;border-radius:99px;"></div></div>
                         <span class="mc-dist-text">${overDist ? '⚠ ' + distQty.toFixed(1) : distPercent + '%'}</span>
@@ -1183,7 +1324,7 @@ function renderSessionItems() {
     // Função para cabeçalho de seção (associado)
     function buildSectionHeader(label) {
         const h = document.createElement('div');
-        h.style.cssText = 'font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-secondary);padding:.55rem .85rem .25rem;border-top:1px solid var(--color-border);margin-top:.25rem';
+        h.className = 'session-section-header';
         h.textContent = label;
         return h;
     }
