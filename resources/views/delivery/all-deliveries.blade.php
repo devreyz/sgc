@@ -4,6 +4,12 @@
 @section('page-title', 'Gestão de Entregas e Estoque')
 @section('user-role', 'Registrador')
 
+{{-- Componente unificado de distribuição --}}
+<x-delivery.dist-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+/>
 @section('navigation')
 <nav class="nav-tabs">
     <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
@@ -662,12 +668,6 @@ function crmGenerate() {
 <!-- Distribution Modal -->
 <div class="modal-overlay" id="distModal" style="display:none"><!-- removido: substituído por x-delivery.dist-modal --></div>
 
-{{-- Componente unificado de distribuição --}}
-<x-delivery.dist-modal
-    :tenant-slug="$currentTenant->slug"
-    :csrf="csrf_token()"
-    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
-/>
 
 @push('scripts')
 <script>

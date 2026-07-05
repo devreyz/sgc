@@ -48,6 +48,34 @@
         </div>
     </div>
 
+    <div class="bento-card col-span-full" style="padding:1.25rem;">
+        <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1rem;">
+            <div>
+                <h2 style="font-weight:700;font-size:1rem;">Resumo financeiro das distribuicoes</h2>
+                <p style="font-size:.8rem;color:var(--color-text-muted);margin-top:.2rem;">Os valores financeiros usam distribuicoes aprovadas como fonte da verdade.</p>
+            </div>
+            <span class="badge badge-success">{{ $financialSummary['distribution_count'] }} distribuicao(oes)</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.85rem;">
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:700;text-transform:uppercase;">Liquido distribuido</div>
+                <div style="font-size:1.25rem;font-weight:800;color:var(--color-success);">R$ {{ number_format($financialSummary['total_net'],2,',','.') }}</div>
+            </div>
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:700;text-transform:uppercase;">Taxas</div>
+                <div style="font-size:1.25rem;font-weight:800;">R$ {{ number_format($financialSummary['total_fees'],2,',','.') }}</div>
+            </div>
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:700;text-transform:uppercase;">A receber</div>
+                <div style="font-size:1.25rem;font-weight:800;color:var(--color-warning);">R$ {{ number_format($financialSummary['receivable'],2,',','.') }}</div>
+            </div>
+            <div>
+                <div style="font-size:.7rem;color:var(--color-text-muted);font-weight:700;text-transform:uppercase;">Pago</div>
+                <div style="font-size:1.25rem;font-weight:800;color:var(--color-success);">R$ {{ number_format($financialSummary['paid'],2,',','.') }}</div>
+            </div>
+        </div>
+    </div>
+
     {{-- ── FILTROS ──────────────────────────────────────────────────────────── --}}
     <div class="bento-card col-span-full" style="padding:1rem 1.25rem;">
         <form method="GET" style="display:flex;flex-direction:column;gap:.625rem;">

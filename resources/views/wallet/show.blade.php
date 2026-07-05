@@ -208,8 +208,8 @@
             <div class="financial-stat" style="border-left-color: var(--color-danger);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 0.25rem;">Pago</p>
-                        <p style="font-size: 1.5rem; font-weight: 700; color: var(--color-danger);">R$ {{ number_format($financialSummary['total_paid'], 2, ',', '.') }}</p>
+                        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 0.25rem;">Distribuido</p>
+                        <p style="font-size: 1.5rem; font-weight: 700; color: var(--color-danger);">R$ {{ number_format($financialSummary['total_distributed'], 2, ',', '.') }}</p>
                     </div>
                     <div style="width: 48px; height: 48px; background: rgba(239, 68, 68, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-danger);">
@@ -223,8 +223,8 @@
             <div class="financial-stat" style="border-left-color: var(--color-info); background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.1) 100%);">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 0.25rem;">Saldo</p>
-                        <p style="font-size: 1.75rem; font-weight: 700; color: var(--color-info);">R$ {{ number_format($financialSummary['balance'], 2, ',', '.') }}</p>
+                        <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 0.25rem;">Taxas</p>
+                        <p style="font-size: 1.75rem; font-weight: 700; color: var(--color-info);">R$ {{ number_format($financialSummary['total_fees'], 2, ',', '.') }}</p>
                     </div>
                     <div style="width: 48px; height: 48px; background: rgba(59, 130, 246, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--color-info);">
@@ -298,14 +298,14 @@
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Recebido', 'A Receber', 'Pago', 'Saldo'],
+            labels: ['Recebido', 'A Receber', 'Distribuido', 'Taxas'],
             datasets: [{
                 label: 'Valor (R$)',
                 data: [
                     {{ $financialSummary['total_earned'] }},
                     {{ $financialSummary['pending_payment'] }},
-                    {{ $financialSummary['total_paid'] }},
-                    {{ $financialSummary['balance'] }}
+                    {{ $financialSummary['total_distributed'] }},
+                    {{ $financialSummary['total_fees'] }}
                 ],
                 backgroundColor: [
                     'rgba(16, 185, 129, 0.8)',

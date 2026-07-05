@@ -4,6 +4,11 @@
 @section('page-title', 'Histórico de Entregas')
 @section('user-role', 'Registrador')
 
+<x-delivery.dist-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
+/>
 @section('navigation')
 <nav class="nav-tabs">
     <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
@@ -260,11 +265,6 @@
 <x-delivery.edit-delivery-modal
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
-/>
-<x-delivery.dist-modal
-    :tenant-slug="$currentTenant->slug"
-    :csrf="csrf_token()"
-    :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
 />
 
 {{-- PROJECT HEADER --}}

@@ -25,20 +25,88 @@
 
 @section('content')
 <div class="bento-grid">
-    <!-- Current Balance -->
+    <!-- Distribution financial summary -->
     <div class="bento-card col-span-full">
-        <div class="stat-card">
-            <div class="stat-label">Saldo Atual</div>
-            <div class="stat-value {{ $currentBalance < 0 ? 'text-danger' : 'text-primary' }}">
-                R$ {{ number_format($currentBalance, 2, ',', '.') }}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;">
+            <div class="stat-card">
+                <div class="stat-label">Distribuido aprovado</div>
+                <div class="stat-value text-primary">R$ {{ number_format($financialSummary['total_net'], 2, ',', '.') }}</div>
+                <p class="text-xs text-muted mt-2">Valor liquido das distribuicoes aprovadas.</p>
             </div>
-            @if($currentBalance < 0)
-                <p class="text-xs text-danger mt-2">💡 Saldo negativo indica que você possui crédito a receber da cooperativa.</p>
-            @else
-                <p class="text-xs text-muted mt-2">💡 Saldo positivo indica valores que você deve à cooperativa.</p>
-            @endif
+            <div class="stat-card">
+                <div class="stat-label">A receber</div>
+                <div class="stat-value" style="color:var(--color-warning);">R$ {{ number_format($financialSummary['receivable'], 2, ',', '.') }}</div>
+                <p class="text-xs text-muted mt-2">Comprovantes emitidos ainda nao quitados.</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pago</div>
+                <div class="stat-value text-success">R$ {{ number_format($financialSummary['paid'], 2, ',', '.') }}</div>
+                <p class="text-xs text-muted mt-2">Pagamentos registrados em comprovantes.</p>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Taxas descontadas</div>
+                <div class="stat-value" style="color:var(--color-text);">R$ {{ number_format($financialSummary['total_fees'], 2, ',', '.') }}</div>
+                <p class="text-xs text-muted mt-2">{{ $financialSummary['distribution_count'] }} distribuicao(oes).</p>
+            </div>
         </div>
     </div>
+
+    @if($receipts->isNotEmpty())
+    <div class="bento-card col-span-full">
+        <h2 class="font-bold mb-4" style="font-size:1.05rem;">Comprovantes do Associado</h2>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Numero</th>
+                        <th>Projeto</th>
+                        <th>Emissao</th>
+                        <th>Status</th>
+                        <th>Liquido</th>
+                        <th>Pago</th>
+                        <th>A receber</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($receipts as $receipt)
+                    @php
+                        $receiptPaid = ($receipt->status?->value === 'paid' && (float) $receipt->amount_paid <= 0)
+                            ? (float) $receipt->total_net
+                            : (float) $receipt->amount_paid;
+                        $receiptRemaining = max(0, (float) $receipt->total_net - $receiptPaid);
+                    @endphp
+                    <tr>
+                        <td class="font-semibold">{{ $receipt->formatted_number }}</td>
+                        <td>{{ $receipt->project?->title ?? '-' }}</td>
+                        <td>{{ $receipt->issued_at?->format('d/m/Y') ?? '-' }}</td>
+                        <td><span class="badge badge-{{ $receipt->status?->value === 'paid' ? 'success' : ($receipt->status?->value === 'partially_paid' ? 'info' : 'warning') }}">{{ $receipt->status?->getLabel() ?? 'Rascunho' }}</span></td>
+                        <td class="font-semibold">R$ {{ number_format((float) $receipt->total_net, 2, ',', '.') }}</td>
+                        <td class="text-success font-semibold">R$ {{ number_format($receiptPaid, 2, ',', '.') }}</td>
+                        <td class="font-semibold" style="color:var(--color-warning);">R$ {{ number_format($receiptRemaining, 2, ',', '.') }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
+
+    @if($receiptPayments->isNotEmpty())
+    <div class="bento-card col-span-full">
+        <h2 class="font-bold mb-4" style="font-size:1.05rem;">Pagamentos Recebidos</h2>
+        <div style="display:grid;gap:.75rem;">
+            @foreach($receiptPayments as $payment)
+            <div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.85rem;background:var(--color-bg);">
+                <div style="min-width:0;">
+                    <div style="font-weight:700;">Comprovante {{ $payment->receipt?->formatted_number ?? '-' }}</div>
+                    <div class="text-xs text-muted">{{ $payment->receipt?->project?->title ?? 'Projeto' }} - {{ $payment->payment_date?->format('d/m/Y') ?? '-' }}</div>
+                </div>
+                <div class="text-success font-bold" style="white-space:nowrap;">R$ {{ number_format((float) $payment->amount, 2, ',', '.') }}</div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <!-- Filters -->
     <div class="bento-card col-span-full">
@@ -141,3 +209,4 @@
     </div>
 </div>
 @endsection
+

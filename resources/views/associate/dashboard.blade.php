@@ -48,22 +48,22 @@
             <div>
                 <div style="width:2.25rem;height:2.25rem;border-radius:.625rem;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:.5rem;">💰</div>
                 <div style="font-size:1.6rem;font-weight:700;color:var(--color-success);line-height:1.1;">R$ {{ number_format($stats['earnings_this_month'],2,',','.') }}</div>
-                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Faturado este mês</div>
+                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Faturado este mes</div>
             </div>
             <div>
                 <div style="width:2.25rem;height:2.25rem;border-radius:.625rem;background:rgba(99,102,241,.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:.5rem;">💳</div>
                 <div style="font-size:1.6rem;font-weight:700;color:var(--color-secondary);line-height:1.1;">R$ {{ number_format($stats['unpaid_value'],2,',','.') }}</div>
-                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">A receber</div>
+                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">A receber por comprovantes</div>
             </div>
             <div>
                 <div style="width:2.25rem;height:2.25rem;border-radius:.625rem;background:rgba(16,185,129,.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:.5rem;">📦</div>
-                <div style="font-size:1.6rem;font-weight:700;line-height:1.1;">{{ $stats['active_projects'] }}</div>
-                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Projetos ativos</div>
+                <div style="font-size:1.6rem;font-weight:700;line-height:1.1;">R$ {{ number_format($stats['paid_this_month'],2,',','.') }}</div>
+                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Pago este mes</div>
             </div>
             <div>
                 <div style="width:2.25rem;height:2.25rem;border-radius:.625rem;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;font-size:1.1rem;margin-bottom:.5rem;">⏳</div>
-                <div style="font-size:1.6rem;font-weight:700;color:var(--color-warning);line-height:1.1;">{{ $stats['pending_deliveries'] }}</div>
-                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Entregas pendentes</div>
+                <div style="font-size:1.6rem;font-weight:700;color:var(--color-warning);line-height:1.1;">R$ {{ number_format($stats['distributed_net'],2,',','.') }}</div>
+                <div style="font-size:.75rem;color:var(--color-text-muted);font-weight:500;margin-top:.2rem;">Distribuido aprovado</div>
             </div>
         </div>
     </div>

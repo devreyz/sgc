@@ -14,6 +14,7 @@ use App\Models\ProductionDelivery;
 use App\Models\ProjectAssociate;
 use App\Models\ProjectAssociateProductLimit;
 use App\Models\SalesProject;
+use App\Services\AssociateFinancialSummaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,59 +26,17 @@ class AssociateDashboardController extends Controller
         $this->middleware('auth');
     }
 
+    private function financial(): AssociateFinancialSummaryService
+    {
+        return app(AssociateFinancialSummaryService::class);
+    }
+
     /**
-     * Compute financial breakdown using AssociateReceipt as source of truth.
-     *
-     * Fluxo novo (via comprovante):
-     *   unbilled → distribuições sem associate_receipt_id E billing_status = UNBILLED
-     *   billed   → recibos com status=PENDING_PAYMENT + distribuições com BILLED sem recibo
-     *   paid     → recibos com status=PAID + distribuições com PAID sem recibo (fluxo legado)
+     * Compute financial breakdown from approved distributions and receipts.
      */
     private function computeFinancialStates(int $tenantId, int $projectId, int $associateId): array
     {
-        // ── Distribuições aprovadas (base) ──────────────────────────────────
-        $baseDistributions = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->where('associate_id', $associateId)
-            ->whereNotNull('parent_delivery_id')
-            ->where('status', DeliveryStatus::APPROVED->value);
-
-        // ── Distribuições SEM comprovante vinculado (fluxo legado / não coberto) ──
-        $withoutReceipt = (clone $baseDistributions)->whereNull('associate_receipt_id');
-
-        $unbilled = (float) (clone $withoutReceipt)
-            ->where('billing_status', BillingStatus::UNBILLED->value)
-            ->sum('net_value');
-
-        // Faturados no fluxo legado (sem recibo novo)
-        $billedLegacy = (float) (clone $withoutReceipt)
-            ->where('billing_status', BillingStatus::BILLED->value)
-            ->sum('net_value');
-
-        // Pagos no fluxo legado (sem recibo novo)
-        $paidLegacy = (float) (clone $withoutReceipt)
-            ->where('billing_status', BillingStatus::PAID->value)
-            ->sum('net_value');
-
-        // ── Comprovantes (fluxo novo) ───────────────────────────────────────
-        $receiptsBase = AssociateReceipt::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->where('associate_id', $associateId);
-
-        $pendingNet = (float) (clone $receiptsBase)
-            ->where('status', ReceiptStatus::PENDING_PAYMENT->value)
-            ->sum('total_net');
-
-        $paidNet = (float) (clone $receiptsBase)
-            ->where('status', ReceiptStatus::PAID->value)
-            ->sum('total_net');
-
-        return [
-            'unbilled' => $unbilled,
-            'billed'   => $billedLegacy + $pendingNet,
-            'paid'     => $paidLegacy   + $paidNet,
-            'total'    => $unbilled + $billedLegacy + $pendingNet + $paidLegacy + $paidNet,
-        ];
+        return $this->financial()->summary($tenantId, $associateId, $projectId);
     }
 
     /**
@@ -88,9 +47,9 @@ class AssociateDashboardController extends Controller
         $accumulated = (float) ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
-            ->whereNull('parent_delivery_id')
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->selectRaw('SUM(quantity * unit_price) as total')
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED->value)
+            ->selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
             ->value('total');
 
         $remaining  = $maxValue !== null ? max(0.0, $maxValue - $accumulated) : null;
@@ -174,28 +133,18 @@ class AssociateDashboardController extends Controller
             ->where('associate_id', $associate->id)
             ->whereNull('parent_delivery_id');
 
-        // Distribuições (fónte da verdade financeira)
-        $baseDistributions = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id)
-            ->whereNotNull('parent_delivery_id')
-            ->where('status', 'approved');
+        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
 
         $stats = [
             'active_projects'     => $this->allowedProjectsQuery($tenantId, $associate->id)
                 ->where('status', ProjectStatus::ACTIVE->value)
                 ->count(),
             'pending_deliveries'  => (clone $baseDeliveries)->where('status', DeliveryStatus::PENDING->value)->count(),
-            // Faturado este mês (billing_status = billed ou paid, criado no mês atual)
-            'earnings_this_month' => (float) ((clone $baseDistributions)
-                ->whereIn('billing_status', [BillingStatus::BILLED->value, BillingStatus::PAID->value])
-                ->whereMonth('updated_at', now()->month)
-                ->whereYear('updated_at', now()->year)
-                ->sum('net_value') ?? 0),
-            // Faturado mas ainda não pago ao associado
-            'unpaid_value'        => (float) ((clone $baseDistributions)
-                ->where('billing_status', BillingStatus::BILLED->value)
-                ->sum('net_value') ?? 0),
-            'current_balance'     => $associate->current_balance ?? 0,
+            'earnings_this_month' => $financialSummary['issued_this_month'],
+            'unpaid_value'        => $financialSummary['receivable'],
+            'paid_this_month'     => $financialSummary['paid_this_month'],
+            'distributed_net'     => $financialSummary['total_net'],
+            'current_balance'     => $this->financial()->ledgerBalance($associate),
         ];
 
         // ─── Active projects with limit data ─────────────────────────────────
@@ -464,6 +413,8 @@ class AssociateDashboardController extends Controller
             'total_value'  => (clone $allFiltered)->whereNotIn('status', ['cancelled', 'rejected'])->selectRaw('SUM(quantity * unit_price) as t')->value('t') ?? 0,
         ];
 
+        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
+
         // Projects for filter dropdown
         $myProjects = $this->allowedProjectsQuery($tenantId, $associate->id)
             ->whereIn('status', [ProjectStatus::ACTIVE->value, ProjectStatus::DRAFT->value])
@@ -471,7 +422,7 @@ class AssociateDashboardController extends Controller
             ->get(['id', 'title']);
 
         return view('associate.deliveries', compact(
-            'associate', 'deliveries', 'deliveryStats', 'myProjects'
+            'associate', 'deliveries', 'deliveryStats', 'myProjects', 'financialSummary'
         ));
     }
 
@@ -506,8 +457,20 @@ class AssociateDashboardController extends Controller
         }
 
         $transactions   = $query->orderBy('transaction_date', 'desc')->paginate(20);
-        $currentBalance = $associate->current_balance ?? 0;
+        $currentBalance = $this->financial()->ledgerBalance($associate);
+        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
+        $receipts = $this->financial()->receipts($tenantId, $associate->id, null, 8);
+        $receiptPayments = $this->financial()->payments($tenantId, $associate->id, null, 10);
 
-        return view('associate.ledger', compact('associate', 'transactions', 'currentBalance'));
+        return view('associate.ledger', compact(
+            'associate',
+            'transactions',
+            'currentBalance',
+            'financialSummary',
+            'receipts',
+            'receiptPayments'
+        ));
     }
 }
+
+

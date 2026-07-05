@@ -6,12 +6,18 @@ use App\Models\Associate;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderPayment as Payment;
 use App\Models\Tenant;
+use App\Services\AssociateFinancialSummaryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class WalletController extends Controller
 {
+    private function associateFinancial(): AssociateFinancialSummaryService
+    {
+        return app(AssociateFinancialSummaryService::class);
+    }
+
     /**
      * Show the digital wallet page.
      */
@@ -73,6 +79,7 @@ class WalletController extends Controller
         return view('wallet.show', [
             'user' => $user,
             'tenant' => $tenant,
+            'associate' => $associate,
             'financialSummary' => $financialSummary,
             'recentTransactions' => $recentTransactions,
             'membershipCard' => $membershipCard,
@@ -89,6 +96,9 @@ class WalletController extends Controller
             'total_paid' => 0,
             'pending_payment' => 0,
             'balance' => 0,
+            'total_distributed' => 0,
+            'total_fees' => 0,
+            'unbilled' => 0,
         ];
 
         // If user is a service provider, calculate earnings
@@ -115,15 +125,12 @@ class WalletController extends Controller
                 ->first();
 
             if ($associate) {
-                // Payments made by the associate
-                $payments = Payment::where('type', 'client')
-                    ->whereHas('serviceOrder', function ($q) use ($associate, $tenant) {
-                        $q->where('associate_id', $associate->id)
-                            ->where('tenant_id', $tenant->id);
-                    })
-                    ->get();
-
-                $summary['total_paid'] = $payments->where('status', 'paid')->sum('amount');
+                $associateSummary = $this->associateFinancial()->summary($tenant->id, $associate->id);
+                $summary['total_earned'] += $associateSummary['paid'];
+                $summary['pending_payment'] += $associateSummary['receivable'];
+                $summary['total_distributed'] = $associateSummary['total_net'];
+                $summary['total_fees'] = $associateSummary['total_fees'];
+                $summary['unbilled'] = $associateSummary['unbilled'];
 
                 // Payments received by the associate (for services provided)
                 $associateProvider = \App\Models\ServiceProvider::where('user_id', $user->id)
@@ -190,23 +197,14 @@ class WalletController extends Controller
                 ->first();
 
             if ($associate) {
-                $payments = Payment::where('type', 'client')
-                    ->whereHas('serviceOrder', function ($q) use ($associate, $tenant) {
-                        $q->where('associate_id', $associate->id)
-                            ->where('tenant_id', $tenant->id);
-                    })
-                    ->orderBy('created_at', 'desc')
-                    ->limit(10)
-                    ->get();
-
-                foreach ($payments as $payment) {
+                foreach ($this->associateFinancial()->payments($tenant->id, $associate->id, null, 10) as $payment) {
                     $transactions->push([
                         'date' => $payment->payment_date ?? $payment->created_at,
-                        'description' => $payment->description ?? 'Pagamento',
-                        'project' => $payment->serviceOrder?->service->name ?? 'N/A',
+                        'description' => 'Pagamento de comprovante',
+                        'project' => $payment->receipt?->project?->title ?? 'Projeto',
                         'amount' => $payment->amount,
-                        'type' => 'expense',
-                        'status' => $payment->status,
+                        'type' => 'income',
+                        'status' => 'paid',
                     ]);
                 }
             }

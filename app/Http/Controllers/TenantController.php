@@ -47,7 +47,7 @@ class TenantController extends Controller
             }
 
             return redirect()
-                ->intended('/admin')
+                ->intended('/')
                 ->with('success', 'Organização alterada com sucesso.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());

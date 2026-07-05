@@ -255,6 +255,7 @@ class AssociateReceiptService
             // ── Marcar comprovante como pago ───────────────────────────────
             $receipt->update([
                 'status'          => ReceiptStatus::PAID->value,
+                'amount_paid'     => round((float) $netValue, 2),
                 'paid_at'         => now(),
                 'paid_by'         => Auth::id(),
                 'payment_method'  => $data['payment_method'] ?? null,
