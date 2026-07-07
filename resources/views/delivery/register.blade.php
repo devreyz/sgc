@@ -262,7 +262,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
-    border-left: 3px solid var(--delivery-state);
+    border-left: 2px solid var(--delivery-state);
     min-width: 0;
 }
 .mobile-card.status-pending  { --delivery-state:#d97706; --delivery-state-bg:#fff7ed; }
@@ -273,17 +273,17 @@
 
 .mc-head {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 0.55rem;
-    padding: 0.55rem 0.65rem;
+    gap: 0.4rem;
+    padding: 0.42rem 0.55rem;
     background: var(--delivery-state-bg);
     border-bottom: 1px solid color-mix(in srgb, var(--delivery-state) 16%, var(--color-border));
     min-width: 0;
 }
 .mc-state-icon {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
     border-radius: 999px;
     display: inline-flex;
     align-items: center;
@@ -293,27 +293,32 @@
     border: 1px solid color-mix(in srgb, var(--delivery-state) 18%, transparent);
 }
 .mc-state-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
 }
 .mc-head-main {
     min-width: 0;
-    display: grid;
-    gap: 0.12rem;
+    display: flex;
+    align-items: center;
+    gap: 0.28rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 .mc-head-line {
-    display: flex;
+    display: contents;
     align-items: center;
     gap: 0.35rem;
     min-width: 0;
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     color: var(--color-text-secondary);
 }
 .mc-date {
     font-weight: 700;
     color: var(--color-text);
     white-space: nowrap;
+    font-size: 0.74rem;
 }
+.mc-sep { color: var(--color-text-muted); opacity: .55; font-size: .7rem; }
 .mc-head-product {
     min-width: 0;
     overflow: hidden;
@@ -321,11 +326,12 @@
     white-space: nowrap;
     color: var(--color-text);
     font-weight: 700;
-    font-size: 0.84rem;
+    font-size: 0.8rem;
+    flex: 1 1 auto;
 }
 .mc-head-qty {
     color: var(--color-text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     white-space: nowrap;
 }
@@ -349,10 +355,10 @@
     font-weight: 700;
 }
 .mc-body {
-    padding: 0.55rem 0.65rem;
+    padding: 0.48rem 0.55rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.42rem;
 }
 .mc-info-grid {
     display: grid;
@@ -380,7 +386,7 @@
     align-items: center;
     gap: 0.5rem;
     background: color-mix(in srgb, var(--color-border) 25%, var(--color-surface));
-    padding: 0.35rem 0.5rem;
+    padding: 0.3rem 0.45rem;
     border-radius: 6px;
     min-width: 0;
 }
@@ -1556,15 +1562,14 @@ function renderSessionItems() {
         return `
         <div class="mobile-card status-${visualClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
             <div class="mc-head">
-                <span class="mc-state-icon" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
                 <div class="mc-head-main">
-                    <div class="mc-head-line">
-                        <span class="mc-date">${dateStr}</span>
-                        <span aria-hidden="true">-</span>
-                        <span class="mc-head-qty">${fmtQty(totalQty, item.productUnit)}</span>
-                    </div>
+                    <span class="mc-date">${dateStr}</span>
+                    <span class="mc-sep" aria-hidden="true">-</span>
                     <div class="mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</div>
+                    <span class="mc-sep" aria-hidden="true">-</span>
+                    <span class="mc-head-qty">${fmtQty(totalQty, item.productUnit)}</span>
                 </div>
+                <span class="mc-state-icon" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
                 ${billedTag}
             </div>
             <div class="mc-body">

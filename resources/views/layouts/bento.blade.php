@@ -2078,6 +2078,18 @@
     <!-- Image Compressor -->
     <script src="{{ asset('js/image-compressor.js') }}"></script>
 
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(function (registration) {
+                        registration.update();
+                    })
+                    .catch(function () {});
+            });
+        }
+    </script>
+
     @stack('scripts')
 </body>
 </html>

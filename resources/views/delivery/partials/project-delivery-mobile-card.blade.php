@@ -39,15 +39,14 @@ $stateIcon = $overDistributed
      data-filter-status="{{ $delivery['status_value'] }}"
 >
     <div class="mc-head">
-        <span class="mc-state-icon" title="{{ $stateLabel }}" aria-label="{{ $stateLabel }}">{!! $stateIcon !!}</span>
         <div class="mc-head-main">
-            <div class="mc-head-line">
-                <span class="mc-date">{{ $delivery['delivery_date'] }}</span>
-                <span aria-hidden="true">-</span>
-                <span class="mc-head-qty">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
-            </div>
+            <span class="mc-date">{{ $delivery['delivery_date'] }}</span>
+            <span class="mc-sep" aria-hidden="true">-</span>
             <div class="mc-head-product" title="{{ $delivery['product_name'] }}">{{ $delivery['product_name'] }}</div>
+            <span class="mc-sep" aria-hidden="true">-</span>
+            <span class="mc-head-qty">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
         </div>
+        <span class="mc-state-icon" title="{{ $stateLabel }}" aria-label="{{ $stateLabel }}">{!! $stateIcon !!}</span>
         @if($delivery['status_value'] === 'approved')
         <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" title="Selecionar para comprovante" style="flex-shrink:0;">
         @endif
