@@ -78,6 +78,38 @@
     }
     .filter-tag i { cursor: pointer; }
 
+    .delivery-pagination {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:.75rem;
+        padding:.75rem 1.2rem;
+        border-top:1px solid var(--color-border);
+        flex-wrap:wrap;
+    }
+    .delivery-pagination-info { font-size:.76rem; color:var(--color-text-secondary); font-weight:600; }
+    .delivery-pagination-actions { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+    .delivery-page-size {
+        border:1px solid var(--color-border);
+        border-radius:var(--radius-md);
+        padding:.32rem .5rem;
+        background:var(--color-surface);
+        color:var(--color-text);
+        font:inherit;
+        font-size:.76rem;
+    }
+    .delivery-page-btn {
+        border:1px solid var(--color-border);
+        border-radius:var(--radius-md);
+        background:var(--color-surface);
+        color:var(--color-text);
+        padding:.32rem .55rem;
+        font-size:.76rem;
+        font-weight:700;
+        cursor:pointer;
+    }
+    .delivery-page-btn:disabled { opacity:.42; cursor:not-allowed; }
+
     /* ========== TABELA DESKTOP ========== */
     .table-scroll { overflow-x:auto; }
     .data-table { width:100%; border-collapse:collapse; font-size:.84rem; }
@@ -122,7 +154,7 @@
 
     /* ========== DISTRIBUTION INDICATOR ========== */
     .dist-indicator {
-        display:flex; align-items:center; gap:.35rem; font-size:.72rem;
+        display:flex; align-items:center; gap:.35rem; font-size:.72rem; cursor:pointer; border-radius:6px;
     }
     .dist-bar-bg {
         width:54px; height:7px; background:#e5e7eb; border-radius:99px; overflow:hidden;
@@ -184,23 +216,52 @@
         .mobile-cards { display:block !important; }
 
         .mobile-card {
+            --delivery-state:#94a3b8;
+            --delivery-state-bg:#f8fafc;
             background:var(--color-surface);
             border:1px solid var(--color-border);
             border-radius:var(--radius-md);
             margin-bottom:.45rem;
-            padding:.5rem .6rem;
+            padding:0;
             position:relative;
             display:flex;
             flex-direction:column;
-            gap:.15rem;
             font-size:.76rem;
-            border-left:4px solid transparent;
+            border-left:3px solid var(--delivery-state);
+            overflow:hidden;
         }
-        .mobile-card.status-pending  { border-left-color:#f59e0b; }
-        .mobile-card.status-approved { border-left-color:#16a34a; }
-        .mobile-card.status-rejected { border-left-color:#dc2626; }
-        .mobile-card.status-cancelled { border-left-color:#6b7280; }
+        .mobile-card.status-pending  { --delivery-state:#d97706; --delivery-state-bg:#fff7ed; }
+        .mobile-card.status-approved { --delivery-state:#2563eb; --delivery-state-bg:#eff6ff; }
+        .mobile-card.status-distributed { --delivery-state:#059669; --delivery-state-bg:#ecfdf5; }
+        .mobile-card.status-rejected { --delivery-state:#dc2626; --delivery-state-bg:#fef2f2; }
+        .mobile-card.status-cancelled { --delivery-state:#6b7280; --delivery-state-bg:#f3f4f6; }
 
+        .mc-head {
+            display:grid;
+            grid-template-columns:auto minmax(0,1fr) auto;
+            align-items:center;
+            gap:.55rem;
+            padding:.55rem .65rem;
+            background:var(--delivery-state-bg);
+            border-bottom:1px solid color-mix(in srgb, var(--delivery-state) 16%, var(--color-border));
+        }
+        .mc-state-icon {
+            width:26px;
+            height:26px;
+            border-radius:999px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            color:var(--delivery-state);
+            background:color-mix(in srgb, var(--delivery-state) 10%, #fff);
+            border:1px solid color-mix(in srgb, var(--delivery-state) 18%, transparent);
+        }
+        .mc-state-icon svg { width:14px; height:14px; }
+        .mc-head-main { min-width:0; display:grid; gap:.12rem; }
+        .mc-head-line { display:flex; align-items:center; gap:.35rem; min-width:0; font-size:.78rem; color:var(--color-text-secondary); }
+        .mc-head-product { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-text); font-weight:700; font-size:.84rem; }
+        .mc-head-qty { color:var(--color-text-secondary); font-size:.75rem; font-weight:700; white-space:nowrap; }
+        .mc-body { padding:.55rem .65rem; display:flex; flex-direction:column; gap:.5rem; }
         .mc-row {
             display:flex;
             align-items:center;
@@ -208,7 +269,7 @@
             flex-wrap:wrap;
         }
         .mc-chk { flex-shrink:0; }
-        .mc-date { font-weight:600; color:var(--color-text); white-space:nowrap; }
+        .mc-date { font-weight:700; color:var(--color-text); white-space:nowrap; }
         .mc-status { margin-left:auto; }
         .mc-assoc { font-size:.72rem; color:var(--color-text-secondary); }
         .mc-product { font-size:.78rem; font-weight:600; }
@@ -216,14 +277,30 @@
         .mc-qty { font-weight:700; }
         .mc-net { font-weight:700; color:var(--color-success); }
         .mc-actions { display:flex; gap:.3rem; margin-top:.2rem; flex-wrap:wrap; }
-        .mc-dist-indicator { display:flex; align-items:center; gap:.25rem; font-size:.7rem; }
-        .mc-dist-bar-bg { width:44px; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
+        .mc-dist-indicator { display:flex; align-items:center; gap:.25rem; font-size:.7rem; cursor:pointer; border-radius:6px; }
+        .mc-dist-indicator:hover .mc-dist-bar-bg { background:#dbe3ea; }
+        .mc-dist-bar-bg { width:76px; height:7px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
         .mc-dist-bar-fill { height:100%; border-radius:99px; }
-        .mc-dist-bar-fill.full { background:#16a34a; }
-        .mc-dist-bar-fill.partial { background:#f59e0b; }
-        .mc-dist-bar-fill.over { background:#dc2626; }
+        .mc-dist-bar-fill.full { background:#10b981; }
+        .mc-dist-bar-fill.partial { background:#93c5fd; }
+        .mc-dist-bar-fill.over { background:#fca5a5; }
         .mc-dist-text { font-weight:600; min-width:34px; white-space:nowrap; font-size:.7rem; }
     }
+
+    .dist-summary-overlay {
+        position:fixed; inset:0; z-index:310000; display:none; align-items:center; justify-content:center;
+        padding:1rem; background:rgba(15,23,42,.28);
+    }
+    .dist-summary-overlay.open { display:flex; }
+    .dist-summary-box { width:min(420px,94vw); max-height:min(520px,88dvh); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:0 18px 42px rgba(15,23,42,.24); }
+    .dist-summary-head { display:flex; justify-content:space-between; gap:1rem; padding:.9rem 1rem; border-bottom:1px solid var(--color-border); }
+    .dist-summary-title { font-weight:800; font-size:.92rem; color:var(--color-text); }
+    .dist-summary-sub { font-size:.76rem; color:var(--color-text-secondary); margin-top:.12rem; }
+    .dist-summary-close { border:0; background:transparent; color:var(--color-text-secondary); cursor:pointer; font-size:1.1rem; }
+    .dist-summary-body { padding:.85rem 1rem 1rem; display:grid; gap:.45rem; }
+    .dist-summary-row { display:flex; justify-content:space-between; gap:.75rem; padding:.55rem .65rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg); font-size:.82rem; }
+    .dist-summary-row strong { color:var(--color-text); }
+    .dist-summary-row span { color:var(--color-text-secondary); white-space:nowrap; }
 </style>
 
 <!-- Custom Confirm Modal -->
@@ -398,6 +475,12 @@ $totalNet      = $deliveries->sum('net_value');
         </select>
         <input type="date" class="filter-input" id="filter-date-from" placeholder="Data início" style="max-width:130px;">
         <input type="date" class="filter-input" id="filter-date-to" placeholder="Data fim" style="max-width:130px;">
+        <select class="filter-select" id="delivery-page-size" style="max-width:150px;">
+            <option value="30">30 ultimos</option>
+            <option value="50">50 ultimos</option>
+            <option value="100">100 ultimos</option>
+            <option value="all">Todos</option>
+        </select>
     </div>
 
     @if($deliveries->isEmpty())
@@ -437,9 +520,28 @@ $totalNet      = $deliveries->sum('net_value');
             @include('delivery.partials.project-delivery-mobile-card', ['delivery' => $delivery, 'customers' => $customers])
         @endforeach
     </div>
+    <div class="delivery-pagination" id="project-pagination">
+        <div class="delivery-pagination-info" id="project-page-info"></div>
+        <div class="delivery-pagination-actions">
+            <button type="button" class="delivery-page-btn" id="project-prev">Anterior</button>
+            <button type="button" class="delivery-page-btn" id="project-next">Proxima</button>
+        </div>
+    </div>
     @endif
 </div>
 
+<div class="dist-summary-overlay" id="dist-summary-overlay" onclick="closeDistSummaryOnBackdrop(event)">
+    <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
+        <div class="dist-summary-head">
+            <div>
+                <div class="dist-summary-title" id="dist-summary-title">Distribuicoes</div>
+                <div class="dist-summary-sub" id="dist-summary-sub"></div>
+            </div>
+            <button type="button" class="dist-summary-close" onclick="closeDistSummary()" aria-label="Fechar">x</button>
+        </div>
+        <div class="dist-summary-body" id="dist-summary-body"></div>
+    </div>
+</div>
 {{-- SELECTION BAR --}}
 <div class="selection-bar" id="selection-bar">
     <div class="selection-bar-info">
@@ -461,6 +563,7 @@ const PD_TENANT    = '{{ $currentTenant->slug }}';
 const PD_CSRF      = '{{ csrf_token() }}';
 const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
+const projectListState = { page: 1, perPage: 30 };
 
 /* ========== CUSTOM CONFIRM ========== */
 function customConfirm(message) {
@@ -505,27 +608,35 @@ function applyFilters() {
     const dateFrom = document.getElementById('filter-date-from')?.value || '';
     const dateTo   = document.getElementById('filter-date-to')?.value || '';
 
-    let visibleCount = 0;
     const hasFilter = search || status || assoc || prod || dateFrom || dateTo;
     document.getElementById('clear-filters-btn').style.display = hasFilter ? '' : 'none';
 
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const desktopRows = Array.from(document.querySelectorAll('#desktop-tbody tr'));
+    const mobileCards = Array.from(document.querySelectorAll('#mobile-cards .mobile-card'));
+    const activeItems = isMobile ? mobileCards : desktopRows;
+    const inactiveItems = isMobile ? desktopRows : mobileCards;
 
-    // Desktop rows
-    document.querySelectorAll('#desktop-tbody tr').forEach(row => {
-        const visible = rowMatchesFilter(row, search, status, assoc, prod, dateFrom, dateTo);
-        row.style.display = visible ? '' : 'none';
-        if (!isMobile && visible) visibleCount++;
+    inactiveItems.forEach(item => item.style.display = 'none');
+
+    const matched = activeItems.filter(item => {
+        return isMobile
+            ? cardMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo)
+            : rowMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo);
     });
 
-    // Mobile cards
-    document.querySelectorAll('#mobile-cards .mobile-card').forEach(card => {
-        const visible = cardMatchesFilter(card, search, status, assoc, prod, dateFrom, dateTo);
-        card.style.display = visible ? '' : 'none';
-        if (isMobile && visible) visibleCount++;
+    const perPage = projectListState.perPage === 'all' ? matched.length || 1 : parseInt(projectListState.perPage || 30, 10);
+    const totalPages = Math.max(1, Math.ceil(matched.length / perPage));
+    projectListState.page = Math.min(Math.max(projectListState.page || 1, 1), totalPages);
+    const start = (projectListState.page - 1) * perPage;
+    const pageItems = new Set(matched.slice(start, start + perPage));
+
+    activeItems.forEach(item => {
+        item.style.display = pageItems.has(item) ? '' : 'none';
     });
 
-    document.getElementById('filtered-count').textContent = visibleCount;
+    document.getElementById('filtered-count').textContent = matched.length;
+    updateProjectPagination(matched.length, matched.length ? start + 1 : 0, Math.min(start + perPage, matched.length), projectListState.page, totalPages);
 }
 
 function rowMatchesFilter(row, search, status, assoc, prod, dateFrom, dateTo) {
@@ -563,6 +674,58 @@ function normalizeFilterText(value) {
     return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
+function updateProjectPagination(total, start, end, page, totalPages) {
+    const wrap = document.getElementById('project-pagination');
+    if (!wrap) return;
+    wrap.style.display = total > 0 ? 'flex' : 'none';
+    document.getElementById('project-page-info').textContent = total > 0 ? `${start}-${end} de ${total}` : '';
+    document.getElementById('project-prev').disabled = page <= 1;
+    document.getElementById('project-next').disabled = page >= totalPages;
+}
+
+function parseCardDistributions(card) {
+    try {
+        if (card?.dataset?.distributionsB64) {
+            return JSON.parse(atob(card.dataset.distributionsB64)) || [];
+        }
+        return JSON.parse(card?.dataset?.distributions || '[]') || [];
+    }
+    catch (e) { return []; }
+}
+
+function fmtProjectQty(n, unit) {
+    const num = parseFloat(n) || 0;
+    const str = num % 1 === 0 ? String(num) : num.toFixed(2).replace(/\.?0+$/, '');
+    return str + (unit ? ' ' + unit : '');
+}
+
+function openDistSummaryFromCard(card) {
+    const product = card?.dataset?.product || 'Produto';
+    const unit = card?.dataset?.unit || '';
+    const totalQty = parseFloat(card?.dataset?.totalQty || 0);
+    const distQty = parseFloat(card?.dataset?.distributed || 0);
+    const distributions = parseCardDistributions(card);
+    document.getElementById('dist-summary-title').textContent = product;
+    document.getElementById('dist-summary-sub').textContent = `${fmtProjectQty(distQty, unit)} distribuidos de ${fmtProjectQty(totalQty, unit)}`;
+    document.getElementById('dist-summary-body').innerHTML = distributions.length
+        ? distributions.map(d => {
+            const customer = d.customer || d.customer_name || d.customerName || 'Cliente';
+            const qty = parseFloat(d.qty || d.quantity || 0);
+            const net = parseFloat(d.net || d.net_value || 0);
+            return `<div class="dist-summary-row"><strong>${esc(customer)}</strong><span>${fmtProjectQty(qty, unit)}${net > 0 ? ' - R$ ' + net.toFixed(2) : ''}</span></div>`;
+        }).join('')
+        : '<div class="dist-summary-row"><strong>Nenhuma distribuicao</strong><span>0%</span></div>';
+    document.getElementById('dist-summary-overlay').classList.add('open');
+}
+
+function closeDistSummary() {
+    document.getElementById('dist-summary-overlay')?.classList.remove('open');
+}
+
+function closeDistSummaryOnBackdrop(event) {
+    if (event.target === document.getElementById('dist-summary-overlay')) closeDistSummary();
+}
+
 function clearAllFilters() {
     document.getElementById('filter-search').value = '';
     document.getElementById('filter-status').value = '';
@@ -570,13 +733,31 @@ function clearAllFilters() {
     document.getElementById('filter-product').value = '';
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
+    projectListState.page = 1;
     applyFilters();
 }
 
 // Attach filter listeners
 ['filter-search','filter-status','filter-associate','filter-product','filter-date-from','filter-date-to'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', applyFilters);
+    if (el) el.addEventListener('input', () => {
+        projectListState.page = 1;
+        applyFilters();
+    });
+});
+
+document.getElementById('delivery-page-size')?.addEventListener('change', function() {
+    projectListState.perPage = this.value === 'all' ? 'all' : parseInt(this.value || 30, 10);
+    projectListState.page = 1;
+    applyFilters();
+});
+document.getElementById('project-prev')?.addEventListener('click', function() {
+    projectListState.page = Math.max(1, projectListState.page - 1);
+    applyFilters();
+});
+document.getElementById('project-next')?.addEventListener('click', function() {
+    projectListState.page += 1;
+    applyFilters();
 });
 
 window.addEventListener('resize', () => {
@@ -721,6 +902,12 @@ loadReceiptsHistory();
 
 /* ========== ACTION HANDLERS ========== */
 document.addEventListener('click', async function(e) {
+    const summary = e.target.closest('.mc-dist-indicator[data-summary], .dist-indicator[data-summary]');
+    if (summary) {
+        openDistSummaryFromCard(summary.closest('.mobile-card, tr[data-delivery-id]'));
+        return;
+    }
+
     const approveBtn  = e.target.closest('.btn-approve');
     const rejectBtn   = e.target.closest('.btn-reject');
     const editBtn     = e.target.closest('.btn-edit');
@@ -745,6 +932,7 @@ document.addEventListener('click', async function(e) {
                 // Remove both desktop row and mobile card
                 document.getElementById('desktop-row-' + id)?.remove();
                 document.getElementById('mobile-row-' + id)?.remove();
+                applyFilters();
                 pdToast('Entrega excluída.');
             } else {
                 pdToast(data.message || 'Erro ao excluir.', 'error');
@@ -812,6 +1000,7 @@ document.addEventListener('click', async function(e) {
                         cardEl.classList.add('status-approved');
                     }
                 }
+                refreshDeliveryItem(id).catch(() => applyFilters());
                 lucide.createIcons();
             } else {
                 pdToast(data.message || 'Erro ao processar.', 'error');

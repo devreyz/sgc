@@ -4,59 +4,76 @@ $totalQty = $delivery['quantity'];
 $distPercent = $totalQty > 0 ? min(round(($distQty / $totalQty) * 100), 100) : 0;
 $overDistributed = $distQty > $totalQty;
 $distDisplayPercent = $overDistributed ? 100 : $distPercent;
+$visualStatus = $delivery['status_value'] === 'approved' && $distPercent >= 100 && ! $overDistributed
+    ? 'distributed'
+    : $delivery['status_value'];
+$stateLabel = $overDistributed
+    ? 'Distribuicao acima da quantidade registrada'
+    : ($delivery['status_value'] === 'approved' && $distPercent >= 100
+        ? 'Aprovada e 100% distribuida'
+        : ($delivery['status_value'] === 'approved'
+            ? 'Aprovada com distribuicao pendente'
+            : ($delivery['status_value'] === 'pending' ? 'Pendente de aprovacao' : $delivery['status'])));
+$stateIcon = $overDistributed
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"></path></svg>'
+    : ($delivery['status_value'] === 'approved' && $distPercent >= 100
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>'
+        : ($delivery['status_value'] === 'approved'
+            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M5 12h14"></path></svg>'
+            : ($delivery['status_value'] === 'pending'
+                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>')));
 @endphp
-<div class="mobile-card status-{{ $delivery['status_value'] }} variant-c"
+
+<div class="mobile-card status-{{ $visualStatus }} variant-c"
      id="mobile-row-{{ $delivery['id'] }}"
      data-delivery-id="{{ $delivery['id'] }}"
      data-total-qty="{{ $totalQty }}"
      data-unit="{{ $delivery['unit'] }}"
+     data-product="{{ $delivery['product_name'] }}"
+     data-distributed="{{ $distQty }}"
+     data-distributions-b64="{{ base64_encode(json_encode($delivery['distributions'])) }}"
      data-filter-date="{{ $delivery['delivery_date_raw'] }}"
      data-filter-associate="{{ $delivery['associate_name'] }}"
      data-filter-product="{{ $delivery['product_name'] }}"
      data-filter-status="{{ $delivery['status_value'] }}"
-     style="padding:0; border-radius:var(--radius-md); overflow:hidden;"
 >
-    {{-- Cabeçalho --}}
-    <div style="display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; background:var(--color-bg); border-bottom:1px solid var(--color-border);">
+    <div class="mc-head">
+        <span class="mc-state-icon" title="{{ $stateLabel }}" aria-label="{{ $stateLabel }}">{!! $stateIcon !!}</span>
+        <div class="mc-head-main">
+            <div class="mc-head-line">
+                <span class="mc-date">{{ $delivery['delivery_date'] }}</span>
+                <span aria-hidden="true">-</span>
+                <span class="mc-head-qty">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
+            </div>
+            <div class="mc-head-product" title="{{ $delivery['product_name'] }}">{{ $delivery['product_name'] }}</div>
+        </div>
         @if($delivery['status_value'] === 'approved')
-        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" style="flex-shrink:0;">
-        @endif
-        <span class="mc-date" style="font-weight:700; white-space:nowrap; font-size:.82rem;">{{ $delivery['delivery_date'] }}</span>
-        <span class="badge-status {{ $delivery['status_value'] }}" style="margin-left:auto; display:inline-flex; align-items:center; gap:.35rem;">
-            {{ $delivery['status'] }}
-            <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.3); font-size:.7rem; font-weight:700; color:inherit;">{{ $delivery['quality_grade'] ?? '—' }}</span>
-        </span>
-        @if($delivery['has_billed'])
-        <span style="font-size:.6rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>
+        <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" title="Selecionar para comprovante" style="flex-shrink:0;">
         @endif
     </div>
 
-    {{-- Corpo --}}
-    <div style="padding:.5rem .6rem; display:flex; flex-direction:column; gap:.5rem;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:.3rem .8rem; font-size:.76rem;">
-            <div class="mc-assoc" style="font-weight: bold;">{{ $delivery['associate_name'] }}</div>
-            <div class="mc-product" style="font-weight:600;">{{ $delivery['product_name'] }}</div>
+    <div class="mc-body">
+        <div style="display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.3rem .8rem; font-size:.76rem;">
+            <div class="mc-assoc" style="font-weight:700;">{{ $delivery['associate_name'] }}</div>
             <div>
-                <span class="mc-qty" style="font-weight:700;">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
-            </div>
-            <div>
-                @if($delivery['dist_net_value'] > 0)
-                <span style="color:var(--color-success); font-weight:600;">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
+                @if($delivery['has_billed'])
+                <span style="font-size:.65rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>
+                @elseif($delivery['dist_net_value'] > 0)
+                <span class="mc-net">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
                 @endif
             </div>
         </div>
 
-        {{-- Distribuição + Ações (mesma linha) --}}
         <div style="display:flex; align-items:center; gap:.5rem; background:var(--color-bg); padding:.3rem .5rem; border-radius:6px;">
             <span style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary); white-space:nowrap;">Distrib.</span>
-            <div class="mc-dist-indicator" style="display:flex; align-items:center; gap:.3rem; flex:1; min-width:0;" title="{{ $overDistributed ? 'Excede! Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
-                <div class="mc-dist-bar-bg" style="flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; max-width:80px;">
+            <div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1" style="display:flex; align-items:center; gap:.3rem; flex:1; min-width:0;" title="{{ $overDistributed ? 'Excede. Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuido' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
+                <div class="mc-dist-bar-bg" style="flex:1; overflow:hidden;">
                     <div class="mc-dist-bar-fill {{ $overDistributed ? 'over' : ($distPercent >= 100 ? 'full' : 'partial') }}" style="width:{{ $distDisplayPercent }}%; height:100%; border-radius:99px;"></div>
                 </div>
-                <span class="mc-dist-text" style="font-weight:700; font-size:.72rem;">{{ $overDistributed ? '⚠ '.number_format($distQty,1) : $distPercent }}%</span>
+                <span class="mc-dist-text" style="font-weight:700; font-size:.72rem;">{{ $overDistributed ? '! '.number_format($distQty,1) : $distPercent }}%</span>
             </div>
 
-            {{-- Ações na mesma linha, à direita --}}
             <div class="mc-actions" style="display:flex; gap:.3rem; margin-left:auto; flex-shrink:0;">
                 @if($delivery['status_value'] === 'pending')
                 <button class="btn-approve btn-xs" data-id="{{ $delivery['id'] }}">Aprovar</button>
@@ -95,7 +112,6 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
                 <button class="btn-delete-approved btn-xs" data-id="{{ $delivery['id'] }}">Excluir</button>
                 @endunless
                 @elseif($delivery['status_value'] === 'rejected')
-                {{-- Entregas rejeitadas podem ser excluídas --}}
                 <button class="btn-delete-approved btn-xs" data-id="{{ $delivery['id'] }}">Excluir</button>
                 @endif
             </div>

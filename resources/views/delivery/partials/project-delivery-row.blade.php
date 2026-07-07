@@ -10,6 +10,9 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
     class="{{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}"
     data-total-qty="{{ $totalQty }}"
     data-unit="{{ $delivery['unit'] }}"
+    data-product="{{ $delivery['product_name'] }}"
+    data-distributed="{{ $distQty }}"
+    data-distributions-b64="{{ base64_encode(json_encode($delivery['distributions'])) }}"
     data-filter-date="{{ $delivery['delivery_date_raw'] }}"
     data-filter-associate="{{ $delivery['associate_name'] }}"
     data-filter-product="{{ $delivery['product_name'] }}"
@@ -42,7 +45,7 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
         @endif
     </td>
     <td>
-        <div class="dist-indicator" title="{{ $overDistributed ? 'Excede! Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
+        <div class="dist-indicator" role="button" tabindex="0" data-summary="1" title="{{ $overDistributed ? 'Excede! Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
             <div class="dist-bar-bg">
                 <div class="dist-bar-fill {{ $overDistributed ? 'over' : ($distPercent >= 100 ? 'full' : 'partial') }}" style="width:{{ $distDisplayPercent }}%"></div>
             </div>

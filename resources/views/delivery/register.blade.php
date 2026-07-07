@@ -256,30 +256,77 @@
 
 /* ─── Mobile cards (histórico) ─────────────────── */
 .mobile-card {
+    --delivery-state: #94a3b8;
+    --delivery-state-bg: #f8fafc;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     overflow: hidden;
-    border-left: 3px solid transparent;
+    border-left: 3px solid var(--delivery-state);
     min-width: 0;
 }
-.mobile-card.status-pending  { border-left-color: #f59e0b; }
-.mobile-card.status-approved { border-left-color: #16a34a; }
-.mobile-card.status-rejected { border-left-color: #dc2626; }
-.mobile-card.status-cancelled { border-left-color: #6b7280; }
+.mobile-card.status-pending  { --delivery-state:#d97706; --delivery-state-bg:#fff7ed; }
+.mobile-card.status-approved { --delivery-state:#2563eb; --delivery-state-bg:#eff6ff; }
+.mobile-card.status-distributed { --delivery-state:#059669; --delivery-state-bg:#ecfdf5; }
+.mobile-card.status-rejected { --delivery-state:#dc2626; --delivery-state-bg:#fef2f2; }
+.mobile-card.status-cancelled { --delivery-state:#6b7280; --delivery-state-bg:#f3f4f6; }
 
 .mc-head {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.65rem;
+    background: var(--delivery-state-bg);
+    border-bottom: 1px solid color-mix(in srgb, var(--delivery-state) 16%, var(--color-border));
+    min-width: 0;
+}
+.mc-state-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--delivery-state);
+    background: color-mix(in srgb, var(--delivery-state) 10%, #fff);
+    border: 1px solid color-mix(in srgb, var(--delivery-state) 18%, transparent);
+}
+.mc-state-icon svg {
+    width: 14px;
+    height: 14px;
+}
+.mc-head-main {
+    min-width: 0;
+    display: grid;
+    gap: 0.12rem;
+}
+.mc-head-line {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.45rem 0.65rem;
-    background: color-mix(in srgb, var(--color-border) 25%, var(--color-surface));
-    border-bottom: 1px solid var(--color-border);
+    gap: 0.35rem;
     min-width: 0;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
 }
 .mc-date {
     font-weight: 700;
-    font-size: 0.82rem;
+    color: var(--color-text);
+    white-space: nowrap;
+}
+.mc-head-product {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text);
+    font-weight: 700;
+    font-size: 0.84rem;
+}
+.mc-head-qty {
+    color: var(--color-text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
     white-space: nowrap;
 }
 .mc-billed {
@@ -302,14 +349,14 @@
     font-weight: 700;
 }
 .mc-body {
-    padding: 0.6rem 0.65rem;
+    padding: 0.55rem 0.65rem;
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    gap: 0.5rem;
 }
 .mc-info-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.35rem 0.8rem;
     font-size: 0.76rem;
 }
@@ -379,14 +426,91 @@
 .btn-xs { padding:.22rem .5rem; font-size:.7rem; }
 
 /* ─── Distribuição (barra) ─────────────────────── */
-.mc-dist-indicator { display:flex; align-items:center; gap:.3rem; flex:1; min-width:0; }
-.mc-dist-bar-bg { flex:1; height:6px; background:#e5e7eb; border-radius:99px; overflow:hidden; min-width:52px; max-width:120px; }
+.mc-dist-indicator { display:flex; align-items:center; gap:.3rem; flex:1; min-width:0; cursor:pointer; border-radius:6px; }
+.mc-dist-indicator:hover .mc-dist-bar-bg { background:#dbe3ea; }
+.mc-dist-bar-bg { flex:1; height:7px; background:#e5e7eb; border-radius:99px; overflow:hidden; min-width:64px; max-width:160px; }
 .mc-dist-bar-fill { height:100%; border-radius:99px; }
-.mc-dist-bar-fill.full { background:#16a34a; }
-.mc-dist-bar-fill.partial { background:#f59e0b; }
-.mc-dist-bar-fill.over { background:#dc2626; }
+.mc-dist-bar-fill.full { background:#10b981; }
+.mc-dist-bar-fill.partial { background:#93c5fd; }
+.mc-dist-bar-fill.over { background:#fca5a5; }
 .mc-dist-text { font-weight:700; font-size:.72rem; white-space:nowrap; }
 .mc-actions { display:flex; gap:.3rem; margin-left:auto; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+
+.delivery-pagination {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.75rem;
+    padding:.55rem .75rem .75rem;
+    border-top:1px solid var(--color-border);
+    flex-wrap:wrap;
+}
+.delivery-pagination-info { font-size:.76rem; color:var(--color-text-secondary); font-weight:600; }
+.delivery-pagination-actions { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.delivery-page-size {
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    padding:.32rem .5rem;
+    background:var(--color-surface);
+    color:var(--color-text);
+    font:inherit;
+    font-size:.76rem;
+}
+.delivery-page-btn {
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    background:var(--color-surface);
+    color:var(--color-text);
+    padding:.32rem .55rem;
+    font-size:.76rem;
+    font-weight:700;
+    cursor:pointer;
+}
+.delivery-page-btn:disabled { opacity:.42; cursor:not-allowed; }
+
+.dist-summary-overlay {
+    position:fixed;
+    inset:0;
+    z-index:310000;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:1rem;
+    background:rgba(15,23,42,.28);
+}
+.dist-summary-overlay.open { display:flex; }
+.dist-summary-box {
+    width:min(420px, 94vw);
+    max-height:min(520px, 88dvh);
+    overflow:auto;
+    background:var(--color-surface);
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-lg);
+    box-shadow:0 18px 42px rgba(15,23,42,.24);
+}
+.dist-summary-head {
+    display:flex;
+    justify-content:space-between;
+    gap:1rem;
+    padding:.9rem 1rem;
+    border-bottom:1px solid var(--color-border);
+}
+.dist-summary-title { font-weight:800; font-size:.92rem; color:var(--color-text); }
+.dist-summary-sub { font-size:.76rem; color:var(--color-text-secondary); margin-top:.12rem; }
+.dist-summary-close { border:0; background:transparent; color:var(--color-text-secondary); cursor:pointer; font-size:1.1rem; }
+.dist-summary-body { padding:.85rem 1rem 1rem; display:grid; gap:.45rem; }
+.dist-summary-row {
+    display:flex;
+    justify-content:space-between;
+    gap:.75rem;
+    padding:.55rem .65rem;
+    border:1px solid var(--color-border);
+    border-radius:var(--radius-md);
+    background:var(--color-bg);
+    font-size:.82rem;
+}
+.dist-summary-row strong { color:var(--color-text); }
+.dist-summary-row span { color:var(--color-text-secondary); white-space:nowrap; }
 
 /* Filter bar */
 .history-filter {
@@ -805,6 +929,19 @@
         <div id="session-list">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
+        <div class="delivery-pagination" id="session-pagination" style="display:none">
+            <div class="delivery-pagination-info" id="session-page-info"></div>
+            <div class="delivery-pagination-actions">
+                <select class="delivery-page-size" id="session-page-size" onchange="setSessionPageSize(this.value)">
+                    <option value="30">30 ultimos</option>
+                    <option value="50">50 ultimos</option>
+                    <option value="100">100 ultimos</option>
+                    <option value="all">Todos</option>
+                </select>
+                <button type="button" class="delivery-page-btn" id="session-prev" onclick="changeSessionPage(-1)">Anterior</button>
+                <button type="button" class="delivery-page-btn" id="session-next" onclick="changeSessionPage(1)">Proxima</button>
+            </div>
+        </div>
     </div>
 
 </div>
@@ -814,6 +951,19 @@
 <button type="button" class="scroll-top-btn" id="scroll-top-btn" onclick="scrollToRegisterTop()" aria-label="Voltar ao topo">
     <i data-lucide="arrow-up" style="width:18px;height:18px"></i>
 </button>
+
+<div class="dist-summary-overlay" id="dist-summary-overlay" onclick="closeDistSummaryOnBackdrop(event)">
+    <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
+        <div class="dist-summary-head">
+            <div>
+                <div class="dist-summary-title" id="dist-summary-title">Distribuicoes</div>
+                <div class="dist-summary-sub" id="dist-summary-sub"></div>
+            </div>
+            <button type="button" class="dist-summary-close" onclick="closeDistSummary()" aria-label="Fechar">x</button>
+        </div>
+        <div class="dist-summary-body" id="dist-summary-body"></div>
+    </div>
+</div>
 
 {{-- Project modal --}}
 <div class="modal-overlay" id="modal-project" onclick="closeModalOnBackdrop(event, 'project')">
@@ -934,6 +1084,8 @@ const S = {
     loadingDeliveries : false,
     dateConfirmed     : false,
     keyboardStage     : 'project',
+    listPage          : 1,
+    listPerPage       : 30,
 };
 
 /* ─── DOM refs ───────────────────────────────────── */
@@ -1306,17 +1458,12 @@ function renderSessionItems() {
     const count = $('session-count');
     const empty = $('session-empty');
     const titleEl = $('session-list-title');
-
     const projectId = S.project?.id ?? null;
 
-    // Título do card
     if (titleEl) {
-        titleEl.textContent = S.project
-            ? 'Histórico — ' + S.project.title
-            : 'Histórico de entregas';
+        titleEl.textContent = S.project ? 'Historico - ' + S.project.title : 'Historico de entregas';
     }
 
-    // Filtra por projeto e pelos controles do histórico
     const filtered = projectId
         ? S.items.filter(i => i.projectId === projectId)
         : S.items.filter(i => !i.projectId);
@@ -1328,62 +1475,65 @@ function renderSessionItems() {
     const dateFrom    = ($('filter-date-from')?.value || '').trim();
     const dateTo      = ($('filter-date-to')?.value || '').trim();
     const usingFilter = !!(searchText || status || assocSearch || prodSearch || dateFrom || dateTo);
-    const renderList  = filtered.filter(i => {
-            const itemStatus  = i.status || 'pending';
-            const assocText   = normalizeSearch(i.associateName || '');
-            const productText = normalizeSearch(i.productName || '');
-            const dateText    = normalizeSearch(`${i.date || ''} ${i.date ? fmtDate(i.date) : ''}`);
-            const fullText    = `${dateText} ${assocText} ${productText}`;
 
-            if (searchText && !fullText.includes(searchText)) return false;
-            if (status && itemStatus !== status) return false;
-            if (assocSearch && !assocText.includes(assocSearch)) return false;
-            if (prodSearch && !productText.includes(prodSearch)) return false;
-            if (dateFrom && i.date < dateFrom) return false;
-            if (dateTo   && i.date > dateTo)   return false;
-            return true;
-        });
+    const renderList = filtered.filter(i => {
+        const itemStatus  = i.status || 'pending';
+        const assocText   = normalizeSearch(i.associateName || '');
+        const productText = normalizeSearch(i.productName || '');
+        const dateText    = normalizeSearch(`${i.date || ''} ${i.date ? fmtDate(i.date) : ''}`);
+        const fullText    = `${dateText} ${assocText} ${productText}`;
 
-    // Limpa itens anteriores
+        if (searchText && !fullText.includes(searchText)) return false;
+        if (status && itemStatus !== status) return false;
+        if (assocSearch && !assocText.includes(assocSearch)) return false;
+        if (prodSearch && !productText.includes(prodSearch)) return false;
+        if (dateFrom && i.date < dateFrom) return false;
+        if (dateTo && i.date > dateTo) return false;
+        return true;
+    });
+
+    const perPage = S.listPerPage === 'all' ? renderList.length || 1 : parseInt(S.listPerPage || 30, 10);
+    const totalPages = Math.max(1, Math.ceil(renderList.length / perPage));
+    S.listPage = Math.min(Math.max(S.listPage || 1, 1), totalPages);
+    const pageStart = (S.listPage - 1) * perPage;
+    const pageItems = renderList.slice(pageStart, pageStart + perPage);
+
     Array.from(list.children).forEach(c => { if (c !== empty) c.remove(); });
 
     if (renderList.length === 0) {
         if (empty) {
             empty.textContent = usingFilter
-                ? 'Nenhuma entrega encontrada para o período selecionado'
-                : (projectId ? 'Nenhuma entrega registrada para este projeto' : 'Selecione um projeto para ver o histórico de entregas');
+                ? 'Nenhuma entrega encontrada para os filtros aplicados'
+                : (projectId ? 'Nenhuma entrega registrada para este projeto' : 'Selecione um projeto para ver o historico de entregas');
             empty.style.display = 'block';
         }
         count.textContent = '';
+        updateSessionPagination(0, 0, 0, 0, 1);
         return;
     }
+
     if (empty) empty.style.display = 'none';
     count.textContent = renderList.length + (usingFilter ? '/' + filtered.length : '') + ' registro' + (renderList.length !== 1 ? 's' : '');
+    updateSessionPagination(renderList.length, pageStart + 1, Math.min(pageStart + perPage, renderList.length), S.listPage, totalPages);
 
-    // Função para construir o card mobile
     function buildCard(item) {
-        const distQty   = item.distributedQty || 0;
-        const totalQty  = item.qty || 0;
+        const distQty = parseFloat(item.distributedQty || 0);
+        const totalQty = parseFloat(item.qty || 0);
         const distPercent = totalQty > 0 ? Math.min(Math.round((distQty / totalQty) * 100), 100) : 0;
-        const overDist   = distQty > totalQty;
+        const overDist = distQty > totalQty;
         const displayPercent = overDist ? 100 : distPercent;
         const statusClass = item.status || 'pending';
-        const isPending  = statusClass === 'pending';
+        const visualClass = statusClass === 'approved' && distPercent >= 100 && !overDist ? 'distributed' : statusClass;
+        const isPending = statusClass === 'pending';
         const isApproved = statusClass === 'approved';
         const isRejected = statusClass === 'rejected';
-        const isBilled   = !!item.has_billed;
-        const netValue   = item.dist_net_value || 0;
-        const quality    = item.quality || '—';
-        const dateStr    = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
-
-        const badgeHtml = `<span class="badge-status ${statusClass}">
-            ${statusClass === 'pending' ? 'Pendente' : (statusClass === 'approved' ? 'Aprovada' : 'Rejeitada')}
-            <span class="mc-quality">${quality}</span>
-        </span>`;
-
-        const billedTag = isBilled
-            ? '<span class="mc-billed">Fat.</span>'
-            : '';
+        const isBilled = !!item.has_billed;
+        const netValue = parseFloat(item.dist_net_value || 0);
+        const dateStr = item.date ? fmtDate(item.date) + '/' + (item.date.split('-')[0]?.slice(2) || '') : '';
+        const stateLabel = getDeliveryStateLabel(statusClass, distPercent, overDist);
+        const stateIcon = getDeliveryStateIcon(statusClass, distPercent, overDist);
+        const distJson = escAttr(JSON.stringify(item.distributions || []));
+        const billedTag = isBilled ? '<span class="mc-billed">Fat.</span>' : '';
 
         const actionsHtml = (() => {
             let btns = '';
@@ -1404,24 +1554,29 @@ function renderSessionItems() {
         })();
 
         return `
-        <div class="mobile-card status-${statusClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${item.productUnit || ''}">
+        <div class="mobile-card status-${visualClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
             <div class="mc-head">
-                <span class="mc-date">${dateStr}</span>
-                ${badgeHtml}
+                <span class="mc-state-icon" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
+                <div class="mc-head-main">
+                    <div class="mc-head-line">
+                        <span class="mc-date">${dateStr}</span>
+                        <span aria-hidden="true">-</span>
+                        <span class="mc-head-qty">${fmtQty(totalQty, item.productUnit)}</span>
+                    </div>
+                    <div class="mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</div>
+                </div>
                 ${billedTag}
             </div>
             <div class="mc-body">
                 <div class="mc-info-grid">
-                    <div class="mc-associate" title="${escHtml(item.associateName)}">${escHtml(item.associateName)}</div>
-                    <div class="mc-product" title="${escHtml(item.productName)}">${escHtml(item.productName)}</div>
-                    <div><span class="mc-qty">${fmtQty(totalQty, item.productUnit)}</span></div>
+                    <div class="mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</div>
                     <div>${netValue > 0 ? '<span class="mc-net">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
                 </div>
                 <div class="mc-footer">
                     <span class="mc-footer-label">Distrib.</span>
-                    <div class="mc-dist-indicator" title="${overDist ? 'Excede! Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
+                    <div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1" title="${overDist ? 'Excede. Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuido' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
                         <div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : (distPercent >= 100 ? 'full' : 'partial')}" style="width:${displayPercent}%;height:100%;border-radius:99px;"></div></div>
-                        <span class="mc-dist-text">${overDist ? '⚠ ' + distQty.toFixed(1) : distPercent + '%'}</span>
+                        <span class="mc-dist-text">${overDist ? '! ' + distQty.toFixed(1) : distPercent + '%'}</span>
                     </div>
                     <div class="mc-actions">${actionsHtml}</div>
                 </div>
@@ -1429,7 +1584,6 @@ function renderSessionItems() {
         </div>`;
     }
 
-    // Função para cabeçalho de seção (associado)
     function buildSectionHeader(label) {
         const h = document.createElement('div');
         h.className = 'session-section-header';
@@ -1437,10 +1591,9 @@ function renderSessionItems() {
         return h;
     }
 
-    // Agrupamento opcional por associado
     if (S.associate) {
-        const assocItems  = renderList.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
-        const othersItems = renderList.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
+        const assocItems = pageItems.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
+        const othersItems = pageItems.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
 
         if (assocItems.length > 0) {
             list.appendChild(buildSectionHeader(S.associate.name));
@@ -1458,12 +1611,8 @@ function renderSessionItems() {
                 list.appendChild(card.firstElementChild);
             });
         }
-        if (assocItems.length === 0 && othersItems.length === 0) {
-            if (empty) { empty.textContent = 'Nenhuma entrega encontrada'; empty.style.display = 'block'; }
-            count.textContent = '';
-        }
     } else {
-        renderList.forEach(item => {
+        pageItems.forEach(item => {
             const card = document.createElement('div');
             card.innerHTML = buildCard(item);
             list.appendChild(card.firstElementChild);
@@ -1472,7 +1621,6 @@ function renderSessionItems() {
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
-
 /* Helpers */
 function fmtQty(n, unit) {
     const num = parseFloat(n) || 0;
@@ -1489,6 +1637,70 @@ function escHtml(str) {
 }
 
 /* ─── Delete item (pendente ou aprovada) ──────────── */
+function escAttr(str) {
+    return escHtml(str).replace(/'/g, '&#039;');
+}
+function getDeliveryStateLabel(status, percent, over) {
+    if (over) return 'Distribuicao acima da quantidade registrada';
+    if (status === 'approved' && percent >= 100) return 'Aprovada e 100% distribuida';
+    if (status === 'approved') return 'Aprovada com distribuicao pendente';
+    if (status === 'pending') return 'Pendente de aprovacao';
+    if (status === 'rejected') return 'Rejeitada';
+    return 'Cancelada';
+}
+function getDeliveryStateIcon(status, percent, over) {
+    if (over) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"></path></svg>';
+    if (status === 'approved' && percent >= 100) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>';
+    if (status === 'approved') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M5 12h14"></path></svg>';
+    if (status === 'pending') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>';
+    if (status === 'rejected') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>';
+}
+function updateSessionPagination(total, start, end, page, totalPages) {
+    const wrap = $('session-pagination');
+    if (!wrap) return;
+    wrap.style.display = total > 0 ? 'flex' : 'none';
+    $('session-page-info').textContent = total > 0 ? `${start}-${end} de ${total}` : '';
+    $('session-prev').disabled = page <= 1;
+    $('session-next').disabled = page >= totalPages;
+}
+function setSessionPageSize(value) {
+    S.listPerPage = value === 'all' ? 'all' : parseInt(value || 30, 10);
+    S.listPage = 1;
+    renderSessionItems();
+}
+function changeSessionPage(delta) {
+    S.listPage = Math.max(1, (S.listPage || 1) + delta);
+    renderSessionItems();
+}
+function parseCardDistributions(card) {
+    try { return JSON.parse(card?.dataset?.distributions || '[]') || []; }
+    catch (e) { return []; }
+}
+function openDistSummaryFromCard(card) {
+    const product = card?.dataset?.product || 'Produto';
+    const unit = card?.dataset?.unit || '';
+    const totalQty = parseFloat(card?.dataset?.totalQty || 0);
+    const distQty = parseFloat(card?.dataset?.distributed || 0);
+    const distributions = parseCardDistributions(card);
+    $('dist-summary-title').textContent = product;
+    $('dist-summary-sub').textContent = `${fmtQty(distQty, unit)} distribuidos de ${fmtQty(totalQty, unit)}`;
+    $('dist-summary-body').innerHTML = distributions.length
+        ? distributions.map(d => {
+            const customer = d.customer || d.customer_name || d.customerName || 'Cliente';
+            const qty = parseFloat(d.qty || d.quantity || 0);
+            const net = parseFloat(d.net || d.net_value || 0);
+            return `<div class="dist-summary-row"><strong>${escHtml(customer)}</strong><span>${fmtQty(qty, unit)}${net > 0 ? ' - R$ ' + net.toFixed(2) : ''}</span></div>`;
+        }).join('')
+        : '<div class="dist-summary-row"><strong>Nenhuma distribuicao</strong><span>0%</span></div>';
+    $('dist-summary-overlay').classList.add('open');
+}
+function closeDistSummary() {
+    $('dist-summary-overlay')?.classList.remove('open');
+}
+function closeDistSummaryOnBackdrop(event) {
+    if (event.target === $('dist-summary-overlay')) closeDistSummary();
+}
 async function deleteItem(id, btn, isApproved = false) {
     const msg = isApproved
         ? 'Excluir esta entrega aprovada? As distribuições associadas também serão removidas.'
@@ -1518,6 +1730,12 @@ async function deleteItem(id, btn, isApproved = false) {
 
 /* ─── Action delegation ────────────────────────── */
 document.addEventListener('click', function (e) {
+    const summary = e.target.closest('.mc-dist-indicator[data-summary]');
+    if (summary && summary.closest('#session-list')) {
+        openDistSummaryFromCard(summary.closest('.mobile-card'));
+        return;
+    }
+
     const btn = e.target.closest('[data-action]');
     if (!btn || !btn.closest('#session-list')) return;
     if (btn.disabled) return;
@@ -1946,6 +2164,10 @@ window.renderSessionItems   = renderSessionItems;
 window.clearFilter          = clearFilter;
 window.onDateChange         = onDateChange;
 window.scrollToRegisterTop  = scrollToRegisterTop;
+window.setSessionPageSize   = setSessionPageSize;
+window.changeSessionPage    = changeSessionPage;
+window.closeDistSummary     = closeDistSummary;
+window.closeDistSummaryOnBackdrop = closeDistSummaryOnBackdrop;
 window.addDistRegRow        = function() {};
 window.saveDist             = function() {};
 
