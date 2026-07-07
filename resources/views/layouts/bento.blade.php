@@ -1157,6 +1157,25 @@
             margin: 0 !important;
         }
 
+        .nav-tabs form[action*="logout"],
+        .nav-tabs .nav-tab[data-nav-action="logout"] {
+            display: none !important;
+        }
+
+        body:has(.user-menu-overlay.active) .nav-tabs,
+        body:has(.user-menu-sheet.active) .nav-tabs,
+        body:has(#dm-overlay.dm-open) .nav-tabs,
+        body:has(#em-overlay.em-open) .nav-tabs,
+        body:has(.dp-modal-overlay.open) .nav-tabs,
+        body:has(.modal-overlay.open) .nav-tabs,
+        body:has(.modal-overlay.active) .nav-tabs,
+        body:has(.modal-overlay:not(.hidden)[aria-modal="true"]) .nav-tabs,
+        body:has(.modal.active) .nav-tabs {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
         .nav-tab {
             min-height: 40px;
             color: var(--color-text-secondary);
@@ -1212,12 +1231,12 @@
         @media (min-width: 1024px) {
             .nav-tabs {
                 position: fixed;
-                top: var(--app-header-height);
+                top: calc(var(--app-header-height) + 1.6rem);
                 left: 0;
-                z-index: 850;
+                z-index: 10;
                 width: 248px;
                 height: calc(100dvh - var(--app-header-height));
-                max-height: calc(100dvh - var(--app-header-height));
+                max-height: calc(100dvh - var(--app-header-height) - 1.6rem);
                 padding: 1rem 0.8rem;
                 border-top: 0;
                 border-bottom: 0;
@@ -1247,10 +1266,13 @@
 
             body.has-app-nav .bento-container {
                 margin-left: 248px;
+                width: calc(100% - 248px);
+                max-width: none;
             }
         }
 
         .bento-container {
+            width: 100%;
             max-width: var(--app-content-max);
             height: calc(100dvh - var(--app-header-height));
             min-height: 0;
@@ -1259,6 +1281,43 @@
             overscroll-behavior: contain;
             padding: 1rem;
             padding-bottom: 1.5rem;
+        }
+
+        .bento-container,
+        .bento-container *,
+        .bento-grid,
+        .bento-card {
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        .bento-container > *,
+        .bento-grid,
+        .bento-card,
+        .pd-card,
+        .card,
+        .table-container,
+        .table-scroll {
+            max-width: 100%;
+        }
+
+        .bento-container [style*="100vw"],
+        .bento-container [style*="100dvw"],
+        .bento-container [style*="100svw"],
+        .bento-container [style*="100lvw"] {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+
+        .bento-container img,
+        .bento-container video,
+        .bento-container canvas,
+        .bento-container svg {
+            max-width: 100%;
+        }
+
+        .bento-container table {
+            max-width: 100%;
         }
 
         .app-alert {
@@ -1502,7 +1561,6 @@
             .btn-hub {
                 min-width: 42px;
                 width: 42px;
-                padding: 0 !important;
             }
 
             .btn-hub span {
@@ -1536,7 +1594,7 @@
                 left: 0.75rem;
                 right: 0.75rem;
                 bottom: calc(0.55rem + env(safe-area-inset-bottom));
-                z-index: 40;
+                z-index: 10;
                 width: auto;
                 margin: 0;
                 min-height: 58px;
@@ -1850,9 +1908,20 @@
                 projetos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"></path></svg>',
                 entregas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>',
                 extrato: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg>',
+                registrar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>',
+                fichas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5"></path><path d="M9 13h6"></path><path d="M9 17h4"></path></svg>',
+                caixa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"></rect><path d="M7 10h4"></path><path d="M17 14h.01"></path><path d="M13 14h.01"></path></svg>',
+                nova: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"></path><path d="M5 12h14"></path><path d="M4 4h16v16H4z"></path></svg>',
+                historico: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path><path d="M12 7v5l3 2"></path></svg>',
+                financeiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"></path><path d="M4 19h16"></path><path d="m7 15 4-4 3 3 5-7"></path></svg>',
+                ordens: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6"></path><path d="M9 12h6"></path><path d="M9 19h6"></path><rect x="4" y="3" width="16" height="18" rx="2"></rect></svg>',
+                meus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 5-3 8-7 9-4-1-7-4-7-9V7z"></path><path d="m9 12 2 2 4-4"></path></svg>',
+                servicos: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5 5L4 17v3h3l5.7-5.7a4 4 0 0 0 5-5z"></path></svg>',
+                produtores: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+                relatorios: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"></path><path d="M8 17V9"></path><path d="M12 17v-5"></path><path d="M16 17V7"></path><path d="M20 19H4"></path></svg>',
                 sair: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>',
                 carteira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M16 12h3"></path></svg>',
-                default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v3"></path><path d="M12 18v3"></path><path d="m4.9 4.9 2.1 2.1"></path><path d="m17 17 2.1 2.1"></path><path d="M3 12h3"></path><path d="M18 12h3"></path><path d="m4.9 19.1 2.1-2.1"></path><path d="m17 7 2.1-2.1"></path></svg>'
+                default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>'
             };
 
             function normalizeNavLabel(value) {
@@ -1870,7 +1939,14 @@
                     }
 
                     const rawLabel = tab.textContent.trim();
-                    const key = normalizeNavLabel(rawLabel).split(/\s+/)[0] || 'default';
+                    const normalizedLabel = normalizeNavLabel(rawLabel);
+                    if (normalizedLabel === 'sair' || normalizedLabel === 'logout') {
+                        const parentForm = tab.closest('form');
+                        (parentForm || tab).remove();
+                        return;
+                    }
+
+                    const key = normalizedLabel.split(/\s+/)[0] || 'default';
                     const icon = document.createElement('span');
                     icon.className = 'app-nav-icon';
                     icon.setAttribute('aria-hidden', 'true');
