@@ -10,29 +10,7 @@
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
 />
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Dashboard
-    </a>
-    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
-    </a>
-    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
-    </a>
-    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
-    </a>
-    <a href="{{ route('delivery.sheet.index', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="file-text" style="width:14px;height:14px"></i> Fichas
-    </a>
-    <form action="{{ route('logout') }}" method="POST" style="display:inline">
-        @csrf
-        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
-            <i data-lucide="log-out" style="width:14px;height:14px"></i> Sair
-        </button>
-    </form>
-</nav>
+<x-portal.nav portal="delivery" active="projects" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
 @endsection
 
 @section('content')
@@ -520,7 +498,7 @@ function pdToast(msg, type = 'success') {
 
 /* ========== FILTROS ========== */
 function applyFilters() {
-    const search   = (document.getElementById('filter-search')?.value || '').toLowerCase();
+    const search   = normalizeFilterText(document.getElementById('filter-search')?.value || '');
     const status   = document.getElementById('filter-status')?.value || '';
     const assoc    = document.getElementById('filter-associate')?.value || '';
     const prod     = document.getElementById('filter-product')?.value || '';
@@ -531,18 +509,20 @@ function applyFilters() {
     const hasFilter = search || status || assoc || prod || dateFrom || dateTo;
     document.getElementById('clear-filters-btn').style.display = hasFilter ? '' : 'none';
 
+    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+
     // Desktop rows
     document.querySelectorAll('#desktop-tbody tr').forEach(row => {
         const visible = rowMatchesFilter(row, search, status, assoc, prod, dateFrom, dateTo);
         row.style.display = visible ? '' : 'none';
-        if (visible) visibleCount++;
+        if (!isMobile && visible) visibleCount++;
     });
 
     // Mobile cards
-    document.querySelectorAll('.mobile-card').forEach(card => {
+    document.querySelectorAll('#mobile-cards .mobile-card').forEach(card => {
         const visible = cardMatchesFilter(card, search, status, assoc, prod, dateFrom, dateTo);
         card.style.display = visible ? '' : 'none';
-        if (visible) visibleCount++;
+        if (isMobile && visible) visibleCount++;
     });
 
     document.getElementById('filtered-count').textContent = visibleCount;
@@ -550,33 +530,37 @@ function applyFilters() {
 
 function rowMatchesFilter(row, search, status, assoc, prod, dateFrom, dateTo) {
     const cells = row.querySelectorAll('td');
-    const dateText   = (cells[1]?.textContent || '').trim();
-    const assocText  = (cells[2]?.textContent || '').trim();
-    const prodText   = (cells[3]?.textContent || '').trim();
-    const statusText = (row.querySelector('.badge-status')?.textContent || '').trim().toLowerCase();
+    const dateText   = row.dataset.filterDate || (cells[1]?.textContent || '').trim();
+    const assocText  = row.dataset.filterAssociate || (cells[2]?.textContent || '').trim();
+    const prodText   = row.dataset.filterProduct || (cells[3]?.textContent || '').trim();
+    const statusText = row.dataset.filterStatus || (row.querySelector('.badge-status')?.textContent || '').trim().toLowerCase();
 
-    if (status && !statusText.includes(status)) return false;
+    if (status && statusText !== status) return false;
     if (assoc && assocText !== assoc) return false;
     if (prod && prodText !== prod) return false;
     if (dateFrom && dateText < dateFrom) return false;
     if (dateTo && dateText > dateTo) return false;
-    if (search && !`${dateText} ${assocText} ${prodText}`.toLowerCase().includes(search)) return false;
+    if (search && !normalizeFilterText(`${dateText} ${assocText} ${prodText}`).includes(search)) return false;
     return true;
 }
 
 function cardMatchesFilter(card, search, status, assoc, prod, dateFrom, dateTo) {
-    const dateText   = (card.querySelector('.mc-date')?.textContent || '').trim();
-    const assocText  = (card.querySelector('.mc-assoc')?.textContent || '').trim();
-    const prodText   = (card.querySelector('.mc-product')?.textContent || '').trim();
-    const statusText = (card.querySelector('.badge-status')?.textContent || '').trim().toLowerCase();
+    const dateText   = card.dataset.filterDate || (card.querySelector('.mc-date')?.textContent || '').trim();
+    const assocText  = card.dataset.filterAssociate || (card.querySelector('.mc-assoc')?.textContent || '').trim();
+    const prodText   = card.dataset.filterProduct || (card.querySelector('.mc-product')?.textContent || '').trim();
+    const statusText = card.dataset.filterStatus || (card.querySelector('.badge-status')?.textContent || '').trim().toLowerCase();
 
-    if (status && !statusText.includes(status)) return false;
+    if (status && statusText !== status) return false;
     if (assoc && assocText !== assoc) return false;
     if (prod && prodText !== prod) return false;
     if (dateFrom && dateText < dateFrom) return false;
     if (dateTo && dateText > dateTo) return false;
-    if (search && !`${dateText} ${assocText} ${prodText}`.toLowerCase().includes(search)) return false;
+    if (search && !normalizeFilterText(`${dateText} ${assocText} ${prodText}`).includes(search)) return false;
     return true;
+}
+
+function normalizeFilterText(value) {
+    return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
 
 function clearAllFilters() {
@@ -593,6 +577,11 @@ function clearAllFilters() {
 ['filter-search','filter-status','filter-associate','filter-product','filter-date-from','filter-date-to'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', applyFilters);
+});
+
+window.addEventListener('resize', () => {
+    window.clearTimeout(window.__pdFilterResizeTimer);
+    window.__pdFilterResizeTimer = window.setTimeout(applyFilters, 120);
 });
 
 /* ========== DISTRIBUTION INDICATOR UPDATE ========== */
@@ -952,3 +941,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // (Código do modal mantido exatamente como no original, omitido por brevidade)
 </script>
 @endsection
+

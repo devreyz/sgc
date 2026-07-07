@@ -83,7 +83,7 @@
             margin: 0 auto;
             overflow-x: hidden;
             position: relative;
-            z-index: 1;
+            z-index: auto;
             min-height: 100vh;
         }
 
@@ -1149,6 +1149,11 @@
             scrollbar-width: none;
         }
 
+        .app-nav-layer {
+            position: relative;
+            z-index: 20;
+        }
+
         .nav-tabs::-webkit-scrollbar {
             display: none;
         }
@@ -1162,19 +1167,6 @@
             display: none !important;
         }
 
-        body:has(.user-menu-overlay.active) .nav-tabs,
-        body:has(.user-menu-sheet.active) .nav-tabs,
-        body:has(#dm-overlay.dm-open) .nav-tabs,
-        body:has(#em-overlay.em-open) .nav-tabs,
-        body:has(.dp-modal-overlay.open) .nav-tabs,
-        body:has(.modal-overlay.open) .nav-tabs,
-        body:has(.modal-overlay.active) .nav-tabs,
-        body:has(.modal-overlay:not(.hidden)[aria-modal="true"]) .nav-tabs,
-        body:has(.modal.active) .nav-tabs {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
-        }
 
         .nav-tab {
             min-height: 40px;
@@ -1595,13 +1587,15 @@
                 right: 0.75rem;
                 bottom: calc(0.55rem + env(safe-area-inset-bottom));
                 z-index: 10;
-                width: auto;
+                width: calc(100% - 1.5rem);
                 margin: 0;
                 min-height: 58px;
                 padding: 0.35rem;
                 border-radius: 22px;
-                justify-content: flex-start;
-                overflow-x: auto;
+                justify-content: space-between;
+                align-items: center;
+                gap: 0.25rem;
+                overflow: hidden;
                 box-shadow: 0 18px 38px rgba(15, 23, 42, 0.18);
             }
 
@@ -1610,10 +1604,10 @@
             }
 
             .nav-tab {
-                min-width: 48px;
+                min-width: 0;
                 min-height: 48px;
-                flex: 1 0 auto;
-                max-width: 64px;
+                flex: 1 1 0;
+                max-width: none;
                 padding: 0;
                 border-radius: 17px;
                 font-size: 0;
@@ -1872,8 +1866,11 @@
         </div>
     </div>
 
-    <!-- Navigation -->
-    {!! $portalNavigation !!}
+    @if($portalNavigation !== '')
+        <div class="app-nav-layer" aria-label="Navegacao principal do portal">
+            {!! $portalNavigation !!}
+        </div>
+    @endif
 
     <!-- Main Content -->
     <main class="bento-container">
@@ -1923,6 +1920,17 @@
                 carteira: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M16 12h3"></path></svg>',
                 default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>'
             };
+            Object.assign(navIconSvgs, {
+                projects: navIconSvgs.projetos,
+                deliveries: navIconSvgs.entregas,
+                ledger: navIconSvgs.extrato,
+                register: navIconSvgs.registrar,
+                sheets: navIconSvgs.fichas,
+                orders: navIconSvgs.ordens,
+                financial: navIconSvgs.financeiro,
+                create: navIconSvgs.nova,
+                history: navIconSvgs.historico
+            });
 
             function normalizeNavLabel(value) {
                 return (value || '')
@@ -1946,7 +1954,7 @@
                         return;
                     }
 
-                    const key = normalizedLabel.split(/\s+/)[0] || 'default';
+                    const key = tab.dataset.navKey || normalizedLabel.split(/\s+/)[0] || 'default';
                     const icon = document.createElement('span');
                     icon.className = 'app-nav-icon';
                     icon.setAttribute('aria-hidden', 'true');

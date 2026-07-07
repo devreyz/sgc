@@ -11,15 +11,7 @@
 @endphp
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard', ['tenant' => $tenantSlug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders', ['tenant' => $tenantSlug]) }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial', ['tenant' => $tenantSlug]) }}" class="nav-tab">Financeiro</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="provider" active="orders" :tenant="$tenantSlug" />
 @endsection
 
 {{-- tenantSlug já definido acima com fallback robusto --}}
@@ -319,3 +311,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endsection
+

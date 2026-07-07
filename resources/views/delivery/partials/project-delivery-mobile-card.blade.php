@@ -10,6 +10,10 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
      data-delivery-id="{{ $delivery['id'] }}"
      data-total-qty="{{ $totalQty }}"
      data-unit="{{ $delivery['unit'] }}"
+     data-filter-date="{{ $delivery['delivery_date_raw'] }}"
+     data-filter-associate="{{ $delivery['associate_name'] }}"
+     data-filter-product="{{ $delivery['product_name'] }}"
+     data-filter-status="{{ $delivery['status_value'] }}"
      style="padding:0; border-radius:var(--radius-md); overflow:hidden;"
 >
     {{-- Cabeçalho --}}
@@ -17,7 +21,7 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
         @if($delivery['status_value'] === 'approved')
         <input type="checkbox" class="delivery-chk" value="{{ $delivery['id'] }}" data-associate="{{ $delivery['associate_name'] }}" data-net="{{ $delivery['dist_net_value'] }}" style="flex-shrink:0;">
         @endif
-        <span style="font-weight:700; white-space:nowrap; font-size:.82rem;">{{ $delivery['delivery_date'] }}</span>
+        <span class="mc-date" style="font-weight:700; white-space:nowrap; font-size:.82rem;">{{ $delivery['delivery_date'] }}</span>
         <span class="badge-status {{ $delivery['status_value'] }}" style="margin-left:auto; display:inline-flex; align-items:center; gap:.35rem;">
             {{ $delivery['status'] }}
             <span style="display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.3); font-size:.7rem; font-weight:700; color:inherit;">{{ $delivery['quality_grade'] ?? '—' }}</span>
@@ -30,8 +34,8 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
     {{-- Corpo --}}
     <div style="padding:.5rem .6rem; display:flex; flex-direction:column; gap:.5rem;">
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:.3rem .8rem; font-size:.76rem;">
-            <div style="font-weight: bold;">{{ $delivery['associate_name'] }}</div>
-            <div style="font-weight:600;">{{ $delivery['product_name'] }}</div>
+            <div class="mc-assoc" style="font-weight: bold;">{{ $delivery['associate_name'] }}</div>
+            <div class="mc-product" style="font-weight:600;">{{ $delivery['product_name'] }}</div>
             <div>
                 <span class="mc-qty" style="font-weight:700;">{{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}</span>
             </div>

@@ -11,16 +11,7 @@
 @endphp
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ $tenantSlug ? route('provider.dashboard', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ $tenantSlug ? route('provider.orders', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab active">Ordens de Serviço</a>
-    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Financeiro</a>
-    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Carteira</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="provider" active="orders" :tenant="$tenantSlug" />
 @endsection
 
 @section('content')
@@ -160,3 +151,4 @@
     </div>
 </div>
 @endsection
+

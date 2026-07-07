@@ -11,16 +11,7 @@
 @endphp
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ $tenantSlug ? route('associate.dashboard',  ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ $tenantSlug ? route('associate.projects',   ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Projetos</a>
-    <a href="{{ $tenantSlug ? route('associate.deliveries', ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab active">Entregas</a>
-    <a href="{{ $tenantSlug ? route('associate.ledger',     ['tenant'=>$tenantSlug]) : url('/') }}" class="nav-tab">Extrato</a>
-    <form action="{{ route('logout') }}" method="POST" style="display:inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;border:none;font-family:inherit;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="associate" active="deliveries" :tenant="$tenantSlug" />
 @endsection
 
 @section('content')
@@ -179,3 +170,4 @@
 
 </div>
 @endsection
+

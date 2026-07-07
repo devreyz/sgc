@@ -5,15 +5,7 @@
 @section('user-role', 'Prestador de Serviço')
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ route('provider.financial', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">Financeiro</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="provider" active="financial" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
 @endsection
 
 @section('content')
@@ -182,3 +174,4 @@ PIX: seu@email.com"
 </div>
 
 @endsection
+

@@ -3,6 +3,10 @@
 @section('title', 'Registrar Entrega')
 @section('page-title', 'Registrar Entrega')
 @section('user-role', 'Registrador')
+
+@section('navigation')
+<x-portal.nav portal="delivery" active="register" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
+@endsection
 {{-- ─────────────── MODAL DISTRIBUIR (componente unificado) ──────── --}}
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"
@@ -415,7 +419,32 @@
     flex: 1;
     max-width: 140px;
 }
-.history-filter input[type=date]:focus { border-color: var(--color-primary); }
+.history-filter input,
+.history-filter select {
+    padding: 0.42rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    color: var(--color-text);
+    background: var(--color-surface);
+    outline: none;
+    font-family: inherit;
+    min-width: 0;
+}
+.history-filter input[type=search] {
+    flex: 1 1 220px;
+    max-width: none;
+}
+.history-filter select {
+    flex: 1 1 130px;
+    max-width: 180px;
+}
+.history-filter input[type=date] {
+    flex: 1 1 120px;
+    max-width: 145px;
+}
+.history-filter input:focus,
+.history-filter select:focus { border-color: var(--color-primary); }
 .history-filter .hf-clear {
     font-size: 0.75rem;
     color: var(--color-text-muted);
@@ -437,11 +466,6 @@
     grid-template-columns: 1fr;
     gap: 0.5rem;
     align-items: start;
-}
-@media (min-width: 1180px) {
-    #session-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
 }
 .session-section-header {
     grid-column: 1 / -1;
@@ -761,11 +785,21 @@
             <span id="session-list-title">Registros desta sessão</span>
             <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
         </div>
-        <div class="history-filter" id="history-filter" style="display:none">
-            <label>Filtrar:</label>
+        <div class="history-filter" id="history-filter">
+            <label for="filter-history-search">Filtrar:</label>
+            <input type="search" id="filter-history-search" oninput="renderSessionItems()" placeholder="Buscar associado, produto ou data" autocomplete="off">
+            <select id="filter-status" onchange="renderSessionItems()" aria-label="Status">
+                <option value="">Todos os status</option>
+                <option value="pending">Pendentes</option>
+                <option value="approved">Aprovadas</option>
+                <option value="rejected">Rejeitadas</option>
+                <option value="cancelled">Canceladas</option>
+            </select>
+            <input type="search" id="filter-associate" oninput="renderSessionItems()" placeholder="Associado" autocomplete="off">
+            <input type="search" id="filter-product" oninput="renderSessionItems()" placeholder="Produto" autocomplete="off">
             <input type="date" id="filter-date-from" oninput="renderSessionItems()" placeholder="De">
-            <span style="font-size:.75rem;color:var(--color-text-muted)">—</span>
-            <input type="date" id="filter-date-to" oninput="renderSessionItems()" placeholder="Até">
+            <span style="font-size:.75rem;color:var(--color-text-muted)">ate</span>
+            <input type="date" id="filter-date-to" oninput="renderSessionItems()" placeholder="Ate">
             <button class="hf-clear" onclick="clearFilter()">Limpar</button>
         </div>
         <div id="session-list">
@@ -865,29 +899,6 @@
     </div>
 </div>
 
-<nav class="nav-tabs">
-    <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="layout-dashboard" style="width:14px;height:14px"></i> Dashboard
-    </a>
-    <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="list" style="width:14px;height:14px"></i> Entregas
-    </a>
-    <a href="{{ route('delivery.projects-list', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="folder-open" style="width:14px;height:14px"></i> Projetos
-    </a>
-    <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="nav-tab active">
-        <i data-lucide="plus-circle" style="width:14px;height:14px"></i> Registrar
-    </a>
-    <a href="{{ route('delivery.sheet.index', ['tenant' => $currentTenant->slug]) }}" class="nav-tab">
-        <i data-lucide="file-text" style="width:14px;height:14px"></i> Fichas
-    </a>
-    <form action="{{ route('logout') }}" method="POST" style="display:inline">
-        @csrf
-        <button type="submit" class="nav-tab" style="background:none;cursor:pointer;color:var(--color-danger)">
-            <i data-lucide="log-out" style="width:14px;height:14px"></i> Sair
-        </button>
-    </form>
-</nav>
 <script>
 (function () {
 'use strict';
@@ -1149,8 +1160,10 @@ function focusDateInput() {
 }
 
 function clearFilter() {
-    $('filter-date-from').value = '';
-    $('filter-date-to').value   = '';
+    ['filter-history-search', 'filter-status', 'filter-associate', 'filter-product', 'filter-date-from', 'filter-date-to'].forEach(id => {
+        const el = $(id);
+        if (el) el.value = '';
+    });
     renderSessionItems();
 }
 
@@ -1303,21 +1316,33 @@ function renderSessionItems() {
             : 'Histórico de entregas';
     }
 
-    // Filtra por projeto e data
+    // Filtra por projeto e pelos controles do histórico
     const filtered = projectId
         ? S.items.filter(i => i.projectId === projectId)
         : S.items.filter(i => !i.projectId);
 
+    const searchText  = normalizeSearch($('filter-history-search')?.value || '');
+    const status      = ($('filter-status')?.value || '').trim();
+    const assocSearch = normalizeSearch($('filter-associate')?.value || '');
+    const prodSearch  = normalizeSearch($('filter-product')?.value || '');
     const dateFrom    = ($('filter-date-from')?.value || '').trim();
     const dateTo      = ($('filter-date-to')?.value || '').trim();
-    const usingFilter = !!(dateFrom || dateTo);
-    const renderList  = usingFilter
-        ? filtered.filter(i => {
+    const usingFilter = !!(searchText || status || assocSearch || prodSearch || dateFrom || dateTo);
+    const renderList  = filtered.filter(i => {
+            const itemStatus  = i.status || 'pending';
+            const assocText   = normalizeSearch(i.associateName || '');
+            const productText = normalizeSearch(i.productName || '');
+            const dateText    = normalizeSearch(`${i.date || ''} ${i.date ? fmtDate(i.date) : ''}`);
+            const fullText    = `${dateText} ${assocText} ${productText}`;
+
+            if (searchText && !fullText.includes(searchText)) return false;
+            if (status && itemStatus !== status) return false;
+            if (assocSearch && !assocText.includes(assocSearch)) return false;
+            if (prodSearch && !productText.includes(prodSearch)) return false;
             if (dateFrom && i.date < dateFrom) return false;
             if (dateTo   && i.date > dateTo)   return false;
             return true;
-        })
-        : filtered;
+        });
 
     // Limpa itens anteriores
     Array.from(list.children).forEach(c => { if (c !== empty) c.remove(); });
@@ -1927,3 +1952,4 @@ window.saveDist             = function() {};
 })();
 </script>
 @endsection
+

@@ -11,15 +11,7 @@
 @endphp
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ $tenantSlug ? route('cashier.dashboard', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab active">Caixa</a>
-    <a href="{{ $tenantSlug ? route('cashier.create', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Nova Venda</a>
-    <a href="{{ $tenantSlug ? route('cashier.history', ['tenant' => $tenantSlug]) : url('/') }}" class="nav-tab">Histórico</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="cashier" active="dashboard" :tenant="$tenantSlug" />
 @endsection
 
 @section('content')
@@ -210,3 +202,4 @@
     </div>
 </div>
 @endsection
+

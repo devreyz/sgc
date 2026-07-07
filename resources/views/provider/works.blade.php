@@ -5,15 +5,7 @@
 @section('user-role', 'Prestador de Serviço')
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ route('provider.dashboard') }}" class="nav-tab">Dashboard</a>
-    <a href="{{ route('provider.orders') }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ route('provider.works') }}" class="nav-tab active">Meus Serviços</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="provider" active="orders" :tenant="request()->route('tenant')" />
 @endsection
 
 @section('content')
@@ -111,3 +103,4 @@
     </div>
 </div>
 @endsection
+

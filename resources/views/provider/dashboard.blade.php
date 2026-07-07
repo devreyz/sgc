@@ -12,15 +12,7 @@
 @endphp
 
 @section('navigation')
-<nav class="nav-tabs">
-    <a href="{{ $tenantSlug ? route('provider.dashboard', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab active">Dashboard</a>
-    <a href="{{ $tenantSlug ? route('provider.orders', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab">Ordens de Serviço</a>
-    <a href="{{ $tenantSlug ? route('provider.financial', ['tenant' => $tenantSlug]) : route('home') }}" class="nav-tab">Financeiro</a>
-    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
-        @csrf
-        <button type="submit" class="nav-tab" style="background: none; cursor: pointer;">Sair</button>
-    </form>
-</nav>
+<x-portal.nav portal="provider" active="dashboard" :tenant="$tenantSlug" />
 @endsection
 
 @section('content')
@@ -246,3 +238,4 @@
     @endif
 </div>
 @endsection
+

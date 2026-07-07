@@ -10,6 +10,10 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
     class="{{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}"
     data-total-qty="{{ $totalQty }}"
     data-unit="{{ $delivery['unit'] }}"
+    data-filter-date="{{ $delivery['delivery_date_raw'] }}"
+    data-filter-associate="{{ $delivery['associate_name'] }}"
+    data-filter-product="{{ $delivery['product_name'] }}"
+    data-filter-status="{{ $delivery['status_value'] }}"
 >
     <td class="chk-cell">
         @if($delivery['status_value'] === 'approved')
