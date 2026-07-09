@@ -128,9 +128,61 @@ class AssociateReceiptService
             // ── 1. Pessimistic lock: bloqueia as linhas para escrita exclusiva ──
             $locked = ProductionDelivery::whereIn('id', $ids)
                 ->lockForUpdate()
-                ->get(['id', 'associate_receipt_id', 'billing_receipt_id']);
+                ->get([
+                    'id',
+                    'parent_delivery_id',
+                    'tenant_id',
+                    'sales_project_id',
+                    'associate_id',
+                    'customer_id',
+                    'quantity',
+                    'unit_price',
+                    'paid',
+                    'billing_status',
+                    'associate_receipt_id',
+                    'billing_receipt_id',
+                ]);
 
             // ── 2. Validação DENTRO da transação (após lock, antes do UPDATE) ──
+            if ($locked->count() !== count($ids)) {
+                throw new \RuntimeException('Uma ou mais distribuicoes selecionadas nao existem mais. Atualize a pagina e tente novamente.');
+            }
+
+            $invalid = $locked->first(function ($d) use ($receipt) {
+                return (int) $d->tenant_id !== (int) $receipt->tenant_id
+                    || (int) $d->sales_project_id !== (int) $receipt->sales_project_id
+                    || (int) $d->associate_id !== (int) $receipt->associate_id
+                    || is_null($d->parent_delivery_id)
+                    || is_null($d->customer_id)
+                    || (float) ($d->quantity ?? 0) <= 0
+                    || (float) ($d->unit_price ?? 0) <= 0;
+            });
+
+            if ($invalid) {
+                throw new \RuntimeException('A distribuicao #' . $invalid->id . ' nao e valida para comprovante financeiro.');
+            }
+
+            $alreadyInAnotherReceipt = $locked->filter(function ($d) use ($receipt) {
+                return ! is_null($d->associate_receipt_id)
+                    && (int) $d->associate_receipt_id !== (int) $receipt->id;
+            });
+
+            if ($alreadyInAnotherReceipt->isNotEmpty()) {
+                throw new \RuntimeException(
+                    'As distribuicoes a seguir ja estao em outro comprovante ativo: '
+                    . $alreadyInAnotherReceipt->pluck('id')->implode(', ')
+                );
+            }
+
+            $paidOrLocked = $locked->filter(fn ($d) => $d->paid || $d->billing_status === BillingStatus::PAID);
+
+            if ($paidOrLocked->isNotEmpty()) {
+                throw new \RuntimeException(
+                    'As distribuicoes a seguir ja foram pagas e nao podem entrar em novo comprovante: '
+                    . $paidOrLocked->pluck('id')->implode(', ')
+                );
+            }
+
             $blockedByPaidAssociate = $locked->filter(function ($d) use ($receipt) {
                 return ! is_null($d->associate_receipt_id)
                     && $d->associate_receipt_id !== $receipt->id
@@ -465,9 +517,22 @@ class AssociateReceiptService
     public function validateDistributions(array $deliveryIds): array
     {
         // Bloqueadas pelo lado associado (comprovante de associado PAGO)
+        $blockedInvalid = ProductionDelivery::whereIn('id', $deliveryIds)
+            ->where(function ($query) {
+                $query->whereNull('parent_delivery_id')
+                    ->orWhereNull('customer_id')
+                    ->orWhereNull('unit_price')
+                    ->orWhere('unit_price', '<=', 0)
+                    ->orWhere('quantity', '<=', 0)
+                    ->orWhere('paid', true)
+                    ->orWhere('billing_status', BillingStatus::PAID->value);
+            })
+            ->pluck('id')
+            ->values()
+            ->all();
+
         $blockedAssociate = ProductionDelivery::whereIn('id', $deliveryIds)
             ->whereNotNull('associate_receipt_id')
-            ->whereHas('associateReceipt', fn ($q) => $q->where('status', ReceiptStatus::PAID->value))
             ->pluck('id')
             ->values()
             ->all();
@@ -480,7 +545,7 @@ class AssociateReceiptService
             ->values()
             ->all();
 
-        $blocked = array_values(array_unique(array_merge($blockedAssociate, $blockedBilling)));
+        $blocked = array_values(array_unique(array_merge($blockedInvalid, $blockedAssociate, $blockedBilling)));
         $valid   = array_values(array_diff($deliveryIds, $blocked));
 
         return compact('valid', 'blocked');

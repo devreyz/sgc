@@ -8,6 +8,7 @@ use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
+use App\Models\AssociateReceipt;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
@@ -15,6 +16,7 @@ use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\BuyerRequestFulfillmentService;
+use App\Services\DeliveryProjectIntegrityService;
 use App\Services\PricingService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\StockService;
@@ -57,6 +59,16 @@ class DeliveryRegistrationController extends Controller
             'qty'         => (float) $d->quantity,
             'net'         => (float) $d->net_value,
             'billed'      => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
+            'paid'        => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
+            'billing_status' => $d->billing_status?->value,
+            'in_receipt'  => (bool) $d->associate_receipt_id,
+            'receipt_id'  => $d->associate_receipt_id,
+            'receipt_number' => $d->associateReceipt?->formatted_number,
+            'billing_receipt_id' => $d->billing_receipt_id,
+            'locked'      => (bool) $d->paid
+                || $d->billing_status !== BillingStatus::UNBILLED
+                || (bool) $d->billing_receipt_id
+                || ($d->associateReceipt?->isLocked() ?? false),
         ]);
 
         return [
@@ -78,6 +90,106 @@ class DeliveryRegistrationController extends Controller
             'distributed_qty'   => (float) $distributions->sum('qty'),
             'has_billed'        => $distributions->contains('billed', true),
         ];
+    }
+
+    private function receiptDistributionIntegrityMessage($distributions, int $tenantId, int $projectId, ?int $associateId = null, ?int $receiptId = null): ?string
+    {
+        $distributions = collect($distributions)->values();
+
+        if ($distributions->isEmpty()) {
+            return 'Nenhuma distribuicao valida encontrada para gerar o comprovante.';
+        }
+
+        $ids = $distributions->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        foreach ($distributions as $distribution) {
+            if ((int) $distribution->tenant_id !== $tenantId || (int) $distribution->sales_project_id !== $projectId) {
+                return "A distribuicao #{$distribution->id} pertence a outro tenant ou projeto.";
+            }
+
+            if ($associateId && (int) $distribution->associate_id !== $associateId) {
+                return "A distribuicao #{$distribution->id} pertence a outro associado.";
+            }
+
+            if (is_null($distribution->parent_delivery_id)) {
+                return "A entrega #{$distribution->id} e uma recepcao-pai e nao pode entrar em comprovante financeiro.";
+            }
+
+            if (empty($distribution->customer_id)) {
+                return "A distribuicao #{$distribution->id} esta sem cliente/destino.";
+            }
+
+            if ((float) ($distribution->quantity ?? 0) <= 0) {
+                return "A distribuicao #{$distribution->id} esta com quantidade invalida.";
+            }
+
+            if ((float) ($distribution->unit_price ?? 0) <= 0) {
+                return "A distribuicao #{$distribution->id} esta sem preco valido.";
+            }
+
+            if ((float) ($distribution->gross_value ?? 0) <= 0) {
+                return "A distribuicao #{$distribution->id} esta com valor bruto zerado.";
+            }
+
+            if ($distribution->paid || $distribution->billing_status === BillingStatus::PAID) {
+                return "A distribuicao #{$distribution->id} ja foi paga e nao pode entrar em novo comprovante.";
+            }
+
+            if (! is_null($distribution->associate_receipt_id) && (int) $distribution->associate_receipt_id !== (int) $receiptId) {
+                return "A distribuicao #{$distribution->id} ja esta vinculada ao comprovante #{$distribution->associate_receipt_id}.";
+            }
+        }
+
+        $parentIds = $distributions->pluck('parent_delivery_id')->filter()->unique()->map(fn ($id) => (int) $id)->all();
+        $parents = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereIn('id', $parentIds)
+            ->get()
+            ->keyBy('id');
+
+        foreach ($distributions as $distribution) {
+            $parent = $parents->get((int) $distribution->parent_delivery_id);
+
+            if (! $parent) {
+                return "A distribuicao #{$distribution->id} esta sem entrega-pai valida.";
+            }
+
+            if ((int) $parent->sales_project_id !== $projectId || (int) $parent->associate_id !== (int) $distribution->associate_id) {
+                return "A distribuicao #{$distribution->id} tem tenant, projeto ou associado incompatível com a entrega-pai.";
+            }
+        }
+
+        foreach ($parents as $parent) {
+            $distributed = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('parent_delivery_id', $parent->id)
+                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                ->sum('quantity');
+
+            if ($distributed - (float) $parent->quantity > 0.0001) {
+                return sprintf(
+                    'A entrega #%d possui %.4f distribuidos para apenas %.4f recebidos.',
+                    $parent->id,
+                    $distributed,
+                    (float) $parent->quantity
+                );
+            }
+        }
+
+        $legacyReceipt = AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
+            ->when($receiptId, fn ($query) => $query->where('id', '!=', $receiptId))
+            ->get()
+            ->first(function (AssociateReceipt $receipt) use ($ids) {
+                $receiptIds = collect($receipt->delivery_ids ?? [])->map(fn ($id) => (int) $id)->all();
+
+                return ! empty(array_intersect($ids, $receiptIds));
+            });
+
+        if ($legacyReceipt) {
+            return "Uma ou mais distribuicoes selecionadas ja constam no comprovante {$legacyReceipt->formatted_number}.";
+        }
+
+        return null;
     }
 
     /**
@@ -446,10 +558,80 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Não é possível remover distribuições de um projeto que não está em fase financeira ativa.'], 400);
         }
 
+        if ($distribution->paid || $distribution->billing_status !== BillingStatus::UNBILLED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao nao pode ser excluida porque ja foi faturada ou paga.',
+            ], 422);
+        }
+
+        if ($distribution->billing_receipt_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao ja esta vinculada a um comprovante de cobranca e nao pode ser excluida diretamente.',
+            ], 422);
+        }
+
         $projectId = $distribution->sales_project_id;
         $organizationId = $distribution->customer?->organization_id;
+        $receipt = $distribution->associateReceipt;
 
-        $distribution->delete();
+        if ($receipt) {
+            if ($receipt->isLocked()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta distribuicao nao pode ser excluida porque esta em um comprovante pago.',
+                ], 422);
+            }
+
+            if (! $request->boolean('impact_confirmed') || (int) $request->input('math_answer') !== 2) {
+                return response()->json([
+                    'success' => false,
+                    'requires_confirmation' => true,
+                    'message' => 'Esta distribuicao ja esta em um comprovante. Confirme 1 + 1 para remover e recalcular o comprovante.',
+                ], 409);
+            }
+        }
+
+        DB::transaction(function () use ($distribution, $receipt, $projectId) {
+            if ($receipt) {
+                $nextIds = collect($receipt->delivery_ids ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->reject(fn ($id) => $id === (int) $distribution->id)
+                    ->values()
+                    ->all();
+
+                $remaining = ProductionDelivery::where('tenant_id', $receipt->tenant_id)
+                    ->where('sales_project_id', $receipt->sales_project_id)
+                    ->where('associate_id', $receipt->associate_id)
+                    ->where('associate_receipt_id', $receipt->id)
+                    ->where('id', '!=', $distribution->id)
+                    ->whereNotNull('parent_delivery_id')
+                    ->get();
+
+                if ($remaining->isNotEmpty() && $receipt->project) {
+                    $snapshot = app(\App\Services\AssociateReceiptService::class)
+                        ->computeSnapshot($remaining, $receipt->project);
+                    $receipt->update([
+                        'delivery_ids' => $nextIds,
+                        'total_gross' => $snapshot['total_gross'],
+                        'total_fees' => $snapshot['total_fees'],
+                        'total_net' => $snapshot['total_net'],
+                        'fee_snapshot' => $snapshot['fee_snapshot'],
+                    ]);
+                } else {
+                    $receipt->update([
+                        'delivery_ids' => [],
+                        'total_gross' => 0,
+                        'total_fees' => 0,
+                        'total_net' => 0,
+                        'fee_snapshot' => null,
+                    ]);
+                }
+            }
+
+            $distribution->delete();
+        });
 
         if ($projectId && $organizationId) {
             app(BuyerRequestFulfillmentService::class)
@@ -475,6 +657,172 @@ class DeliveryRegistrationController extends Controller
         ]);
     }
 
+    public function updateDistribution(Request $request)
+    {
+        $distributionId = (int) $request->route('distribution');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $validated = $request->validate([
+            'customer_id' => 'required|integer|exists:customers,id',
+            'quantity' => 'required|numeric|min:0.001',
+        ]);
+
+        $distribution = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->with(['parentDelivery', 'salesProject', 'customer.organization'])
+            ->findOrFail($distributionId);
+
+        if ($distribution->paid || $distribution->billing_status !== BillingStatus::UNBILLED || $distribution->billing_receipt_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao nao pode ser editada porque ja foi faturada ou paga.',
+            ], 422);
+        }
+
+        if ($distribution->associate_receipt_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao ja esta em um comprovante. Remova-a do comprovante antes de editar.',
+            ], 422);
+        }
+
+        $parent = $distribution->parentDelivery;
+        if (! $parent) {
+            return response()->json(['success' => false, 'message' => 'Distribuicao sem entrega-pai valida.'], 422);
+        }
+
+        $customer = Customer::where('tenant_id', $tenantId)
+            ->with('organization')
+            ->findOrFail((int) $validated['customer_id']);
+
+        if (! $customer->organization_id || ! $customer->organization) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O cliente selecionado nao esta vinculado a uma organizacao compradora.',
+            ], 422);
+        }
+
+        $project = $parent->salesProject;
+        $project?->loadMissing('customers:id');
+        $allowedCustomerIds = $project?->customers?->pluck('id') ?? collect();
+        if ($allowedCustomerIds->isNotEmpty() && ! $allowedCustomerIds->contains((int) $customer->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este projeto permite distribuicao apenas para os clientes vinculados a ele.',
+            ], 422);
+        }
+
+        $siblingsTotal = (float) ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $parent->id)
+            ->where('id', '!=', $distribution->id)
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->sum('quantity');
+
+        $newQuantity = (float) $validated['quantity'];
+        if ($siblingsTotal + $newQuantity > (float) $parent->quantity + 0.0005) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A soma das distribuicoes excede a quantidade recebida.',
+            ], 422);
+        }
+
+        $requestFulfillment = app(BuyerRequestFulfillmentService::class);
+        if ($project && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
+            $remaining = $requestFulfillment->remainingQuantity(
+                (int) $tenantId,
+                (int) $project->id,
+                (int) $customer->organization_id,
+                (int) $parent->product_id,
+                (int) $customer->id
+            );
+
+            if ((int) $customer->id === (int) $distribution->customer_id) {
+                $remaining += (float) $distribution->quantity;
+            }
+
+            if ($newQuantity > $remaining + 0.0005) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta organizacao limita a distribuicao ao solicitado. Saldo disponivel: '
+                        . number_format(max(0, $remaining), 3, ',', '.') . '.',
+                ], 422);
+            }
+        }
+
+        $pricingService = app(PricingService::class);
+        $calculator = app(ProjectFinancialCalculator::class);
+        $product = $parent->product;
+        $priceResult = $pricingService->resolvePrice($product, $customer, $project);
+
+        if ($priceResult['source'] === 'unpriced' || bccomp((string) $priceResult['sale_price'], '0', 4) === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O produto "' . $product->name . '" nao tem preco configurado para o cliente "' . ($customer->trade_name ?: $customer->name) . '".',
+            ], 422);
+        }
+
+        $qty = (string) $newQuantity;
+        $unitPrice = $priceResult['sale_price'];
+        $gross = bcmul($qty, $unitPrice, 8);
+        $financial = $project ? $calculator->calculate($project, $gross) : [
+            'total_fee' => '0',
+            'net' => $gross,
+            'admin_fee_percentage_eff' => '0',
+        ];
+
+        $oldOrganizationId = $distribution->customer?->organization_id;
+
+        $distribution->update([
+            'customer_id' => (int) $customer->id,
+            'quantity' => $qty,
+            'unit_price' => $unitPrice,
+            'cost_price_used' => $priceResult['cost_price'],
+            'admin_fee_percentage' => $financial['admin_fee_percentage_eff'],
+            'admin_fee_amount' => $financial['total_fee'],
+            'net_value' => $financial['net'],
+            'price_table_id' => $priceResult['price_table_id'],
+            'price_source' => $priceResult['source'],
+        ]);
+
+        collect([$oldOrganizationId, $customer->organization_id])
+            ->filter()
+            ->unique()
+            ->each(function (int $organizationId) use ($requestFulfillment, $tenantId, $project) {
+                if ($project) {
+                    $requestFulfillment->updateProjectOrganizationStatuses((int) $tenantId, (int) $project->id, $organizationId);
+                }
+            });
+
+        $distTotal = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $parent->id)
+            ->sum('quantity');
+        $distNetTotal = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('parent_delivery_id', $parent->id)
+            ->sum('net_value');
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Distribuicao atualizada.',
+            'delivery_id' => $parent->id,
+            'parent_delivery_id' => $parent->id,
+            'distribution' => [
+                'id' => $distribution->id,
+                'customer_id' => $customer->id,
+                'customer' => $customer->trade_name ?: $customer->name,
+                'qty' => (float) $distribution->quantity,
+                'net' => (float) $distribution->net_value,
+                'billed' => false,
+                'in_receipt' => false,
+            ],
+            'dist_total_qty' => (float) $distTotal,
+            'dist_total_net' => (float) $distNetTotal,
+        ]);
+    }
+
     /**
      * Delete a pending delivery (only PENDING, only same session owner)
      */
@@ -489,13 +837,35 @@ class DeliveryRegistrationController extends Controller
 
         $delivery = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('received_by', Auth::id())
+            ->with('distributions')
             ->findOrFail($deliveryId);
+
+        if ($delivery->parent_delivery_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Use a acao de remover distribuicao para excluir um destino especifico.',
+            ], 422);
+        }
 
         // Pending/rejected can always be deleted; approved requires explicit confirmation
         // (frontend sends 'force' flag for approved deliveries)
         $allowedStatuses = [DeliveryStatus::PENDING, DeliveryStatus::REJECTED, DeliveryStatus::APPROVED];
         if (! in_array($delivery->status, $allowedStatuses)) {
             return response()->json(['success' => false, 'message' => 'Esta entrega não pode ser excluída.'], 400);
+        }
+
+        $blockedDistribution = $delivery->distributions->first(function (ProductionDelivery $distribution) {
+            return $distribution->paid
+                || $distribution->billing_status !== BillingStatus::UNBILLED
+                || $distribution->associate_receipt_id
+                || $distribution->billing_receipt_id;
+        });
+
+        if ($blockedDistribution) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta entrega nao pode ser excluida porque possui distribuicoes vinculadas a comprovantes, faturamento ou pagamento.',
+            ], 422);
         }
 
         // Also delete child distributions
@@ -609,7 +979,7 @@ class DeliveryRegistrationController extends Controller
         $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization'])
+            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -630,6 +1000,16 @@ class DeliveryRegistrationController extends Controller
                     'price_source'     => $dist->price_source,
                     'billed'           => $dist->billing_status instanceof BillingStatus
                                          && $dist->billing_status !== BillingStatus::UNBILLED,
+                    'paid'             => (bool) $dist->paid || $dist->billing_status === BillingStatus::PAID,
+                    'billing_status'   => $dist->billing_status?->value,
+                    'in_receipt'       => (bool) $dist->associate_receipt_id,
+                    'receipt_id'       => $dist->associate_receipt_id,
+                    'receipt_number'   => $dist->associateReceipt?->formatted_number,
+                    'billing_receipt_id' => $dist->billing_receipt_id,
+                    'locked'           => (bool) $dist->paid
+                        || $dist->billing_status !== BillingStatus::UNBILLED
+                        || (bool) $dist->billing_receipt_id
+                        || ($dist->associateReceipt?->isLocked() ?? false),
                 ]);
 
                 $hasBilled = $distributions->contains('billed', true);
@@ -686,12 +1066,7 @@ class DeliveryRegistrationController extends Controller
             // ou via novo fluxo (associado a comprovante PAGO)
             $query->where('paid', false)
                   ->where('billing_status', '!=', BillingStatus::PAID->value)
-                  ->where(function ($q) {
-                      $q->whereNull('associate_receipt_id')
-                        ->orWhereHas('associateReceipt', fn ($r) =>
-                            $r->where('status', '!=', \App\Enums\ReceiptStatus::PAID->value)
-                        );
-                  });
+                  ->whereNull('associate_receipt_id');
         }
         if ($fromDate) {
             $query->whereDate('delivery_date', '>=', $fromDate);
@@ -761,6 +1136,36 @@ class DeliveryRegistrationController extends Controller
             'quality_grade' => 'nullable|string|max:50',
             'notes'         => 'nullable|string|max:1000',
         ]);
+
+        if ($delivery->parent_delivery_id && (
+            $delivery->paid
+            || $delivery->billing_status !== BillingStatus::UNBILLED
+            || $delivery->associate_receipt_id
+            || $delivery->billing_receipt_id
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao nao pode ser alterada porque ja esta em comprovante, faturada ou paga.',
+            ], 422);
+        }
+
+        if (! $delivery->parent_delivery_id) {
+            $distributedQuantity = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('parent_delivery_id', $delivery->id)
+                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                ->sum('quantity');
+
+            if ((float) $validated['quantity'] + 0.0001 < $distributedQuantity) {
+                return response()->json([
+                    'success' => false,
+                    'message' => sprintf(
+                        'Nao e possivel reduzir esta entrega para %.4f, pois ja existem %.4f distribuidos. Ajuste as distribuicoes antes de alterar a entrega.',
+                        (float) $validated['quantity'],
+                        $distributedQuantity
+                    ),
+                ], 422);
+            }
+        }
 
         $delivery->update([
             'delivery_date' => $validated['delivery_date'],
@@ -1090,7 +1495,7 @@ class DeliveryRegistrationController extends Controller
         $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer'])
+            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get()
@@ -1111,8 +1516,9 @@ class DeliveryRegistrationController extends Controller
         }
 
         $currentTenant = $this->currentTenant();
+        $integrity = app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project);
 
-        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant', 'customers'));
+        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant', 'customers', 'integrity'));
     }
 
     public function projectDeliveryFragment()
@@ -1132,7 +1538,7 @@ class DeliveryRegistrationController extends Controller
         $deliveryModel = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer'])
+            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
             ->findOrFail($deliveryId);
 
         $projectCustomers = $project->customers;
@@ -2277,12 +2683,7 @@ class DeliveryRegistrationController extends Controller
             ->whereNotNull('parent_delivery_id')
             ->where('paid', false)
             ->where('billing_status', '!=', BillingStatus::PAID->value)
-            ->where(function ($q) {
-                $q->whereNull('associate_receipt_id')
-                  ->orWhereHas('associateReceipt', fn ($r) =>
-                      $r->where('status', '!=', \App\Enums\ReceiptStatus::PAID->value)
-                  );
-            })
+            ->whereNull('associate_receipt_id')
             ->count();
 
         // Verificar distribuições não cobertas (só relevante quando múltiplos comprovantes)
@@ -2303,6 +2704,20 @@ class DeliveryRegistrationController extends Controller
                 ->count();
         }
 
+        $criticalIssues = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
+            ->where(function ($query) {
+                $query->whereNull('customer_id')
+                    ->orWhereNull('parent_delivery_id')
+                    ->orWhereNull('unit_price')
+                    ->orWhere('unit_price', '<=', 0)
+                    ->orWhere('quantity', '<=', 0);
+            })
+            ->count();
+
         return response()->json([
             'success'         => true,
             'has_receipts'    => $receipts->count() > 0,
@@ -2310,6 +2725,7 @@ class DeliveryRegistrationController extends Controller
             'receipts'        => $receiptData->all(),
             'total_dist'      => $totalDist,
             'uncovered_count' => $uncoveredCount,
+            'critical_issues' => $criticalIssues,
         ]);
     }
 
@@ -2336,7 +2752,8 @@ class DeliveryRegistrationController extends Controller
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
             ->whereNotNull('parent_delivery_id')
-            ->with(['product', 'customer'])
+            ->whereNull('associate_receipt_id')
+            ->with(['product', 'customer', 'parentDelivery'])
             ->orderBy('delivery_date')
             ->orderBy('id')
             ->get();
@@ -2345,25 +2762,21 @@ class DeliveryRegistrationController extends Controller
             return redirect()->back()->with('error', 'Nenhuma distribuição aprovada encontrada para este produtor. Distribua as recepções antes de gerar o comprovante.');
         }
 
-        // Criar ou reutilizar registro de comprovante
-        $year   = now()->year;
-        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->where('associate_id', $associateId)
-            ->first();
-
-        if ($receipt) {
-            $receipt->update(['issued_at' => today()]);
-        } else {
-            $receipt = \App\Models\AssociateReceipt::create([
-                'tenant_id'        => $tenantId,
-                'sales_project_id' => $projectId,
-                'associate_id'     => $associateId,
-                'receipt_year'     => $year,
-                'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
-                'issued_at'        => today(),
-            ]);
+        if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, $associateId)) {
+            return redirect()->back()->with('error', $message);
         }
+
+        // Criar novo comprovante apenas com distribuicoes pendentes.
+        $year   = now()->year;
+        $receipt = \App\Models\AssociateReceipt::create([
+            'tenant_id'        => $tenantId,
+            'sales_project_id' => $projectId,
+            'associate_id'     => $associateId,
+            'receipt_year'     => $year,
+            'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at'        => today(),
+            'delivery_ids'     => $distributions->pluck('id')->all(),
+        ]);
 
         // Congelar snapshot financeiro (apenas se o comprovante ainda não foi pago)
         if (! $receipt->isLocked()) {
@@ -2411,7 +2824,7 @@ class DeliveryRegistrationController extends Controller
         }
 
         // Sanitizar IDs
-        $deliveryIds = array_map('intval', $deliveryIds);
+        $deliveryIds = array_values(array_unique(array_map('intval', $deliveryIds)));
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $tenant  = $this->currentTenant();
@@ -2422,12 +2835,12 @@ class DeliveryRegistrationController extends Controller
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED)
             ->whereIn('id', $deliveryIds)
-            ->with(['product', 'customer', 'associate.user'])
+            ->with(['product', 'customer', 'associate.user', 'parentDelivery'])
             ->orderBy('delivery_date')
             ->orderBy('id')
             ->get();
 
-        if ($distributions->isEmpty()) {
+        if ($distributions->count() !== count($deliveryIds)) {
             return response()->json(['success' => false, 'message' => 'Nenhuma distribuição aprovada encontrada para os IDs selecionados.'], 422);
         }
 
@@ -2435,6 +2848,10 @@ class DeliveryRegistrationController extends Controller
         $associateIds = $distributions->pluck('associate_id')->unique();
         if ($associateIds->count() > 1) {
             return response()->json(['success' => false, 'message' => 'Selecione distribuições de um mesmo produtor para gerar o comprovante.'], 422);
+        }
+
+        if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $associateIds->first())) {
+            return response()->json(['success' => false, 'message' => $message], 422);
         }
 
         $associate = Associate::where('tenant_id', $tenantId)
@@ -2552,12 +2969,18 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
-            ->with('product')
+            ->whereNotNull('parent_delivery_id')
+            ->whereNotNull('customer_id')
+            ->with(['product', 'customer', 'parentDelivery'])
             ->orderBy('delivery_date')
             ->get();
 
         if ($deliveries->isEmpty()) {
             return back()->with('error', 'Nenhuma entrega aprovada encontrada para este associado neste projeto.');
+        }
+
+        if ($message = $this->receiptDistributionIntegrityMessage($deliveries, (int) $tenantId, (int) $projectId, (int) $associate->id)) {
+            return back()->with('error', $message);
         }
 
         $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
@@ -2853,34 +3276,36 @@ class DeliveryRegistrationController extends Controller
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant    = $this->currentTenant();
 
-        // Quando há apenas 1 comprovante para este associado/projeto,
-        // sempre usa TODAS as distribuições atuais (independente dos IDs armazenados).
-        // Quando há múltiplos comprovantes, usa os IDs armazenados para reproduzir exatamente.
-        $receiptCount = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->where('associate_id', $receipt->associate_id)
-            ->count();
-
-        $storedIds = ($receiptCount > 1) ? ($receipt->delivery_ids ?? []) : [];
+        // Reimpressao deve reproduzir somente as distribuicoes vinculadas a este comprovante.
+        $storedIds = collect($receipt->delivery_ids ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         $query = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associate->id)
             ->where('status', DeliveryStatus::APPROVED)
-            ->with('product')
+            ->whereNotNull('parent_delivery_id')
+            ->with(['product', 'customer', 'parentDelivery'])
             ->orderBy('delivery_date');
 
         if (!empty($storedIds)) {
-            $query->whereIn('id', array_map('intval', $storedIds));
+            $query->whereIn('id', $storedIds);
         } else {
-            // Único comprovante: inclui todas as distribuições aprovadas
-            $query->whereNotNull('parent_delivery_id');
+            $query->where('associate_receipt_id', $receipt->id);
         }
 
         $deliveries = $query->get();
 
         if ($deliveries->isEmpty()) {
             return redirect()->back()->with('error', 'Não há entregas disponíveis para reimprimir este comprovante.');
+        }
+
+        if ($message = $this->receiptDistributionIntegrityMessage($deliveries, (int) $tenantId, $projectId, (int) $associate->id, $receipt->id)) {
+            return redirect()->back()->with('error', $message);
         }
 
         $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);

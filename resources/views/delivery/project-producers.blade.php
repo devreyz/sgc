@@ -196,6 +196,8 @@
             Produtor: <strong id="modal-assoc-name">—</strong>
         </div>
 
+        <div id="rm-issues" class="rm-info rm-info-red hidden"></div>
+
         {{-- Estado: verificando --}}
         <div id="rm-checking" style="padding:1.5rem 0;text-align:center;font-size:.85rem;color:var(--color-text-secondary);">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
@@ -356,6 +358,16 @@ async function openReceiptModal(associateId, name) {
 
         document.getElementById('rm-dist-count').textContent = PP_CHECK_DATA.total_dist ?? 0;
         document.getElementById('rm-receipt-count').textContent = PP_CHECK_DATA.receipt_count ?? 0;
+        const issuesEl = document.getElementById('rm-issues');
+        const criticalIssues = PP_CHECK_DATA.critical_issues ?? 0;
+        if (criticalIssues > 0) {
+            issuesEl.innerHTML = `<i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante. Corrija cliente, preco ou quantidade antes de gerar.</span>`;
+            issuesEl.classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        } else {
+            issuesEl.classList.add('hidden');
+            issuesEl.innerHTML = '';
+        }
 
         if (!PP_CHECK_DATA.has_receipts) {
             setModalState('no-receipt');

@@ -298,32 +298,28 @@ class AssociateReceiptResource extends Resource
                         $project = $record->project;
 
                         // ── Buscar entregas ──────────────────────────────────
-                        // Quando há apenas 1 comprovante para este associado/projeto,
-                        // usa TODAS as distribuições atuais (padrão único comprovante).
-                        // Quando há múltiplos, usa os IDs armazenados (comprovante parcial).
-                        $storedIds = $record->delivery_ids ?? [];
-                        $receiptCount = AssociateReceipt::where('tenant_id', $tenantId)
-                            ->where('sales_project_id', $record->sales_project_id)
-                            ->where('associate_id', $record->associate_id)
-                            ->count();
-
-                        // Único comprovante → ignora IDs armazenados, carrega todos atuais
-                        if ($receiptCount <= 1) {
-                            $storedIds = [];
-                        }
-
+                        // Reimpressao usa somente distribuicoes vinculadas a este comprovante.
+                        $storedIds = collect($record->delivery_ids ?? [])
+                            ->map(fn ($id) => (int) $id)
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->where('associate_id', $record->associate_id)
                             ->where('status', DeliveryStatus::APPROVED)
-                            ->with('product')
+                            ->whereNotNull('parent_delivery_id')
+                            ->with(['product', 'customer', 'parentDelivery'])
                             ->orderBy('delivery_date');
 
                         if (! empty($storedIds)) {
-                            $query->whereIn('id', array_map('intval', $storedIds));
+                            $query->whereIn('id', $storedIds);
                         } elseif ($record->sales_project_id) {
                             $query->where('sales_project_id', $record->sales_project_id);
+                            $query->where('associate_receipt_id', $record->id);
                         } else {
                             $query->whereNull('sales_project_id');
+                            $query->where('associate_receipt_id', $record->id);
                             if ($record->from_date) {
                                 $query->where('delivery_date', '>=', $record->from_date);
                             }
@@ -378,30 +374,28 @@ class AssociateReceiptResource extends Resource
                     ->color('gray')
                     ->modalHeading(fn (AssociateReceipt $r) => 'Entregas — Comprovante Nº '.$r->formatted_number)
                     ->modalContent(function (AssociateReceipt $record) {
-                        $ids = $record->delivery_ids ?? [];
-                        $receiptCount = AssociateReceipt::where('tenant_id', $record->tenant_id)
-                            ->where('sales_project_id', $record->sales_project_id)
-                            ->where('associate_id', $record->associate_id)
-                            ->count();
-                        // Único comprovante → usa todas as distribuições atuais
-                        if ($receiptCount <= 1) {
-                            $ids = [];
-                        }
+                        $ids = collect($record->delivery_ids ?? [])
+                            ->map(fn ($id) => (int) $id)
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
 
                         $query = ProductionDelivery::where('tenant_id', $record->tenant_id)
                             ->where('associate_id', $record->associate_id)
                             ->where('status', DeliveryStatus::APPROVED)
+                            ->whereNotNull('parent_delivery_id')
                             ->with('product', 'customer')
                             ->orderBy('delivery_date');
 
                         if (! empty($ids)) {
-                            $query->whereIn('id', array_map('intval', $ids));
+                            $query->whereIn('id', $ids);
                         } elseif ($record->sales_project_id) {
                             $query->where('sales_project_id', $record->sales_project_id)
-                                ->whereNotNull('parent_delivery_id');
+                                ->where('associate_receipt_id', $record->id);
                         } else {
                             $query->whereNull('sales_project_id')
-                                ->whereNotNull('parent_delivery_id');
+                                ->where('associate_receipt_id', $record->id);
                             if ($record->from_date) {
                                 $query->where('delivery_date', '>=', $record->from_date);
                             }

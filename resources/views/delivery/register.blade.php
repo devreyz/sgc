@@ -1866,7 +1866,21 @@ function openDistributeModal(id) {
         unit:        item.productUnit || 'un',
         qty:         item.qty,
         distributed: item.distributedQty || 0,
-        existing:    (item.distributions || []).map(d => ({ id: d.id || 0, customer_id: d.customer_id || d.customerId || null, customer: d.customer, qty: d.qty, net: d.net || 0, billed: !!d.billed })),
+        existing:    (item.distributions || []).map(d => ({
+            id: d.id || 0,
+            customer_id: d.customer_id || d.customerId || null,
+            customer: d.customer,
+            qty: d.qty,
+            net: d.net || 0,
+            billed: !!d.billed,
+            paid: !!d.paid,
+            in_receipt: !!d.in_receipt,
+            receipt_id: d.receipt_id || null,
+            receipt_number: d.receipt_number || null,
+            billing_receipt_id: d.billing_receipt_id || null,
+            locked: !!d.locked,
+            billing_status: d.billing_status || null,
+        })),
         participants: item.customerIds || S.project?.customerIds || [],
     });
 }
@@ -1893,6 +1907,23 @@ window._DistModalOnDelete = function(receptionId, data) {
 
     renderSessionItems();
     toast('Distribuicao removida.', 'success');
+};
+
+window._DistModalOnUpdate = function(receptionId, data) {
+    const id = receptionId || data?.parent_delivery_id;
+    const item = S.items.find(i => i.id === id);
+    if (!item) return;
+
+    item.distributedQty = data.dist_total_qty || 0;
+    item.dist_net_value = data.dist_total_net || 0;
+    if (data.distribution) {
+        item.distributions = (item.distributions || []).map(d =>
+            String(d.id) === String(data.distribution.id) ? data.distribution : d
+        );
+    }
+
+    renderSessionItems();
+    toast('Distribuicao atualizada.', 'success');
 };
 
 function openModal(type) {

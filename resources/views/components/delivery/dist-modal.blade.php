@@ -142,6 +142,70 @@
 }
 .dm-del-btn:hover { opacity: 1; background: rgba(220,38,38,.12); border-color: var(--color-danger); }
 .dm-del-btn:focus { outline: none; opacity: 1; border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(220,38,38,.2); }
+.dm-existing-actions { display:flex; align-items:center; gap:.25rem; flex-shrink:0; }
+.dm-edit-btn {
+    width: 30px; height: 30px; border: 1px solid transparent;
+    background: transparent; cursor: pointer;
+    color: #2563eb; font-size: .9rem;
+    border-radius: var(--radius-md); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .7; transition: opacity .15s, background .15s, border-color .15s;
+}
+.dm-edit-btn:hover { opacity: 1; background: rgba(37,99,235,.12); border-color:#2563eb; }
+.dm-action-disabled {
+    width: 30px; height: 30px; border: 1px solid transparent;
+    background: transparent; color: var(--color-text-muted);
+    opacity: .55; display:flex; align-items:center; justify-content:center;
+    cursor:not-allowed; border-radius:var(--radius-md);
+}
+.dm-status-badges { display:flex; gap:.25rem; flex-wrap:wrap; justify-content:flex-end; }
+.dm-status-badge {
+    font-size:.62rem; font-weight:700; padding:.12rem .35rem;
+    border-radius:999px; border:1px solid transparent; white-space:nowrap;
+}
+.dm-status-badge.receipt { color:#7c3aed; background:#ede9fe; border-color:#ddd6fe; }
+.dm-status-badge.billed { color:#1d4ed8; background:#dbeafe; border-color:#bfdbfe; }
+.dm-status-badge.paid { color:#047857; background:#d1fae5; border-color:#a7f3d0; }
+.dm-inline-edit {
+    display:grid; grid-template-columns:1fr 110px auto; gap:.4rem;
+    width:100%; align-items:center;
+}
+.dm-inline-edit select,
+.dm-inline-edit input {
+    min-height:36px; border:1.5px solid var(--color-border);
+    border-radius:var(--radius-md); background:var(--color-surface);
+    color:var(--color-text); padding:.4rem .55rem; font-size:.82rem;
+}
+.dm-inline-edit-actions { display:flex; gap:.25rem; }
+.dm-mini-btn {
+    width:32px; height:32px; border-radius:var(--radius-md);
+    border:1px solid var(--color-border); background:var(--color-surface);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+}
+.dm-mini-btn.save { color:#059669; }
+.dm-mini-btn.cancel { color:var(--color-text-muted); }
+
+#dm-confirm-overlay {
+    position: fixed; inset:0; z-index:310000; display:none;
+    align-items:center; justify-content:center; padding:1rem;
+    background:rgba(0,0,0,.5);
+}
+#dm-confirm-overlay.open { display:flex; }
+.dm-confirm-box {
+    width:min(420px,95vw); background:var(--color-surface);
+    border:1px solid var(--color-border); border-radius:var(--radius-lg);
+    box-shadow:0 20px 50px rgba(0,0,0,.28); padding:1rem;
+}
+.dm-confirm-title { font-size:.95rem; font-weight:800; margin-bottom:.45rem; }
+.dm-confirm-text { font-size:.82rem; color:var(--color-text-secondary); line-height:1.45; }
+.dm-confirm-math { margin-top:.8rem; display:flex; flex-direction:column; gap:.3rem; }
+.dm-confirm-math label { font-size:.72rem; font-weight:700; color:var(--color-text-secondary); text-transform:uppercase; }
+.dm-confirm-math input {
+    min-height:40px; border:1.5px solid var(--color-border);
+    border-radius:var(--radius-md); padding:.45rem .65rem; font-size:.9rem;
+    background:var(--color-bg); color:var(--color-text);
+}
+.dm-confirm-actions { margin-top:1rem; display:flex; justify-content:flex-end; gap:.5rem; }
 
 /* ── New-row inputs ───────────────────────────────────────────────────── */
 .dm-row {
@@ -282,6 +346,21 @@
 </div>
 
 {{-- ══ JS ══════════════════════════════════════════════════════════════ --}}
+<div id="dm-confirm-overlay" onclick="if(event.target===this)DistModal.cancelDangerConfirm()">
+    <div class="dm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="dm-confirm-title">
+        <div class="dm-confirm-title" id="dm-confirm-title">Confirmar exclusao</div>
+        <div class="dm-confirm-text" id="dm-confirm-text"></div>
+        <div class="dm-confirm-math">
+            <label for="dm-confirm-answer">Quanto e 1 + 1?</label>
+            <input id="dm-confirm-answer" type="number" inputmode="numeric" autocomplete="off" placeholder="Digite o resultado">
+        </div>
+        <div class="dm-confirm-actions">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.cancelDangerConfirm()">Cancelar</button>
+            <button type="button" class="btn btn-danger btn-sm" id="dm-confirm-ok" onclick="DistModal.acceptDangerConfirm()">Excluir distribuicao</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
 'use strict';
@@ -297,6 +376,8 @@ let _unit      = 'un';
 let _totalQty  = 0;
 let _distQty   = 0;     // already distributed (existing, from DB)
 let _activeCustomers = DM_CUSTOMERS;
+let _existing = [];
+let _pendingDangerDelete = null;
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -334,6 +415,40 @@ function syncOpenButtonsAfterDelete(deliveryId, distributionId, data) {
     });
 }
 
+function normalizeExisting(d) {
+    return {
+        id: d.id || 0,
+        customer_id: d.customer_id || d.customerId || null,
+        customer: d.customer || '?',
+        qty: parseFloat(d.qty || d.quantity || 0),
+        net: parseFloat(d.net || 0),
+        billed: !!d.billed,
+        paid: !!d.paid,
+        in_receipt: !!d.in_receipt,
+        receipt_id: d.receipt_id || null,
+        receipt_number: d.receipt_number || null,
+        billing_receipt_id: d.billing_receipt_id || null,
+        locked: !!d.locked,
+        billing_status: d.billing_status || null,
+    };
+}
+
+function distributionIsEditable(d) {
+    return d.id && !d.locked && !d.paid && !d.billed && !d.in_receipt && !d.billing_receipt_id;
+}
+
+function distributionCanDelete(d) {
+    return d.id && !d.locked && !d.paid && !d.billed && !d.billing_receipt_id;
+}
+
+function statusBadges(d) {
+    const badges = [];
+    if (d.in_receipt) badges.push(`<span class="dm-status-badge receipt" title="${d.receipt_number ? 'Comprovante ' + esc(d.receipt_number) : 'Em comprovante'}">Em comprovante</span>`);
+    if (d.billed && !d.paid) badges.push('<span class="dm-status-badge billed">Faturada</span>');
+    if (d.paid) badges.push('<span class="dm-status-badge paid">Paga</span>');
+    return badges.length ? `<span class="dm-status-badges">${badges.join('')}</span>` : '';
+}
+
 /* ── Progress update (called on every input event) ─────────────────── */
 function updateProgress() {
     const newRows  = $('dm-new-rows').querySelectorAll('.dm-row');
@@ -364,10 +479,28 @@ function renderExisting(existing) {
     const section = $('dm-existing-section');
     const list    = $('dm-existing-list');
     if (!existing || existing.length === 0) {
+        _existing = [];
         section.style.display = 'none';
         return;
     }
     section.style.display = '';
+    _existing = existing.map(normalizeExisting);
+    list.innerHTML = _existing.map(d => `
+        <div class="dm-existing-row" id="dmex-${d.id}">
+            <span class="dm-existing-customer">${esc(d.customer)} ${statusBadges(d)}</span>
+            <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
+            <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
+            <span class="dm-existing-actions">
+                ${distributionIsEditable(d)
+                    ? `<button class="dm-edit-btn" title="Editar distribuicao" aria-label="Editar distribuicao de ${esc(d.customer)}" onclick="DistModal.editExisting(${d.id})">✎</button>`
+                    : `<span class="dm-action-disabled" title="${d.in_receipt ? 'Remova do comprovante antes de editar' : 'Distribuicao faturada, paga ou bloqueada'}">✎</span>`}
+                ${distributionCanDelete(d)
+                    ? `<button class="dm-del-btn" title="${d.in_receipt ? 'Remover do comprovante e excluir' : 'Remover distribuicao'}" aria-label="Remover distribuicao de ${esc(d.customer)}" onclick="DistModal.deleteExisting(${d.id})">×</button>`
+                    : `<span class="dm-action-disabled" title="Distribuicao faturada, paga ou bloqueada">×</span>`}
+            </span>
+        </div>
+    `).join('');
+    return;
     list.innerHTML = existing.map(d => `
         <div class="dm-existing-row" id="dmex-${d.id}">
             <span class="dm-existing-customer">${esc(d.customer)}</span>
@@ -429,6 +562,19 @@ function buildRow(preselectId = null, autofocus = false) {
     row.appendChild(inp);
     row.appendChild(rm);
     return row;
+}
+
+function customerOptions(selectedId) {
+    return _activeCustomers.map(c =>
+        `<option value="${c.id}"${String(c.id) === String(selectedId) ? ' selected' : ''}>${esc(c.name)}${c.organization_name ? ' · ' + esc(c.organization_name) : ''}</option>`
+    ).join('');
+}
+
+function setExistingFromServer(distribution) {
+    const index = _existing.findIndex(d => String(d.id) === String(distribution.id));
+    const next = normalizeExisting(distribution);
+    if (index >= 0) _existing[index] = next;
+    renderExisting(_existing);
 }
 
 /* ══ Public API ════════════════════════════════════════════════════════ */
@@ -514,19 +660,113 @@ window.DistModal = {
         setTimeout(() => row.querySelector('select')?.focus(), 30);
     },
 
+    editExisting(distributionId) {
+        const d = _existing.find(item => String(item.id) === String(distributionId));
+        if (!d || !distributionIsEditable(d)) return;
+
+        const row = document.getElementById('dmex-' + distributionId);
+        if (!row) return;
+
+        row.innerHTML = `
+            <div class="dm-inline-edit">
+                <select aria-label="Cliente da distribuicao">${customerOptions(d.customer_id)}</select>
+                <input type="number" min="0.001" step="0.001" value="${d.qty}" aria-label="Quantidade da distribuicao">
+                <span class="dm-inline-edit-actions">
+                    <button type="button" class="dm-mini-btn save" title="Salvar alteracao" onclick="DistModal.saveExistingEdit(${d.id})">✓</button>
+                    <button type="button" class="dm-mini-btn cancel" title="Cancelar edicao" onclick="DistModal.cancelExistingEdit()">×</button>
+                </span>
+            </div>
+        `;
+        setTimeout(() => row.querySelector('input')?.focus(), 40);
+    },
+
+    cancelExistingEdit() {
+        renderExisting(_existing);
+    },
+
+    async saveExistingEdit(distributionId) {
+        const row = document.getElementById('dmex-' + distributionId);
+        if (!row) return;
+        const customerId = row.querySelector('select')?.value;
+        const quantity = parseFloat(row.querySelector('input')?.value || 0);
+        if (!customerId || quantity <= 0) {
+            alert('Informe cliente e quantidade validos.');
+            return;
+        }
+
+        const saveBtn = row.querySelector('.dm-mini-btn.save');
+        if (saveBtn) saveBtn.disabled = true;
+
+        try {
+            const res = await fetch(`/${DM_TENANT}/delivery/distributions/${distributionId}`, {
+                method: 'PUT',
+                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ customer_id: parseInt(customerId), quantity }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                _distQty = data.dist_total_qty;
+                if (data.distribution) setExistingFromServer(data.distribution);
+                updateProgress();
+                if (typeof window._DistModalOnUpdate === 'function') {
+                    window._DistModalOnUpdate(_id, data);
+                }
+            } else {
+                alert(data.message || 'Erro ao editar distribuicao.');
+                renderExisting(_existing);
+            }
+        } catch (e) {
+            alert('Erro: ' + e.message);
+            renderExisting(_existing);
+        }
+    },
+
     /** Delete an existing (already-saved) distribution */
     async deleteExisting(distributionId) {
-        if (!confirm('Remover esta distribuição?')) return;
+        const d = _existing.find(item => String(item.id) === String(distributionId));
+        if (!d || !distributionCanDelete(d)) return;
+        if (d.in_receipt) {
+            _pendingDangerDelete = d;
+            $('dm-confirm-text').textContent = `Esta distribuicao esta no comprovante ${d.receipt_number || '#' + d.receipt_id}. Ao excluir, ela sera removida do comprovante e os totais serao recalculados.`;
+            $('dm-confirm-answer').value = '';
+            $('dm-confirm-overlay').classList.add('open');
+            setTimeout(() => $('dm-confirm-answer')?.focus(), 60);
+            return;
+        }
+        if (!confirm('Remover esta distribuicao?')) return;
+        return this.performDelete(distributionId, {});
+    },
+
+    cancelDangerConfirm() {
+        _pendingDangerDelete = null;
+        $('dm-confirm-overlay').classList.remove('open');
+    },
+
+    async acceptDangerConfirm() {
+        if (!_pendingDangerDelete) return;
+        const answer = parseInt($('dm-confirm-answer').value || '', 10);
+        if (answer !== 2) {
+            $('dm-confirm-answer').focus();
+            return;
+        }
+        const d = _pendingDangerDelete;
+        this.cancelDangerConfirm();
+        return this.performDelete(d.id, { impact_confirmed: true, math_answer: answer });
+    },
+
+    async performDelete(distributionId, payload = {}) {
         const saveBtn = $('dm-save-btn');
         saveBtn.disabled = true;
         try {
             const res  = await fetch(`/${DM_TENANT}/delivery/distributions/${distributionId}`, {
                 method:  'DELETE',
-                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Accept': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             if (data.success) {
                 // Remove row from UI
+                _existing = _existing.filter(item => String(item.id) !== String(distributionId));
                 document.getElementById('dmex-' + distributionId)?.remove();
                 syncOpenButtonsAfterDelete(_id, distributionId, data);
                 // Update _distQty

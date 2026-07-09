@@ -771,6 +771,7 @@ class ViewSalesProject extends ViewRecord
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
             ->whereNotNull('parent_delivery_id')
+            ->whereNull('associate_receipt_id')
             ->with(['product', 'customer'])
             ->orderBy('delivery_date');
 
@@ -851,6 +852,7 @@ class ViewSalesProject extends ViewRecord
             ->where('associate_id', $associateId)
             ->where('status', DeliveryStatus::APPROVED)
             ->whereNotNull('parent_delivery_id')
+            ->whereNull('associate_receipt_id')
             ->with(['product', 'customer'])
             ->orderBy('delivery_date');
 

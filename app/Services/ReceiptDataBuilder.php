@@ -25,6 +25,10 @@ class ReceiptDataBuilder
         ?DistributionBilling $billing = null,
         ?SalesProject $project = null
     ): array {
+        $deliveries = $deliveries
+            ->filter(fn ($delivery) => ! is_null($delivery->parent_delivery_id))
+            ->values();
+
         $totalGross = (float) $deliveries->sum('gross_value');
 
         // ── Per-distribution recalculation when project is available ─────────

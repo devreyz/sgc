@@ -386,6 +386,48 @@ $totalNet      = $deliveries->sum('net_value');
     </div>
 </div>
 
+{{-- PENDENCIAS E INCONSISTENCIAS --}}
+@if(!empty($integrity))
+<div class="pd-card" style="margin-bottom:1rem;">
+    <div class="pd-card-header">
+        <div class="pd-card-title">
+            <i data-lucide="shield-alert" style="width:16px;height:16px;color:var(--color-warning)"></i>
+            Pendencias e Inconsistencias
+        </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;font-size:.72rem;font-weight:700;">
+            <span style="color:#dc2626;">Critico: {{ $integrity['counts']['critical'] ?? 0 }}</span>
+            <span style="color:#d97706;">Atencao: {{ $integrity['counts']['warning'] ?? 0 }}</span>
+            <span style="color:#2563eb;">Info: {{ $integrity['counts']['info'] ?? 0 }}</span>
+        </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;padding:.75rem;">
+        @foreach(['critical' => ['Critico', '#dc2626'], 'warning' => ['Atencao', '#d97706'], 'info' => ['Informativo', '#2563eb']] as $severity => [$label, $color])
+            <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg);">
+                <div style="padding:.55rem .7rem;border-bottom:1px solid var(--color-border);font-size:.72rem;font-weight:800;text-transform:uppercase;color:{{ $color }};">
+                    {{ $label }}
+                </div>
+                <div style="display:flex;flex-direction:column;">
+                    @forelse(($integrity[$severity] ?? []) as $issue)
+                        <div style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
+                            <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
+                            <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
+                            <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
+                            @if(!empty($issue['deliveryId']))
+                                <button type="button" class="btn btn-ghost btn-sm" style="margin-top:.45rem;" onclick="document.querySelector('[data-delivery-id=\'{{ $issue['deliveryId'] }}\']')?.scrollIntoView({behavior:'smooth',block:'center'})">
+                                    Ver entrega
+                                </button>
+                            @endif
+                        </div>
+                    @empty
+                        <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
+                    @endforelse
+                </div>
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
 {{-- REPORTS BAR --}}
 @if($totalApproved > 0)
 <div class="reports-bar">
@@ -1117,6 +1159,15 @@ window._DistModalOnDelete = function(receptionId, data) {
         document.querySelectorAll(`[data-delivery-id="${id}"] .dist-indicator, [data-delivery-id="${id}"] .mc-dist-indicator`).forEach(indicator => {
             updateDistIndicator(indicator, indicator.closest('[data-total-qty]')?.dataset?.totalQty, distQty, '');
         });
+    });
+};
+
+window._DistModalOnUpdate = function(receptionId, data) {
+    pdToast('Distribuicao atualizada.');
+    const id = receptionId || data?.parent_delivery_id;
+    if (!id) return;
+    refreshDeliveryItem(id).catch(() => {
+        pdToast('Distribuicao atualizada, mas nao foi possivel atualizar o item.', 'error');
     });
 };
 

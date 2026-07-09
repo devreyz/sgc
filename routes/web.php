@@ -111,6 +111,7 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
         Route::post('/deliveries/{delivery}/distribute', [DeliveryRegistrationController::class, 'distribute'])->name('deliveries.distribute');
         Route::delete('/distributions/{distribution}', [DeliveryRegistrationController::class, 'deleteDistribution'])->name('distributions.delete');
+        Route::put('/distributions/{distribution}', [DeliveryRegistrationController::class, 'updateDistribution'])->name('distributions.update');
         Route::put('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'updateDelivery'])->name('deliveries.update');
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
