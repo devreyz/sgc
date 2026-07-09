@@ -3,61 +3,98 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrganizationAuthorizedEmail;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Http\RedirectResponse;
 
 class GoogleAuthController extends Controller
 {
-    /**
-     * Redirect to Google OAuth page
-     */
     public function redirect(): RedirectResponse
     {
         return Socialite::driver('google')->redirect();
     }
 
-    /**
-     * Handle Google OAuth callback
-     */
     public function callback(): RedirectResponse
     {
         try {
             $googleUser = Socialite::driver('google')->user();
-            
-            // SECURITY: Only allow pre-registered users to login (no auto-registration)
-            $user = User::where('email', $googleUser->email)->first();
+            $email = mb_strtolower($googleUser->email);
 
-            if (!$user) {
-                Log::warning('Unauthorized Google OAuth login attempt', [
+            $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+            if (! $user) {
+                $buyerAccess = OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
+                    ->whereRaw('LOWER(email) = ?', [$email])
+                    ->where('active', true)
+                    ->with('organization')
+                    ->first();
+
+                if (! $buyerAccess || ! $buyerAccess->organization?->active) {
+                    Log::warning('Unauthorized Google OAuth login attempt', [
+                        'email' => $googleUser->email,
+                        'google_id' => $googleUser->id,
+                    ]);
+
+                    return redirect('/login')->with('error', 'Acesso negado. Usuario nao cadastrado no sistema. Entre em contato com o administrador.');
+                }
+
+                $user = User::create([
+                    'name' => $googleUser->name ?: ($buyerAccess->name ?: $buyerAccess->email),
                     'email' => $googleUser->email,
+                    'password' => Str::random(40),
+                    'status' => true,
                     'google_id' => $googleUser->id,
+                    'avatar' => $googleUser->avatar,
                 ]);
-                
-                return redirect('/login')->with('error', 'Acesso negado. Usuário não cadastrado no sistema. Entre em contato com o administrador.');
+
+                $user->tenants()->syncWithoutDetaching([
+                    $buyerAccess->tenant_id => [
+                        'is_admin' => false,
+                        'roles' => json_encode(['buyer_organization']),
+                    ],
+                ]);
             }
 
-            // Update Google ID and avatar if not set
-            if (!$user->google_id) {
+            if (! $user->google_id) {
                 $user->update([
                     'google_id' => $googleUser->id,
                     'avatar' => $googleUser->avatar,
                 ]);
             }
 
+            OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
+                ->whereRaw('LOWER(email) = ?', [$email])
+                ->where('active', true)
+                ->get()
+                ->each(function (OrganizationAuthorizedEmail $buyerAccess) use ($user) {
+                    $tenantId = (int) $buyerAccess->tenant_id;
+                    $roles = json_encode(array_unique(array_merge(
+                        $user->getRolesForTenant($tenantId),
+                        ['buyer_organization']
+                    )));
+
+                    if ($user->tenants()->where('tenant_id', $tenantId)->exists()) {
+                        $user->tenants()->updateExistingPivot($tenantId, ['roles' => $roles]);
+                    } else {
+                        $user->tenants()->attach($tenantId, [
+                            'is_admin' => false,
+                            'roles' => $roles,
+                        ]);
+                    }
+                });
+
             Auth::login($user, true);
 
-            // Redirect based on user role(s)
             $roles = method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [];
 
-            // If user has more than one role, send to hub
             if (is_countable($roles) && count($roles) > 1) {
                 return redirect()->intended(route('home'));
             }
 
-            // Single-role shortcuts
             if ($user->hasRole('service_provider')) {
                 return redirect()->intended('/provider/dashboard');
             }
@@ -66,9 +103,7 @@ class GoogleAuthController extends Controller
                 return redirect()->intended('/associate/dashboard');
             }
 
-            // Fallback to home
             return redirect()->intended(route('home'));
-
         } catch (\Exception $e) {
             Log::error('Google OAuth callback failed', [
                 'message' => $e->getMessage(),
@@ -78,13 +113,10 @@ class GoogleAuthController extends Controller
                 'request' => request()->all(),
             ]);
 
-            return redirect('/login')->with('error', 'Falha na autenticação com Google. Tente novamente.');
+            return redirect('/login')->with('error', 'Falha na autenticacao com Google. Tente novamente.');
         }
     }
 
-    /**
-     * Logout
-     */
     public function logout(): RedirectResponse
     {
         Auth::logout();

@@ -92,8 +92,13 @@ class SalesProject extends Model
     public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class, 'sales_project_organizations', 'sales_project_id', 'organization_id')
-                    ->withPivot('notes')
+                    ->withPivot('notes', 'enforce_request_limits')
                     ->withTimestamps();
+    }
+
+    public function buyerRequests(): HasMany
+    {
+        return $this->hasMany(BuyerRequest::class);
     }
 
     /**

@@ -100,6 +100,23 @@ class HubController extends Controller
             ];
         }
 
+        $buyerAccess = \App\Models\OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
+            ->where('tenant_id', $currentTenant->id)
+            ->whereRaw('LOWER(email) = ?', [mb_strtolower($user->email)])
+            ->where('active', true)
+            ->with('organization')
+            ->first();
+
+        if ($buyerAccess && $buyerAccess->organization?->active) {
+            $roles[] = [
+                'name' => 'Organizacao Compradora',
+                'description' => 'Solicitacoes e distribuicoes',
+                'icon' => 'building',
+                'url' => route('buyer.dashboard', ['tenant' => $currentTenant->slug]),
+                'color' => 'info',
+            ];
+        }
+
         // Se não tem nenhuma role conhecida, mostrar hub com mensagem em vez de redirecionar
         if (count($roles) === 0) {
             $notice = 'Seu usuário não possui painéis atribuídos nesta organização. Contate o administrador para atribuir permissões.';

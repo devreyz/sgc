@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\DocumentVerificationController;
@@ -49,7 +50,7 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 // ROTAS COM PREFIXO DE TENANT (SLUG) - Portais Legados (Associate, Provider, Delivery)
 // ===========================================================================================
 
-Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
+Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function () {
 
     // Profile Routes (Available for all authenticated users)
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
@@ -132,6 +133,17 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');
         Route::get('/projects/{project}/receipts', [DeliveryRegistrationController::class, 'projectReceiptsList'])->name('projects.receipts-list');
+    });
+
+    // Buyer Organization Portal Routes
+    Route::prefix('buyer')->name('buyer.')->middleware(['buyer.organization'])->group(function () {
+        Route::get('/', [BuyerPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/projects', [BuyerPortalController::class, 'projects'])->name('projects');
+        Route::get('/projects/{project}', [BuyerPortalController::class, 'showProject'])->name('projects.show');
+        Route::get('/projects/{project}/requests/create', [BuyerPortalController::class, 'createRequest'])->name('requests.create');
+        Route::post('/projects/{project}/requests', [BuyerPortalController::class, 'storeRequest'])->name('requests.store');
+        Route::get('/requests/{buyerRequest}', [BuyerPortalController::class, 'showRequest'])->name('requests.show');
+        Route::get('/projects/{project}/reports/distribution', [BuyerPortalController::class, 'reports'])->name('reports.distribution');
     });
 
     // Delivery Sheet (Fichas de Entrega) Routes — accessible to registrador, financeiro and admin

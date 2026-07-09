@@ -2080,13 +2080,25 @@
 
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(function (registration) {
-                        registration.update();
-                    })
-                    .catch(function () {});
-            });
+            navigator.serviceWorker.getRegistrations()
+                .then(function (registrations) {
+                    registrations.forEach(function (registration) {
+                        registration.unregister();
+                    });
+                })
+                .catch(function () {});
+        }
+
+        if ('caches' in window) {
+            caches.keys()
+                .then(function (keys) {
+                    keys.forEach(function (key) {
+                        if (key.indexOf('sgc-') === 0) {
+                            caches.delete(key);
+                        }
+                    });
+                })
+                .catch(function () {});
         }
     </script>
 

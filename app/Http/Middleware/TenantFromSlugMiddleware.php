@@ -22,6 +22,13 @@ class TenantFromSlugMiddleware
     {
         // Pegar tenant da rota (route parameter binding automático)
         $tenant = $request->route('tenant');
+        if (is_string($tenant)) {
+            $tenant = Tenant::where('slug', $tenant)->first();
+
+            if ($tenant) {
+                $request->route()->setParameter('tenant', $tenant);
+            }
+        }
 
         if ($tenant instanceof Tenant) {
             // Definir tenant_id na sessão

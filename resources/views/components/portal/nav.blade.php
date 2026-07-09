@@ -39,6 +39,10 @@
             ['key' => 'create', 'label' => 'Nova Venda', 'route' => 'pdv.index'],
             ['key' => 'history', 'label' => 'Historico', 'route' => 'pdv.history'],
         ],
+        'buyer' => [
+            ['key' => 'dashboard', 'label' => 'Painel', 'route' => 'buyer.dashboard'],
+            ['key' => 'projects', 'label' => 'Projetos', 'route' => 'buyer.projects'],
+        ],
         default => [],
     };
 @endphp

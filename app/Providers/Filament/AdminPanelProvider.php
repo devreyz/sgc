@@ -201,15 +201,25 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => Blade::render('
                     <script>
                         if ("serviceWorker" in navigator) {
-                            window.addEventListener("load", function() {
-                                navigator.serviceWorker.register("/sw.js")
-                                    .then(function(registration) {
-                                        console.log("ServiceWorker registered:", registration.scope);
-                                    })
-                                    .catch(function(error) {
-                                        console.log("ServiceWorker registration failed:", error);
+                            navigator.serviceWorker.getRegistrations()
+                                .then(function(registrations) {
+                                    registrations.forEach(function(registration) {
+                                        registration.unregister();
                                     });
-                            });
+                                })
+                                .catch(function() {});
+                        }
+
+                        if ("caches" in window) {
+                            caches.keys()
+                                .then(function(keys) {
+                                    keys.forEach(function(key) {
+                                        if (key.indexOf("sgc-") === 0) {
+                                            caches.delete(key);
+                                        }
+                                    });
+                                })
+                                .catch(function() {});
                         }
                     </script>
                 ')

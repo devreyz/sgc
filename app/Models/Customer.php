@@ -78,6 +78,11 @@ class Customer extends Model
         return $this->hasMany(SalesProject::class);
     }
 
+    public function buyerRequests(): HasMany
+    {
+        return $this->hasMany(BuyerRequest::class);
+    }
+
     /**
      * Get the revenues from this customer.
      */

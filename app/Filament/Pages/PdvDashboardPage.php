@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\PdvSale;
 use App\Models\Product;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Facades\Filament;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
 
@@ -23,6 +24,13 @@ class PdvDashboardPage extends Page
     protected static ?string $title = 'Dashboard PDV';
 
     protected static ?int $navigationSort = 5;
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user ? $user->can(static::getPermissionName()) : false;
+    }
 
     public array $stats = [];
 

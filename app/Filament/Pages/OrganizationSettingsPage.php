@@ -7,6 +7,7 @@ use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
@@ -16,13 +17,11 @@ class OrganizationSettingsPage extends Page implements HasForms
     use InteractsWithForms;
     use HasPageShield;
 
-    public static function canAccess(): bool
+    public static function canAccess(array $parameters = []): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-        return parent::canAccess();
+        $user = Filament::auth()->user();
+
+        return $user ? $user->can(static::getPermissionName()) : false;
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office-2';

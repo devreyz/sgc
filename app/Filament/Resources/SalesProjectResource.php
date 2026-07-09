@@ -402,6 +402,7 @@ class SalesProjectResource extends Resource
     {
         return [
             RelationManagers\DemandsRelationManager::class,
+            RelationManagers\BuyerRequestsRelationManager::class,
             RelationManagers\DeliveriesRelationManager::class,
             RelationManagers\AssociatePaymentsRelationManager::class,
             RelationManagers\AssociateProductLimitsRelationManager::class,

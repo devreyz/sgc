@@ -14,6 +14,7 @@ use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\BuyerRequestFulfillmentService;
 use App\Services\PricingService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\StockService;
@@ -308,11 +309,46 @@ class DeliveryRegistrationController extends Controller
 
             $pricingService = app(PricingService::class);
             $calculator     = app(ProjectFinancialCalculator::class);
+            $requestFulfillment = app(BuyerRequestFulfillmentService::class);
             $product = $reception->product;
 
             $created = [];
+            $affectedOrganizations = collect();
+            $plannedAgainstRequests = [];
             foreach ($validated['distributions'] as $dist) {
-                $customer = Customer::find((int) $dist['customer_id']);
+                $customer = Customer::with('organization')->find((int) $dist['customer_id']);
+
+                if (! $customer?->organization_id || ! $customer->organization) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'O cliente selecionado nao esta vinculado a uma organizacao compradora.',
+                    ], 422);
+                }
+
+                if ($project && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
+                    $remaining = $requestFulfillment->remainingQuantity(
+                        (int) $tenantId,
+                        (int) $project->id,
+                        (int) $customer->organization_id,
+                        (int) $reception->product_id,
+                        (int) $customer->id
+                    );
+                    $limitKey = $customer->organization_id.'-'.$customer->id.'-'.$reception->product_id;
+                    $alreadyPlanned = (float) ($plannedAgainstRequests[$limitKey] ?? 0);
+
+                    if ($alreadyPlanned + (float) $dist['quantity'] > $remaining) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Esta organizacao limita a distribuicao ao solicitado. Saldo disponivel para '
+                                . ($customer->trade_name ?: $customer->name) . ': '
+                                . number_format(max(0, $remaining - $alreadyPlanned), 3, ',', '.') . '.',
+                        ], 422);
+                    }
+
+                    $plannedAgainstRequests[$limitKey] = $alreadyPlanned + (float) $dist['quantity'];
+                }
 
                 // 1. Resolve o preço de venda pelo motor de preços
                 $priceResult = $pricingService->resolvePrice($product, $customer, $project);
@@ -364,9 +400,16 @@ class DeliveryRegistrationController extends Controller
                     'paid'                 => false,
                 ]);
                 $created[] = $child->id;
+                $affectedOrganizations->push((int) $customer->organization_id);
             }
 
             DB::commit();
+
+            $affectedOrganizations->unique()->each(function (int $organizationId) use ($requestFulfillment, $tenantId, $project) {
+                if ($project) {
+                    $requestFulfillment->updateProjectOrganizationStatuses((int) $tenantId, (int) $project->id, $organizationId);
+                }
+            });
 
             return response()->json([
                 'success'      => true,
@@ -403,7 +446,15 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Não é possível remover distribuições de um projeto que não está em fase financeira ativa.'], 400);
         }
 
+        $projectId = $distribution->sales_project_id;
+        $organizationId = $distribution->customer?->organization_id;
+
         $distribution->delete();
+
+        if ($projectId && $organizationId) {
+            app(BuyerRequestFulfillmentService::class)
+                ->updateProjectOrganizationStatuses((int) $tenantId, (int) $projectId, (int) $organizationId);
+        }
 
         // Return updated totals for the parent reception
         $parentId    = $distribution->parent_delivery_id;

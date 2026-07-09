@@ -58,7 +58,19 @@ class Organization extends Model
      */
     public function salesProjects(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsToMany(SalesProject::class, 'sales_project_organizations', 'organization_id', 'sales_project_id');
+        return $this->belongsToMany(SalesProject::class, 'sales_project_organizations', 'organization_id', 'sales_project_id')
+            ->withPivot('notes', 'enforce_request_limits')
+            ->withTimestamps();
+    }
+
+    public function authorizedEmails(): HasMany
+    {
+        return $this->hasMany(OrganizationAuthorizedEmail::class);
+    }
+
+    public function buyerRequests(): HasMany
+    {
+        return $this->hasMany(BuyerRequest::class);
     }
 
     public function scopeActive($query)

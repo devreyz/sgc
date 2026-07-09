@@ -13,6 +13,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DatePicker;
+use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
@@ -32,6 +33,13 @@ class ServiceOrdersPaymentReport extends Page implements HasTable
     protected static ?string $title = 'Relatório de Pagamentos de Ordens de Serviço';
 
     protected static ?int $navigationSort = 10;
+
+    public static function canAccess(array $parameters = []): bool
+    {
+        $user = Filament::auth()->user();
+
+        return $user ? $user->can(static::getPermissionName()) : false;
+    }
 
     public function table(Table $table): Table
     {
