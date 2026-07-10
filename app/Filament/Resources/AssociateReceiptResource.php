@@ -21,6 +21,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Response;
 
 class AssociateReceiptResource extends Resource
@@ -38,6 +39,16 @@ class AssociateReceiptResource extends Resource
     protected static ?string $pluralModelLabel = 'Comprovantes de Entrega';
 
     protected static ?int $navigationSort = 5;
+
+    public static function canEdit(Model $record): bool
+    {
+        return parent::canEdit($record) && ! $record->hasFinancialLocks();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return parent::canDelete($record) && ! $record->hasFinancialLocks();
+    }
 
     public static function form(Form $form): Form
     {
@@ -508,9 +519,27 @@ class AssociateReceiptResource extends Resource
                         }
                     }),
 
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (AssociateReceipt $r) => static::canEdit($r)),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn (AssociateReceipt $r) => ! $r->isLocked()),
+                    ->visible(fn (AssociateReceipt $r) => static::canDelete($r))
+                    ->using(function (AssociateReceipt $record): void {
+                        if (! static::canDelete($record)) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Comprovante bloqueado')
+                                ->body('Comprovantes faturados, pagos ou parcialmente pagos nao podem ser excluidos.')
+                                ->send();
+
+                            return;
+                        }
+
+                        ProductionDelivery::where('tenant_id', $record->tenant_id)
+                            ->where('associate_receipt_id', $record->id)
+                            ->update(['associate_receipt_id' => null]);
+
+                        $record->delete();
+                    }),
 
                 // ── PAGAR COMPROVANTE (parcial ou total) ──────────────────────
                 Tables\Actions\Action::make('addPayment')
@@ -605,8 +634,11 @@ class AssociateReceiptResource extends Resource
                     })
                     ->modalSubmitAction(false),
             ])
-            ->defaultSort('receipt_year', 'desc')
-            ->defaultSort('receipt_number', 'desc');
+            ->modifyQueryUsing(fn ($query) => $query
+                ->orderByDesc('receipt_year')
+                ->orderByDesc('receipt_number')
+                ->orderByDesc('issued_at')
+                ->orderByDesc('id'));
     }
 
     public static function getPages(): array

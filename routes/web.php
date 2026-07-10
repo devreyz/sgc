@@ -131,9 +131,11 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
         // Lista pública (autenticada) de produtores por projeto
         Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');
         Route::get('/projects/{project}/producers', [DeliveryRegistrationController::class, 'projectProducers'])->name('projects.producers');
+        Route::get('/projects/{project}/producers-data', [DeliveryRegistrationController::class, 'projectProducersData'])->name('projects.producers-data');
         Route::get('/projects/{project}/associates/{associate}/receipt-check', [DeliveryRegistrationController::class, 'checkAssociateReceipt'])->name('projects.associate-receipt-check');
         Route::get('/projects/{project}/associates/{associate}/receipt', [DeliveryRegistrationController::class, 'generateAssociateReceiptPdf'])->name('projects.associate-receipt');
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
+        Route::post('/projects/{project}/receipts/{receipt}/regenerate', [DeliveryRegistrationController::class, 'regenerateReceipt'])->name('projects.receipt-regenerate');
         Route::put('/projects/{project}/receipts/{receipt}/distributions', [DeliveryRegistrationController::class, 'updateReceiptDistributions'])->name('projects.receipt-distributions.update');
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');
         Route::get('/projects/{project}/receipts', [DeliveryRegistrationController::class, 'projectReceiptsList'])->name('projects.receipts-list');

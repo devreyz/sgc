@@ -219,6 +219,9 @@ class AssociateReceiptService
                 'total_net'    => $snapshot['total_net'],
                 'fee_snapshot' => $snapshot['fee_snapshot'],
                 'status'       => ReceiptStatus::PENDING_PAYMENT->value,
+                'obsolete_at'  => null,
+                'obsolete_by'  => null,
+                'obsolete_reason' => null,
             ]);
 
             // ── 4. Vincular distribuições ──────────────────────────────────────

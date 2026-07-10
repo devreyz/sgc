@@ -650,6 +650,9 @@ class DeliveryRegistrationController extends Controller
                         'total_net' => $snapshot['total_net'],
                         'fee_snapshot' => $snapshot['fee_snapshot'],
                         'status' => ReceiptStatus::OBSOLETE->value,
+                        'obsolete_at' => now(),
+                        'obsolete_by' => Auth::id(),
+                        'obsolete_reason' => 'Distribuicao removida do comprovante.',
                     ]);
                 } else {
                     $receipt->update([
@@ -659,6 +662,9 @@ class DeliveryRegistrationController extends Controller
                         'total_net' => 0,
                         'fee_snapshot' => null,
                         'status' => ReceiptStatus::OBSOLETE->value,
+                        'obsolete_at' => now(),
+                        'obsolete_by' => Auth::id(),
+                        'obsolete_reason' => 'Distribuicao removida do comprovante.',
                     ]);
                 }
             }
@@ -838,9 +844,17 @@ class DeliveryRegistrationController extends Controller
                     'total_net' => $snapshot['total_net'],
                     'fee_snapshot' => $snapshot['fee_snapshot'],
                     'status' => ReceiptStatus::OBSOLETE->value,
+                    'obsolete_at' => now(),
+                    'obsolete_by' => Auth::id(),
+                    'obsolete_reason' => 'Distribuicao editada depois da geracao do comprovante.',
                 ]);
             } else {
-                $receipt->update(['status' => ReceiptStatus::OBSOLETE->value]);
+                $receipt->update([
+                    'status' => ReceiptStatus::OBSOLETE->value,
+                    'obsolete_at' => now(),
+                    'obsolete_by' => Auth::id(),
+                    'obsolete_reason' => 'Distribuicao editada depois da geracao do comprovante.',
+                ]);
             }
         }
 
@@ -2795,6 +2809,8 @@ class DeliveryRegistrationController extends Controller
         $tenant = $this->currentTenant();
 
         // SOMENTE distribuições (parent_delivery_id NOT NULL) — verdade financeira
+        return view('delivery.project-producers', compact('project', 'tenant'));
+
         $producers = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->where('status', DeliveryStatus::APPROVED)
@@ -2826,6 +2842,206 @@ class DeliveryRegistrationController extends Controller
      * Verifica se já existem comprovantes de um associado num projeto e retorna JSON.
      * Usado pelo modal de geração de comprovante no portal externo.
      */
+    public function projectProducersData(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $tenantSlug = $this->currentTenant()?->slug ?? '';
+        $search = trim((string) $request->query('search', ''));
+        $filter = (string) $request->query('filter', 'all');
+        $perPage = min(50, max(10, (int) $request->query('per_page', 15)));
+
+        $base = ProductionDelivery::query()
+            ->from('production_deliveries')
+            ->where('production_deliveries.tenant_id', $tenantId)
+            ->where('production_deliveries.sales_project_id', $project->id)
+            ->where('production_deliveries.status', DeliveryStatus::APPROVED->value)
+            ->whereNotNull('production_deliveries.parent_delivery_id');
+
+        $receiptBase = AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id);
+
+        $summary = [
+            'producers' => (clone $base)->distinct('associate_id')->count('associate_id'),
+            'pending_distributions' => (clone $base)->whereNull('associate_receipt_id')->count(),
+            'valid_receipts' => (clone $receiptBase)->where('status', ReceiptStatus::PENDING_PAYMENT->value)->count(),
+            'obsolete_receipts' => (clone $receiptBase)->where('status', ReceiptStatus::OBSOLETE->value)->count(),
+            'paid_receipts' => (clone $receiptBase)->whereIn('status', [ReceiptStatus::PARTIALLY_PAID->value, ReceiptStatus::PAID->value])->count(),
+            'billed_receipts' => (clone $receiptBase)->whereHas('distributions', function ($query) {
+                $query->where('paid', true)
+                    ->orWhere('billing_status', '!=', BillingStatus::UNBILLED->value)
+                    ->orWhereNotNull('billing_receipt_id');
+            })->count(),
+            'needs_complement' => (clone $base)
+                ->whereNull('associate_receipt_id')
+                ->whereExists(function ($query) use ($tenantId, $project) {
+                    $query->selectRaw('1')
+                        ->from('associate_receipts')
+                        ->whereColumn('associate_receipts.associate_id', 'production_deliveries.associate_id')
+                        ->where('associate_receipts.tenant_id', $tenantId)
+                        ->where('associate_receipts.sales_project_id', $project->id);
+                })
+                ->distinct('associate_id')
+                ->count('associate_id'),
+        ];
+
+        $query = (clone $base)
+            ->leftJoin('associates', 'associates.id', '=', 'production_deliveries.associate_id')
+            ->leftJoin('users', 'users.id', '=', 'associates.user_id')
+            ->selectRaw('
+                production_deliveries.associate_id,
+                COALESCE(users.name, CONCAT(\'Associado #\', production_deliveries.associate_id)) as associate_name,
+                associates.cpf_cnpj,
+                associates.registration_number,
+                COUNT(*) as deliveries_count,
+                SUM(production_deliveries.quantity) as total_quantity,
+                SUM(production_deliveries.quantity * production_deliveries.unit_price) as total_gross,
+                SUM(production_deliveries.admin_fee_amount) as total_fee,
+                SUM(production_deliveries.net_value) as total_net,
+                SUM(CASE WHEN production_deliveries.associate_receipt_id IS NULL THEN 1 ELSE 0 END) as pending_distributions
+            ')
+            ->groupBy('production_deliveries.associate_id', 'users.name', 'associates.cpf_cnpj', 'associates.registration_number');
+
+        if ($search !== '') {
+            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('users.name', 'like', $like)
+                    ->orWhere('associates.cpf_cnpj', 'like', $like)
+                    ->orWhere('associates.registration_number', 'like', $like);
+            });
+        }
+
+        match ($filter) {
+            'pending', 'no_receipt' => $query->havingRaw('pending_distributions > 0'),
+            'complement' => $query->havingRaw('pending_distributions > 0')
+                ->whereExists(function ($exists) use ($tenantId, $project) {
+                    $exists->selectRaw('1')
+                        ->from('associate_receipts')
+                        ->whereColumn('associate_receipts.associate_id', 'production_deliveries.associate_id')
+                        ->where('associate_receipts.tenant_id', $tenantId)
+                        ->where('associate_receipts.sales_project_id', $project->id);
+                }),
+            'obsolete' => $query->whereExists(function ($exists) use ($tenantId, $project) {
+                $exists->selectRaw('1')
+                    ->from('associate_receipts')
+                    ->whereColumn('associate_receipts.associate_id', 'production_deliveries.associate_id')
+                    ->where('associate_receipts.tenant_id', $tenantId)
+                    ->where('associate_receipts.sales_project_id', $project->id)
+                    ->where('associate_receipts.status', ReceiptStatus::OBSOLETE->value);
+            }),
+            'paid' => $query->whereExists(function ($exists) use ($tenantId, $project) {
+                $exists->selectRaw('1')
+                    ->from('associate_receipts')
+                    ->whereColumn('associate_receipts.associate_id', 'production_deliveries.associate_id')
+                    ->where('associate_receipts.tenant_id', $tenantId)
+                    ->where('associate_receipts.sales_project_id', $project->id)
+                    ->whereIn('associate_receipts.status', [ReceiptStatus::PARTIALLY_PAID->value, ReceiptStatus::PAID->value]);
+            }),
+            'billed' => $query->whereExists(function ($exists) use ($tenantId, $project) {
+                $exists->selectRaw('1')
+                    ->from('production_deliveries as locked_distributions')
+                    ->whereColumn('locked_distributions.associate_id', 'production_deliveries.associate_id')
+                    ->where('locked_distributions.tenant_id', $tenantId)
+                    ->where('locked_distributions.sales_project_id', $project->id)
+                    ->whereNotNull('locked_distributions.associate_receipt_id')
+                    ->where(function ($q) {
+                        $q->where('locked_distributions.paid', true)
+                            ->orWhere('locked_distributions.billing_status', '!=', BillingStatus::UNBILLED->value)
+                            ->orWhereNotNull('locked_distributions.billing_receipt_id');
+                    });
+            }),
+            default => $query,
+        };
+
+        $paginator = $query
+            ->orderBy('associate_name')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $associateIds = collect($paginator->items())
+            ->pluck('associate_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $receipts = AssociateReceipt::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('associate_id', $associateIds ?: [0])
+            ->orderByDesc('receipt_year')
+            ->orderByDesc('receipt_number')
+            ->orderByDesc('issued_at')
+            ->orderByDesc('id')
+            ->get()
+            ->groupBy('associate_id');
+
+        $receiptIds = $receipts->flatten(1)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $lockedReceiptIds = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereIn('associate_receipt_id', $receiptIds ?: [0])
+            ->where(function ($query) {
+                $query->where('paid', true)
+                    ->orWhere('billing_status', '!=', BillingStatus::UNBILLED->value)
+                    ->orWhereNotNull('billing_receipt_id');
+            })
+            ->pluck('associate_receipt_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+
+        $rows = collect($paginator->items())->map(function ($row) use ($receipts, $lockedReceiptIds, $tenantSlug, $project) {
+            $associateReceipts = $receipts->get((int) $row->associate_id, collect());
+            $latestReceipt = $associateReceipts->first();
+            $hasLockedReceipt = $associateReceipts->contains(fn (AssociateReceipt $receipt) => in_array((int) $receipt->id, $lockedReceiptIds, true));
+
+            return [
+                'associate_id' => (int) $row->associate_id,
+                'name' => $row->associate_name ?: 'Associado #' . $row->associate_id,
+                'cpf' => $row->cpf_cnpj ?: '-',
+                'registration' => $row->registration_number ?: '-',
+                'deliveries' => (int) $row->deliveries_count,
+                'quantity' => (float) $row->total_quantity,
+                'gross_value' => (float) $row->total_gross,
+                'admin_fee' => (float) $row->total_fee,
+                'net_value' => (float) $row->total_net,
+                'pending_distributions' => (int) $row->pending_distributions,
+                'receipt_count' => $associateReceipts->count(),
+                'has_locked_receipt' => $hasLockedReceipt,
+                'latest_receipt' => $latestReceipt ? [
+                    'id' => $latestReceipt->id,
+                    'number' => $latestReceipt->formatted_number,
+                    'issued_at' => $latestReceipt->issued_at?->format('d/m/Y') ?? '-',
+                    'status' => $latestReceipt->status?->value ?? 'draft',
+                    'status_label' => $latestReceipt->status?->getLabel() ?? 'Rascunho',
+                    'obsolete_reason' => $latestReceipt->obsolete_reason,
+                    'obsolete_at' => $latestReceipt->obsolete_at?->format('d/m/Y H:i'),
+                    'is_locked' => in_array((int) $latestReceipt->id, $lockedReceiptIds, true) || $latestReceipt->isLocked(),
+                    'reprint_url' => route('delivery.projects.receipt-reprint', [
+                        'tenant' => $tenantSlug,
+                        'project' => $project->id,
+                        'receipt' => $latestReceipt->id,
+                    ]),
+                ] : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'summary' => $summary,
+            'rows' => $rows,
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
     public function checkAssociateReceipt(Request $request)
     {
         $projectId   = (int) $request->route('project');
@@ -2839,7 +3055,10 @@ class DeliveryRegistrationController extends Controller
         $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
-            ->orderBy('id')
+            ->orderByDesc('receipt_year')
+            ->orderByDesc('receipt_number')
+            ->orderByDesc('issued_at')
+            ->orderByDesc('id')
             ->get();
 
         $tenantSlug = $this->currentTenant()?->slug ?? '';
@@ -2850,10 +3069,12 @@ class DeliveryRegistrationController extends Controller
             'issued_at'   => $r->issued_at?->format('d/m/Y') ?? '—',
             'status'      => $r->status?->value ?? 'draft',
             'status_label'=> $r->status?->getLabel() ?? 'Rascunho',
+            'obsolete_at' => $r->obsolete_at?->format('d/m/Y H:i'),
+            'obsolete_reason' => $r->obsolete_reason,
             'total_net'   => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
             'is_paid'     => $r->status === \App\Enums\ReceiptStatus::PAID,
-            'can_update'  => $r->isEditable()
-                && (float) ($r->amount_paid ?? 0) <= 0
+            'can_update'  => $r->status !== ReceiptStatus::OBSOLETE
+                && $r->canBeOperationallyUpdated()
                 && ! ProductionDelivery::where('tenant_id', $tenantId)
                     ->where('associate_receipt_id', $r->id)
                     ->where(function ($query) {
@@ -2862,6 +3083,7 @@ class DeliveryRegistrationController extends Controller
                             ->orWhereNotNull('billing_receipt_id');
                     })
                     ->exists(),
+            'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
             'reprint_url' => route('delivery.projects.receipt-reprint', [
                 'tenant'  => $tenantSlug,
                 'project' => $projectId,
@@ -2881,22 +3103,13 @@ class DeliveryRegistrationController extends Controller
             ->count();
 
         // Verificar distribuições não cobertas (só relevante quando múltiplos comprovantes)
-        $uncoveredCount = 0;
-        if ($receipts->count() > 1) {
-            $coveredIds = $receipts
-                ->flatMap(fn($r) => $r->delivery_ids ?? [])
-                ->unique()
-                ->map('intval')
-                ->all();
-
-            $uncoveredCount = ProductionDelivery::where('tenant_id', $tenantId)
-                ->where('sales_project_id', $projectId)
-                ->where('associate_id', $associateId)
-                ->where('status', DeliveryStatus::APPROVED)
-                ->whereNotNull('parent_delivery_id')
-                ->whereNotIn('id', empty($coveredIds) ? [0] : $coveredIds)
-                ->count();
-        }
+        $uncoveredCount = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->where('status', DeliveryStatus::APPROVED)
+            ->whereNotNull('parent_delivery_id')
+            ->whereNull('associate_receipt_id')
+            ->count();
 
         $criticalIssues = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -3284,6 +3497,128 @@ class DeliveryRegistrationController extends Controller
     /**
      * PDF: Comprovante de entrega de um projeto filtrado por associado — com assinatura
      */
+    public function regenerateReceipt(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $receiptId = (int) $request->route('receipt');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $tenant = $this->currentTenant();
+
+        try {
+            $result = DB::transaction(function () use ($tenantId, $projectId, $receiptId, $project) {
+                $receipt = AssociateReceipt::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $projectId)
+                    ->lockForUpdate()
+                    ->findOrFail($receiptId);
+
+                if ($receipt->status !== ReceiptStatus::OBSOLETE) {
+                    throw new \RuntimeException('Este comprovante nao esta obsoleto.');
+                }
+
+                if (! $receipt->canBeOperationallyUpdated()) {
+                    throw new \RuntimeException('Este comprovante ja foi faturado, pago ou possui bloqueio financeiro e nao pode ser regenerado.');
+                }
+
+                $currentIds = ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('associate_receipt_id', $receipt->id)
+                    ->pluck('id')
+                    ->merge($receipt->delivery_ids ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
+
+                if ($currentIds->isEmpty()) {
+                    throw new \RuntimeException('Este comprovante nao possui distribuicoes vinculadas para regenerar.');
+                }
+
+                $distributions = ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $projectId)
+                    ->where('associate_id', $receipt->associate_id)
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED)
+                    ->whereIn('id', $currentIds)
+                    ->with(['product', 'customer', 'parentDelivery'])
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($distributions->count() !== $currentIds->count()) {
+                    throw new \RuntimeException('Uma ou mais distribuicoes do comprovante nao estao mais validas.');
+                }
+
+                $locked = $distributions->first(fn (ProductionDelivery $distribution) =>
+                    $distribution->paid
+                    || $distribution->billing_status !== BillingStatus::UNBILLED
+                    || $distribution->billing_receipt_id
+                );
+                if ($locked) {
+                    throw new \RuntimeException("A distribuicao #{$locked->id} ja foi faturada ou paga. O comprovante nao pode ser regenerado.");
+                }
+
+                if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $receipt->associate_id, $receipt->id)) {
+                    throw new \RuntimeException($message);
+                }
+
+                app(\App\Services\AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
+                $receipt->update(['delivery_ids' => $currentIds->all()]);
+
+                activity('associate_receipt')
+                    ->performedOn($receipt)
+                    ->causedBy(Auth::user())
+                    ->withProperties([
+                        'action' => 'regenerate_obsolete_receipt',
+                        'delivery_ids' => $currentIds->all(),
+                    ])
+                    ->log('Comprovante obsoleto regenerado');
+
+                return [$receipt->fresh(), $distributions];
+            });
+        } catch (\RuntimeException $exception) {
+            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+        }
+
+        [$receipt, $distributions] = $result;
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+
+        $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
+        $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
+        $visibleColumns = is_array($visibleColumns)
+            ? array_values(array_filter($visibleColumns, fn ($column) => in_array($column, $allowedColumns, true)))
+            : ['unit_price', 'gross'];
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
+            'visible_columns' => $visibleColumns,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+
+        return response()->json([
+            'success' => true,
+            'updated' => true,
+            'message' => "Comprovante {$receipt->formatted_number} regenerado e valido novamente.",
+            'receipt_id' => $receipt->id,
+            'receipt_number' => $receipt->formatted_number,
+            'receipt_status' => $receipt->status?->value,
+            'filename' => "comprovante-{$receiptLabel}-{$safeName}-regenerado.pdf",
+            'pdf' => base64_encode($pdf->output()),
+        ]);
+    }
+
     public function reportProjectAssociate()
     {
         $tenantId = session('tenant_id');
@@ -3614,6 +3949,10 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->findOrFail($receiptId);
 
+        if ($receipt->status === ReceiptStatus::OBSOLETE) {
+            return redirect()->back()->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
+        }
+
         $project   = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant    = $this->currentTenant();
@@ -3686,6 +4025,9 @@ class DeliveryRegistrationController extends Controller
         $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->with('associate.user')
+            ->orderByDesc('receipt_year')
+            ->orderByDesc('receipt_number')
+            ->orderByDesc('issued_at')
             ->orderByDesc('id')
             ->get()
             ->map(function ($r) use ($projectId) {

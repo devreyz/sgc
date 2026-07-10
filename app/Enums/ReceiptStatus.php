@@ -39,12 +39,12 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     /** Comprovante pode ter seus itens editados? */
     public function isEditable(): bool
     {
-        return $this === self::DRAFT || $this === self::OBSOLETE || $this === self::PENDING_PAYMENT;
+        return $this === self::DRAFT || $this === self::PENDING_PAYMENT;
     }
 
     /** Comprovante está imutável (após pagamento)? */
     public function isLocked(): bool
     {
-        return $this === self::PAID;
+        return $this === self::PARTIALLY_PAID || $this === self::PAID;
     }
 }

@@ -535,19 +535,6 @@ $totalNet      = $deliveries->sum('net_value');
     <!-- Conteúdo idêntico ao original, omitido para brevidade -->
 </div>
 
-{{-- COMPROVANTES GERADOS --}}
-<div class="pd-card" style="margin-bottom:1rem;">
-    <div class="pd-card-header">
-        <div class="pd-card-title">
-            <i data-lucide="receipt" style="width:16px;height:16px;color:var(--color-primary)"></i>
-            Comprovantes Gerados
-        </div>
-    </div>
-    <div id="receipts-history" style="padding:.25rem 0;">
-        <p style="font-size:.8rem;color:var(--color-text-secondary)">Carregando...</p>
-    </div>
-</div>
-
 {{-- DELIVERIES: BARRA DE FILTROS + TABELA DESKTOP + MOBILE CARDS --}}
 <div class="pd-card">
     <div class="pd-card-header">
@@ -786,7 +773,6 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
 
         applyResolvedIntegrity(data.integrity, actionKey, distributionId);
         if (deliveryId) refreshDeliveryItem(deliveryId).catch(() => {});
-        loadReceiptsHistory();
         pdToast(data.message);
     } catch (error) {
         pdToast('Erro de comunicacao ao aplicar a correcao.', 'error');
@@ -1084,7 +1070,6 @@ async function generateSelectedReceipt() {
             URL.revokeObjectURL(url);
             pdToast(`Comprovante nº ${data.receipt_number} gerado com ${ids.length} entrega(s)!`);
             clearSelection();
-            loadReceiptsHistory();
         } else {
             pdToast(data.message || 'Erro ao gerar comprovante.', 'error');
         }
@@ -1096,38 +1081,6 @@ async function generateSelectedReceipt() {
         lucide.createIcons();
     }
 }
-
-/* ========== RECEIPTS HISTORY ========== */
-async function loadReceiptsHistory() {
-    const container = document.getElementById('receipts-history');
-    if (!container) return;
-    try {
-        const res  = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/receipts`, {
-            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PD_CSRF }
-        });
-        const data = await res.json();
-        if (!data.success || !data.receipts.length) {
-            container.innerHTML = '<p style="font-size:.8rem;color:var(--color-text-secondary);padding:.5rem 0;">Nenhum comprovante gerado ainda.</p>';
-            return;
-        }
-        container.innerHTML = data.receipts.map(r => `
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;border-radius:6px;background:var(--color-bg);border:1px solid var(--color-border);margin-bottom:.4rem;gap:1rem;">
-                <div>
-                    <span style="font-size:.78rem;font-weight:700;color:var(--color-text);">Nº ${r.number}</span>
-                    <span style="font-size:.75rem;color:var(--color-text-secondary);margin-left:.5rem;">${r.associate_name}</span>
-                    <span style="font-size:.72rem;color:var(--color-text-secondary);margin-left:.5rem;">· ${r.issued_at}${r.delivery_count !== '—' ? ' · ' + r.delivery_count + ' entrega(s)' : ''}</span>
-                </div>
-                ${r.status === 'obsolete' ? '<span style="font-size:.68rem;font-weight:800;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;border-radius:999px;padding:.08rem .45rem;">Obsoleto - conferir/regenerar</span>' : ''}
-                <a href="${r.reprint_url}" target="_blank" style="font-size:.75rem;color:var(--color-primary);font-weight:600;white-space:nowrap;text-decoration:none;padding:.25rem .6rem;border:1px solid var(--color-primary);border-radius:4px;flex-shrink:0;">
-                    ⬇ Reimprimir
-                </a>
-            </div>
-        `).join('');
-    } catch(e) {
-        container.innerHTML = '<p style="font-size:.8rem;color:var(--color-danger)">Erro ao carregar histórico.</p>';
-    }
-}
-loadReceiptsHistory();
 
 /* ========== ACTION HANDLERS ========== */
 document.addEventListener('click', async function(e) {
@@ -1374,7 +1327,6 @@ async function refreshDeliveryItem(id) {
 
 window._DistModalReload = async function(data) {
     const id = data?.delivery_id;
-    loadReceiptsHistory();
     pdToast('Distribuição salva!');
     if (!id) return;
 
@@ -1385,7 +1337,6 @@ window._DistModalReload = async function(data) {
     }
 };
 window._DistModalOnDelete = function(receptionId, data) {
-    loadReceiptsHistory();
     pdToast('Distribuição removida.');
     const id = receptionId || data?.parent_delivery_id;
     if (!id) return;
@@ -1398,7 +1349,6 @@ window._DistModalOnDelete = function(receptionId, data) {
 };
 
 window._DistModalOnUpdate = function(receptionId, data) {
-    loadReceiptsHistory();
     pdToast('Distribuicao atualizada.');
     const id = receptionId || data?.parent_delivery_id;
     if (!id) return;

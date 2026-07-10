@@ -623,6 +623,7 @@ class CustomerBillingReceiptResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
+                        ->visible(false)
                         ->before(function (Collection $records) {
                             foreach ($records->filter(fn ($r) => $r->isEditable()) as $r) {
                                 if (! empty($r->delivery_ids)) {

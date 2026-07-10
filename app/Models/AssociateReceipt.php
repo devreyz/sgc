@@ -23,6 +23,9 @@ class AssociateReceipt extends Model
         'delivery_ids',
         // Novo: status do comprovante no fluxo financeiro
         'status',
+        'obsolete_at',
+        'obsolete_by',
+        'obsolete_reason',
         // Novo: snapshot financeiro congelado
         'total_gross',
         'total_fees',
@@ -49,6 +52,7 @@ class AssociateReceipt extends Model
             'acknowledged_at' => 'datetime',
             'delivery_ids'    => 'array',
             'status'          => ReceiptStatus::class,
+            'obsolete_at'     => 'datetime',
             'total_gross'     => 'decimal:4',
             'total_fees'      => 'decimal:4',
             'total_net'       => 'decimal:4',
@@ -76,6 +80,11 @@ class AssociateReceipt extends Model
     public function paidByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'paid_by');
+    }
+
+    public function obsoleteByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'obsolete_by');
     }
 
     public function bankAccount(): BelongsTo
@@ -140,5 +149,49 @@ class AssociateReceipt extends Model
     public function isLocked(): bool
     {
         return $this->status?->isLocked() ?? false;
+    }
+
+    public function hasFinancialLocks(): bool
+    {
+        if ($this->status === ReceiptStatus::PAID || $this->status === ReceiptStatus::PARTIALLY_PAID) {
+            return true;
+        }
+
+        if ((float) ($this->amount_paid ?? 0) > 0) {
+            return true;
+        }
+
+        return $this->distributions()
+            ->where(function ($query) {
+                $query->where('paid', true)
+                    ->orWhere('billing_status', '!=', \App\Enums\BillingStatus::UNBILLED->value)
+                    ->orWhereNotNull('billing_receipt_id');
+            })
+            ->exists();
+    }
+
+    public function canBeOperationallyUpdated(): bool
+    {
+        return ! $this->hasFinancialLocks()
+            && in_array($this->status, [
+                null,
+                ReceiptStatus::DRAFT,
+                ReceiptStatus::OBSOLETE,
+                ReceiptStatus::PENDING_PAYMENT,
+            ], true);
+    }
+
+    public function markObsolete(string $reason, ?int $userId = null): void
+    {
+        if ($this->hasFinancialLocks()) {
+            return;
+        }
+
+        $this->forceFill([
+            'status' => ReceiptStatus::OBSOLETE,
+            'obsolete_at' => now(),
+            'obsolete_by' => $userId,
+            'obsolete_reason' => $reason,
+        ])->save();
     }
 }
