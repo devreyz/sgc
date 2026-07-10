@@ -126,6 +126,24 @@
     .badge-status.approved { background:rgba(16,185,129,.14); color:#059669; }
     .badge-status.rejected { background:rgba(239,68,68,.14); color:#dc2626; }
     .badge-status.cancelled { background:rgba(107,114,128,.14); color:#6b7280; }
+    .pd-issue-btn {
+        display:inline-flex;align-items:center;gap:.2rem;
+        margin-top:.18rem;border:1px solid transparent;border-radius:999px;
+        padding:.08rem .42rem;background:#fff7ed;color:#b45309;
+        font-size:.65rem;font-weight:800;cursor:pointer;white-space:nowrap;
+    }
+    .pd-issue-btn.critical { background:#fef2f2;color:#b91c1c;border-color:#fecaca; }
+    .pd-issue-btn.warning { background:#fff7ed;color:#b45309;border-color:#fed7aa; }
+    .pd-issue-btn:hover { filter:brightness(.97); }
+    .pd-integrity-overlay { position:fixed; inset:0; background:rgba(15,23,42,.46); display:none; align-items:center; justify-content:center; padding:1rem; z-index:320000; }
+    .pd-integrity-overlay.open { display:flex; }
+    .pd-integrity-box { width:min(860px,96vw); max-height:min(760px,90dvh); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:0 18px 48px rgba(15,23,42,.28); }
+    .pd-integrity-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:.95rem 1.05rem; border-bottom:1px solid var(--color-border); }
+    .pd-integrity-title { font-size:.98rem; font-weight:800; display:flex; align-items:center; gap:.4rem; }
+    .pd-integrity-close { border:0; background:transparent; color:var(--color-text-secondary); font-size:1.1rem; cursor:pointer; width:30px; height:30px; border-radius:var(--radius-md); }
+    .pd-integrity-close:hover { background:var(--color-bg); color:var(--color-text); }
+    .pd-integrity-body { padding:.85rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.75rem; }
+    .pd-issue-focus { outline:2px solid var(--color-primary); outline-offset:-2px; }
 
     .btn { display:inline-flex; align-items:center; gap:.3rem; padding:.4rem .8rem; border-radius:var(--radius-md); border:none; cursor:pointer; font-size:.78rem; font-weight:600; text-decoration:none; transition:.15s; white-space:nowrap; }
     .btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -408,7 +426,7 @@ $totalNet      = $deliveries->sum('net_value');
                 </div>
                 <div style="display:flex;flex-direction:column;">
                     @forelse(($integrity[$severity] ?? []) as $issue)
-                        <div style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
+                        <div data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
                             <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
                             <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
                             <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
@@ -424,6 +442,43 @@ $totalNet      = $deliveries->sum('net_value');
                 </div>
             </div>
         @endforeach
+    </div>
+</div>
+
+<div class="pd-integrity-overlay" id="pd-integrity-modal" onclick="closeIntegrityModalOnBackdrop(event)" aria-hidden="true">
+    <div class="pd-integrity-box" role="dialog" aria-modal="true" aria-labelledby="pd-integrity-title">
+        <div class="pd-integrity-head">
+            <div>
+                <div class="pd-integrity-title" id="pd-integrity-title">
+                    <i data-lucide="shield-alert" style="width:16px;height:16px;color:var(--color-warning)"></i>
+                    Pendencias e Inconsistencias
+                </div>
+                <div style="font-size:.76rem;color:var(--color-text-secondary);margin-top:.16rem;">
+                    Critico: {{ $integrity['counts']['critical'] ?? 0 }} · Atencao: {{ $integrity['counts']['warning'] ?? 0 }} · Info: {{ $integrity['counts']['info'] ?? 0 }}
+                </div>
+            </div>
+            <button type="button" class="pd-integrity-close" onclick="closeIntegrityModal()" aria-label="Fechar">x</button>
+        </div>
+        <div class="pd-integrity-body">
+            @foreach(['critical' => ['Critico', '#dc2626'], 'warning' => ['Atencao', '#d97706'], 'info' => ['Informativo', '#2563eb']] as $severity => [$label, $color])
+                <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg);">
+                    <div style="padding:.55rem .7rem;border-bottom:1px solid var(--color-border);font-size:.72rem;font-weight:800;text-transform:uppercase;color:{{ $color }};">
+                        {{ $label }}
+                    </div>
+                    <div style="display:flex;flex-direction:column;">
+                        @forelse(($integrity[$severity] ?? []) as $issue)
+                            <div data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
+                                <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
+                                <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
+                                <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
+                            </div>
+                        @empty
+                            <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
+                        @endforelse
+                    </div>
+                </div>
+            @endforeach
+        </div>
     </div>
 </div>
 @endif
@@ -607,6 +662,35 @@ const PD_CSRF      = '{{ csrf_token() }}';
 const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 const projectListState = { page: 1, perPage: 30 };
+
+function openIntegrityModal(deliveryId = null) {
+    const modal = document.getElementById('pd-integrity-modal');
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    modal.querySelectorAll('[data-modal-issue-delivery]').forEach(el => el.classList.remove('pd-issue-focus'));
+
+    if (deliveryId) {
+        const item = modal.querySelector(`[data-modal-issue-delivery="${deliveryId}"]`);
+        if (item) {
+            item.classList.add('pd-issue-focus');
+            setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+        }
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function closeIntegrityModal() {
+    const modal = document.getElementById('pd-integrity-modal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+function closeIntegrityModalOnBackdrop(event) {
+    if (event.target === document.getElementById('pd-integrity-modal')) closeIntegrityModal();
+}
 
 /* ========== CUSTOM CONFIRM ========== */
 function customConfirm(message) {
@@ -932,6 +1016,7 @@ async function loadReceiptsHistory() {
                     <span style="font-size:.75rem;color:var(--color-text-secondary);margin-left:.5rem;">${r.associate_name}</span>
                     <span style="font-size:.72rem;color:var(--color-text-secondary);margin-left:.5rem;">· ${r.issued_at}${r.delivery_count !== '—' ? ' · ' + r.delivery_count + ' entrega(s)' : ''}</span>
                 </div>
+                ${r.status === 'obsolete' ? '<span style="font-size:.68rem;font-weight:800;color:#991b1b;background:#fee2e2;border:1px solid #fecaca;border-radius:999px;padding:.08rem .45rem;">Obsoleto - conferir/regenerar</span>' : ''}
                 <a href="${r.reprint_url}" target="_blank" style="font-size:.75rem;color:var(--color-primary);font-weight:600;white-space:nowrap;text-decoration:none;padding:.25rem .6rem;border:1px solid var(--color-primary);border-radius:4px;flex-shrink:0;">
                     ⬇ Reimprimir
                 </a>
@@ -962,7 +1047,7 @@ document.addEventListener('click', async function(e) {
 
     if (deleteBtn) {
         const id = deleteBtn.dataset.id;
-        const confirmed = await customConfirm('Excluir esta entrega aprovada? Esta ação também removerá as distribuições associadas e não pode ser desfeita.');
+        const confirmed = await customConfirm('Excluir esta entrega? Esta acao tambem removera as distribuicoes associadas quando existirem e nao pode ser desfeita.');
         if (!confirmed) return;
         deleteBtn.disabled = true;
         try {
@@ -1042,6 +1127,33 @@ document.addEventListener('click', async function(e) {
                         }
                         cardEl.classList.add('status-approved');
                     }
+                } else {
+                    const rowEl = document.getElementById('desktop-row-' + id);
+                    if (rowEl) {
+                        const actionCell = rowEl.querySelector('.action-btns');
+                        if (actionCell) {
+                            actionCell.innerHTML = buildRejectedActions(id);
+                        }
+                        const chkCell = rowEl.querySelector('.chk-cell');
+                        if (chkCell) {
+                            chkCell.innerHTML = '';
+                        }
+                        rowEl.classList.remove('approved-row');
+                    }
+
+                    const cardEl = document.getElementById('mobile-row-' + id);
+                    if (cardEl) {
+                        const actions = cardEl.querySelector('.mc-actions');
+                        if (actions) {
+                            actions.innerHTML = buildRejectedActionsMobile(id);
+                        }
+                        const chkDiv = cardEl.querySelector('.mc-chk');
+                        if (chkDiv) {
+                            chkDiv.innerHTML = '';
+                        }
+                        cardEl.classList.remove('status-approved');
+                        cardEl.classList.add('status-rejected');
+                    }
                 }
                 refreshDeliveryItem(id).catch(() => applyFilters());
                 lucide.createIcons();
@@ -1069,6 +1181,9 @@ function buildApprovedActions(id, rowEl) {
         <button class="btn-edit" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]" title="Editar">
             <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
         </button>
+        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega">
+            <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+        </button>
     `;
 }
 
@@ -1081,6 +1196,23 @@ function buildApprovedActionsMobile(id, cardEl) {
             data-qty="${qty}" data-distributed="0" data-existing="[]"
             data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}">Distribuir</button>
         <button class="btn-edit btn-xs" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]">Editar</button>
+        <button class="btn-delete-approved btn-xs" data-id="${id}">Excluir</button>
+    `;
+}
+
+function buildRejectedActions(id) {
+    return `
+        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega rejeitada">
+            <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+        </button>
+    `;
+}
+
+function buildRejectedActionsMobile(id) {
+    return `
+        <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega rejeitada">
+            Excluir
+        </button>
     `;
 }
 
@@ -1141,6 +1273,7 @@ async function refreshDeliveryItem(id) {
 
 window._DistModalReload = async function(data) {
     const id = data?.delivery_id;
+    loadReceiptsHistory();
     pdToast('Distribuição salva!');
     if (!id) return;
 
@@ -1151,6 +1284,7 @@ window._DistModalReload = async function(data) {
     }
 };
 window._DistModalOnDelete = function(receptionId, data) {
+    loadReceiptsHistory();
     pdToast('Distribuição removida.');
     const id = receptionId || data?.parent_delivery_id;
     if (!id) return;
@@ -1163,6 +1297,7 @@ window._DistModalOnDelete = function(receptionId, data) {
 };
 
 window._DistModalOnUpdate = function(receptionId, data) {
+    loadReceiptsHistory();
     pdToast('Distribuicao atualizada.');
     const id = receptionId || data?.parent_delivery_id;
     if (!id) return;

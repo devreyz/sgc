@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Delivery;
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
+use App\Enums\ReceiptStatus;
 use App\Enums\StockMovementReason;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
@@ -71,6 +72,34 @@ class DeliveryRegistrationController extends Controller
                 || ($d->associateReceipt?->isLocked() ?? false),
         ]);
 
+        $distributedQty = (float) $distributions->sum('qty');
+        $issueCount = 0;
+        $issueSeverity = null;
+
+        if ($delivery->status === DeliveryStatus::APPROVED) {
+            if ($distributedQty <= 0 || $distributedQty + 0.0005 < (float) $delivery->quantity) {
+                $issueCount++;
+                $issueSeverity = 'warning';
+            }
+
+            if ($distributedQty > (float) $delivery->quantity + 0.0005) {
+                $issueCount++;
+                $issueSeverity = 'critical';
+            }
+        }
+
+        foreach ($delivery->distributions as $distribution) {
+            if (! $distribution->customer_id || (float) ($distribution->unit_price ?? 0) <= 0 || (float) ($distribution->gross_value ?? 0) <= 0) {
+                $issueCount++;
+                $issueSeverity = 'critical';
+            }
+
+            if ($distribution->associate_receipt_id && ! $distribution->associateReceipt) {
+                $issueCount++;
+                $issueSeverity = 'critical';
+            }
+        }
+
         return [
             'id'                => $delivery->id,
             'associate_name'    => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
@@ -87,8 +116,10 @@ class DeliveryRegistrationController extends Controller
             'status'            => $delivery->status->getLabel(),
             'status_value'      => $delivery->status->value,
             'distributions'     => $distributions->toArray(),
-            'distributed_qty'   => (float) $distributions->sum('qty'),
+            'distributed_qty'   => $distributedQty,
             'has_billed'        => $distributions->contains('billed', true),
+            'issue_count'       => $issueCount,
+            'issue_severity'    => $issueSeverity,
         ];
     }
 
@@ -618,6 +649,7 @@ class DeliveryRegistrationController extends Controller
                         'total_fees' => $snapshot['total_fees'],
                         'total_net' => $snapshot['total_net'],
                         'fee_snapshot' => $snapshot['fee_snapshot'],
+                        'status' => ReceiptStatus::OBSOLETE->value,
                     ]);
                 } else {
                     $receipt->update([
@@ -626,6 +658,7 @@ class DeliveryRegistrationController extends Controller
                         'total_fees' => 0,
                         'total_net' => 0,
                         'fee_snapshot' => null,
+                        'status' => ReceiptStatus::OBSOLETE->value,
                     ]);
                 }
             }
@@ -673,7 +706,7 @@ class DeliveryRegistrationController extends Controller
 
         $distribution = ProductionDelivery::where('tenant_id', $tenantId)
             ->whereNotNull('parent_delivery_id')
-            ->with(['parentDelivery', 'salesProject', 'customer.organization'])
+            ->with(['parentDelivery', 'salesProject', 'customer.organization', 'associateReceipt'])
             ->findOrFail($distributionId);
 
         if ($distribution->paid || $distribution->billing_status !== BillingStatus::UNBILLED || $distribution->billing_receipt_id) {
@@ -683,10 +716,11 @@ class DeliveryRegistrationController extends Controller
             ], 422);
         }
 
-        if ($distribution->associate_receipt_id) {
+        $receipt = $distribution->associateReceipt;
+        if ($receipt?->isLocked()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Esta distribuicao ja esta em um comprovante. Remova-a do comprovante antes de editar.',
+                'message' => 'Esta distribuicao ja esta em um comprovante pago e nao pode ser editada.',
             ], 422);
         }
 
@@ -788,6 +822,28 @@ class DeliveryRegistrationController extends Controller
             'price_source' => $priceResult['source'],
         ]);
 
+        if ($receipt && ! $receipt->isLocked()) {
+            $receiptDistributions = ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('associate_receipt_id', $receipt->id)
+                ->whereNotNull('parent_delivery_id')
+                ->get();
+
+            if ($receiptDistributions->isNotEmpty() && $project) {
+                $snapshot = app(\App\Services\AssociateReceiptService::class)
+                    ->computeSnapshot($receiptDistributions, $project);
+
+                $receipt->update([
+                    'total_gross' => $snapshot['total_gross'],
+                    'total_fees' => $snapshot['total_fees'],
+                    'total_net' => $snapshot['total_net'],
+                    'fee_snapshot' => $snapshot['fee_snapshot'],
+                    'status' => ReceiptStatus::OBSOLETE->value,
+                ]);
+            } else {
+                $receipt->update(['status' => ReceiptStatus::OBSOLETE->value]);
+            }
+        }
+
         collect([$oldOrganizationId, $customer->organization_id])
             ->filter()
             ->unique()
@@ -816,7 +872,13 @@ class DeliveryRegistrationController extends Controller
                 'qty' => (float) $distribution->quantity,
                 'net' => (float) $distribution->net_value,
                 'billed' => false,
-                'in_receipt' => false,
+                'paid' => false,
+                'in_receipt' => (bool) $distribution->associate_receipt_id,
+                'receipt_id' => $distribution->associate_receipt_id,
+                'receipt_number' => $receipt?->formatted_number,
+                'billing_receipt_id' => $distribution->billing_receipt_id,
+                'billing_status' => $distribution->billing_status?->value,
+                'locked' => false,
             ],
             'dist_total_qty' => (float) $distTotal,
             'dist_total_net' => (float) $distNetTotal,
@@ -1013,6 +1075,27 @@ class DeliveryRegistrationController extends Controller
                 ]);
 
                 $hasBilled = $distributions->contains('billed', true);
+                $issueCount = 0;
+                $issueSeverity = null;
+
+                if ($d->status === DeliveryStatus::APPROVED) {
+                    if ((float) $distributions->sum('qty') <= 0 || (float) $distributions->sum('qty') + 0.0005 < (float) $d->quantity) {
+                        $issueCount++;
+                        $issueSeverity = 'warning';
+                    }
+
+                    if ((float) $distributions->sum('qty') > (float) $d->quantity + 0.0005) {
+                        $issueCount++;
+                        $issueSeverity = 'critical';
+                    }
+                }
+
+                foreach ($d->distributions as $dist) {
+                    if (! $dist->customer_id || (float) ($dist->unit_price ?? 0) <= 0 || (float) ($dist->gross_value ?? 0) <= 0) {
+                        $issueCount++;
+                        $issueSeverity = 'critical';
+                    }
+                }
 
                 return [
                     'id'             => $d->id,
@@ -1024,10 +1107,12 @@ class DeliveryRegistrationController extends Controller
                     'qty'            => (float) $d->quantity,
                     'date'           => $d->delivery_date?->format('Y-m-d') ?? '',
                     'quality'        => $d->quality_grade ?? '',
-                    'status'         => $d->status?->value === 'approved' ? 'approved' : 'pending',
+                    'status'         => $d->status?->value ?? 'pending',
                     'distributedQty' => (float) $distributions->sum('qty'),
                     'distributions'  => $distributions->values()->all(),
                     'has_billed'     => $hasBilled,
+                    'issue_count'    => $issueCount,
+                    'issue_severity' => $issueSeverity,
                     'customerIds'     => $projectCustomerIds,
                 ];
             });
@@ -2718,6 +2803,30 @@ class DeliveryRegistrationController extends Controller
             })
             ->count();
 
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        $issues = [];
+        if ($project) {
+            $associateParentIds = ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('sales_project_id', $projectId)
+                ->where('associate_id', $associateId)
+                ->whereNull('parent_delivery_id')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            $inspection = app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project);
+            foreach (['critical', 'warning', 'info'] as $severity) {
+                foreach (($inspection[$severity] ?? []) as $issue) {
+                    $deliveryId = isset($issue['deliveryId']) ? (int) $issue['deliveryId'] : null;
+                    if ($deliveryId && ! in_array($deliveryId, $associateParentIds, true)) {
+                        continue;
+                    }
+
+                    $issues[] = array_merge($issue, ['severity' => $severity]);
+                }
+            }
+        }
+
         return response()->json([
             'success'         => true,
             'has_receipts'    => $receipts->count() > 0,
@@ -2726,6 +2835,7 @@ class DeliveryRegistrationController extends Controller
             'total_dist'      => $totalDist,
             'uncovered_count' => $uncoveredCount,
             'critical_issues' => $criticalIssues,
+            'issues'          => $issues,
         ]);
     }
 
@@ -3356,6 +3466,8 @@ class DeliveryRegistrationController extends Controller
                     'associate_name' => $r->associate?->user?->name ?? '—',
                     'issued_at'      => $r->issued_at?->format('d/m/Y') ?? '—',
                     'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
+                    'status'         => $r->status?->value ?? 'draft',
+                    'status_label'   => $r->status?->getLabel() ?? 'Rascunho',
                     'reprint_url'    => route('delivery.projects.receipt-reprint', [
                         'tenant'  => $tenantSlug,
                         'project' => $projectId,

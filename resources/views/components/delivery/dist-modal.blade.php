@@ -434,7 +434,7 @@ function normalizeExisting(d) {
 }
 
 function distributionIsEditable(d) {
-    return d.id && !d.locked && !d.paid && !d.billed && !d.in_receipt && !d.billing_receipt_id;
+    return d.id && !d.locked && !d.paid && !d.billed && !d.billing_receipt_id;
 }
 
 function distributionCanDelete(d) {
@@ -694,6 +694,12 @@ window.DistModal = {
             return;
         }
 
+        const existing = _existing.find(item => String(item.id) === String(distributionId));
+        if (existing?.in_receipt && !confirm('Esta distribuicao ja esta em um comprovante. Ao editar, o comprovante sera marcado como obsoleto e precisara ser conferido. Deseja continuar?')) {
+            renderExisting(_existing);
+            return;
+        }
+
         const saveBtn = row.querySelector('.dm-mini-btn.save');
         if (saveBtn) saveBtn.disabled = true;
 
@@ -781,6 +787,15 @@ window.DistModal = {
                     window._DistModalOnDelete(_id, data);
                 }
             } else {
+                if (data.requires_confirmation) {
+                    const d = _existing.find(item => String(item.id) === String(distributionId)) || { id: distributionId };
+                    _pendingDangerDelete = d;
+                    $('dm-confirm-text').textContent = data.message || 'Esta distribuicao exige confirmacao antes de excluir.';
+                    $('dm-confirm-answer').value = '';
+                    $('dm-confirm-overlay').classList.add('open');
+                    setTimeout(() => $('dm-confirm-answer')?.focus(), 60);
+                    return;
+                }
                 alert(data.message || 'Erro ao remover.');
             }
         } catch (e) {

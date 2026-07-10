@@ -9,6 +9,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
 {
     /** Rascunho — gerado mas ainda sem snapshot financeiro congelado */
     case DRAFT           = 'draft';
+    case OBSOLETE        = 'obsolete';
     case PENDING_PAYMENT  = 'pending_payment';
     case PARTIALLY_PAID   = 'partially_paid';
     case PAID             = 'paid';
@@ -17,6 +18,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::DRAFT           => 'Rascunho',
+            self::OBSOLETE        => 'Obsoleto',
             self::PENDING_PAYMENT => 'Aguardando Pagamento',
             self::PARTIALLY_PAID  => 'Parcialmente Pago',
             self::PAID            => 'Pago',
@@ -27,6 +29,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     {
         return match ($this) {
             self::DRAFT           => 'gray',
+            self::OBSOLETE        => 'danger',
             self::PENDING_PAYMENT => 'warning',
             self::PARTIALLY_PAID  => 'info',
             self::PAID            => 'success',
@@ -36,7 +39,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     /** Comprovante pode ter seus itens editados? */
     public function isEditable(): bool
     {
-        return $this === self::DRAFT || $this === self::PENDING_PAYMENT;
+        return $this === self::DRAFT || $this === self::OBSOLETE || $this === self::PENDING_PAYMENT;
     }
 
     /** Comprovante está imutável (após pagamento)? */

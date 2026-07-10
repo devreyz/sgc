@@ -214,9 +214,7 @@ class AdminPanelProvider extends PanelProvider
                             caches.keys()
                                 .then(function(keys) {
                                     keys.forEach(function(key) {
-                                        if (key.indexOf("sgc-") === 0) {
-                                            caches.delete(key);
-                                        }
+                                        caches.delete(key);
                                     });
                                 })
                                 .catch(function() {});

@@ -58,6 +58,16 @@ $stateIcon = $overDistributed
             <div>
                 @if($delivery['has_billed'])
                 <span style="font-size:.65rem; color:#4f46e5; background:#eef2ff; border-radius:99px; padding:.1rem .35rem;">Fat.</span>
+                @endif
+                @if(($delivery['issue_count'] ?? 0) > 0)
+                <button type="button"
+                    class="pd-issue-btn {{ $delivery['issue_severity'] ?? 'warning' }}"
+                    onclick="openIntegrityModal({{ $delivery['id'] }})"
+                    title="Ver pendencias desta entrega"
+                    style="margin-right:.25rem;">
+                    <i data-lucide="alert-triangle" style="width:10px;height:10px"></i>
+                    {{ $delivery['issue_count'] }}
+                </button>
                 @elseif($delivery['dist_net_value'] > 0)
                 <span class="mc-net">R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}</span>
                 @endif
@@ -97,7 +107,6 @@ $stateIcon = $overDistributed
                     data-existing="{{ json_encode($delivery['distributions']) }}"
                     data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
                 >Distribuir</button>
-                @unless($delivery['has_billed'])
                 <button class="btn-edit btn-xs"
                     data-id="{{ $delivery['id'] }}"
                     data-date="{{ $delivery['delivery_date_raw'] }}"
@@ -108,6 +117,7 @@ $stateIcon = $overDistributed
                     data-unit="{{ $delivery['unit'] }}"
                     data-distributions="{{ json_encode($delivery['distributions']) }}"
                 >Editar</button>
+                @unless($delivery['has_billed'])
                 <button class="btn-delete-approved btn-xs" data-id="{{ $delivery['id'] }}">Excluir</button>
                 @endunless
                 @elseif($delivery['status_value'] === 'rejected')

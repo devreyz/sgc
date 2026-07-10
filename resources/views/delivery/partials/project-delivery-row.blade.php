@@ -43,6 +43,15 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
             Faturado
         </div>
         @endif
+        @if(($delivery['issue_count'] ?? 0) > 0)
+        <button type="button"
+            class="pd-issue-btn {{ $delivery['issue_severity'] ?? 'warning' }}"
+            onclick="openIntegrityModal({{ $delivery['id'] }})"
+            title="Ver pendencias desta entrega">
+            <i data-lucide="alert-triangle" style="width:10px;height:10px"></i>
+            {{ $delivery['issue_count'] }}
+        </button>
+        @endif
     </td>
     <td>
         <div class="dist-indicator" role="button" tabindex="0" data-summary="1" title="{{ $overDistributed ? 'Excede! Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuído' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
@@ -87,11 +96,6 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
                 title="Distribuir para clientes">
                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
             </button>
-            @if($delivery['has_billed'])
-            <button class="btn-edit" disabled title="Entrega faturada — edição bloqueada" style="opacity:.4;cursor:not-allowed;">
-                <i data-lucide="lock" style="width:11px;height:11px"></i> Bloqueado
-            </button>
-            @else
             <button class="btn-edit"
                 data-id="{{ $delivery['id'] }}"
                 data-date="{{ $delivery['delivery_date_raw'] }}"
@@ -104,12 +108,21 @@ $distDisplayPercent = $overDistributed ? 100 : $distPercent;
                 title="Editar entrega">
                 <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
             </button>
+            @unless($delivery['has_billed'])
             <button class="btn-delete-approved"
                 data-id="{{ $delivery['id'] }}"
                 title="Excluir entrega aprovada">
                 <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
             </button>
-            @endif
+            @endunless
+        </div>
+        @elseif($delivery['status_value'] === 'rejected')
+        <div class="action-btns">
+            <button class="btn-delete-approved"
+                data-id="{{ $delivery['id'] }}"
+                title="Excluir entrega rejeitada">
+                <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+            </button>
         </div>
         @else
         <span style="font-size:.7rem;color:var(--color-text-secondary)">—</span>

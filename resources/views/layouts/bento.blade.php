@@ -1364,6 +1364,48 @@
             color: #b91c1c;
         }
 
+        .global-request-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.42);
+            backdrop-filter: blur(3px);
+        }
+
+        .global-request-loader.active {
+            display: flex;
+        }
+
+        .global-request-loader-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 1px solid rgba(229, 231, 235, 0.9);
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: var(--shadow-lg);
+            color: var(--color-text);
+            font-size: 0.9rem;
+            font-weight: 800;
+        }
+
+        .global-request-loader-spinner {
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            border: 3px solid rgba(16, 185, 129, 0.2);
+            border-top-color: var(--color-primary);
+            animation: globalRequestSpin 0.75s linear infinite;
+        }
+
+        @keyframes globalRequestSpin {
+            to { transform: rotate(360deg); }
+        }
+
         .bento-grid {
             gap: 1rem;
         }
@@ -1872,6 +1914,13 @@
         </div>
     @endif
 
+    <div id="global-request-loader" class="global-request-loader" role="status" aria-live="polite" aria-hidden="true">
+        <div class="global-request-loader-card">
+            <span class="global-request-loader-spinner" aria-hidden="true"></span>
+            <span id="global-request-loader-label">Processando...</span>
+        </div>
+    </div>
+
     <!-- Main Content -->
     <main class="bento-container">
         @if(session('success'))
@@ -1898,6 +1947,68 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
+        (function () {
+            if (window.__globalFetchLoaderInstalled || typeof window.fetch !== 'function') {
+                return;
+            }
+
+            window.__globalFetchLoaderInstalled = true;
+            let activeRequests = 0;
+            const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+
+            function loaderElements() {
+                return {
+                    overlay: document.getElementById('global-request-loader'),
+                    label: document.getElementById('global-request-loader-label')
+                };
+            }
+
+            window.showGlobalLoading = function (label) {
+                activeRequests += 1;
+                const elements = loaderElements();
+                if (!elements.overlay) {
+                    return;
+                }
+                if (elements.label) {
+                    elements.label.textContent = label || 'Processando...';
+                }
+                elements.overlay.classList.add('active');
+                elements.overlay.setAttribute('aria-hidden', 'false');
+                document.body.style.pointerEvents = 'none';
+                elements.overlay.style.pointerEvents = 'auto';
+            };
+
+            window.hideGlobalLoading = function () {
+                activeRequests = Math.max(0, activeRequests - 1);
+                if (activeRequests > 0) {
+                    return;
+                }
+                const elements = loaderElements();
+                if (elements.overlay) {
+                    elements.overlay.classList.remove('active');
+                    elements.overlay.setAttribute('aria-hidden', 'true');
+                }
+                document.body.style.pointerEvents = '';
+            };
+
+            const nativeFetch = window.fetch.bind(window);
+            window.fetch = function (input, init) {
+                const requestMethod = input instanceof Request ? input.method : null;
+                const method = String((init && init.method) || requestMethod || 'GET').toUpperCase();
+                const shouldShowLoader = mutatingMethods.includes(method);
+
+                if (shouldShowLoader) {
+                    window.showGlobalLoading();
+                }
+
+                return nativeFetch(input, init).finally(function () {
+                    if (shouldShowLoader) {
+                        window.hideGlobalLoading();
+                    }
+                });
+            };
+        })();
+
         // User Menu Toggle
         document.addEventListener('DOMContentLoaded', function() {
             const navIconSvgs = {
@@ -2093,9 +2204,7 @@
             caches.keys()
                 .then(function (keys) {
                     keys.forEach(function (key) {
-                        if (key.indexOf('sgc-') === 0) {
-                            caches.delete(key);
-                        }
+                        caches.delete(key);
                     });
                 })
                 .catch(function () {});

@@ -294,6 +294,11 @@
 .rm-info-blue  { background:#eff6ff;border:1px solid #93c5fd;color:#1e40af; }
 .rm-info-yellow { background:#fef9c3;border:1px solid #fde047;color:#78350f; }
 .rm-info-red   { background:#fef2f2;border:1px solid #fca5a5;color:#991b1b; }
+.rm-issues-list { display:flex;flex-direction:column;gap:.35rem;width:100%; }
+.rm-issue-item { border-top:1px solid rgba(153,27,27,.18);padding-top:.35rem;margin-top:.25rem; }
+.rm-issue-title { font-weight:800;font-size:.78rem; }
+.rm-issue-message { font-size:.75rem;line-height:1.35;margin-top:.1rem; }
+.rm-issue-action { font-size:.72rem;font-weight:700;margin-top:.18rem; }
 
 .rm-receipt-item { display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:.82rem; }
 .rm-receipt-item a { color:var(--color-primary);text-decoration:none;font-size:.75rem;font-weight:600;white-space:nowrap; }
@@ -334,6 +339,15 @@ function ppToast(msg, type = 'success') {
 }
 
 /* ── Estado modal ── */
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function setModalState(state) {
     ['checking','no-receipt','has-receipt','selecting'].forEach(s => {
         document.getElementById('rm-' + s).classList.add('hidden');
@@ -360,8 +374,16 @@ async function openReceiptModal(associateId, name) {
         document.getElementById('rm-receipt-count').textContent = PP_CHECK_DATA.receipt_count ?? 0;
         const issuesEl = document.getElementById('rm-issues');
         const criticalIssues = PP_CHECK_DATA.critical_issues ?? 0;
-        if (criticalIssues > 0) {
-            issuesEl.innerHTML = `<i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante. Corrija cliente, preco ou quantidade antes de gerar.</span>`;
+        const issues = PP_CHECK_DATA.issues || [];
+        if (criticalIssues > 0 || issues.length > 0) {
+            const issueRows = issues.slice(0, 8).map(issue => `
+                <div class="rm-issue-item">
+                    <div class="rm-issue-title">${issue.severity === 'critical' ? 'Critico' : issue.severity === 'warning' ? 'Atencao' : 'Info'} · ${escapeHtml(issue.title || '')}</div>
+                    <div class="rm-issue-message">${escapeHtml(issue.message || '')}</div>
+                    <div class="rm-issue-action">${escapeHtml(issue.action || '')}</div>
+                </div>
+            `).join('');
+            issuesEl.innerHTML = `<i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante.</span>${issueRows}</div>`;
             issuesEl.classList.remove('hidden');
             if (typeof lucide !== 'undefined') lucide.createIcons();
         } else {
@@ -379,6 +401,7 @@ async function openReceiptModal(associateId, name) {
             (PP_CHECK_DATA.receipts || []).forEach(r => {
                 const statusColors = {
                     'draft':           { bg: '#f3f4f6', text: '#374151', label: r.status_label },
+                    'obsolete':        { bg: '#fee2e2', text: '#991b1b', label: r.status_label + ' - conferir' },
                     'pending_payment': { bg: '#fef9c3', text: '#78350f', label: r.status_label },
                     'paid':            { bg: '#d1fae5', text: '#065f46', label: r.status_label },
                 };
