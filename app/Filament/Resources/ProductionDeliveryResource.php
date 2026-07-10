@@ -1010,7 +1010,7 @@ class ProductionDeliveryResource extends Resource
                             $rows = $items->map(fn ($d) => [
                                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                                 'project' => 'Avulsa',
-                                'associate' => $assoc?->user?->name ?? '—',
+                                'associate' => $assoc?->display_name ?? '—',
                                 'product' => $d->product?->name ?? '—',
                                 'unit' => $d->product?->unit ?? 'un',
                                 'quantity' => (float) $d->quantity,
@@ -1024,7 +1024,7 @@ class ProductionDeliveryResource extends Resource
                             ])->values()->all();
 
                             $groups[] = [
-                                'associate_name'   => $assoc?->user?->name ?? 'Desconhecido',
+                                'associate_name'   => $assoc?->display_name ?? 'Desconhecido',
                                 'cpf'              => $assoc?->cpf_cnpj ?? '',
                                 'deliveries_count' => $items->count(),
                                 'total_quantity'   => $items->sum('quantity'),
@@ -1111,7 +1111,7 @@ class ProductionDeliveryResource extends Resource
                             $rows = $items->map(fn ($d) => [
                                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                                 'project' => 'Avulsa',
-                                'associate' => $d->associate?->user?->name ?? '—',
+                                'associate' => $d->associate?->display_name ?? '—',
                                 'product' => $product?->name ?? '—',
                                 'unit' => $product?->unit ?? 'un',
                                 'quantity' => (float) $d->quantity,

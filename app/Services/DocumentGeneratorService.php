@@ -81,7 +81,7 @@ class DocumentGeneratorService
     {
         $associate->load('user');
 
-        $this->variables['{{associado.nome}}'] = $associate->user?->name ?? '';
+        $this->variables['{{associado.nome}}'] = $associate->display_name ?? '';
         $this->variables['{{associado.cpf}}'] = $associate->cpf_cnpj ?? '';
         $this->variables['{{associado.rg}}'] = $associate->rg ?? '';
         $this->variables['{{associado.endereco}}'] = $associate->address ?? '';

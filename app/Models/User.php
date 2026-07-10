@@ -158,13 +158,18 @@ class User extends Authenticatable implements FilamentUser
     {
         $tenantId = $tenantId ?? session('tenant_id');
 
-        if (!$tenantId) {
-            return $this->name;
+        if (! $tenantId) {
+            return $this->getRawOriginal('name') ?? 'Membro nao identificado';
         }
 
         $pivot = $this->tenants()->where('tenant_id', $tenantId)->first()?->pivot;
+        if (! $pivot) {
+            return 'Membro nao identificado';
+        }
 
-        return $pivot?->tenant_name ?? $this->name;
+        $tenantName = trim((string) $pivot->tenant_name);
+
+        return $tenantName !== '' ? $tenantName : 'Membro sem nome cadastrado';
     }
 
     /**
@@ -190,9 +195,14 @@ class User extends Authenticatable implements FilamentUser
         $tenantId = session('tenant_id');
         if ($tenantId) {
             $pivot = $this->tenants()->where('tenant_id', $tenantId)->first()?->pivot;
-            if ($pivot?->tenant_name) {
-                return $pivot->tenant_name;
+
+            if (! $pivot) {
+                return 'Membro nao identificado';
             }
+
+            $tenantName = trim((string) $pivot->tenant_name);
+
+            return $tenantName !== '' ? $tenantName : 'Membro sem nome cadastrado';
         }
 
         // Fallback to global name

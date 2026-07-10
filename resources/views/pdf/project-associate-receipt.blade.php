@@ -164,7 +164,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     @if($isStandalone)
         <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Produtor / Associado</span>
-            <span class="proj-value">{{ $associate->user->name ?? '—' }}</span>
+            <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
         </div>
         
         @if(isset($receipt) && $receipt->from_date)
@@ -182,7 +182,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     @else
     <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Produtor / Associado</span>
-            <span class="proj-value">{{ $associate->user->name ?? '—' }}</span>
+            <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
         </div>
         <div class="proj-cell" style="width: 50%;">
             <span class="proj-label">Referente</span>
@@ -386,7 +386,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 <table style="margin: 28px 0 0 0; page-break-inside: avoid; width: 100%; border-collapse: collapse;">
     <tr>
         <td style="text-align: left; padding: 0; width: 48%;">
-            <div class="sig-line">{{ $associate->user->name ?? '—' }}</div>
+            <div class="sig-line">{{ $associate->display_name ?? 'Associado nao identificado' }}</div>
             <div class="sig-role">Produtor / Associado</div>
             <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>
         </td>

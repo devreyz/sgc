@@ -9,6 +9,7 @@ use App\Filament\Resources\SalesProjectResource\Pages;
 use App\Filament\Resources\SalesProjectResource\RelationManagers;
 use App\Filament\Traits\HasExportActions;
 use App\Filament\Traits\TenantScoped;
+use App\Models\Associate;
 use App\Models\Organization;
 use App\Models\SalesProject;
 use Filament\Forms;
@@ -189,15 +190,21 @@ class SalesProjectResource extends Resource
                             ->multiple()
                             ->relationship('associates', 'id')
                             ->getSearchResultsUsing(fn (string $search) =>
-                                \App\Models\Associate::where('tenant_id', session('tenant_id'))
-                                    ->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%"))
+                                Associate::query()
+                                    ->select('associates.*')
+                                    ->join('tenant_user', function ($join) {
+                                        $join->on('tenant_user.user_id', '=', 'associates.user_id')
+                                            ->where('tenant_user.tenant_id', '=', session('tenant_id'));
+                                    })
+                                    ->where('associates.tenant_id', session('tenant_id'))
+                                    ->where('tenant_user.tenant_name', 'like', "%{$search}%")
                                     ->with('user')
                                     ->limit(50)
                                     ->get()
-                                    ->pluck('user.name', 'id')
+                                    ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
                             )
                             ->getOptionLabelUsing(fn ($value) =>
-                                \App\Models\Associate::with('user')->find($value)?->user?->name ?? $value
+                                Associate::where('tenant_id', session('tenant_id'))->with('user')->find($value)?->display_name ?? $value
                             )
                             ->preload(false)
                             ->searchable()

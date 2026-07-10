@@ -42,6 +42,7 @@ class MemberCardValidationController extends Controller
             'associate' => $associate,
             'tenant' => $tenant,
             'user' => $user,
+            'memberDisplayName' => $associate->display_name,
         ]);
     }
 }

@@ -8,6 +8,7 @@ use App\Models\DistributionBilling;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Services\DistributionBillingService;
+use App\Services\TenantIdentityService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -49,7 +50,7 @@ class DistributionBillingResource extends Resource
                 Forms\Components\Select::make('associate_id')
                     ->label('Associado')
                     ->relationship('associate', 'id', fn ($query) => $query->with('user'))
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->user->name ?? "#{$record->id}")
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? "#{$record->id}")
                     ->disabled(),
 
                 Forms\Components\TextInput::make('reference')
@@ -119,7 +120,7 @@ class DistributionBillingResource extends Resource
                     ->searchable()
                     ->limit(30),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Associado')
                     ->searchable()
                     ->default('—'),
@@ -148,8 +149,9 @@ class DistributionBillingResource extends Resource
                     ->default('—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Criado por')
+                    ->formatStateUsing(fn ($state, DistributionBilling $record): string => app(TenantIdentityService::class)->displayName($record->tenant_id, $record->created_by))
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -170,7 +172,7 @@ class DistributionBillingResource extends Resource
                     ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
                         ->with('user')
                         ->get()
-                        ->mapWithKeys(fn ($a) => [$a->id => $a->user->name ?? "#{$a->id}"])),
+                        ->mapWithKeys(fn ($a) => [$a->id => $a->display_name ?? "#{$a->id}"])),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

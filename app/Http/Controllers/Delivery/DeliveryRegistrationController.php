@@ -102,7 +102,7 @@ class DeliveryRegistrationController extends Controller
 
         return [
             'id'                => $delivery->id,
-            'associate_name'    => $delivery->associate?->user?->name ?? 'Associado #'.$delivery->associate_id,
+            'associate_name'    => $delivery->associate?->display_name ?? 'Associado #'.$delivery->associate_id,
             'product_name'      => $productName,
             'delivery_date'     => $delivery->delivery_date?->format('d/m/Y') ?? '-',
             'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
@@ -338,7 +338,7 @@ class DeliveryRegistrationController extends Controller
             ->get()
             ->map(fn ($a) => [
                 'id'                  => $a->id,
-                'name'                => $a->user->name ?? "Associado #{$a->id}",
+                'name'                => $a->display_name ?? "Associado #{$a->id}",
                 'nickname'            => $a->nickname ?? null,
                 'registration_number' => $a->registration_number,
             ]);
@@ -1062,7 +1062,7 @@ class DeliveryRegistrationController extends Controller
             ->map(function ($d) use ($projectCustomerIds) {
                 $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
                 $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
-                $associateName = $d->associate?->user?->name ?? $d->associate?->name ?? '—';
+                $associateName = $d->associate?->display_name ?? 'Associado nao identificado';
                 $associateId   = $d->associate_id;
 
                 $distributions = $d->distributions->map(fn($dist) => [
@@ -2031,7 +2031,7 @@ class DeliveryRegistrationController extends Controller
             ->with('user')
             ->whereHas('user', fn ($q) => $q->where('status', true))
             ->get()
-            ->mapWithKeys(fn ($a) => [$a->id => $a->user->name ?? "#{$a->id}"]);
+            ->mapWithKeys(fn ($a) => [$a->id => $a->display_name ?? "#{$a->id}"]);
 
         $customers = Customer::where('tenant_id', $tenantId)
             ->where('status', true)
@@ -2127,7 +2127,7 @@ class DeliveryRegistrationController extends Controller
         return [
             'delivery_date'    => $d->delivery_date?->format('d/m/Y') ?? '—',
             'project'          => $d->salesProject->title ?? 'Avulsa',
-            'associate'        => $d->associate?->user?->name ?? '—',
+            'associate'        => $d->associate?->display_name ?? 'Associado nao identificado',
             'product'          => $d->product?->name ?? '—',
             'unit'             => $d->product?->unit ?? 'un',
             'customer'         => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
@@ -2163,7 +2163,7 @@ class DeliveryRegistrationController extends Controller
         foreach ($grouped as $associateId => $items) {
             $assoc = $items->first()->associate;
             $groups[] = [
-                'associate_name' => $assoc?->user?->name ?? 'Desconhecido',
+                'associate_name' => $assoc?->display_name ?? 'Associado nao identificado',
                 'cpf' => $assoc?->cpf_cnpj ?? '',
                 'deliveries_count' => $items->count(),
                 'total_quantity' => $items->sum('quantity'),
@@ -2345,7 +2345,7 @@ class DeliveryRegistrationController extends Controller
             $gross = (float) $d->gross_value;
             $groups[$organizationId]['customers'][$customerId]['products'][$productId]['rows'][] = [
                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                'associate'     => $d->associate?->user?->name ?? '—',
+                'associate'     => $d->associate?->display_name ?? 'Associado nao identificado',
                 'quantity'      => $qty,
                 'unit_price'    => (float) $d->unit_price,
                 'gross'         => $gross,
@@ -2822,7 +2822,7 @@ class DeliveryRegistrationController extends Controller
                 $assoc = $items->first()->associate;
                 return [
                     'associate'    => $assoc,
-                    'name'         => $assoc?->user?->name ?? '—',
+                    'name'         => $assoc?->display_name ?? 'Associado nao identificado',
                     'cpf'          => $assoc?->cpf_cnpj ?? '—',
                     'registration' => $assoc?->registration_number ?? '—',
                     'deliveries'   => $items->count(),
@@ -2893,10 +2893,17 @@ class DeliveryRegistrationController extends Controller
 
         $query = (clone $base)
             ->leftJoin('associates', 'associates.id', '=', 'production_deliveries.associate_id')
-            ->leftJoin('users', 'users.id', '=', 'associates.user_id')
+            ->leftJoin('tenant_user as associate_members', function ($join) use ($tenantId) {
+                $join->on('associate_members.user_id', '=', 'associates.user_id')
+                    ->where('associate_members.tenant_id', '=', $tenantId);
+            })
             ->selectRaw('
                 production_deliveries.associate_id,
-                COALESCE(users.name, CONCAT(\'Associado #\', production_deliveries.associate_id)) as associate_name,
+                CASE
+                    WHEN associate_members.user_id IS NULL THEN CONCAT(\'Membro nao identificado #\', production_deliveries.associate_id)
+                    WHEN TRIM(COALESCE(associate_members.tenant_name, \'\')) = \'\' THEN \'Membro sem nome cadastrado\'
+                    ELSE associate_members.tenant_name
+                END as associate_name,
                 associates.cpf_cnpj,
                 associates.registration_number,
                 COUNT(*) as deliveries_count,
@@ -2906,12 +2913,12 @@ class DeliveryRegistrationController extends Controller
                 SUM(production_deliveries.net_value) as total_net,
                 SUM(CASE WHEN production_deliveries.associate_receipt_id IS NULL THEN 1 ELSE 0 END) as pending_distributions
             ')
-            ->groupBy('production_deliveries.associate_id', 'users.name', 'associates.cpf_cnpj', 'associates.registration_number');
+            ->groupBy('production_deliveries.associate_id', 'associate_members.user_id', 'associate_members.tenant_name', 'associates.cpf_cnpj', 'associates.registration_number');
 
         if ($search !== '') {
             $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
             $query->where(function ($q) use ($like) {
-                $q->where('users.name', 'like', $like)
+                $q->where('associate_members.tenant_name', 'like', $like)
                     ->orWhere('associates.cpf_cnpj', 'like', $like)
                     ->orWhere('associates.registration_number', 'like', $like);
             });
@@ -3229,7 +3236,7 @@ class DeliveryRegistrationController extends Controller
             'feeBreakdown'    => $receiptData['feeBreakdown'],
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->streamDownload(function () use ($pdf) {
@@ -3347,7 +3354,7 @@ class DeliveryRegistrationController extends Controller
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
         $filename     = "comprovante-{$receiptLabel}-{$safeName}-parcial.pdf";
 
@@ -3479,7 +3486,7 @@ class DeliveryRegistrationController extends Controller
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->json([
@@ -3604,7 +3611,7 @@ class DeliveryRegistrationController extends Controller
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->json([
@@ -3680,7 +3687,7 @@ class DeliveryRegistrationController extends Controller
             ['paper' => 'a4', 'orientation' => 'portrait']
         ));
 
-        $safeName = str_replace(' ', '-', mb_strtolower($associate->user->name ?? 'associado'));
+        $safeName = str_replace(' ', '-', mb_strtolower($associate->display_name ?? 'associado'));
 
         return response()->streamDownload(
             fn () => print ($pdf->output()),
@@ -4002,7 +4009,7 @@ class DeliveryRegistrationController extends Controller
             'feeBreakdown'    => $receiptData['feeBreakdown'],
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->streamDownload(function () use ($pdf) {
@@ -4037,7 +4044,7 @@ class DeliveryRegistrationController extends Controller
                 return [
                     'id'             => $r->id,
                     'number'         => $r->formatted_number,
-                    'associate_name' => $r->associate?->user?->name ?? '—',
+                    'associate_name' => $r->associate?->display_name ?? 'Associado nao identificado',
                     'issued_at'      => $r->issued_at?->format('d/m/Y') ?? '—',
                     'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
                     'status'         => $r->status?->value ?? 'draft',

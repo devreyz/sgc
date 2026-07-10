@@ -20,6 +20,7 @@ use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
 use App\Observers\ServiceProviderObserver;
 use App\Observers\ServiceProviderLedgerObserver;
+use App\Services\TenantIdentityService;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
@@ -31,7 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->scoped(TenantIdentityService::class);
     }
 
     /**

@@ -134,7 +134,7 @@
             @foreach($associates as $associate)
             @foreach($demands as $demand)
             <tr>
-                <td>{{ $associate->user->name }}</td>
+                <td>{{ $associate->display_name ?? 'Associado nao identificado' }}</td>
                 <td>{{ $demand->product->name }}</td>
                 <td></td>
                 <td></td>

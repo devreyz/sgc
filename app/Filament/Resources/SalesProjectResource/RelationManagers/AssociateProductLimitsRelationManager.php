@@ -29,7 +29,7 @@ class AssociateProductLimitsRelationManager extends RelationManager
                         Associate::where('tenant_id', session('tenant_id'))
                             ->with('user')
                             ->get()
-                            ->pluck('user.name', 'id')
+                            ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
                     )
                     ->searchable()
                     ->required(),
@@ -54,7 +54,7 @@ class AssociateProductLimitsRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Associado')
                     ->searchable()
                     ->sortable(),

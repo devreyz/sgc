@@ -153,7 +153,7 @@
                 <td>{{ $work->work_date->format('d/m/Y') }}</td>
                 <td>{{ $work->description }}</td>
                 <td>{{ $work->serviceOrder?->code ?? '-' }}</td>
-                <td>{{ $work->associate?->user?->name ?? '-' }}</td>
+                <td>{{ $work->associate?->display_name ?? 'Associado nao identificado' }}</td>
                 <td class="text-center">{{ $work->hours_worked ? number_format($work->hours_worked, 1, ',', '.') : '-' }}</td>
                 <td class="text-right">R$ {{ number_format($work->total_value, 2, ',', '.') }}</td>
                 <td class="text-center">

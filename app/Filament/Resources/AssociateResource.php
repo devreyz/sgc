@@ -292,10 +292,15 @@ class AssociateResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.display_name')
+                Tables\Columns\TextColumn::make('display_name')
                     ->label('Nome')
-                    ->searchable(['users.name'])
-                    ->sortable(['users.name']),
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query->whereExists(function ($subquery) use ($search) {
+                        $subquery->selectRaw('1')
+                            ->from('tenant_user')
+                            ->whereColumn('tenant_user.user_id', 'associates.user_id')
+                            ->whereColumn('tenant_user.tenant_id', 'associates.tenant_id')
+                            ->where('tenant_user.tenant_name', 'like', "%{$search}%");
+                    })),
 
                 Tables\Columns\TextColumn::make('cpf_cnpj')
                     ->label('CPF/CNPJ')

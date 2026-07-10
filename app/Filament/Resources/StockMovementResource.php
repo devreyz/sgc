@@ -92,8 +92,9 @@ class StockMovementResource extends Resource
                     ->formatStateUsing(fn ($state) => number_format($state, 3, ',', '.'))
                     ->weight('bold'),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Por')
+                    ->formatStateUsing(fn ($state, $record): string => app(\App\Services\TenantIdentityService::class)->displayName($record->tenant_id, $record->created_by))
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('notes')

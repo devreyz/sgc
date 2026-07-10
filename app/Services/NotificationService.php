@@ -29,7 +29,7 @@ class NotificationService
                 ->iconColor('success')
                 ->body(sprintf(
                     '%s entregou %.2f %s de %s',
-                    $delivery->associate->user->name,
+                    $delivery->associate->display_name,
                     $delivery->quantity,
                     $delivery->product->unit,
                     $delivery->product->name
@@ -96,7 +96,7 @@ class NotificationService
                 ->iconColor('warning')
                 ->body(sprintf(
                     'O DAP/CAF de %s vence em %s',
-                    $associate->user->name,
+                    $associate->display_name,
                     $associate->dap_caf_expiry->format('d/m/Y')
                 ))
                 ->actions([

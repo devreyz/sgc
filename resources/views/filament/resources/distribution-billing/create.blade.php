@@ -92,7 +92,7 @@
                                     >
                                 </td>
                                 <td class="py-2 px-3">{{ $dist->delivery_date?->format('d/m/Y') }}</td>
-                                <td class="py-2 px-3">{{ $dist->associate->user->name ?? '—' }}</td>
+                                <td class="py-2 px-3">{{ $dist->associate->display_name ?? '—' }}</td>
                                 <td class="py-2 px-3">{{ $dist->product->name ?? '—' }}</td>
                                 <td class="py-2 px-3">{{ $dist->customer->name ?? '—' }}</td>
                                 <td class="py-2 px-3 text-right tabular-nums">{{ number_format((float) $dist->quantity, 2, ',', '.') }}</td>

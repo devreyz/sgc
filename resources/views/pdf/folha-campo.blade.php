@@ -134,7 +134,7 @@
             @forelse ($associates as $associate)
             <tr>
                 <td>{{ $n++ }}</td>
-                <td>{{ $associate->user->name ?? '-' }}</td>
+                <td>{{ $associate->display_name ?? 'Associado nao identificado' }}</td>
                 <td><span class="fill-line"></span></td>
                 <td><span class="fill-line"></span></td>
                 <td><span class="fill-line"></span></td>

@@ -22,8 +22,9 @@ class ViewActivityLog extends ViewRecord
                             ->dateTime('d/m/Y H:i:s')
                             ->icon('heroicon-o-clock'),
 
-                        Infolists\Components\TextEntry::make('causer.name')
+                        Infolists\Components\TextEntry::make('causer_id')
                             ->label('Usuário Responsável')
+                            ->formatStateUsing(fn ($state, $record): string => ActivityLogResource::causerDisplayName($record))
                             ->default('Sistema')
                             ->icon('heroicon-o-user'),
 

@@ -105,7 +105,7 @@
         <tr>
             <td class="label">Nome</td>
             <td class="value" colspan="3">
-                {{ $order->associate ? (optional($order->associate->user)->name ?? $order->associate->property_name ?? "Associado #{$order->associate_id}") : 'Avulso' }}
+                {{ $order->associate ? ($order->associate->display_name ?? $order->associate->property_name ?? "Associado #{$order->associate_id}") : 'Avulso' }}
             </td>
         </tr>
         @if($order->associate)
@@ -226,7 +226,7 @@
     <div class="signatures">
         <div class="signature-block">
             <div class="signature-line">
-                {{ $order->associate ? (optional($order->associate->user)->name ?? 'Cliente') : 'Cliente' }}<br>
+                {{ $order->associate ? ($order->associate->display_name ?? 'Cliente') : 'Cliente' }}<br>
                 <small>Cliente / Associado</small>
             </div>
         </div>

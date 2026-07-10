@@ -131,8 +131,9 @@ class PdvSaleResource extends Resource
                     ->trueColor('warning')
                     ->falseColor('success'),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Operador')
+                    ->formatStateUsing(fn ($state, $record): string => app(\App\Services\TenantIdentityService::class)->displayName($record->tenant_id, $record->created_by))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

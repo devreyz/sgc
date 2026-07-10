@@ -18,7 +18,7 @@ class ViewDistributionBilling extends ViewRecord
                 Infolists\Components\TextEntry::make('id')->label('Lote #'),
                 Infolists\Components\TextEntry::make('billing_date')->label('Data')->date('d/m/Y'),
                 Infolists\Components\TextEntry::make('salesProject.title')->label('Projeto'),
-                Infolists\Components\TextEntry::make('associate.user.name')->label('Associado')->placeholder('Todos'),
+                Infolists\Components\TextEntry::make('associate.display_name')->label('Associado')->placeholder('Todos'),
                 Infolists\Components\TextEntry::make('reference')->label('Referência')->placeholder('—'),
                 Infolists\Components\TextEntry::make('period_start')->label('Período Início')->date('d/m/Y')->placeholder('—'),
                 Infolists\Components\TextEntry::make('period_end')->label('Período Fim')->date('d/m/Y')->placeholder('—'),
@@ -36,7 +36,7 @@ class ViewDistributionBilling extends ViewRecord
                     ->label('')
                     ->schema([
                         Infolists\Components\TextEntry::make('delivery_date')->label('Data')->date('d/m/Y'),
-                        Infolists\Components\TextEntry::make('associate.user.name')->label('Associado'),
+                        Infolists\Components\TextEntry::make('associate.display_name')->label('Associado'),
                         Infolists\Components\TextEntry::make('customer.name')->label('Cliente')->default('—'),
                         Infolists\Components\TextEntry::make('product.name')->label('Produto'),
                         Infolists\Components\TextEntry::make('quantity')->label('Qtd'),

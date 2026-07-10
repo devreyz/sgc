@@ -196,7 +196,9 @@ class TenantUser extends Model
      */
     public function getDisplayNameAttribute(): string
     {
-        return $this->tenant_name ?? $this->user?->getRawOriginal('name') ?? 'N/A';
+        $tenantName = trim((string) $this->tenant_name);
+
+        return $tenantName !== '' ? $tenantName : 'Membro sem nome cadastrado';
     }
 
     /**

@@ -9,6 +9,7 @@ use App\Models\ServiceProviderService;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\TenantIdentityService;
 use Illuminate\Console\Command;
 
 class CheckTenantData extends Command
@@ -43,7 +44,8 @@ class CheckTenantData extends Command
         $users = User::whereHas('tenants', fn($q) => $q->where('tenants.id', $tenantId))->get();
         $this->info("👥 Usuários: " . $users->count());
         foreach ($users as $user) {
-            $this->line("   - {$user->name} ({$user->email})");
+            $userName = app(TenantIdentityService::class)->displayName((int) $tenantId, (int) $user->id);
+            $this->line("   - {$userName} ({$user->email})");
             $roles = $user->roles->pluck('name')->join(', ');
             $this->line("     Roles: {$roles}");
         }
@@ -53,7 +55,7 @@ class CheckTenantData extends Command
         $providers = ServiceProvider::where('tenant_id', $tenantId)->get();
         $this->info("🛠️  Prestadores de Serviço: " . $providers->count());
         foreach ($providers as $provider) {
-            $userName = $provider->user->name ?? 'N/A';
+            $userName = app(TenantIdentityService::class)->displayName((int) $tenantId, (int) $provider->user_id);
             $this->line("   - #{$provider->id} {$provider->name} (Usuário: {$userName})");
             
             // Serviços do prestador
@@ -115,8 +117,8 @@ class CheckTenantData extends Command
         $associates = Associate::where('tenant_id', $tenantId)->get();
         $this->info("👨‍🌾 Associados: " . $associates->count());
         foreach ($associates as $assoc) {
-            $userName = $assoc->user->name ?? 'N/A';
-            $this->line("   - #{$assoc->id} {$assoc->name} (Usuário: {$userName})");
+            $userName = $assoc->display_name;
+            $this->line("   - #{$assoc->id} {$userName} (Usuário: {$userName})");
         }
         $this->newLine();
 

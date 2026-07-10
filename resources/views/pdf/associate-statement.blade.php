@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Extrato - {{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</title>
+    <title>Extrato - {{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</title>
     <style>
         @page { margin: 20mm 15mm 20mm 15mm; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -61,14 +61,14 @@
         </div>
         <div class="org-header-right">
             <div class="doc-title">EXTRATO DE CONTA - ASSOCIADO</div>
-            <div class="doc-subtitle">{{ optional($associate->user)->name ?? $associate->property_name ?? "#".$associate->id }}</div>
+            <div class="doc-subtitle">{{ $associate->display_name ?? $associate->property_name ?? "#".$associate->id }}</div>
             <div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>
         </div>
     </div>
     @else
     <div class="header">
         <h1>EXTRATO DE CONTA - ASSOCIADO</h1>
-        <h2>{{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</h2>
+        <h2>{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</h2>
         <p>Período: {{ $period['from'] }} a {{ $period['until'] }} | Gerado em: {{ $generated_at }}</p>
     </div>
     @endif
@@ -79,7 +79,7 @@
         <div class="info-col">
             <div class="info-box">
                 <h3>Dados Pessoais</h3>
-                <div class="info-row"><span class="label">Nome:</span> {{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }}</div>
+                <div class="info-row"><span class="label">Nome:</span> {{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</div>
                 @if($associate->cpf)<div class="info-row"><span class="label">CPF:</span> {{ $associate->cpf }}</div>@endif
                 @if($associate->user && $associate->user->phone)<div class="info-row"><span class="label">Telefone:</span> {{ $associate->user->phone }}</div>@endif
                 @if($associate->user && $associate->user->email)<div class="info-row"><span class="label">E-mail:</span> {{ $associate->user->email }}</div>@endif
@@ -183,7 +183,7 @@
             <div class="signature-line">Responsável - Cooperativa</div>
         </div>
         <div class="signature-box" style="float: right;">
-            <div class="signature-line">{{ optional($associate->user)->name ?? $associate->property_name ?? "#{$associate->id}" }} - Associado</div>
+            <div class="signature-line">{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }} - Associado</div>
         </div>
     </div>
 

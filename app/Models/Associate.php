@@ -129,7 +129,12 @@ class Associate extends Model
     {
         $registration = $this->registration_number ? " ({$this->registration_number})" : '';
 
-        return $this->user->name.$registration;
+        return $this->display_name.$registration;
+    }
+
+    public function getDisplayNameAttribute(): string
+    {
+        return app(\App\Services\TenantIdentityService::class)->displayNameForAssociate($this);
     }
 
     /**

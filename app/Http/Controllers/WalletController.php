@@ -80,6 +80,7 @@ class WalletController extends Controller
             'user' => $user,
             'tenant' => $tenant,
             'associate' => $associate,
+            'memberDisplayName' => $associate?->display_name ?? $user->getTenantName($tenant->id),
             'financialSummary' => $financialSummary,
             'recentTransactions' => $recentTransactions,
             'membershipCard' => $membershipCard,
@@ -254,6 +255,7 @@ class WalletController extends Controller
             'user' => $user,
             'tenant' => $tenant,
             'associate' => $associate,
+            'memberDisplayName' => $associate->display_name,
             'validationUrl' => $validationUrl,
         ]);
     }

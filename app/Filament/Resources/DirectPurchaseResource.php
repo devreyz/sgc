@@ -242,8 +242,9 @@ class DirectPurchaseResource extends Resource
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Criado por')
+                    ->formatStateUsing(fn ($state, $record): string => app(\App\Services\TenantIdentityService::class)->displayName($record->tenant_id, $record->created_by))
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')

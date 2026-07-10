@@ -185,7 +185,6 @@ class ServiceProviderResource extends Resource
 
                 Tables\Columns\TextColumn::make('user.display_name')
                     ->label('Usuário Vinculado')
-                    ->searchable(['users.name'])
                     ->placeholder('Sem vínculo')
                     ->toggleable(),
 

@@ -57,7 +57,7 @@ class CreateDistributionBilling extends Page
                         ->label('Associado (opcional)')
                         ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
                             ->with('user')->get()
-                            ->mapWithKeys(fn ($a) => [$a->id => $a->user->name ?? "#{$a->id}"]))
+                            ->mapWithKeys(fn ($a) => [$a->id => $a->display_name ?? "#{$a->id}"]))
                         ->nullable()
                         ->live()
                         ->afterStateUpdated(fn () => $this->selectedIds = []),

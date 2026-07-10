@@ -172,7 +172,7 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <span class="info-label">Nome Completo</span>
-                        <span class="info-value">{{ $user->name }}</span>
+                        <span class="info-value">{{ $memberDisplayName }}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Matrícula</span>

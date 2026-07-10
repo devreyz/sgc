@@ -378,7 +378,7 @@ class ViewSalesProject extends ViewRecord
                                 ->whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
                                 ->with('user')
                                 ->get()
-                                ->pluck('user.name', 'id')
+                                ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name])
                             )
                             ->searchable()
                             ->placeholder('Todos'),
@@ -421,7 +421,7 @@ class ViewSalesProject extends ViewRecord
                             )
                             ->with('user')
                             ->get()
-                            ->pluck('user.name', 'id');
+                            ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name]);
 
                         return [
                             Forms\Components\Select::make('associate_id')
@@ -474,7 +474,7 @@ class ViewSalesProject extends ViewRecord
                             )
                             ->with('user')
                             ->get()
-                            ->pluck('user.name', 'id');
+                            ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name]);
 
                         return [
                             Forms\Components\Select::make('associate_id')
@@ -591,7 +591,7 @@ class ViewSalesProject extends ViewRecord
             $rows = $items->map(fn ($d) => [
                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                 'project' => $record->title,
-                'associate' => $assoc?->user?->name ?? '—',
+                'associate' => $assoc?->display_name ?? '—',
                 'product' => $d->product?->name ?? '—',
                 'unit' => $d->product?->unit ?? 'un',
                 'quantity' => (float) $d->quantity,
@@ -605,7 +605,7 @@ class ViewSalesProject extends ViewRecord
             ])->values()->all();
 
             $groups[] = [
-                'associate_name' => $assoc?->user?->name ?? 'Desconhecido',
+                'associate_name' => $assoc?->display_name ?? 'Desconhecido',
                 'cpf' => $assoc?->cpf_cnpj ?? '',
                 'deliveries_count' => $items->count(),
                 'total_quantity' => $items->sum('quantity'),
@@ -690,7 +690,7 @@ class ViewSalesProject extends ViewRecord
             $rows = $items->map(fn ($d) => [
                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                 'project' => $record->title,
-                'associate' => $d->associate?->user?->name ?? '—',
+                'associate' => $d->associate?->display_name ?? '—',
                 'product' => $product?->name ?? '—',
                 'unit' => $product?->unit ?? 'un',
                 'quantity' => (float) $d->quantity,
@@ -833,7 +833,7 @@ class ViewSalesProject extends ViewRecord
             'title' => 'Comprovante de Entrega',
         ]);
 
-        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -901,7 +901,7 @@ class ViewSalesProject extends ViewRecord
             'project' => $record,
             'payment' => null,
             'distributions' => $distributions,
-            'associate_name' => $associate->user->name ?? '—',
+            'associate_name' => $associate->display_name ?? '—',
             'cpf' => $associate->cpf_cnpj ?? '—',
             'generated_at' => now()->format('d/m/Y H:i'),
             'amount_paid' => $totalNet,
@@ -912,7 +912,7 @@ class ViewSalesProject extends ViewRecord
             'title' => 'Comprovante de Distribuições — 2 Vias',
         ]);
 
-        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -937,7 +937,7 @@ class ViewSalesProject extends ViewRecord
         foreach ($deliveriesByAssociate as $associateId => $deliveries) {
             $associate = $deliveries->first()->associate;
             $associateSummary[] = [
-                'name' => $associate->user->name ?? 'Desconhecido',
+                'name' => $associate->display_name ?? 'Desconhecido',
                 'cpf' => $associate->user->cpf ?? '',
                 'deliveries_count' => $deliveries->count(),
                 'total_quantity' => $deliveries->sum('quantity'),
@@ -1226,7 +1226,7 @@ class ViewSalesProject extends ViewRecord
                                         $assoc = $items->first()->associate;
 
                                         return [
-                                            'name' => $assoc?->user?->name ?? '—',
+                                            'name' => $assoc?->display_name ?? '—',
                                             'cpf' => $assoc?->cpf_cnpj ?? '—',
                                             'registration' => $assoc?->registration_number ?? '—',
                                             'deliveries' => $items->count(),

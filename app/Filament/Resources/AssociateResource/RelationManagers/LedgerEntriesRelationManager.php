@@ -133,8 +133,9 @@ class LedgerEntriesRelationManager extends RelationManager
                     ->weight('bold')
                     ->alignEnd(),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Por')
+                    ->formatStateUsing(fn ($state, $record): string => app(\App\Services\TenantIdentityService::class)->displayName($record->associate?->tenant_id, $record->created_by))
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

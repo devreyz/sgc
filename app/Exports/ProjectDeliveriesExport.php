@@ -49,7 +49,7 @@ class ProjectDeliveriesExport implements FromCollection, WithHeadings, WithMappi
     {
         return [
             $delivery->delivery_date?->format('d/m/Y'),
-            $delivery->associate->user->name ?? 'N/A',
+            $delivery->associate->display_name ?? 'N/A',
             $delivery->associate->cpf_cnpj ?? 'N/A',
             $delivery->product->name ?? 'N/A',
             number_format($delivery->quantity, 2, ',', '.'),

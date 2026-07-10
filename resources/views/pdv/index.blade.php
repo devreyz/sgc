@@ -2775,7 +2775,7 @@
                 <div>
                     <div style="font-size:1.25rem;font-weight:800">${esc(s.code)}</div>
                     <div style="font-size:0.8125rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})} · ${esc(s.display_name||s.customer_name||'Consumidor')}</div>
-                    ${s.creator ? `<div style="font-size:0.75rem;color:var(--text-muted)">Operador: ${esc(s.creator.name)}</div>` : ''}
+                    ${s.creator ? `<div style="font-size:0.75rem;color:var(--text-muted)">Operador: ${esc(s.creator.display_name)}</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem">
                     <span style="padding:0.25rem 0.75rem;border-radius:20px;font-size:0.8rem;font-weight:700;color:white;background:${statusColor}">${statusLabel}</span>

@@ -414,7 +414,7 @@ class DeliveriesRelationManager extends RelationManager
                         Forms\Components\Placeholder::make('info')
                             ->content(fn ($record) => new \Illuminate\Support\HtmlString(
                                 '<div class="space-y-2">'.
-                                '<p><strong>Associado:</strong> ' . $record->associate->user->name . '</p>' .
+                                '<p><strong>Associado:</strong> ' . $record->associate->display_name . '</p>' .
                                 '<p><strong>Produto:</strong> ' . $record->product->name . '</p>' .
                                 '<p><strong>Quantidade:</strong> ' . number_format($record->quantity, 2, ',', '.') . ' ' . $record->product->unit . '</p>' .
                                 '<p class="text-lg font-bold text-success-600"><strong>Valor a Pagar:</strong> R$ ' . number_format($record->net_value, 2, ',', '.') . '</p>' .
@@ -493,7 +493,7 @@ class DeliveriesRelationManager extends RelationManager
                                 'type' => CashMovementType::EXPENSE,
                                 'amount' => $record->net_value,
                                 'balance_after' => $newBalance,
-                                'description' => "Pagamento ao associado {$record->associate->user->name} - Projeto: {$record->salesProject->title}",
+                                'description' => "Pagamento ao associado {$record->associate->display_name} - Projeto: {$record->salesProject->title}",
                                 'movement_date' => $data['payment_date'],
                                 'bank_account_id' => $data['bank_account_id'],
                                 'reference_type' => get_class($record),
@@ -526,7 +526,7 @@ class DeliveriesRelationManager extends RelationManager
                     ->modalHeading(fn ($record) => 'Distribuir entrega: ' . $record->product->name)
                     ->modalDescription(fn ($record) => new \Illuminate\Support\HtmlString(
                         '<div class="space-y-1 text-sm">'
-                        . '<p><strong>Associado:</strong> ' . ($record->associate?->user?->name ?? '—') . '</p>'
+                        . '<p><strong>Associado:</strong> ' . ($record->associate?->display_name ?? '—') . '</p>'
                         . '<p><strong>Total recebido:</strong> ' . number_format($record->quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'
                         . '<p><strong>Já distribuído:</strong> ' . number_format($record->distributed_quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'
                         . '<p class="font-semibold text-warning-600"><strong>Disponível:</strong> ' . number_format($record->remaining_quantity, 3, ',', '.') . ' ' . $record->product->unit . '</p>'

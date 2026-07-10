@@ -1766,22 +1766,26 @@
                     @endif
                 </div>
             </div>
+            @php
+                $authenticatedUser = Auth::user();
+                $authenticatedMemberName = $authenticatedUser?->getTenantName(session('tenant_id')) ?? 'Membro nao identificado';
+            @endphp
             <div class="header-user" id="userMenuToggle">
                 <div class="user-info">
-                    <div class="user-name">{{ Auth::user()->name }}</div>
+                    <div class="user-name">{{ $authenticatedMemberName }}</div>
                     <div class="user-role">@yield('user-role')</div>
                 </div>
-                @if(Auth::user()->avatar)
+                @if($authenticatedUser?->avatar)
                     @php
-                        $avatar = Auth::user()->avatar;
+                        $avatar = $authenticatedUser->avatar;
                         $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
                             ? $avatar
                             : Storage::url($avatar);
                     @endphp
-                    <img src="{{ $avatarUrl }}" alt="{{ Auth::user()->name }}" class="user-avatar">
+                    <img src="{{ $avatarUrl }}" alt="{{ $authenticatedMemberName }}" class="user-avatar">
                 @else
                     <div class="user-avatar" style="background: var(--color-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600;">
-                        {{ substr(Auth::user()->name, 0, 1) }}
+                        {{ substr($authenticatedMemberName, 0, 1) }}
                     </div>
                 @endif
             </div>
@@ -1801,22 +1805,22 @@
                 </svg>
             </button>
             <div class="user-menu-profile">
-                @if(Auth::user()->avatar)
+                @if($authenticatedUser?->avatar)
                     @php
-                        $avatar = Auth::user()->avatar;
+                        $avatar = $authenticatedUser->avatar;
                         $avatarUrl = \Illuminate\Support\Str::startsWith($avatar, ['http://', 'https://'])
                             ? $avatar
                             : Storage::url($avatar);
                     @endphp
-                    <img src="{{ $avatarUrl }}" alt="{{ Auth::user()->name }}" class="user-menu-avatar">
+                    <img src="{{ $avatarUrl }}" alt="{{ $authenticatedMemberName }}" class="user-menu-avatar">
                 @else
                     <div class="user-menu-avatar" style="background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.5rem;">
-                        {{ substr(Auth::user()->name, 0, 1) }}
+                        {{ substr($authenticatedMemberName, 0, 1) }}
                     </div>
                 @endif
                 <div class="user-menu-info">
-                    <h3>{{ Auth::user()->name }}</h3>
-                    <p>{{ Auth::user()->email }}</p>
+                    <h3>{{ $authenticatedMemberName }}</h3>
+                    <p>{{ $authenticatedUser?->email }}</p>
                 </div>
             </div>
         </div>

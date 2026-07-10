@@ -30,7 +30,7 @@ class DeliveryProjectIntegrityService
 
         foreach ($parents as $parent) {
             $productName = $parent->product?->name ?? $parent->projectDemand?->product?->name ?? 'Produto';
-            $associateName = $parent->associate?->user?->name ?? 'Associado';
+            $associateName = $parent->associate?->display_name ?? 'Associado';
             $validChildren = $parent->distributions
                 ->whereNotIn('status', [DeliveryStatus::REJECTED, DeliveryStatus::CANCELLED]);
             $distributed = (float) $validChildren->sum('quantity');

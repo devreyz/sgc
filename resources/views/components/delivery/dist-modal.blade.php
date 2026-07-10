@@ -125,7 +125,7 @@
     font-size: .82rem;
 }
 .dm-existing-row:last-child { border-bottom: none; }
-.dm-existing-customer { flex: 1; font-weight: 500; }
+.dm-existing-customer { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: start; font-weight: 500; }
 .dm-existing-qty { white-space: nowrap; color: var(--color-text-secondary); }
 .dm-existing-net {
     white-space: nowrap; font-size: .78rem;
@@ -487,7 +487,7 @@ function renderExisting(existing) {
     _existing = existing.map(normalizeExisting);
     list.innerHTML = _existing.map(d => `
         <div class="dm-existing-row" id="dmex-${d.id}">
-            <span class="dm-existing-customer">${esc(d.customer)} ${statusBadges(d)}</span>
+            <span class="dm-existing-customer"> ${esc(d.customer)} ${statusBadges(d)} </span>
             <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
             <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
             <span class="dm-existing-actions">

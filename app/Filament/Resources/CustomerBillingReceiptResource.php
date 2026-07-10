@@ -780,7 +780,7 @@ class CustomerBillingReceiptResource extends Resource
                     'date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                     'product' => $d->product?->name ?? '—',
                     'customer' => $d->customer?->name ?? '—',
-                    'associate' => $d->associate?->user?->name ?? '—',
+                    'associate' => $d->associate?->display_name ?? '—',
                     'quantity' => number_format((float) $d->quantity, 4, ',', '.'),
                     'unit_price' => number_format((float) $d->unit_price, 2, ',', '.'),
                     'gross' => number_format((float) $d->quantity * (float) $d->unit_price, 2, ',', '.'),

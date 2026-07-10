@@ -233,7 +233,7 @@ class DistributionBillingService
             // Segue o fluxo: Comprovante → Pagamento → 1 crédito único (AssociateReceiptService).
             if (bccomp($fee, '0', 4) > 0) {
                 Revenue::create([
-                    'description'      => "Taxa - {$dist->product->name} - {$associate->user->name}",
+                    'description'      => "Taxa - {$dist->product->name} - {$associate->display_name}",
                     'amount'           => $fee,
                     'date'             => $billing->billing_date->toDateString(),
                     'revenueable_type' => ProductionDelivery::class,

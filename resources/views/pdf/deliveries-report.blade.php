@@ -60,7 +60,7 @@
                     <td>{{ $delivery->salesProject->title ?? '-' }}</td>
                 @endif
                 @if(in_array('associate', $columns))
-                    <td>{{ $delivery->associate->user->name ?? '-' }}</td>
+                    <td>{{ $delivery->associate?->display_name ?? 'Associado nao identificado' }}</td>
                 @endif
                 @if(in_array('product', $columns))
                     <td>{{ $delivery->product->name ?? '-' }}</td>

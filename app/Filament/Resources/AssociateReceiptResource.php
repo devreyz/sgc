@@ -68,9 +68,9 @@ class AssociateReceiptResource extends Resource
                         Forms\Components\Select::make('associate_id')
                             ->label('Produtor / Associado')
                             ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
-                                ->with('user')
                                 ->get()
-                                ->pluck('user.name', 'id'))
+                                ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
+                                ->toArray())
                             ->searchable()
                             ->required(),
 
@@ -202,7 +202,7 @@ class AssociateReceiptResource extends Resource
                     ->sortable(['receipt_year', 'receipt_number'])
                     ->searchable(query: fn ($query, $search) => $query->whereRaw("CONCAT(LPAD(receipt_number,3,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Produtor')
                     ->searchable()
                     ->sortable(),
@@ -369,7 +369,7 @@ class AssociateReceiptResource extends Resource
                             'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 
-                        $safeName = \Illuminate\Support\Str::slug($associate?->user?->name ?? 'associado');
+                        $safeName = \Illuminate\Support\Str::slug($associate?->display_name ?? 'associado');
                         $receiptLabel = str_replace('/', '-', $record->formatted_number);
                         $suffix = $isSecondCopy ? '-2via' : '';
 

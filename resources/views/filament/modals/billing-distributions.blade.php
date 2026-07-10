@@ -22,7 +22,7 @@
                     @foreach($distributions as $dist)
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td class="px-3 py-2 text-gray-800 dark:text-gray-200">
-                            {{ optional($dist->customer)->user?->name ?? optional($dist->customer)->name ?? '—' }}
+                            {{ optional($dist->customer)->name ?? '—' }}
                         </td>
                         <td class="px-3 py-2 text-gray-600 dark:text-gray-400">
                             {{ optional($dist->product)->name ?? '—' }}

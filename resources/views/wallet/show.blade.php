@@ -132,15 +132,15 @@
                                     ? $avatar
                                     : Storage::url($avatar);
                             @endphp
-                            <img src="{{ $avatarUrl }}" alt="{{ $user->name }}" 
+                            <img src="{{ $avatarUrl }}" alt="{{ $memberDisplayName }}"
                                  style="width: 60px; height: 60px; border-radius: 12px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3);">
                         @else
                             <div style="width: 60px; height: 60px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700;">
-                                {{ substr($user->name, 0, 1) }}
+                                {{ substr($memberDisplayName, 0, 1) }}
                             </div>
                         @endif
                         <div>
-                            <h4 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem;">{{ $user->name }}</h4>
+                            <h4 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.25rem;">{{ $memberDisplayName }}</h4>
                             <p style="font-size: 0.875rem; opacity: 0.9;">Nº {{ $membershipCard['member_number'] }}</p>
                         </div>
                     </div>

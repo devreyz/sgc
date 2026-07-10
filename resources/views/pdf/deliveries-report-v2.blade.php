@@ -55,7 +55,7 @@
                 <td>{{ $delivery->salesProject->title ?? '—' }}</td>
             @endif
             @if($showCol('associate'))
-                <td>{{ $delivery->associate->user->name ?? '—' }}</td>
+                <td>{{ $delivery->associate?->display_name ?? 'Associado nao identificado' }}</td>
             @endif
             @if($showCol('product'))
                 <td>{{ $delivery->product->name ?? '—' }}</td>

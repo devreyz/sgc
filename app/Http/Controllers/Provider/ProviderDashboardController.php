@@ -58,11 +58,12 @@ class ProviderDashboardController extends Controller
 
         // Auto-cria perfil mínimo se o usuário tem a role mas ainda não tem cadastro
         if (! $provider && $user->hasRoleInTenant(['service_provider', 'tratorista', 'motorista', 'diarista', 'tecnico'], $tenantId)) {
-            $rawName = $user->getAttributes()['name'] ?? $user->getOriginal('name') ?? $user->name;
+            $providerName = app(\App\Services\TenantIdentityService::class)
+                ->displayName($tenantId, (int) $user->id);
             $provider = ServiceProvider::create([
                 'user_id' => $user->id,
                 'tenant_id' => $tenantId,
-                'name' => $rawName,
+                'name' => $providerName,
                 'email' => $user->email,
                 'status' => true,
             ]);

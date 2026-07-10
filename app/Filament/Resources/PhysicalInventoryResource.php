@@ -180,8 +180,9 @@ class PhysicalInventoryResource extends Resource
                         default     => 'gray',
                     }),
 
-                Tables\Columns\TextColumn::make('creator.name')
+                Tables\Columns\TextColumn::make('created_by')
                     ->label('Criado por')
+                    ->formatStateUsing(fn ($state, $record): string => app(\App\Services\TenantIdentityService::class)->displayName($record->tenant_id, $record->created_by))
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('completed_at')

@@ -48,7 +48,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                     ->badge()
                     ->color('primary'),
 
-                Tables\Columns\TextColumn::make('associate.user.name')
+                Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Associado')
                     ->searchable(),
 

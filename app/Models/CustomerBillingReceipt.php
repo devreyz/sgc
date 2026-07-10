@@ -151,7 +151,7 @@ class CustomerBillingReceipt extends Model
             return $this->organization->name;
         }
         if ($this->customer_id && $this->customer) {
-            return $this->customer->name ?? $this->customer->user?->name ?? '—';
+            return $this->customer->name ?? '—';
         }
         return '—';
     }

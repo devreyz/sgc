@@ -69,7 +69,7 @@ class DeliveriesExport implements FromCollection, WithHeadings, WithMapping, Wit
             $data[] = match($column) {
                 'delivery_date' => $row->delivery_date?->format('d/m/Y'),
                 'project' => $row->salesProject?->title,
-                'associate' => $row->associate?->user?->name,
+                'associate' => $row->associate?->display_name,
                 'product' => $row->product?->name,
                 'quantity' => number_format($row->quantity, 2, ',', '.') . ' ' . ($row->product?->unit ?? ''),
                 'unit_price' => 'R$ ' . number_format($row->unit_price, 2, ',', '.'),

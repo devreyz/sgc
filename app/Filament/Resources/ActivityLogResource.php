@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Str;
 use App\Models\User;
+use App\Services\TenantIdentityService;
 
 class ActivityLogResource extends Resource
 {
@@ -151,9 +152,9 @@ class ActivityLogResource extends Resource
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('causer.name')
+                Tables\Columns\TextColumn::make('causer_id')
                     ->label('Usuário')
-                    ->searchable(['users.name', 'users.email'])
+                    ->formatStateUsing(fn ($state, Activity $record): string => self::causerDisplayName($record))
                     ->sortable()
                     ->default('Sistema')
                     ->description(fn ($record) => $record->causer?->email ?? ''),
@@ -307,21 +308,20 @@ class ActivityLogResource extends Resource
                 Tables\Filters\SelectFilter::make('causer_id')
                     ->label('Usuário')
                     ->options(function () {
-                        $query = User::query();
+                        $tenantId = session('tenant_id');
 
-                        // Aplicar escopo por tenant para não-super-admins
-                        if (! auth()->user()?->hasRole('super_admin')) {
-                            $tenantId = session('tenant_id');
-                            if ($tenantId) {
-                                $query->whereHas('tenants', function ($q) use ($tenantId) {
-                                    $q->where('tenant_id', $tenantId);
-                                });
-                            } else {
-                                return [];
-                            }
+                        if (! $tenantId && ! auth()->user()?->hasRole('super_admin')) {
+                            return [];
                         }
 
-                        return $query->orderBy('name')->pluck('name', 'id')->toArray();
+                        return User::query()
+                            ->join('tenant_user', 'tenant_user.user_id', '=', 'users.id')
+                            ->when($tenantId, fn ($query) => $query->where('tenant_user.tenant_id', $tenantId))
+                            ->whereNotNull('tenant_user.tenant_name')
+                            ->where('tenant_user.tenant_name', '<>', '')
+                            ->orderBy('tenant_user.tenant_name')
+                            ->pluck('tenant_user.tenant_name', 'users.id')
+                            ->toArray();
                     })
                     ->searchable()
                     ->multiple(),
@@ -454,7 +454,7 @@ class ActivityLogResource extends Resource
 
         foreach ($records as $record) {
             $date = $record->created_at->format('d/m/Y H:i:s');
-            $user = $record->causer?->name ?? 'Sistema';
+            $user = self::causerDisplayName($record);
             $action = match ($record->description) {
                 'created' => 'Criado',
                 'updated' => 'Atualizado',
@@ -482,6 +482,23 @@ class ActivityLogResource extends Resource
         }
 
         return "\xEF\xBB\xBF".$csv; // UTF-8 BOM for Excel
+    }
+
+    public static function causerDisplayName(Activity $activity): string
+    {
+        if (! $activity->causer_id) {
+            return 'Sistema';
+        }
+
+        return app(TenantIdentityService::class)
+            ->displayName(self::activityTenantId($activity), (int) $activity->causer_id);
+    }
+
+    public static function activityTenantId(Activity $activity): ?int
+    {
+        $tenantId = $activity->tenant_id ?? data_get($activity->properties, 'tenant_id');
+
+        return $tenantId ? (int) $tenantId : null;
     }
 
     public static function getRelations(): array

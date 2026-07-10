@@ -85,7 +85,7 @@ class FinancialDistributionService
 
             // Create revenue entry for the cooperative (admin fee)
             $revenue = Revenue::create([
-                'description' => "Taxa administrativa - {$delivery->product->name} - {$associate->user->name}",
+                'description' => "Taxa administrativa - {$delivery->product->name} - {$associate->display_name}",
                 'amount' => $adminFeeAmount,
                 'date' => $delivery->delivery_date,
                 'revenueable_type' => ProductionDelivery::class,

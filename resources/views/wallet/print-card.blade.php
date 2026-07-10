@@ -727,7 +727,7 @@
                             <img class="photo-img" src="{{ $avatarUrl }}" alt="Foto" crossorigin="anonymous" loading="eager" decoding="async">
                         @else
                             <div class="photo-initials" style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                {{ strtoupper(substr($user->name, 0, 2)) }}
+                                {{ strtoupper(substr($memberDisplayName, 0, 2)) }}
                             </div>
                         @endif
                     </div>
@@ -754,7 +754,7 @@
                 </div>
 
                 <div class="name-stripe">
-                    <div class="name-label" data-abbr="{{ mb_strtoupper($abbreviateName($user->name, 45), 'UTF-8') }}">{{ mb_strtoupper($user->name, 'UTF-8') }}</div>
+                    <div class="name-label" data-abbr="{{ mb_strtoupper($abbreviateName($memberDisplayName, 45), 'UTF-8') }}">{{ mb_strtoupper($memberDisplayName, 'UTF-8') }}</div>
                 </div>
                 </div>
 
@@ -982,7 +982,7 @@
                     // Adiciona a traseira imediatamente após a frente (sem gap) para permitir dobra perfeita
                     pdf.addImage(imgBack, 'PNG', xPos, 30 + 53.98, 85.6, 53.98);
 
-                    pdf.save('Carteirinha_{{ Str::slug($user->name) }}.pdf');
+                    pdf.save('Carteirinha_{{ Str::slug($memberDisplayName) }}.pdf');
 
                 } catch (e) {
                     console.error(e);
@@ -1038,9 +1038,9 @@
                     const imgFront = canvasFront.toDataURL('image/png', 1.0);
                     const imgBack = canvasBack.toDataURL('image/png', 1.0);
 
-                    downloadDataURL(imgFront, 'Carteirinha_Frente_{{ Str::slug($user->name) }}.png');
+                    downloadDataURL(imgFront, 'Carteirinha_Frente_{{ Str::slug($memberDisplayName) }}.png');
                     // Pequeno delay para dar tempo ao navegador iniciar o download
-                    setTimeout(() => downloadDataURL(imgBack, 'Carteirinha_Verso_{{ Str::slug($user->name) }}.png'), 300);
+                    setTimeout(() => downloadDataURL(imgBack, 'Carteirinha_Verso_{{ Str::slug($memberDisplayName) }}.png'), 300);
 
                 } catch (e) {
                     console.error(e);
