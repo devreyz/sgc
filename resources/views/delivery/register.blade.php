@@ -615,6 +615,20 @@
     color: var(--color-text-muted);
     font-size: 0.85rem;
 }
+.reg-integrity { border-bottom:1px solid var(--color-border); background:var(--color-bg); }
+.reg-integrity[hidden], .reg-integrity-list[hidden] { display:none !important; }
+.reg-integrity-head { display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.55rem .8rem; }
+.reg-integrity-counts { display:flex; gap:.45rem; flex-wrap:wrap; font-size:.7rem; font-weight:700; }
+.reg-integrity-toggle { width:30px; height:30px; border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); border-radius:var(--radius-md); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.reg-integrity-list { padding:0 .8rem .65rem; display:flex; flex-direction:column; gap:.45rem; }
+.reg-integrity-item { padding:.55rem .6rem; border:1px solid var(--color-border); border-left:3px solid #d97706; border-radius:var(--radius-md); background:var(--color-surface); }
+.reg-integrity-item.critical { border-left-color:#dc2626; }
+.reg-integrity-item.info { border-left-color:#2563eb; }
+.reg-integrity-title { font-size:.77rem; font-weight:800; }
+.reg-integrity-message { font-size:.73rem; color:var(--color-text-secondary); line-height:1.35; margin-top:.12rem; }
+.reg-integrity-actions { display:flex; gap:.35rem; flex-wrap:wrap; margin-top:.42rem; }
+.mc-status-pill { font-size:.62rem; font-weight:800; padding:.12rem .38rem; border-radius:999px; white-space:nowrap; }
+.mc-status-pill.rejected { color:#b91c1c; background:#fee2e2; border:1px solid #fecaca; }
 
 /* ─── Modals ─────────────────────────────────────── */
 .modal-overlay {
@@ -915,6 +929,25 @@
             <span id="session-list-title">Registros desta sessão</span>
             <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
         </div>
+        <div class="reg-integrity" id="reg-integrity" hidden>
+            <div class="reg-integrity-head">
+                <div>
+                    <div style="display:flex;align-items:center;gap:.35rem;font-size:.76rem;font-weight:800;">
+                        <i data-lucide="shield-alert" style="width:15px;height:15px;color:#d97706"></i>
+                        Pendencias e Inconsistencias
+                    </div>
+                    <div class="reg-integrity-counts" style="margin-top:.25rem;">
+                        <span id="reg-integrity-critical" style="color:#dc2626"></span>
+                        <span id="reg-integrity-warning" style="color:#d97706"></span>
+                        <span id="reg-integrity-info" style="color:#2563eb"></span>
+                    </div>
+                </div>
+                <button type="button" class="reg-integrity-toggle" onclick="toggleRegisterIntegrity()" aria-controls="reg-integrity-list" aria-expanded="false" title="Expandir ou recolher pendencias">
+                    <i data-lucide="chevron-down" style="width:15px;height:15px"></i>
+                </button>
+            </div>
+            <div class="reg-integrity-list" id="reg-integrity-list" hidden></div>
+        </div>
         <div class="history-filter" id="history-filter">
             <label for="filter-history-search">Filtrar:</label>
             <input type="search" id="filter-history-search" oninput="renderSessionItems()" placeholder="Buscar associado, produto ou data" autocomplete="off">
@@ -1067,6 +1100,8 @@ const ITEMS_KEY   = 'sgc_items_' + TENANT;
 const ROUTES = {
     demands    : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/demands',
     deliveries : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/deliveries-json',
+    integrity  : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity',
+    resolveIntegrity : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity/resolve',
     store      : '/' + TENANT + '/delivery/register',
     del        : (id)  => '/' + TENANT + '/delivery/deliveries/' + id,
 };
@@ -1224,6 +1259,110 @@ async function loadProjectDeliveries(projectId) {
     } finally {
         S.loadingDeliveries = false;
         renderSessionItems();
+        loadRegisterIntegrity(projectId);
+    }
+}
+
+function toggleRegisterIntegrity() {
+    const list = $('reg-integrity-list');
+    const btn = document.querySelector('.reg-integrity-toggle');
+    if (!list || !btn) return;
+    const opening = list.hidden;
+    list.hidden = !opening;
+    btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    const icon = btn.querySelector('i');
+    if (icon) icon.setAttribute('data-lucide', opening ? 'chevron-up' : 'chevron-down');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function integrityActionLabel(key) {
+    return ({
+        open_distribution: 'Gerenciar distribuicoes',
+        edit_distribution: 'Corrigir distribuicao',
+        detach_missing_associate_receipt: 'Desvincular comprovante',
+        delete_orphan_distribution: 'Excluir distribuicao orfa',
+        open_producers: 'Abrir comprovantes',
+    })[key] || 'Ver detalhes';
+}
+
+function renderRegisterIntegrity(integrity) {
+    const root = $('reg-integrity');
+    const list = $('reg-integrity-list');
+    if (!root || !list) return;
+    const counts = integrity?.counts || {};
+    root.hidden = false;
+    $('reg-integrity-critical').textContent = 'Critico: ' + (counts.critical || 0);
+    $('reg-integrity-warning').textContent = 'Atencao: ' + (counts.warning || 0);
+    $('reg-integrity-info').textContent = 'Info: ' + (counts.info || 0);
+
+    const issues = ['critical', 'warning', 'info'].flatMap(severity =>
+        (integrity?.[severity] || []).map(issue => ({ ...issue, severity }))
+    );
+    list.innerHTML = issues.map(issue => {
+        const action = issue.actionKey
+            ? `<button type="button" class="btn-edit btn-xs" data-integrity-action="${escAttr(issue.actionKey)}" data-delivery-id="${Number(issue.deliveryId || 0)}" data-distribution-id="${Number(issue.distributionId || 0)}">${escHtml(integrityActionLabel(issue.actionKey))}</button>`
+            : '';
+        return `<div class="reg-integrity-item ${issue.severity}" data-integrity-item="${escAttr(issue.actionKey || '')}-${Number(issue.distributionId || 0)}">
+            <div class="reg-integrity-title">${escHtml(issue.title || '')}</div>
+            <div class="reg-integrity-message">${escHtml(issue.message || '')}</div>
+            <div class="reg-integrity-message" style="font-weight:700">${escHtml(issue.action || '')}</div>
+            ${action ? `<div class="reg-integrity-actions">${action}</div>` : ''}
+        </div>`;
+    }).join('') || '<div class="reg-integrity-message">Nenhuma pendencia encontrada.</div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function loadRegisterIntegrity(projectId) {
+    if (!projectId) return;
+    try {
+        const res = await fetch(ROUTES.integrity(projectId), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const data = await res.json();
+        if (data.success) renderRegisterIntegrity(data.integrity);
+    } catch (error) {
+        // The delivery history remains usable if the advisory feed is temporarily unavailable.
+    }
+}
+
+async function handleRegisterIntegrityAction(button) {
+    const action = button.dataset.integrityAction;
+    const deliveryId = Number(button.dataset.deliveryId || 0);
+    const distributionId = Number(button.dataset.distributionId || 0);
+
+    if (action === 'open_distribution' || action === 'edit_distribution') {
+        openDistributeModal(deliveryId);
+        if (action === 'edit_distribution' && distributionId) {
+            setTimeout(() => DistModal.editExisting(distributionId), 120);
+        }
+        return;
+    }
+    if (action === 'open_producers') {
+        window.location.href = '/' + TENANT + '/delivery/projects/' + S.project.id + '/producers';
+        return;
+    }
+
+    const question = action === 'detach_missing_associate_receipt'
+        ? 'Desvincular este comprovante inexistente? A distribuicao voltara a ficar disponivel.'
+        : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
+    if (!confirm(question)) return;
+    button.disabled = true;
+    try {
+        const res = await fetch(ROUTES.resolveIntegrity(S.project.id), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action, distribution_id: distributionId }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+            toast(data.message || 'Nao foi possivel aplicar a correcao.', 'error');
+            button.disabled = false;
+            return;
+        }
+        renderRegisterIntegrity(data.integrity);
+        loadProjectDeliveries(S.project.id);
+        toast(data.message, 'success');
+    } catch (error) {
+        toast('Erro de comunicacao ao aplicar a correcao.', 'error');
+        button.disabled = false;
     }
 }
 
@@ -1540,6 +1679,7 @@ function renderSessionItems() {
         const stateIcon = getDeliveryStateIcon(statusClass, distPercent, overDist);
         const distJson = escAttr(JSON.stringify(item.distributions || []));
         const billedTag = isBilled ? '<span class="mc-billed">Fat.</span>' : '';
+        const statusTag = isRejected ? '<span class="mc-status-pill rejected">Rejeitada</span>' : '';
 
         const actionsHtml = (() => {
             let btns = '';
@@ -1549,8 +1689,8 @@ function renderSessionItems() {
                 btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}">Editar</button>`;
             } else if (isApproved) {
                 btns += `<button class="btn-distribute btn-xs" data-action="distribute" data-id="${item.id}">Distribuir</button>`;
+                btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}">Editar</button>`;
                 if (!isBilled) {
-                    btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}">Editar</button>`;
                     btns += `<button class="btn-delete-approved btn-xs" data-action="delete-approved" data-id="${item.id}">Excluir</button>`;
                 }
             } else if (isRejected) {
@@ -1570,6 +1710,7 @@ function renderSessionItems() {
                     <span class="mc-head-qty">${fmtQty(totalQty, item.productUnit)}</span>
                 </div>
                 <span class="mc-state-icon" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
+                ${statusTag}
                 ${billedTag}
             </div>
             <div class="mc-body">
@@ -1738,6 +1879,12 @@ document.addEventListener('click', function (e) {
     const summary = e.target.closest('.mc-dist-indicator[data-summary]');
     if (summary && summary.closest('#session-list')) {
         openDistSummaryFromCard(summary.closest('.mobile-card'));
+        return;
+    }
+
+    const integrityBtn = e.target.closest('[data-integrity-action]');
+    if (integrityBtn) {
+        handleRegisterIntegrityAction(integrityBtn);
         return;
     }
 
@@ -2204,6 +2351,7 @@ window.setSessionPageSize   = setSessionPageSize;
 window.changeSessionPage    = changeSessionPage;
 window.closeDistSummary     = closeDistSummary;
 window.closeDistSummaryOnBackdrop = closeDistSummaryOnBackdrop;
+window.toggleRegisterIntegrity = toggleRegisterIntegrity;
 window.addDistRegRow        = function() {};
 window.saveDist             = function() {};
 

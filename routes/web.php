@@ -103,6 +103,8 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
         Route::delete('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'deleteDelivery'])->name('deliveries.delete');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');
         Route::get('/projects/{project}/deliveries-json', [DeliveryRegistrationController::class, 'getProjectDeliveries'])->name('projects.deliveries-json');
+        Route::get('/projects/{project}/integrity', [DeliveryRegistrationController::class, 'getProjectIntegrity'])->name('projects.integrity');
+        Route::post('/projects/{project}/integrity/resolve', [DeliveryRegistrationController::class, 'resolveIntegrityIssue'])->name('projects.integrity.resolve');
         Route::get('/projects/{project}/deliveries/{delivery}/fragment', [DeliveryRegistrationController::class, 'projectDeliveryFragment'])->name('projects.deliveries.fragment');
         Route::get('/projects/{project}/stock-summary', [DeliveryRegistrationController::class, 'getProjectStockSummary'])->name('projects.stock-summary');
         Route::get('/projects/{project}/associates/{associate}/deliveries', [DeliveryRegistrationController::class, 'getAssociateDeliveries'])->name('associates.deliveries');

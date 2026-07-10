@@ -299,6 +299,7 @@
 .rm-issue-title { font-weight:800;font-size:.78rem; }
 .rm-issue-message { font-size:.75rem;line-height:1.35;margin-top:.1rem; }
 .rm-issue-action { font-size:.72rem;font-weight:700;margin-top:.18rem; }
+.rm-issue-actions { display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.4rem; }
 
 .rm-receipt-item { display:flex;align-items:center;justify-content:space-between;padding:.45rem .75rem;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);font-size:.82rem; }
 .rm-receipt-item a { color:var(--color-primary);text-decoration:none;font-size:.75rem;font-weight:600;white-space:nowrap; }
@@ -381,6 +382,7 @@ async function openReceiptModal(associateId, name) {
                     <div class="rm-issue-title">${issue.severity === 'critical' ? 'Critico' : issue.severity === 'warning' ? 'Atencao' : 'Info'} · ${escapeHtml(issue.title || '')}</div>
                     <div class="rm-issue-message">${escapeHtml(issue.message || '')}</div>
                     <div class="rm-issue-action">${escapeHtml(issue.action || '')}</div>
+                    ${issue.actionKey ? `<div class="rm-issue-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="ppHandleIntegrityAction('${escapeHtml(issue.actionKey)}', ${Number(issue.deliveryId || 0)}, ${Number(issue.distributionId || 0)})">${escapeHtml(ppIntegrityActionLabel(issue.actionKey))}</button></div>` : ''}
                 </div>
             `).join('');
             issuesEl.innerHTML = `<i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante.</span>${issueRows}</div>`;
@@ -453,6 +455,49 @@ async function openReceiptModal(associateId, name) {
 function closeReceiptModal() {
     document.getElementById('receipt-modal').classList.add('hidden');
     PP_ASSOCIATE = null;
+}
+
+function ppIntegrityActionLabel(action) {
+    return ({
+        open_distribution: 'Abrir entrega',
+        edit_distribution: 'Corrigir distribuicao',
+        detach_missing_associate_receipt: 'Desvincular comprovante',
+        delete_orphan_distribution: 'Excluir distribuicao orfa',
+        open_producers: 'Atualizar comprovantes',
+    })[action] || 'Ver correcao';
+}
+
+async function ppHandleIntegrityAction(action, deliveryId, distributionId) {
+    if (action === 'open_distribution' || action === 'edit_distribution') {
+        window.location.href = `/${PP_TENANT}/delivery/projects/${PP_PROJECT}/deliveries`;
+        return;
+    }
+    if (action === 'open_producers') {
+        openReceiptModal(PP_ASSOCIATE, document.getElementById('modal-assoc-name').textContent || 'Associado');
+        return;
+    }
+
+    const message = action === 'detach_missing_associate_receipt'
+        ? 'Desvincular este comprovante inexistente? A distribuicao voltara a ficar disponivel.'
+        : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
+    if (!confirm(message)) return;
+
+    try {
+        const res = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/integrity/resolve`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': PP_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action, distribution_id: distributionId }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+            ppToast(data.message || 'Nao foi possivel aplicar a correcao.', 'error');
+            return;
+        }
+        ppToast(data.message, 'success');
+        openReceiptModal(PP_ASSOCIATE, document.getElementById('modal-assoc-name').textContent || 'Associado');
+    } catch (error) {
+        ppToast('Erro de comunicacao ao aplicar a correcao.', 'error');
+    }
 }
 
 document.getElementById('receipt-modal')?.addEventListener('click', function(e) {

@@ -41,14 +41,16 @@ class DeliveryProjectIntegrityService
                     'Entrega sem distribuicao',
                     "{$associateName} entregou {$productName}, mas ainda nao ha destino distribuido.",
                     'Distribua a quantidade recebida ou mantenha como saldo operacional.',
-                    $parent->id
+                    $parent->id,
+                    'open_distribution'
                 );
             } elseif ($parent->status === DeliveryStatus::APPROVED && $distributed + 0.0005 < $received) {
                 $warning[] = $this->item(
                     'Entrega parcialmente distribuida',
                     "{$productName}: " . number_format($distributed, 3, ',', '.') . ' de ' . number_format($received, 3, ',', '.') . ' distribuidos.',
                     'Comprovante parcial pode ser gerado somente com as distribuicoes existentes.',
-                    $parent->id
+                    $parent->id,
+                    'open_distribution'
                 );
             }
 
@@ -57,7 +59,8 @@ class DeliveryProjectIntegrityService
                     'Distribuicao maior que recebimento',
                     "{$productName}: " . number_format($distributed, 3, ',', '.') . ' distribuidos para ' . number_format($received, 3, ',', '.') . ' recebidos.',
                     'Reduza ou corrija as distribuicoes antes de gerar comprovantes.',
-                    $parent->id
+                    $parent->id,
+                    'open_distribution'
                 );
             }
         }
@@ -66,19 +69,47 @@ class DeliveryProjectIntegrityService
             $label = '#' . $distribution->id . ' - ' . ($distribution->product?->name ?? 'Produto');
 
             if (! $distribution->parentDelivery) {
-                $critical[] = $this->item('Distribuicao orfa', "{$label} esta sem entrega-pai valida.", 'Recrie ou cancele a distribuicao.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Distribuicao orfa',
+                    "{$label} esta sem entrega-pai valida.",
+                    'Exclua a distribuicao orfa se ela nao tiver efeito financeiro.',
+                    null,
+                    'delete_orphan_distribution',
+                    $distribution->id
+                );
             }
 
             if (! $distribution->customer_id) {
-                $critical[] = $this->item('Distribuicao sem cliente', "{$label} esta sem cliente/destino.", 'Edite a distribuicao e informe o cliente correto.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Distribuicao sem cliente',
+                    "{$label} esta sem cliente/destino.",
+                    'Edite a distribuicao e informe o cliente correto.',
+                    $distribution->parent_delivery_id,
+                    'edit_distribution',
+                    $distribution->id
+                );
             }
 
             if ((float) ($distribution->unit_price ?? 0) <= 0) {
-                $critical[] = $this->item('Distribuicao sem preco', "{$label} esta sem preco valido.", 'Configure a tabela de precos e edite a distribuicao.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Distribuicao sem preco',
+                    "{$label} esta sem preco valido.",
+                    'Edite a distribuicao para recalcular o preco do cliente.',
+                    $distribution->parent_delivery_id,
+                    'edit_distribution',
+                    $distribution->id
+                );
             }
 
             if ((float) $distribution->gross_value <= 0) {
-                $critical[] = $this->item('Valor bruto zerado', "{$label} esta com valor financeiro zerado.", 'Corrija quantidade/preco antes de gerar comprovante.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Valor bruto zerado',
+                    "{$label} esta com valor financeiro zerado.",
+                    'Edite a distribuicao para corrigir quantidade e preco.',
+                    $distribution->parent_delivery_id,
+                    'edit_distribution',
+                    $distribution->id
+                );
             }
 
             if (
@@ -88,24 +119,40 @@ class DeliveryProjectIntegrityService
                     || (int) $distribution->parentDelivery->sales_project_id !== (int) $distribution->sales_project_id
                 )
             ) {
-                $critical[] = $this->item('Vinculo incompatível', "{$label} nao bate com associado ou projeto da entrega-pai.", 'Corrija manualmente antes de seguir.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Vinculo incompativel',
+                    "{$label} nao bate com associado ou projeto da entrega-pai.",
+                    'Revise a distribuicao e a entrega-pai antes de seguir.',
+                    $distribution->parent_delivery_id,
+                    'open_distribution',
+                    $distribution->id
+                );
             }
 
             if ($distribution->associate_receipt_id && ! $distribution->associateReceipt) {
-                $critical[] = $this->item('Comprovante inexistente', "{$label} aponta para um comprovante que nao existe.", 'Desvincule ou gere novamente o comprovante.', $distribution->parent_delivery_id);
+                $critical[] = $this->item(
+                    'Comprovante inexistente',
+                    "{$label} aponta para um comprovante que nao existe.",
+                    'Desvincule o comprovante inexistente para a distribuicao voltar a ficar disponivel.',
+                    $distribution->parent_delivery_id,
+                    'detach_missing_associate_receipt',
+                    $distribution->id
+                );
             }
         }
 
         $pendingReceipt = $distributions
             ->where('status', DeliveryStatus::APPROVED)
             ->where('paid', false)
-            ->filter(fn ($d) => $d->billing_status !== BillingStatus::PAID && ! $d->associate_receipt_id);
+            ->filter(fn ($delivery) => $delivery->billing_status !== BillingStatus::PAID && ! $delivery->associate_receipt_id);
 
         if ($pendingReceipt->isNotEmpty()) {
             $warning[] = $this->item(
                 'Distribuicoes sem comprovante',
                 $pendingReceipt->count() . ' distribuicao(oes) aprovadas ainda nao entraram em comprovante de produtor.',
-                'Abra os comprovantes dos produtores e gere um comprovante parcial ou completo.'
+                'Abra os comprovantes dos produtores e gere um comprovante parcial ou completo.',
+                null,
+                'open_producers'
             );
         }
 
@@ -124,12 +171,18 @@ class DeliveryProjectIntegrityService
             $warning[] = $this->item(
                 'Novas distribuicoes apos comprovante',
                 "{$associatesWithPendingAfterReceipt} associado(s) ja possuem comprovante e tambem novas distribuicoes pendentes.",
-                'Gere comprovantes adicionais somente com as novas distribuicoes.'
+                'Gere comprovantes adicionais somente com as novas distribuicoes.',
+                null,
+                'open_producers'
             );
         }
 
         if (empty($critical) && empty($warning)) {
-            $info[] = $this->item('Projeto sem pendencias criticas', 'Nenhuma inconsistencia financeira encontrada neste momento.', 'Continue operando normalmente.');
+            $info[] = $this->item(
+                'Projeto sem pendencias criticas',
+                'Nenhuma inconsistencia financeira encontrada neste momento.',
+                'Continue operando normalmente.'
+            );
         }
 
         return [
@@ -144,8 +197,14 @@ class DeliveryProjectIntegrityService
         ];
     }
 
-    private function item(string $title, string $message, string $action, ?int $deliveryId = null): array
-    {
-        return compact('title', 'message', 'action', 'deliveryId');
+    private function item(
+        string $title,
+        string $message,
+        string $action,
+        ?int $deliveryId = null,
+        ?string $actionKey = null,
+        ?int $distributionId = null,
+    ): array {
+        return compact('title', 'message', 'action', 'deliveryId', 'actionKey', 'distributionId');
     }
 }

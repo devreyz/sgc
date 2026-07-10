@@ -1095,6 +1095,11 @@ class DeliveryRegistrationController extends Controller
                         $issueCount++;
                         $issueSeverity = 'critical';
                     }
+
+                    if ($dist->associate_receipt_id && ! $dist->associateReceipt) {
+                        $issueCount++;
+                        $issueSeverity = 'critical';
+                    }
                 }
 
                 return [
@@ -1118,6 +1123,100 @@ class DeliveryRegistrationController extends Controller
             });
 
         return response()->json($deliveries);
+    }
+
+    public function getProjectIntegrity()
+    {
+        $projectId = (int) request()->route('project');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+
+        return response()->json([
+            'success' => true,
+            'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
+        ]);
+    }
+
+    public function resolveIntegrityIssue(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:detach_missing_associate_receipt,delete_orphan_distribution',
+            'distribution_id' => 'required|integer',
+        ]);
+
+        $distribution = ProductionDelivery::where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->whereNotNull('parent_delivery_id')
+            ->with('associateReceipt')
+            ->findOrFail((int) $validated['distribution_id']);
+
+        if ($distribution->paid || $distribution->billing_status !== BillingStatus::UNBILLED || $distribution->billing_receipt_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao esta faturada ou paga e precisa seguir a rotina formal de cancelamento/estorno.',
+            ], 422);
+        }
+
+        if ($validated['action'] === 'detach_missing_associate_receipt') {
+            if (! $distribution->associate_receipt_id || $distribution->associateReceipt) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'O comprovante informado nao esta mais inconsistente. Atualize a lista de pendencias.',
+                ], 422);
+            }
+
+            $oldReceiptId = $distribution->associate_receipt_id;
+            $distribution->update(['associate_receipt_id' => null]);
+
+            activity('delivery_integrity')
+                ->performedOn($distribution)
+                ->causedBy(Auth::user())
+                ->withProperties(['action' => 'detach_missing_associate_receipt', 'old_receipt_id' => $oldReceiptId])
+                ->log('Vinculo com comprovante inexistente removido');
+
+            $message = 'Vinculo com o comprovante inexistente removido. A distribuicao voltou a ficar disponivel.';
+        } else {
+            $parentExists = ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('id', $distribution->parent_delivery_id)
+                ->exists();
+
+            if ($parentExists || $distribution->associate_receipt_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Esta distribuicao nao pode ser removida por esta rotina de correcao.',
+                ], 422);
+            }
+
+            $distribution->delete();
+
+            activity('delivery_integrity')
+                ->performedOn($distribution)
+                ->causedBy(Auth::user())
+                ->withProperties(['action' => 'delete_orphan_distribution'])
+                ->log('Distribuicao orfa removida pela central de pendencias');
+
+            $message = 'Distribuicao orfa removida.';
+        }
+
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
+        ]);
     }
 
     /**

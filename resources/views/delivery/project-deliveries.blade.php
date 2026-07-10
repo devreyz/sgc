@@ -144,6 +144,10 @@
     .pd-integrity-close:hover { background:var(--color-bg); color:var(--color-text); }
     .pd-integrity-body { padding:.85rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.75rem; }
     .pd-issue-focus { outline:2px solid var(--color-primary); outline-offset:-2px; }
+    .pd-integrity-toggle { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); border-radius:var(--radius-md); min-width:30px; height:30px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+    .pd-integrity-toggle:hover { color:var(--color-text); background:var(--color-bg); }
+    .pd-integrity-content[hidden] { display:none !important; }
+    .pd-integrity-actions { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
 
     .btn { display:inline-flex; align-items:center; gap:.3rem; padding:.4rem .8rem; border-radius:var(--radius-md); border:none; cursor:pointer; font-size:.78rem; font-weight:600; text-decoration:none; transition:.15s; white-space:nowrap; }
     .btn:disabled { opacity:.45; cursor:not-allowed; }
@@ -412,12 +416,16 @@ $totalNet      = $deliveries->sum('net_value');
             <i data-lucide="shield-alert" style="width:16px;height:16px;color:var(--color-warning)"></i>
             Pendencias e Inconsistencias
         </div>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap;font-size:.72rem;font-weight:700;">
-            <span style="color:#dc2626;">Critico: {{ $integrity['counts']['critical'] ?? 0 }}</span>
-            <span style="color:#d97706;">Atencao: {{ $integrity['counts']['warning'] ?? 0 }}</span>
-            <span style="color:#2563eb;">Info: {{ $integrity['counts']['info'] ?? 0 }}</span>
+        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:700;">
+            <span id="pd-integrity-count-critical" style="color:#dc2626;">Critico: {{ $integrity['counts']['critical'] ?? 0 }}</span>
+            <span id="pd-integrity-count-warning" style="color:#d97706;">Atencao: {{ $integrity['counts']['warning'] ?? 0 }}</span>
+            <span id="pd-integrity-count-info" style="color:#2563eb;">Info: {{ $integrity['counts']['info'] ?? 0 }}</span>
+            <button type="button" class="pd-integrity-toggle" onclick="toggleIntegrityPanel()" title="Expandir ou recolher pendencias" aria-controls="pd-integrity-content" aria-expanded="false">
+                <i data-lucide="chevron-down" style="width:15px;height:15px"></i>
+            </button>
         </div>
     </div>
+    <div id="pd-integrity-content" class="pd-integrity-content" hidden>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;padding:.75rem;">
         @foreach(['critical' => ['Critico', '#dc2626'], 'warning' => ['Atencao', '#d97706'], 'info' => ['Informativo', '#2563eb']] as $severity => [$label, $color])
             <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg);">
@@ -426,15 +434,18 @@ $totalNet      = $deliveries->sum('net_value');
                 </div>
                 <div style="display:flex;flex-direction:column;">
                     @forelse(($integrity[$severity] ?? []) as $issue)
-                        <div data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
+                        <div data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
                             <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
                             <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
                             <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
-                            @if(!empty($issue['deliveryId']))
-                                <button type="button" class="btn btn-ghost btn-sm" style="margin-top:.45rem;" onclick="document.querySelector('[data-delivery-id=\'{{ $issue['deliveryId'] }}\']')?.scrollIntoView({behavior:'smooth',block:'center'})">
-                                    Ver entrega
-                                </button>
-                            @endif
+                            <div class="pd-integrity-actions">
+                                @if(!empty($issue['actionKey']))
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }})">Resolver agora</button>
+                                @endif
+                                @if(!empty($issue['deliveryId']))
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="focusIntegrityDelivery({{ (int) $issue['deliveryId'] }})">Ver entrega</button>
+                                @endif
+                            </div>
                         </div>
                     @empty
                         <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
@@ -444,6 +455,7 @@ $totalNet      = $deliveries->sum('net_value');
         @endforeach
     </div>
 </div>
+    </div>
 
 <div class="pd-integrity-overlay" id="pd-integrity-modal" onclick="closeIntegrityModalOnBackdrop(event)" aria-hidden="true">
     <div class="pd-integrity-box" role="dialog" aria-modal="true" aria-labelledby="pd-integrity-title">
@@ -467,10 +479,15 @@ $totalNet      = $deliveries->sum('net_value');
                     </div>
                     <div style="display:flex;flex-direction:column;">
                         @forelse(($integrity[$severity] ?? []) as $issue)
-                            <div data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
+                            <div data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
                                 <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
                                 <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
                                 <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
+                                @if(!empty($issue['actionKey']))
+                                    <div class="pd-integrity-actions">
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }})">Resolver agora</button>
+                                    </div>
+                                @endif
                             </div>
                         @empty
                             <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
@@ -690,6 +707,90 @@ function closeIntegrityModal() {
 
 function closeIntegrityModalOnBackdrop(event) {
     if (event.target === document.getElementById('pd-integrity-modal')) closeIntegrityModal();
+}
+
+function toggleIntegrityPanel() {
+    const content = document.getElementById('pd-integrity-content');
+    const button = document.querySelector('.pd-integrity-toggle');
+    if (!content || !button) return;
+    const opening = content.hidden;
+    content.hidden = !opening;
+    button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+    const icon = button.querySelector('i');
+    if (icon) icon.setAttribute('data-lucide', opening ? 'chevron-up' : 'chevron-down');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function focusIntegrityDelivery(deliveryId) {
+    closeIntegrityModal();
+    const row = document.querySelector(`[data-delivery-id="${deliveryId}"]`);
+    row?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function openIntegrityDistribution(deliveryId, distributionId = 0, edit = false) {
+    const button = document.querySelector(`.btn-distribute[data-id="${deliveryId}"]`);
+    if (!button) {
+        focusIntegrityDelivery(deliveryId);
+        pdToast('Abra uma entrega aprovada para corrigir as distribuicoes.', 'info');
+        return;
+    }
+
+    closeIntegrityModal();
+    DistModal.openFromBtn(button);
+    if (edit && distributionId) {
+        setTimeout(() => DistModal.editExisting(distributionId), 120);
+    }
+}
+
+function applyResolvedIntegrity(integrity, actionKey, distributionId) {
+    document.querySelectorAll(`[data-integrity-item="${actionKey}-${distributionId}"]`).forEach(el => el.remove());
+    ['critical', 'warning', 'info'].forEach(severity => {
+        const el = document.getElementById(`pd-integrity-count-${severity}`);
+        if (!el) return;
+        const label = severity === 'critical' ? 'Critico' : severity === 'warning' ? 'Atencao' : 'Info';
+        el.textContent = `${label}: ${integrity?.counts?.[severity] ?? 0}`;
+    });
+}
+
+async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0) {
+    if (actionKey === 'open_distribution') {
+        openIntegrityDistribution(deliveryId, distributionId);
+        return;
+    }
+    if (actionKey === 'edit_distribution') {
+        openIntegrityDistribution(deliveryId, distributionId, true);
+        return;
+    }
+    if (actionKey === 'open_producers') {
+        window.location.href = `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/producers`;
+        return;
+    }
+
+    const message = actionKey === 'detach_missing_associate_receipt'
+        ? 'Desvincular este comprovante inexistente? A distribuicao voltara a ficar disponivel para um novo comprovante.'
+        : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
+    const confirmed = await customConfirm(message);
+    if (!confirmed) return;
+
+    try {
+        const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/integrity/resolve`, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action: actionKey, distribution_id: distributionId }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+            pdToast(data.message || 'Nao foi possivel aplicar esta correcao.', 'error');
+            return;
+        }
+
+        applyResolvedIntegrity(data.integrity, actionKey, distributionId);
+        if (deliveryId) refreshDeliveryItem(deliveryId).catch(() => {});
+        loadReceiptsHistory();
+        pdToast(data.message);
+    } catch (error) {
+        pdToast('Erro de comunicacao ao aplicar a correcao.', 'error');
+    }
 }
 
 /* ========== CUSTOM CONFIRM ========== */
