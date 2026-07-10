@@ -52,6 +52,7 @@
 .rm-info-blue{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af}
 .rm-info-yellow{background:#fef9c3;border:1px solid #fde047;color:#78350f}
 .rm-info-red{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b}
+.rm-info-green{background:#dcfce7;border:1px solid #86efac;color:#166534}
 .rm-issues-list{display:flex;flex-direction:column;gap:.35rem;width:100%}
 .rm-issue-item{border-top:1px solid rgba(153,27,27,.18);padding-top:.35rem;margin-top:.25rem}
 .rm-issue-title{font-weight:800;font-size:.78rem}
@@ -144,7 +145,7 @@
             Produtor: <strong id="modal-assoc-name">-</strong>
         </div>
 
-        <div id="rm-issues" class="rm-info rm-info-red hidden"></div>
+        <div id="rm-issues" class="rm-info rm-info-blue hidden"></div>
         <div id="rm-checking" style="padding:1.5rem 0;text-align:center;font-size:.85rem;color:var(--color-text-secondary);">
             <span style="animation:spin 1s linear infinite;display:inline-block;margin-right:.4rem">◌</span>
             Verificando comprovantes...
@@ -332,7 +333,10 @@ async function openReceiptModal(associateId,name){
 
 function renderIssues(issues,criticalIssues){
     const issuesEl=document.getElementById('rm-issues');
-    if(criticalIssues<=0 && !issues.length){issuesEl.classList.add('hidden');issuesEl.innerHTML='';return;}
+    if(criticalIssues<=0 && !issues.length){issuesEl.className='rm-info rm-info-green';issuesEl.innerHTML=`<i data-lucide="check-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>0 inconsistencia(s) critica(s) podem bloquear o comprovante.</span><span>Nenhuma inconsistencia financeira encontrada neste momento.</span><span>Continue operando normalmente.</span></div>`;issuesEl.classList.remove('hidden');if(typeof lucide!=='undefined')lucide.createIcons();return;}
+    const hasCritical=criticalIssues>0 || issues.some(issue=>issue.severity==='critical');
+    const hasWarning=issues.some(issue=>issue.severity==='warning');
+    issuesEl.className='rm-info ' + (hasCritical ? 'rm-info-red' : (hasWarning ? 'rm-info-yellow' : 'rm-info-blue'));
     const issueRows=issues.slice(0,8).map(issue=>`
         <div class="rm-issue-item">
             <div class="rm-issue-title">${issue.severity==='critical'?'Critico':issue.severity==='warning'?'Atencao':'Info'} · ${escapeHtml(issue.title || '')}</div>
@@ -340,8 +344,9 @@ function renderIssues(issues,criticalIssues){
             <div class="rm-issue-action">${escapeHtml(issue.action || '')}</div>
             ${issue.actionKey?`<div class="rm-issue-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="ppHandleIntegrityAction('${escapeHtml(issue.actionKey)}',${Number(issue.deliveryId || 0)},${Number(issue.distributionId || 0)})">${escapeHtml(ppIntegrityActionLabel(issue.actionKey))}</button></div>`:''}
         </div>`).join('');
-    issuesEl.innerHTML=`<i data-lucide="alert-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante.</span>${issueRows}</div>`;
+    issuesEl.innerHTML=`<i data-lucide="${hasCritical ? 'alert-circle' : (hasWarning ? 'alert-triangle' : 'info')}" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>${criticalIssues} inconsistencia(s) critica(s) podem bloquear o comprovante.</span>${issueRows}</div>`;
     issuesEl.classList.remove('hidden');
+    if(typeof lucide!=='undefined')lucide.createIcons();
 }
 
 function renderReceiptsList(receipts){
