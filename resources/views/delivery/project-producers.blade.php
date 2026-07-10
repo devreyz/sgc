@@ -327,6 +327,7 @@ const PP_PROJECT = {{ $project->id }};
 let   PP_ASSOCIATE     = null;
 let   PP_ALL_DIST_IDS  = [];   // IDs de todas as distribuições aprovadas do associado
 let   PP_CHECK_DATA    = null; // último resultado de receipt-check
+let   PP_EDIT_RECEIPT_ID = null;
 
 /* ── Toasts ── */
 function ppToast(msg, type = 'success') {
@@ -361,6 +362,7 @@ async function openReceiptModal(associateId, name) {
     PP_ASSOCIATE    = associateId;
     PP_ALL_DIST_IDS = [];
     PP_CHECK_DATA   = null;
+    PP_EDIT_RECEIPT_ID = null;
     document.getElementById('modal-assoc-name').textContent = name;
     document.getElementById('receipt-modal').classList.remove('hidden');
     setModalState('checking');
@@ -421,9 +423,12 @@ async function openReceiptModal(associateId, name) {
                         ${netBadge}
                         <span style="color:#6b7280;font-size:.75rem">&mdash; ${r.issued_at}</span>
                     </div>
-                    <a href="${r.reprint_url}" target="_blank">
-                        <i data-lucide="printer" style="width:12px;height:12px;vertical-align:middle"></i> Reimprimir
-                    </a>`;
+                    <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;justify-content:flex-end">
+                        ${r.can_update && (PP_CHECK_DATA.uncovered_count ?? 0) > 0 ? `<button type="button" class="btn btn-ghost btn-sm" onclick="enterSelectingMode(${r.id})">Adicionar pendentes</button>` : ''}
+                        <a href="${r.reprint_url}" target="_blank">
+                            <i data-lucide="printer" style="width:12px;height:12px;vertical-align:middle"></i> Reimprimir
+                        </a>
+                    </div>`;
                 listEl.appendChild(item);
             });
             if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -536,8 +541,19 @@ async function generateAllDeliveries() {
 }
 
 /* ── Entrar no modo de seleção (comprovante adicional) ── */
-async function enterSelectingMode() {
+async function enterSelectingMode(receiptId = null) {
+    PP_EDIT_RECEIPT_ID = receiptId ? Number(receiptId) : null;
     setModalState('selecting');
+    const isUpdating = !!PP_EDIT_RECEIPT_ID;
+    const infoText = document.querySelector('#rm-selecting .rm-info span');
+    if (infoText) {
+        infoText.textContent = isUpdating
+            ? 'Selecione as distribuicoes pendentes para incluir no comprovante existente. O PDF sera regenerado com o mesmo numero.'
+            : 'Selecione as distribuicoes que farao parte deste comprovante adicional.';
+    }
+    const generateBtn = document.getElementById('rm-btn-gen-sel');
+    generateBtn.innerHTML = `<i data-lucide="file-down" style="width:13px;height:13px"></i> ${isUpdating ? 'Atualizar comprovante' : 'Gerar PDF'}`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     const area = document.getElementById('rm-sel-area');
     area.innerHTML = '<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Carregando distribuições…</p>';
 
@@ -584,6 +600,7 @@ async function enterSelectingMode() {
 }
 
 function showHasReceiptState() {
+    PP_EDIT_RECEIPT_ID = null;
     setModalState('has-receipt');
 }
 
@@ -604,7 +621,51 @@ async function generateSelectedReceipt() {
     const visibleColumns = Array.from(document.querySelectorAll('#rm-selecting .rm-col-chk:checked')).map(c => c.value);
     const btn = document.getElementById('rm-btn-gen-sel');
 
+    if (PP_EDIT_RECEIPT_ID) {
+        await updateExistingReceipt(PP_EDIT_RECEIPT_ID, ids, visibleColumns, btn);
+        return;
+    }
+
     await doGenerateReceipt(ids, visibleColumns, btn, 'Gerar PDF');
+}
+
+function downloadReceiptPdf(data) {
+    const byteChars = atob(data.pdf);
+    const byteArray = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = data.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+async function updateExistingReceipt(receiptId, ids, visibleColumns, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Atualizando...';
+    try {
+        const res = await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/receipts/${receiptId}/distributions`, {
+            method: 'PUT',
+            headers: { 'X-CSRF-TOKEN': PP_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ delivery_ids: ids, visible_columns: visibleColumns }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+            ppToast(data.message || 'Nao foi possivel atualizar o comprovante.', 'error');
+            return;
+        }
+        downloadReceiptPdf(data);
+        ppToast(data.message, 'success');
+        openReceiptModal(PP_ASSOCIATE, document.getElementById('modal-assoc-name').textContent || 'Associado');
+    } catch (error) {
+        ppToast('Erro de comunicacao ao atualizar o comprovante.', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i data-lucide="file-down" style="width:13px;height:13px"></i> Atualizar comprovante';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
 }
 
 /* ── Função central de geração via POST ── */

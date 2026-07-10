@@ -2852,6 +2852,16 @@ class DeliveryRegistrationController extends Controller
             'status_label'=> $r->status?->getLabel() ?? 'Rascunho',
             'total_net'   => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
             'is_paid'     => $r->status === \App\Enums\ReceiptStatus::PAID,
+            'can_update'  => $r->isEditable()
+                && (float) ($r->amount_paid ?? 0) <= 0
+                && ! ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('associate_receipt_id', $r->id)
+                    ->where(function ($query) {
+                        $query->where('paid', true)
+                            ->orWhere('billing_status', '!=', BillingStatus::UNBILLED->value)
+                            ->orWhereNotNull('billing_receipt_id');
+                    })
+                    ->exists(),
             'reprint_url' => route('delivery.projects.receipt-reprint', [
                 'tenant'  => $tenantSlug,
                 'project' => $projectId,
@@ -3145,6 +3155,129 @@ class DeliveryRegistrationController extends Controller
                 'project' => $projectId,
                 'receipt' => $receipt->id,
             ]),
+        ]);
+    }
+
+    /**
+     * Adds pending distributions to an existing producer receipt and regenerates
+     * its financial snapshot. The receipt number is preserved; paid or billed
+     * distributions are never moved by this operation.
+     */
+    public function updateReceiptDistributions(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $receiptId = (int) $request->route('receipt');
+        $tenantId = session('tenant_id');
+
+        if (! $tenantId) {
+            return response()->json(['success' => false, 'message' => 'Sessao expirada.'], 403);
+        }
+
+        $validated = $request->validate([
+            'delivery_ids' => 'required|array|min:1',
+            'delivery_ids.*' => 'integer',
+            'visible_columns' => 'nullable|array',
+        ]);
+        $selectedIds = collect($validated['delivery_ids'])->map(fn ($id) => (int) $id)->unique()->values();
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+
+        try {
+            $result = DB::transaction(function () use ($tenantId, $projectId, $receiptId, $selectedIds, $project) {
+                $receipt = AssociateReceipt::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $projectId)
+                    ->lockForUpdate()
+                    ->findOrFail($receiptId);
+
+                if (! $receipt->isEditable() || $receipt->status === ReceiptStatus::PARTIALLY_PAID || $receipt->status === ReceiptStatus::PAID || (float) ($receipt->amount_paid ?? 0) > 0) {
+                    throw new \RuntimeException('Este comprovante ja possui pagamento ou esta bloqueado e nao pode ser atualizado.');
+                }
+
+                $currentIds = ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('associate_receipt_id', $receipt->id)
+                    ->pluck('id')
+                    ->merge($receipt->delivery_ids ?? []);
+                $allIds = $currentIds->merge($selectedIds)->map(fn ($id) => (int) $id)->unique()->values();
+
+                $distributions = ProductionDelivery::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $projectId)
+                    ->where('associate_id', $receipt->associate_id)
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED)
+                    ->whereIn('id', $allIds)
+                    ->with(['product', 'customer', 'parentDelivery'])
+                    ->lockForUpdate()
+                    ->get();
+
+                if ($distributions->count() !== $allIds->count()) {
+                    throw new \RuntimeException('Uma ou mais distribuicoes nao pertencem a este produtor/projeto ou nao estao mais aprovadas.');
+                }
+
+                $locked = $distributions->first(fn (ProductionDelivery $distribution) =>
+                    $distribution->paid
+                    || $distribution->billing_status !== BillingStatus::UNBILLED
+                    || $distribution->billing_receipt_id
+                );
+                if ($locked) {
+                    throw new \RuntimeException("A distribuicao #{$locked->id} ja foi faturada, paga ou vinculada a cobranca e nao pode alterar este comprovante.");
+                }
+
+                if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $receipt->associate_id, $receipt->id)) {
+                    throw new \RuntimeException($message);
+                }
+
+                $beforeIds = $currentIds->map(fn ($id) => (int) $id)->values()->all();
+                app(\App\Services\AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
+                $receipt->update(['delivery_ids' => $allIds->all()]);
+
+                activity('associate_receipt')
+                    ->performedOn($receipt)
+                    ->causedBy(Auth::user())
+                    ->withProperties([
+                        'action' => 'add_pending_distributions',
+                        'previous_delivery_ids' => $beforeIds,
+                        'delivery_ids' => $allIds->all(),
+                    ])
+                    ->log('Comprovante atualizado com distribuicoes pendentes');
+
+                return [$receipt->fresh(), $distributions, max(0, $allIds->count() - count($beforeIds))];
+            });
+        } catch (\RuntimeException $exception) {
+            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+        }
+
+        [$receipt, $distributions, $addedCount] = $result;
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
+        $tenant = $this->currentTenant();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+
+        $visibleColumns = $validated['visible_columns'] ?? ['unit_price', 'gross'];
+        $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
+        $visibleColumns = array_values(array_filter($visibleColumns, fn ($column) => in_array($column, $allowedColumns, true)));
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $receiptData['summary'],
+            'productsSummary' => $receiptData['productsSummary'],
+            'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
+            'visible_columns' => $visibleColumns,
+        ])->setPaper('a4', 'portrait');
+
+        $safeName = \Illuminate\Support\Str::slug($associate->user->name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+
+        return response()->json([
+            'success' => true,
+            'updated' => true,
+            'message' => "Comprovante {$receipt->formatted_number} atualizado com {$addedCount} distribuicao(oes). Gere o PDF atualizado.",
+            'receipt_id' => $receipt->id,
+            'receipt_number' => $receipt->formatted_number,
+            'receipt_status' => $receipt->status?->value,
+            'filename' => "comprovante-{$receiptLabel}-{$safeName}-atualizado.pdf",
+            'pdf' => base64_encode($pdf->output()),
         ]);
     }
 
