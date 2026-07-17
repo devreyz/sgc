@@ -197,18 +197,55 @@ class SalesProjectResource extends Resource
                                             ->where('tenant_user.tenant_id', '=', session('tenant_id'));
                                     })
                                     ->where('associates.tenant_id', session('tenant_id'))
-                                    ->where('tenant_user.tenant_name', 'like', "%{$search}%")
-                                    ->with('user')
+                                    ->where(function (Builder $query) use ($search) {
+                                        $query->where('tenant_user.tenant_name', 'like', "%{$search}%")
+                                            ->orWhere('associates.member_code', 'like', "%{$search}%")
+                                            ->orWhere('associates.registration_number', 'like', "%{$search}%")
+                                            ->orWhere('associates.district', 'like', "%{$search}%")
+                                            ->orWhere('associates.city', 'like', "%{$search}%");
+                                    })
                                     ->limit(50)
                                     ->get()
-                                    ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
+                                    ->mapWithKeys(fn (Associate $associate) => [$associate->id => self::associateOptionLabel($associate)])
                             )
-                            ->getOptionLabelUsing(fn ($value) =>
-                                Associate::where('tenant_id', session('tenant_id'))->with('user')->find($value)?->display_name ?? $value
-                            )
+                            ->getOptionLabelsUsing(fn (array $values): array => Associate::query()
+                                ->where('tenant_id', session('tenant_id'))
+                                ->whereIn('id', $values)
+                                ->get()
+                                ->mapWithKeys(fn (Associate $associate) => [$associate->id => self::associateOptionLabel($associate)])
+                                ->all())
                             ->preload(false)
                             ->searchable()
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('restrict_participants'))
+                            ->saveRelationshipsUsing(function (SalesProject $record, ?array $state): void {
+                                $selectedIds = Associate::query()
+                                    ->where('tenant_id', $record->tenant_id)
+                                    ->whereIn('id', collect($state)->filter()->map(fn ($id) => (int) $id))
+                                    ->pluck('id');
+
+                                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $selectedIds): void {
+                                    if ($record->restrict_participants) {
+                                        $record->projectAssociates()
+                                            ->where('tenant_id', $record->tenant_id)
+                                            ->when($selectedIds->isNotEmpty(), fn ($query) => $query->whereNotIn('associate_id', $selectedIds))
+                                            ->update(['status' => 'blocked', 'updated_by' => auth()->id()]);
+                                    }
+
+                                    foreach ($selectedIds as $associateId) {
+                                        $link = $record->projectAssociates()->firstOrNew([
+                                            'tenant_id' => $record->tenant_id,
+                                            'associate_id' => $associateId,
+                                        ]);
+                                        if (! $link->exists) {
+                                            $link->created_by = auth()->id();
+                                        }
+                                        $link->fill([
+                                            'status' => 'active',
+                                            'updated_by' => auth()->id(),
+                                        ])->save();
+                                    }
+                                });
+                            })
                             ->columnSpanFull(),
                     ])
                     ->collapsed()
@@ -229,6 +266,17 @@ class SalesProjectResource extends Resource
                     ->collapsed()
                     ->collapsible(),
             ]);
+    }
+
+    private static function associateOptionLabel(Associate $associate): string
+    {
+        $code = $associate->member_code ?: $associate->registration_number;
+        $details = collect([
+            $code ? 'Associado #'.$code : null,
+            $associate->district ?: $associate->city,
+        ])->filter()->implode(' - ');
+
+        return $associate->display_name.($details !== '' ? ' - '.$details : '');
     }
 
     public static function table(Table $table): Table

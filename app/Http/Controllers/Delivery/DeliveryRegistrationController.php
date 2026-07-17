@@ -17,14 +17,18 @@ use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\BuyerRequestFulfillmentService;
+use App\Services\AssociateProjectLimitService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\PricingService;
+use App\Services\ProjectDistributionCustomerService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\StockService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class DeliveryRegistrationController extends Controller
 {
@@ -44,7 +48,70 @@ class DeliveryRegistrationController extends Controller
         return $tenantId ? Tenant::find($tenantId) : null;
     }
 
-    private function deliveryViewData(ProductionDelivery $delivery): array
+    private function deliveryLimitContext(Collection $deliveries, SalesProject $project): array
+    {
+        $associateIds = $deliveries->pluck('associate_id')->filter()->unique();
+        $productIds = $deliveries->pluck('product_id')->filter()->unique();
+        if ($associateIds->isEmpty() || $productIds->isEmpty()) {
+            return [];
+        }
+
+        $limits = \App\Models\ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('associate_id', $associateIds)
+            ->whereIn('product_id', $productIds)
+            ->where('status', 'active')
+            ->get()
+            ->keyBy(fn ($limit) => $limit->associate_id.':'.$limit->product_id);
+        $associateDelivered = ProductionDelivery::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('associate_id', $associateIds)
+            ->whereIn('product_id', $productIds)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->selectRaw('associate_id, product_id, SUM(quantity) as total')
+            ->groupBy('associate_id', 'product_id')
+            ->get()
+            ->keyBy(fn ($row) => $row->associate_id.':'.$row->product_id);
+        $projectDelivered = ProductionDelivery::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('product_id', $productIds)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+        $projectLimits = ProjectDemand::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('product_id', $productIds)
+            ->selectRaw('product_id, SUM(target_quantity) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        return $deliveries->mapWithKeys(function (ProductionDelivery $delivery) use ($limits, $associateDelivered, $projectDelivered, $projectLimits) {
+            $key = $delivery->associate_id.':'.$delivery->product_id;
+            $limit = $limits->get($key);
+            $maximum = $limit ? (float) $limit->max_quantity : null;
+            $used = (float) ($associateDelivered->get($key)?->total ?? 0);
+            $projectMaximum = isset($projectLimits[$delivery->product_id]) ? (float) $projectLimits[$delivery->product_id] : null;
+            $projectUsed = (float) ($projectDelivered[$delivery->product_id] ?? 0);
+
+            return [$delivery->id => [
+                'associate_limit' => $maximum,
+                'associate_delivered' => $used,
+                'associate_remaining' => $maximum === null ? null : max(0, $maximum - $used),
+                'associate_percent' => $maximum && $maximum > 0 ? min(100, ($used / $maximum) * 100) : null,
+                'project_limit' => $projectMaximum,
+                'project_remaining' => $projectMaximum === null ? null : max(0, $projectMaximum - $projectUsed),
+            ]];
+        })->all();
+    }
+
+    private function deliveryViewData(ProductionDelivery $delivery, array $limitData = []): array
     {
         $productName = $delivery->projectDemand?->product?->name
             ?? $delivery->product?->name
@@ -102,6 +169,8 @@ class DeliveryRegistrationController extends Controller
 
         return [
             'id'                => $delivery->id,
+            'associate_id'      => $delivery->associate_id,
+            'sales_project_id'  => $delivery->sales_project_id,
             'associate_name'    => $delivery->associate?->display_name ?? 'Associado #'.$delivery->associate_id,
             'product_name'      => $productName,
             'delivery_date'     => $delivery->delivery_date?->format('d/m/Y') ?? '-',
@@ -120,6 +189,7 @@ class DeliveryRegistrationController extends Controller
             'has_billed'        => $distributions->contains('billed', true),
             'issue_count'       => $issueCount,
             'issue_severity'    => $issueSeverity,
+            'limit'             => $limitData,
         ];
     }
 
@@ -308,7 +378,7 @@ class DeliveryRegistrationController extends Controller
 
         $projects = SalesProject::where('tenant_id', $tenantId)
             ->where('status', ProjectStatus::ACTIVE->value)
-            ->with(['customer', 'customers'])
+            ->with(['customer', 'customers', 'organizations'])
             ->orderBy('title')
             ->get()
             ->map(fn ($p) => [
@@ -317,7 +387,7 @@ class DeliveryRegistrationController extends Controller
                 'customer_name'       => $p->customer->name ?? '-',
                 'allow_any_product'   => (bool) $p->allow_any_product,
                 'admin_fee_percentage' => (float) ($p->admin_fee_percentage ?? 10),
-                'customer_ids'        => $p->customers->pluck('id')->values()->all(),
+                'customer_ids'        => app(ProjectDistributionCustomerService::class)->ids($p)->all(),
             ]);
 
         // Pre-select project if provided via URL
@@ -371,11 +441,19 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
 
-        $customers = Customer::where('tenant_id', $tenantId)
-            ->where('status', true)
-            ->with('organization:id,name,short_name')
-            ->orderBy('name')
-            ->get(['id', 'name', 'trade_name', 'organization_id', 'price_table_id'])
+        $projectId = request()->integer('project_id');
+        $customers = $projectId > 0
+            ? app(ProjectDistributionCustomerService::class)->customers(
+                SalesProject::query()->where('tenant_id', $tenantId)->findOrFail($projectId)
+            )
+            : Customer::where('tenant_id', $tenantId)
+                ->where('status', true)
+                ->whereNotNull('organization_id')
+                ->with('organization:id,name,short_name')
+                ->orderBy('name')
+                ->get(['id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
+
+        $customers = $customers
             ->map(fn ($c) => [
                 'id'                => $c->id,
                 'name'              => $c->name,
@@ -438,17 +516,34 @@ class DeliveryRegistrationController extends Controller
         }
 
         $project = $reception->salesProject;
-        $project?->loadMissing('customers:id');
-        $allowedCustomerIds = $project?->customers?->pluck('id') ?? collect();
-        if ($allowedCustomerIds->isNotEmpty() && $customerIds->diff($allowedCustomerIds)->isNotEmpty()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este projeto permite distribuicao apenas para os clientes vinculados a ele.',
-            ], 422);
+        if ($project) {
+            try {
+                app(ProjectDistributionCustomerService::class)->assertAllowed($project, $customerIds);
+            } catch (ValidationException $exception) {
+                return response()->json([
+                    'success' => false,
+                    'message' => collect($exception->errors())->flatten()->first(),
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
         }
 
         try {
             DB::beginTransaction();
+
+            $reception = ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNull('parent_delivery_id')
+                ->lockForUpdate()
+                ->findOrFail($deliveryId);
+            $lockedDistributed = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('parent_delivery_id', $reception->id)
+                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                ->sum('quantity');
+            if ($lockedDistributed + (float) $newTotal > (float) $reception->quantity + 0.0005) {
+                throw ValidationException::withMessages([
+                    'distributions' => 'Os dados desta entrega foram atualizados por outro usuario. Revise o saldo disponivel antes de continuar.',
+                ]);
+            }
 
             $pricingService = app(PricingService::class);
             $calculator     = app(ProjectFinancialCalculator::class);
@@ -509,6 +604,15 @@ class DeliveryRegistrationController extends Controller
                 $qty       = (string) $dist['quantity'];
                 $gross     = bcmul($qty, $unitPrice, 8);
 
+                if ($project) {
+                    $associate = Associate::where('tenant_id', $tenantId)->findOrFail($reception->associate_id);
+                    app(AssociateProjectLimitService::class)->validateDistribution(
+                        $project,
+                        $associate,
+                        (float) $gross
+                    );
+                }
+
                 // 2. Aplica taxas pelo motor financeiro central
                 $financial = $project ? $calculator->calculate($project, $gross) : [
                     'total_fee'                => '0',
@@ -560,6 +664,9 @@ class DeliveryRegistrationController extends Controller
                 'delivery_id'   => $reception->id,
                 'created_ids'  => $created,
             ]);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -747,13 +854,16 @@ class DeliveryRegistrationController extends Controller
         }
 
         $project = $parent->salesProject;
-        $project?->loadMissing('customers:id');
-        $allowedCustomerIds = $project?->customers?->pluck('id') ?? collect();
-        if ($allowedCustomerIds->isNotEmpty() && ! $allowedCustomerIds->contains((int) $customer->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Este projeto permite distribuicao apenas para os clientes vinculados a ele.',
-            ], 422);
+        if ($project) {
+            try {
+                app(ProjectDistributionCustomerService::class)->assertAllowed($project, [$customer->id]);
+            } catch (ValidationException $exception) {
+                return response()->json([
+                    'success' => false,
+                    'message' => collect($exception->errors())->flatten()->first(),
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
         }
 
         $siblingsTotal = (float) ProductionDelivery::where('tenant_id', $tenantId)
@@ -816,17 +926,44 @@ class DeliveryRegistrationController extends Controller
 
         $oldOrganizationId = $distribution->customer?->organization_id;
 
-        $distribution->update([
-            'customer_id' => (int) $customer->id,
-            'quantity' => $qty,
-            'unit_price' => $unitPrice,
-            'cost_price_used' => $priceResult['cost_price'],
-            'admin_fee_percentage' => $financial['admin_fee_percentage_eff'],
-            'admin_fee_amount' => $financial['total_fee'],
-            'net_value' => $financial['net'],
-            'price_table_id' => $priceResult['price_table_id'],
-            'price_source' => $priceResult['source'],
-        ]);
+        DB::transaction(function () use ($project, $parent, $distribution, $customer, $qty, $gross, $unitPrice, $priceResult, $financial, $tenantId) {
+            $lockedParent = ProductionDelivery::where('tenant_id', $tenantId)
+                ->whereNull('parent_delivery_id')
+                ->lockForUpdate()
+                ->findOrFail($parent->id);
+            $lockedSiblingTotal = (float) ProductionDelivery::where('tenant_id', $tenantId)
+                ->where('parent_delivery_id', $lockedParent->id)
+                ->where('id', '!=', $distribution->id)
+                ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                ->sum('quantity');
+            if ($lockedSiblingTotal + (float) $qty > (float) $lockedParent->quantity + 0.0005) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Os dados desta entrega foram atualizados por outro usuario. Revise o saldo disponivel antes de continuar.',
+                ]);
+            }
+
+            if ($project) {
+                $associate = Associate::where('tenant_id', $tenantId)->findOrFail($parent->associate_id);
+                app(AssociateProjectLimitService::class)->validateDistribution(
+                    $project,
+                    $associate,
+                    (float) $gross,
+                    $distribution->id
+                );
+            }
+
+            $distribution->update([
+                'customer_id' => (int) $customer->id,
+                'quantity' => $qty,
+                'unit_price' => $unitPrice,
+                'cost_price_used' => $priceResult['cost_price'],
+                'admin_fee_percentage' => $financial['admin_fee_percentage_eff'],
+                'admin_fee_amount' => $financial['total_fee'],
+                'net_value' => $financial['net'],
+                'price_table_id' => $priceResult['price_table_id'],
+                'price_source' => $priceResult['source'],
+            ]);
+        });
 
         if ($receipt && ! $receipt->isLocked()) {
             $receiptDistributions = ProductionDelivery::where('tenant_id', $tenantId)
@@ -970,6 +1107,25 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['error' => 'Projeto não encontrado'], 404);
         }
 
+        $associateId = request()->integer('associate_id');
+        if ($associateId > 0) {
+            $associate = Associate::query()
+                ->where('tenant_id', $tenantId)
+                ->findOrFail($associateId);
+
+            try {
+                return response()->json(
+                    app(AssociateProjectLimitService::class)
+                        ->eligibleProducts($project, $associate)
+                        ->values()
+                );
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+                return response()->json([
+                    'message' => $exception->getMessage() ?: 'Este associado nao esta autorizado neste projeto.',
+                ], $exception->getStatusCode());
+            }
+        }
+
         // Projeto livre: retorna todos os produtos cadastrados
         if ($project->allow_any_product) {
             $products = Product::where('tenant_id', $tenantId)
@@ -1043,23 +1199,23 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
 
-        $project = SalesProject::where('tenant_id', $tenantId)
-            ->with('customers:id')
-            ->find($projectId);
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
         if (! $project) {
             return response()->json(['error' => 'Projeto não encontrado'], 404);
         }
 
-        $projectCustomerIds = $project->customers->pluck('id')->values()->all();
+        $projectCustomerIds = app(ProjectDistributionCustomerService::class)->ids($project)->all();
 
-        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+        $deliveryModels = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
             ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(function ($d) use ($projectCustomerIds) {
+            ->get();
+        $limitContext = $this->deliveryLimitContext($deliveryModels, $project);
+        $deliveries = $deliveryModels
+            ->map(function ($d) use ($projectCustomerIds, $limitContext) {
                 $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
                 $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
                 $associateName = $d->associate?->display_name ?? 'Associado nao identificado';
@@ -1132,6 +1288,7 @@ class DeliveryRegistrationController extends Controller
                     'has_billed'     => $hasBilled,
                     'issue_count'    => $issueCount,
                     'issue_severity' => $issueSeverity,
+                    'limit'          => $limitContext[$d->id] ?? [],
                     'customerIds'     => $projectCustomerIds,
                 ];
             });
@@ -1365,13 +1522,26 @@ class DeliveryRegistrationController extends Controller
             }
         }
 
-        $delivery->update([
-            'delivery_date' => $validated['delivery_date'],
-            'quantity'      => $validated['quantity'],
-            'unit_price'    => $validated['unit_price'] ?? $delivery->unit_price,
-            'quality_grade' => $validated['quality_grade'] ?? null,
-            'notes'         => $validated['notes'] ?? null,
-        ]);
+        DB::transaction(function () use ($delivery, $validated, $tenantId) {
+            if (! $delivery->parent_delivery_id && $delivery->salesProject) {
+                $associate = Associate::where('tenant_id', $tenantId)->findOrFail($delivery->associate_id);
+                app(AssociateProjectLimitService::class)->validateDelivery(
+                    $delivery->salesProject,
+                    $associate,
+                    (int) $delivery->product_id,
+                    (float) $validated['quantity'],
+                    $delivery->id
+                );
+            }
+
+            $delivery->update([
+                'delivery_date' => $validated['delivery_date'],
+                'quantity'      => $validated['quantity'],
+                'unit_price'    => $validated['unit_price'] ?? $delivery->unit_price,
+                'quality_grade' => $validated['quality_grade'] ?? null,
+                'notes'         => $validated['notes'] ?? null,
+            ]);
+        });
 
         $delivery->refresh();
 
@@ -1429,65 +1599,21 @@ class DeliveryRegistrationController extends Controller
                 ], 422);
             }
 
-            // Projetos com demanda específica precisam de project_demand_id
-            if (! $project->allow_any_product && empty($validated['project_demand_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto da demanda do projeto.'], 422);
-            }
-
-            // Projetos livres precisam de product_id
-            if ($project->allow_any_product && empty($validated['product_id'])) {
+            if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
             }
 
-            // Validação: participante restrito
-            if ($project->restrict_participants) {
-                $isAllowed = \App\Models\ProjectAssociate::where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->exists();
-                if (! $isAllowed) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Este associado não está na lista de participantes deste projeto.',
-                    ], 422);
-                }
+            $associate = Associate::query()
+                ->where('tenant_id', $tenantId)
+                ->findOrFail($validated['associate_id']);
+            if (! $project->isAssociateAllowed($associate->id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
+                ], 422);
             }
 
-            // Validação: limite de faturamento por associado
-            if ($project->max_total_value_per_associate) {
-                $accumulated = (float) \App\Models\ProductionDelivery::where('tenant_id', $tenantId)
-                    ->where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->whereNull('parent_delivery_id')
-                    ->whereNotIn('status', ['cancelled', 'rejected'])
-                    ->selectRaw('SUM(quantity * unit_price) as total')
-                    ->value('total');
-
-                // Calcular o valor estimado da nova entrega
-                $newEntryPrice = 0.0;
-                if (! $project->allow_any_product && ! empty($validated['project_demand_id'])) {
-                    $tempDemand = \App\Models\ProjectDemand::find($validated['project_demand_id']);
-                    $newEntryPrice = $tempDemand ? (float) $tempDemand->unit_price : 0.0;
-                } elseif (! empty($validated['product_id'])) {
-                    // Projetos livres: recepções têm unit_price=0 (preço ao cliente via PricingService)
-                    $newEntryPrice = 0.0;
-                }
-
-                $newEntryValue = (float) $validated['quantity'] * $newEntryPrice;
-                $limit = (float) $project->max_total_value_per_associate;
-
-                if (($accumulated + $newEntryValue) > $limit) {
-                    $remaining = max(0, $limit - $accumulated);
-                    return response()->json([
-                        'success' => false,
-                        'message' => sprintf(
-                            'Limite máximo de faturamento atingido para este projeto. Limite: R$ %s | Já entregue: R$ %s | Disponível: R$ %s.',
-                            number_format($limit, 2, ',', '.'),
-                            number_format($accumulated, 2, ',', '.'),
-                            number_format($remaining, 2, ',', '.')
-                        ),
-                    ], 422);
-                }
-            }
+            // A entrega-pai nao consome limite financeiro. O consumo ocorre na distribuicao.
         } else {
             // Modo avulso: product_id é obrigatório
             if (empty($validated['product_id'])) {
@@ -1517,9 +1643,10 @@ class DeliveryRegistrationController extends Controller
                     ->where('delivery_date', $validated['delivery_date'])
                     ->where('created_at', '>=', now()->subSeconds(30))
                     ->first();
-            } elseif (! $project->allow_any_product) {
-                // Projeto com demandas
-                $demand = ProjectDemand::where('tenant_id', $tenantId)->findOrFail($validated['project_demand_id']);
+            } elseif (! empty($validated['project_demand_id'])) {
+                $demand = ProjectDemand::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $project->id)
+                    ->findOrFail($validated['project_demand_id']);
                 $unitPrice = (float) $demand->unit_price;
                 $productId = $demand->product_id;
                 $demandId = $demand->id;
@@ -1533,8 +1660,9 @@ class DeliveryRegistrationController extends Controller
                     ->where('created_at', '>=', now()->subSeconds(30))
                     ->first();
             } else {
-                // Projeto livre: preço ao associado não rastreado; preço ao cliente via PricingService na distribuição
-                $product = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
+                $product = Product::where('tenant_id', $tenantId)
+                    ->where('status', true)
+                    ->findOrFail($validated['product_id']);
                 $unitPrice = 0.0;
                 $productId = $product->id;
                 $demandId = null;
@@ -1560,35 +1688,11 @@ class DeliveryRegistrationController extends Controller
 
             // Validação: limite de quantidade por produto/associado no projeto
             if (! $isStandalone && $project && $productId) {
-                $productLimit = \App\Models\ProjectAssociateProductLimit::where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->where('product_id', $productId)
-                    ->first();
+                $associate ??= Associate::where('tenant_id', $tenantId)->findOrFail($validated['associate_id']);
+                $limitService = app(AssociateProjectLimitService::class);
+                $limitService->assertContext($project, $associate);
+                $limitService->validateDelivery($project, $associate, $productId, $quantity);
 
-                if ($productLimit) {
-                    $accumulatedQty = (float) ProductionDelivery::where('tenant_id', $tenantId)
-                        ->where('sales_project_id', $project->id)
-                        ->where('associate_id', $validated['associate_id'])
-                        ->where('product_id', $productId)
-                        ->whereNull('parent_delivery_id')
-                        ->whereNotIn('status', ['cancelled', 'rejected'])
-                        ->sum('quantity');
-
-                    $maxQty = (float) $productLimit->max_quantity;
-                    if (($accumulatedQty + $quantity) > $maxQty) {
-                        DB::rollBack();
-                        $remaining = max(0, $maxQty - $accumulatedQty);
-                        return response()->json([
-                            'success' => false,
-                            'message' => sprintf(
-                                'Limite de quantidade por produto atingido para este associado. Limite: %s | Já entregue: %s | Disponível: %s.',
-                                number_format($maxQty, 3, ',', '.'),
-                                number_format($accumulatedQty, 3, ',', '.'),
-                                number_format($remaining, 3, ',', '.')
-                            ),
-                        ], 422);
-                    }
-                }
             }
 
             $grossValue = bcmul((string) $quantity, (string) $unitPrice, 8);
@@ -1634,6 +1738,9 @@ class DeliveryRegistrationController extends Controller
                     'status'    => $delivery->status->getLabel(),
                 ],
             ]);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -1690,28 +1797,18 @@ class DeliveryRegistrationController extends Controller
             ->with('customer')
             ->findOrFail($projectId);
 
-        $deliveries = ProductionDelivery::where('tenant_id', $tenantId)
+        $deliveryModels = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
             ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
-            ->get()
-            ->map(fn ($delivery) => $this->deliveryViewData($delivery));
+            ->get();
+        $limitContext = $this->deliveryLimitContext($deliveryModels, $project);
+        $deliveries = $deliveryModels
+            ->map(fn ($delivery) => $this->deliveryViewData($delivery, $limitContext[$delivery->id] ?? []));
 
-        // Show only the project's additional customers in the distribution modal.
-        // Fall back to all tenant customers when no participants are configured.
-        $project->loadMissing(['customers']);
-        $projectCustomers = $project->customers;
-
-        if ($projectCustomers->isNotEmpty()) {
-            $customers = $projectCustomers->sortBy('name')->values();
-        } else {
-            $customers = Customer::where('tenant_id', $tenantId)
-                ->where('status', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'trade_name']);
-        }
+        $customers = app(ProjectDistributionCustomerService::class)->customers($project);
 
         $currentTenant = $this->currentTenant();
         $integrity = app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project);
@@ -1729,9 +1826,7 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
         }
 
-        $project = SalesProject::where('tenant_id', $tenantId)
-            ->with('customers')
-            ->findOrFail($projectId);
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
 
         $deliveryModel = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -1739,17 +1834,10 @@ class DeliveryRegistrationController extends Controller
             ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
             ->findOrFail($deliveryId);
 
-        $projectCustomers = $project->customers;
-        if ($projectCustomers->isNotEmpty()) {
-            $customers = $projectCustomers->sortBy('name')->values();
-        } else {
-            $customers = Customer::where('tenant_id', $tenantId)
-                ->where('status', true)
-                ->orderBy('name')
-                ->get(['id', 'name', 'trade_name']);
-        }
+        $customers = app(ProjectDistributionCustomerService::class)->customers($project);
 
-        $delivery = $this->deliveryViewData($deliveryModel);
+        $limitContext = $this->deliveryLimitContext(collect([$deliveryModel]), $project);
+        $delivery = $this->deliveryViewData($deliveryModel, $limitContext[$deliveryModel->id] ?? []);
 
         return response()->json([
             'success' => true,
@@ -3732,51 +3820,21 @@ class DeliveryRegistrationController extends Controller
                     'message' => 'O projeto precisa estar "Em Execução". Status atual: '.$project->status->getLabel(),
                 ], 422);
             }
-            if (! $project->allow_any_product && empty($validated['project_demand_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto da demanda do projeto.'], 422);
-            }
-            if ($project->allow_any_product && empty($validated['product_id'])) {
+            if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
             }
 
-            // Validação: participante restrito (batch)
-            if ($project->restrict_participants) {
-                $isAllowed = \App\Models\ProjectAssociate::where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->exists();
-                if (! $isAllowed) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Este associado não está na lista de participantes deste projeto.',
-                    ], 422);
-                }
+            $associate = Associate::query()
+                ->where('tenant_id', $tenantId)
+                ->findOrFail($validated['associate_id']);
+            if (! $project->isAssociateAllowed($associate->id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
+                ], 422);
             }
 
-            // Validação: limite de faturamento por associado (batch) — pré-check antes de iniciar transação
-            if ($project->max_total_value_per_associate) {
-                $accumulated = (float) ProductionDelivery::where('tenant_id', $tenantId)
-                    ->where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->whereNull('parent_delivery_id')
-                    ->whereNotIn('status', ['cancelled', 'rejected'])
-                    ->selectRaw('SUM(quantity * unit_price) as total')
-                    ->value('total');
-
-                $batchTotalValue = collect($validated['entries'])->sum(fn ($e) => (float) $e['quantity']) * 0.0; // placeholder; preciso do unit_price
-                // Preço será calculado mais adiante, então fazemos o check com estimativa zero
-                // O check real será feito dentro da transação (abaixo), mas sinalizamos cedo para UX
-                $limit = (float) $project->max_total_value_per_associate;
-                if ($accumulated >= $limit) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => sprintf(
-                            'Limite máximo de faturamento atingido para este projeto. Limite: R$ %s | Já entregue: R$ %s.',
-                            number_format($limit, 2, ',', '.'),
-                            number_format($accumulated, 2, ',', '.')
-                        ),
-                    ], 422);
-                }
-            }
+            // O limite financeiro sera validado quando houver distribuicao com preco real.
         } else {
             if (empty($validated['product_id'])) {
                 return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
@@ -3796,14 +3854,18 @@ class DeliveryRegistrationController extends Controller
                 $unitPrice      = 0.0; // Preço ao associado não rastreado; preço ao cliente via PricingService
                 $productId      = $product->id;
                 $adminFeePercent = 0.0;
-            } elseif (! $project->allow_any_product) {
-                $demand         = ProjectDemand::where('tenant_id', $tenantId)->findOrFail($validated['project_demand_id']);
+            } elseif (! empty($validated['project_demand_id'])) {
+                $demand         = ProjectDemand::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $project->id)
+                    ->findOrFail($validated['project_demand_id']);
                 $unitPrice      = (float) $demand->unit_price;
                 $productId      = $demand->product_id;
                 $demandId       = $demand->id;
                 $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
             } else {
-                $product        = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
+                $product        = Product::where('tenant_id', $tenantId)
+                    ->where('status', true)
+                    ->findOrFail($validated['product_id']);
                 $unitPrice      = 0.0; // Preço ao associado não rastreado; preço ao cliente via PricingService
                 $productId      = $product->id;
                 $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
@@ -3811,70 +3873,20 @@ class DeliveryRegistrationController extends Controller
 
             $created = [];
 
-            // Pré-carregar limite por produto/associado para validação no loop
-            $productLimit = null;
             if (! $isStandalone && $project && $productId) {
-                $productLimit = \App\Models\ProjectAssociateProductLimit::where('sales_project_id', $project->id)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->where('product_id', $productId)
-                    ->first();
+                $associate ??= Associate::where('tenant_id', $tenantId)->findOrFail($validated['associate_id']);
+                $limitService = app(AssociateProjectLimitService::class);
+                $limitService->assertContext($project, $associate);
+                $limitService->validateDelivery(
+                    $project,
+                    $associate,
+                    $productId,
+                    (float) collect($validated['entries'])->sum('quantity')
+                );
             }
-
-            $accumulatedQtyInSession = 0.0; // rastreia quantidade acumulada durante o batch
-            $accumulatedValueInSession = 0.0;
-
-            // Qty já acumulada antes deste batch (para limites)
-            $preBatchQty = $productLimit ? (float) ProductionDelivery::where('tenant_id', $tenantId)
-                ->where('sales_project_id', $project->id)
-                ->where('associate_id', $validated['associate_id'])
-                ->where('product_id', $productId)
-                ->whereNull('parent_delivery_id')
-                ->whereNotIn('status', ['cancelled', 'rejected'])
-                ->sum('quantity') : 0.0;
-
-            $preBatchValue = ($project && $project->max_total_value_per_associate) ? (float) ProductionDelivery::where('tenant_id', $tenantId)
-                ->where('sales_project_id', $project->id)
-                ->where('associate_id', $validated['associate_id'])
-                ->whereNull('parent_delivery_id')
-                ->whereNotIn('status', ['cancelled', 'rejected'])
-                ->selectRaw('SUM(quantity * unit_price) as total')
-                ->value('total') : 0.0;
 
             foreach ($validated['entries'] as $entry) {
                 $quantity       = (float) $entry['quantity'];
-                $grossValue     = $quantity * $unitPrice;
-
-                // Validação intra-batch: limite de faturamento por associado
-                if ($project && $project->max_total_value_per_associate) {
-                    $limit = (float) $project->max_total_value_per_associate;
-                    if (($preBatchValue + $accumulatedValueInSession + $grossValue) > $limit) {
-                        DB::rollBack();
-                        $remaining = max(0, $limit - $preBatchValue - $accumulatedValueInSession);
-                        return response()->json([
-                            'success' => false,
-                            'message' => sprintf(
-                                'Limite máximo de faturamento atingido para este projeto. Disponível: R$ %s.',
-                                number_format($remaining, 2, ',', '.')
-                            ),
-                        ], 422);
-                    }
-                }
-
-                // Validação intra-batch: limite de quantidade por produto
-                if ($productLimit) {
-                    $maxQty = (float) $productLimit->max_quantity;
-                    if (($preBatchQty + $accumulatedQtyInSession + $quantity) > $maxQty) {
-                        DB::rollBack();
-                        $remaining = max(0, $maxQty - $preBatchQty - $accumulatedQtyInSession);
-                        return response()->json([
-                            'success' => false,
-                            'message' => sprintf(
-                                'Limite de quantidade por produto atingido. Disponível: %s.',
-                                number_format($remaining, 3, ',', '.')
-                            ),
-                        ], 422);
-                    }
-                }
 
                 $grossValueEntry = bcmul((string) $quantity, (string) $unitPrice, 8);
 
@@ -3908,14 +3920,11 @@ class DeliveryRegistrationController extends Controller
                     'paid'              => false,
                 ]);
 
-                $accumulatedQtyInSession   += $quantity;
-                $accumulatedValueInSession += $grossValue;
-
                 $created[] = [
                     'id'         => $delivery->id,
                     'date'       => $entry['delivery_date'],
                     'quantity'   => $quantity,
-                    'net_value'  => $netValue,
+                    'net_value'  => (float) $netValueEntry,
                 ];
             }
 
@@ -3929,6 +3938,9 @@ class DeliveryRegistrationController extends Controller
                 'count'      => $count,
                 'deliveries' => $created,
             ]);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 

@@ -144,7 +144,9 @@ class SalesProject extends Model
             'project_associates',
             'sales_project_id',
             'associate_id'
-        )->withTimestamps();
+        )->wherePivot('status', 'active')
+            ->withPivot(['tenant_id', 'status', 'financial_limit', 'notes'])
+            ->withTimestamps();
     }
 
     /**
@@ -180,21 +182,20 @@ class SalesProject extends Model
             return true;
         }
 
-        return $this->projectAssociates()->where('associate_id', $associateId)->exists();
+        return $this->projectAssociates()
+            ->where('associate_id', $associateId)
+            ->where('status', 'active')
+            ->exists();
     }
 
-    /**
-     * Get the total gross value already delivered by an associate in this project
-     * (only approved + pending, not cancelled/rejected).
-     */
+    /** Get the official value consumed by an associate from approved distributions. */
     public function getAssociateTotalValue(int $associateId): float
     {
         return (float) $this->deliveries()
             ->where('associate_id', $associateId)
-            ->whereNull('parent_delivery_id') // recepções
-            ->whereNotIn('status', ['cancelled', 'rejected'])
-            ->selectRaw('SUM(quantity * unit_price) as total')
-            ->value('total');
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED->value)
+            ->sum('gross_value');
     }
 
     /**

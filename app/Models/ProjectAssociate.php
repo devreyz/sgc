@@ -14,7 +14,23 @@ class ProjectAssociate extends Model
         'tenant_id',
         'sales_project_id',
         'associate_id',
+        'financial_limit',
+        'status',
+        'notes',
+        'valid_from',
+        'valid_until',
+        'created_by',
+        'updated_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'financial_limit' => 'decimal:2',
+            'valid_from' => 'date',
+            'valid_until' => 'date',
+        ];
+    }
 
     public function salesProject(): BelongsTo
     {
@@ -25,4 +41,5 @@ class ProjectAssociate extends Model
     {
         return $this->belongsTo(Associate::class);
     }
+
 }

@@ -4,6 +4,11 @@ $totalQty = $delivery['quantity'];
 $distPercent = $totalQty > 0 ? min(round(($distQty / $totalQty) * 100), 100) : 0;
 $overDistributed = $distQty > $totalQty;
 $distDisplayPercent = $overDistributed ? 100 : $distPercent;
+$limit = $delivery['limit'] ?? [];
+$associateLimit = $limit['associate_limit'] ?? null;
+$associateRemaining = $limit['associate_remaining'] ?? null;
+$limitPercent = $limit['associate_percent'] ?? null;
+$limitColor = $limitPercent === null ? '#94a3b8' : ($limitPercent >= 100 ? '#dc2626' : ($limitPercent >= 80 ? '#d97706' : '#059669'));
 $visualStatus = $delivery['status_value'] === 'approved' && $distPercent >= 100 && ! $overDistributed
     ? 'distributed'
     : $delivery['status_value'];
@@ -74,6 +79,14 @@ $stateIcon = $overDistributed
             </div>
         </div>
 
+        @if($associateLimit !== null)
+        <div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.45rem;font-size:.68rem;color:var(--color-text-secondary);padding:.25rem .5rem;">
+            <span>Limite</span>
+            <div style="height:5px;background:#e5e7eb;border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:{{ min(100, $limitPercent) }}%;background:{{ $limitColor }}"></span></div>
+            <strong style="color:var(--color-text)">{{ number_format($associateRemaining, 3, ',', '.') }} {{ $delivery['unit'] }} livres</strong>
+        </div>
+        @endif
+
         <div style="display:flex; align-items:center; gap:.5rem; background:var(--color-bg); padding:.3rem .5rem; border-radius:6px;">
             <span style="font-size:.65rem; text-transform:uppercase; color:var(--color-text-secondary); white-space:nowrap;">Distrib.</span>
             <div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1" style="display:flex; align-items:center; gap:.3rem; flex:1; min-width:0;" title="{{ $overDistributed ? 'Excede. Total dist.: '.number_format($distQty,2,',','.').' '.$delivery['unit'] : ($distPercent >= 100 ? 'Totalmente distribuido' : 'A distribuir: '.number_format($totalQty - $distQty, 2, ',', '.').' '.$delivery['unit']) }}">
@@ -106,6 +119,7 @@ $stateIcon = $overDistributed
                     data-distributed="{{ $delivery['distributed_qty'] }}"
                     data-existing="{{ json_encode($delivery['distributions']) }}"
                     data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
+                    data-context="{{ $delivery['sales_project_id'] }}:{{ $delivery['associate_id'] }}"
                 >Distribuir</button>
                 <button class="btn-edit btn-xs"
                     data-id="{{ $delivery['id'] }}"

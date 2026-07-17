@@ -16,12 +16,22 @@ class ProjectAssociateProductLimit extends Model
         'associate_id',
         'product_id',
         'max_quantity',
+        'reference_unit_price',
+        'status',
+        'notes',
+        'archived_at',
+        'archived_by',
+        'archive_reason',
+        'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
     {
         return [
             'max_quantity' => 'decimal:4',
+            'reference_unit_price' => 'decimal:4',
+            'archived_at' => 'datetime',
         ];
     }
 

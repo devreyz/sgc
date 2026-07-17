@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Associate\AssociateDashboardController;
+use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
+use App\Http\Controllers\Delivery\AssociateProjectController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
@@ -87,7 +89,9 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
     Route::prefix('associate')->name('associate.')->middleware(['role:associado'])->group(function () {
         Route::get('/dashboard', [AssociateDashboardController::class, 'index'])->name('dashboard');
         Route::get('/projects', [AssociateDashboardController::class, 'projects'])->name('projects');
-        Route::get('/projects/{project}', [AssociateDashboardController::class, 'showProject'])->name('projects.show');
+        Route::get('/projects/{project}', [AssociateProjectPortalController::class, 'show'])->name('projects.show');
+        Route::get('/projects/{project}/data/{section}', [AssociateProjectPortalController::class, 'data'])->name('projects.data');
+        Route::get('/projects/{project}/receipts/{receipt}/download', [AssociateProjectPortalController::class, 'downloadReceipt'])->name('projects.receipts.download');
         Route::get('/deliveries', [AssociateDashboardController::class, 'deliveries'])->name('deliveries');
         Route::get('/ledger', [AssociateDashboardController::class, 'ledger'])->name('ledger');
     });
@@ -132,6 +136,13 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
         Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');
         Route::get('/projects/{project}/producers', [DeliveryRegistrationController::class, 'projectProducers'])->name('projects.producers');
         Route::get('/projects/{project}/producers-data', [DeliveryRegistrationController::class, 'projectProducersData'])->name('projects.producers-data');
+        Route::get('/projects/{project}/associates', [AssociateProjectController::class, 'index'])->name('projects.associates.index');
+        Route::get('/projects/{project}/associates-data', [AssociateProjectController::class, 'associatesData'])->name('projects.associates.list');
+        Route::get('/projects/{project}/associates/{associate}', [AssociateProjectController::class, 'show'])->name('projects.associates.show');
+        Route::get('/projects/{project}/associates/{associate}/data/{section}', [AssociateProjectController::class, 'data'])->name('projects.associates.data');
+        Route::put('/projects/{project}/associates/{associate}/participation', [AssociateProjectController::class, 'updateParticipation'])->name('projects.associates.participation');
+        Route::put('/projects/{project}/associates/{associate}/limits/financial', [AssociateProjectController::class, 'updateFinancialLimit'])->name('projects.associates.limits.financial');
+        Route::put('/projects/{project}/associates/{associate}/limits/product', [AssociateProjectController::class, 'updateProductLimit'])->name('projects.associates.limits.product');
         Route::get('/projects/{project}/associates/{associate}/receipt-check', [DeliveryRegistrationController::class, 'checkAssociateReceipt'])->name('projects.associate-receipt-check');
         Route::get('/projects/{project}/associates/{associate}/receipt', [DeliveryRegistrationController::class, 'generateAssociateReceiptPdf'])->name('projects.associate-receipt');
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');

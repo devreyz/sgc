@@ -328,6 +328,9 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Adicionar cliente
                 </button>
+                <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.restoreDefaultCustomers()" aria-label="Restaurar clientes padrao">
+                    Restaurar clientes padrao
+                </button>
             </div>
         </div>
 
@@ -378,6 +381,8 @@ let _distQty   = 0;     // already distributed (existing, from DB)
 let _activeCustomers = DM_CUSTOMERS;
 let _existing = [];
 let _pendingDangerDelete = null;
+let _customerStateKey = null;
+const _customerStates = new Map();
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -390,6 +395,35 @@ function fmtR(n) {
     return 'R$ ' + parseFloat(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 function $ (id) { return document.getElementById(id); }
+
+function customerState(participants, context) {
+    const defaultIds = (participants.length > 0
+        ? DM_CUSTOMERS.filter(customer => participants.some(id => String(id) === String(customer.id)))
+        : DM_CUSTOMERS).map(customer => String(customer.id));
+    const nextKey = context || 'customers:' + defaultIds.slice().sort().join(',');
+    if (_customerStateKey && _customerStateKey !== nextKey) {
+        _customerStates.delete(_customerStateKey);
+    }
+    _customerStateKey = nextKey;
+    if (!_customerStates.has(_customerStateKey)) {
+        _customerStates.set(_customerStateKey, { defaultIds, activeIds: defaultIds.slice(), excludedIds: [] });
+    }
+    const state = _customerStates.get(_customerStateKey);
+    state.defaultIds = defaultIds;
+    state.activeIds = state.activeIds.filter(id => defaultIds.includes(String(id)));
+    _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
+    return state;
+}
+
+function excludeCustomer(customerId) {
+    if (!customerId || !_customerStateKey) return;
+    const state = _customerStates.get(_customerStateKey);
+    if (!state) return;
+    const id = String(customerId);
+    state.activeIds = state.activeIds.filter(item => String(item) !== id);
+    if (!state.excludedIds.includes(id)) state.excludedIds.push(id);
+    _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
+}
 
 function focusQtyInput(currentInput, direction) {
     const inputs = Array.from($('dm-new-rows').querySelectorAll('.dm-row input[type=number]'));
@@ -527,7 +561,7 @@ function buildRow(preselectId = null, autofocus = false) {
     const sel = document.createElement('select');
     sel.setAttribute('aria-label', 'Selecionar cliente para distribuição ' + rowIdx);
     sel.innerHTML = '<option value="">Selecionar cliente…</option>' +
-        DM_CUSTOMERS.map(c => `<option value="${c.id}"${c.id == preselectId ? ' selected' : ''}>${esc(c.name)}${c.organization_name ? ' · ' + esc(c.organization_name) : ''}</option>`).join('');
+        DM_CUSTOMERS.map(c => `<option value="${c.id}"${c.id == preselectId ? ' selected' : ''}>${esc(c.name)}</option>`).join('');
 
     const activeIds = new Set(_activeCustomers.map(c => String(c.id)));
     Array.from(sel.options).forEach(option => {
@@ -556,7 +590,7 @@ function buildRow(preselectId = null, autofocus = false) {
     rm.className = 'dm-rm-btn';
     rm.setAttribute('aria-label', 'Remover esta linha de distribuição');
     rm.textContent = '×';
-    rm.onclick = () => { row.remove(); updateProgress(); };
+    rm.onclick = () => { excludeCustomer(sel.value); row.remove(); updateProgress(); };
 
     row.appendChild(sel);
     row.appendChild(inp);
@@ -565,7 +599,10 @@ function buildRow(preselectId = null, autofocus = false) {
 }
 
 function customerOptions(selectedId) {
-    return _activeCustomers.map(c =>
+    const options = _activeCustomers.slice();
+    const selected = DM_CUSTOMERS.find(c => String(c.id) === String(selectedId));
+    if (selected && !options.some(c => String(c.id) === String(selectedId))) options.push(selected);
+    return options.map(c =>
         `<option value="${c.id}"${String(c.id) === String(selectedId) ? ' selected' : ''}>${esc(c.name)}${c.organization_name ? ' · ' + esc(c.organization_name) : ''}</option>`
     ).join('');
 }
@@ -594,6 +631,7 @@ window.DistModal = {
             distributed: parseFloat(btn.dataset.distributed) || 0,
             existing,
             participants,
+            context: btn.dataset.context || null,
         });
     },
 
@@ -616,9 +654,7 @@ window.DistModal = {
         // New rows — pre-populate per participant if available, else one blank row
         $('dm-new-rows').innerHTML = '';
         const participants = Array.isArray(cfg.participants) ? cfg.participants : [];
-        _activeCustomers = participants.length > 0
-            ? DM_CUSTOMERS.filter(c => participants.some(id => id == c.id))
-            : DM_CUSTOMERS;
+        customerState(participants, cfg.context || null);
         // Determine which customers are already fully existing (all listed = skip pre-populating those)
         const existingIds = new Set((cfg.existing || []).map(d => d.customer_id || d.customerId).filter(Boolean).map(String));
         // Filter participants to those not yet in existing
@@ -654,10 +690,26 @@ window.DistModal = {
     },
 
     addRow() {
+        if (_activeCustomers.length === 0) {
+            alert('Nenhum cliente ativo. Restaure os clientes padrao para continuar.');
+            return;
+        }
         const row = buildRow();
         $('dm-new-rows').appendChild(row);
         updateProgress();
         setTimeout(() => row.querySelector('select')?.focus(), 30);
+    },
+
+    restoreDefaultCustomers() {
+        if (!_customerStateKey) return;
+        const state = _customerStates.get(_customerStateKey);
+        if (!state) return;
+        state.activeIds = state.defaultIds.slice();
+        state.excludedIds = [];
+        _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
+        $('dm-new-rows').innerHTML = '';
+        $('dm-new-rows').appendChild(buildRow());
+        updateProgress();
     },
 
     editExisting(distributionId) {

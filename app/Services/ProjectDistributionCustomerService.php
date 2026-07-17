@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Customer;
+use App\Models\SalesProject;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+
+class ProjectDistributionCustomerService
+{
+    public function customers(SalesProject $project): Collection
+    {
+        $project->loadMissing(['customer:id,tenant_id,status', 'customers:id', 'organizations:id']);
+
+        $customerIds = $project->customers->pluck('id')
+            ->when($project->customer_id, fn (Collection $ids) => $ids->push((int) $project->customer_id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        $organizationIds = $project->organizations->pluck('id')->map(fn ($id) => (int) $id)->values();
+
+        return Customer::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('status', true)
+            ->whereNotNull('organization_id')
+            ->when($customerIds->isNotEmpty() || $organizationIds->isNotEmpty(), function ($query) use ($customerIds, $organizationIds) {
+                $query->where(function ($allowed) use ($customerIds, $organizationIds) {
+                    if ($customerIds->isNotEmpty()) {
+                        $allowed->whereIn('id', $customerIds);
+                    }
+                    if ($organizationIds->isNotEmpty()) {
+                        $method = $customerIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
+                        $allowed->{$method}('organization_id', $organizationIds);
+                    }
+                });
+            })
+            ->with('organization:id,name,short_name')
+            ->orderBy('name')
+            ->get(['id', 'tenant_id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
+    }
+
+    public function ids(SalesProject $project): Collection
+    {
+        return $this->customers($project)->pluck('id')->map(fn ($id) => (int) $id)->values();
+    }
+
+    public function assertAllowed(SalesProject $project, iterable $customerIds): void
+    {
+        $requested = collect($customerIds)->map(fn ($id) => (int) $id)->unique()->values();
+        if ($requested->diff($this->ids($project))->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'O cliente selecionado nao esta habilitado para distribuicoes deste projeto.',
+            ]);
+        }
+    }
+}

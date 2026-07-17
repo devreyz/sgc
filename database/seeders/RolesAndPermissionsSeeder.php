@@ -41,6 +41,19 @@ class RolesAndPermissionsSeeder extends Seeder
         // Delivery recorder role for mobile delivery registration
         $deliveryRecorder = Role::firstOrCreate(['name' => 'registrador_entregas', 'guard_name' => 'web']);
 
+        $portalPermissions = collect([
+            'view_associate_project',
+            'manage_associate_project_limits',
+            'manage_associate_product_limits',
+            'register_deliveries',
+            'edit_deliveries',
+            'approve_deliveries',
+            'reject_deliveries',
+            'view_distributions',
+            'view_receipts',
+            'view_payments',
+        ])->map(fn (string $name) => Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']));
+
         $this->command->info('✓ Roles criadas: super_admin, admin, financeiro, operador_caixa, assistente, associado, prestadores');
 
         // Obter todas as permissions do Shield
@@ -132,6 +145,16 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('✓ Associado/Prestadores: sem permissions admin (acesso via portais)');
 
         // Criar usuário super admin de demonstração
+        $deliveryRecorder->givePermissionTo($portalPermissions->whereIn('name', [
+            'view_associate_project',
+            'register_deliveries',
+            'edit_deliveries',
+            'approve_deliveries',
+            'reject_deliveries',
+            'view_distributions',
+            'view_receipts',
+        ]));
+
         $superAdminUser = User::firstOrCreate(
             ['email' => 'admin@sgc.com'],
             [

@@ -9,6 +9,11 @@
     :csrf="csrf_token()"
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
 />
+{{-- Componentes Blade --}}
+<x-delivery.edit-delivery-modal
+    :tenant-slug="$currentTenant->slug"
+    :csrf="csrf_token()"
+/>
 @section('navigation')
 <x-portal.nav portal="delivery" active="projects" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
 @endsection
@@ -339,11 +344,7 @@
 
 <div id="pd-toasts"></div>
 
-{{-- Componentes Blade --}}
-<x-delivery.edit-delivery-modal
-    :tenant-slug="$currentTenant->slug"
-    :csrf="csrf_token()"
-/>
+
 
 {{-- PROJECT HEADER --}}
 <div class="pd-header">
@@ -358,6 +359,9 @@
         </div>
     </div>
     <div class="pd-header-actions">
+        <a href="{{ route('delivery.projects.associates.index', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-primary btn-sm">
+            <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Participacao e limites
+        </a>
         @if($project->status->value === 'active')
         <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-success btn-sm">
             <i data-lucide="plus" style="width:13px;height:13px"></i> Nova Entrega
@@ -604,6 +608,7 @@ $totalNet      = $deliveries->sum('net_value');
                     <th>Val. Líq.</th>
                     <th>Qual.</th>
                     <th>Status</th>
+                    <th style="min-width:120px;">Limite associado</th>
                     <th style="min-width:100px;">Distrib.</th>
                     <th>Ações</th>
                 </tr>

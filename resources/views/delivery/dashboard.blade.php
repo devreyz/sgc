@@ -194,9 +194,7 @@
         <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="btn btn-ghost btn-sm">
             <i data-lucide="list" style="width:13px;height:13px"></i>Todas entregas
         </a>
-        <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug]) }}" class="btn btn-primary btn-sm">
-            <i data-lucide="package-plus" style="width:13px;height:13px"></i>Entrega avulsa
-        </a>
+        
     </div>
 </div>
 

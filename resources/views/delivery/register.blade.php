@@ -1111,6 +1111,7 @@ const ALL_PROJECTS   = @json($projects);
 const ALL_ASSOCIATES = @json($associates);
 const ALL_CUSTOMERS  = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 const INITIAL_PROJECT = @json($selectedProject);  // null or project object
+const INITIAL_ASSOCIATE_ID = Number(@json(request()->integer('associate'))) || null;
 
 /* ─── State ──────────────────────────────────────── */
 const S = {
@@ -1207,9 +1208,13 @@ document.addEventListener('click', function(e) {
 function init() {
     if (INITIAL_PROJECT) {
         applyProject(INITIAL_PROJECT);
-        loadDemands(INITIAL_PROJECT.id);
+        loadDemands(INITIAL_PROJECT.id, INITIAL_ASSOCIATE_ID);
     } else {
         renderSessionItems();
+    }
+    if (INITIAL_ASSOCIATE_ID) {
+        const initialAssociate = ALL_ASSOCIATES.find(item => Number(item.id) === INITIAL_ASSOCIATE_ID);
+        if (initialAssociate) selectAssociate(initialAssociate);
     }
     bindQualityPills();
     bindQtyInput();
@@ -1366,7 +1371,7 @@ async function handleRegisterIntegrityAction(button) {
     }
 }
 
-async function loadDemands(projectId) {
+async function loadDemands(projectId, associateId = S.associate?.id) {
     if (S.loadingProjectId === projectId) return;
     S.loadingProjectId = projectId;
     S.demands = [];
@@ -1374,7 +1379,8 @@ async function loadDemands(projectId) {
     resetProductSelector();
 
     try {
-        const res  = await fetch(ROUTES.demands(projectId), {
+        const suffix = associateId ? '?associate_id=' + encodeURIComponent(associateId) : '';
+        const res  = await fetch(ROUTES.demands(projectId) + suffix, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         if (!res.ok) throw new Error('Erro ' + res.status);
@@ -1396,6 +1402,7 @@ function selectAssociate(assoc) {
     checkFormReady();
     renderSessionItems();
     syncKeyboardStage();
+    if (S.project) loadDemands(S.project.id, assoc.id);
 }
 
 /* ─── Product ────────────────────────────────────── */
@@ -1405,14 +1412,23 @@ function selectProduct(demand) {
     el.classList.add('selected');
     $('product-value').textContent = demand.product_name;
     const meta = $('product-meta');
-    if (demand.target_quantity !== null) {
-        meta.textContent =
-            'Entregue: ' + fmtQty(demand.delivered_quantity, demand.product_unit) +
-            ' | Restante: ' + fmtQty(Math.max(0, demand.remaining_quantity), demand.product_unit);
-        meta.style.display = 'block';
+    const parts = [];
+    if (demand.associate_limit !== null && demand.associate_limit !== undefined) {
+        parts.push('Seu limite: ' + fmtQty(demand.associate_limit, demand.product_unit));
+        parts.push('Saldo: ' + fmtQty(Math.max(0, demand.associate_remaining), demand.product_unit));
     } else {
-        meta.textContent = 'Entregue: ' + fmtQty(demand.delivered_quantity, demand.product_unit);
-        meta.style.display = 'block';
+        parts.push('Entregue pelo associado: ' + fmtQty(demand.associate_delivered ?? demand.delivered_quantity, demand.product_unit));
+    }
+    if (demand.project_limit !== null && demand.project_limit !== undefined) {
+        parts.push('Saldo do projeto: ' + fmtQty(Math.max(0, demand.project_remaining), demand.product_unit));
+    }
+    meta.textContent = parts.join(' | ');
+    meta.style.display = 'block';
+    const qtyInput = $('f-qty');
+    if (demand.remaining_quantity !== null && demand.remaining_quantity !== undefined) {
+        qtyInput.max = Math.max(0, demand.remaining_quantity);
+    } else {
+        qtyInput.removeAttribute('max');
     }
     $('f-unit-lbl').textContent = '(' + (demand.product_unit || 'un') + ')';
     closeModal('product');
@@ -1426,6 +1442,7 @@ function resetProductSelector() {
     el.classList.remove('selected');
     $('product-value').textContent = 'Nenhum selecionado';
     $('product-meta').style.display = 'none';
+    $('f-qty')?.removeAttribute('max');
     checkFormReady();
     syncKeyboardStage();
 }
@@ -1567,6 +1584,13 @@ async function submitEntry() {
                 has_billed   : false,
                 dist_net_value: 0,
                 customerIds   : S.project?.customerIds || [],
+                limit: {
+                    associate_limit: S.product.associate_limit ?? null,
+                    associate_delivered: (S.product.associate_delivered || 0) + qty,
+                    associate_remaining: S.product.associate_limit == null ? null : Math.max(0, S.product.associate_limit - (S.product.associate_delivered || 0) - qty),
+                    associate_percent: S.product.associate_limit > 0 ? Math.min(100, (((S.product.associate_delivered || 0) + qty) / S.product.associate_limit) * 100) : null,
+                    project_remaining: S.product.project_limit == null ? null : Math.max(0, S.product.project_remaining - qty),
+                },
             });
             S.product = null;
             resetProductSelector();
@@ -1680,6 +1704,10 @@ function renderSessionItems() {
         const distJson = escAttr(JSON.stringify(item.distributions || []));
         const billedTag = isBilled ? '<span class="mc-billed">Fat.</span>' : '';
         const statusTag = isRejected ? '<span class="mc-status-pill rejected">Rejeitada</span>' : '';
+        const limit = item.limit || {};
+        const limitPct = limit.associate_percent == null ? null : Math.min(100, Number(limit.associate_percent));
+        const limitColor = limitPct == null ? '#94a3b8' : limitPct >= 100 ? '#dc2626' : limitPct >= 80 ? '#d97706' : '#059669';
+        const limitHtml = limit.associate_limit == null ? '' : `<div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.45rem;font-size:.68rem;color:var(--color-text-muted);padding:.2rem 0"><span>Limite</span><div style="height:5px;background:#e5e7eb;border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${limitPct}%;background:${limitColor}"></span></div><strong style="color:var(--color-text)">${fmtQty(limit.associate_remaining,item.productUnit)} livres</strong></div>`;
 
         const actionsHtml = (() => {
             let btns = '';
@@ -1718,6 +1746,7 @@ function renderSessionItems() {
                     <div class="mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</div>
                     <div>${netValue > 0 ? '<span class="mc-net">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
                 </div>
+                ${limitHtml}
                 <div class="mc-footer">
                     <span class="mc-footer-label">Distrib.</span>
                     <div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1" title="${overDist ? 'Excede. Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuido' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
@@ -2029,6 +2058,7 @@ function openDistributeModal(id) {
             billing_status: d.billing_status || null,
         })),
         participants: item.customerIds || S.project?.customerIds || [],
+        context: (item.projectId || S.project?.id || 0) + ':' + (item.associateId || S.associate?.id || 0),
     });
 }
 
@@ -2197,26 +2227,28 @@ function renderProductList(list, search) {
         return;
     }
     list.innerHTML = items.map((d, i) => {
-        const hasTarget  = d.target_quantity !== null;
-        const delivered  = d.delivered_quantity || 0;
-        const remaining  = hasTarget ? Math.max(0, d.remaining_quantity) : null;
-        const completed  = hasTarget && remaining <= 0;
-        const badgeClass = completed ? 'red' : (remaining !== null && remaining < d.target_quantity * 0.2 ? 'amber' : 'green');
-        const badgeText  = hasTarget
-            ? (completed ? 'Meta atingida' : 'Rest: ' + fmtQty(remaining, d.product_unit))
-            : 'Livre';
+        const hasLimit   = d.remaining_quantity !== null;
+        const delivered  = d.associate_delivered ?? d.delivered_quantity ?? 0;
+        const remaining  = hasLimit ? Math.max(0, d.remaining_quantity) : null;
+        const completed  = hasLimit && remaining <= 0;
+        const baseLimit  = d.associate_limit ?? d.project_limit;
+        const percent    = baseLimit > 0 ? Math.min(100, Math.round((delivered / baseLimit) * 100)) : 0;
+        const badgeClass = completed ? 'red' : (percent >= 80 ? 'amber' : 'green');
+        const badgeText  = hasLimit ? (completed ? 'Limite atingido' : 'Saldo: ' + fmtQty(remaining, d.product_unit)) : 'Sem limite';
 
-        return '<div class="modal-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + '" data-idx="' + i + '">' +
+        return '<div class="modal-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + (completed ? ' disabled' : '') + '" data-idx="' + i + '" data-disabled="' + (completed ? '1' : '0') + '">' +
             '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
             '<div class="mi-info">' +
                 '<div class="mi-name">' + escHtml(d.product_name) + '</div>' +
-                '<div class="mi-sub">Entregue: ' + fmtQty(delivered, d.product_unit) + (hasTarget ? ' / Meta: ' + fmtQty(d.target_quantity, d.product_unit) : '') + '</div>' +
+                '<div class="mi-sub">Entregue: ' + fmtQty(delivered, d.product_unit) + (baseLimit ? ' de ' + fmtQty(baseLimit, d.product_unit) : '') + '</div>' +
+                (baseLimit ? '<div style="height:4px;background:#e5e7eb;border-radius:3px;margin-top:5px;overflow:hidden"><span style="display:block;height:100%;width:' + percent + '%;background:' + (completed?'#dc2626':percent>=80?'#d97706':'#059669') + '"></span></div>' : '') +
             '</div>' +
             '<span class="mi-badge ' + badgeClass + '">' + badgeText + '</span>' +
         '</div>';
     }).join('');
     list.querySelectorAll('.modal-item').forEach(el => {
         el.addEventListener('click', () => {
+            if (el.dataset.disabled === '1') return;
             const idx = parseInt(el.dataset.idx);
             selectProduct(items[idx]);
             setTimeout(()=> document.getElementById('f-qty').focus(),300)
@@ -2227,7 +2259,7 @@ function renderProductList(list, search) {
 function selectProject(proj) {
     applyProject(proj);
     closeModal('project');
-    loadDemands(proj.id);
+    loadDemands(proj.id, S.associate?.id);
 }
 
 /* ─── Keyboard ─────────────────────────────────── */

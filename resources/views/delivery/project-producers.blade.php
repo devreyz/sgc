@@ -86,6 +86,9 @@
         </div>
     </div>
     <div class="pp-actions no-print">
+        <a href="{{ route('delivery.projects.associates.index', ['tenant' => $tenant->slug, 'project' => $project->id]) }}" class="btn btn-primary btn-sm">
+            <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Participacao e limites
+        </a>
         <a href="{{ route('delivery.projects.deliveries', ['tenant' => $tenant->slug, 'project' => $project->id]) }}" class="btn btn-ghost btn-sm">
             <i data-lucide="arrow-left" style="width:13px;height:13px"></i> Entregas
         </a>
@@ -118,7 +121,7 @@
                     <th class="r">Bruto</th>
                     <th class="r">Liquido</th>
                     <th class="r">Pend.</th>
-                    <th class="r no-print">Comprovante</th>
+                    <th class="r no-print">Acoes</th>
                 </tr>
             </thead>
             <tbody id="pp-producers-body">
@@ -300,7 +303,7 @@ function renderProducers(rows){
             <td class="r">${brMoney(row.gross_value)}</td>
             <td class="r" style="color:var(--color-success);font-weight:800">${brMoney(row.net_value)}</td>
             <td class="r">${row.pending_distributions ? `<span class="pp-badge red">${row.pending_distributions}</span>` : '<span class="pp-badge gray">0</span>'}</td>
-            <td class="r no-print"><div class="pp-receipt-cell">${receiptInfo}${quickAction}</div></td>
+            <td class="r no-print"><div class="pp-receipt-cell"><a class="btn btn-primary btn-sm" href="/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${row.associate_id}"><i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Entregas e limites</a>${receiptInfo}${quickAction}</div></td>
         </tr>`;
     }).join('');
 }
