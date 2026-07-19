@@ -23,6 +23,22 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+Route::get('/storage/{path}', function (string $path) {
+    $path = ltrim(str_replace('\\', '/', $path), '/');
+
+    abort_if($path === '' || str_contains($path, '..') || Str::startsWith($path, '/'), 404);
+
+    $disk = Storage::disk('public');
+
+    abort_unless($disk->exists($path), 404);
+
+    return response()->file($disk->path($path), [
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+})->where('path', '.*')->name('storage.public');
 
 // Home route - mostra welcome ou hub se logado
 Route::get('/', [HubController::class, 'index'])->name('home');
