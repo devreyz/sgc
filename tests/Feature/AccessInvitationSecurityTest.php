@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
+use App\Models\TenantUser;
 use App\Models\User;
 use App\Services\AccessInvitationService;
 use App\Services\GoogleAccountService;
@@ -142,7 +143,8 @@ class AccessInvitationSecurityTest extends TestCase
         Schema::create('access_invitations', function (Blueprint $t) {
             $t->string('id')->primary();
             $t->unsignedBigInteger('tenant_id');
-            $t->unsignedBigInteger('associate_id');
+            $t->unsignedBigInteger('associate_id')->nullable();
+            $t->unsignedBigInteger('tenant_user_id')->nullable();
             $t->unsignedBigInteger('issued_by_user_id');
             $t->string('token_hash')->unique();
             $t->string('code_hash');
@@ -272,6 +274,124 @@ class AccessInvitationSecurityTest extends TestCase
         $response = $this->actingAs($admin)
             ->get(route('security.associates.access.index', ['tenant' => 'tenant-b', 'associate' => $associateB]));
         $this->assertContains($response->status(), [403, 404]);
+    }
+
+    public function test_admin_can_manage_access_for_member_without_associate(): void
+    {
+        [$admin, $tenantId] = $this->fixture();
+        $member = User::query()->create([
+            'name' => 'Global Member',
+            'email' => 'member@example.test',
+            'password' => bcrypt('secret'),
+            'status' => true,
+        ]);
+        $membership = TenantUser::query()->create([
+            'tenant_id' => $tenantId,
+            'user_id' => $member->id,
+            'is_admin' => false,
+            'roles' => ['associado'],
+            'status' => true,
+            'tenant_name' => 'Membro Local',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('security.members.access.index', [
+                'tenant' => 'tenant-a',
+                'membership' => $membership->id,
+            ]))
+            ->assertOk()
+            ->assertSee('Membro Local')
+            ->assertDontSee('Global Member');
+
+        $this->actingAs($admin)
+            ->postJson(route('security.members.access.store', [
+                'tenant' => 'tenant-a',
+                'membership' => $membership->id,
+            ]), ['expires_in_hours' => 24])
+            ->assertCreated()
+            ->assertJsonStructure(['id', 'link', 'code', 'expires_at']);
+
+        $this->assertDatabaseHas('access_invitations', [
+            'tenant_id' => $tenantId,
+            'tenant_user_id' => $membership->id,
+            'associate_id' => null,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_admin_cannot_manage_member_from_another_tenant(): void
+    {
+        [$admin] = $this->fixture();
+        $otherUser = User::query()->create([
+            'name' => 'Other User',
+            'email' => 'other@example.test',
+            'password' => bcrypt('secret'),
+            'status' => true,
+        ]);
+        $tenantB = DB::table('tenants')->insertGetId([
+            'name' => 'Tenant B', 'slug' => 'tenant-b', 'active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $membership = TenantUser::query()->create([
+            'tenant_id' => $tenantB,
+            'user_id' => $otherUser->id,
+            'status' => true,
+            'tenant_name' => 'Outro Membro',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('security.members.access.index', [
+                'tenant' => 'tenant-b',
+                'membership' => $membership->id,
+            ]));
+
+        $this->assertContains($response->status(), [403, 404]);
+    }
+
+    public function test_passkey_management_requires_recent_authentication(): void
+    {
+        [$member] = $this->fixture();
+
+        $this->actingAs($member)
+            ->get(route('security.passkeys.options'))
+            ->assertRedirect(route('security.index'));
+    }
+
+    public function test_recent_google_member_can_request_own_passkey_registration(): void
+    {
+        config()->set('passkeys.relying_party_id', 'localhost');
+        config()->set('passkeys.allowed_origins', ['http://localhost']);
+        [, $tenantId] = $this->fixture();
+        $member = User::query()->create([
+            'name' => 'Google Account',
+            'email' => 'google-member@example.test',
+            'password' => null,
+            'status' => true,
+            'last_authenticated_at' => now(),
+        ]);
+        TenantUser::query()->create([
+            'tenant_id' => $tenantId,
+            'user_id' => $member->id,
+            'is_admin' => false,
+            'roles' => [],
+            'status' => true,
+            'tenant_name' => 'Membro Google',
+        ]);
+        DB::table('oauth_accounts')->insert([
+            'user_id' => $member->id,
+            'provider' => 'google',
+            'provider_subject' => 'google-member-subject',
+            'provider_email' => 'google-member@example.test',
+            'provider_email_verified' => true,
+            'linked_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($member)
+            ->getJson(route('security.passkeys.options'))
+            ->assertOk()
+            ->assertJsonStructure(['options']);
     }
 
     public function test_registration_options_require_resident_key_and_user_verification(): void

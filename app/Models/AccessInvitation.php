@@ -14,7 +14,7 @@ class AccessInvitation extends Model
 
     protected $keyType = 'string';
 
-    protected $guarded = ['id', 'tenant_id', 'associate_id', 'issued_by_user_id'];
+    protected $guarded = ['id', 'tenant_id', 'associate_id', 'tenant_user_id', 'issued_by_user_id'];
 
     protected $hidden = ['token_hash', 'code_hash', 'claimed_session_hash', 'metadata'];
 
@@ -40,6 +40,11 @@ class AccessInvitation extends Model
     public function associate(): BelongsTo
     {
         return $this->belongsTo(Associate::class);
+    }
+
+    public function membership(): BelongsTo
+    {
+        return $this->belongsTo(TenantUser::class, 'tenant_user_id');
     }
 
     public function issuedBy(): BelongsTo

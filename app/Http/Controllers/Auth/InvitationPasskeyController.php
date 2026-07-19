@@ -43,12 +43,26 @@ class InvitationPasskeyController extends Controller
     ): JsonResponse {
         try {
             $invitation = $service->invitationForGrant($request);
-            $associate = Associate::withoutGlobalScopes()
-                ->where('tenant_id', $invitation->tenant_id)
-                ->whereKey($invitation->associate_id)
-                ->firstOrFail();
+            $membership = $invitation->tenant_user_id
+                ? TenantUser::query()
+                    ->where('tenant_id', $invitation->tenant_id)
+                    ->whereKey($invitation->tenant_user_id)
+                    ->where('status', true)
+                    ->firstOrFail()
+                : null;
+            $associate = $invitation->associate_id
+                ? Associate::withoutGlobalScopes()
+                    ->where('tenant_id', $invitation->tenant_id)
+                    ->whereKey($invitation->associate_id)
+                    ->firstOrFail()
+                : null;
 
-            $user = $associate->user_id ? User::query()->findOrFail($associate->user_id) : new User;
+            if (! $membership && ! $associate) {
+                throw new RuntimeException('Invitation target missing.');
+            }
+
+            $targetUserId = $membership?->user_id ?? $associate?->user_id;
+            $user = $targetUserId ? User::query()->findOrFail($targetUserId) : new User;
             if ($user->exists && ! $user->status) {
                 throw new RuntimeException('Inactive account.');
             }
@@ -101,15 +115,37 @@ class InvitationPasskeyController extends Controller
                     throw new RuntimeException('Invitation ceremony mismatch.');
                 }
 
-                $associate = Associate::withoutGlobalScopes()
-                    ->where('tenant_id', $invitation->tenant_id)
-                    ->whereKey($invitation->associate_id)
-                    ->lockForUpdate()
-                    ->firstOrFail();
+                $membership = $invitation->tenant_user_id
+                    ? TenantUser::query()
+                        ->where('tenant_id', $invitation->tenant_id)
+                        ->whereKey($invitation->tenant_user_id)
+                        ->lockForUpdate()
+                        ->firstOrFail()
+                    : null;
+                $associate = $invitation->associate_id
+                    ? Associate::withoutGlobalScopes()
+                        ->where('tenant_id', $invitation->tenant_id)
+                        ->whereKey($invitation->associate_id)
+                        ->lockForUpdate()
+                        ->firstOrFail()
+                    : null;
 
-                if ($associate->user_id) {
-                    $user = User::query()->whereKey($associate->user_id)->lockForUpdate()->firstOrFail();
+                if (! $membership && ! $associate) {
+                    throw new RuntimeException('Invitation target missing.');
+                }
+
+                if ($membership && ! $membership->status) {
+                    throw new RuntimeException('Inactive membership.');
+                }
+
+                $targetUserId = $membership?->user_id ?? $associate?->user_id;
+                if ($targetUserId) {
+                    $user = User::query()->whereKey($targetUserId)->lockForUpdate()->firstOrFail();
                     if ((int) ($context['user_id'] ?? 0) !== (int) $user->id || ! $user->status) {
+                        throw new RuntimeException('Invitation target mismatch.');
+                    }
+
+                    if ($membership && $associate?->user_id && (int) $associate->user_id !== (int) $user->id) {
                         throw new RuntimeException('Invitation target mismatch.');
                     }
                 } else {
@@ -124,10 +160,10 @@ class InvitationPasskeyController extends Controller
                         'status' => true,
                         'webauthn_user_handle' => $context['provisional_handle'],
                     ]);
-                    $associate->forceFill(['user_id' => $user->id])->save();
+                    $associate?->forceFill(['user_id' => $user->id])->save();
                 }
 
-                $membership = TenantUser::query()
+                $membership ??= TenantUser::query()
                     ->where('tenant_id', $invitation->tenant_id)
                     ->where('user_id', $user->id)
                     ->lockForUpdate()
@@ -138,7 +174,7 @@ class InvitationPasskeyController extends Controller
                 }
 
                 if (! $membership) {
-                    $tenantName = trim((string) ($associate->nickname ?: $associate->property_name));
+                    $tenantName = trim((string) ($associate?->nickname ?: $associate?->property_name));
                     $membership = new TenantUser;
                     $membership->forceFill([
                         'tenant_id' => $invitation->tenant_id,
@@ -148,6 +184,10 @@ class InvitationPasskeyController extends Controller
                         'status' => true,
                         'tenant_name' => $tenantName !== '' ? $tenantName : 'Associado sem nome cadastrado',
                     ])->save();
+                }
+
+                if (! $invitation->tenant_user_id) {
+                    $invitation->tenant_user_id = $membership->id;
                 }
 
                 $passkey = $store(

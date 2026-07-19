@@ -104,6 +104,12 @@ class AppServiceProvider extends ServiceProvider
             if ($user->hasRole('super_admin')) {
                 return true;
             }
+
+            // A seguranca da conta e global. As policies dessas rotas ainda
+            // exigem usuario ativo, vinculo ativo e propriedade do recurso.
+            if (request()->routeIs('security.index', 'security.passkeys.*', 'security.reauth.*')) {
+                return null;
+            }
             
             // For non-super-admin users, enforce tenant check
             // Block access if no tenant is set (except for tenant selection routes)

@@ -283,6 +283,14 @@ class TenantUserResource extends Resource
                     ->falseLabel('Apenas Membros'),
             ])
             ->actions([
+                Tables\Actions\Action::make('manageAccess')
+                    ->label('Acesso')
+                    ->icon('heroicon-o-key')
+                    ->color('info')
+                    ->url(fn (TenantUser $record): string => route('security.members.access.index', [
+                        'tenant' => \App\Models\Tenant::query()->whereKey($record->tenant_id)->value('slug'),
+                        'membership' => $record->id,
+                    ])),
                 Tables\Actions\EditAction::make(),
 
                 // Ação: Ativar/Desativar vínculo

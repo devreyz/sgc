@@ -19,7 +19,7 @@ class ViewAssociate extends ViewRecord
                 ->label('Segurança e acesso')
                 ->icon('heroicon-o-key')
                 ->url(fn (): string => route('security.associates.access.index', [
-                    'tenant' => session('tenant_slug'),
+                    'tenant' => \App\Models\Tenant::query()->whereKey($this->record->tenant_id)->value('slug'),
                     'associate' => $this->record->id,
                 ])),
             Actions\EditAction::make(),

@@ -14,7 +14,7 @@
 <div class="loading" id="loading" role="status">Processando...</div>
 <main class="page">
     <header class="head">
-        <div><h1>Links de acesso</h1><p>{{ $associateLabel }}</p></div>
+        <div><h1>Links de acesso</h1><p>{{ $targetLabel }}</p></div>
         <div class="create"><div class="field"><label for="invite-ttl">Validade</label><select id="invite-ttl"><option value="24">24 horas</option><option value="36" selected>36 horas</option><option value="48">48 horas</option></select></div><button class="btn" id="new-invite">Gerar link de acesso</button></div>
     </header>
     <div class="message" id="message"></div>
@@ -44,12 +44,12 @@ const loading=document.getElementById('loading');
 const message=document.getElementById('message');
 let currentInvitationId=null;
 const busy=value=>loading.classList.toggle('show',value);
-const invitationUrl=id=>@json(route('security.associates.access.sent',['tenant'=>$tenant->slug,'associate'=>$associate->id,'invitation'=>'__ID__'])).replace('__ID__',id);
+const invitationUrl=id=>@json($sentUrlTemplate).replace('__ID__',id);
 
 document.getElementById('new-invite').addEventListener('click',async()=>{
     busy(true);message.textContent='';
     try{
-        const response=await fetch(@json(route('security.associates.access.store',['tenant'=>$tenant->slug,'associate'=>$associate->id])),{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({expires_in_hours:Number(document.getElementById('invite-ttl').value)})});
+        const response=await fetch(@json($storeUrl),{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({expires_in_hours:Number(document.getElementById('invite-ttl').value)})});
         const data=await response.json();
         if(!response.ok)throw new Error(data.message||Object.values(data.errors||{}).flat()[0]);
         currentInvitationId=data.id;document.getElementById('invite-link').textContent=data.link;document.getElementById('invite-code').textContent=data.code;modal.showModal();
@@ -71,7 +71,7 @@ document.getElementById('close-modal').addEventListener('click',()=>{modal.close
 document.querySelectorAll('.revoke').forEach(button=>button.addEventListener('click',async()=>{
     if(!confirm('Revogar este convite?'))return;
     busy(true);
-    const url=@json(route('security.associates.access.revoke',['tenant'=>$tenant->slug,'associate'=>$associate->id,'invitation'=>'__ID__'])).replace('__ID__',button.dataset.id);
+    const url=@json($revokeUrlTemplate).replace('__ID__',button.dataset.id);
     try{const response=await fetch(url,{method:'DELETE',credentials:'same-origin',headers:{Accept:'application/json','X-CSRF-TOKEN':csrf}});const data=await response.json();if(!response.ok)throw new Error(data.message);location.reload()}catch(error){busy(false);message.textContent=error.message||'Nao foi possivel revogar o convite.'}
 }));
 </script>

@@ -5,7 +5,6 @@ namespace App\Policies;
 use App\Models\Passkey;
 use App\Models\TenantUser;
 use App\Models\User;
-use Spatie\Permission\Models\Role;
 
 class PasskeyPolicy
 {
@@ -32,19 +31,6 @@ class PasskeyPolicy
         return TenantUser::query()
             ->where('user_id', $user->id)
             ->where('status', true)
-            ->where(function ($query): void {
-                $query->where('is_admin', true)
-                    ->orWhere(function ($roleQuery): void {
-                        $roles = Role::query()
-                            ->whereHas('permissions', fn ($permissionQuery) => $permissionQuery
-                                ->where('name', 'passkeys.manage-own'))
-                            ->pluck('name');
-
-                        foreach ($roles as $role) {
-                            $roleQuery->orWhereJsonContains('roles', $role);
-                        }
-                    });
-            })
             ->exists();
     }
 }

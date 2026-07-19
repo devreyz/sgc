@@ -14,7 +14,15 @@ class EditTenantUser extends EditRecord
     protected function getHeaderActions(): array
     {
         // Sem DeleteAction - vínculos nunca são deletados
-        return [];
+        return [
+            Actions\Action::make('manageAccess')
+                ->label('Seguranca e acesso')
+                ->icon('heroicon-o-key')
+                ->url(fn (): string => route('security.members.access.index', [
+                    'tenant' => \App\Models\Tenant::query()->whereKey($this->record->tenant_id)->value('slug'),
+                    'membership' => $this->record->id,
+                ])),
+        ];
     }
 
     /**

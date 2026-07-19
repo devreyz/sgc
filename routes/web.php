@@ -111,7 +111,7 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 // ROTAS COM PREFIXO DE TENANT (SLUG) - Portais Legados (Associate, Provider, Delivery)
 // ===========================================================================================
 
-Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function () {
+Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
 
     Route::prefix('security/associates/{associate}/access')->name('security.associates.access.')->group(function () {
         Route::get('/', [AccessInvitationAdminController::class, 'index'])->name('index');
@@ -120,6 +120,16 @@ Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function (
         Route::post('/invitations/{invitation}/sent', [AccessInvitationAdminController::class, 'sent'])
             ->middleware('throttle:invitation-send')->name('sent');
         Route::delete('/invitations/{invitation}', [AccessInvitationAdminController::class, 'revoke'])
+            ->name('revoke');
+    });
+
+    Route::prefix('security/members/{membership}/access')->name('security.members.access.')->group(function () {
+        Route::get('/', [AccessInvitationAdminController::class, 'memberIndex'])->name('index');
+        Route::post('/invitations', [AccessInvitationAdminController::class, 'memberStore'])
+            ->middleware('throttle:invitation-create')->name('store');
+        Route::post('/invitations/{invitation}/sent', [AccessInvitationAdminController::class, 'memberSent'])
+            ->middleware('throttle:invitation-send')->name('sent');
+        Route::delete('/invitations/{invitation}', [AccessInvitationAdminController::class, 'memberRevoke'])
             ->name('revoke');
     });
 

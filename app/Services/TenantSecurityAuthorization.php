@@ -56,4 +56,14 @@ class TenantSecurityAuthorization
             ->whereKey($associateId)
             ->firstOrFail();
     }
+
+    public function authorizeMembership(User $user, int $tenantId, int|string $membershipId, string $permission): TenantUser
+    {
+        $this->authorize($user, $tenantId, $permission);
+
+        return TenantUser::query()
+            ->where('tenant_id', $tenantId)
+            ->whereKey($membershipId)
+            ->firstOrFail();
+    }
 }

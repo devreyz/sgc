@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AccessInvitation;
 use App\Models\Associate;
+use App\Models\TenantUser;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,15 +18,32 @@ class AccessInvitationService
 
     public function __construct(private readonly SecurityAuditService $audit) {}
 
-    public function issue(User $issuer, Associate $associate, int $tenantId, ?int $ttlHours = null): array
+    public function issue(User $issuer, Associate|TenantUser $target, int $tenantId, ?int $ttlHours = null): array
     {
-        if ((int) $associate->tenant_id !== $tenantId) {
+        if ((int) $target->tenant_id !== $tenantId) {
             $this->audit->record('cross_tenant_attempt', 'denied', [
                 'tenant_id' => $tenantId,
                 'actor_user_id' => $issuer->id,
-                'associate_id' => $associate->id,
+                'associate_id' => $target instanceof Associate ? $target->id : null,
             ]);
             throw new RuntimeException('Nao foi possivel criar o convite.');
+        }
+
+        $membership = $target instanceof TenantUser
+            ? $target
+            : TenantUser::query()
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $target->user_id)
+                ->first();
+        $associate = $target instanceof Associate
+            ? $target
+            : Associate::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $target->user_id)
+                ->first();
+
+        if ($membership && ! $membership->status) {
+            throw new RuntimeException('Nao foi possivel criar o convite para um membro inativo.');
         }
 
         $baseUrl = rtrim((string) config('app.url'), '/');
@@ -37,16 +55,34 @@ class AccessInvitationService
         $code = $this->randomCode();
         $expiresAt = now()->addHours($ttlHours ?? (int) config('security.invitation_ttl_hours', 36));
 
-        $invitation = DB::transaction(function () use ($issuer, $associate, $tenantId, $token, $code, $expiresAt) {
-            Associate::withoutGlobalScopes()
-                ->where('tenant_id', $tenantId)
-                ->whereKey($associate->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        $invitation = DB::transaction(function () use ($issuer, $associate, $membership, $tenantId, $token, $code, $expiresAt) {
+            if ($membership) {
+                TenantUser::query()
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($membership->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            } elseif ($associate) {
+                Associate::withoutGlobalScopes()
+                    ->where('tenant_id', $tenantId)
+                    ->whereKey($associate->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            } else {
+                throw new RuntimeException('Nao foi possivel identificar o membro do convite.');
+            }
 
             AccessInvitation::query()
                 ->where('tenant_id', $tenantId)
-                ->where('associate_id', $associate->id)
+                ->where(function ($query) use ($associate, $membership): void {
+                    if ($membership) {
+                        $query->where('tenant_user_id', $membership->id);
+                    }
+                    if ($associate) {
+                        $method = $membership ? 'orWhere' : 'where';
+                        $query->{$method}('associate_id', $associate->id);
+                    }
+                })
                 ->whereIn('status', ['pending', 'claimed'])
                 ->update([
                     'status' => 'revoked',
@@ -57,13 +93,17 @@ class AccessInvitationService
             $invitation = new AccessInvitation;
             $invitation->forceFill([
                 'tenant_id' => $tenantId,
-                'associate_id' => $associate->id,
+                'associate_id' => $associate?->id,
+                'tenant_user_id' => $membership?->id,
                 'issued_by_user_id' => $issuer->id,
                 'token_hash' => hash('sha256', $token),
                 'code_hash' => Hash::driver('argon2id')->make($this->codeMaterial($code)),
                 'status' => 'pending',
                 'expires_at' => $expiresAt,
-                'metadata' => ['version' => 1, 'purpose' => $associate->user_id ? 'recovery' : 'first_access'],
+                'metadata' => [
+                    'version' => 2,
+                    'purpose' => ($membership || $associate?->user_id) ? 'recovery' : 'first_access',
+                ],
             ]);
             $invitation->save();
 
@@ -73,8 +113,8 @@ class AccessInvitationService
         $this->audit->record('access_invitation_created', 'success', [
             'tenant_id' => $tenantId,
             'actor_user_id' => $issuer->id,
-            'target_user_id' => $associate->user_id,
-            'associate_id' => $associate->id,
+            'target_user_id' => $membership?->user_id ?? $associate?->user_id,
+            'associate_id' => $associate?->id,
             'invitation_id' => $invitation->id,
             'context' => ['expires_at' => $expiresAt->toIso8601String()],
         ]);
@@ -223,7 +263,7 @@ class AccessInvitationService
         $this->audit->record('access_invitation_revoked', 'success', [
             'tenant_id' => $invitation->tenant_id,
             'actor_user_id' => $actor->id,
-            'target_user_id' => $invitation->associate?->user_id,
+            'target_user_id' => $invitation->membership?->user_id ?? $invitation->associate?->user_id,
             'associate_id' => $invitation->associate_id,
             'invitation_id' => $invitation->id,
         ], $request);

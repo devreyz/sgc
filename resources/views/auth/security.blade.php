@@ -38,7 +38,7 @@
     @endif
 
     <section class="section">
-        <div class="section-head"><div><h2>Passkeys</h2><p>Biometria, PIN ou chave fisica.</p></div><button class="btn" id="add-passkey">Adicionar passkey</button></div>
+        <div class="section-head"><div><h2>Passkeys</h2><p>Biometria, PIN ou chave fisica. Somente voce pode cadastrar uma passkey apos confirmar sua identidade.</p></div><button class="btn" id="add-passkey" @disabled(!$recentlyAuthenticated)>Adicionar passkey</button></div>
         @forelse($passkeys as $passkey)
             <div class="row"><div><strong>{{ $passkey->name ?: 'Passkey' }} @if($passkey->revoked_at) · Revogada @endif</strong><span>Criada em {{ $passkey->created_at?->format('d/m/Y H:i') }} · Ultimo uso {{ $passkey->last_used_at?->format('d/m/Y H:i') ?? 'nunca' }}</span></div>@if(!$passkey->revoked_at)<button class="btn secondary danger revoke-passkey" data-id="{{ $passkey->id }}">Revogar</button>@endif</div>
         @empty
@@ -76,7 +76,7 @@ document.getElementById('reauth-passkey')?.addEventListener('click',async()=>{
     }catch(error){busy(false);showError(error.message)}
 });
 
-document.getElementById('add-passkey').addEventListener('click',()=>dialog.showModal());
+document.getElementById('add-passkey')?.addEventListener('click',()=>dialog.showModal());
 document.getElementById('confirm-passkey').addEventListener('click',async event=>{
     event.preventDefault();busy(true);
     try{
