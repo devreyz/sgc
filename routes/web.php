@@ -3,6 +3,12 @@
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\AccessInvitationAdminController;
+use App\Http\Controllers\Auth\AccessInvitationController;
+use App\Http\Controllers\Auth\InvitationPasskeyController;
+use App\Http\Controllers\Auth\PasskeyAuthenticationController;
+use App\Http\Controllers\Auth\PasskeyManagementController;
+use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
@@ -32,13 +38,50 @@ Route::get('/offline', function () {
 
 // Google OAuth Routes
 Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
-Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
+Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
+    ->middleware('throttle:google-callback')
+    ->name('auth.google.callback');
 Route::post('/logout', [GoogleAuthController::class, 'logout'])->name('logout');
+
+Route::middleware(['guest', 'webauthn.config'])->group(function () {
+    Route::get('/auth/passkey/options', [PasskeyAuthenticationController::class, 'options'])
+        ->middleware('throttle:passkey-options')->name('auth.passkey.options');
+    Route::post('/auth/passkey/verify', [PasskeyAuthenticationController::class, 'verify'])
+        ->middleware('throttle:passkey-verify')->name('auth.passkey.verify');
+});
+
+Route::middleware('invitation.headers')->group(function () {
+    Route::get('/acesso/verificar', [AccessInvitationController::class, 'show'])
+        ->name('access.invitation.verify');
+    Route::post('/acesso/verificar-codigo', [AccessInvitationController::class, 'verifyCode'])
+        ->middleware('throttle:invitation-code')->name('access.invitation.code');
+    Route::get('/acesso/criar-passkey', [InvitationPasskeyController::class, 'show'])
+        ->name('access.invitation.passkey');
+    Route::get('/acesso/passkey/options', [InvitationPasskeyController::class, 'options'])
+        ->middleware(['webauthn.config', 'throttle:passkey-options'])->name('access.invitation.passkey.options');
+    Route::post('/acesso/passkey', [InvitationPasskeyController::class, 'store'])
+        ->middleware(['webauthn.config', 'throttle:passkey-verify'])->name('access.invitation.passkey.store');
+    Route::get('/acesso/{token}', [AccessInvitationController::class, 'consume'])
+        ->middleware('throttle:invitation-token')->name('access.invitation.consume');
+});
 
 // Tenant Selection Routes (authenticated users)
 Route::middleware('auth')->group(function () {
     Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
     Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
+    Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
+    Route::get('/security/reauth/passkey/options', [PasskeyManagementController::class, 'reauthenticationOptions'])
+        ->middleware(['webauthn.config', 'throttle:passkey-options'])->name('security.reauth.passkey.options');
+    Route::post('/security/reauth/passkey', [PasskeyManagementController::class, 'reauthenticate'])
+        ->middleware(['webauthn.config', 'throttle:passkey-verify'])->name('security.reauth.passkey.store');
+    Route::middleware(['auth.recent', 'webauthn.config'])->group(function () {
+        Route::get('/security/passkeys/options', [PasskeyManagementController::class, 'options'])
+            ->middleware('throttle:passkey-options')->name('security.passkeys.options');
+        Route::post('/security/passkeys', [PasskeyManagementController::class, 'store'])
+            ->middleware('throttle:passkey-verify')->name('security.passkeys.store');
+        Route::delete('/security/passkeys/{passkey}', [PasskeyManagementController::class, 'revoke'])
+            ->name('security.passkeys.revoke');
+    });
 });
 
 // Public Document Verification Routes (no authentication required)
@@ -53,6 +96,16 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 // ===========================================================================================
 
 Route::prefix('{tenant}')->middleware(['auth', 'tenant.slug'])->group(function () {
+
+    Route::prefix('security/associates/{associate}/access')->name('security.associates.access.')->group(function () {
+        Route::get('/', [AccessInvitationAdminController::class, 'index'])->name('index');
+        Route::post('/invitations', [AccessInvitationAdminController::class, 'store'])
+            ->middleware('throttle:invitation-create')->name('store');
+        Route::post('/invitations/{invitation}/sent', [AccessInvitationAdminController::class, 'sent'])
+            ->middleware('throttle:invitation-send')->name('sent');
+        Route::delete('/invitations/{invitation}', [AccessInvitationAdminController::class, 'revoke'])
+            ->name('revoke');
+    });
 
     // Profile Routes (Available for all authenticated users)
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');

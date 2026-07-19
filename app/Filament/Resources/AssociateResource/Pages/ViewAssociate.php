@@ -15,6 +15,13 @@ class ViewAssociate extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('manageAccess')
+                ->label('Segurança e acesso')
+                ->icon('heroicon-o-key')
+                ->url(fn (): string => route('security.associates.access.index', [
+                    'tenant' => session('tenant_slug'),
+                    'associate' => $this->record->id,
+                ])),
             Actions\EditAction::make(),
         ];
     }

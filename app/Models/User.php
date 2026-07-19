@@ -12,13 +12,16 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\PasskeyAuthenticatable;
+use ParagonIE\ConstantTime\Base64UrlSafe;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
-    use HasFactory, HasRoles, LogsActivity, Notifiable, SoftDeletes;
+    use HasFactory, HasRoles, LogsActivity, Notifiable, PasskeyAuthenticatable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -30,6 +33,8 @@ class User extends Authenticatable implements FilamentUser
         'status',
         'google_id',
         'avatar',
+        'webauthn_user_handle',
+        'last_authenticated_at',
     ];
 
     /**
@@ -72,6 +77,12 @@ class User extends Authenticatable implements FilamentUser
                 );
             }
         });
+
+        static::creating(function (User $user): void {
+            if (! $user->webauthn_user_handle) {
+                $user->webauthn_user_handle = Base64UrlSafe::encodeUnpadded(random_bytes(32));
+            }
+        });
     }
 
     /**
@@ -83,6 +94,7 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'status' => 'boolean',
+            'last_authenticated_at' => 'datetime',
         ];
     }
 
@@ -146,8 +158,49 @@ class User extends Authenticatable implements FilamentUser
     public function tenants(): BelongsToMany
     {
         return $this->belongsToMany(Tenant::class, 'tenant_user')
-            ->withPivot('is_admin', 'roles', 'tenant_name', 'tenant_password')
+            ->withPivot('is_admin', 'roles', 'tenant_name', 'tenant_password', 'status')
             ->withTimestamps();
+    }
+
+    public function oauthAccounts(): HasMany
+    {
+        return $this->hasMany(OAuthAccount::class);
+    }
+
+    public function getPasskeyUserHandle(): string
+    {
+        if (! $this->webauthn_user_handle) {
+            $this->forceFill([
+                'webauthn_user_handle' => Base64UrlSafe::encodeUnpadded(random_bytes(32)),
+            ]);
+
+            if ($this->exists) {
+                $this->saveQuietly();
+            }
+        }
+
+        return Base64UrlSafe::decodeNoPadding($this->webauthn_user_handle);
+    }
+
+    public function getPasskeyDisplayName(): string
+    {
+        $name = trim((string) $this->getRawOriginal('name'));
+
+        return $name !== '' ? $name : 'Conta ZeCoop';
+    }
+
+    public function getPasskeyUsername(): string
+    {
+        $email = trim((string) $this->email);
+
+        return $email !== '' ? $email : 'conta-'.substr((string) $this->webauthn_user_handle, 0, 12);
+    }
+
+    public function recentlyAuthenticated(): bool
+    {
+        return $this->last_authenticated_at?->gt(
+            now()->subSeconds((int) config('security.recent_auth_seconds', 600))
+        ) ?? false;
     }
 
     /**
@@ -206,7 +259,7 @@ class User extends Authenticatable implements FilamentUser
         }
 
         // Fallback to global name
-        return $value;
+        return $value ?? 'Conta sem nome';
     }
 
     /**

@@ -22,6 +22,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'any.role' => \App\Http\Middleware\CheckAnyRole::class,
             'tenant.slug' => \App\Http\Middleware\TenantFromSlugMiddleware::class,
             'buyer.organization' => \App\Http\Middleware\EnsureBuyerOrganizationAccess::class,
+            'auth.recent' => \App\Http\Middleware\EnsureRecentAuthentication::class,
+            'webauthn.config' => \App\Http\Middleware\EnsureWebAuthnConfiguration::class,
+            'invitation.headers' => \App\Http\Middleware\InvitationSecurityHeaders::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

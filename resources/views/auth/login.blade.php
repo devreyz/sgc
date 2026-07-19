@@ -11,6 +11,7 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
 
     <meta name="theme-color" content="#16803d">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
         :root{
@@ -457,26 +458,11 @@
         setStatus('Aguardando sua confirmação...');
 
         try {
-            const options = await fetchJson(PASSKEY_OPTIONS_URL, {
-                method: 'POST',
-                body: JSON.stringify({}),
-            });
-
-            const credential = await navigator.credentials.get({
-                publicKey: normalizeRequestOptions(options),
-            });
-
-            if (!credential) {
-                throw new Error('Nenhuma credencial foi selecionada.');
-            }
-
-            setStatus('Validando acesso...');
-
-            const result = await fetchJson(PASSKEY_VERIFY_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    credential: credentialToJson(credential),
-                }),
+            const result = await window.SgcPasskeys.verify({
+                routes: {
+                    options: PASSKEY_OPTIONS_URL,
+                    submit: PASSKEY_VERIFY_URL,
+                },
             });
 
             window.location.href = result.redirect
@@ -484,8 +470,7 @@
                 || result.url
                 || '/';
         } catch (error) {
-            const cancelled = error.name === 'NotAllowedError'
-                || error.name === 'AbortError';
+            const cancelled = error.name === 'UserCancelledError';
 
             setStatus(
                 cancelled ? 'A autenticação foi cancelada.' : error.message,
@@ -500,18 +485,24 @@
         }
     }
 
-    const passkeySupported =
-        window.isSecureContext
-        && 'PublicKeyCredential' in window
-        && navigator.credentials;
+    function initializePasskeys() {
+        const passkeySupported = window.isSecureContext
+            && window.SgcPasskeys
+            && window.SgcPasskeys.isSupported();
 
-    if (!passkeySupported) {
-        passkeyButton.disabled = true;
-        passkeyHelper.textContent =
-            'Passkeys não estão disponíveis neste navegador ou conexão.';
-    } else {
+        if (!passkeySupported) {
+            passkeyButton.disabled = true;
+            passkeyHelper.textContent =
+                'Passkeys não estão disponíveis neste navegador ou conexão.';
+            return;
+        }
+
         passkeyButton.addEventListener('click', loginWithPasskey);
     }
+
+    window.SgcPasskeys
+        ? initializePasskeys()
+        : window.addEventListener('sgc:passkeys-ready', initializePasskeys, { once: true });
 </script>
 </body>
 </html>

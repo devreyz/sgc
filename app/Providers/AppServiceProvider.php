@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
+use App\Actions\Passkeys\StoreSecurePasskey;
+use App\Actions\Passkeys\VerifySecurePasskey;
+use App\Models\AccessInvitation;
 use App\Models\AssociateLedger;
 use App\Models\CashMovement;
 use App\Models\Expense;
@@ -11,6 +15,9 @@ use App\Models\PurchaseOrder;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider as ServiceProviderModel;
 use App\Models\ServiceProviderLedger;
+use App\Models\Passkey;
+use App\Policies\AccessInvitationPolicy;
+use App\Policies\PasskeyPolicy;
 use App\Observers\AssociateLedgerObserver;
 use App\Observers\CashMovementObserver;
 use App\Observers\ExpenseObserver;
@@ -24,6 +31,13 @@ use App\Services\TenantIdentityService;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
+use Laravel\Passkeys\Actions\GenerateRegistrationOptions;
+use Laravel\Passkeys\Actions\StorePasskey;
+use Laravel\Passkeys\Actions\VerifyPasskey;
+use Laravel\Passkeys\Passkeys;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -33,6 +47,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(TenantIdentityService::class);
+        Passkeys::ignoreRoutes();
+        Passkeys::usePasskeyModel(Passkey::class);
+        $this->app->bind(GenerateRegistrationOptions::class, GenerateSecureRegistrationOptions::class);
+        $this->app->bind(StorePasskey::class, StoreSecurePasskey::class);
+        $this->app->bind(VerifyPasskey::class, VerifySecurePasskey::class);
     }
 
     /**
@@ -41,6 +60,43 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+        Gate::policy(AccessInvitation::class, AccessInvitationPolicy::class);
+        Gate::policy(Passkey::class, PasskeyPolicy::class);
+
+        RateLimiter::for('passkey-options', fn (Request $request) => Limit::perMinute(
+            (int) config('security.rates.webauthn_per_minute', 10)
+        )->by('options|'.$request->session()->getId().'|'.$request->ip()));
+
+        RateLimiter::for('passkey-verify', fn (Request $request) => Limit::perMinute(
+            (int) config('security.rates.webauthn_per_minute', 10)
+        )->by('verify|'.$request->session()->getId().'|'.$request->ip().'|'.hash('sha256', (string) $request->input('credential.id'))));
+
+        RateLimiter::for('invitation-token', fn (Request $request) => Limit::perHour(
+            (int) config('security.rates.invitation_token_per_hour', 10)
+        )->by('token|'.$request->ip()));
+
+        RateLimiter::for('invitation-code', function (Request $request): array {
+            $limit = (int) config('security.rates.invitation_code_per_hour', 10);
+            $invitation = (string) $request->session()->get('access_invitation_id', 'unknown');
+
+            return [
+                Limit::perHour($limit)->by('code-invite|'.$invitation),
+                Limit::perHour($limit)->by('code-session|'.$request->session()->getId()),
+                Limit::perHour($limit)->by('code-ip|'.$request->ip()),
+            ];
+        });
+
+        RateLimiter::for('invitation-create', fn (Request $request) => Limit::perHour(
+            (int) config('security.rates.invitation_create_per_hour', 20)
+        )->by('create|'.$request->user()?->id.'|'.session('tenant_id')));
+
+        RateLimiter::for('invitation-send', fn (Request $request) => Limit::perHour(
+            (int) config('security.rates.invitation_send_per_hour', 20)
+        )->by('send|'.$request->user()?->id.'|'.session('tenant_id').'|'.$request->route('associate')));
+
+        RateLimiter::for('google-callback', fn (Request $request) => Limit::perMinute(
+            (int) config('security.rates.google_callback_per_minute', 10)
+        )->by('google|'.$request->session()->getId().'|'.$request->ip()));
 
         // Grant all permissions to super_admin
         // This allows super admin to bypass all Gate and Policy checks

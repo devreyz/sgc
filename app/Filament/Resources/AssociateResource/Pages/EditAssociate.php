@@ -13,6 +13,13 @@ class EditAssociate extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('manageAccess')
+                ->label('Segurança e acesso')
+                ->icon('heroicon-o-key')
+                ->url(fn (): string => route('security.associates.access.index', [
+                    'tenant' => session('tenant_slug'),
+                    'associate' => $this->record->id,
+                ])),
             Actions\ViewAction::make(),
             Actions\DeleteAction::make(),
             Actions\RestoreAction::make(),

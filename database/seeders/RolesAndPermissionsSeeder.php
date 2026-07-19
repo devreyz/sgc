@@ -52,6 +52,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_distributions',
             'view_receipts',
             'view_payments',
+            'access-links.create',
+            'access-links.view',
+            'access-links.revoke',
+            'passkeys.manage-own',
+            'passkeys.manage-users',
+            'security-events.view',
         ])->map(fn (string $name) => Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']));
 
         $this->command->info('✓ Roles criadas: super_admin, admin, financeiro, operador_caixa, assistente, associado, prestadores');

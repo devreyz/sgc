@@ -1585,6 +1585,15 @@
                     </span>
                 </a>
 
+                <a href="{{ route('security.index') }}" class="user-menu-item">
+                    <span class="user-menu-icon primary" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="8" cy="15" r="4"></circle><path d="M10.85 12.15 19 4"></path><path d="m18 5 2 2"></path>
+                        </svg>
+                    </span>
+                    <span class="user-menu-text"><h4>Segurança e acesso</h4><p>Passkeys e conta Google</p></span>
+                </a>
+
                 <a href="{{ url('/' . $currentTenantSlug . '/wallet') }}" class="user-menu-item">
                     <span class="user-menu-icon primary" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

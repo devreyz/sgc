@@ -1,10 +1,10 @@
 {
-  "_vendor-Dnk_-Q5K.js": {
-    "file": "assets/vendor-Dnk_-Q5K.js",
+  "_vendor-KF4U7xcw.js": {
+    "file": "assets/vendor-KF4U7xcw.js",
     "name": "vendor"
   },
   "resources/css/app.css": {
-    "file": "assets/app-aWHEUCMx.css",
+    "file": "assets/app-DHb5pz69.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -13,12 +13,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BFiB3tHn.js",
+    "file": "assets/app-DE1Pr4kM.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_vendor-Dnk_-Q5K.js"
+      "_vendor-KF4U7xcw.js"
     ]
   }
 }
