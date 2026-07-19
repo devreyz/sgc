@@ -14,6 +14,7 @@ return [
     'timeout' => (int) env('WEBAUTHN_CHALLENGE_TTL', 300) * 1000,
     'challenge_ttl' => (int) env('WEBAUTHN_CHALLENGE_TTL', 300),
     'enrollment_ttl' => (int) env('WEBAUTHN_ENROLLMENT_TTL', 600),
+    'lifetime_days' => (int) env('PASSKEY_LIFETIME_DAYS', 365),
     'guard' => 'web',
     'middleware' => ['web'],
     'management_middleware' => [],

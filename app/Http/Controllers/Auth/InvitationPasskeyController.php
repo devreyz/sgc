@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\AccessInvitationService;
 use App\Services\AuthenticationRedirector;
 use App\Services\SecurityAuditService;
+use App\Support\PasskeyName;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,13 +28,28 @@ class InvitationPasskeyController extends Controller
     public function show(Request $request, AccessInvitationService $service)
     {
         try {
-            $service->invitationForGrant($request);
+            $invitation = $service->invitationForGrant($request);
         } catch (RuntimeException) {
             return redirect()->route('access.invitation.verify')
                 ->with('error', 'O convite nao esta disponivel.');
         }
 
-        return view('auth.invitation-passkey');
+        $associateName = $invitation->associate_id
+            ? Associate::withoutGlobalScopes()
+                ->where('tenant_id', $invitation->tenant_id)
+                ->whereKey($invitation->associate_id)
+                ->first()?->display_name
+            : null;
+        $memberName = $invitation->tenant_user_id
+            ? TenantUser::query()
+                ->where('tenant_id', $invitation->tenant_id)
+                ->whereKey($invitation->tenant_user_id)
+                ->first()?->display_name
+            : null;
+
+        return view('auth.invitation-passkey', [
+            'suggestedPasskeyName' => PasskeyName::suggest($associateName ?: $memberName),
+        ]);
     }
 
     public function options(

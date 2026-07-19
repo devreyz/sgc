@@ -27,7 +27,7 @@
             <h2>Confirme sua identidade</h2>
             <p>Uma nova confirmacao e necessaria para alterar seus metodos de acesso.</p>
             <div class="reauth-actions">
-                @if($passkeys->whereNull('revoked_at')->isNotEmpty())
+                @if($activePasskeys->isNotEmpty())
                     <button class="btn" id="reauth-passkey">Confirmar com passkey</button>
                 @endif
                 @if($oauthAccounts->where('provider', 'google')->isNotEmpty())
@@ -40,7 +40,7 @@
     <section class="section">
         <div class="section-head"><div><h2>Passkeys</h2><p>Biometria, PIN ou chave fisica. Somente voce pode cadastrar uma passkey apos confirmar sua identidade.</p></div><button class="btn" id="add-passkey" @disabled(!$recentlyAuthenticated)>Adicionar passkey</button></div>
         @forelse($passkeys as $passkey)
-            <div class="row"><div><strong>{{ $passkey->name ?: 'Passkey' }} @if($passkey->revoked_at) · Revogada @endif</strong><span>Criada em {{ $passkey->created_at?->format('d/m/Y H:i') }} · Ultimo uso {{ $passkey->last_used_at?->format('d/m/Y H:i') ?? 'nunca' }}</span></div>@if(!$passkey->revoked_at)<button class="btn secondary danger revoke-passkey" data-id="{{ $passkey->id }}">Revogar</button>@endif</div>
+            <div class="row"><div><strong>{{ $passkey->name ?: 'Passkey' }} @if($passkey->revoked_at) · Revogada @elseif($passkey->expires_at?->isPast()) · Expirada @endif</strong><span>Criada em {{ $passkey->created_at?->format('d/m/Y H:i') }} · Valida ate {{ $passkey->expires_at?->format('d/m/Y H:i') ?? 'nao informada' }} · Ultimo uso {{ $passkey->last_used_at?->format('d/m/Y H:i') ?? 'nunca' }}</span></div>@if(!$passkey->revoked_at && !$passkey->expires_at?->isPast())<button class="btn secondary danger revoke-passkey" data-id="{{ $passkey->id }}">Revogar</button>@endif</div>
         @empty
             <div class="empty">Nenhuma passkey cadastrada.</div>
         @endforelse
@@ -57,7 +57,7 @@
 </main>
 
 <dialog class="dialog" id="passkey-dialog">
-    <form method="dialog"><h2>Nova passkey</h2><p>Escolha um nome para reconhecer este acesso.</p><input id="new-passkey-name" maxlength="80" value="Meu dispositivo"><div class="dialog-actions"><button class="btn secondary" value="cancel">Cancelar</button><button class="btn" id="confirm-passkey" value="default">Criar</button></div></form>
+    <form method="dialog"><h2>Nova passkey</h2><p>Escolha um nome de ate tres palavras.</p><input id="new-passkey-name" maxlength="60" value="{{ $suggestedPasskeyName }}"><div class="dialog-actions"><button class="btn secondary" value="cancel">Cancelar</button><button class="btn" id="confirm-passkey" value="default">Criar</button></div></form>
 </dialog>
 
 <script>
@@ -65,8 +65,10 @@ const csrf=document.querySelector('meta[name="csrf-token"]').content;
 const statusBox=document.getElementById('security-status');
 const dialog=document.getElementById('passkey-dialog');
 const loading=document.getElementById('loading');
+const passkeyName=document.getElementById('new-passkey-name');
 const showError=message=>{statusBox.className='status show error';statusBox.textContent=message||'Nao foi possivel concluir a operacao.'};
 const busy=value=>loading.classList.toggle('show',value);
+passkeyName.addEventListener('input',()=>{const words=passkeyName.value.trimStart().split(/\s+/).filter(Boolean);if(words.length>3)passkeyName.value=words.slice(0,3).join(' ')});
 
 document.getElementById('reauth-passkey')?.addEventListener('click',async()=>{
     busy(true);
@@ -80,7 +82,7 @@ document.getElementById('add-passkey')?.addEventListener('click',()=>dialog.show
 document.getElementById('confirm-passkey').addEventListener('click',async event=>{
     event.preventDefault();busy(true);
     try{
-        await window.SgcPasskeys.register({name:document.getElementById('new-passkey-name').value,routes:{options:@json(route('security.passkeys.options')),submit:@json(route('security.passkeys.store'))}});
+        await window.SgcPasskeys.register({name:passkeyName.value,routes:{options:@json(route('security.passkeys.options')),submit:@json(route('security.passkeys.store'))}});
         location.reload();
     }catch(error){busy(false);dialog.close();showError(error.message)}
 });

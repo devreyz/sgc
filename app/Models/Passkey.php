@@ -27,6 +27,7 @@ class Passkey extends BasePasskey
         'user_verified',
         'rp_id',
         'created_ip_hash',
+        'expires_at',
     ];
 
     protected $hidden = [
@@ -38,7 +39,11 @@ class Passkey extends BasePasskey
 
     protected static function booted(): void
     {
-        static::addGlobalScope('usable', fn (Builder $query) => $query->whereNull('revoked_at'));
+        static::addGlobalScope('usable', fn (Builder $query) => $query
+            ->whereNull('revoked_at')
+            ->where(function (Builder $expiryQuery): void {
+                $expiryQuery->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            }));
     }
 
     protected function casts(): array
@@ -52,6 +57,7 @@ class Passkey extends BasePasskey
             'backup_state' => 'boolean',
             'user_verified' => 'boolean',
             'last_used_at' => 'datetime',
+            'expires_at' => 'datetime',
             'revoked_at' => 'datetime',
         ];
     }

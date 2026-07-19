@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Support\PasskeyName;
+use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\ValidationException;
 use Laravel\Passkeys\Support\WebAuthn;
@@ -23,13 +25,29 @@ class SecurePasskeyRegistrationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:80'],
+            'name' => [
+                'required',
+                'string',
+                'max:'.PasskeyName::MAX_LENGTH,
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    try {
+                        PasskeyName::validate((string) $value);
+                    } catch (\InvalidArgumentException $exception) {
+                        $fail($exception->getMessage());
+                    }
+                },
+            ],
             'credential' => ['required', 'array'],
             'credential.id' => ['required', 'string'],
             'credential.rawId' => ['required', 'string'],
             'credential.type' => ['required', 'in:public-key'],
             'credential.response' => ['required', 'array'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['name' => PasskeyName::normalize($this->input('name'))]);
     }
 
     protected function passedValidation(): void

@@ -3,6 +3,7 @@
 namespace App\Actions\Passkeys;
 
 use App\Services\SecurityAuditService;
+use App\Support\PasskeyName;
 use Laravel\Passkeys\Actions\StorePasskey;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\Passkey;
@@ -18,9 +19,10 @@ class StoreSecurePasskey extends StorePasskey
     public function createPasskey(PasskeyUser $user, string $name, CredentialRecord $source): Passkey
     {
         $credentialId = Base64UrlSafe::encodeUnpadded($source->publicKeyCredentialId);
+        $name = PasskeyName::validate($name);
 
         return $user->passkeys()->create([
-            'name' => trim($name) ?: 'Passkey',
+            'name' => $name,
             'credential_id' => $credentialId,
             'credential' => json_decode(WebAuthn::toJson($source), true, flags: JSON_THROW_ON_ERROR),
             'public_key' => Base64UrlSafe::encodeUnpadded($source->credentialPublicKey),
@@ -32,6 +34,7 @@ class StoreSecurePasskey extends StorePasskey
             'user_verified' => (bool) $source->uvInitialized,
             'rp_id' => Passkeys::relyingPartyId(),
             'created_ip_hash' => $this->audit->hashIp(request()->ip()),
+            'expires_at' => now()->addDays((int) config('passkeys.lifetime_days', 365)),
         ]);
     }
 }

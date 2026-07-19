@@ -169,17 +169,46 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
 
     public function getPasskeyUserHandle(): string
     {
-        if (! $this->webauthn_user_handle) {
-            $this->forceFill([
-                'webauthn_user_handle' => Base64UrlSafe::encodeUnpadded(random_bytes(32)),
-            ]);
+        $encoded = trim((string) $this->webauthn_user_handle);
+        $decoded = $this->decodePasskeyUserHandle($encoded);
 
+        if ($decoded === null) {
+            $hasExistingPasskeys = $this->exists
+                && $this->passkeys()->withoutGlobalScopes()->exists();
+
+            if ($hasExistingPasskeys) {
+                throw new \RuntimeException('Invalid WebAuthn user handle for an account with existing credentials.');
+            }
+
+            $decoded = random_bytes(32);
+        }
+
+        $canonical = Base64UrlSafe::encodeUnpadded($decoded);
+        if (! hash_equals($encoded, $canonical)) {
+            $this->forceFill(['webauthn_user_handle' => $canonical]);
             if ($this->exists) {
                 $this->saveQuietly();
             }
         }
 
-        return Base64UrlSafe::decodeNoPadding($this->webauthn_user_handle);
+        return $decoded;
+    }
+
+    private function decodePasskeyUserHandle(string $encoded): ?string
+    {
+        if ($encoded === '') {
+            return null;
+        }
+
+        try {
+            $decoded = Base64UrlSafe::decodeNoPadding($encoded);
+        } catch (\Throwable) {
+            $standard = strtr($encoded, '-_', '+/');
+            $standard .= str_repeat('=', (4 - strlen($standard) % 4) % 4);
+            $decoded = base64_decode($standard, true);
+        }
+
+        return is_string($decoded) && strlen($decoded) === 32 ? $decoded : null;
     }
 
     public function getPasskeyDisplayName(): string

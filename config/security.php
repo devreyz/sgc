@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'invitation_ttl_hours' => (int) env('ACCESS_INVITATION_TTL_HOURS', 36),
+    'invitation_ttl_hours' => (int) env('ACCESS_INVITATION_TTL_HOURS', 24),
     'invitation_max_attempts' => (int) env('ACCESS_INVITATION_MAX_ATTEMPTS', 5),
     'invitation_code_pepper' => env('ACCESS_INVITATION_CODE_PEPPER', env('APP_KEY')),
     'audit_pepper' => env('SECURITY_AUDIT_PEPPER', env('APP_KEY')),

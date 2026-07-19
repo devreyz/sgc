@@ -15,7 +15,7 @@
 <main class="page">
     <header class="head">
         <div><h1>Links de acesso</h1><p>{{ $targetLabel }}</p></div>
-        <div class="create"><div class="field"><label for="invite-ttl">Validade</label><select id="invite-ttl"><option value="24">24 horas</option><option value="36" selected>36 horas</option><option value="48">48 horas</option></select></div><button class="btn" id="new-invite">Gerar link de acesso</button></div>
+        <div class="create"><div class="field"><label for="invite-ttl">Validade</label><select id="invite-ttl"><option value="24" selected>24 horas</option><option value="36">36 horas</option><option value="48">48 horas</option></select></div><button class="btn" id="new-invite">Gerar link de acesso</button></div>
     </header>
     <div class="message" id="message"></div>
 

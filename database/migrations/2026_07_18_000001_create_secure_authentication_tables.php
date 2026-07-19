@@ -4,7 +4,6 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -31,7 +30,7 @@ return new class extends Migration
             ->chunkById(200, function ($users): void {
                 foreach ($users as $user) {
                     DB::table('users')->where('id', $user->id)->update([
-                        'webauthn_user_handle' => Str::random(43),
+                        'webauthn_user_handle' => \ParagonIE\ConstantTime\Base64UrlSafe::encodeUnpadded(random_bytes(32)),
                     ]);
                 }
             });

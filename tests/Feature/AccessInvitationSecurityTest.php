@@ -121,6 +121,7 @@ class AccessInvitationSecurityTest extends TestCase
             $t->boolean('user_verified')->default(false);
             $t->string('rp_id');
             $t->timestamp('last_used_at')->nullable();
+            $t->timestamp('expires_at')->nullable();
             $t->string('created_ip_hash')->nullable();
             $t->timestamp('revoked_at')->nullable();
             $t->unsignedBigInteger('revoked_by_user_id')->nullable();
@@ -456,6 +457,94 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertSame(32, strlen(Base64UrlSafe::decodeNoPadding($handle)));
         $this->assertNotSame((string) $user->id, $handle);
         $this->assertSame($handle, $user->fresh()->webauthn_user_handle);
+    }
+
+    public function test_non_canonical_legacy_user_handle_is_repaired_without_changing_its_bytes(): void
+    {
+        $legacyHandle = str_repeat('A', 42).'B';
+        $expectedBytes = base64_decode($legacyHandle.'=', true);
+        $user = User::query()->create([
+            'name' => null,
+            'email' => null,
+            'password' => null,
+            'status' => true,
+            'webauthn_user_handle' => $legacyHandle,
+        ]);
+
+        $this->assertSame($expectedBytes, $user->getPasskeyUserHandle());
+        $this->assertSame(
+            Base64UrlSafe::encodeUnpadded($expectedBytes),
+            $user->fresh()->webauthn_user_handle
+        );
+    }
+
+    public function test_invalid_user_handle_with_existing_passkey_is_never_rotated_silently(): void
+    {
+        $user = User::query()->create([
+            'name' => null,
+            'email' => null,
+            'password' => null,
+            'status' => true,
+            'webauthn_user_handle' => str_repeat('%', 43),
+        ]);
+        DB::table('passkeys')->insert([
+            'id' => '01KPASSKEYINVALIDHANDLE00001',
+            'user_id' => $user->id,
+            'name' => 'Chave existente',
+            'credential_id' => 'credential-existing',
+            'credential' => '{}',
+            'sign_count' => 0,
+            'rp_id' => 'localhost',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            $user->getPasskeyUserHandle();
+            $this->fail('An invalid handle with credentials must require administrative recovery.');
+        } catch (\RuntimeException) {
+            $this->assertSame(str_repeat('%', 43), $user->fresh()->webauthn_user_handle);
+        }
+    }
+
+    public function test_expired_passkey_is_not_available_for_authentication(): void
+    {
+        [$user] = $this->fixture();
+        DB::table('passkeys')->insert([
+            'id' => '01KPASSKEYEXPIRED0000000001',
+            'user_id' => $user->id,
+            'name' => 'Chave expirada',
+            'credential_id' => 'credential-expired',
+            'credential' => '{}',
+            'sign_count' => 0,
+            'rp_id' => 'localhost',
+            'expires_at' => now()->subSecond(),
+            'created_at' => now()->subYear(),
+            'updated_at' => now(),
+        ]);
+
+        $this->assertFalse(\App\Models\Passkey::query()
+            ->where('credential_id', 'credential-expired')
+            ->exists());
+        $this->assertTrue(\App\Models\Passkey::withoutGlobalScope('usable')
+            ->where('credential_id', 'credential-expired')
+            ->exists());
+    }
+
+    public function test_passkey_name_is_limited_to_three_words_in_backend(): void
+    {
+        config()->set('passkeys.relying_party_id', 'localhost');
+        config()->set('passkeys.allowed_origins', ['http://localhost']);
+        [$user] = $this->fixture();
+        $user->forceFill(['last_authenticated_at' => now()])->saveQuietly();
+
+        $this->actingAs($user)
+            ->postJson(route('security.passkeys.store'), [
+                'name' => 'uma chave com quatro palavras',
+                'credential' => [],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
     }
 
     public function test_google_subject_is_primary_and_same_email_never_auto_merges(): void
