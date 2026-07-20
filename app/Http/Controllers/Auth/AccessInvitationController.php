@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\VerifyInvitationCodeRequest;
 use App\Services\AccessInvitationService;
+use App\Services\AuthenticationRedirector;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,9 +13,22 @@ use RuntimeException;
 
 class AccessInvitationController extends Controller
 {
-    public function consume(string $token, Request $request, AccessInvitationService $service): RedirectResponse
+    public function consume(
+        string $token,
+        Request $request,
+        AccessInvitationService $service,
+        AuthenticationRedirector $redirector,
+    ): RedirectResponse
     {
+        if ($request->user()) {
+            return redirect()->to($redirector->pathFor($request->user()), 303);
+        }
+
         $invitation = $service->findPendingByToken($token);
+
+        if ($invitation) {
+            $invitation = $service->prepareForCodeEntry($invitation, $request);
+        }
 
         if ($invitation) {
             $request->session()->put('access_invitation_id', $invitation->id);
@@ -22,11 +36,29 @@ class AccessInvitationController extends Controller
             $request->session()->forget('access_invitation_id');
         }
 
-        return redirect()->route('access.invitation.verify', status: 303);
+        return $invitation
+            ? redirect()->route('access.invitation.verify', status: 303)
+            : redirect()->route('login', status: 303)
+                ->with('error', 'O convite nao esta disponivel.');
     }
 
-    public function show(): mixed
+    public function show(
+        Request $request,
+        AccessInvitationService $service,
+        AuthenticationRedirector $redirector,
+    ): mixed
     {
+        if ($request->user()) {
+            return redirect()->to($redirector->pathFor($request->user()), 303);
+        }
+
+        if (! $service->pendingInvitationFromSession($request)) {
+            $request->session()->forget('access_invitation_id');
+
+            return redirect()->route('login', status: 303)
+                ->with('error', 'O convite nao esta disponivel.');
+        }
+
         return view('auth.invitation-verify');
     }
 

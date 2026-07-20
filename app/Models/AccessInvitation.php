@@ -59,7 +59,10 @@ class AccessInvitation extends Model
 
     public function isClaimed(): bool
     {
-        return $this->status === 'claimed'
+        return in_array($this->status, ['pending', 'claimed'], true)
+            && $this->claimed_at !== null
+            && is_string($this->claimed_session_hash)
+            && $this->claimed_session_hash !== ''
             && $this->enrollment_expires_at?->isFuture();
     }
 }

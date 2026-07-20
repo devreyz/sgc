@@ -3,12 +3,30 @@
 namespace App\Auth;
 
 use Exception;
+use Firebase\JWT\JWT;
 use Illuminate\Support\Arr;
 use Laravel\Socialite\Two\GoogleProvider;
 use Laravel\Socialite\Two\InvalidStateException;
 
 class SecureGoogleProvider extends GoogleProvider
 {
+    /**
+     * Google and the application server may cross a second boundary while the
+     * authorization code is exchanged. Keep the tolerance small and restore
+     * Firebase JWT's process-wide static value for long-running workers.
+     */
+    protected function getUserFromJwtToken($idToken)
+    {
+        $previousLeeway = JWT::$leeway;
+        JWT::$leeway = max(0, min(60, (int) config('security.google_jwt_clock_skew_seconds', 10)));
+
+        try {
+            return parent::getUserFromJwtToken($idToken);
+        } finally {
+            JWT::$leeway = $previousLeeway;
+        }
+    }
+
     public function user()
     {
         if ($this->user) {

@@ -14,7 +14,7 @@ class VerifyInvitationCodeRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'min:10', 'max:24'],
+            'code' => ['required', 'string', 'regex:/^\d{6}$/'],
         ];
     }
 

@@ -313,15 +313,7 @@
                 </a>
             </div>
 
-            <div class="passkey-helper" id="passkey-helper">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 16v-4"></path>
-                    <path d="M12 8h.01"></path>
-                </svg>
-
-                Use biometria, PIN ou chave de segurança.
-            </div>
+            <div class="passkey-helper" id="passkey-helper" hidden></div>
 
             <div class="login-status" id="login-status" role="status" aria-live="polite">
                 <span class="status-spinner"></span>
@@ -354,6 +346,14 @@
 </main>
 
 <script>
+    window.addEventListener('pageshow', async function () {
+        try {
+            const response = await fetch(@json(route('auth.state')), {credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}});
+            const state = await response.json();
+            if (state.authenticated && state.redirect) window.location.replace(state.redirect);
+        } catch (_) {}
+    });
+
     const PASSKEY_OPTIONS_URL = @json($passkeyOptionsUrl);
     const PASSKEY_VERIFY_URL = @json($passkeyVerifyUrl);
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
@@ -494,6 +494,7 @@
             passkeyButton.disabled = true;
             passkeyHelper.textContent =
                 'Passkeys não estão disponíveis neste navegador ou conexão.';
+            passkeyHelper.hidden = false;
             return;
         }
 

@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "node -e \"require('node:fs').rmSync('public/hot',{force:true})\" && vite build",
         "dev": "vite",
         "adb": "adb reverse tcp:8000 tcp:8000 && adb reverse tcp:5173 tcp:5173"
     },

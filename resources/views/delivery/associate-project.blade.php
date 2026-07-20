@@ -2,7 +2,7 @@
 
 @section('title', 'Associado no projeto')
 @section('page-title', 'Associado no projeto')
-@section('page-subtitle', 'Acompanhe participação, limites, entregas, distribuições e comprovantes.')
+@section('page-subtitle', $project->title)
 
 @section('content')
 @php
@@ -1247,11 +1247,6 @@
 
             <h1 class="ap-title">{{ $associate->display_name }}</h1>
 
-            <p class="ap-subtitle">
-                Visualize a participação deste associado no projeto e acompanhe limites,
-                entregas, distribuições, comprovantes, pagamentos e histórico em uma única tela.
-            </p>
-
             <div class="ap-meta-row">
                 <span>
                     <i data-lucide="hash"></i>
@@ -1276,12 +1271,6 @@
         </div>
 
         <aside class="ap-hero-aside">
-            <span class="ap-aside-label">Ações rápidas</span>
-            <strong>Gerencie sem sair da página</strong>
-            <p>
-                Registre entregas ou abra diretamente a configuração de participação e limites.
-            </p>
-
             <div class="ap-hero-actions">
                 <a
                     class="ap-hero-btn primary"
@@ -1664,9 +1653,7 @@
                 ${statCard(
                     'Participação',
                     esc(participation),
-                    data.allow_any_product
-                        ? 'Catálogo livre, respeitando os limites existentes.'
-                        : 'Produtos conforme limites e demandas.',
+                    '',
                     data.participation_status === 'blocked' ? 'user-round-x' : 'user-round-check',
                     data.participation_status === 'blocked' ? 'danger' : ''
                 )}
@@ -1901,11 +1888,6 @@
                 <div class="ap-section-head">
                     <div class="ap-section-head-copy">
                         <div class="ap-section-title">Participação e produtos permitidos</div>
-                        <div class="ap-section-subtitle">
-                            ${summary.mode === 'single_customer'
-                                ? 'Projeto com cliente único: limites por produto estão disponíveis.'
-                                : 'Projeto com múltiplos clientes: o controle é somente financeiro.'}
-                        </div>
                     </div>
                 </div>
 

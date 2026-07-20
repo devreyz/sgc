@@ -27,6 +27,10 @@ class InvitationPasskeyController extends Controller
 {
     public function show(Request $request, AccessInvitationService $service)
     {
+        if ($request->user()) {
+            return redirect()->to(app(AuthenticationRedirector::class)->pathFor($request->user()), 303);
+        }
+
         try {
             $invitation = $service->invitationForGrant($request);
         } catch (RuntimeException) {

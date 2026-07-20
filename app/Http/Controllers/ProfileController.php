@@ -5,9 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
@@ -55,8 +53,6 @@ class ProfileController extends Controller
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'avatar' => ['nullable', 'string'], // Base64 string
-            'current_password' => ['nullable', 'required_with:password'],
-            'password' => ['nullable', 'confirmed', Password::defaults()],
         ];
 
         // Only validate email if user is admin
@@ -100,14 +96,6 @@ class ProfileController extends Controller
                     $user->avatar = $filename;
                 }
             }
-        }
-
-        // Handle password change
-        if ($request->filled('password')) {
-            if (!Hash::check($request->current_password, $user->password)) {
-                return back()->withErrors(['current_password' => 'A senha atual está incorreta.']);
-            }
-            $user->password = Hash::make($validated['password']);
         }
 
         $user->save();

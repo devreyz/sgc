@@ -2,7 +2,7 @@
 
 @section('title', $project->title)
 @section('page-title', $project->title)
-@section('page-subtitle', 'Acompanhe limites, entregas, destinos, comprovantes e pagamentos do projeto.')
+@section('page-subtitle', $project->title)
 
 @section('content')
 @php
@@ -1282,32 +1282,26 @@
     const awSections = {
         summary: {
             title: 'Visão geral',
-            description: 'Acompanhe os principais números financeiros e operacionais do projeto.',
             icon: 'layout-dashboard',
         },
         limits: {
             title: 'Limites e produtos permitidos',
-            description: 'Veja quanto ainda pode ser entregue e os preços usados como referência.',
             icon: 'gauge',
         },
         deliveries: {
             title: 'Minhas entregas',
-            description: 'Consulte quantidades, aprovações e saldos ainda sem distribuição.',
             icon: 'package-check',
         },
         distributions: {
             title: 'Destinos dos produtos',
-            description: 'Veja quais clientes receberam os produtos e os valores correspondentes.',
             icon: 'route',
         },
         receipts: {
             title: 'Comprovantes',
-            description: 'Consulte documentos vigentes, históricos, valores líquidos e arquivos.',
             icon: 'receipt-text',
         },
         payments: {
             title: 'Pagamentos recebidos',
-            description: 'Acompanhe os pagamentos vinculados aos seus comprovantes.',
             icon: 'wallet-cards',
         },
     };
@@ -1359,7 +1353,6 @@
             <header class="aw-section-head">
                 <div>
                     <h2>${awEsc(current.title)}</h2>
-                    <p>${awEsc(current.description)}</p>
                 </div>
                 ${extra ? `<div class="aw-section-meta">${extra}</div>` : ''}
             </header>

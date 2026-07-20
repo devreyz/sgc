@@ -3,7 +3,6 @@
 @section('title', 'Criar passkey')
 @section('heading')
     <h1>Criar passkey</h1>
-    <p>Use a proteção de tela deste dispositivo para concluir.</p>
 @endsection
 
 @section('content')
@@ -11,7 +10,6 @@
     <input id="passkey-name" class="field" style="letter-spacing:0;text-transform:none" maxlength="60" value="{{ $suggestedPasskeyName }}" autocomplete="off">
     <button class="btn" id="create-passkey" type="button">Criar passkey</button>
     <div class="status" id="status" role="status" aria-live="polite"></div>
-    <div class="privacy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path></svg><span>A chave privada e a biometria permanecem no seu dispositivo. O sistema recebe somente a chave pública.</span></div>
 @endsection
 
 @push('scripts')

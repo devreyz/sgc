@@ -4,17 +4,17 @@
     "name": "vendor"
   },
   "resources/css/app.css": {
-    "file": "assets/app-DHb5pz69.css",
+    "file": "assets/resources/css/app-CCz9gNpi.css",
     "src": "resources/css/app.css",
     "isEntry": true,
-    "name": "app",
+    "name": "resources/css/app.css",
     "names": [
-      "app.css"
+      "resources/css/app.css"
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DE1Pr4kM.js",
-    "name": "app",
+    "file": "assets/resources/js/app.js-Bqw0sUr1.js",
+    "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [

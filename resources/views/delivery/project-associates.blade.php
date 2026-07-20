@@ -2,7 +2,7 @@
 
 @section('title', 'Associados do projeto')
 @section('page-title', 'Participação e limites')
-@section('page-subtitle', 'Gerencie quem pode entregar e acompanhe os limites de cada associado.')
+@section('page-subtitle', $project->title)
 
 @section('content')
 @php
@@ -1140,23 +1140,7 @@
                 Voltar ao projeto
             </a>
 
-            <div class="pam-eyebrow">
-                <span>
-                    <i data-lucide="users-round"></i>
-                    Gestão de participantes
-                </span>
-                <span>
-                    <i data-lucide="shield-check"></i>
-                    Projeto #{{ $project->id }}
-                </span>
-            </div>
-
             <h1 class="pam-title">Participação e limites</h1>
-
-            <p class="pam-subtitle">
-                Defina quem pode registrar entregas e acompanhe, em uma única tela,
-                o saldo financeiro e os produtos limitados de cada associado.
-            </p>
 
             <div class="pam-project-meta">
                 <span>
@@ -1174,12 +1158,6 @@
         </div>
 
         <aside class="pam-hero-aside">
-            <span class="pam-aside-label">Ação operacional</span>
-            <strong>Registrar uma nova entrega</strong>
-            <p>
-                Abra o formulário com este projeto pré-selecionado e escolha o associado.
-            </p>
-
             <a
                 class="pam-primary-action"
                 href="{{ route('delivery.register', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
@@ -1197,9 +1175,8 @@
                     <i data-lucide="users-round"></i>
                 </div>
                 <div class="pam-summary-copy">
-                    <div class="pam-summary-label">Associados encontrados</div>
+                    <div class="pam-summary-label">Associados</div>
                     <div class="pam-summary-value" id="pam-total">—</div>
-                    <div class="pam-summary-helper">Resultado atual da busca e paginação.</div>
                 </div>
             </div>
         </article>
@@ -1210,14 +1187,9 @@
                     <i data-lucide="{{ $project->restrict_participants ? 'user-round-check' : 'users-round' }}"></i>
                 </div>
                 <div class="pam-summary-copy">
-                    <div class="pam-summary-label">Regra de participação</div>
+                    <div class="pam-summary-label">Participação</div>
                     <div class="pam-summary-value">
                         {{ $project->restrict_participants ? 'Somente participantes' : 'Participação aberta' }}
-                    </div>
-                    <div class="pam-summary-helper">
-                        {{ $project->restrict_participants
-                            ? 'Apenas associados ativos nesta lista podem entregar.'
-                            : 'A participação não está restrita neste projeto.' }}
                     </div>
                 </div>
             </div>
@@ -1229,14 +1201,9 @@
                     <i data-lucide="{{ $project->allow_any_product ? 'package-open' : 'package-check' }}"></i>
                 </div>
                 <div class="pam-summary-copy">
-                    <div class="pam-summary-label">Regra de produtos</div>
+                    <div class="pam-summary-label">Produtos</div>
                     <div class="pam-summary-value">
                         {{ $project->allow_any_product ? 'Catálogo livre' : 'Conforme limites' }}
-                    </div>
-                    <div class="pam-summary-helper">
-                        {{ $project->allow_any_product
-                            ? 'Produtos ativos podem ser selecionados, respeitando os limites existentes.'
-                            : 'Somente produtos liberados por limite ou demanda podem ser entregues.' }}
                     </div>
                 </div>
             </div>
@@ -1274,10 +1241,6 @@
                 <option value="unconfigured">Ainda não configurados</option>
             </select>
 
-            <div class="pam-toolbar-meta">
-                <i data-lucide="refresh-cw" style="width:14px;height:14px"></i>
-                Atualização automática
-            </div>
         </div>
 
         <div class="pam-skeleton-list" id="pam-skeleton">

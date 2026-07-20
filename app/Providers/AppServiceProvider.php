@@ -16,6 +16,14 @@ use App\Models\ServiceOrder;
 use App\Models\ServiceProvider as ServiceProviderModel;
 use App\Models\ServiceProviderLedger;
 use App\Models\Passkey;
+use App\Models\AssociateReceipt;
+use App\Models\Asset;
+use App\Models\CollectivePurchase;
+use App\Models\DirectPurchase;
+use App\Models\ProviderPaymentRequest;
+use App\Models\Revenue;
+use App\Models\SalesProject;
+use App\Models\ServiceOrderPayment;
 use App\Policies\AccessInvitationPolicy;
 use App\Policies\PasskeyPolicy;
 use App\Observers\AssociateLedgerObserver;
@@ -27,12 +35,15 @@ use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
 use App\Observers\ServiceProviderObserver;
 use App\Observers\ServiceProviderLedgerObserver;
+use App\Observers\AssociateReceiptObserver;
+use App\Observers\TenantStoredFileObserver;
 use App\Services\TenantIdentityService;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Vite;
 use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Passkeys\Actions\GenerateRegistrationOptions;
 use Laravel\Passkeys\Actions\StorePasskey;
@@ -59,6 +70,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Em producao, nunca aceite um public/hot copiado por engano do
+        // ambiente local. Os assets devem vir exclusivamente do manifest.
+        if (! app()->environment('local')) {
+            app(Vite::class)->useHotFile(storage_path('framework/vite.hot'));
+        }
+
         Schema::defaultStringLength(191);
         Gate::policy(AccessInvitation::class, AccessInvitationPolicy::class);
         Gate::policy(Passkey::class, PasskeyPolicy::class);
@@ -98,6 +115,12 @@ class AppServiceProvider extends ServiceProvider
             (int) config('security.rates.google_callback_per_minute', 10)
         )->by('google|'.$request->session()->getId().'|'.$request->ip()));
 
+        RateLimiter::for('auth-state', fn (Request $request) => Limit::perMinute(30)
+            ->by('auth-state|'.$request->session()->getId().'|'.$request->ip()));
+
+        RateLimiter::for('google-drive-oauth', fn (Request $request) => Limit::perHour(10)
+            ->by('google-drive|'.$request->user()?->id.'|'.$request->session()->getId().'|'.$request->ip()));
+
         // Grant all permissions to super_admin
         // This allows super admin to bypass all Gate and Policy checks
         Gate::before(function ($user, $ability) {
@@ -133,5 +156,15 @@ class AppServiceProvider extends ServiceProvider
         AssociateLedger::observe(AssociateLedgerObserver::class);
         ServiceProviderModel::observe(ServiceProviderObserver::class);
         ServiceProviderLedger::observe(ServiceProviderLedgerObserver::class);
+        AssociateReceipt::observe(AssociateReceiptObserver::class);
+        Asset::observe(TenantStoredFileObserver::class);
+        CollectivePurchase::observe(TenantStoredFileObserver::class);
+        DirectPurchase::observe(TenantStoredFileObserver::class);
+        Expense::observe(TenantStoredFileObserver::class);
+        ProviderPaymentRequest::observe(TenantStoredFileObserver::class);
+        Revenue::observe(TenantStoredFileObserver::class);
+        SalesProject::observe(TenantStoredFileObserver::class);
+        ServiceOrder::observe(TenantStoredFileObserver::class);
+        ServiceOrderPayment::observe(TenantStoredFileObserver::class);
     }
 }

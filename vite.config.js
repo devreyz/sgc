@@ -28,6 +28,11 @@ export default defineConfig({
     build: {
         sourcemap: false, // Desabilita mapas de fonte no ambiente de produção
         rollupOptions: {
+            // Evita chaves D:/... no manifest gerado pelo Vite no Windows.
+            input: {
+                "resources/css/app.css": "resources/css/app.css",
+                "resources/js/app.js": "resources/js/app.js",
+            },
             output: {
                 manualChunks: (id) => {
                     if (id.includes("node_modules")) {

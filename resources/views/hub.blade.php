@@ -704,6 +704,40 @@ Bem-vindo, {{ $displayName }}!
     </div>
 
     <section class="panel-selector-grid" aria-label="Painéis disponíveis">
+        {{-- Super Admin --}}
+        @if ($user->hasRole("super_admin"))
+            <a
+                href="{{ url('super-admin') }}"
+                class="role-card primary"
+                aria-label="Acessar Super Admin"
+            >
+                <article class="role-panel">
+                    <div class="role-panel-top">
+                        <div class="role-icon">
+                            <i data-lucide="settings"></i>
+                        </div>
+
+                        <span class="role-availability">Disponível</span>
+                    </div>
+
+                    <div class="role-copy">
+                        <h3 class="role-title">Super Admin</h3>
+                        <p class="role-description">Administre todo o sistema!</p>
+                    </div>
+
+                    <div class="role-panel-footer">
+                        <span class="role-access-label">
+                            <i data-lucide="log-in"></i>
+                            Entrar no painel
+                        </span>
+
+                        <span class="role-card-arrow" aria-hidden="true">
+                            <i data-lucide="arrow-right"></i>
+                        </span>
+                    </div>
+                </article>
+            </a>
+        @endif
         @forelse($roles as $role)
             <a
                 href="{{ $role['url'] }}"

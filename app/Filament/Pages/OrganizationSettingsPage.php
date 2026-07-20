@@ -3,6 +3,9 @@
 namespace App\Filament\Pages;
 
 use App\Models\Tenant;
+use App\Models\TenantCloudStorageConnection;
+use App\Models\TenantUser;
+use App\Services\TenantGoogleDriveService;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -337,6 +340,50 @@ class OrganizationSettingsPage extends Page implements HasForms
                                     ->columnSpan(2),
                             ])
                             ->columns(2),
+
+                        Forms\Components\Tabs\Tab::make('Google Drive')
+                            ->icon('heroicon-o-cloud-arrow-up')
+                            ->visible(fn (): bool => $this->canManageGoogleDrive())
+                            ->schema([
+                                Forms\Components\Placeholder::make('google_drive_status')
+                                    ->label('Armazenamento de documentos')
+                                    ->content(function (): string {
+                                        $connection = $this->googleDriveConnection();
+                                        if (! $connection || $connection->status === 'revoked') {
+                                            return 'Não conectado';
+                                        }
+
+                                        if ($connection->status === 'error') {
+                                            return 'A conexão precisa ser renovada';
+                                        }
+
+                                        return 'Conectado'.($connection->last_sync_at
+                                            ? ' · última sincronização '.$connection->last_sync_at->format('d/m/Y H:i')
+                                            : ' · aguardando o primeiro documento');
+                                    }),
+                                Forms\Components\Placeholder::make('google_drive_scope')
+                                    ->label('Privacidade')
+                                    ->content('O SGC acessa somente os arquivos e pastas que ele próprio cria nesta conexão.'),
+                                Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make('connect_google_drive')
+                                        ->label(fn (): string => $this->googleDriveConnection()?->status === 'active'
+                                            ? 'Reconectar Google Drive'
+                                            : 'Conectar Google Drive')
+                                        ->icon('heroicon-o-link')
+                                        ->color('primary')
+                                        ->url(fn (): string => route('settings.google-drive.connect', [
+                                            'tenant' => $this->currentTenant()->slug,
+                                        ])),
+                                    Forms\Components\Actions\Action::make('disconnect_google_drive')
+                                        ->label('Desconectar')
+                                        ->icon('heroicon-o-link-slash')
+                                        ->color('danger')
+                                        ->requiresConfirmation()
+                                        ->modalDescription('Novos documentos deixarão de ser enviados. Os arquivos existentes permanecerão no Drive da organização.')
+                                        ->visible(fn (): bool => $this->googleDriveConnection()?->status === 'active')
+                                        ->action(fn () => $this->disconnectGoogleDrive()),
+                                ]),
+                            ]),
                     ])
                     ->columnSpanFull()
                     ->persistTabInQueryString(),
@@ -375,5 +422,47 @@ class OrganizationSettingsPage extends Page implements HasForms
     protected function getFormActions(): array
     {
         return [];
+    }
+
+    public function disconnectGoogleDrive(): void
+    {
+        abort_unless($this->canManageGoogleDrive(), 403);
+
+        $connection = $this->googleDriveConnection();
+        if ($connection) {
+            app(TenantGoogleDriveService::class)->disconnect($connection);
+            activity('cloud_storage')->causedBy(auth()->user())->performedOn($this->currentTenant())
+                ->withProperties(['tenant_id' => $this->currentTenant()->id, 'provider' => 'google_drive'])
+                ->log('Google Drive desconectado');
+        }
+
+        Notification::make()->success()->title('Google Drive desconectado')->send();
+    }
+
+    private function currentTenant(): Tenant
+    {
+        return Tenant::query()->findOrFail((int) session('tenant_id'));
+    }
+
+    private function googleDriveConnection(): ?TenantCloudStorageConnection
+    {
+        return TenantCloudStorageConnection::query()
+            ->where('tenant_id', (int) session('tenant_id'))
+            ->first();
+    }
+
+    private function canManageGoogleDrive(): bool
+    {
+        $user = auth()->user();
+        if (! $user || $user->isSuperAdmin()) {
+            return false;
+        }
+
+        return TenantUser::query()
+            ->where('tenant_id', (int) session('tenant_id'))
+            ->where('user_id', $user->id)
+            ->where('status', true)
+            ->where('is_admin', true)
+            ->exists();
     }
 }

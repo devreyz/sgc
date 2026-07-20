@@ -14,8 +14,6 @@ use RuntimeException;
 
 class AccessInvitationService
 {
-    private const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
     public function __construct(private readonly SecurityAuditService $audit) {}
 
     public function issue(User $issuer, Associate|TenantUser $target, int $tenantId, ?int $ttlHours = null): array
@@ -132,6 +130,17 @@ class AccessInvitationService
             ->where('token_hash', hash('sha256', $token))
             ->first();
 
+        // Compatibilidade com convites validados antes desta correcao. A etapa
+        // de OTP nao consome o convite; ao reabrir o link, ela recomeca.
+        if ($invitation?->status === 'claimed' && $invitation->expires_at->isFuture()) {
+            $invitation->forceFill([
+                'status' => 'pending',
+                'claimed_at' => null,
+                'claimed_session_hash' => null,
+                'enrollment_expires_at' => null,
+            ])->save();
+        }
+
         if (! $invitation || $invitation->status !== 'pending') {
             return null;
         }
@@ -143,6 +152,51 @@ class AccessInvitationService
         }
 
         return $invitation;
+    }
+
+    public function pendingInvitationFromSession(Request $request): ?AccessInvitation
+    {
+        $invitation = AccessInvitation::query()
+            ->whereKey((string) $request->session()->get('access_invitation_id', ''))
+            ->first();
+
+        if (! $invitation || $invitation->status !== 'pending') {
+            return null;
+        }
+
+        if ($invitation->expires_at->isPast()) {
+            $invitation->forceFill(['status' => 'expired'])->save();
+
+            return null;
+        }
+
+        return $invitation;
+    }
+
+    public function prepareForCodeEntry(AccessInvitation $invitation, Request $request): ?AccessInvitation
+    {
+        $prepared = DB::transaction(function () use ($invitation) {
+            $locked = AccessInvitation::query()->whereKey($invitation->id)->lockForUpdate()->first();
+            if (! $locked || $locked->status !== 'pending' || $locked->expires_at->isPast()) {
+                return null;
+            }
+
+            $locked->forceFill([
+                'claimed_at' => null,
+                'claimed_session_hash' => null,
+                'enrollment_expires_at' => null,
+            ])->save();
+
+            return $locked;
+        });
+
+        $request->session()->forget([
+            'access_enrollment',
+            'access_provisional_handle',
+            'sgc.passkeys.registration',
+        ]);
+
+        return $prepared;
     }
 
     public function claim(string $invitationId, string $code, Request $request): array
@@ -179,7 +233,8 @@ class AccessInvitationService
 
             $grant = $this->base64Url(random_bytes(32));
             $invitation->forceFill([
-                'status' => 'claimed',
+                // O convite permanece reutilizavel ate a passkey ser salva.
+                'status' => 'pending',
                 'claimed_at' => now(),
                 'claimed_session_hash' => null,
                 'enrollment_expires_at' => now()->addSeconds((int) config('passkeys.enrollment_ttl', 600)),
@@ -208,7 +263,7 @@ class AccessInvitationService
 
         $updated = AccessInvitation::query()
             ->whereKey($invitation->id)
-            ->where('status', 'claimed')
+            ->whereIn('status', ['pending', 'claimed'])
             ->whereNull('claimed_session_hash')
             ->update(['claimed_session_hash' => $fingerprint, 'updated_at' => now()]);
 
@@ -235,9 +290,21 @@ class AccessInvitationService
         $rawGrant = is_string($grant['grant'] ?? null) ? $grant['grant'] : '';
         $expires = (int) ($grant['expires_at'] ?? 0);
 
-        if ($invitation?->status === 'claimed'
+        if ($invitation && $invitation->expires_at->isPast()) {
+            $invitation->forceFill([
+                'status' => 'expired',
+                'claimed_session_hash' => null,
+                'enrollment_expires_at' => null,
+            ])->save();
+        } elseif ($invitation
             && ($expires < now()->timestamp || ! $invitation->enrollment_expires_at?->isFuture())) {
-            $invitation->forceFill(['status' => 'expired'])->save();
+            // Expirar a autorizacao de cadastro nao expira o convite de 24h.
+            $invitation->forceFill([
+                'status' => 'pending',
+                'claimed_at' => null,
+                'claimed_session_hash' => null,
+                'enrollment_expires_at' => null,
+            ])->save();
         }
 
         if (! $invitation
@@ -271,7 +338,7 @@ class AccessInvitationService
 
     public function normalizeCode(string $code): string
     {
-        return mb_strtoupper((string) preg_replace('/\s+/u', '', trim($code)));
+        return (string) preg_replace('/\D+/', '', trim($code));
     }
 
     private function codeMaterial(string $code): string
@@ -287,13 +354,7 @@ class AccessInvitationService
 
     private function randomCode(): string
     {
-        $code = '';
-        $max = strlen(self::CODE_ALPHABET) - 1;
-        for ($i = 0; $i < 10; $i++) {
-            $code .= self::CODE_ALPHABET[random_int(0, $max)];
-        }
-
-        return $code;
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
     private function base64Url(string $bytes): string

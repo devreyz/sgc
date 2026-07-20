@@ -4010,6 +4010,8 @@ class DeliveryRegistrationController extends Controller
 
         $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
 
+        \App\Jobs\SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
+
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant'          => $tenant,
             'project'         => $project,

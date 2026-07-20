@@ -95,32 +95,6 @@
                 @enderror
             </div>
 
-            <div style="padding: 1.25rem; background: var(--color-bg); border-radius: var(--radius-lg); margin-bottom: 1.5rem;">
-                <h4 style="font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--color-text);">Alterar Senha</h4>
-                <p style="font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 1rem;">Deixe em branco se não deseja alterar a senha</p>
-                
-                <div class="form-group">
-                    <label class="form-label" for="current_password">Senha Atual</label>
-                    <input type="password" id="current_password" name="current_password" class="form-input">
-                    @error('current_password')
-                        <p style="color: var(--color-danger); font-size: 0.875rem; margin-top: 0.25rem;">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="password">Nova Senha</label>
-                    <input type="password" id="password" name="password" class="form-input">
-                    @error('password')
-                        <p style="color: var(--color-danger); font-size: 0.875rem; margin-top: 0.25rem;">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="form-group" style="margin-bottom: 0;">
-                    <label class="form-label" for="password_confirmation">Confirmar Nova Senha</label>
-                    <input type="password" id="password_confirmation" name="password_confirmation" class="form-input">
-                </div>
-            </div>
-
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                 <a href="{{ url('/') }}" class="btn btn-outline">Cancelar</a>
                 <button type="submit" class="btn btn-primary">

@@ -94,8 +94,7 @@ class SalesProjectResource extends Resource
                         Forms\Components\TextInput::make('total_value')
                             ->label('Valor do Contrato')
                             ->numeric()
-                            ->prefix('R$')
-                            ->helperText('Valor total estimado ou contratado'),
+                            ->prefix('R$'),
 
                         Forms\Components\TextInput::make('admin_fee_percentage')
                             ->label('Taxa de Administração')
@@ -103,12 +102,10 @@ class SalesProjectResource extends Resource
                             ->suffix('%')
                             ->default(10)
                             ->minValue(0)
-                            ->maxValue(100)
-                            ->helperText('Percentual retido pela cooperativa (padrão 10%)'),
+                            ->maxValue(100),
 
                         Forms\Components\Toggle::make('allow_any_product')
                             ->label('Aceitar qualquer produto')
-                            ->helperText('Quando ativo, o projeto pode receber qualquer produto cadastrado sem demandas pré-definidas')
                             ->default(false)
                             ->columnSpanFull(),
                     ])
@@ -175,12 +172,10 @@ class SalesProjectResource extends Resource
                     ->collapsed(),
 
                 Forms\Components\Section::make('Controle de Participação')
-                    ->description('Restrinja quais associados podem registrar entregas neste projeto.')
                     ->icon('heroicon-o-user-group')
                     ->schema([
                         Forms\Components\Toggle::make('restrict_participants')
                             ->label('Restringir participantes do projeto')
-                            ->helperText('Quando ativado, apenas os associados selecionados abaixo poderão registrar entregas.')
                             ->default(false)
                             ->live()
                             ->columnSpanFull(),

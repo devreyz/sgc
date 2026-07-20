@@ -6,6 +6,7 @@ use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
 use App\Models\TenantUser;
+use App\Models\TenantCloudStorageConnection;
 use App\Models\User;
 use App\Services\AccessInvitationService;
 use App\Services\GoogleAccountService;
@@ -27,7 +28,7 @@ class AccessInvitationSecurityTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['security_events', 'access_invitations', 'oauth_accounts', 'passkeys', 'activity_log', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'permissions', 'roles', 'associates', 'tenant_user', 'tenants', 'users'] as $table) {
+        foreach (['tenant_cloud_storage_connections', 'security_events', 'access_invitations', 'oauth_accounts', 'passkeys', 'activity_log', 'model_has_roles', 'model_has_permissions', 'role_has_permissions', 'permissions', 'roles', 'associates', 'tenant_user', 'tenants', 'users'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -190,6 +191,20 @@ class AccessInvitationSecurityTest extends TestCase
             $t->unsignedBigInteger('tenant_id')->nullable();
             $t->timestamps();
         });
+        Schema::create('tenant_cloud_storage_connections', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('tenant_id')->unique();
+            $t->string('provider')->default('google_drive');
+            $t->text('refresh_token');
+            $t->text('granted_scopes')->nullable();
+            $t->string('root_folder_id')->nullable();
+            $t->string('status')->default('active');
+            $t->unsignedBigInteger('connected_by_user_id')->nullable();
+            $t->timestamp('connected_at');
+            $t->timestamp('last_sync_at')->nullable();
+            $t->text('last_error')->nullable();
+            $t->timestamps();
+        });
     }
 
     public function test_invitation_secrets_are_independent_hashed_and_revealed_once(): void
@@ -200,6 +215,7 @@ class AccessInvitationSecurityTest extends TestCase
         $token = basename(parse_url($result['link'], PHP_URL_PATH));
 
         $this->assertNotSame($result['code'], $token);
+        $this->assertMatchesRegularExpression('/^\d{6}$/', $result['code']);
         $this->assertNotSame($result['code'], $invitation->code_hash);
         $this->assertNotSame($token, $invitation->token_hash);
         $this->assertSame(hash('sha256', $token), $invitation->token_hash);
@@ -237,9 +253,10 @@ class AccessInvitationSecurityTest extends TestCase
         $result = app(AccessInvitationService::class)->issue($admin, $associate, $tenantId);
         $token = basename(parse_url($result['link'], PHP_URL_PATH));
         $this->get('/acesso/'.$token);
+        $wrongCode = $result['code'] === '000000' ? '000001' : '000000';
 
         for ($attempt = 1; $attempt <= 5; $attempt++) {
-            $this->postJson(route('access.invitation.code'), ['code' => 'AAAAAAAAAA'])
+            $this->postJson(route('access.invitation.code'), ['code' => $wrongCode])
                 ->assertStatus(422)
                 ->assertJson(['message' => 'Nao foi possivel validar este acesso.']);
         }
@@ -249,7 +266,7 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertSame('locked', $invitation->status);
     }
 
-    public function test_correct_code_claims_once_and_grant_does_not_authenticate_user(): void
+    public function test_correct_code_creates_temporary_grant_without_consuming_invitation(): void
     {
         [$admin, $tenantId, $associate] = $this->fixture();
         $result = app(AccessInvitationService::class)->issue($admin, $associate, $tenantId);
@@ -259,11 +276,91 @@ class AccessInvitationSecurityTest extends TestCase
         $this->postJson(route('access.invitation.code'), ['code' => $result['code']])
             ->assertOk()
             ->assertJson(['redirect' => route('access.invitation.passkey')]);
-        $this->assertSame('claimed', $result['invitation']->fresh()->status);
+        $invitation = $result['invitation']->fresh();
+        $this->assertSame('pending', $invitation->status);
+        $this->assertNotNull($invitation->claimed_at);
+        $this->assertNull($invitation->consumed_at);
         $this->assertGuest();
         $this->get('/tenant/select')->assertRedirect('/login');
 
         $this->postJson(route('access.invitation.code'), ['code' => $result['code']])->assertStatus(422);
+    }
+
+    public function test_invitation_can_request_code_again_when_passkey_was_not_created(): void
+    {
+        [$admin, $tenantId, $associate] = $this->fixture();
+        $result = app(AccessInvitationService::class)->issue($admin, $associate, $tenantId);
+        $token = basename(parse_url($result['link'], PHP_URL_PATH));
+
+        $this->get('/acesso/'.$token);
+        $this->postJson(route('access.invitation.code'), ['code' => $result['code']])->assertOk();
+        $service = app(AccessInvitationService::class);
+        $this->assertTrue($service->invitationForGrant(request())->isClaimed());
+
+        // Simula fechar a pagina antes da cerimonia e abrir o link novamente.
+        $this->get('/acesso/'.$token)
+            ->assertStatus(303)
+            ->assertRedirect(route('access.invitation.verify'));
+        try {
+            $service->invitationForGrant(request());
+            $this->fail('Reabrir o link deve invalidar a autorizacao temporaria anterior.');
+        } catch (\RuntimeException) {
+            $this->assertTrue(true);
+        }
+        $this->get(route('access.invitation.verify'))->assertOk();
+        $this->postJson(route('access.invitation.code'), ['code' => $result['code']])->assertOk();
+
+        $this->assertSame('pending', $result['invitation']->fresh()->status);
+        $this->assertNull($result['invitation']->fresh()->consumed_at);
+    }
+
+    public function test_legacy_claimed_invitation_returns_to_code_step_when_link_is_reopened(): void
+    {
+        [$admin, $tenantId, $associate] = $this->fixture();
+        $result = app(AccessInvitationService::class)->issue($admin, $associate, $tenantId);
+        $token = basename(parse_url($result['link'], PHP_URL_PATH));
+        $result['invitation']->forceFill([
+            'status' => 'claimed',
+            'claimed_at' => now(),
+            'claimed_session_hash' => hash('sha256', 'old-session'),
+            'enrollment_expires_at' => now()->addMinutes(5),
+        ])->save();
+
+        $this->get('/acesso/'.$token)
+            ->assertStatus(303)
+            ->assertRedirect(route('access.invitation.verify'));
+
+        $invitation = $result['invitation']->fresh();
+        $this->assertSame('pending', $invitation->status);
+        $this->assertNull($invitation->claimed_session_hash);
+    }
+
+    public function test_consumed_invitation_never_opens_code_page_again(): void
+    {
+        [$admin, $tenantId, $associate] = $this->fixture();
+        $result = app(AccessInvitationService::class)->issue($admin, $associate, $tenantId);
+        $token = basename(parse_url($result['link'], PHP_URL_PATH));
+        $result['invitation']->forceFill(['status' => 'consumed', 'consumed_at' => now()])->save();
+
+        $this->get('/acesso/'.$token)
+            ->assertStatus(303)
+            ->assertRedirect(route('login'));
+        $this->get(route('access.invitation.verify'))
+            ->assertStatus(303)
+            ->assertRedirect(route('login'));
+    }
+
+    public function test_authenticated_user_is_redirected_away_from_intermediate_auth_pages(): void
+    {
+        [$user, $tenantId, $associate] = $this->fixture();
+        $result = app(AccessInvitationService::class)->issue($user, $associate, $tenantId);
+        $token = basename(parse_url($result['link'], PHP_URL_PATH));
+
+        $this->actingAs($user)->get('/login')->assertRedirect();
+        $this->actingAs($user)->get('/acesso/'.$token)->assertStatus(303);
+        $this->actingAs($user)->getJson(route('auth.state'))
+            ->assertOk()
+            ->assertJson(['authenticated' => true]);
     }
 
     public function test_admin_cannot_open_associate_from_another_tenant(): void
@@ -583,6 +680,45 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertSame($user->id, $resolved->id);
         $this->assertSame('google-subject', $account->provider_subject);
         $this->assertDatabaseCount('users', 1);
+    }
+
+    public function test_tenant_drive_refresh_token_is_encrypted_and_hidden(): void
+    {
+        [$user, $tenantId] = $this->fixture();
+        $connection = new TenantCloudStorageConnection();
+        $connection->forceFill([
+            'tenant_id' => $tenantId,
+            'refresh_token' => 'sensitive-refresh-token',
+            'granted_scopes' => ['https://www.googleapis.com/auth/drive.file'],
+            'status' => 'active',
+            'connected_by_user_id' => $user->id,
+            'connected_at' => now(),
+        ])->save();
+
+        $raw = DB::table('tenant_cloud_storage_connections')->where('tenant_id', $tenantId)->first();
+
+        $this->assertNotSame('sensitive-refresh-token', $raw->refresh_token);
+        $this->assertSame('sensitive-refresh-token', $connection->fresh()->refresh_token);
+        $this->assertArrayNotHasKey('refresh_token', $connection->fresh()->toArray());
+        $this->assertStringNotContainsString('drive.file', (string) $raw->granted_scopes);
+    }
+
+    public function test_profile_cannot_change_password(): void
+    {
+        [$user] = $this->fixture();
+        $originalPassword = $user->password;
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => 1, 'tenant_slug' => 'tenant-a'])
+            ->post('/tenant-a/profile', [
+                'name' => 'Nome atualizado',
+                'current_password' => 'secret',
+                'password' => 'Changed-password-123',
+                'password_confirmation' => 'Changed-password-123',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame($originalPassword, $user->fresh()->password);
     }
 
     private function fixture(): array

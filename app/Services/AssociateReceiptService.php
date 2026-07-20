@@ -13,6 +13,7 @@ use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Jobs\SyncAssociateReceiptToDrive;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -243,6 +244,8 @@ class AssociateReceiptService
                 }
             }
         });
+
+        SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

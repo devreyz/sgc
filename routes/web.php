@@ -3,6 +3,8 @@
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\GoogleDriveOAuthController;
+use App\Http\Controllers\Auth\AuthenticationStateController;
 use App\Http\Controllers\Auth\AccessInvitationAdminController;
 use App\Http\Controllers\Auth\AccessInvitationController;
 use App\Http\Controllers\Auth\InvitationPasskeyController;
@@ -45,8 +47,16 @@ Route::get('/', [HubController::class, 'index'])->name('home');
 
 // Login route (named) — used by authentication redirects
 Route::get('/login', function () {
+    if (auth()->check()) {
+        return redirect()->to(app(\App\Services\AuthenticationRedirector::class)->pathFor(auth()->user()));
+    }
+
     return view('auth.login');
 })->name('login');
+
+Route::get('/auth/state', AuthenticationStateController::class)
+    ->middleware('throttle:auth-state')
+    ->name('auth.state');
 
 Route::get('/offline', function () {
     return view('offline');
@@ -57,6 +67,9 @@ Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('aut
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->middleware('throttle:google-callback')
     ->name('auth.google.callback');
+Route::get('/auth/google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])
+    ->middleware(['auth', 'throttle:google-drive-oauth'])
+    ->name('auth.google-drive.callback');
 Route::post('/logout', [GoogleAuthController::class, 'logout'])->name('logout');
 
 Route::middleware(['guest', 'webauthn.config'])->group(function () {
@@ -112,6 +125,10 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 // ===========================================================================================
 
 Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
+
+    Route::get('/settings/google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])
+        ->middleware(['auth.recent', 'throttle:google-drive-oauth'])
+        ->name('settings.google-drive.connect');
 
     Route::prefix('security/associates/{associate}/access')->name('security.associates.access.')->group(function () {
         Route::get('/', [AccessInvitationAdminController::class, 'index'])->name('index');

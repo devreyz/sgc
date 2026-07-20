@@ -78,12 +78,9 @@
             <i data-lucide="users" style="width:20px;height:20px;color:var(--color-primary)"></i>
             {{ $project->title }}
         </h1>
-        <div class="pp-meta">
-            @if($project->contract_number)
-                Contrato: {{ $project->contract_number }} &middot;
-            @endif
-            Dados carregados sob demanda
-        </div>
+        @if($project->contract_number)
+            <div class="pp-meta">Contrato: {{ $project->contract_number }}</div>
+        @endif
     </div>
     <div class="pp-actions no-print">
         <a href="{{ route('delivery.projects.associates.index', ['tenant' => $tenant->slug, 'project' => $project->id]) }}" class="btn btn-primary btn-sm">
@@ -336,7 +333,7 @@ async function openReceiptModal(associateId,name){
 
 function renderIssues(issues,criticalIssues){
     const issuesEl=document.getElementById('rm-issues');
-    if(criticalIssues<=0 && !issues.length){issuesEl.className='rm-info rm-info-green';issuesEl.innerHTML=`<i data-lucide="check-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>0 inconsistencia(s) critica(s) podem bloquear o comprovante.</span><span>Nenhuma inconsistencia financeira encontrada neste momento.</span><span>Continue operando normalmente.</span></div>`;issuesEl.classList.remove('hidden');if(typeof lucide!=='undefined')lucide.createIcons();return;}
+    if(criticalIssues<=0 && !issues.length){issuesEl.className='rm-info rm-info-green';issuesEl.innerHTML=`<i data-lucide="check-circle" style="width:15px;height:15px;flex-shrink:0"></i><div class="rm-issues-list"><span>Sem inconsistências</span></div>`;issuesEl.classList.remove('hidden');if(typeof lucide!=='undefined')lucide.createIcons();return;}
     const hasCritical=criticalIssues>0 || issues.some(issue=>issue.severity==='critical');
     const hasWarning=issues.some(issue=>issue.severity==='warning');
     issuesEl.className='rm-info ' + (hasCritical ? 'rm-info-red' : (hasWarning ? 'rm-info-yellow' : 'rm-info-blue'));
