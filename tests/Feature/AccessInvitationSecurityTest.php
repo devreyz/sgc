@@ -10,6 +10,7 @@ use App\Models\TenantCloudStorageConnection;
 use App\Models\User;
 use App\Services\AccessInvitationService;
 use App\Services\GoogleAccountService;
+use App\Services\GoogleDriveClientFactory;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -195,12 +196,14 @@ class AccessInvitationSecurityTest extends TestCase
             $t->id();
             $t->unsignedBigInteger('tenant_id')->unique();
             $t->string('provider')->default('google_drive');
-            $t->text('refresh_token');
+            $t->text('oauth_client_id')->nullable();
+            $t->text('oauth_client_secret')->nullable();
+            $t->text('refresh_token')->nullable();
             $t->text('granted_scopes')->nullable();
             $t->string('root_folder_id')->nullable();
             $t->string('status')->default('active');
             $t->unsignedBigInteger('connected_by_user_id')->nullable();
-            $t->timestamp('connected_at');
+            $t->timestamp('connected_at')->nullable();
             $t->timestamp('last_sync_at')->nullable();
             $t->text('last_error')->nullable();
             $t->timestamps();
@@ -688,6 +691,8 @@ class AccessInvitationSecurityTest extends TestCase
         $connection = new TenantCloudStorageConnection();
         $connection->forceFill([
             'tenant_id' => $tenantId,
+            'oauth_client_id' => 'tenant-a.apps.googleusercontent.com',
+            'oauth_client_secret' => 'tenant-a-client-secret',
             'refresh_token' => 'sensitive-refresh-token',
             'granted_scopes' => ['https://www.googleapis.com/auth/drive.file'],
             'status' => 'active',
@@ -698,9 +703,96 @@ class AccessInvitationSecurityTest extends TestCase
         $raw = DB::table('tenant_cloud_storage_connections')->where('tenant_id', $tenantId)->first();
 
         $this->assertNotSame('sensitive-refresh-token', $raw->refresh_token);
+        $this->assertNotSame('tenant-a.apps.googleusercontent.com', $raw->oauth_client_id);
+        $this->assertNotSame('tenant-a-client-secret', $raw->oauth_client_secret);
         $this->assertSame('sensitive-refresh-token', $connection->fresh()->refresh_token);
         $this->assertArrayNotHasKey('refresh_token', $connection->fresh()->toArray());
+        $this->assertArrayNotHasKey('oauth_client_id', $connection->fresh()->toArray());
+        $this->assertArrayNotHasKey('oauth_client_secret', $connection->fresh()->toArray());
         $this->assertStringNotContainsString('drive.file', (string) $raw->granted_scopes);
+    }
+
+    public function test_google_drive_oauth_clients_are_resolved_per_tenant(): void
+    {
+        [, $tenantId] = $this->fixture();
+        $otherTenantId = DB::table('tenants')->insertGetId([
+            'name' => 'Tenant B',
+            'slug' => 'tenant-b',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $first = new TenantCloudStorageConnection();
+        $first->forceFill([
+            'tenant_id' => $tenantId,
+            'oauth_client_id' => 'first.apps.googleusercontent.com',
+            'oauth_client_secret' => 'first-client-secret',
+            'status' => 'configured',
+        ])->save();
+
+        $second = new TenantCloudStorageConnection();
+        $second->forceFill([
+            'tenant_id' => $otherTenantId,
+            'oauth_client_id' => 'second.apps.googleusercontent.com',
+            'oauth_client_secret' => 'second-client-secret',
+            'status' => 'configured',
+        ])->save();
+
+        $factory = app(GoogleDriveClientFactory::class);
+        $firstClient = $factory->baseClient($first->fresh());
+        $secondClient = $factory->baseClient($second->fresh());
+
+        $this->assertSame('first.apps.googleusercontent.com', $firstClient->getClientId());
+        $this->assertSame('first-client-secret', $firstClient->getClientSecret());
+        $this->assertSame('second.apps.googleusercontent.com', $secondClient->getClientId());
+        $this->assertSame('second-client-secret', $secondClient->getClientSecret());
+        $this->assertNotSame($firstClient->getClientId(), $secondClient->getClientId());
+    }
+
+    public function test_google_drive_connect_without_tenant_credentials_redirects_instead_of_failing(): void
+    {
+        [$user, $tenantId] = $this->fixture();
+        $user->forceFill(['last_authenticated_at' => now()])->saveQuietly();
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => $tenantId, 'tenant_slug' => 'tenant-a'])
+            ->get('/tenant-a/settings/google-drive/connect')
+            ->assertRedirect(route('filament.admin.pages.organization-settings-page', [
+                'tab' => 'google-drive-tab',
+            ]));
+
+        $this->assertDatabaseMissing('tenant_cloud_storage_connections', [
+            'tenant_id' => $tenantId,
+        ]);
+    }
+
+    public function test_google_drive_connect_cannot_use_another_tenant_configuration(): void
+    {
+        [$user, $tenantId] = $this->fixture();
+        $user->forceFill(['last_authenticated_at' => now()])->saveQuietly();
+        $otherTenantId = DB::table('tenants')->insertGetId([
+            'name' => 'Tenant B',
+            'slug' => 'tenant-b',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $connection = new TenantCloudStorageConnection();
+        $connection->forceFill([
+            'tenant_id' => $otherTenantId,
+            'oauth_client_id' => 'other.apps.googleusercontent.com',
+            'oauth_client_secret' => 'other-client-secret',
+            'status' => 'configured',
+        ])->save();
+
+        $this->actingAs($user)
+            ->withSession(['tenant_id' => $tenantId, 'tenant_slug' => 'tenant-a'])
+            ->get('/tenant-a/settings/google-drive/connect')
+            ->assertRedirect(route('filament.admin.pages.organization-settings-page', [
+                'tab' => 'google-drive-tab',
+            ]));
     }
 
     public function test_profile_cannot_change_password(): void

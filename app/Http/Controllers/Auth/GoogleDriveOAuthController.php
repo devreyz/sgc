@@ -16,6 +16,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Filament\Notifications\Notification;
 use RuntimeException;
 use Throwable;
 
@@ -26,15 +27,32 @@ class GoogleDriveOAuthController extends Controller
         abort_if(app()->environment('production') && ! $request->isSecure(), 400);
         $this->authorizeTenantAdmin($request, $tenant);
 
+        $connection = TenantCloudStorageConnection::query()
+            ->where('tenant_id', $tenant->id)
+            ->first();
+
+        if (! $connection?->hasOAuthConfiguration()) {
+            Notification::make()
+                ->danger()
+                ->title('Configure as credenciais do Google Drive')
+                ->send();
+
+            return redirect()->route('filament.admin.pages.organization-settings-page', [
+                'tab' => 'google-drive-tab',
+            ]);
+        }
+
         $state = Str::random(80);
         $request->session()->put('google_drive_oauth', [
             'state_hash' => hash('sha256', $state),
             'tenant_id' => $tenant->id,
             'user_id' => $request->user()->id,
+            'connection_id' => $connection->id,
+            'client_id_hash' => hash('sha256', (string) $connection->oauth_client_id),
             'expires_at' => now()->addMinutes(10)->timestamp,
         ]);
 
-        $client = $clients->baseClient();
+        $client = $clients->baseClient($connection);
         $client->setState($state);
         $client->setPrompt('consent');
 
@@ -54,6 +72,8 @@ class GoogleDriveOAuthController extends Controller
                 || empty($oauth['state_hash'])
                 || empty($oauth['tenant_id'])
                 || empty($oauth['user_id'])
+                || empty($oauth['connection_id'])
+                || empty($oauth['client_id_hash'])
                 || (int) $oauth['user_id'] !== (int) $request->user()->id
                 || (int) ($oauth['expires_at'] ?? 0) < now()->timestamp
                 || ! hash_equals((string) $oauth['state_hash'], hash('sha256', (string) $request->query('state')))
@@ -64,7 +84,17 @@ class GoogleDriveOAuthController extends Controller
             $tenant = Tenant::query()->findOrFail((int) $oauth['tenant_id']);
             $this->authorizeTenantAdmin($request, $tenant, false);
 
-            $client = $clients->baseClient();
+            $connection = TenantCloudStorageConnection::query()
+                ->where('tenant_id', $tenant->id)
+                ->whereKey((int) $oauth['connection_id'])
+                ->firstOrFail();
+
+            if (! $connection->hasOAuthConfiguration()
+                || ! hash_equals((string) $oauth['client_id_hash'], hash('sha256', (string) $connection->oauth_client_id))) {
+                throw new RuntimeException('A configuracao OAuth foi alterada.');
+            }
+
+            $client = $clients->baseClient($connection);
             $token = $client->fetchAccessTokenWithAuthCode((string) $request->query('code'));
             $refreshToken = (string) ($token['refresh_token'] ?? '');
             $grantedScopes = preg_split('/\s+/', trim((string) ($token['scope'] ?? ''))) ?: [];
@@ -77,7 +107,7 @@ class GoogleDriveOAuthController extends Controller
                 $connection = TenantCloudStorageConnection::query()
                     ->where('tenant_id', $tenant->id)
                     ->lockForUpdate()
-                    ->first() ?? new TenantCloudStorageConnection();
+                    ->firstOrFail();
 
                 $connection->forceFill([
                     'tenant_id' => $tenant->id,

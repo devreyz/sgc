@@ -9,14 +9,14 @@ use RuntimeException;
 
 class GoogleDriveClientFactory
 {
-    public function baseClient(): Client
+    public function baseClient(TenantCloudStorageConnection $connection): Client
     {
-        $clientId = (string) config('services.google_drive.client_id');
-        $clientSecret = (string) config('services.google_drive.client_secret');
-        $redirectUri = (string) config('services.google_drive.redirect');
+        $clientId = trim((string) $connection->oauth_client_id);
+        $clientSecret = trim((string) $connection->oauth_client_secret);
+        $redirectUri = $this->redirectUri();
 
         if ($clientId === '' || $clientSecret === '' || $redirectUri === '') {
-            throw new RuntimeException('A integracao com o Google Drive nao esta configurada.');
+            throw new RuntimeException('A organizacao ainda nao configurou o Google Drive.');
         }
 
         $client = new Client();
@@ -30,13 +30,24 @@ class GoogleDriveClientFactory
         return $client;
     }
 
+    public function redirectUri(): string
+    {
+        $applicationUrl = rtrim((string) config('app.url'), '/');
+
+        if ($applicationUrl === '') {
+            throw new RuntimeException('A URL da aplicacao nao esta configurada.');
+        }
+
+        return $applicationUrl.'/auth/google-drive/callback';
+    }
+
     public function forConnection(TenantCloudStorageConnection $connection): Drive
     {
-        if ($connection->status !== 'active' || $connection->refresh_token === '') {
+        if ($connection->status !== 'active' || trim((string) $connection->refresh_token) === '') {
             throw new RuntimeException('A conexao com o Google Drive nao esta ativa.');
         }
 
-        $client = $this->baseClient();
+        $client = $this->baseClient($connection);
         $token = $client->fetchAccessTokenWithRefreshToken($connection->refresh_token);
 
         if (isset($token['error'])) {

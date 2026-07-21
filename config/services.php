@@ -41,10 +41,4 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
-    'google_drive' => [
-        'client_id' => env('GOOGLE_DRIVE_OAUTH_CLIENT_ID'),
-        'client_secret' => env('GOOGLE_DRIVE_OAUTH_CLIENT_SECRET'),
-        'redirect' => env('GOOGLE_DRIVE_OAUTH_REDIRECT', rtrim(env('APP_URL', ''), '/').'/auth/google-drive/callback'),
-    ],
-
 ];

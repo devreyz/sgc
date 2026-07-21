@@ -96,6 +96,14 @@ class SalesProject extends Model
                     ->withTimestamps();
     }
 
+    public function driveFolderName(): string
+    {
+        $identifier = str_pad((string) $this->getKey(), 2, '0', STR_PAD_LEFT);
+        $title = trim((string) $this->title);
+
+        return $identifier.' - '.($title !== '' ? $title : 'Projeto');
+    }
+
     public function buyerRequests(): HasMany
     {
         return $this->hasMany(BuyerRequest::class);

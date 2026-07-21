@@ -56,7 +56,8 @@ class AssociateReceiptArchiveService
 
         $label = str_replace('/', '-', $receipt->formatted_number);
         $associate = Str::slug($receipt->associate->display_name ?: 'associado');
-        $folders = ['Comprovantes', 'Associados', (string) $receipt->receipt_year, 'Projeto-'.$receipt->sales_project_id];
+        $projectFolder = $receipt->project->driveFolderName();
+        $folders = ['Comprovantes', 'Associados', (string) $receipt->receipt_year, $projectFolder];
 
         $this->drive->putDocument(
             $receipt->tenant,
@@ -80,7 +81,7 @@ class AssociateReceiptArchiveService
                 $receipt->tenant,
                 $receipt,
                 'associate_receipt_payments',
-                ['Comprovantes', 'Pagamentos', (string) $receipt->receipt_year, 'Projeto-'.$receipt->sales_project_id],
+                ['Comprovantes', 'Pagamentos', (string) $receipt->receipt_year, $projectFolder],
                 "pagamentos-{$label}-{$associate}.pdf",
                 $paymentPdf->output(),
             );

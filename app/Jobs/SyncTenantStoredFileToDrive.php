@@ -28,7 +28,13 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $uniqueFor = 120;
+    public int $uniqueFor = 3600;
+
+    public int $tries = 3;
+
+    public int $timeout = 120;
+
+    public bool $failOnTimeout = true;
 
     private const TYPES = [
         Asset::class => ['document_path', 'asset_document', 'Patrimonio'],
@@ -73,6 +79,11 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
         return hash('sha256', $this->modelClass.'|'.$this->modelId);
     }
 
+    public function backoff(): array
+    {
+        return [60, 300, 900];
+    }
+
     public function handle(TenantGoogleDriveService $drive): void
     {
         $definition = self::TYPES[$this->modelClass] ?? null;
@@ -99,11 +110,21 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
         }
 
         try {
+            $folders = ['Arquivos', $definition[2], now()->format('Y')];
+            if ($model instanceof SalesProject) {
+                $folders = [
+                    'Arquivos',
+                    $definition[2],
+                    (string) ($model->reference_year ?: now()->format('Y')),
+                    $model->driveFolderName(),
+                ];
+            }
+
             $drive->putDocument(
                 Tenant::query()->findOrFail($tenantId),
                 $model,
                 $definition[1],
-                ['Arquivos', $definition[2], now()->format('Y')],
+                $folders,
                 basename(str_replace('\\', '/', $path)),
                 $disk->get($path),
                 $disk->mimeType($path) ?: 'application/octet-stream',
@@ -114,6 +135,8 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
                 'document_type' => $definition[1],
                 'record_id' => $model->getKey(),
             ])->log('Falha ao sincronizar arquivo enviado');
+
+            throw new \RuntimeException('Falha temporaria ao sincronizar arquivo com o Google Drive.');
         }
     }
 }

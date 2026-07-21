@@ -17,7 +17,13 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $uniqueFor = 120;
+    public int $uniqueFor = 3600;
+
+    public int $tries = 3;
+
+    public int $timeout = 120;
+
+    public bool $failOnTimeout = true;
 
     public function __construct(public readonly int $receiptId)
     {
@@ -27,6 +33,11 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
     public function uniqueId(): string
     {
         return 'associate-receipt-'.$this->receiptId;
+    }
+
+    public function backoff(): array
+    {
+        return [60, 300, 900];
     }
 
     public function handle(AssociateReceiptArchiveService $archive): void
@@ -47,6 +58,8 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
                 'receipt_id' => $receipt->id,
                 'provider' => 'google_drive',
             ])->log('Falha ao sincronizar comprovante');
+
+            throw new \RuntimeException('Falha temporaria ao sincronizar comprovante com o Google Drive.');
         }
     }
 }

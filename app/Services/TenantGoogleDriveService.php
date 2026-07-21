@@ -102,6 +102,12 @@ class TenantGoogleDriveService
             ];
 
             if ($document->remote_file_id) {
+                if ($document->remote_folder_id
+                    && (string) $document->remote_folder_id !== (string) $parentId) {
+                    $options['addParents'] = $parentId;
+                    $options['removeParents'] = $document->remote_folder_id;
+                }
+
                 $file = $drive->files->update(
                     $document->remote_file_id,
                     new DriveFile(['name' => $safeFilename]),
@@ -145,14 +151,16 @@ class TenantGoogleDriveService
     public function disconnect(TenantCloudStorageConnection $connection): void
     {
         try {
-            $client = $this->clients->baseClient();
-            $client->revokeToken($connection->refresh_token);
+            if ($connection->hasOAuthConfiguration() && $connection->refresh_token) {
+                $client = $this->clients->baseClient($connection);
+                $client->revokeToken($connection->refresh_token);
+            }
         } catch (Throwable) {
             // A revogacao local continua obrigatoria se o Google estiver indisponivel.
         }
 
         $connection->forceFill([
-            'refresh_token' => '',
+            'refresh_token' => null,
             'granted_scopes' => [],
             'status' => 'revoked',
             'last_error' => null,

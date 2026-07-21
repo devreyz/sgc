@@ -5,7 +5,11 @@ namespace App\Filament\Pages;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\TenantUser;
+use App\Models\AssociateReceipt;
+use App\Jobs\SyncAssociateReceiptToDrive;
+use App\Jobs\SyncTenantStoredFileToDrive;
 use App\Services\TenantGoogleDriveService;
+use App\Services\GoogleDriveClientFactory;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -14,6 +18,8 @@ use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 
 class OrganizationSettingsPage extends Page implements HasForms
 {
@@ -50,6 +56,10 @@ class OrganizationSettingsPage extends Page implements HasForms
             $this->redirect(route('filament.admin.pages.dashboard'));
             return;
         }
+
+        $driveConnection = $this->canManageGoogleDrive()
+            ? $this->googleDriveConnection()
+            : null;
 
         $this->form->fill([
             // Básico
@@ -96,6 +106,8 @@ class OrganizationSettingsPage extends Page implements HasForms
             'legal_representative_role' => $tenant->legal_representative_role,
             // Redes sociais
             'social_media'             => $tenant->social_media ?? [],
+            'google_drive_client_id'   => $driveConnection?->oauth_client_id,
+            'google_drive_client_secret' => null,
         ]);
     }
 
@@ -345,16 +357,50 @@ class OrganizationSettingsPage extends Page implements HasForms
                             ->icon('heroicon-o-cloud-arrow-up')
                             ->visible(fn (): bool => $this->canManageGoogleDrive())
                             ->schema([
+                                Forms\Components\TextInput::make('google_drive_client_id')
+                                    ->label('OAuth Client ID')
+                                    ->autocomplete(false)
+                                    ->maxLength(512),
+                                Forms\Components\TextInput::make('google_drive_client_secret')
+                                    ->label('OAuth Client Secret')
+                                    ->password()
+                                    ->revealable()
+                                    ->autocomplete('new-password')
+                                    ->placeholder(fn (): string => $this->googleDriveConfigured()
+                                        ? 'Mantido sem alteração'
+                                        : '')
+                                    ->maxLength(1024),
+                                Forms\Components\Placeholder::make('google_drive_redirect_uri')
+                                    ->label('URI de redirecionamento')
+                                    ->content(fn (): string => app(GoogleDriveClientFactory::class)->redirectUri()),
+                                Forms\Components\Actions::make([
+                                    Forms\Components\Actions\Action::make('save_google_drive_credentials')
+                                        ->label('Salvar credenciais')
+                                        ->icon('heroicon-o-key')
+                                        ->action(fn () => $this->saveGoogleDriveCredentials()),
+                                ]),
                                 Forms\Components\Placeholder::make('google_drive_status')
                                     ->label('Armazenamento de documentos')
                                     ->content(function (): string {
                                         $connection = $this->googleDriveConnection();
-                                        if (! $connection || $connection->status === 'revoked') {
+                                        if (! $connection || ! $connection->hasOAuthConfiguration()) {
+                                            return 'Credenciais pendentes';
+                                        }
+
+                                        if ($connection->status === 'revoked') {
                                             return 'Não conectado';
+                                        }
+
+                                        if ($connection->status === 'configured') {
+                                            return 'Credenciais salvas';
                                         }
 
                                         if ($connection->status === 'error') {
                                             return 'A conexão precisa ser renovada';
+                                        }
+
+                                        if ($connection->status !== 'active') {
+                                            return 'Credenciais pendentes';
                                         }
 
                                         return 'Conectado'.($connection->last_sync_at
@@ -371,6 +417,7 @@ class OrganizationSettingsPage extends Page implements HasForms
                                             : 'Conectar Google Drive')
                                         ->icon('heroicon-o-link')
                                         ->color('primary')
+                                        ->disabled(fn (): bool => ! $this->googleDriveConfigured())
                                         ->url(fn (): string => route('settings.google-drive.connect', [
                                             'tenant' => $this->currentTenant()->slug,
                                         ])),
@@ -382,6 +429,11 @@ class OrganizationSettingsPage extends Page implements HasForms
                                         ->modalDescription('Novos documentos deixarão de ser enviados. Os arquivos existentes permanecerão no Drive da organização.')
                                         ->visible(fn (): bool => $this->googleDriveConnection()?->status === 'active')
                                         ->action(fn () => $this->disconnectGoogleDrive()),
+                                    Forms\Components\Actions\Action::make('sync_google_drive')
+                                        ->label('Sincronizar agora')
+                                        ->icon('heroicon-o-arrow-path')
+                                        ->visible(fn (): bool => $this->googleDriveConnection()?->status === 'active')
+                                        ->action(fn () => $this->syncGoogleDrive()),
                                 ]),
                             ]),
                     ])
@@ -407,8 +459,23 @@ class OrganizationSettingsPage extends Page implements HasForms
 
         $data = $this->form->getState();
 
+        if ($this->canManageGoogleDrive()
+            && (trim((string) ($data['google_drive_client_id'] ?? '')) !== ''
+                || trim((string) ($data['google_drive_client_secret'] ?? '')) !== '')) {
+            $this->persistGoogleDriveCredentials($data);
+            $this->data['google_drive_client_secret'] = null;
+        }
+
         // Campos que o admin NÃO pode alterar
-        unset($data['slug'], $data['active'], $data['has_public_portal'], $data['settings'], $data['document_settings']);
+        unset(
+            $data['slug'],
+            $data['active'],
+            $data['has_public_portal'],
+            $data['settings'],
+            $data['document_settings'],
+            $data['google_drive_client_id'],
+            $data['google_drive_client_secret'],
+        );
 
         $tenant->update($data);
 
@@ -439,6 +506,115 @@ class OrganizationSettingsPage extends Page implements HasForms
         Notification::make()->success()->title('Google Drive desconectado')->send();
     }
 
+    public function saveGoogleDriveCredentials(): void
+    {
+        abort_unless($this->canManageGoogleDrive(), 403);
+
+        $this->persistGoogleDriveCredentials($this->data);
+        $this->data['google_drive_client_secret'] = null;
+
+        Notification::make()->success()->title('Credenciais salvas')->send();
+    }
+
+    public function syncGoogleDrive(): void
+    {
+        abort_unless($this->canManageGoogleDrive(), 403);
+
+        $tenant = $this->currentTenant();
+        abort_unless($this->googleDriveConnection()?->status === 'active', 409);
+
+        AssociateReceipt::query()
+            ->where('tenant_id', $tenant->id)
+            ->select('id')
+            ->chunkById(100, function ($receipts): void {
+                foreach ($receipts as $receipt) {
+                    SyncAssociateReceiptToDrive::dispatch((int) $receipt->id);
+                }
+            });
+        SyncTenantStoredFileToDrive::dispatchExistingForTenant($tenant->id);
+
+        activity('cloud_storage')->causedBy(auth()->user())->performedOn($tenant)
+            ->withProperties(['tenant_id' => $tenant->id, 'provider' => 'google_drive'])
+            ->log('Sincronizacao manual do Google Drive solicitada');
+
+        Notification::make()->success()->title('Sincronização adicionada à fila')->send();
+    }
+
+    private function persistGoogleDriveCredentials(array $data): void
+    {
+        $tenant = $this->currentTenant();
+        $connection = $this->googleDriveConnection();
+        $clientId = trim((string) ($data['google_drive_client_id'] ?? ''));
+        $clientSecret = trim((string) ($data['google_drive_client_secret'] ?? ''));
+        $currentClientId = trim((string) $connection?->oauth_client_id);
+        $currentClientSecret = trim((string) $connection?->oauth_client_secret);
+
+        if ($clientId === '' || ! str_ends_with($clientId, '.apps.googleusercontent.com')) {
+            throw ValidationException::withMessages([
+                'data.google_drive_client_id' => 'Informe um OAuth Client ID válido.',
+            ]);
+        }
+
+        if (($currentClientSecret === '' || ! hash_equals($currentClientId, $clientId)) && $clientSecret === '') {
+            throw ValidationException::withMessages([
+                'data.google_drive_client_secret' => 'Informe o OAuth Client Secret.',
+            ]);
+        }
+
+        if ($clientSecret !== '' && mb_strlen($clientSecret) < 8) {
+            throw ValidationException::withMessages([
+                'data.google_drive_client_secret' => 'O OAuth Client Secret é inválido.',
+            ]);
+        }
+
+        $credentialsChanged = ! $connection
+            || ! hash_equals($currentClientId, $clientId)
+            || ($clientSecret !== '' && ! hash_equals($currentClientSecret, $clientSecret));
+
+        $connection ??= new TenantCloudStorageConnection();
+        $values = [
+            'tenant_id' => $tenant->id,
+            'provider' => 'google_drive',
+            'oauth_client_id' => $clientId,
+            'oauth_client_secret' => $clientSecret !== '' ? $clientSecret : $currentClientSecret,
+            'status' => $credentialsChanged || $connection->status !== 'active'
+                ? 'configured'
+                : 'active',
+            'last_error' => null,
+        ];
+
+        if ($credentialsChanged) {
+            $values += [
+                'refresh_token' => null,
+                'granted_scopes' => [],
+                'root_folder_id' => null,
+                'connected_by_user_id' => null,
+                'connected_at' => null,
+                'last_sync_at' => null,
+            ];
+        }
+
+        DB::transaction(function () use ($connection, $values, $credentialsChanged, $tenant): void {
+            $connection->forceFill($values)->save();
+
+            if ($credentialsChanged) {
+                DB::table('cloud_documents')
+                    ->where('tenant_id', $tenant->id)
+                    ->update([
+                        'remote_file_id' => null,
+                        'remote_folder_id' => null,
+                        'status' => 'pending',
+                        'last_error' => null,
+                        'updated_at' => now(),
+                    ]);
+            }
+        });
+
+        activity('cloud_storage')->causedBy(auth()->user())->performedOn($tenant)
+            ->withProperties(['tenant_id' => $tenant->id, 'provider' => 'google_drive'])
+            ->log('Credenciais OAuth do Google Drive atualizadas');
+    }
+
     private function currentTenant(): Tenant
     {
         return Tenant::query()->findOrFail((int) session('tenant_id'));
@@ -449,6 +625,11 @@ class OrganizationSettingsPage extends Page implements HasForms
         return TenantCloudStorageConnection::query()
             ->where('tenant_id', (int) session('tenant_id'))
             ->first();
+    }
+
+    private function googleDriveConfigured(): bool
+    {
+        return $this->googleDriveConnection()?->hasOAuthConfiguration() ?? false;
     }
 
     private function canManageGoogleDrive(): bool
