@@ -211,19 +211,48 @@ class AssociateProjectLimitServiceTest extends TestCase
             ['id' => 1, 'tenant_id' => 1, 'name' => 'Organizacao A', 'active' => true, 'created_at' => now(), 'updated_at' => now()],
             ['id' => 2, 'tenant_id' => 1, 'name' => 'Organizacao B', 'active' => true, 'created_at' => now(), 'updated_at' => now()],
         ]);
-        DB::table('customers')->where('id', 1)->update(['organization_id' => 1]);
         DB::table('customers')->insert([
             ['id' => 2, 'tenant_id' => 1, 'name' => 'Cliente A2', 'organization_id' => 1, 'status' => true, 'created_at' => now(), 'updated_at' => now()],
             ['id' => 3, 'tenant_id' => 1, 'name' => 'Cliente B1', 'organization_id' => 2, 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 4, 'tenant_id' => 1, 'name' => 'Cliente individual adicional', 'organization_id' => null, 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 5, 'tenant_id' => 1, 'name' => 'Cliente individual nao vinculado', 'organization_id' => null, 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 6, 'tenant_id' => 2, 'name' => 'Cliente de outro tenant', 'organization_id' => null, 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('sales_project_customers')->insert([
+            'sales_project_id' => $project->id, 'customer_id' => 4, 'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('sales_project_organizations')->insert([
             'sales_project_id' => $project->id, 'organization_id' => 1, 'created_at' => now(), 'updated_at' => now(),
         ]);
 
-        $ids = app(ProjectDistributionCustomerService::class)->ids($project->fresh());
+        $service = app(ProjectDistributionCustomerService::class);
+        $ids = $service->ids($project->fresh());
 
-        $this->assertSame([1, 2], $ids->sort()->values()->all());
+        $this->assertSame([1, 2, 4], $ids->sort()->values()->all());
         $this->assertFalse($ids->contains(3));
+        $this->assertFalse($ids->contains(5));
+        $this->assertFalse($ids->contains(6));
+
+        $service->assertAllowed($project->fresh(), [1, 2, 4]);
+
+        $this->expectException(ValidationException::class);
+        $service->assertAllowed($project->fresh(), [5]);
+    }
+
+    public function test_project_without_customers_or_organizations_does_not_expose_tenant_customers(): void
+    {
+        [$project] = $this->fixture(false);
+        $project->update(['customer_id' => null]);
+        DB::table('organizations')->insert([
+            'id' => 1, 'tenant_id' => 1, 'name' => 'Organizacao A', 'active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('customers')->insert([
+            'id' => 2, 'tenant_id' => 1, 'name' => 'Cliente organizacional',
+            'organization_id' => 1, 'status' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->assertSame([], app(ProjectDistributionCustomerService::class)->ids($project->fresh())->all());
     }
 
     private function fixture(bool $withSecondCustomer): array

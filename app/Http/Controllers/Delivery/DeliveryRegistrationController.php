@@ -448,7 +448,6 @@ class DeliveryRegistrationController extends Controller
             )
             : Customer::where('tenant_id', $tenantId)
                 ->where('status', true)
-                ->whereNotNull('organization_id')
                 ->with('organization:id,name,short_name')
                 ->orderBy('name')
                 ->get(['id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
@@ -554,17 +553,11 @@ class DeliveryRegistrationController extends Controller
             $affectedOrganizations = collect();
             $plannedAgainstRequests = [];
             foreach ($validated['distributions'] as $dist) {
-                $customer = Customer::with('organization')->find((int) $dist['customer_id']);
+                $customer = Customer::where('tenant_id', $tenantId)
+                    ->with('organization')
+                    ->findOrFail((int) $dist['customer_id']);
 
-                if (! $customer?->organization_id || ! $customer->organization) {
-                    DB::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'O cliente selecionado nao esta vinculado a uma organizacao compradora.',
-                    ], 422);
-                }
-
-                if ($project && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
+                if ($project && $customer->organization && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
                     $remaining = $requestFulfillment->remainingQuantity(
                         (int) $tenantId,
                         (int) $project->id,
@@ -647,7 +640,9 @@ class DeliveryRegistrationController extends Controller
                     'paid'                 => false,
                 ]);
                 $created[] = $child->id;
-                $affectedOrganizations->push((int) $customer->organization_id);
+                if ($customer->organization_id) {
+                    $affectedOrganizations->push((int) $customer->organization_id);
+                }
             }
 
             DB::commit();
@@ -846,13 +841,6 @@ class DeliveryRegistrationController extends Controller
             ->with('organization')
             ->findOrFail((int) $validated['customer_id']);
 
-        if (! $customer->organization_id || ! $customer->organization) {
-            return response()->json([
-                'success' => false,
-                'message' => 'O cliente selecionado nao esta vinculado a uma organizacao compradora.',
-            ], 422);
-        }
-
         $project = $parent->salesProject;
         if ($project) {
             try {
@@ -881,7 +869,7 @@ class DeliveryRegistrationController extends Controller
         }
 
         $requestFulfillment = app(BuyerRequestFulfillmentService::class);
-        if ($project && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
+        if ($project && $customer->organization && $requestFulfillment->limitIsEnabled($project, $customer->organization)) {
             $remaining = $requestFulfillment->remainingQuantity(
                 (int) $tenantId,
                 (int) $project->id,

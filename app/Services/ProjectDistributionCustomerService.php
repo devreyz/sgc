@@ -20,20 +20,21 @@ class ProjectDistributionCustomerService
             ->values();
         $organizationIds = $project->organizations->pluck('id')->map(fn ($id) => (int) $id)->values();
 
+        if ($customerIds->isEmpty() && $organizationIds->isEmpty()) {
+            return collect();
+        }
+
         return Customer::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('status', true)
-            ->whereNotNull('organization_id')
-            ->when($customerIds->isNotEmpty() || $organizationIds->isNotEmpty(), function ($query) use ($customerIds, $organizationIds) {
-                $query->where(function ($allowed) use ($customerIds, $organizationIds) {
-                    if ($customerIds->isNotEmpty()) {
-                        $allowed->whereIn('id', $customerIds);
-                    }
-                    if ($organizationIds->isNotEmpty()) {
-                        $method = $customerIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
-                        $allowed->{$method}('organization_id', $organizationIds);
-                    }
-                });
+            ->where(function ($allowed) use ($customerIds, $organizationIds) {
+                if ($customerIds->isNotEmpty()) {
+                    $allowed->whereIn('id', $customerIds);
+                }
+                if ($organizationIds->isNotEmpty()) {
+                    $method = $customerIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
+                    $allowed->{$method}('organization_id', $organizationIds);
+                }
             })
             ->with('organization:id,name,short_name')
             ->orderBy('name')
