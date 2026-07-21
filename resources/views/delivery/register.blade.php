@@ -4,9 +4,7 @@
 @section('page-title', 'Registrar Entrega')
 @section('user-role', 'Registrador')
 
-@section('navigation')
-<x-portal.nav portal="delivery" active="register" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'register', $currentTenant->slug ?? request()->route('tenant')))
 {{-- ─────────────── MODAL DISTRIBUIR (componente unificado) ──────── --}}
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"

@@ -4,9 +4,7 @@
 @section('page-title', 'Editar Ordem #' . $order->number)
 @section('user-role', 'Prestador de Serviço')
 
-@section('navigation')
-<x-portal.nav portal="provider" active="orders" :tenant="request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('provider', 'orders', request()->route('tenant')))
 
 @section('content')
 <div class="bento-grid">

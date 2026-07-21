@@ -4,9 +4,7 @@
 @section('page-title', 'Solicitar Pagamento')
 @section('user-role', 'Prestador de Serviço')
 
-@section('navigation')
-<x-portal.nav portal="provider" active="financial" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('provider', 'financial', $currentTenant->slug ?? request()->route('tenant')))
 
 @section('content')
 <style>

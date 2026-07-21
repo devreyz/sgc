@@ -17,9 +17,6 @@ Bem-vindo, {{ $displayName }}!
 @section('page-subtitle', 'Escolha o ambiente que deseja acessar.')
 @section('user-role', 'Selecione uma opção')
 
-@section('navigation')
-@endsection
-
 @section('content')
 <style>
     .panel-selector {

@@ -28,9 +28,6 @@
     };
 @endphp
 
-@section('navigation')
-@endsection
-
 @section('content')
 <!-- Fonte que trata corretamente uppercase com acentos -->
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700;800&display=swap" rel="stylesheet">

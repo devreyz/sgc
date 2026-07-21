@@ -14,9 +14,7 @@
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
 />
-@section('navigation')
-<x-portal.nav portal="delivery" active="projects" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $currentTenant->slug ?? request()->route('tenant')))
 
 @section('content')
 <style>

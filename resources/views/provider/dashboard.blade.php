@@ -11,9 +11,7 @@
     $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
-@section('navigation')
-<x-portal.nav portal="provider" active="dashboard" :tenant="$tenantSlug" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('provider', 'dashboard', $tenantSlug))
 
 @section('content')
 <div class="bento-grid">

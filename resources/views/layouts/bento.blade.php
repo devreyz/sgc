@@ -55,11 +55,16 @@
             --app-radius-xl: 28px;
 
             --app-content-max: 1480px;
-            --app-header-height: 92px;
+            --app-header-height: 72px;
             --app-sidebar-width: 246px;
             --app-mobile-nav-height: 76px;
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --app-layer-navigation: 600;
+            --app-layer-header: 700;
+            --app-layer-drawer: 1000;
+            --app-layer-modal: 1200;
+            --app-layer-loading: 1500;
 
             /* Compatibility with existing pages */
             --color-primary: var(--app-primary);
@@ -156,17 +161,14 @@
            ======================================================== */
         .app-header {
             position: sticky;
-            z-index: 900;
+            z-index: var(--app-layer-header);
             top: 0;
             min-height: var(--app-header-height);
             overflow: visible;
-            margin-bottom: 24px;
+            margin-bottom: 14px;
             color: #fff;
-            background:
-                radial-gradient(circle at 14% -25%, rgba(255, 255, 255, .22), transparent 16rem),
-                radial-gradient(circle at 92% -45%, rgba(255, 255, 255, .15), transparent 18rem),
-                linear-gradient(135deg, var(--app-primary-600), var(--app-primary-700));
-            box-shadow: 0 8px 28px rgba(22, 163, 74, .18);
+            background: transparent;
+            box-shadow: none;
         }
 
         .app-header__content {
@@ -174,12 +176,12 @@
             z-index: 2;
             display: flex;
             width: min(100%, var(--app-content-max));
-            min-height: 70px;
+            min-height: var(--app-header-height);
             align-items: center;
             justify-content: space-between;
             gap: 1rem;
             margin: 0 auto;
-            padding: calc(.7rem + var(--safe-top)) 1rem 1.25rem;
+            padding: calc(.42rem + var(--safe-top)) 1rem .72rem;
         }
 
         .app-header__left,
@@ -345,24 +347,22 @@
             position: absolute;
             z-index: 1;
             right: -2px;
-            bottom: -24px;
+            bottom: -14px;
             left: -2px;
             width: calc(100% + 4px);
-            height: 25px;
-            color: var(--app-primary-700);
+            height: calc(100% + 14px);
             pointer-events: none;
+            backdrop-filter: blur(5px);
         }
 
-        .app-header__wave path {
-            fill: currentColor;
-        }
+        
 
         /* ========================================================
            NAVIGATION
            ======================================================== */
         .app-nav-layer {
             position: relative;
-            z-index: 500;
+            z-index: var(--app-layer-navigation);
         }
 
         .nav-tabs {
@@ -388,10 +388,12 @@
             align-items: center;
             gap: .68rem;
             border: 1px solid transparent;
+            background: transparent;
             color: var(--app-text-secondary);
             font-size: .79rem;
             font-weight: 700;
             text-decoration: none;
+            cursor: pointer;
             transition: color 150ms ease, background 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
         }
 
@@ -423,8 +425,8 @@
         @media (min-width: 1024px) {
             .nav-tabs {
                 position: fixed;
-                z-index: 520;
-                top: calc(var(--app-header-height) + .7rem);
+                z-index: calc(var(--app-layer-navigation) + 10);
+                top: calc(var(--app-header-height) + 1rem);
                 bottom: 1rem;
                 left: 1rem;
                 width: var(--app-sidebar-width);
@@ -489,7 +491,7 @@
         @media (max-width: 1023px) {
             .nav-tabs {
                 position: fixed;
-                z-index: 930;
+                z-index: calc(var(--app-layer-navigation) + 50);
                 right: .55rem;
                 bottom: max(.55rem, var(--safe-bottom));
                 left: .55rem;
@@ -599,8 +601,6 @@
            CONTENT / BENTO
            ======================================================== */
         .bento-container {
-            position: relative;
-            z-index: 1;
             width: min(100%, var(--app-content-max));
             min-width: 0;
             margin: 0 auto;
@@ -1006,7 +1006,7 @@
            ======================================================== */
         .user-menu-overlay {
             position: fixed;
-            z-index: 1100;
+            z-index: var(--app-layer-drawer);
             inset: 0;
             visibility: hidden;
             background: rgba(15, 23, 42, .56);
@@ -1022,7 +1022,7 @@
 
         .user-menu-sheet {
             position: fixed;
-            z-index: 1110;
+            z-index: calc(var(--app-layer-drawer) + 10);
             overflow-y: auto;
             border: 1px solid rgba(226, 232, 240, .88);
             background: rgba(255, 255, 255, .98);
@@ -1284,7 +1284,7 @@
            ======================================================== */
         .global-request-loader {
             position: fixed;
-            z-index: 1500;
+            z-index: var(--app-layer-loading);
             inset: 0;
             display: none;
             align-items: center;
@@ -1329,13 +1329,13 @@
            ======================================================== */
         @media (max-width: 767px) {
             :root {
-                --app-header-height: 84px;
+                --app-header-height: 70px;
             }
 
             .app-header__content {
-                min-height: 64px;
+                min-height: 58px;
                 gap: .55rem;
-                padding: calc(.5rem + var(--safe-top)) .72rem 1.05rem;
+                padding: calc(.35rem + var(--safe-top)) .72rem .72rem;
             }
 
             .app-home-button,
@@ -1374,10 +1374,6 @@
                 width: 37px;
                 height: 37px;
                 border-radius: 12px;
-            }
-
-            .app-header__wave {
-                height: 25px;
             }
 
             .bento-container {
@@ -1423,7 +1419,10 @@
 </head>
 
 @php
-    $portalNavigation = trim($__env->yieldContent('navigation'));
+    $bentoNavigation = isset($bentoNavigation) && is_array($bentoNavigation)
+        ? $bentoNavigation
+        : [];
+    $hasBentoNavigation = ! empty($bentoNavigation['items']);
 
     $currentTenant = null;
     if (session('tenant_id')) {
@@ -1461,7 +1460,7 @@
     }
 @endphp
 
-<body class="{{ $portalNavigation !== '' ? 'has-app-nav' : '' }}">
+<body class="{{ $hasBentoNavigation ? 'has-app-nav' : '' }}">
     <header class="app-header">
         <div class="app-header__content">
             <div class="app-header__left">
@@ -1498,8 +1497,14 @@
             </div>
         </div>
 
-        <svg class="app-header__wave" viewBox="0 0 1440 84" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0 0h1440v38c-152-18-242 21-417 34-178 13-315-32-492-42C355 0 180 47 0 14Z"></path>
+        <svg class="app-header__wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <linearGradient id="app-header-wave-gradient" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stop-color="#16a34a"></stop>
+                    <stop offset="1" stop-color="#15803d"></stop>
+                </linearGradient>
+            </defs>
+            <path fill="url(#app-header-wave-gradient)" d="M0 0h1440v79c-171-15-283 18-461 15-190-3-303-25-475-12C310 97 166 73 0 86Z"></path>
         </svg>
     </header>
 
@@ -1630,9 +1635,14 @@
         </div>
     </aside>
 
-    @if($portalNavigation !== '')
+    @if($hasBentoNavigation)
         <div class="app-nav-layer" aria-label="Navegação principal do portal">
-            {!! $portalNavigation !!}
+            <x-portal.nav
+                :items="$bentoNavigation['items']"
+                :active="$bentoNavigation['active'] ?? null"
+                :portal="$bentoNavigation['portal'] ?? 'custom'"
+                :aria-label="$bentoNavigation['aria_label'] ?? 'Navegacao principal'"
+            />
         </div>
     @endif
 
@@ -1670,48 +1680,15 @@
         @yield('content')
     </main>
 
+    @stack('overlays')
+
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         (() => {
-            const navIcons = {
-                dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="8" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="15" width="7" height="6" rx="1.5"></rect></svg>',
-                projects: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5Z"></path></svg>',
-                deliveries: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>',
-                ledger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8M8 12h8M8 16h5"></path></svg>',
-                register: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>',
-                sheets: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"></path><path d="M14 3v5h5M9 13h6M9 17h4"></path></svg>',
-                orders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 5h6M9 12h6M9 19h6"></path></svg>',
-                financial: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 10h18M7 15h3"></path></svg>',
-                create: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>',
-                history: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path></svg>',
-                default: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg>'
-            };
              if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
-            }
-
-            function hydrateNavigation() {
-                document.querySelectorAll('.nav-tab').forEach((tab) => {
-                    if (tab.querySelector('.app-nav-icon')) return;
-
-                    const labelText = tab.textContent.trim();
-                    const key = tab.dataset.navKey || 'default';
-                    const icon = document.createElement('span');
-                    const label = document.createElement('span');
-
-                    icon.className = 'app-nav-icon';
-                    icon.setAttribute('aria-hidden', 'true');
-                    icon.innerHTML = navIcons[key] || navIcons.default;
-
-                    label.className = 'app-nav-label';
-                    label.textContent = labelText;
-
-                    tab.setAttribute('aria-label', tab.getAttribute('aria-label') || labelText);
-                    tab.textContent = '';
-                    tab.append(icon, label);
-                });
             }
 
             const menuToggle = document.getElementById('userMenuToggle');
@@ -1772,7 +1749,17 @@
                 });
             });
 
-            hydrateNavigation();
+            document.querySelectorAll('[data-nav-event]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    window.dispatchEvent(new CustomEvent('bento:navigation-action', {
+                        detail: {
+                            action: button.dataset.navEvent,
+                            key: button.dataset.navKey,
+                        },
+                    }));
+                });
+            });
+
         })();
     </script>
 

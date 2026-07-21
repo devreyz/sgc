@@ -4,9 +4,7 @@
 @section('page-title', 'Fichas de Entrega')
 @section('user-role', 'Registrador')
 
-@section('navigation')
-<x-portal.nav portal="delivery" active="sheets" :tenant="$currentTenant->slug ?? request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'sheets', $currentTenant->slug ?? request()->route('tenant')))
 
 @section('content')
 <style>

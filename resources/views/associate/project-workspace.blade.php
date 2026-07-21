@@ -4,6 +4,8 @@
 @section('page-title', $project->title)
 @section('page-subtitle', $project->title)
 
+@php($bentoNavigation = \App\Support\PortalNavigation::make('associate', 'projects', request()->route('tenant')))
+
 @section('content')
 @php
     $tenantSlug = request()->route('tenant') instanceof \App\Models\Tenant

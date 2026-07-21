@@ -10,9 +10,7 @@
     $tenantSlug = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
-@section('navigation')
-<x-portal.nav portal="provider" active="orders" :tenant="$tenantSlug" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('provider', 'orders', $tenantSlug))
 
 {{-- tenantSlug já definido acima com fallback robusto --}}
 

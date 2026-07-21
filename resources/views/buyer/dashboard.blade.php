@@ -9,9 +9,7 @@
     $tenantSlug = is_object($routeTenant) ? $routeTenant->slug : $routeTenant;
 @endphp
 
-@section('navigation')
-<x-portal.nav portal="buyer" active="dashboard" :tenant="$tenantSlug" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('buyer', 'dashboard', $tenantSlug))
 
 @section('content')
 <style>

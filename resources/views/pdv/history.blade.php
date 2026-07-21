@@ -4,13 +4,7 @@
 @section('page-title', 'Histórico de Vendas')
 @section('user-role', 'PDV')
 
-@section('navigation')
-<a href="{{ route('pdv.index', ['tenant' => request()->route('tenant')]) }}" class="nav-tab">
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px;"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-    PDV
-</a>
-<span class="nav-tab active">Histórico</span>
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('cashier', 'history', request()->route('tenant')))
 
 @section('content')
 <style>

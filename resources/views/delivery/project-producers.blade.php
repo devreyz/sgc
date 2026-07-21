@@ -4,9 +4,7 @@
 @section('page-title', 'Produtores do Projeto')
 @section('user-role', 'Registrador')
 
-@section('navigation')
-<x-portal.nav portal="delivery" active="projects" :tenant="$tenant->slug ?? request()->route('tenant')" />
-@endsection
+@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $tenant->slug ?? request()->route('tenant')))
 
 @section('content')
 <style>
