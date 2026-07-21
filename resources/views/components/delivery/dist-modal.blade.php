@@ -126,6 +126,7 @@
 }
 .dm-existing-row:last-child { border-bottom: none; }
 .dm-existing-customer { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: start; font-weight: 500; }
+.dm-existing-price { margin-top:.08rem; color:var(--color-text-muted); font-size:.68rem; font-weight:600; }
 .dm-existing-qty { white-space: nowrap; color: var(--color-text-secondary); }
 .dm-existing-net {
     white-space: nowrap; font-size: .78rem;
@@ -191,6 +192,38 @@
     background:rgba(0,0,0,.5);
 }
 #dm-confirm-overlay.open { display:flex; }
+#dm-notice-overlay {
+    position:fixed; inset:0; z-index:320000; display:none;
+    align-items:center; justify-content:center; padding:1rem;
+    background:rgba(15,23,42,.52); backdrop-filter:blur(3px);
+}
+#dm-notice-overlay.open { display:flex; }
+.dm-notice-box {
+    width:min(440px,95vw); overflow:hidden;
+    border:1px solid var(--color-border); border-radius:var(--radius-lg);
+    background:var(--color-surface); box-shadow:0 22px 56px rgba(15,23,42,.28);
+}
+.dm-notice-head { display:flex; gap:.7rem; align-items:flex-start; padding:1rem 1rem .65rem; }
+.dm-notice-icon {
+    width:34px; height:34px; flex:0 0 auto; display:grid; place-items:center;
+    border-radius:var(--radius-md); color:#b45309; background:#fef3c7;
+}
+.dm-notice-box.error .dm-notice-icon { color:#b91c1c; background:#fee2e2; }
+.dm-notice-box.info .dm-notice-icon { color:#1d4ed8; background:#dbeafe; }
+.dm-notice-copy { min-width:0; flex:1; }
+.dm-notice-title { margin:0; color:var(--color-text); font-size:.94rem; font-weight:800; }
+.dm-notice-message { margin:.25rem 0 0; color:var(--color-text-secondary); font-size:.82rem; line-height:1.48; }
+.dm-notice-form { display:none; padding:0 1rem .8rem; }
+.dm-notice-form.visible { display:block; }
+.dm-notice-form label { display:block; margin-bottom:.3rem; color:var(--color-text-secondary); font-size:.72rem; font-weight:700; }
+.dm-price-input-wrap { position:relative; }
+.dm-price-prefix { position:absolute; top:50%; left:.7rem; color:var(--color-text-muted); font-size:.82rem; transform:translateY(-50%); }
+.dm-notice-form input {
+    width:100%; min-height:42px; padding:.55rem .7rem .55rem 2.5rem;
+    border:1.5px solid var(--color-border); border-radius:var(--radius-md);
+    background:var(--color-bg); color:var(--color-text);
+}
+.dm-notice-actions { display:flex; justify-content:flex-end; gap:.5rem; padding:.75rem 1rem; border-top:1px solid var(--color-border); }
 .dm-confirm-box {
     width:min(420px,95vw); background:var(--color-surface);
     border:1px solid var(--color-border); border-radius:var(--radius-lg);
@@ -209,7 +242,7 @@
 
 /* ── New-row inputs ───────────────────────────────────────────────────── */
 .dm-row {
-    display: flex; gap: .4rem; align-items: center;
+    display:grid; grid-template-columns:minmax(0,1fr) 110px 36px; gap:.4rem; align-items:center;
 }
 .dm-row select {
     flex: 1; font-size: .88rem;
@@ -249,6 +282,16 @@
 }
 .dm-row .dm-rm-btn:hover { background: rgba(220,38,38,.12); border-color: var(--color-danger); }
 .dm-row .dm-rm-btn:focus { outline: none; border-color: var(--color-danger); box-shadow: 0 0 0 3px rgba(220,38,38,.2); }
+.dm-row-price {
+    grid-column:1 / -1; min-height:20px; display:flex; align-items:center; gap:.35rem;
+    padding:0 .1rem; color:var(--color-text-muted); font-size:.7rem; font-weight:600;
+}
+.dm-row-price.available { color:#047857; }
+.dm-row-price.missing { color:#b45309; }
+.dm-row-price button {
+    border:0; padding:0; background:transparent; color:var(--color-primary-dark);
+    font-size:.7rem; font-weight:800; cursor:pointer; text-decoration:underline;
+}
 
 /* ── Add-row button ───────────────────────────────────────────────────── */
 .dm-add-btn {
@@ -364,6 +407,31 @@
     </div>
 </div>
 
+<div id="dm-notice-overlay" onclick="if(event.target===this)DistModal.closeNotice()">
+    <div class="dm-notice-box" id="dm-notice-box" role="alertdialog" aria-modal="true" aria-labelledby="dm-notice-title">
+        <div class="dm-notice-head">
+            <div class="dm-notice-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </div>
+            <div class="dm-notice-copy">
+                <h3 class="dm-notice-title" id="dm-notice-title">Atencao</h3>
+                <p class="dm-notice-message" id="dm-notice-message"></p>
+            </div>
+        </div>
+        <div class="dm-notice-form" id="dm-price-form">
+            <label for="dm-price-input">Valor unitario</label>
+            <div class="dm-price-input-wrap">
+                <span class="dm-price-prefix">R$</span>
+                <input id="dm-price-input" type="number" inputmode="decimal" min="0.0001" max="999999.9999" step="0.0001" autocomplete="off">
+            </div>
+        </div>
+        <div class="dm-notice-actions">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.closeNotice()">Fechar</button>
+            <button type="button" class="btn btn-primary btn-sm" id="dm-notice-action" style="display:none"></button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function () {
 'use strict';
@@ -383,6 +451,9 @@ let _existing = [];
 let _pendingDangerDelete = null;
 let _customerStateKey = null;
 const _customerStates = new Map();
+const _priceCache = new Map();
+let _noticeAction = null;
+let _priceEditor = null;
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -395,6 +466,72 @@ function fmtR(n) {
     return 'R$ ' + parseFloat(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 }
 function $ (id) { return document.getElementById(id); }
+
+function showNotice(message, options = {}) {
+    const box = $('dm-notice-box');
+    box.className = 'dm-notice-box ' + (options.type || 'warning');
+    $('dm-notice-title').textContent = options.title || 'Atencao';
+    $('dm-notice-message').textContent = message || 'Nao foi possivel concluir esta acao.';
+    $('dm-price-form').classList.remove('visible');
+    const action = $('dm-notice-action');
+    _noticeAction = typeof options.onAction === 'function' ? options.onAction : null;
+    action.style.display = _noticeAction ? '' : 'none';
+    action.textContent = options.actionLabel || 'Continuar';
+    action.disabled = false;
+    action.onclick = () => _noticeAction?.();
+    $('dm-notice-overlay').classList.add('open');
+    setTimeout(() => (_noticeAction ? action : $('dm-notice-overlay').querySelector('.btn-ghost'))?.focus(), 50);
+}
+
+function priceCacheKey(customerId) {
+    return `${_id}:${customerId}`;
+}
+
+function renderRowPrice(row, pricing) {
+    const target = row.querySelector('.dm-row-price');
+    if (!target) return;
+    target.className = 'dm-row-price';
+    if (!pricing) {
+        target.textContent = '';
+        return;
+    }
+    if (pricing.unit_price !== null && pricing.unit_price !== undefined) {
+        target.classList.add('available');
+        target.textContent = `Valor unitario: ${fmtR(pricing.unit_price)}`;
+        return;
+    }
+    target.classList.add('missing');
+    target.innerHTML = '<span>Sem preco configurado</span>';
+    if (pricing.can_configure_price) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Configurar preco';
+        button.onclick = () => DistModal.openPriceEditor(pricing);
+        target.appendChild(button);
+    }
+}
+
+async function loadRowPrice(row, customerId, force = false) {
+    if (!customerId || !_id) return renderRowPrice(row, null);
+    const key = priceCacheKey(customerId);
+    if (!force && _priceCache.has(key)) return renderRowPrice(row, _priceCache.get(key));
+    const target = row.querySelector('.dm-row-price');
+    if (target) target.textContent = 'Consultando preco...';
+    try {
+        const response = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/customers/${customerId}/price`, {
+            headers: { 'Accept': 'application/json' },
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Nao foi possivel consultar o preco.');
+        _priceCache.set(key, data);
+        renderRowPrice(row, data);
+    } catch (error) {
+        if (target) {
+            target.className = 'dm-row-price missing';
+            target.textContent = error.message;
+        }
+    }
+}
 
 function customerState(participants, context) {
     const defaultIds = (participants.length > 0
@@ -455,6 +592,7 @@ function normalizeExisting(d) {
         customer_id: d.customer_id || d.customerId || null,
         customer: d.customer || '?',
         qty: parseFloat(d.qty || d.quantity || 0),
+        unit_price: parseFloat(d.unit_price || d.unitPrice || 0),
         net: parseFloat(d.net || 0),
         billed: !!d.billed,
         paid: !!d.paid,
@@ -521,7 +659,7 @@ function renderExisting(existing) {
     _existing = existing.map(normalizeExisting);
     list.innerHTML = _existing.map(d => `
         <div class="dm-existing-row" id="dmex-${d.id}">
-            <span class="dm-existing-customer"> ${esc(d.customer)} ${statusBadges(d)} </span>
+            <span class="dm-existing-customer"> ${esc(d.customer)} <small class="dm-existing-price">Valor unitario: ${fmtR(d.unit_price)}</small> ${statusBadges(d)} </span>
             <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
             <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
             <span class="dm-existing-actions">
@@ -567,6 +705,7 @@ function buildRow(preselectId = null, autofocus = false) {
     Array.from(sel.options).forEach(option => {
         if (option.value && !activeIds.has(String(option.value))) option.remove();
     });
+    sel.addEventListener('change', () => loadRowPrice(row, sel.value));
 
     const inp = document.createElement('input');
     inp.type        = 'number';
@@ -595,6 +734,10 @@ function buildRow(preselectId = null, autofocus = false) {
     row.appendChild(sel);
     row.appendChild(inp);
     row.appendChild(rm);
+    const price = document.createElement('div');
+    price.className = 'dm-row-price';
+    row.appendChild(price);
+    if (preselectId) queueMicrotask(() => loadRowPrice(row, preselectId));
     return row;
 }
 
@@ -691,7 +834,7 @@ window.DistModal = {
 
     addRow() {
         if (_activeCustomers.length === 0) {
-            alert('Nenhum cliente ativo. Restaure os clientes padrao para continuar.');
+            showNotice('Nenhum cliente ativo. Restaure os clientes padrao para continuar.', { type: 'info' });
             return;
         }
         const row = buildRow();
@@ -742,7 +885,7 @@ window.DistModal = {
         const customerId = row.querySelector('select')?.value;
         const quantity = parseFloat(row.querySelector('input')?.value || 0);
         if (!customerId || quantity <= 0) {
-            alert('Informe cliente e quantidade validos.');
+            showNotice('Informe cliente e quantidade validos.', { type: 'error' });
             return;
         }
 
@@ -770,11 +913,11 @@ window.DistModal = {
                     window._DistModalOnUpdate(_id, data);
                 }
             } else {
-                alert(data.message || 'Erro ao editar distribuicao.');
+                this.handleError(data, 'Erro ao editar distribuicao.');
                 renderExisting(_existing);
             }
         } catch (e) {
-            alert('Erro: ' + e.message);
+            showNotice(e.message, { type: 'error', title: 'Erro de comunicacao' });
             renderExisting(_existing);
         }
     },
@@ -848,10 +991,10 @@ window.DistModal = {
                     setTimeout(() => $('dm-confirm-answer')?.focus(), 60);
                     return;
                 }
-                alert(data.message || 'Erro ao remover.');
+                this.handleError(data, 'Erro ao remover.');
             }
         } catch (e) {
-            alert('Erro: ' + e.message);
+            showNotice(e.message, { type: 'error', title: 'Erro de comunicacao' });
         } finally {
             saveBtn.disabled = false;
         }
@@ -872,15 +1015,15 @@ window.DistModal = {
             // Customer selected but no qty — skip silently
             if (cid && qty <= 0) continue;
             // Qty informed but no customer — warn
-            if (!cid && qty > 0) { alert('Selecione o cliente para a linha com quantidade informada.'); return; }
+            if (!cid && qty > 0) { showNotice('Selecione o cliente para a linha com quantidade informada.', { type: 'error' }); return; }
             distributions.push({ customer_id: parseInt(cid), quantity: qty });
         }
-        if (!distributions.length) { alert('Adicione pelo menos uma distribuição.'); return; }
+        if (!distributions.length) { showNotice('Adicione pelo menos uma distribuicao.', { type: 'info' }); return; }
 
         const newTotal = distributions.reduce((s, d) => s + d.quantity, 0);
         const avail    = _totalQty - _distQty;
         if (newTotal > avail + 0.0005) {
-            alert('Total (' + fmt(newTotal, _unit) + ') excede disponível (' + fmt(avail, _unit) + ').');
+            showNotice('Total (' + fmt(newTotal, _unit) + ') excede disponivel (' + fmt(avail, _unit) + ').', { type: 'error', title: 'Quantidade excedida' });
             return;
         }
 
@@ -903,15 +1046,81 @@ window.DistModal = {
                     location.reload();
                 }
             } else {
-                alert(data.message || 'Erro ao distribuir.');
+                this.handleError(data, 'Erro ao distribuir.');
             }
         } catch (e) {
-            alert('Erro: ' + e.message);
+            showNotice(e.message, { type: 'error', title: 'Erro de comunicacao' });
         } finally {
             saveBtn.disabled    = false;
             saveBtn.textContent = '';
             saveBtn.innerHTML   =
                 '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Salvar distribuições';
+        }
+    },
+
+    handleError(data, fallback) {
+        const message = data?.message || fallback;
+        if (data?.code === 'missing_price' && data.can_configure_price) {
+            showNotice(message, {
+                title: 'Preco nao configurado',
+                actionLabel: 'Configurar preco',
+                onAction: () => this.openPriceEditor(data),
+            });
+            return;
+        }
+        showNotice(message, { type: 'error' });
+    },
+
+    closeNotice() {
+        $('dm-notice-overlay').classList.remove('open');
+        $('dm-price-form').classList.remove('visible');
+        _noticeAction = null;
+        _priceEditor = null;
+    },
+
+    openPriceEditor(pricing) {
+        if (!pricing?.can_configure_price) return;
+        _priceEditor = pricing;
+        $('dm-notice-title').textContent = 'Configurar preco';
+        $('dm-notice-message').textContent = `${pricing.product_name} para ${pricing.customer_name}${pricing.price_table_name ? ' - ' + pricing.price_table_name : ''}`;
+        $('dm-price-form').classList.add('visible');
+        $('dm-price-input').value = pricing.unit_price || '';
+        const action = $('dm-notice-action');
+        action.style.display = '';
+        action.textContent = 'Salvar preco';
+        action.onclick = () => this.saveQuickPrice();
+        setTimeout(() => $('dm-price-input')?.focus(), 40);
+    },
+
+    async saveQuickPrice() {
+        if (!_priceEditor || !_id) return;
+        const salePrice = parseFloat($('dm-price-input').value || 0);
+        if (salePrice <= 0) {
+            $('dm-price-input').focus();
+            return;
+        }
+        const action = $('dm-notice-action');
+        action.disabled = true;
+        try {
+            const response = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/customers/${_priceEditor.customer_id}/price`, {
+                method: 'PUT',
+                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({ sale_price: salePrice }),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || Object.values(data.errors || {}).flat()[0] || 'Nao foi possivel salvar o preco.');
+            }
+            _priceCache.set(priceCacheKey(data.customer_id), data);
+            $('dm-new-rows').querySelectorAll('.dm-row').forEach(row => {
+                if (String(row.querySelector('select')?.value) === String(data.customer_id)) renderRowPrice(row, data);
+            });
+            this.closeNotice();
+        } catch (error) {
+            $('dm-notice-message').textContent = error.message;
+            $('dm-notice-box').className = 'dm-notice-box error';
+        } finally {
+            action.disabled = false;
         }
     },
 };

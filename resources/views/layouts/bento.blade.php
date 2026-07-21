@@ -159,7 +159,8 @@
             z-index: 900;
             top: 0;
             min-height: var(--app-header-height);
-            overflow: hidden;
+            overflow: visible;
+            margin-bottom: 24px;
             color: #fff;
             background:
                 radial-gradient(circle at 14% -25%, rgba(255, 255, 255, .22), transparent 16rem),
@@ -344,11 +345,11 @@
             position: absolute;
             z-index: 1;
             right: -2px;
-            bottom: -1px;
+            bottom: -24px;
             left: -2px;
             width: calc(100% + 4px);
             height: 25px;
-            color: var(--app-bg);
+            color: var(--app-primary-700);
             pointer-events: none;
         }
 
@@ -1376,7 +1377,7 @@
             }
 
             .app-header__wave {
-                height: 20px;
+                height: 25px;
             }
 
             .bento-container {
@@ -1498,7 +1499,7 @@
         </div>
 
         <svg class="app-header__wave" viewBox="0 0 1440 84" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M0 34C180 67 355 20 531 30c177 10 314 55 492 42 175-13 265-52 417-34v46H0Z"></path>
+            <path d="M0 0h1440v38c-152-18-242 21-417 34-178 13-315-32-492-42C355 0 180 47 0 14Z"></path>
         </svg>
     </header>
 

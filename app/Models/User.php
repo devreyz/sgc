@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Passkeys\Contracts\PasskeyUser;
 use Laravel\Passkeys\PasskeyAuthenticatable;
 use ParagonIE\ConstantTime\Base64UrlSafe;
@@ -47,6 +48,13 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         'email_verified_at',
         'deleted_at',
     ];
+
+    public function hasLocallyStoredAvatar(): bool
+    {
+        $avatar = trim((string) $this->avatar);
+
+        return $avatar !== '' && ! Str::startsWith($avatar, ['http://', 'https://']);
+    }
 
     /**
      * PROTEÇÃO DE INTEGRIDADE: Bloqueia deleção de usuários.

@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\Customer;
+use App\Models\PriceTableItem;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
@@ -125,6 +126,7 @@ class DeliveryRegistrationController extends Controller
             'customer_id' => $d->customer_id,
             'customer'    => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
             'qty'         => (float) $d->quantity,
+            'unit_price'  => (float) $d->unit_price,
             'net'         => (float) $d->net_value,
             'billed'      => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
             'paid'        => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
@@ -465,6 +467,144 @@ class DeliveryRegistrationController extends Controller
         return response()->json($customers);
     }
 
+    public function distributionPrice(Request $request)
+    {
+        [$reception, $customer] = $this->distributionPriceContext(
+            (int) session('tenant_id'),
+            (int) $request->route('delivery'),
+            (int) $request->route('customer')
+        );
+
+        $pricing = app(PricingService::class)->resolvePrice(
+            $reception->product,
+            $customer,
+            $reception->salesProject
+        );
+
+        return response()->json([
+            'success' => true,
+            ...$this->distributionPricePayload($customer, $reception->product, $pricing),
+        ]);
+    }
+
+    public function updateDistributionPrice(Request $request)
+    {
+        $validated = $request->validate([
+            'sale_price' => ['required', 'numeric', 'gt:0', 'max:999999.9999'],
+        ]);
+
+        [$reception, $customer] = $this->distributionPriceContext(
+            (int) session('tenant_id'),
+            (int) $request->route('delivery'),
+            (int) $request->route('customer')
+        );
+
+        $priceTable = $customer->priceTable;
+        if (! $priceTable || ! $priceTable->active || (int) $priceTable->tenant_id !== (int) $reception->tenant_id) {
+            throw ValidationException::withMessages([
+                'sale_price' => 'Este cliente precisa de uma tabela de precos ativa antes de receber um preco.',
+            ]);
+        }
+
+        $this->authorize('update', $priceTable);
+
+        $item = DB::transaction(function () use ($priceTable, $reception, $customer, $validated) {
+            $item = PriceTableItem::withTrashed()
+                ->where('price_table_id', $priceTable->id)
+                ->where('product_id', $reception->product_id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($item) {
+                if ($item->trashed()) {
+                    $item->restore();
+                }
+                $item->update(['sale_price' => $validated['sale_price']]);
+            } else {
+                $item = PriceTableItem::create([
+                    'price_table_id' => $priceTable->id,
+                    'product_id' => $reception->product_id,
+                    'sale_price' => $validated['sale_price'],
+                ]);
+            }
+
+            activity('price_tables')
+                ->performedOn($priceTable)
+                ->causedBy(Auth::user())
+                ->withProperties([
+                    'tenant_id' => $reception->tenant_id,
+                    'customer_id' => $customer->id,
+                    'product_id' => $reception->product_id,
+                    'sale_price' => (string) $item->sale_price,
+                    'source' => 'delivery_distribution_drawer',
+                ])
+                ->log('Preco de distribuicao atualizado');
+
+            return $item;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Preco atualizado.',
+            ...$this->distributionPricePayload($customer, $reception->product, [
+                'sale_price' => (string) $item->sale_price,
+                'cost_price' => $item->cost_price !== null ? (string) $item->cost_price : null,
+                'source' => 'price_table',
+                'price_table_id' => $priceTable->id,
+            ]),
+        ]);
+    }
+
+    private function distributionPriceContext(int $tenantId, int $deliveryId, int $customerId): array
+    {
+        abort_unless($tenantId > 0, 403);
+
+        $reception = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('parent_delivery_id')
+            ->with(['salesProject', 'product'])
+            ->findOrFail($deliveryId);
+        abort_unless($reception->salesProject && $reception->product, 404);
+        abort_unless(
+            (int) $reception->salesProject->tenant_id === $tenantId
+            && (int) $reception->product->tenant_id === $tenantId,
+            404
+        );
+
+        $customer = Customer::query()
+            ->where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->with('priceTable')
+            ->findOrFail($customerId);
+
+        app(ProjectDistributionCustomerService::class)
+            ->assertAllowed($reception->salesProject, [$customer->id]);
+
+        return [$reception, $customer];
+    }
+
+    private function distributionPricePayload(Customer $customer, Product $product, array $pricing): array
+    {
+        $priceTable = $customer->priceTable;
+        $canConfigure = $priceTable
+            && $priceTable->active
+            && (int) $priceTable->tenant_id === (int) $customer->tenant_id
+            && Auth::user()?->can('update', $priceTable);
+
+        return [
+            'code' => $pricing['source'] === 'unpriced' ? 'missing_price' : 'price_available',
+            'customer_id' => $customer->id,
+            'customer_name' => $customer->trade_name ?: $customer->name,
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'unit_price' => $pricing['source'] === 'unpriced' ? null : (float) $pricing['sale_price'],
+            'price_source' => $pricing['source'],
+            'price_table_name' => $priceTable?->name,
+            'has_price_table' => (bool) ($priceTable && $priceTable->active),
+            'can_configure_price' => (bool) $canConfigure,
+        ];
+    }
+
     /**
      * Distribute an approved reception delivery to one or more customers.
      * Creates child ProductionDelivery records (distribution records).
@@ -590,6 +730,7 @@ class DeliveryRegistrationController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => 'O produto "' . $product->name . '" não tem preço configurado para o cliente "' . ($customer->trade_name ?: $customer->name) . '". Configure a tabela de preços antes de distribuir.',
+                        ...$this->distributionPricePayload($customer, $product, $priceResult),
                     ], 422);
                 }
 
@@ -900,6 +1041,7 @@ class DeliveryRegistrationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'O produto "' . $product->name . '" nao tem preco configurado para o cliente "' . ($customer->trade_name ?: $customer->name) . '".',
+                ...$this->distributionPricePayload($customer, $product, $priceResult),
             ], 422);
         }
 
@@ -1009,6 +1151,7 @@ class DeliveryRegistrationController extends Controller
                 'customer_id' => $customer->id,
                 'customer' => $customer->trade_name ?: $customer->name,
                 'qty' => (float) $distribution->quantity,
+                'unit_price' => (float) $distribution->unit_price,
                 'net' => (float) $distribution->net_value,
                 'billed' => false,
                 'paid' => false,
@@ -1216,6 +1359,7 @@ class DeliveryRegistrationController extends Controller
                     'organization'     => optional($dist->customer?->organization)->short_name
                                         ?? optional($dist->customer?->organization)->name,
                     'qty'              => (float) $dist->quantity,
+                    'unit_price'       => (float) $dist->unit_price,
                     'net'              => (float) $dist->net_value,
                     'price_source'     => $dist->price_source,
                     'billed'           => $dist->billing_status instanceof BillingStatus

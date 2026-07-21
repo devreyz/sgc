@@ -70,10 +70,11 @@ class GoogleAuthController extends Controller
                 Auth::user(),
                 $expectedUserId,
             );
-            $user->forceFill([
-                'avatar' => $googleUser->avatar ?: $user->avatar,
-                'last_authenticated_at' => now(),
-            ])->saveQuietly();
+            $attributes = ['last_authenticated_at' => now()];
+            if (! $user->hasLocallyStoredAvatar() && $googleUser->avatar) {
+                $attributes['avatar'] = $googleUser->avatar;
+            }
+            $user->forceFill($attributes)->saveQuietly();
 
             Auth::login($user, true);
             $request->session()->regenerate();
