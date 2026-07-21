@@ -994,24 +994,17 @@ class ViewSalesProject extends ViewRecord
         $tmpl = TemplatedPdfService::getActiveSystemTemplate($systemKey);
         if ($tmpl) {
             $def = $tmpl->getSystemDefinition();
-            $tenantId = session('tenant_id');
-            $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
-            $theme = $tmpl->color_theme ?? 'org';
-            $themeColors = \App\Models\DocumentTemplate::getThemeColors(
-                $theme,
-                $tenant?->primary_color,
-                $tenant?->accent_color
-            );
+            $resolved = app(TemplatedPdfService::class)->getSystemTemplateConfig($tmpl);
 
             return [
-                'visible_sections' => $tmpl->visible_sections ?? array_keys($def['sections'] ?? []),
-                'visible_columns' => $tmpl->visible_columns ?? array_keys($def['columns'] ?? []),
+                'visible_sections' => $resolved['visible_sections'] ?? ($def['default_sections'] ?? array_keys($def['sections'] ?? [])),
+                'visible_columns' => $resolved['visible_columns'] ?? ($def['default_columns'] ?? array_keys($def['columns'] ?? [])),
                 'paper_size' => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
                 'paper_orientation' => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
-                'primary_color' => $themeColors['primary'],
-                'accent_color' => $themeColors['accent'],
-                'header_layout_id' => $tmpl->header_layout_id,
-                'footer_layout_id' => $tmpl->footer_layout_id,
+            'primary_color' => '#374151',
+            'accent_color' => '#64786f',
+                'header_layout_id' => null,
+                'footer_layout_id' => null,
             ];
         }
 

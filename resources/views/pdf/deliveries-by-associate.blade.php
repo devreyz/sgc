@@ -4,9 +4,9 @@
 @php
     // Support visible_sections and visible_columns from DocumentTemplate config
     $vs = $visible_sections ?? null; // null = show all
-    $vc = $visible_columns ?? null;  // null = show all
+    $vc = $visible_columns ?? ['date', 'product', 'quantity', 'gross_value', 'net_value'];
     $showSection = fn(string $s) => $vs === null || in_array($s, $vs);
-    $showCol = fn(string $c) => $vc === null || in_array($c, $vc);
+    $showCol = fn(string $c) => in_array($c, $vc, true);
 @endphp
 
 {{-- ═══ FILTROS APLICADOS ═══ --}}
@@ -37,16 +37,8 @@
         <div class="card-label">Entregas</div>
     </div>
     <div class="summary-card">
-        <div class="card-value">{{ number_format($totals['total_quantity'] ?? 0, 2, ',', '.') }}</div>
-        <div class="card-label">Quantidade Total</div>
-    </div>
-    <div class="summary-card">
         <div class="card-value success">R$ {{ number_format($totals['total_gross'] ?? 0, 2, ',', '.') }}</div>
         <div class="card-label">Valor Bruto</div>
-    </div>
-    <div class="summary-card">
-        <div class="card-value danger">R$ {{ number_format($totals['total_admin_fee'] ?? 0, 2, ',', '.') }}</div>
-        <div class="card-label">Taxa Admin</div>
     </div>
     <div class="summary-card">
         <div class="card-value success">R$ {{ number_format($totals['total_net'] ?? 0, 2, ',', '.') }}</div>
@@ -62,7 +54,6 @@
     <div class="group-header">
         <div class="group-title">{{ $group['associate_name'] }}</div>
         <div class="group-subtitle">
-            @if($group['cpf'])CPF: {{ $group['cpf'] }} | @endif
             {{ $group['deliveries_count'] }} distribuição(s) |
             Qtd: {{ number_format($group['total_quantity'], 2, ',', '.') }} |
             Bruto: R$ {{ number_format($group['gross_value'], 2, ',', '.') }} |

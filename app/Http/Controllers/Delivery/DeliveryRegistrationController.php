@@ -1293,8 +1293,10 @@ class DeliveryRegistrationController extends Controller
 
         // Projeto livre: retorna todos os produtos cadastrados
         if ($project->allow_any_product) {
+            $pricedProductIds = app(ProjectDistributionCustomerService::class)->pricedProductIds($project);
             $products = Product::where('tenant_id', $tenantId)
                 ->where('status', true)
+                ->whereIn('id', $pricedProductIds)
                 ->orderBy('name')
                 ->get()
                 ->map(function ($product) use ($tenantId, $projectId) {
@@ -1326,6 +1328,7 @@ class DeliveryRegistrationController extends Controller
         // Projeto com demandas específicas
         $demands = ProjectDemand::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
+            ->whereIn('product_id', app(ProjectDistributionCustomerService::class)->pricedProductIds($project))
             ->with('product')
             ->get()
             ->map(function ($demand) use ($tenantId) {

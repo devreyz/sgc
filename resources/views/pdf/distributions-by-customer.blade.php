@@ -63,6 +63,7 @@ table.tbl tfoot td.r { text-align: right; }
 .grand-total .lbl { display: table-cell; font-size: 9px; font-weight: bold; color: #fff; letter-spacing: .4px; }
 .grand-total .val { display: table-cell; text-align: right; font-size: 11px; font-weight: bold; color: #fff; }
 .ftr { margin-top: 14px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 7.5px; color: #aaa; text-align: center; }
+@include('pdf.partials.theme')
 </style>
 </head>
 <body>

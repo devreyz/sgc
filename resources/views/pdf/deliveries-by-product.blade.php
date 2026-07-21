@@ -3,9 +3,9 @@
 @section('content')
 @php
     $vs = $visible_sections ?? null;
-    $vc = $visible_columns ?? null;
+    $vc = $visible_columns ?? ['date', 'associate', 'quantity', 'gross_value', 'net_value'];
     $showSection = fn(string $k) => $vs === null || in_array($k, $vs);
-    $showCol     = fn(string $k) => $vc === null || in_array($k, $vc);
+    $showCol     = fn(string $k) => in_array($k, $vc, true);
 @endphp
 
 {{-- ═══ FILTROS APLICADOS ═══ --}}
@@ -36,16 +36,8 @@
         <div class="card-label">Entregas</div>
     </div>
     <div class="summary-card">
-        <div class="card-value">{{ number_format($totals['total_quantity'] ?? 0, 2, ',', '.') }}</div>
-        <div class="card-label">Quantidade Total</div>
-    </div>
-    <div class="summary-card">
         <div class="card-value success">R$ {{ number_format($totals['total_gross'] ?? 0, 2, ',', '.') }}</div>
         <div class="card-label">Valor Bruto</div>
-    </div>
-    <div class="summary-card">
-        <div class="card-value danger">R$ {{ number_format($totals['total_admin_fee'] ?? 0, 2, ',', '.') }}</div>
-        <div class="card-label">Taxa Admin</div>
     </div>
     <div class="summary-card">
         <div class="card-value success">R$ {{ number_format($totals['total_net'] ?? 0, 2, ',', '.') }}</div>

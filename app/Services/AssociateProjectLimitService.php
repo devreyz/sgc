@@ -239,6 +239,9 @@ class AssociateProjectLimitService
             $limitIds->isNotEmpty() => $limitIds,
             default => $demandIds,
         };
+        $productIds = $productIds
+            ->intersect(app(ProjectDistributionCustomerService::class)->pricedProductIds($project))
+            ->values();
 
         if ($productIds->isEmpty()) {
             return collect();
@@ -385,6 +388,8 @@ class AssociateProjectLimitService
 
     public function validateDelivery(SalesProject $project, Associate $associate, int $productId, float $quantity, ?int $exceptDeliveryId = null): void
     {
+        app(ProjectDistributionCustomerService::class)->assertProductPriced($project, $productId);
+
         $limit = ProjectAssociateProductLimit::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)

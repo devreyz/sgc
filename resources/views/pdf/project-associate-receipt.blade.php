@@ -121,6 +121,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .sig-role { font-size: 9px; color: #555; margin-top: 3px; }
 .sig-doc  { font-size: 9px; color: #333; margin-top: 1px; }
 .ftr { margin-top: 20px; border-top: 1px solid {{ $lineColor }}; padding-top: 6px; text-align: center; font-size: 8.5px; color: #999; }
+@include('pdf.partials.theme')
 </style>
 </head>
 <body>

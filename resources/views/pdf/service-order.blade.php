@@ -42,7 +42,8 @@
         .signature-line { border-top: 1px solid #333; margin: 0 20px; padding-top: 4px; font-size: 9px; color: #4a5568; }
         .footer { text-align: center; font-size: 8px; color: #a0aec0; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
         .notes-box { background: #fffff0; border: 1px solid #ecc94b; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 9px; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     {{-- Header --}}

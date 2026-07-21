@@ -45,7 +45,8 @@
         .footer { text-align: center; font-size: 7px; color: #a0aec0; margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
         .text-income { color: #22543d; }
         .text-expense { color: #c53030; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     @unless($suppress_internal_header ?? false)

@@ -94,11 +94,9 @@
     <thead>
         <tr>
             <th>Produtor</th>
-            <th>CPF</th>
             <th class="text-center">Entregas</th>
             <th class="text-right">Qtd Total</th>
             <th class="text-right">V. Bruto</th>
-            <th class="text-right">Taxa Admin</th>
             <th class="text-right">V. Líquido</th>
         </tr>
     </thead>
@@ -106,27 +104,24 @@
         @forelse ($associateSummary as $associate)
         <tr>
             <td><strong>{{ $associate['name'] }}</strong></td>
-            <td>{{ $associate['cpf'] }}</td>
             <td class="text-center">{{ $associate['deliveries_count'] }}</td>
             <td class="text-right">{{ number_format($associate['total_quantity'], 2, ',', '.') }}</td>
             <td class="text-right">R$ {{ number_format($associate['gross_value'], 2, ',', '.') }}</td>
-            <td class="text-right">R$ {{ number_format($associate['admin_fee'], 2, ',', '.') }}</td>
             <td class="text-right"><strong class="text-success">R$ {{ number_format($associate['net_value'], 2, ',', '.') }}</strong></td>
         </tr>
         @empty
         <tr>
-            <td colspan="7" class="text-center" style="padding:15px; color:#999;">Nenhuma entrega aprovada neste projeto</td>
+            <td colspan="5" class="text-center" style="padding:15px; color:#999;">Nenhuma entrega aprovada neste projeto</td>
         </tr>
         @endforelse
     </tbody>
     @if(count($associateSummary) > 0)
     <tfoot>
         <tr>
-            <td colspan="2"><strong>TOTAL</strong></td>
+            <td><strong>TOTAL</strong></td>
             <td class="text-center"><strong>{{ $totals['deliveries'] }}</strong></td>
             <td class="text-right"><strong>{{ number_format($totals['quantity'], 2, ',', '.') }}</strong></td>
             <td class="text-right"><strong>R$ {{ number_format($totals['gross'], 2, ',', '.') }}</strong></td>
-            <td class="text-right"><strong>R$ {{ number_format($totals['admin_fee'], 2, ',', '.') }}</strong></td>
             <td class="text-right"><strong class="text-success">R$ {{ number_format($totals['net'], 2, ',', '.') }}</strong></td>
         </tr>
     </tfoot>

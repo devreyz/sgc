@@ -183,6 +183,7 @@ class DocumentTemplate extends Model
                     'net_value'   => 'Valor Líquido',
                     'status'      => 'Status',
                 ],
+                'default_columns' => ['date', 'product', 'quantity', 'gross_value', 'net_value'],
                 'paper_orientation' => 'landscape',
             ],
             'deliveries_product' => [
@@ -206,6 +207,7 @@ class DocumentTemplate extends Model
                     'net_value'     => 'Valor Líquido',
                     'status'        => 'Status',
                 ],
+                'default_columns' => ['date', 'associate', 'quantity', 'gross_value', 'net_value'],
                 'paper_orientation' => 'landscape',
             ],
             'deliveries_report' => [
@@ -229,6 +231,7 @@ class DocumentTemplate extends Model
                     'status'        => 'Status',
                     'project'       => 'Projeto',
                 ],
+                'default_columns' => ['date', 'project', 'associate', 'product', 'quantity', 'status'],
                 'paper_orientation' => 'landscape',
             ],
             'delivery_sheet' => [
@@ -238,6 +241,7 @@ class DocumentTemplate extends Model
                 'description' => 'Ficha para conferencia de produtos e quantidades destinadas a um cliente',
                 'sections'    => ['customer_info' => 'Dados do Cliente', 'items' => 'Produtos', 'signature' => 'Conferencia'],
                 'columns'     => ['product' => 'Produto', 'quantity' => 'Quantidade', 'unit' => 'Unidade', 'unit_value' => 'Valor Unitario'],
+                'default_columns' => ['product', 'quantity', 'unit'],
                 'paper_orientation' => 'landscape',
             ],
             'distributions_by_customer' => [
@@ -307,6 +311,7 @@ class DocumentTemplate extends Model
                     'admin_fee'      => 'Taxa Adm.',
                     'net_value'      => 'Valor Líquido',
                 ],
+                'default_columns' => ['date', 'product', 'quantity', 'unit_value', 'gross_value'],
                 'paper_orientation' => 'portrait',
             ],
             'associate_payment_statement' => [
@@ -377,6 +382,7 @@ class DocumentTemplate extends Model
                     'admin_fee'     => 'Taxa Adm.',
                     'net_value'     => 'Valor Líquido',
                 ],
+                'default_columns' => ['associate', 'deliveries', 'quantity', 'gross_value', 'net_value'],
                 'paper_orientation' => 'portrait',
             ],
             'cash_movement_report' => [
@@ -435,12 +441,14 @@ class DocumentTemplate extends Model
                     'data_table'    => 'Tabela de Prestadores',
                 ],
                 'columns' => [
-                    'name'          => 'Nome',
-                    'cpf_cnpj'      => 'CPF/CNPJ',
-                    'service_type'  => 'Tipo de Serviço',
-                    'value'         => 'Valor',
-                    'status'        => 'Status',
+                    'date'        => 'Data',
+                    'description' => 'Descrição',
+                    'associate'   => 'Associado',
+                    'hours'       => 'Horas',
+                    'value'       => 'Valor',
+                    'status'      => 'Status',
                 ],
+                'default_columns' => ['date', 'description', 'associate', 'hours', 'value', 'status'],
                 'paper_orientation' => 'landscape',
             ],
             'service_order' => [

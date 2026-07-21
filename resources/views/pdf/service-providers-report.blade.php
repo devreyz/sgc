@@ -36,7 +36,8 @@
         .text-center { text-align: center; }
         .text-success { color: #22543d; }
         .footer { text-align: center; font-size: 8px; color: #a0aec0; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     @unless($suppress_internal_header ?? false)
@@ -83,8 +84,6 @@
             <div class="provider-header">
                 {{ $provider->name }}
                 <span>| {{ $provider->getTypeLabel() }}
-                @if($provider->cpf) | CPF: {{ $provider->cpf }} @endif
-                @if($provider->pix_key) | PIX: {{ $provider->pix_key }} @endif
                 </span>
             </div>
             <table class="main">

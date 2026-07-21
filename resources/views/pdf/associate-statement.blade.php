@@ -45,7 +45,8 @@
         .signature-box { display: table-cell; width: 45%; text-align: center; padding-top: 30px; }
         .signature-line { border-top: 1px solid #333; margin: 0 20px; padding-top: 4px; font-size: 9px; }
         .footer { text-align: center; font-size: 8px; color: #a0aec0; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     @unless($suppress_internal_header ?? false)

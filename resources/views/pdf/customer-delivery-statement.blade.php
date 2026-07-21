@@ -82,6 +82,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 .grand-total { margin-top: 15px; padding: 6px 10px; background: #222; color: white; text-align: right; font-weight: bold; }
 .ftr { margin-top: 16px; border-top: 1px solid {{ $lineColor }};
     padding-top: 6px; text-align: center; font-size: 8px; color: #999; }
+@include('pdf.partials.theme')
 </style>
 </head>
 <body>

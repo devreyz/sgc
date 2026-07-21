@@ -1,9 +1,8 @@
 @php
     $tenant = $tenant ?? null;
-    // Allow callers to pass explicit theme colors (overrides tenant colors)
-    $primaryColor = $primaryColor ?? $tenant->primary_color ?? '#1e40af';
-    $secondaryColor = $secondaryColor ?? $tenant->secondary_color ?? '#1e3a5f';
-    $accentColor = $accentColor ?? $tenant->accent_color ?? '#3b82f6';
+    $primaryColor = '#374151';
+    $secondaryColor = '#20252b';
+    $accentColor = '#64786f';
     $logoPath = null;
     $hasLogo = false;
     if ($tenant && !empty($tenant->logo)) {
@@ -353,6 +352,7 @@
         .totals-box td.value { text-align: right; font-weight: bold; color: {{ $primaryColor }}; }
 
         @yield('extra-styles')
+        @include('pdf.partials.theme')
     </style>
 </head>
 <body>

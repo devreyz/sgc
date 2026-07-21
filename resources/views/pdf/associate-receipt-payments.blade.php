@@ -11,7 +11,8 @@
         th, td { border: 1px solid #d1d5db; padding: 7px; text-align: left; }
         th { background: #f3f4f6; }
         .right { text-align: right; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     <h1>Comprovante de pagamentos</h1>

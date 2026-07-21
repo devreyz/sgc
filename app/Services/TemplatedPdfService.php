@@ -370,13 +370,15 @@ HTML;
     {
         $tenant = $options['tenant'] ?? (session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null);
 
-        $primaryColor = $options['primary_color'] ?? '#1e40af';
-        $accentColor = $options['accent_color'] ?? '#3b82f6';
+        $primaryColor = '#374151';
+        $accentColor = '#64786f';
         $paper = $options['paper'] ?? 'a4';
         $orientation = $options['orientation'] ?? 'portrait';
         $title = $options['title'] ?? '';
-        $headerLayoutId = $options['header_layout_id'] ?? null;
-        $footerLayoutId = $options['footer_layout_id'] ?? null;
+        // Operational PDFs use one predictable visual identity. Free-form
+        // layouts remain available only to custom documents.
+        $headerLayoutId = null;
+        $footerLayoutId = null;
 
         // When NO custom layout is configured, preserve the blade view's own
         // internal header/footer exactly as they were before this feature was added.
@@ -559,16 +561,12 @@ HTMLDOC;
         }
 
         $tenant = \App\Models\Tenant::find($tenantId);
-        $themeColors = $this->resolveThemeColors($template, $tenant);
-
         return [
-            'header_layout_id' => $template->header_layout_id,
-            'footer_layout_id' => $template->footer_layout_id,
             'paper' => $template->paper_size ?? 'a4',
             'orientation' => $template->paper_orientation ?? 'portrait',
             'title' => $title ?: $template->name,
-            'primary_color' => $themeColors['primary'] ?? '#1e40af',
-            'accent_color' => $themeColors['accent'] ?? '#3b82f6',
+            'primary_color' => '#374151',
+            'accent_color' => '#64786f',
             'tenant' => $tenant,
         ];
     }
@@ -701,16 +699,28 @@ HTMLDOC;
             return null;
         }
 
+        $allSections = array_keys($def['sections']);
+        $allColumns = array_keys($def['columns']);
+        $configuredSections = $template->visible_sections;
+        $configuredColumns = $template->visible_columns;
+
+        if (empty($configuredSections) || array_diff($allSections, $configuredSections) === []) {
+            $configuredSections = $def['default_sections'] ?? $allSections;
+        }
+        if (empty($configuredColumns) || array_diff($allColumns, $configuredColumns) === []) {
+            $configuredColumns = $def['default_columns'] ?? $allColumns;
+        }
+
         return [
             'blade_view' => $def['blade_view'],
-            'visible_sections' => $template->visible_sections ?? array_keys($def['sections']),
-            'visible_columns' => $template->visible_columns ?? array_keys($def['columns']),
+            'visible_sections' => $configuredSections,
+            'visible_columns' => $configuredColumns,
             'paper_size' => $template->paper_size ?? 'a4',
             'paper_orientation' => $template->paper_orientation ?? ($def['paper_orientation'] ?? 'portrait'),
-            'header_layout_id' => $template->header_layout_id,
-            'footer_layout_id' => $template->footer_layout_id,
-            'cover_layout_id' => $template->cover_layout_id,
-            'back_cover_layout_id' => $template->back_cover_layout_id,
+            'header_layout_id' => null,
+            'footer_layout_id' => null,
+            'cover_layout_id' => null,
+            'back_cover_layout_id' => null,
         ];
     }
 

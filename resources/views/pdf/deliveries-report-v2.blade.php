@@ -7,7 +7,7 @@
     $vc = $visible_columns ?? null;
     $showSection = fn(string $k) => $vs === null || in_array($k, $vs);
     // $columns is the export column selector; $visible_columns overrides if set
-    $colsToShow = $vc ?? $columns ?? ['delivery_date','associate','product','quantity','gross_value','admin_fee','net_value','status'];
+    $colsToShow = $vc ?? $columns ?? ['delivery_date', 'project', 'associate', 'product', 'quantity', 'status'];
     $showCol = fn(string $k) => in_array($k, $colsToShow);
 @endphp
 

@@ -1123,6 +1123,7 @@ const S = {
     submitting        : false,
     items             : [],
     loadingProjectId  : null,
+    demandsRequestId  : 0,
     loadingDeliveries : false,
     dateConfirmed     : false,
     keyboardStage     : 'project',
@@ -1372,7 +1373,7 @@ async function handleRegisterIntegrityAction(button) {
 }
 
 async function loadDemands(projectId, associateId = S.associate?.id) {
-    if (S.loadingProjectId === projectId) return;
+    const requestId = ++S.demandsRequestId;
     S.loadingProjectId = projectId;
     S.demands = [];
     S.product = null;
@@ -1384,11 +1385,14 @@ async function loadDemands(projectId, associateId = S.associate?.id) {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
         if (!res.ok) throw new Error('Erro ' + res.status);
-        S.demands = await res.json();
+        const demands = await res.json();
+        if (requestId === S.demandsRequestId) S.demands = demands;
     } catch (e) {
-        toast('Erro ao carregar produtos: ' + e.message, 'error');
+        if (requestId === S.demandsRequestId) {
+            toast('Erro ao carregar produtos: ' + e.message, 'error');
+        }
     } finally {
-        S.loadingProjectId = null;
+        if (requestId === S.demandsRequestId) S.loadingProjectId = null;
     }
 }
 
@@ -2222,7 +2226,9 @@ function renderProductList(list, search) {
         normalizeSearch(d.product_name).includes(search)
     );
     if (items.length === 0) {
-        list.innerHTML = '<div class="modal-empty">Nenhum produto encontrado</div>';
+        list.innerHTML = '<div class="modal-empty">' + (search
+            ? 'Nenhum produto encontrado para esta busca'
+            : 'Nenhum produto com preco disponivel para os clientes deste projeto') + '</div>';
         return;
     }
     list.innerHTML = items.map((d, i) => {

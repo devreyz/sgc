@@ -136,6 +136,7 @@ body {
     height: {{ $isPortrait ? '17px' : '14px' }};
     background: #fff;
 }
+@include('pdf.partials.theme')
 </style>
 </head>
 <body>

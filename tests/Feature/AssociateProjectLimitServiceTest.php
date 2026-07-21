@@ -204,6 +204,50 @@ class AssociateProjectLimitServiceTest extends TestCase
         $service->validateDelivery($project->fresh(), $associate, $product, 5.001);
     }
 
+    public function test_eligible_products_only_include_items_priced_for_project_customers(): void
+    {
+        [$project, $associate, $pricedProduct] = $this->fixture(false);
+        DB::table('products')->insert([
+            ['id' => 2, 'tenant_id' => 1, 'name' => 'Polpa de Acerola', 'unit' => 'kg', 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'tenant_id' => 1, 'name' => 'Acerola Processada', 'unit' => 'kg', 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $service = app(AssociateProjectLimitService::class);
+        $eligible = $service->eligibleProducts($project->fresh(), $associate);
+
+        $this->assertSame([$pricedProduct], $eligible->pluck('product_id')->all());
+
+        $this->expectException(ValidationException::class);
+        $service->validateDelivery($project->fresh(), $associate, 2, 1);
+    }
+
+    public function test_priced_products_are_combined_across_all_authorized_customers(): void
+    {
+        [$project, $associate, $firstProduct] = $this->fixture(true);
+        DB::table('price_tables')->insert([
+            'id' => 2, 'tenant_id' => 1, 'name' => 'Tabela B', 'active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('products')->insert([
+            'id' => 2, 'tenant_id' => 1, 'name' => 'Polpa de Acerola', 'unit' => 'kg', 'status' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('price_table_items')->insert([
+            'price_table_id' => 2, 'product_id' => 2, 'sale_price' => 7,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('customers')->where('id', 2)->update(['price_table_id' => 2]);
+
+        $eligible = app(AssociateProjectLimitService::class)
+            ->eligibleProducts($project->fresh(), $associate)
+            ->pluck('product_id')
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame([$firstProduct, 2], $eligible);
+    }
+
     public function test_distribution_customers_are_scoped_to_project_customers_and_organizations(): void
     {
         [$project] = $this->fixture(false);

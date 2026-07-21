@@ -31,7 +31,8 @@
         .signature-line { border-top: 1px solid #333; width: 45%; display: inline-block; text-align: center; padding-top: 4px; font-size: 10px; margin: 0 2%; }
         .footer { text-align: center; font-size: 9px; color: #a0aec0; margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 6px; }
         .fill-line { border-bottom: 1px dotted #999; min-height: 18px; display: inline-block; width: 100%; }
-    </style>
+@include('pdf.partials.theme')
+</style>
 </head>
 <body>
     @unless($suppress_internal_header ?? false)

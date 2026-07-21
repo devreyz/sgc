@@ -122,7 +122,9 @@ class DocumentTemplateResource extends Resource
 
             // ═══ Layout: header, footer, cover & back-cover ═══
             Forms\Components\Section::make('Layout do Documento')
-                ->description('Escolha layouts de cabeçalho, rodapé, capa e contracapa. Crie modelos em "Layouts de PDF" no menu.')
+                ->description(fn (Get $get) => $get('template_category') === 'system'
+                    ? 'Os PDFs operacionais usam o layout padrão do sistema. Ajuste apenas papel e orientação.'
+                    : 'Escolha os layouts e o tema visual deste documento personalizado.')
                 ->schema([
                     Forms\Components\Select::make('header_layout_id')
                         ->label('Cabeçalho')
@@ -134,7 +136,8 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Padrão do Sistema'),
+                        ->placeholder('Padrão do Sistema')
+                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
 
                     Forms\Components\Select::make('footer_layout_id')
                         ->label('Rodapé')
@@ -146,7 +149,8 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Padrão do Sistema'),
+                        ->placeholder('Padrão do Sistema')
+                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
 
                     Forms\Components\Select::make('cover_layout_id')
                         ->label('Capa')
@@ -158,7 +162,8 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Sem Capa'),
+                        ->placeholder('Sem Capa')
+                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
 
                     Forms\Components\Select::make('back_cover_layout_id')
                         ->label('Contracapa')
@@ -170,7 +175,8 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Sem Contracapa'),
+                        ->placeholder('Sem Contracapa')
+                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
 
                     Forms\Components\Select::make('paper_size')
                         ->label('Tamanho do Papel')
@@ -186,7 +192,8 @@ class DocumentTemplateResource extends Resource
                         ->label('Tema de Cor')
                         ->options(DocumentTemplate::COLOR_THEMES)
                         ->default('org')
-                        ->helperText('Cores que serão usadas ao gerar o PDF.'),
+                        ->helperText('Cores que serão usadas ao gerar o PDF.')
+                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
                 ])
                 ->columns(4),
 
