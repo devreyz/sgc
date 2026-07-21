@@ -163,11 +163,9 @@
             position: sticky;
             z-index: var(--app-layer-header);
             top: 0;
-            min-height: var(--app-header-height);
             overflow: visible;
-            margin-bottom: 14px;
             color: #fff;
-            background: transparent;
+            background: linear-gradient(50deg, var(--color-primary), var(--color-primary-dark));
             box-shadow: none;
         }
 
@@ -176,7 +174,7 @@
             z-index: 2;
             display: flex;
             width: min(100%, var(--app-content-max));
-            min-height: var(--app-header-height);
+            min-height: fit;
             align-items: center;
             justify-content: space-between;
             gap: 1rem;

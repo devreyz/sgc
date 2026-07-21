@@ -18,8 +18,6 @@ class PortalNavigation
             ],
             'delivery' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'delivery.dashboard'],
-                ['key' => 'deliveries', 'label' => 'Entregas', 'route' => 'delivery.all-deliveries'],
-                ['key' => 'register', 'label' => 'Registrar', 'route' => 'delivery.register'],
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'delivery.projects-list'],
                 ['key' => 'sheets', 'label' => 'Fichas', 'route' => 'delivery.sheet.index'],
             ],

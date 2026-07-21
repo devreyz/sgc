@@ -10,7 +10,9 @@
     $tenantSlug  = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('associate', 'dashboard', $tenantSlug))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('associate', 'dashboard', $tenantSlug);
+@endphp
 
 @section('content')
 <style>

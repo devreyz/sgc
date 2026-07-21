@@ -3,24 +3,36 @@
 namespace Tests\Unit;
 
 use App\Support\PortalNavigation;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class PortalNavigationTest extends TestCase
 {
     public function test_it_builds_tenant_aware_delivery_navigation(): void
     {
-        $navigation = PortalNavigation::make('delivery', 'register', 'organizacao-principal');
+        $navigation = PortalNavigation::make('delivery', 'projects', 'organizacao-principal');
         $items = collect($navigation['items'])->keyBy('key');
 
-        $this->assertSame('register', $navigation['active']);
-        $this->assertSame('link', $items['register']['type']);
+        $this->assertSame('projects', $navigation['active']);
+        $this->assertArrayNotHasKey('register', $items);
+        $this->assertArrayNotHasKey('deliveries', $items);
+        $this->assertSame('link', $items['projects']['type']);
         $this->assertStringEndsWith(
-            '/organizacao-principal/delivery/register',
-            $items['register']['url'],
+            '/organizacao-principal/delivery/projects',
+            $items['projects']['url'],
         );
         $this->assertStringEndsWith(
             '/organizacao-principal/delivery/sheet',
             $items['sheets']['url'],
+        );
+    }
+
+    public function test_delivery_creation_routes_are_project_scoped(): void
+    {
+        $this->assertFalse(Route::has('delivery.all-deliveries'));
+        $this->assertSame(
+            '{tenant}/delivery/projects/{project}/register',
+            Route::getRoutes()->getByName('delivery.store')->uri(),
         );
     }
 

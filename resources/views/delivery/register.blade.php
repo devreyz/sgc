@@ -4,7 +4,9 @@
 @section('page-title', 'Registrar Entrega')
 @section('user-role', 'Registrador')
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'register', $currentTenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'register', $currentTenant->slug ?? request()->route('tenant'));
+@endphp
 {{-- ─────────────── MODAL DISTRIBUIR (componente unificado) ──────── --}}
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"
@@ -1100,7 +1102,7 @@ const ROUTES = {
     deliveries : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/deliveries-json',
     integrity  : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity',
     resolveIntegrity : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity/resolve',
-    store      : '/' + TENANT + '/delivery/register',
+    store      : '/' + TENANT + '/delivery/projects/' + @json($selectedProject['id']) + '/register',
     del        : (id)  => '/' + TENANT + '/delivery/deliveries/' + id,
 };
 
@@ -1549,7 +1551,6 @@ async function submitEntry() {
         quantity          : qty,
         quality_grade     : S.quality,
         notes             : $('f-notes').value.trim() || null,
-        is_standalone     : false,
     };
 
     try {

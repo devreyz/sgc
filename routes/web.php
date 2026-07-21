@@ -195,10 +195,9 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     // Delivery Registration Routes (Mobile-friendly for delivery recorders)
     Route::prefix('delivery')->name('delivery.')->middleware(['any.role:registrador_entregas'])->group(function () {
         Route::get('/', [DeliveryRegistrationController::class, 'index'])->name('dashboard');
-        Route::get('/all-deliveries', [DeliveryRegistrationController::class, 'allDeliveries'])->name('all-deliveries');
-        Route::get('/register/{project?}', [DeliveryRegistrationController::class, 'register'])->name('register');
-        Route::post('/register', [DeliveryRegistrationController::class, 'store'])->name('store');
-        Route::post('/register-batch', [DeliveryRegistrationController::class, 'storeBatch'])->name('store-batch');
+        Route::get('/projects/{project}/register', [DeliveryRegistrationController::class, 'register'])->name('register');
+        Route::post('/projects/{project}/register', [DeliveryRegistrationController::class, 'store'])->name('store');
+        Route::post('/projects/{project}/register-batch', [DeliveryRegistrationController::class, 'storeBatch'])->name('store-batch');
         Route::get('/customers', [DeliveryRegistrationController::class, 'getCustomers'])->name('customers');
         Route::delete('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'deleteDelivery'])->name('deliveries.delete');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');

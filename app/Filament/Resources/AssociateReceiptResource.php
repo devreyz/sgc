@@ -14,6 +14,9 @@ use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateReceiptService;
+use App\Services\ProjectFinancialCalculator;
+use App\Services\ReceiptDataBuilder;
+use App\Services\TemplatedPdfService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -21,8 +24,11 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class AssociateReceiptResource extends Resource
 {
@@ -57,13 +63,11 @@ class AssociateReceiptResource extends Resource
                 Forms\Components\Section::make('Dados do Comprovante')
                     ->schema([
                         Forms\Components\Select::make('sales_project_id')
-                            ->label('Projeto (deixe vazio para entregas avulsas)')
+                            ->label('Projeto de Venda')
                             ->options(fn () => SalesProject::where('tenant_id', session('tenant_id'))
                                 ->pluck('title', 'id'))
                             ->searchable()
-                            ->nullable()
-                            ->placeholder('— Entregas avulsas —')
-                            ->helperText('Deixe em branco para agrupar entregas sem projeto vinculado.'),
+                            ->required(),
 
                         Forms\Components\Select::make('associate_id')
                             ->label('Produtor / Associado')
@@ -74,17 +78,13 @@ class AssociateReceiptResource extends Resource
                             ->searchable()
                             ->required(),
 
-                        // Período de entregas avulsas (visível só quando sem projeto)
                         Forms\Components\DatePicker::make('from_date')
-                            ->label('Data Início (período avulso)')
-                            ->visible(fn (Get $get) => empty($get('sales_project_id')))
-                            ->helperText('Filtra entregas avulsas a partir desta data.'),
+                            ->hidden()
+                            ->dehydrated(false),
 
                         Forms\Components\DatePicker::make('to_date')
-                            ->label('Data Fim (período avulso)')
-                            ->visible(fn (Get $get) => empty($get('sales_project_id')))
-                            ->afterOrEqual('from_date')
-                            ->helperText('Filtra entregas avulsas até esta data.'),
+                            ->hidden()
+                            ->dehydrated(false),
 
                         Forms\Components\TextInput::make('receipt_year')
                             ->label('Ano')
@@ -113,7 +113,7 @@ class AssociateReceiptResource extends Resource
                         Forms\Components\Placeholder::make('existing_receipt_warning')
                             ->label('')
                             ->content(function (Get $get, $record) {
-                                $projectId   = $get('sales_project_id');
+                                $projectId = $get('sales_project_id');
                                 $associateId = $get('associate_id');
                                 if (! $projectId || ! $associateId) {
                                     return '';
@@ -131,7 +131,7 @@ class AssociateReceiptResource extends Resource
                                 }
                                 $label = $count === 1 ? '1 comprovante' : "{$count} comprovantes";
 
-                                return new \Illuminate\Support\HtmlString(
+                                return new HtmlString(
                                     '<div style="background:#fef9c3;border:1px solid #ca8a04;border-radius:6px;padding:.65rem 1rem;color:#78350f;">'
                                     .'<strong>⚠️ Atenção:</strong> Já existe(m) <strong>'.$label.'</strong> para este produtor neste projeto. '
                                     .'Criar um comprovante adicional permite dividir as distribuições entre múltiplos comprovantes. '
@@ -165,11 +165,10 @@ class AssociateReceiptResource extends Resource
                                     ->with('product', 'customer')
                                     ->orderBy('delivery_date');
 
-                                if ($projectId) {
-                                    $query->where('sales_project_id', $projectId);
-                                } else {
-                                    $query->whereNull('sales_project_id');
+                                if (! $projectId) {
+                                    return [];
                                 }
+                                $query->where('sales_project_id', $projectId);
 
                                 return $query->get()->mapWithKeys(fn ($d) => [
                                     (string) $d->id => (
@@ -251,8 +250,7 @@ class AssociateReceiptResource extends Resource
 
                 Tables\Columns\TextColumn::make('amount_paid')
                     ->label('Pago')->money('BRL')->placeholder('—')
-                    ->color(fn ($state, AssociateReceipt $record) =>
-                        $record->status === ReceiptStatus::PAID ? 'success' : 'info')
+                    ->color(fn ($state, AssociateReceipt $record) => $record->status === ReceiptStatus::PAID ? 'success' : 'info')
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('delivery_ids')
@@ -285,11 +283,6 @@ class AssociateReceiptResource extends Resource
                     ->label('Projeto')
                     ->options(fn () => SalesProject::where('tenant_id', session('tenant_id'))
                         ->pluck('title', 'id')),
-
-                Tables\Filters\Filter::make('standalone')
-                    ->label('Somente avulsos')
-                    ->query(fn ($query) => $query->whereNull('sales_project_id'))
-                    ->toggle(),
 
                 Tables\Filters\Filter::make('acknowledged')
                     ->label('Somente assinados')
@@ -351,12 +344,12 @@ class AssociateReceiptResource extends Resource
                             return null;
                         }
 
-                        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+                        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
 
                         // ── Marcar como segunda via se já foi assinado ───────
                         $isSecondCopy = $record->acknowledged_at !== null;
 
-                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
                             'tenant' => $tenant,
                             'project' => $project,
@@ -369,7 +362,7 @@ class AssociateReceiptResource extends Resource
                             'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 
-                        $safeName = \Illuminate\Support\Str::slug($associate?->display_name ?? 'associado');
+                        $safeName = Str::slug($associate?->display_name ?? 'associado');
                         $receiptLabel = str_replace('/', '-', $record->formatted_number);
                         $suffix = $isSecondCopy ? '-2via' : '';
 
@@ -418,14 +411,14 @@ class AssociateReceiptResource extends Resource
                         $deliveries = $query->get();
 
                         if ($deliveries->isEmpty()) {
-                            return new \Illuminate\Support\HtmlString('<p style="padding:1rem;color:#888">Nenhuma entrega encontrada.</p>');
+                            return new HtmlString('<p style="padding:1rem;color:#888">Nenhuma entrega encontrada.</p>');
                         }
 
                         // ── Recalcular taxas via calculator (valores corretos sempre) ──
-                        $project   = $record->project;
-                        $calcMap   = [];
+                        $project = $record->project;
+                        $calcMap = [];
                         if ($project) {
-                            $calculator = app(\App\Services\ProjectFinancialCalculator::class);
+                            $calculator = app(ProjectFinancialCalculator::class);
                             foreach ($deliveries as $d) {
                                 $gross = (string) ($d->gross_value ?? 0);
                                 if (bccomp($gross, '0', 4) > 0) {
@@ -440,12 +433,12 @@ class AssociateReceiptResource extends Resource
                             }
                         }
 
-                        $getFee = fn($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['fee'] : (float) ($d->admin_fee_amount ?? 0);
-                        $getNet = fn($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['net'] : (float) ($d->net_value ?? 0);
+                        $getFee = fn ($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['fee'] : (float) ($d->admin_fee_amount ?? 0);
+                        $getNet = fn ($d) => isset($calcMap[$d->id]) ? $calcMap[$d->id]['net'] : (float) ($d->net_value ?? 0);
 
                         $totalGross = (float) $deliveries->sum('gross_value');
-                        $totalFee   = array_sum(array_map($getFee, $deliveries->all()));
-                        $totalNet   = array_sum(array_map($getNet, $deliveries->all()));
+                        $totalFee = array_sum(array_map($getFee, $deliveries->all()));
+                        $totalNet = array_sum(array_map($getNet, $deliveries->all()));
 
                         $rows = $deliveries->map(fn ($d) => '<tr>'
                             .'<td style="padding:6px 10px;border-bottom:1px solid #eee">'.e($d->delivery_date?->format('d/m/Y') ?? '—').'</td>'
@@ -487,7 +480,7 @@ class AssociateReceiptResource extends Resource
                             .'</tr></tfoot></table></div>'
                             .$frozenNote;
 
-                        return new \Illuminate\Support\HtmlString($html);
+                        return new HtmlString($html);
                     })
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
@@ -552,19 +545,19 @@ class AssociateReceiptResource extends Resource
                         ReceiptStatus::PENDING_PAYMENT,
                         ReceiptStatus::PARTIALLY_PAID,
                     ]))
-                    ->modalHeading(fn (AssociateReceipt $r) => 'Registrar Pagamento — ' . $r->formatted_number)
-                    ->modalDescription(fn (AssociateReceipt $r) =>
-                        'Total: R$ ' . number_format((float) $r->total_net, 2, ',', '.') .
-                        ' | Pago: R$ ' . number_format((float) ($r->amount_paid ?? 0), 2, ',', '.') .
-                        ' | Restante: R$ ' . number_format($r->remaining_amount, 2, ',', '.'))
+                    ->modalHeading(fn (AssociateReceipt $r) => 'Registrar Pagamento — '.$r->formatted_number)
+                    ->modalDescription(fn (AssociateReceipt $r) => 'Total: R$ '.number_format((float) $r->total_net, 2, ',', '.').
+                        ' | Pago: R$ '.number_format((float) ($r->amount_paid ?? 0), 2, ',', '.').
+                        ' | Restante: R$ '.number_format($r->remaining_amount, 2, ',', '.'))
                     ->form(function (AssociateReceipt $record) {
                         $remaining = $record->remaining_amount;
+
                         return [
                             Forms\Components\TextInput::make('amount')
                                 ->label('Valor a Pagar (R$)')
                                 ->default(number_format($remaining, 2, '.', ''))
                                 ->required()->numeric()->minValue(0.01)
-                                ->helperText('Máximo: R$ ' . number_format($remaining, 2, ',', '.')),
+                                ->helperText('Máximo: R$ '.number_format($remaining, 2, ',', '.')),
 
                             Forms\Components\DatePicker::make('payment_date')
                                 ->label('Data do Pagamento')
@@ -604,7 +597,7 @@ class AssociateReceiptResource extends Resource
                             $fresh = $record->fresh();
                             $body = $fresh->status === ReceiptStatus::PAID
                                 ? 'Comprovante quitado integralmente.'
-                                : 'Saldo restante: R$ ' . number_format($fresh->remaining_amount, 2, ',', '.');
+                                : 'Saldo restante: R$ '.number_format($fresh->remaining_amount, 2, ',', '.');
                             Notification::make()->success()->title('Pagamento registrado')->body($body)->send();
                         } catch (\Throwable $e) {
                             Notification::make()
@@ -623,13 +616,14 @@ class AssociateReceiptResource extends Resource
                         ReceiptStatus::PARTIALLY_PAID,
                         ReceiptStatus::PAID,
                     ]))
-                    ->modalHeading(fn (AssociateReceipt $r) => 'Pagamentos — ' . $r->formatted_number)
-                    ->modalContent(function (AssociateReceipt $record): \Illuminate\Contracts\View\View {
+                    ->modalHeading(fn (AssociateReceipt $r) => 'Pagamentos — '.$r->formatted_number)
+                    ->modalContent(function (AssociateReceipt $record): View {
                         $payments = $record->payments()->with('bankAccount')->get();
+
                         return view('filament.modals.receipt-payments-history', [
-                            'receipt'  => $record,
+                            'receipt' => $record,
                             'payments' => $payments,
-                            'label'    => 'Pagamento',
+                            'label' => 'Pagamento',
                         ]);
                     })
                     ->modalSubmitAction(false),

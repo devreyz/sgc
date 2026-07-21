@@ -7,7 +7,6 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Tenant;
 use App\Services\PricingService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
 class DeliverySheetController extends Controller
@@ -140,14 +139,18 @@ class DeliverySheetController extends Controller
 
         $layout = $request->input('layout', 'landscape'); // 'landscape' | 'portrait'
 
-        $pdf = Pdf::loadView('pdf.delivery-sheet', [
+        $pdfService = app(\App\Services\TemplatedPdfService::class);
+        $options = $pdfService->systemPdfOptions('pdf.delivery-sheet', 'Ficha de Entrega', null, (int) $tenantId);
+        // The selector is an intentional one-off choice for this document.
+        $options['orientation'] = $layout;
+
+        $pdf = $pdfService->generateSystemPdf('pdf.delivery-sheet', [
             'tenant'    => $tenantModel,
             'customer'  => $customer,
             'items'     => $items,
             'sheetDate' => $sheetDate,
             'layout'    => $layout,
-        ])
-        ->setPaper('a4', $layout)
+        ], $options)
         ->setOption('defaultFont', 'DejaVu Sans')
         ->setOption('isHtml5ParserEnabled', true)
         ->setOption('isRemoteEnabled', true);

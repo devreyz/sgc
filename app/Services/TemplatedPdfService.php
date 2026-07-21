@@ -368,7 +368,7 @@ HTML;
      */
     public function generateSystemPdf(string $view, array $viewData, array $options = []): \Barryvdh\DomPDF\PDF
     {
-        $tenant = session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null;
+        $tenant = $options['tenant'] ?? (session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null);
 
         $primaryColor = $options['primary_color'] ?? '#1e40af';
         $accentColor = $options['accent_color'] ?? '#3b82f6';
@@ -526,23 +526,39 @@ HTMLDOC;
      * Look up the active DocumentTemplate for a system blade view and return layout options.
      * Returns an array suitable for use as $options in generateSystemPdf().
      */
-    public function systemPdfOptions(string $view, string $title = ''): array
+    public function systemPdfOptions(
+        string $view,
+        string $title = '',
+        ?string $projectType = null,
+        ?int $tenantId = null,
+    ): array
     {
-        $templates = \App\Models\DocumentTemplate::where('template_category', 'system')
+        $tenantId ??= (int) session('tenant_id') ?: null;
+        $definition = DocumentTemplate::systemDefinitionForView($view);
+
+        if (! $definition || ! $tenantId) {
+            return ['title' => $title];
+        }
+
+        $templates = \App\Models\DocumentTemplate::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
             ->where('is_active', true)
+            ->where('template_category', 'system')
+            ->where('system_template_key', $definition['key'])
             ->get();
 
-        $template = $templates->first(function ($t) use ($view) {
-            $def = $t->getSystemDefinition();
-
-            return $def && ($def['blade_view'] ?? '') === $view;
-        });
+        // A project-specific configuration overrides the tenant default. Never
+        // pick an arbitrary variation when no project type was supplied.
+        $template = $projectType
+            ? $templates->firstWhere('project_type', $projectType)
+            : null;
+        $template ??= $templates->firstWhere('project_type', null);
 
         if (! $template) {
             return ['title' => $title];
         }
 
-        $tenant = session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null;
+        $tenant = \App\Models\Tenant::find($tenantId);
         $themeColors = $this->resolveThemeColors($template, $tenant);
 
         return [
@@ -553,6 +569,7 @@ HTMLDOC;
             'title' => $title ?: $template->name,
             'primary_color' => $themeColors['primary'] ?? '#1e40af',
             'accent_color' => $themeColors['accent'] ?? '#3b82f6',
+            'tenant' => $tenant,
         ];
     }
 

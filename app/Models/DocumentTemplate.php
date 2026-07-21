@@ -71,6 +71,21 @@ class DocumentTemplate extends Model
         ];
     }
 
+    /**
+     * Resolves a system PDF definition by Blade view so generation and the
+     * administrative catalog always use the same source of truth.
+     */
+    public static function systemDefinitionForView(string $view): ?array
+    {
+        foreach (static::getSystemTemplateDefinitions() as $key => $definition) {
+            if (($definition['blade_view'] ?? null) === $view) {
+                return ['key' => $key] + $definition;
+            }
+        }
+
+        return null;
+    }
+
     // Template categories
     const CATEGORIES = [
         'system' => 'PDF do Sistema',
@@ -216,6 +231,42 @@ class DocumentTemplate extends Model
                 ],
                 'paper_orientation' => 'landscape',
             ],
+            'delivery_sheet' => [
+                'label'       => 'Ficha de Entrega',
+                'blade_view'  => 'pdf.delivery-sheet',
+                'type'        => 'other',
+                'description' => 'Ficha para conferencia de produtos e quantidades destinadas a um cliente',
+                'sections'    => ['customer_info' => 'Dados do Cliente', 'items' => 'Produtos', 'signature' => 'Conferencia'],
+                'columns'     => ['product' => 'Produto', 'quantity' => 'Quantidade', 'unit' => 'Unidade', 'unit_value' => 'Valor Unitario'],
+                'paper_orientation' => 'landscape',
+            ],
+            'distributions_by_customer' => [
+                'label'       => 'Relatorio de Distribuicoes por Cliente',
+                'blade_view'  => 'pdf.distributions-by-customer',
+                'type'        => 'report',
+                'description' => 'Relatorio completo das distribuicoes realizadas por cliente',
+                'sections'    => ['filters' => 'Filtros', 'summary' => 'Resumo', 'distributions' => 'Distribuicoes'],
+                'columns'     => ['date' => 'Data', 'customer' => 'Cliente', 'product' => 'Produto', 'quantity' => 'Quantidade', 'unit_value' => 'Valor Unitario', 'gross_value' => 'Valor Total'],
+                'paper_orientation' => 'landscape',
+            ],
+            'distributions_by_customer_compact' => [
+                'label'       => 'Relatorio Compacto de Distribuicoes',
+                'blade_view'  => 'pdf.distributions-by-customer-compact',
+                'type'        => 'report',
+                'description' => 'Relatorio resumido das distribuicoes por cliente',
+                'sections'    => ['filters' => 'Filtros', 'summary' => 'Resumo', 'distributions' => 'Distribuicoes'],
+                'columns'     => ['customer' => 'Cliente', 'product' => 'Produto', 'quantity' => 'Quantidade', 'gross_value' => 'Valor Total'],
+                'paper_orientation' => 'portrait',
+            ],
+            'customer_delivery_statement' => [
+                'label'       => 'Extrato de Distribuicoes do Cliente',
+                'blade_view'  => 'pdf.customer-delivery-statement',
+                'type'        => 'report',
+                'description' => 'Extrato de distribuicoes e valores destinados a um cliente',
+                'sections'    => ['customer_info' => 'Dados do Cliente', 'summary' => 'Resumo', 'distributions' => 'Distribuicoes'],
+                'columns'     => ['date' => 'Data', 'product' => 'Produto', 'quantity' => 'Quantidade', 'unit_value' => 'Valor Unitario', 'gross_value' => 'Valor Total'],
+                'paper_orientation' => 'portrait',
+            ],
             'folha_campo' => [
                 'label'       => 'Folha de Campo',
                 'blade_view'  => 'pdf.folha-campo',
@@ -256,6 +307,24 @@ class DocumentTemplate extends Model
                     'admin_fee'      => 'Taxa Adm.',
                     'net_value'      => 'Valor Líquido',
                 ],
+                'paper_orientation' => 'portrait',
+            ],
+            'associate_payment_statement' => [
+                'label'       => 'Extrato de Pagamentos do Associado',
+                'blade_view'  => 'pdf.associate-payment-statement',
+                'type'        => 'report',
+                'description' => 'Extrato de pagamentos vinculados aos comprovantes do associado',
+                'sections'    => ['associate_info' => 'Dados do Associado', 'payments' => 'Pagamentos', 'summary' => 'Resumo'],
+                'columns'     => ['date' => 'Data', 'receipt' => 'Comprovante', 'value' => 'Valor', 'status' => 'Status'],
+                'paper_orientation' => 'portrait',
+            ],
+            'associate_receipt_payments' => [
+                'label'       => 'Comprovante de Pagamentos do Associado',
+                'blade_view'  => 'pdf.associate-receipt-payments',
+                'type'        => 'receipt',
+                'description' => 'Comprovante dos pagamentos realizados para um associado',
+                'sections'    => ['associate_info' => 'Dados do Associado', 'payments' => 'Pagamentos', 'signature' => 'Assinatura'],
+                'columns'     => ['date' => 'Data', 'value' => 'Valor', 'method' => 'Forma de Pagamento'],
                 'paper_orientation' => 'portrait',
             ],
             'customer_billing_receipt' => [
@@ -373,6 +442,15 @@ class DocumentTemplate extends Model
                     'status'        => 'Status',
                 ],
                 'paper_orientation' => 'landscape',
+            ],
+            'service_order' => [
+                'label'       => 'Ordem de Servico',
+                'blade_view'  => 'pdf.service-order',
+                'type'        => 'other',
+                'description' => 'Ordem de servico emitida para prestadores cadastrados',
+                'sections'    => ['order_info' => 'Dados da Ordem', 'provider_info' => 'Prestador', 'services' => 'Servicos', 'signature' => 'Assinaturas'],
+                'columns'     => ['service' => 'Servico', 'quantity' => 'Quantidade', 'value' => 'Valor'],
+                'paper_orientation' => 'portrait',
             ],
         ];
     }

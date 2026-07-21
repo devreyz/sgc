@@ -4,18 +4,23 @@ namespace App\Filament\Resources;
 
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
+use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
+use App\Exports\DeliveriesExport;
 use App\Filament\Resources\ProductionDeliveryResource\Pages;
 use App\Filament\Resources\ProductionDeliveryResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
 use App\Models\AssociateReceipt;
 use App\Models\Product;
-use App\Services\PricingService;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
+use App\Models\Tenant;
+use App\Services\DistributionBillingService;
+use App\Services\PricingService;
 use App\Services\StockService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\TemplatedPdfService;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -28,6 +33,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\HtmlString;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ProductionDeliveryResource extends Resource
 {
@@ -53,29 +60,20 @@ class ProductionDeliveryResource extends Resource
                 Forms\Components\Placeholder::make('billing_locked_notice')
                     ->label('')
                     ->content(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED
-                        ? new \Illuminate\Support\HtmlString(
+                        ? new HtmlString(
                             '<div style="background:rgba(245,158,11,.1);border:1px solid #f59e0b;border-radius:8px;padding:.75rem 1rem;color:#92400e;font-size:.875rem;">'
-                            . '🔒 <strong>Distribuição faturada</strong> — Os campos financeiros e de quantidade estão bloqueados para edição. '
-                            . 'Status: <strong>' . $record->billing_status->getLabel() . '</strong>'
-                            . '</div>'
+                            .'🔒 <strong>Distribuição faturada</strong> — Os campos financeiros e de quantidade estão bloqueados para edição. '
+                            .'Status: <strong>'.$record->billing_status->getLabel().'</strong>'
+                            .'</div>'
                         )
                         : '')
                     ->visible(fn (string $operation, ?Model $record) => $operation === 'edit' && $record?->billing_status !== BillingStatus::UNBILLED),
 
                 Forms\Components\Section::make('Tipo de Entrega')
                     ->schema([
-                        Forms\Components\Toggle::make('is_standalone')
-                            ->label('Entrega Avulsa (sem projeto)')
+                        Forms\Components\Hidden::make('is_standalone')
                             ->default(false)
-                            ->reactive()
-                            ->afterStateUpdated(function (callable $set) {
-                                $set('sales_project_id', null);
-                                $set('project_demand_id', null);
-                                $set('product_id', null);
-                                $set('unit_price', null);
-                                $set('from_stock', false);
-                            })
-                            ->helperText('Ative para registrar uma entrega que não está vinculada a nenhum projeto'),
+                            ->dehydrated(false),
 
                         Forms\Components\Toggle::make('from_stock')
                             ->label('Usar do Estoque Interno')
@@ -87,7 +85,7 @@ class ProductionDeliveryResource extends Resource
                                 }
                             })
                             ->helperText('Ative para consumir do estoque existente para um projeto (gera saída de estoque)')
-                            ->visible(fn (callable $get) => !$get('is_standalone')),
+                            ->visible(true),
                     ])
                     ->columns(2),
 
@@ -96,21 +94,21 @@ class ProductionDeliveryResource extends Resource
                         Forms\Components\Select::make('sales_project_id')
                             ->label('Projeto de Venda')
                             ->relationship('salesProject', 'title', function ($query) {
-                                return $query->whereIn('status', [
-                                    \App\Enums\ProjectStatus::DRAFT,
-                                    \App\Enums\ProjectStatus::ACTIVE,
-                                    \App\Enums\ProjectStatus::AWAITING_DELIVERY,
-                                ]);
+                                return $query->where('tenant_id', session('tenant_id'))
+                                    ->whereIn('status', [
+                                        ProjectStatus::DRAFT,
+                                        ProjectStatus::ACTIVE,
+                                        ProjectStatus::AWAITING_DELIVERY,
+                                    ]);
                             })
                             ->searchable()
-                            ->preload()
                             ->reactive()
                             ->afterStateUpdated(function (callable $set) {
                                 $set('project_demand_id', null);
                                 $set('product_id', null);
                                 $set('unit_price', null);
                             })
-                            ->required(fn (callable $get) => !$get('is_standalone'))
+                            ->required()
                             ->helperText('Selecione o projeto ativo'),
 
                         Forms\Components\Select::make('project_demand_id')
@@ -146,18 +144,28 @@ class ProductionDeliveryResource extends Resource
                                 $set('unit_price', $demand->unit_price);
                             })
                             ->required(function (callable $get) {
-                                if ($get('is_standalone')) return false;
+                                if ($get('is_standalone')) {
+                                    return false;
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return false;
+                                if (! $projectId) {
+                                    return false;
+                                }
                                 $project = SalesProject::find($projectId);
-                                return !($project?->allow_any_product ?? false);
+
+                                return ! ($project?->allow_any_product ?? false);
                             })
                             ->visible(function (callable $get) {
-                                if ($get('is_standalone')) return false;
+                                if ($get('is_standalone')) {
+                                    return false;
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return true;
+                                if (! $projectId) {
+                                    return true;
+                                }
                                 $project = SalesProject::find($projectId);
-                                return !($project?->allow_any_product ?? false);
+
+                                return ! ($project?->allow_any_product ?? false);
                             })
                             ->helperText('Produto com preço e quantidade restante'),
 
@@ -168,7 +176,6 @@ class ProductionDeliveryResource extends Resource
                                 ->where('tenant_id', session('tenant_id'))
                                 ->pluck('name', 'id'))
                             ->searchable()
-                            ->preload()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set, callable $get) {
                                 if ($state) {
@@ -187,28 +194,41 @@ class ProductionDeliveryResource extends Resource
                                 }
                             })
                             ->required(function (callable $get) {
-                                if ($get('is_standalone') || $get('from_stock')) return false;
+                                if ($get('is_standalone') || $get('from_stock')) {
+                                    return false;
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return false;
+                                if (! $projectId) {
+                                    return false;
+                                }
                                 $project = SalesProject::find($projectId);
+
                                 return $project?->allow_any_product ?? false;
                             })
                             ->visible(function (callable $get) {
-                                if ($get('is_standalone')) return false;
+                                if ($get('is_standalone')) {
+                                    return false;
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return false;
+                                if (! $projectId) {
+                                    return false;
+                                }
                                 $project = SalesProject::find($projectId);
+
                                 return $project?->allow_any_product ?? false;
                             })
                             ->helperText('Produto entregue (projeto aceita qualquer produto)'),
 
                         Forms\Components\Hidden::make('product_id'),
                     ])
-                    ->visible(fn (callable $get) => !$get('is_standalone')),
+                    ->visible(fn (callable $get) => ! $get('is_standalone')),
 
                 Forms\Components\Section::make('Produto')
                     ->heading(function (callable $get) {
-                        if ($get('is_standalone')) return 'Produto (Entrega Avulsa)';
+                        if ($get('is_standalone')) {
+                            return 'Produto (Entrega Avulsa)';
+                        }
+
                         return 'Produto (Projeto Livre — sem demanda específica)';
                     })
                     ->schema([
@@ -218,7 +238,6 @@ class ProductionDeliveryResource extends Resource
                                 ->where('tenant_id', session('tenant_id'))
                                 ->pluck('name', 'id'))
                             ->searchable()
-                            ->preload()
                             ->required()
                             ->reactive()
                             ->afterStateUpdated(function ($state, callable $set) {
@@ -244,11 +263,18 @@ class ProductionDeliveryResource extends Resource
                     ])
                     ->columns(2)
                     ->visible(function (callable $get) {
-                        if ((bool) $get('is_standalone')) return true;
-                        if ((bool) $get('from_stock')) return false;
+                        if ((bool) $get('is_standalone')) {
+                            return true;
+                        }
+                        if ((bool) $get('from_stock')) {
+                            return false;
+                        }
                         $projectId = $get('sales_project_id');
-                        if (!$projectId) return false;
+                        if (! $projectId) {
+                            return false;
+                        }
                         $project = SalesProject::find($projectId);
+
                         return $project?->allow_any_product ?? false;
                     }),
 
@@ -259,8 +285,7 @@ class ProductionDeliveryResource extends Resource
                             ->relationship('associate', 'id')
                             ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? "#{$record->id}")
                             ->searchable()
-                            ->preload()
-                            ->required(fn (callable $get) => !$get('from_stock'))
+                            ->required(fn (callable $get) => ! $get('from_stock'))
                             ->disabled(fn (?Model $record) => $record && $record->billing_status !== BillingStatus::UNBILLED)
                             ->dehydrated(true)
                             ->helperText(fn (callable $get) => $get('from_stock')
@@ -289,12 +314,12 @@ class ProductionDeliveryResource extends Resource
                                     return 'Estoque atual: —';
                                 }
 
-                                $product = \App\Models\Product::find($productId);
+                                $product = Product::find($productId);
                                 if (! $product) {
                                     return 'Estoque atual: —';
                                 }
 
-                                return 'Estoque atual: ' . number_format($product->current_stock ?? 0, 3, ',', '.') . ' kg';
+                                return 'Estoque atual: '.number_format($product->current_stock ?? 0, 3, ',', '.').' kg';
                             })
                             ->hintIcon(fn (callable $get) => $get('from_stock') ? 'heroicon-o-archive-box' : null)
                             ->hintColor(fn (callable $get) => $get('from_stock') ? 'info' : null)
@@ -306,19 +331,31 @@ class ProductionDeliveryResource extends Resource
                             ->prefix('R$')
                             ->disabled(function (callable $get, ?Model $record) {
                                 // Bloquear se já faturado/pago
-                                if ($record && $record->billing_status !== BillingStatus::UNBILLED) return true;
-                                if ($get('is_standalone') || $get('from_stock')) return false;
+                                if ($record && $record->billing_status !== BillingStatus::UNBILLED) {
+                                    return true;
+                                }
+                                if ($get('is_standalone') || $get('from_stock')) {
+                                    return false;
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return true;
+                                if (! $projectId) {
+                                    return true;
+                                }
                                 $project = SalesProject::find($projectId);
-                                return !($project?->allow_any_product ?? false);
+
+                                return ! ($project?->allow_any_product ?? false);
                             })
                             ->dehydrated(true)
                             ->helperText(function (callable $get) {
-                                if ($get('is_standalone') || $get('from_stock')) return 'Preço definido manualmente';
+                                if ($get('is_standalone') || $get('from_stock')) {
+                                    return 'Preço definido manualmente';
+                                }
                                 $projectId = $get('sales_project_id');
-                                if (!$projectId) return 'Preço definido na demanda';
+                                if (! $projectId) {
+                                    return 'Preço definido na demanda';
+                                }
                                 $project = SalesProject::find($projectId);
+
                                 return $project?->allow_any_product
                                     ? 'Preço definido manualmente (projeto livre)'
                                     : 'Preço definido na demanda';
@@ -370,7 +407,7 @@ class ProductionDeliveryResource extends Resource
                                 if ($isStandalone) {
                                     $adminRate = floatval($get('admin_fee_percentage') ?? 0);
                                     $adminFee = $gross * ($adminRate / 100);
-                                } elseif (!$fromStock && $projectId) {
+                                } elseif (! $fromStock && $projectId) {
                                     $project = SalesProject::find($projectId);
                                     $adminRate = $project?->admin_fee_percentage ?? 10;
                                     $adminFee = $gross * ($adminRate / 100);
@@ -386,7 +423,7 @@ class ProductionDeliveryResource extends Resource
                                     $costUnit = $product?->cost_price ?? $price;
                                 }
 
-                                return new \Illuminate\Support\HtmlString(
+                                return new HtmlString(
                                     '<div class="grid grid-cols-4 gap-4 text-sm">'.
                                     '<div class="p-3 bg-gray-100 rounded-lg dark:bg-gray-800">'.
                                     '<div class="text-gray-500 dark:text-gray-400">Valor Bruto</div>'.
@@ -438,8 +475,8 @@ class ProductionDeliveryResource extends Resource
                     ->label('Projeto')
                     ->searchable()
                     ->limit(20)
-                    ->placeholder('Entrega Avulsa')
-                    ->tooltip(fn ($record) => $record->salesProject?->title ?? 'Entrega Avulsa'),
+                    ->placeholder('Projeto não identificado')
+                    ->tooltip(fn ($record) => $record->salesProject?->title ?? 'Registro legado sem projeto'),
 
                 Tables\Columns\TextColumn::make('associate.user.display_name')
                     ->label('Produtor')
@@ -503,8 +540,8 @@ class ProductionDeliveryResource extends Resource
                 Tables\Columns\TextColumn::make('billing_status')
                     ->label('Faturamento')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => $state instanceof \App\Enums\BillingStatus ? $state->getLabel() : '—')
-                    ->color(fn ($state) => $state instanceof \App\Enums\BillingStatus ? $state->getColor() : 'gray')
+                    ->formatStateUsing(fn ($state) => $state instanceof BillingStatus ? $state->getLabel() : '—')
+                    ->color(fn ($state) => $state instanceof BillingStatus ? $state->getColor() : 'gray')
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('customer.trade_name')
@@ -532,14 +569,12 @@ class ProductionDeliveryResource extends Resource
                 Tables\Filters\SelectFilter::make('sales_project_id')
                     ->label('Projeto')
                     ->relationship('salesProject', 'title')
-                    ->searchable()
-                    ->preload(),
+                    ->searchable(),
 
                 Tables\Filters\SelectFilter::make('associate_id')
                     ->label('Produtor')
                     ->relationship('associate.user', 'name')
-                    ->searchable()
-                    ->preload(),
+                    ->searchable(),
 
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
@@ -611,9 +646,9 @@ class ProductionDeliveryResource extends Resource
                                 // 2. Atualizar entrega.
                                 // O observer atualiza a demanda; crédito financeiro ocorre no faturamento explícito.
                                 $record->update([
-                                    'status'            => DeliveryStatus::APPROVED,
-                                    'approved_by'       => Auth::id(),
-                                    'approved_at'       => now(),
+                                    'status' => DeliveryStatus::APPROVED,
+                                    'approved_by' => Auth::id(),
+                                    'approved_at' => now(),
                                     'stock_movement_id' => $movement->id,
                                 ]);
 
@@ -664,8 +699,8 @@ class ProductionDeliveryResource extends Resource
                             ->displayFormat('d/m/Y'),
                     ])
                     ->action(fn ($record, array $data) => $record->update([
-                        'paid'           => true,
-                        'paid_date'      => $data['paid_date'],
+                        'paid' => true,
+                        'paid_date' => $data['paid_date'],
                         'billing_status' => BillingStatus::PAID,
                     ]))
                     ->visible(fn ($record): bool => false), // Pagamentos centralizados no Projeto de Venda
@@ -687,8 +722,12 @@ class ProductionDeliveryResource extends Resource
                             $successCount = 0;
                             foreach ($records as $record) {
                                 // Aprovar apenas recepções pendentes (não distribuições)
-                                if ($record->status !== DeliveryStatus::PENDING) continue;
-                                if (!is_null($record->parent_delivery_id)) continue;
+                                if ($record->status !== DeliveryStatus::PENDING) {
+                                    continue;
+                                }
+                                if (! is_null($record->parent_delivery_id)) {
+                                    continue;
+                                }
                                 try {
                                     DB::transaction(function () use ($record) {
                                         $stockService = app(StockService::class);
@@ -700,12 +739,11 @@ class ProductionDeliveryResource extends Resource
                                             $movement = $stockService->entry($record->product, (float) $record->quantity, StockMovementReason::RECEBIMENTO, $record, ['notes' => "Recebimento avulso aprovado #{$record->id} (bulk)"]);
                                         }
 
-
                                         // O observer apenas atualiza a demanda; crédito financeiro ocorre no faturamento.
                                         $record->update([
-                                            'status'            => DeliveryStatus::APPROVED,
-                                            'approved_by'       => Auth::id(),
-                                            'approved_at'       => now(),
+                                            'status' => DeliveryStatus::APPROVED,
+                                            'approved_by' => Auth::id(),
+                                            'approved_at' => now(),
                                             'stock_movement_id' => $movement->id,
                                         ]);
 
@@ -728,7 +766,7 @@ class ProductionDeliveryResource extends Resource
                         ->color('success')
                         ->requiresConfirmation()
                         ->modalHeading('Confirmar Pagamento')
-                        ->modalDescription(fn ($records) => 'Marcar como pagas ' . $records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->count() . ' distribuição(ões) faturadas. Total líquido: R$ ' . number_format($records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->sum('net_value'), 2, ',', '.'))
+                        ->modalDescription(fn ($records) => 'Marcar como pagas '.$records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->count().' distribuição(ões) faturadas. Total líquido: R$ '.number_format($records->whereNotNull('parent_delivery_id')->where('billing_status', BillingStatus::BILLED->value)->sum('net_value'), 2, ',', '.'))
                         ->form([
                             Forms\Components\DatePicker::make('paid_date')
                                 ->label('Data do Pagamento')
@@ -741,8 +779,7 @@ class ProductionDeliveryResource extends Resource
                         ])
                         ->action(function ($records, array $data) {
                             // Filtrar apenas distribuições faturadas (BILLED) elegíveis
-                            $eligible = $records->filter(fn ($r) =>
-                                !is_null($r->parent_delivery_id)
+                            $eligible = $records->filter(fn ($r) => ! is_null($r->parent_delivery_id)
                                 && $r->status === DeliveryStatus::APPROVED
                                 && $r->billing_status === BillingStatus::BILLED
                             );
@@ -753,46 +790,47 @@ class ProductionDeliveryResource extends Resource
                                     ->body('Selecione distribuições aprovadas e faturadas (status: Faturado).')
                                     ->warning()
                                     ->send();
+
                                 return;
                             }
 
                             $paidCount = 0;
-                            $total     = 0;
-                            $tenantId  = session('tenant_id');
-                            $year      = now()->year;
+                            $total = 0;
+                            $tenantId = session('tenant_id');
+                            $year = now()->year;
 
                             DB::transaction(function () use ($eligible, $data, $tenantId, $year, &$paidCount, &$total) {
                                 // Agrupar por associado + projeto para criar um recibo por grupo
-                                $grouped = $eligible->groupBy(fn ($r) => $r->associate_id . '_' . ($r->sales_project_id ?? 0));
+                                $grouped = $eligible->groupBy(fn ($r) => $r->associate_id.'_'.($r->sales_project_id ?? 0));
 
                                 foreach ($grouped as $groupKey => $groupRecords) {
-                                    $first      = $groupRecords->first();
+                                    $first = $groupRecords->first();
                                     $associateId = $first->associate_id;
-                                    $projectId  = $first->sales_project_id;
+                                    $projectId = $first->sales_project_id;
                                     $deliveryIds = $groupRecords->pluck('id')->toArray();
 
                                     // Criar comprovante de pagamento
                                     AssociateReceipt::create([
-                                        'tenant_id'       => $tenantId,
+                                        'tenant_id' => $tenantId,
                                         'sales_project_id' => $projectId,
-                                        'associate_id'    => $associateId,
-                                        'receipt_year'    => $year,
-                                        'receipt_number'  => AssociateReceipt::nextNumber($tenantId, $year),
-                                        'issued_at'       => $data['paid_date'],
-                                        'from_date'       => $groupRecords->min('delivery_date'),
-                                        'to_date'         => $groupRecords->max('delivery_date'),
-                                        'notes'           => $data['notes'] ?? null,
-                                        'delivery_ids'    => $deliveryIds,
+                                        'associate_id' => $associateId,
+                                        'receipt_year' => $year,
+                                        'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                                        'issued_at' => $data['paid_date'],
+                                        'from_date' => $groupRecords->min('delivery_date'),
+                                        'to_date' => $groupRecords->max('delivery_date'),
+                                        'notes' => $data['notes'] ?? null,
+                                        'delivery_ids' => $deliveryIds,
                                     ]);
 
                                     // Marcar cada distribuição como PAID
                                     foreach ($groupRecords as $record) {
                                         $record->update([
-                                            'paid'           => true,
-                                            'paid_date'      => $data['paid_date'],
+                                            'paid' => true,
+                                            'paid_date' => $data['paid_date'],
                                             'billing_status' => BillingStatus::PAID,
-                                            'notes'          => $data['notes']
-                                                ? ($record->notes ? $record->notes . "\n" : '') . 'PAGO: ' . $data['notes']
+                                            'notes' => $data['notes']
+                                                ? ($record->notes ? $record->notes."\n" : '').'PAGO: '.$data['notes']
                                                 : $record->notes,
                                         ]);
                                         $paidCount++;
@@ -802,7 +840,7 @@ class ProductionDeliveryResource extends Resource
                             });
 
                             Notification::make()
-                                ->title("{$paidCount} distribuição(ões) marcada(s) como pagas. Total: R$ " . number_format($total, 2, ',', '.'))
+                                ->title("{$paidCount} distribuição(ões) marcada(s) como pagas. Total: R$ ".number_format($total, 2, ',', '.'))
                                 ->success()
                                 ->send();
                         })
@@ -817,7 +855,7 @@ class ProductionDeliveryResource extends Resource
                         ->color('warning')
                         ->requiresConfirmation()
                         ->modalHeading('Confirmar Faturamento')
-                        ->modalDescription(fn ($records) => 'Faturar ' . $records->whereNotNull('parent_delivery_id')->where('billing_status', 'unbilled')->where('status', 'approved')->count() . ' distribuição(ões) aprovadas e não faturadas.')
+                        ->modalDescription(fn ($records) => 'Faturar '.$records->whereNotNull('parent_delivery_id')->where('billing_status', 'unbilled')->where('status', 'approved')->count().' distribuição(ões) aprovadas e não faturadas.')
                         ->form([
                             Forms\Components\DatePicker::make('billing_date')
                                 ->label('Data do Faturamento')
@@ -833,8 +871,8 @@ class ProductionDeliveryResource extends Resource
                         ->action(function ($records, array $data) {
                             $ids = $records
                                 ->whereNotNull('parent_delivery_id')
-                                ->where('status', \App\Enums\DeliveryStatus::APPROVED)
-                                ->where('billing_status', \App\Enums\BillingStatus::UNBILLED)
+                                ->where('status', DeliveryStatus::APPROVED)
+                                ->where('billing_status', BillingStatus::UNBILLED)
                                 ->pluck('id')
                                 ->toArray();
 
@@ -844,19 +882,20 @@ class ProductionDeliveryResource extends Resource
                                     ->body('Selecione distribuições aprovadas e não faturadas.')
                                     ->warning()
                                     ->send();
+
                                 return;
                             }
 
                             try {
-                                $service = app(\App\Services\DistributionBillingService::class);
+                                $service = app(DistributionBillingService::class);
                                 $service->billDistributions($ids, [
                                     'billing_date' => $data['billing_date'],
-                                    'reference'    => $data['reference'] ?? null,
-                                    'notes'        => $data['notes'] ?? null,
+                                    'reference' => $data['reference'] ?? null,
+                                    'notes' => $data['notes'] ?? null,
                                 ]);
 
                                 Notification::make()
-                                    ->title(count($ids) . ' distribuição(ões) faturadas com sucesso.')
+                                    ->title(count($ids).' distribuição(ões) faturadas com sucesso.')
                                     ->success()
                                     ->send();
                             } catch (\Throwable $e) {
@@ -916,9 +955,9 @@ class ProductionDeliveryResource extends Resource
                         $deliveries = $query->orderBy('delivery_date', 'desc')->get();
 
                         $tenantId = session('tenant_id');
-                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+                        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.deliveries-report-v2', [
                             'tenant' => $tenant,
                             'deliveries' => $deliveries,
@@ -965,8 +1004,8 @@ class ProductionDeliveryResource extends Resource
                             ->columns(3),
                     ])
                     ->action(function (array $data) {
-                        return \Maatwebsite\Excel\Facades\Excel::download(
-                            new \App\Exports\DeliveriesExport($data['columns']),
+                        return Excel::download(
+                            new DeliveriesExport($data['columns']),
                             'entregas-'.now()->format('Y-m-d').'.xlsx'
                         );
                     }),
@@ -975,6 +1014,7 @@ class ProductionDeliveryResource extends Resource
                     ->label('Avulsas por Associado')
                     ->icon('heroicon-o-user-group')
                     ->color('info')
+                    ->visible(false)
                     ->form([
                         Forms\Components\DatePicker::make('date_from')
                             ->label('Data Início')
@@ -986,7 +1026,7 @@ class ProductionDeliveryResource extends Resource
                     ])
                     ->action(function (array $data) {
                         $tenantId = session('tenant_id');
-                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+                        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->whereNull('sales_project_id')
@@ -1024,14 +1064,14 @@ class ProductionDeliveryResource extends Resource
                             ])->values()->all();
 
                             $groups[] = [
-                                'associate_name'   => $assoc?->display_name ?? 'Desconhecido',
-                                'cpf'              => $assoc?->cpf_cnpj ?? '',
+                                'associate_name' => $assoc?->display_name ?? 'Desconhecido',
+                                'cpf' => $assoc?->cpf_cnpj ?? '',
                                 'deliveries_count' => $items->count(),
-                                'total_quantity'   => $items->sum('quantity'),
-                                'gross_value'      => $items->sum('gross_value'),
-                                'admin_fee'        => $items->sum('admin_fee_amount'),
-                                'net_value'        => $items->sum('net_value'),
-                                'deliveries'       => $rows,
+                                'total_quantity' => $items->sum('quantity'),
+                                'gross_value' => $items->sum('gross_value'),
+                                'admin_fee' => $items->sum('admin_fee_amount'),
+                                'net_value' => $items->sum('net_value'),
+                                'deliveries' => $rows,
                             ];
                         }
                         usort($groups, fn ($a, $b) => strcasecmp($a['associate_name'], $b['associate_name']));
@@ -1039,29 +1079,29 @@ class ProductionDeliveryResource extends Resource
                         $totals = [
                             'associates_count' => count($groups),
                             'deliveries_count' => $deliveries->count(),
-                            'total_quantity'   => $deliveries->sum('quantity'),
-                            'total_gross'      => $deliveries->sum('gross_value'),
-                            'total_admin_fee'  => $deliveries->sum('admin_fee_amount'),
-                            'total_net'        => $deliveries->sum('net_value'),
+                            'total_quantity' => $deliveries->sum('quantity'),
+                            'total_gross' => $deliveries->sum('gross_value'),
+                            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
+                            'total_net' => $deliveries->sum('net_value'),
                         ];
 
                         $filters = ['Avulsas (sem projeto)'];
                         if (! empty($data['date_from'])) {
-                            $filters['date_from'] = \Carbon\Carbon::parse($data['date_from'])->format('d/m/Y');
+                            $filters['date_from'] = Carbon::parse($data['date_from'])->format('d/m/Y');
                         }
                         if (! empty($data['date_to'])) {
-                            $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
+                            $filters['date_to'] = Carbon::parse($data['date_to'])->format('d/m/Y');
                         }
 
-                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
-                            'tenant'       => $tenant,
-                            'title'        => 'Relatório de Entregas Avulsas por Associado',
-                            'subtitle'     => 'Entregas não vinculadas a projetos',
+                            'tenant' => $tenant,
+                            'title' => 'Relatório de Entregas Avulsas por Associado',
+                            'subtitle' => 'Entregas não vinculadas a projetos',
                             'generated_at' => now()->format('d/m/Y H:i'),
-                            'filters'      => $filters,
-                            'groups'       => $groups,
-                            'totals'       => $totals,
+                            'filters' => $filters,
+                            'groups' => $groups,
+                            'totals' => $totals,
                         ], array_merge(
                             $svc->systemPdfOptions('pdf.deliveries-by-associate', 'Entregas por Associado'),
                             ['paper' => 'a4', 'orientation' => 'landscape']
@@ -1076,6 +1116,7 @@ class ProductionDeliveryResource extends Resource
                     ->label('Avulsas por Produto')
                     ->icon('heroicon-o-shopping-bag')
                     ->color('info')
+                    ->visible(false)
                     ->form([
                         Forms\Components\DatePicker::make('date_from')
                             ->label('Data Início')
@@ -1087,7 +1128,7 @@ class ProductionDeliveryResource extends Resource
                     ])
                     ->action(function (array $data) {
                         $tenantId = session('tenant_id');
-                        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+                        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
                         $query = ProductionDelivery::where('tenant_id', $tenantId)
                             ->whereNull('sales_project_id')
@@ -1125,44 +1166,44 @@ class ProductionDeliveryResource extends Resource
                             ])->values()->all();
 
                             $groups[] = [
-                                'product_name'     => $product?->name ?? 'Desconhecido',
-                                'unit'             => $product?->unit ?? 'un',
+                                'product_name' => $product?->name ?? 'Desconhecido',
+                                'unit' => $product?->unit ?? 'un',
                                 'deliveries_count' => $items->count(),
-                                'total_quantity'   => $items->sum('quantity'),
-                                'gross_value'      => $items->sum('gross_value'),
-                                'admin_fee'        => $items->sum('admin_fee_amount'),
-                                'net_value'        => $items->sum('net_value'),
-                                'deliveries'       => $rows,
+                                'total_quantity' => $items->sum('quantity'),
+                                'gross_value' => $items->sum('gross_value'),
+                                'admin_fee' => $items->sum('admin_fee_amount'),
+                                'net_value' => $items->sum('net_value'),
+                                'deliveries' => $rows,
                             ];
                         }
                         usort($groups, fn ($a, $b) => strcasecmp($a['product_name'], $b['product_name']));
 
                         $totals = [
-                            'products_count'  => count($groups),
+                            'products_count' => count($groups),
                             'deliveries_count' => $deliveries->count(),
-                            'total_quantity'   => $deliveries->sum('quantity'),
-                            'total_gross'      => $deliveries->sum('gross_value'),
-                            'total_admin_fee'  => $deliveries->sum('admin_fee_amount'),
-                            'total_net'        => $deliveries->sum('net_value'),
+                            'total_quantity' => $deliveries->sum('quantity'),
+                            'total_gross' => $deliveries->sum('gross_value'),
+                            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
+                            'total_net' => $deliveries->sum('net_value'),
                         ];
 
                         $filters = ['Avulsas (sem projeto)'];
                         if (! empty($data['date_from'])) {
-                            $filters['date_from'] = \Carbon\Carbon::parse($data['date_from'])->format('d/m/Y');
+                            $filters['date_from'] = Carbon::parse($data['date_from'])->format('d/m/Y');
                         }
                         if (! empty($data['date_to'])) {
-                            $filters['date_to'] = \Carbon\Carbon::parse($data['date_to'])->format('d/m/Y');
+                            $filters['date_to'] = Carbon::parse($data['date_to'])->format('d/m/Y');
                         }
 
-                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
-                            'tenant'       => $tenant,
-                            'title'        => 'Relatório de Entregas Avulsas por Produto',
-                            'subtitle'     => 'Entregas não vinculadas a projetos',
+                            'tenant' => $tenant,
+                            'title' => 'Relatório de Entregas Avulsas por Produto',
+                            'subtitle' => 'Entregas não vinculadas a projetos',
                             'generated_at' => now()->format('d/m/Y H:i'),
-                            'filters'      => $filters,
-                            'groups'       => $groups,
-                            'totals'       => $totals,
+                            'filters' => $filters,
+                            'groups' => $groups,
+                            'totals' => $totals,
                         ], array_merge(
                             $svc->systemPdfOptions('pdf.deliveries-by-product', 'Entregas por Produto'),
                             ['paper' => 'a4', 'orientation' => 'landscape']
@@ -1202,7 +1243,7 @@ class ProductionDeliveryResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::where('status', DeliveryStatus::PENDING)->count() ?: null;
+        return null;
     }
 
     public static function getNavigationBadgeColor(): ?string

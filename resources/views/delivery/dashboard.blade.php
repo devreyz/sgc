@@ -4,7 +4,9 @@
 @section('page-title', 'Painel de Entregas')
 @section('user-role', 'Registrador')
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'dashboard', $currentTenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'dashboard', $currentTenant->slug ?? request()->route('tenant'));
+@endphp
 
 @section('content')
 <style>
@@ -187,12 +189,6 @@
         <i data-lucide="folder-open" style="width:18px;height:18px;color:var(--color-primary)"></i>
         Projetos
         <span class="dp-badge">{{ count($projects) }}</span>
-    </div>
-    <div class="btn-group">
-        <a href="{{ route('delivery.all-deliveries', ['tenant' => $currentTenant->slug]) }}" class="btn btn-ghost btn-sm">
-            <i data-lucide="list" style="width:13px;height:13px"></i>Todas entregas
-        </a>
-        
     </div>
 </div>
 

@@ -16,13 +16,13 @@ class ListSystemPdfs extends ListRecords
     {
         return [
             Actions\Action::make('seed_system_templates')
-                ->label('Gerar Modelos do Sistema')
+                ->label('Sincronizar Catalogo de PDFs')
                 ->icon('heroicon-o-sparkles')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Gerar Modelos do Sistema')
+                ->modalHeading('Sincronizar Catalogo de PDFs')
                 ->modalDescription('Isso criará um modelo de configuração para cada PDF do sistema. Modelos já existentes não serão duplicados.')
-                ->modalSubmitActionLabel('Sim, gerar modelos')
+                ->modalSubmitActionLabel('Sincronizar catalogo')
                 ->action(function () {
                     $created = 0;
                     $restored = 0;
@@ -84,7 +84,7 @@ class ListSystemPdfs extends ListRecords
 
                     Notification::make()
                         ->success()
-                        ->title('Modelos Gerados')
+                        ->title('Catalogo sincronizado')
                         ->body(implode(', ', $parts) . '.')
                         ->send();
                 }),

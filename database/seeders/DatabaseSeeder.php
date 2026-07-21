@@ -30,7 +30,6 @@ class DatabaseSeeder extends Seeder
             ServiceProviderSeeder::class,
             
             // 5. Templates e documentos
-            DocumentTemplatesSeeder::class,
             
             // 6. Atualizações (se houver)
             UpdateServicePricesSeeder::class,

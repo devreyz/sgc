@@ -4,49 +4,43 @@ namespace App\Filament\Widgets;
 
 use App\Models\Associate;
 use App\Models\AssociateLedger;
-use App\Enums\LedgerType;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\DB;
 
 class AssociatesBalanceWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
-    
+
+    protected static ?string $pollingInterval = null;
+
     protected ?string $heading = 'Associados';
 
     protected function getStats(): array
     {
         $tenantId = session('tenant_id');
-        
-        $totalAssociates = Associate::where('tenant_id', $tenantId)->count();
-        $activeAssociates = Associate::where('tenant_id', $tenantId)
-            ->whereHas('user', fn ($q) => $q->where('status', true))
-            ->count();
-        
+
+        $associateCounts = Associate::where('tenant_id', $tenantId)
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(CASE WHEN EXISTS (SELECT 1 FROM users WHERE users.id = associates.user_id AND users.status = 1) THEN 1 ELSE 0 END) as active')
+            ->first();
+        $totalAssociates = (int) ($associateCounts?->total ?? 0);
+        $activeAssociates = (int) ($associateCounts?->active ?? 0);
+
         // Saldo total dos associados (quanto a cooperativa deve pagar)
-        $totalBalance = AssociateLedger::where('tenant_id', $tenantId)
+        $latestLedgerIds = AssociateLedger::where('tenant_id', $tenantId)
             ->selectRaw('associate_id, MAX(id) as last_id')
-            ->groupBy('associate_id')
-            ->get()
-            ->map(fn ($item) => AssociateLedger::find($item->last_id))
-            ->sum('balance_after');
-        
-        // Contar associados com saldo positivo (tem a receber) e negativo (devem)
-        $withCredit = AssociateLedger::where('tenant_id', $tenantId)
-            ->selectRaw('associate_id, MAX(id) as last_id')
-            ->groupBy('associate_id')
-            ->get()
-            ->map(fn ($item) => AssociateLedger::find($item->last_id))
-            ->where('balance_after', '>', 0)
-            ->count();
-            
-        $withDebt = AssociateLedger::where('tenant_id', $tenantId)
-            ->selectRaw('associate_id, MAX(id) as last_id')
-            ->groupBy('associate_id')
-            ->get()
-            ->map(fn ($item) => AssociateLedger::find($item->last_id))
-            ->where('balance_after', '<', 0)
-            ->count();
+            ->groupBy('associate_id');
+        $balances = DB::query()
+            ->fromSub($latestLedgerIds, 'latest_ledgers')
+            ->join('associate_ledgers as ledger', 'ledger.id', '=', 'latest_ledgers.last_id')
+            ->selectRaw('COALESCE(SUM(ledger.balance_after), 0) as total_balance')
+            ->selectRaw('SUM(CASE WHEN ledger.balance_after > 0 THEN 1 ELSE 0 END) as with_credit')
+            ->selectRaw('SUM(CASE WHEN ledger.balance_after < 0 THEN 1 ELSE 0 END) as with_debt')
+            ->first();
+        $totalBalance = (float) ($balances?->total_balance ?? 0);
+        $withCredit = (int) ($balances?->with_credit ?? 0);
+        $withDebt = (int) ($balances?->with_debt ?? 0);
 
         // DAPs vencendo
         $dapsExpiring = Associate::where('tenant_id', $tenantId)
@@ -59,7 +53,7 @@ class AssociatesBalanceWidget extends BaseWidget
                 ->descriptionIcon('heroicon-m-users')
                 ->color('info'),
 
-            Stat::make('Saldo Total Associados', 'R$ ' . number_format($totalBalance, 2, ',', '.'))
+            Stat::make('Saldo Total Associados', 'R$ '.number_format($totalBalance, 2, ',', '.'))
                 ->description("$withCredit com crédito | $withDebt com débito")
                 ->descriptionIcon('heroicon-m-scale')
                 ->color($totalBalance >= 0 ? 'warning' : 'success'),

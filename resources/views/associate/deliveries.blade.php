@@ -10,7 +10,9 @@
     $tenantSlug  = $currentTenant?->slug ?? session('tenant_slug') ?? $routeSlug ?? null;
 @endphp
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('associate', 'deliveries', $tenantSlug))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('associate', 'deliveries', $tenantSlug);
+@endphp
 
 @section('content')
 <div class="bento-grid">

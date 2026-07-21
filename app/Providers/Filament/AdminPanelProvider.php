@@ -2,13 +2,22 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\AssociatesBalanceWidget;
+use App\Filament\Widgets\CashSummaryWidget;
+use App\Filament\Widgets\LowStockWidget;
+use App\Filament\Widgets\PendingPaymentRequestsWidget;
+use App\Filament\Widgets\ProjectsProgressWidget;
+use App\Filament\Widgets\ServiceOrdersPaymentsWidget;
+use App\Filament\Widgets\TenantSelectorWidget;
+use App\Http\Middleware\PreventSuperAdminAccess;
 use App\Http\Middleware\TenantMiddleware;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages;
 use Filament\Navigation\MenuItem;
+use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -51,15 +60,14 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Pages\Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                \App\Filament\Widgets\TenantSelectorWidget::class,
-                \App\Filament\Widgets\PendingPaymentRequestsWidget::class,
-                \App\Filament\Widgets\ServiceOrdersPaymentsWidget::class,
-                \App\Filament\Widgets\AssociatesBalanceWidget::class,
-                \App\Filament\Widgets\CashSummaryWidget::class,
-                \App\Filament\Widgets\ProjectsProgressWidget::class,
-                \App\Filament\Widgets\LowStockWidget::class,
+                TenantSelectorWidget::class,
+                PendingPaymentRequestsWidget::class,
+                ServiceOrdersPaymentsWidget::class,
+                AssociatesBalanceWidget::class,
+                CashSummaryWidget::class,
+                ProjectsProgressWidget::class,
+                LowStockWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,
@@ -75,10 +83,10 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
                 TenantMiddleware::class,
-                \App\Http\Middleware\PreventSuperAdminAccess::class,
+                PreventSuperAdminAccess::class,
             ])
             ->plugins([
-                \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make()
+                FilamentShieldPlugin::make()
                     ->gridColumns([
                         'default' => 1,
                         'sm' => 2,
@@ -107,8 +115,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
             ->databaseNotifications()
-            ->databaseNotifications()
-            ->databaseNotificationsPolling('30s')
+            ->databaseNotificationsPolling('60s')
             ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->maxContentWidth('full')
             ->renderHook(

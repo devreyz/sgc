@@ -20,7 +20,9 @@ class CustomDocumentResource extends DocumentTemplateResource
     protected static ?string $pluralModelLabel = 'Documentos Personalizados';
     protected static ?string $navigationGroup = 'Sistema';
     protected static ?int $navigationSort = 11;
-    protected static bool $shouldRegisterNavigation = true;
+    // Legacy custom documents remain accessible by direct historical links only.
+    // They have no operational issuing flow and should not clutter the menu.
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static ?string $slug = 'custom-documents';
 

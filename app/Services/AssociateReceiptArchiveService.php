@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\DeliveryStatus;
 use App\Models\AssociateReceipt;
 use App\Models\ProductionDelivery;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -43,7 +42,8 @@ class AssociateReceiptArchiveService
         }
 
         $data = ReceiptDataBuilder::fromDeliveries($distributions, null, $receipt->project);
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $receipt->tenant,
             'project' => $receipt->project,
             'associate' => $receipt->associate,
@@ -52,7 +52,12 @@ class AssociateReceiptArchiveService
             'productsSummary' => $data['productsSummary'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $receipt->project->type,
+            (int) $receipt->tenant_id,
+        ));
 
         $label = str_replace('/', '-', $receipt->formatted_number);
         $associate = Str::slug($receipt->associate->display_name ?: 'associado');
@@ -69,13 +74,18 @@ class AssociateReceiptArchiveService
         );
 
         if ($receipt->payments->isNotEmpty() || (float) $receipt->amount_paid > 0) {
-            $paymentPdf = Pdf::loadView('pdf.associate-receipt-payments', [
+            $paymentPdf = $pdfService->generateSystemPdf('pdf.associate-receipt-payments', [
                 'tenant' => $receipt->tenant,
                 'project' => $receipt->project,
                 'associate' => $receipt->associate,
                 'receipt' => $receipt,
                 'payments' => $receipt->payments,
-            ])->setPaper('a4', 'portrait');
+            ], $pdfService->systemPdfOptions(
+                'pdf.associate-receipt-payments',
+                'Comprovante de Pagamentos',
+                $receipt->project->type,
+                (int) $receipt->tenant_id,
+            ));
 
             $this->drive->putDocument(
                 $receipt->tenant,

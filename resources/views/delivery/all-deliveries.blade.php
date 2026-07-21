@@ -10,7 +10,13 @@
     :csrf="csrf_token()"
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
 />
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'deliveries', $currentTenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make(
+        'delivery',
+        'deliveries',
+        $currentTenant->slug ?? request()->route('tenant'),
+    );
+@endphp
 
 @section('content')
 <style>

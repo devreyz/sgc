@@ -4,7 +4,9 @@
 @section('page-title', 'Associado no projeto')
 @section('page-subtitle', $project->title)
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', request()->route('tenant'));
+@endphp
 
 @section('content')
 @php

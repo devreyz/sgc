@@ -4,7 +4,9 @@
 @section('page-title', 'Fichas de Entrega')
 @section('user-role', 'Registrador')
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'sheets', $currentTenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'sheets', $currentTenant->slug ?? request()->route('tenant'));
+@endphp
 
 @section('content')
 <style>

@@ -85,7 +85,8 @@ class AssociateProjectPortalController extends Controller
         $tenant = $request->route('tenant') instanceof Tenant
             ? $request->route('tenant')
             : Tenant::findOrFail($project->tenant_id);
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(\App\Services\TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -94,7 +95,12 @@ class AssociateProjectPortalController extends Controller
             'productsSummary' => $data['productsSummary'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $project->tenant_id,
+        ));
 
         return response()->streamDownload(
             fn () => print $pdf->output(),

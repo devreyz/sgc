@@ -6,30 +6,39 @@ use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\ReceiptStatus;
-use App\Enums\StockMovementReason;
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\Customer;
+use App\Models\Organization;
+use App\Models\PriceTable;
 use App\Models\PriceTableItem;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
+use App\Models\ProjectAssociateProductLimit;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
-use App\Services\BuyerRequestFulfillmentService;
 use App\Services\AssociateProjectLimitService;
+use App\Services\AssociateReceiptService;
+use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
 use App\Services\ProjectFinancialCalculator;
-use App\Services\StockService;
+use App\Services\ReceiptDataBuilder;
+use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class DeliveryRegistrationController extends Controller
 {
@@ -57,7 +66,7 @@ class DeliveryRegistrationController extends Controller
             return [];
         }
 
-        $limits = \App\Models\ProjectAssociateProductLimit::query()
+        $limits = ProjectAssociateProductLimit::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
             ->whereIn('associate_id', $associateIds)
@@ -122,20 +131,20 @@ class DeliveryRegistrationController extends Controller
             ?? 'un';
 
         $distributions = $delivery->distributions->map(fn ($d) => [
-            'id'          => $d->id,
+            'id' => $d->id,
             'customer_id' => $d->customer_id,
-            'customer'    => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
-            'qty'         => (float) $d->quantity,
-            'unit_price'  => (float) $d->unit_price,
-            'net'         => (float) $d->net_value,
-            'billed'      => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
-            'paid'        => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
+            'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
+            'qty' => (float) $d->quantity,
+            'unit_price' => (float) $d->unit_price,
+            'net' => (float) $d->net_value,
+            'billed' => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
+            'paid' => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
             'billing_status' => $d->billing_status?->value,
-            'in_receipt'  => (bool) $d->associate_receipt_id,
-            'receipt_id'  => $d->associate_receipt_id,
+            'in_receipt' => (bool) $d->associate_receipt_id,
+            'receipt_id' => $d->associate_receipt_id,
             'receipt_number' => $d->associateReceipt?->formatted_number,
             'billing_receipt_id' => $d->billing_receipt_id,
-            'locked'      => (bool) $d->paid
+            'locked' => (bool) $d->paid
                 || $d->billing_status !== BillingStatus::UNBILLED
                 || (bool) $d->billing_receipt_id
                 || ($d->associateReceipt?->isLocked() ?? false),
@@ -170,28 +179,28 @@ class DeliveryRegistrationController extends Controller
         }
 
         return [
-            'id'                => $delivery->id,
-            'associate_id'      => $delivery->associate_id,
-            'sales_project_id'  => $delivery->sales_project_id,
-            'associate_name'    => $delivery->associate?->display_name ?? 'Associado #'.$delivery->associate_id,
-            'product_name'      => $productName,
-            'delivery_date'     => $delivery->delivery_date?->format('d/m/Y') ?? '-',
+            'id' => $delivery->id,
+            'associate_id' => $delivery->associate_id,
+            'sales_project_id' => $delivery->sales_project_id,
+            'associate_name' => $delivery->associate?->display_name ?? 'Associado #'.$delivery->associate_id,
+            'product_name' => $productName,
+            'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
             'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
-            'quantity'          => (float) $delivery->quantity,
-            'unit'              => $unit,
-            'unit_price'        => (float) $delivery->unit_price,
-            'net_value'         => (float) $delivery->net_value,
-            'dist_net_value'    => (float) $distributions->sum('net'),
-            'quality_grade'     => $delivery->quality_grade ?? '',
-            'notes'             => $delivery->notes ?? '',
-            'status'            => $delivery->status->getLabel(),
-            'status_value'      => $delivery->status->value,
-            'distributions'     => $distributions->toArray(),
-            'distributed_qty'   => $distributedQty,
-            'has_billed'        => $distributions->contains('billed', true),
-            'issue_count'       => $issueCount,
-            'issue_severity'    => $issueSeverity,
-            'limit'             => $limitData,
+            'quantity' => (float) $delivery->quantity,
+            'unit' => $unit,
+            'unit_price' => (float) $delivery->unit_price,
+            'net_value' => (float) $delivery->net_value,
+            'dist_net_value' => (float) $distributions->sum('net'),
+            'quality_grade' => $delivery->quality_grade ?? '',
+            'notes' => $delivery->notes ?? '',
+            'status' => $delivery->status->getLabel(),
+            'status_value' => $delivery->status->value,
+            'distributions' => $distributions->toArray(),
+            'distributed_qty' => $distributedQty,
+            'has_billed' => $distributions->contains('billed', true),
+            'issue_count' => $issueCount,
+            'issue_severity' => $issueSeverity,
+            'limit' => $limitData,
         ];
     }
 
@@ -369,39 +378,28 @@ class DeliveryRegistrationController extends Controller
     /**
      * Show delivery registration page for specific project
      */
-    public function register()
+    public function register(Request $request)
     {
         $tenantId = session('tenant_id');
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
-        $projectRoute = request()->route('project');
-
-        $projects = SalesProject::where('tenant_id', $tenantId)
+        $project = SalesProject::query()
+            ->where('tenant_id', $tenantId)
             ->where('status', ProjectStatus::ACTIVE->value)
             ->with(['customer', 'customers', 'organizations'])
-            ->orderBy('title')
-            ->get()
-            ->map(fn ($p) => [
-                'id'                  => $p->id,
-                'title'               => $p->title,
-                'customer_name'       => $p->customer->name ?? '-',
-                'allow_any_product'   => (bool) $p->allow_any_product,
-                'admin_fee_percentage' => (float) ($p->admin_fee_percentage ?? 10),
-                'customer_ids'        => app(ProjectDistributionCustomerService::class)->ids($p)->all(),
-            ]);
+            ->findOrFail((int) $request->route('project'));
 
-        // Pre-select project if provided via URL
-        $selectedProject = null;
-        if ($projectRoute) {
-            $selectedProject = $projects->firstWhere('id', (int) $projectRoute);
-            if (! $selectedProject) {
-                return redirect()
-                    ->route('delivery.dashboard', ['tenant' => request()->route('tenant')])
-                    ->with('error', 'Projeto não encontrado ou não está em execução.');
-            }
-        }
+        $selectedProject = [
+            'id' => $project->id,
+            'title' => $project->title,
+            'customer_name' => $project->customer->name ?? '-',
+            'allow_any_product' => (bool) $project->allow_any_product,
+            'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
+            'customer_ids' => app(ProjectDistributionCustomerService::class)->ids($project)->all(),
+        ];
+        $projects = collect([$selectedProject]);
 
         $associates = Associate::where('tenant_id', $tenantId)
             ->with('user')
@@ -409,16 +407,11 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('id')
             ->get()
             ->map(fn ($a) => [
-                'id'                  => $a->id,
-                'name'                => $a->display_name ?? "Associado #{$a->id}",
-                'nickname'            => $a->nickname ?? null,
+                'id' => $a->id,
+                'name' => $a->display_name ?? "Associado #{$a->id}",
+                'nickname' => $a->nickname ?? null,
                 'registration_number' => $a->registration_number,
             ]);
-
-        $standaloneProducts = Product::where('tenant_id', $tenantId)
-            ->where('status', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'unit']);
 
         $customers = Customer::where('tenant_id', $tenantId)
             ->where('status', true)
@@ -429,7 +422,7 @@ class DeliveryRegistrationController extends Controller
         $currentTenant = $this->currentTenant();
 
         return view('delivery.register', compact(
-            'projects', 'associates', 'currentTenant', 'standaloneProducts', 'selectedProject', 'customers'
+            'projects', 'associates', 'currentTenant', 'selectedProject', 'customers'
         ));
     }
 
@@ -456,12 +449,12 @@ class DeliveryRegistrationController extends Controller
 
         $customers = $customers
             ->map(fn ($c) => [
-                'id'                => $c->id,
-                'name'              => $c->name,
-                'trade_name'        => $c->trade_name,
-                'organization_id'   => $c->organization_id,
+                'id' => $c->id,
+                'name' => $c->name,
+                'trade_name' => $c->trade_name,
+                'organization_id' => $c->organization_id,
                 'organization_name' => $c->organization?->short_name ?? $c->organization?->name,
-                'price_table_id'    => $c->price_table_id,
+                'price_table_id' => $c->price_table_id,
             ]);
 
         return response()->json($customers);
@@ -500,15 +493,46 @@ class DeliveryRegistrationController extends Controller
         );
 
         $priceTable = $customer->priceTable;
-        if (! $priceTable || ! $priceTable->active || (int) $priceTable->tenant_id !== (int) $reception->tenant_id) {
-            throw ValidationException::withMessages([
-                'sale_price' => 'Este cliente precisa de uma tabela de precos ativa antes de receber um preco.',
-            ]);
+        if ($priceTable && (int) $priceTable->tenant_id !== (int) $reception->tenant_id) {
+            abort(404);
         }
 
-        $this->authorize('update', $priceTable);
+        if ($priceTable && $priceTable->active) {
+            $this->authorize('update', $priceTable);
+        } else {
+            $this->authorize('create', PriceTable::class);
+        }
 
-        $item = DB::transaction(function () use ($priceTable, $reception, $customer, $validated) {
+        [$priceTable, $item] = DB::transaction(function () use ($priceTable, $reception, $customer, $validated) {
+            $lockedCustomer = Customer::query()
+                ->where('tenant_id', $reception->tenant_id)
+                ->lockForUpdate()
+                ->findOrFail($customer->id);
+
+            $currentPriceTable = $lockedCustomer->price_table_id
+                ? PriceTable::query()
+                    ->where('tenant_id', $reception->tenant_id)
+                    ->find($lockedCustomer->price_table_id)
+                : null;
+
+            if ($currentPriceTable?->active) {
+                $this->authorize('update', $currentPriceTable);
+                $priceTable = $currentPriceTable;
+            }
+
+            if (! $priceTable || ! $priceTable->active) {
+                $priceTable = PriceTable::create([
+                    'tenant_id' => $reception->tenant_id,
+                    'name' => 'Preços - '.($customer->trade_name ?: $customer->name),
+                    'year' => now()->year,
+                    'active' => true,
+                    'created_by' => Auth::id(),
+                ]);
+                $lockedCustomer->update(['price_table_id' => $priceTable->id]);
+                $customer->setRelation('priceTable', $priceTable);
+                $customer->price_table_id = $priceTable->id;
+            }
+
             $item = PriceTableItem::withTrashed()
                 ->where('price_table_id', $priceTable->id)
                 ->where('product_id', $reception->product_id)
@@ -540,8 +564,10 @@ class DeliveryRegistrationController extends Controller
                 ])
                 ->log('Preco de distribuicao atualizado');
 
-            return $item;
+            return [$priceTable, $item];
         });
+
+        $customer->setRelation('priceTable', $priceTable);
 
         return response()->json([
             'success' => true,
@@ -586,10 +612,10 @@ class DeliveryRegistrationController extends Controller
     private function distributionPricePayload(Customer $customer, Product $product, array $pricing): array
     {
         $priceTable = $customer->priceTable;
-        $canConfigure = $priceTable
-            && $priceTable->active
-            && (int) $priceTable->tenant_id === (int) $customer->tenant_id
-            && Auth::user()?->can('update', $priceTable);
+        $canConfigure = $priceTable && $priceTable->active
+            ? (int) $priceTable->tenant_id === (int) $customer->tenant_id
+                && Auth::user()?->can('update', $priceTable)
+            : Auth::user()?->can('create', PriceTable::class);
 
         return [
             'code' => $pricing['source'] === 'unpriced' ? 'missing_price' : 'price_available',
@@ -612,21 +638,28 @@ class DeliveryRegistrationController extends Controller
     public function distribute(Request $request)
     {
         $deliveryId = (int) $request->route('delivery');
-        $tenantId   = session('tenant_id');
+        $tenantId = session('tenant_id');
 
         if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
         }
 
         $validated = $request->validate([
-            'distributions'                  => 'required|array|min:1|max:50',
-            'distributions.*.customer_id'    => 'required|integer|exists:customers,id',
-            'distributions.*.quantity'       => 'required|numeric|min:0.001',
+            'distributions' => 'required|array|min:1|max:50',
+            'distributions.*.customer_id' => 'required|integer|exists:customers,id',
+            'distributions.*.quantity' => 'required|numeric|min:0.001',
         ]);
 
         $reception = ProductionDelivery::where('tenant_id', $tenantId)
             ->whereNull('parent_delivery_id')
             ->findOrFail($deliveryId);
+
+        if (! $reception->sales_project_id || ! $reception->salesProject) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta entrega não pertence a um projeto de venda e não pode ser distribuída.',
+            ], 422);
+        }
 
         if ($reception->status !== DeliveryStatus::APPROVED) {
             return response()->json(['success' => false, 'message' => 'Somente entregas aprovadas podem ser distribuídas.'], 422);
@@ -642,29 +675,27 @@ class DeliveryRegistrationController extends Controller
         if (($alreadyDistributed + $newTotal) > $reception->quantity) {
             return response()->json([
                 'success' => false,
-                'message' => 'A soma das distribuições (' . number_format($alreadyDistributed + $newTotal, 3, ',', '.') .
-                    ') excede a quantidade recebida (' . number_format($reception->quantity, 3, ',', '.') . ').',
+                'message' => 'A soma das distribuições ('.number_format($alreadyDistributed + $newTotal, 3, ',', '.').
+                    ') excede a quantidade recebida ('.number_format($reception->quantity, 3, ',', '.').').',
             ], 422);
         }
 
         // Validate customers belong to this tenant
         $customerIds = collect($validated['distributions'])->pluck('customer_id')->unique();
-        $validCount  = Customer::where('tenant_id', $tenantId)->whereIn('id', $customerIds)->count();
+        $validCount = Customer::where('tenant_id', $tenantId)->whereIn('id', $customerIds)->count();
         if ($validCount !== $customerIds->count()) {
             return response()->json(['success' => false, 'message' => 'Cliente inválido.'], 422);
         }
 
         $project = $reception->salesProject;
-        if ($project) {
-            try {
-                app(ProjectDistributionCustomerService::class)->assertAllowed($project, $customerIds);
-            } catch (ValidationException $exception) {
-                return response()->json([
-                    'success' => false,
-                    'message' => collect($exception->errors())->flatten()->first(),
-                    'errors' => $exception->errors(),
-                ], 422);
-            }
+        try {
+            app(ProjectDistributionCustomerService::class)->assertAllowed($project, $customerIds);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($exception->errors())->flatten()->first(),
+                'errors' => $exception->errors(),
+            ], 422);
         }
 
         try {
@@ -685,7 +716,7 @@ class DeliveryRegistrationController extends Controller
             }
 
             $pricingService = app(PricingService::class);
-            $calculator     = app(ProjectFinancialCalculator::class);
+            $calculator = app(ProjectFinancialCalculator::class);
             $requestFulfillment = app(BuyerRequestFulfillmentService::class);
             $product = $reception->product;
 
@@ -710,11 +741,12 @@ class DeliveryRegistrationController extends Controller
 
                     if ($alreadyPlanned + (float) $dist['quantity'] > $remaining) {
                         DB::rollBack();
+
                         return response()->json([
                             'success' => false,
                             'message' => 'Esta organizacao limita a distribuicao ao solicitado. Saldo disponivel para '
-                                . ($customer->trade_name ?: $customer->name) . ': '
-                                . number_format(max(0, $remaining - $alreadyPlanned), 3, ',', '.') . '.',
+                                .($customer->trade_name ?: $customer->name).': '
+                                .number_format(max(0, $remaining - $alreadyPlanned), 3, ',', '.').'.',
                         ], 422);
                     }
 
@@ -727,16 +759,17 @@ class DeliveryRegistrationController extends Controller
                 // Bloquear distribuição se o produto não tem preço configurado
                 if ($priceResult['source'] === 'unpriced' || bccomp((string) $priceResult['sale_price'], '0', 4) === 0) {
                     DB::rollBack();
+
                     return response()->json([
                         'success' => false,
-                        'message' => 'O produto "' . $product->name . '" não tem preço configurado para o cliente "' . ($customer->trade_name ?: $customer->name) . '". Configure a tabela de preços antes de distribuir.',
+                        'message' => 'O produto "'.$product->name.'" não tem preço configurado para o cliente "'.($customer->trade_name ?: $customer->name).'". Configure a tabela de preços antes de distribuir.',
                         ...$this->distributionPricePayload($customer, $product, $priceResult),
                     ], 422);
                 }
 
                 $unitPrice = $priceResult['sale_price'];
-                $qty       = (string) $dist['quantity'];
-                $gross     = bcmul($qty, $unitPrice, 8);
+                $qty = (string) $dist['quantity'];
+                $gross = bcmul($qty, $unitPrice, 8);
 
                 if ($project) {
                     $associate = Associate::where('tenant_id', $tenantId)->findOrFail($reception->associate_id);
@@ -749,36 +782,36 @@ class DeliveryRegistrationController extends Controller
 
                 // 2. Aplica taxas pelo motor financeiro central
                 $financial = $project ? $calculator->calculate($project, $gross) : [
-                    'total_fee'                => '0',
-                    'net'                      => $gross,
+                    'total_fee' => '0',
+                    'net' => $gross,
                     'admin_fee_percentage_eff' => '0',
                 ];
 
                 $child = ProductionDelivery::create([
-                    'tenant_id'            => $tenantId,
-                    'sales_project_id'     => $reception->sales_project_id,
-                    'project_demand_id'    => $reception->project_demand_id,
-                    'associate_id'         => $reception->associate_id,
-                    'product_id'           => $reception->product_id,
-                    'customer_id'          => (int) $dist['customer_id'],
-                    'parent_delivery_id'   => $reception->id,
-                    'delivery_date'        => $reception->delivery_date,
-                    'quantity'             => $qty,
-                    'unit_price'           => $unitPrice,
-                    'cost_price_used'      => $priceResult['cost_price'],
+                    'tenant_id' => $tenantId,
+                    'sales_project_id' => $reception->sales_project_id,
+                    'project_demand_id' => $reception->project_demand_id,
+                    'associate_id' => $reception->associate_id,
+                    'product_id' => $reception->product_id,
+                    'customer_id' => (int) $dist['customer_id'],
+                    'parent_delivery_id' => $reception->id,
+                    'delivery_date' => $reception->delivery_date,
+                    'quantity' => $qty,
+                    'unit_price' => $unitPrice,
+                    'cost_price_used' => $priceResult['cost_price'],
                     'admin_fee_percentage' => $financial['admin_fee_percentage_eff'],
-                    'admin_fee_amount'     => $financial['total_fee'],
-                    'net_value'            => $financial['net'],
-                    'price_table_id'       => $priceResult['price_table_id'],
-                    'price_source'         => $priceResult['source'],
+                    'admin_fee_amount' => $financial['total_fee'],
+                    'net_value' => $financial['net'],
+                    'price_table_id' => $priceResult['price_table_id'],
+                    'price_source' => $priceResult['source'],
                     // Distributions are auto-approved: the parent was already approved
                     // and distribution = the act of validating the sale.
-                    'status'               => DeliveryStatus::APPROVED,
-                    'quality_grade'        => $reception->quality_grade,
-                    'received_by'          => Auth::id(),
-                    'approved_by'          => Auth::id(),
-                    'approved_at'          => now(),
-                    'paid'                 => false,
+                    'status' => DeliveryStatus::APPROVED,
+                    'quality_grade' => $reception->quality_grade,
+                    'received_by' => Auth::id(),
+                    'approved_by' => Auth::id(),
+                    'approved_at' => now(),
+                    'paid' => false,
                 ]);
                 $created[] = $child->id;
                 if ($customer->organization_id) {
@@ -795,18 +828,19 @@ class DeliveryRegistrationController extends Controller
             });
 
             return response()->json([
-                'success'      => true,
-                'message'      => count($created) . ' distribuição(ões) criada(s).',
-                'delivery_id'   => $reception->id,
-                'created_ids'  => $created,
+                'success' => true,
+                'message' => count($created).' distribuição(ões) criada(s).',
+                'delivery_id' => $reception->id,
+                'created_ids' => $created,
             ]);
         } catch (ValidationException $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return response()->json(['success' => false, 'message' => 'Erro: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Erro: '.$e->getMessage()], 500);
         }
     }
 
@@ -817,7 +851,7 @@ class DeliveryRegistrationController extends Controller
     public function deleteDistribution(Request $request)
     {
         $distributionId = (int) $request->route('distribution');
-        $tenantId       = session('tenant_id');
+        $tenantId = session('tenant_id');
 
         if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
@@ -867,7 +901,7 @@ class DeliveryRegistrationController extends Controller
             }
         }
 
-        DB::transaction(function () use ($distribution, $receipt, $projectId) {
+        DB::transaction(function () use ($distribution, $receipt) {
             if ($receipt) {
                 $nextIds = collect($receipt->delivery_ids ?? [])
                     ->map(fn ($id) => (int) $id)
@@ -884,7 +918,7 @@ class DeliveryRegistrationController extends Controller
                     ->get();
 
                 if ($remaining->isNotEmpty() && $receipt->project) {
-                    $snapshot = app(\App\Services\AssociateReceiptService::class)
+                    $snapshot = app(AssociateReceiptService::class)
                         ->computeSnapshot($remaining, $receipt->project);
                     $receipt->update([
                         'delivery_ids' => $nextIds,
@@ -921,8 +955,8 @@ class DeliveryRegistrationController extends Controller
         }
 
         // Return updated totals for the parent reception
-        $parentId    = $distribution->parent_delivery_id;
-        $distTotal   = ProductionDelivery::where('tenant_id', $tenantId)
+        $parentId = $distribution->parent_delivery_id;
+        $distTotal = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('parent_delivery_id', $parentId)
             ->sum('quantity');
         $distNetTotal = ProductionDelivery::where('tenant_id', $tenantId)
@@ -930,12 +964,12 @@ class DeliveryRegistrationController extends Controller
             ->sum('net_value');
 
         return response()->json([
-            'success'          => true,
-            'message'          => 'Distribuição removida.',
+            'success' => true,
+            'message' => 'Distribuição removida.',
             'parent_delivery_id' => $parentId,
-            'deleted_id'       => $distributionId,
-            'dist_total_qty'   => (float) $distTotal,
-            'dist_total_net'   => (float) $distNetTotal,
+            'deleted_id' => $distributionId,
+            'dist_total_qty' => (float) $distTotal,
+            'dist_total_net' => (float) $distNetTotal,
         ]);
     }
 
@@ -1027,7 +1061,7 @@ class DeliveryRegistrationController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Esta organizacao limita a distribuicao ao solicitado. Saldo disponivel: '
-                        . number_format(max(0, $remaining), 3, ',', '.') . '.',
+                        .number_format(max(0, $remaining), 3, ',', '.').'.',
                 ], 422);
             }
         }
@@ -1040,7 +1074,7 @@ class DeliveryRegistrationController extends Controller
         if ($priceResult['source'] === 'unpriced' || bccomp((string) $priceResult['sale_price'], '0', 4) === 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'O produto "' . $product->name . '" nao tem preco configurado para o cliente "' . ($customer->trade_name ?: $customer->name) . '".',
+                'message' => 'O produto "'.$product->name.'" nao tem preco configurado para o cliente "'.($customer->trade_name ?: $customer->name).'".',
                 ...$this->distributionPricePayload($customer, $product, $priceResult),
             ], 422);
         }
@@ -1102,7 +1136,7 @@ class DeliveryRegistrationController extends Controller
                 ->get();
 
             if ($receiptDistributions->isNotEmpty() && $project) {
-                $snapshot = app(\App\Services\AssociateReceiptService::class)
+                $snapshot = app(AssociateReceiptService::class)
                     ->computeSnapshot($receiptDistributions, $project);
 
                 $receipt->update([
@@ -1173,7 +1207,7 @@ class DeliveryRegistrationController extends Controller
     public function deleteDelivery(Request $request)
     {
         $deliveryId = (int) $request->route('delivery');
-        $tenantId   = session('tenant_id');
+        $tenantId = session('tenant_id');
 
         if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
@@ -1250,7 +1284,7 @@ class DeliveryRegistrationController extends Controller
                         ->eligibleProducts($project, $associate)
                         ->values()
                 );
-            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            } catch (HttpException $exception) {
                 return response()->json([
                     'message' => $exception->getMessage() ?: 'Este associado nao esta autorizado neste projeto.',
                 ], $exception->getStatusCode());
@@ -1325,7 +1359,7 @@ class DeliveryRegistrationController extends Controller
     public function getProjectDeliveries()
     {
         $projectId = (int) request()->route('project');
-        $tenantId  = session('tenant_id');
+        $tenantId = session('tenant_id');
         if (! $tenantId) {
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
@@ -1350,27 +1384,27 @@ class DeliveryRegistrationController extends Controller
                 $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
                 $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
                 $associateName = $d->associate?->display_name ?? 'Associado nao identificado';
-                $associateId   = $d->associate_id;
+                $associateId = $d->associate_id;
 
-                $distributions = $d->distributions->map(fn($dist) => [
-                    'id'               => $dist->id,
-                    'customer_id'      => $dist->customer_id,
-                    'customer'         => optional($dist->customer)->trade_name ?? optional($dist->customer)->name ?? '?',
-                    'organization'     => optional($dist->customer?->organization)->short_name
+                $distributions = $d->distributions->map(fn ($dist) => [
+                    'id' => $dist->id,
+                    'customer_id' => $dist->customer_id,
+                    'customer' => optional($dist->customer)->trade_name ?? optional($dist->customer)->name ?? '?',
+                    'organization' => optional($dist->customer?->organization)->short_name
                                         ?? optional($dist->customer?->organization)->name,
-                    'qty'              => (float) $dist->quantity,
-                    'unit_price'       => (float) $dist->unit_price,
-                    'net'              => (float) $dist->net_value,
-                    'price_source'     => $dist->price_source,
-                    'billed'           => $dist->billing_status instanceof BillingStatus
+                    'qty' => (float) $dist->quantity,
+                    'unit_price' => (float) $dist->unit_price,
+                    'net' => (float) $dist->net_value,
+                    'price_source' => $dist->price_source,
+                    'billed' => $dist->billing_status instanceof BillingStatus
                                          && $dist->billing_status !== BillingStatus::UNBILLED,
-                    'paid'             => (bool) $dist->paid || $dist->billing_status === BillingStatus::PAID,
-                    'billing_status'   => $dist->billing_status?->value,
-                    'in_receipt'       => (bool) $dist->associate_receipt_id,
-                    'receipt_id'       => $dist->associate_receipt_id,
-                    'receipt_number'   => $dist->associateReceipt?->formatted_number,
+                    'paid' => (bool) $dist->paid || $dist->billing_status === BillingStatus::PAID,
+                    'billing_status' => $dist->billing_status?->value,
+                    'in_receipt' => (bool) $dist->associate_receipt_id,
+                    'receipt_id' => $dist->associate_receipt_id,
+                    'receipt_number' => $dist->associateReceipt?->formatted_number,
                     'billing_receipt_id' => $dist->billing_receipt_id,
-                    'locked'           => (bool) $dist->paid
+                    'locked' => (bool) $dist->paid
                         || $dist->billing_status !== BillingStatus::UNBILLED
                         || (bool) $dist->billing_receipt_id
                         || ($dist->associateReceipt?->isLocked() ?? false),
@@ -1405,23 +1439,23 @@ class DeliveryRegistrationController extends Controller
                 }
 
                 return [
-                    'id'             => $d->id,
-                    'projectId'      => $d->sales_project_id,
-                    'associateId'    => $associateId,
-                    'productName'    => $productName,
-                    'productUnit'    => $productUnit,
-                    'associateName'  => $associateName,
-                    'qty'            => (float) $d->quantity,
-                    'date'           => $d->delivery_date?->format('Y-m-d') ?? '',
-                    'quality'        => $d->quality_grade ?? '',
-                    'status'         => $d->status?->value ?? 'pending',
+                    'id' => $d->id,
+                    'projectId' => $d->sales_project_id,
+                    'associateId' => $associateId,
+                    'productName' => $productName,
+                    'productUnit' => $productUnit,
+                    'associateName' => $associateName,
+                    'qty' => (float) $d->quantity,
+                    'date' => $d->delivery_date?->format('Y-m-d') ?? '',
+                    'quality' => $d->quality_grade ?? '',
+                    'status' => $d->status?->value ?? 'pending',
                     'distributedQty' => (float) $distributions->sum('qty'),
-                    'distributions'  => $distributions->values()->all(),
-                    'has_billed'     => $hasBilled,
-                    'issue_count'    => $issueCount,
+                    'distributions' => $distributions->values()->all(),
+                    'has_billed' => $hasBilled,
+                    'issue_count' => $issueCount,
                     'issue_severity' => $issueSeverity,
-                    'limit'          => $limitContext[$d->id] ?? [],
-                    'customerIds'     => $projectCustomerIds,
+                    'limit' => $limitContext[$d->id] ?? [],
+                    'customerIds' => $projectCustomerIds,
                 ];
             });
 
@@ -1527,15 +1561,15 @@ class DeliveryRegistrationController extends Controller
      */
     public function getAssociateDeliveries()
     {
-        $projectId   = (int) request()->route('project');
+        $projectId = (int) request()->route('project');
         $associateId = (int) request()->route('associate');
-        $tenantId    = session('tenant_id');
+        $tenantId = session('tenant_id');
         if (! $tenantId) {
             return response()->json(['error' => 'Tenant não encontrado'], 403);
         }
 
-        $fromDate     = request()->query('from_date');
-        $toDate       = request()->query('to_date');
+        $fromDate = request()->query('from_date');
+        $toDate = request()->query('to_date');
         $approvedOnly = (bool) request()->query('approved_only', false);
 
         // SOMENTE distribuições (parent_delivery_id NOT NULL) — verdade financeira
@@ -1552,8 +1586,8 @@ class DeliveryRegistrationController extends Controller
             // Excluir distribuições já pagas — via fluxo legado (paid=true)
             // ou via novo fluxo (associado a comprovante PAGO)
             $query->where('paid', false)
-                  ->where('billing_status', '!=', BillingStatus::PAID->value)
-                  ->whereNull('associate_receipt_id');
+                ->where('billing_status', '!=', BillingStatus::PAID->value)
+                ->whereNull('associate_receipt_id');
         }
         if ($fromDate) {
             $query->whereDate('delivery_date', '>=', $fromDate);
@@ -1575,17 +1609,17 @@ class DeliveryRegistrationController extends Controller
                 ?? '—';
 
             return [
-                'id'              => $delivery->id,
-                'product_name'    => $productName,
-                'customer_name'   => $customerName,
-                'delivery_date'   => $delivery->delivery_date?->format('d/m/Y') ?? '-',
+                'id' => $delivery->id,
+                'product_name' => $productName,
+                'customer_name' => $customerName,
+                'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
                 'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
-                'quantity'        => (float) $delivery->quantity,
-                'unit'            => $unit,
-                'gross_value'     => (float) $delivery->gross_value,
-                'net_value'       => (float) $delivery->net_value,
-                'status'          => $delivery->status->getLabel(),
-                'status_value'    => $delivery->status->value,
+                'quantity' => (float) $delivery->quantity,
+                'unit' => $unit,
+                'gross_value' => (float) $delivery->gross_value,
+                'net_value' => (float) $delivery->net_value,
+                'status' => $delivery->status->getLabel(),
+                'status_value' => $delivery->status->value,
             ];
         });
 
@@ -1598,7 +1632,7 @@ class DeliveryRegistrationController extends Controller
     public function updateDelivery(Request $request)
     {
         $deliveryId = (int) $request->route('delivery');
-        $tenantId   = session('tenant_id');
+        $tenantId = session('tenant_id');
 
         if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
@@ -1618,10 +1652,10 @@ class DeliveryRegistrationController extends Controller
 
         $validated = $request->validate([
             'delivery_date' => 'required|date',
-            'quantity'      => 'required|numeric|min:0.001',
-            'unit_price'    => 'nullable|numeric|min:0',
+            'quantity' => 'required|numeric|min:0.001',
+            'unit_price' => 'nullable|numeric|min:0',
             'quality_grade' => 'nullable|string|max:50',
-            'notes'         => 'nullable|string|max:1000',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         if ($delivery->parent_delivery_id && (
@@ -1668,23 +1702,23 @@ class DeliveryRegistrationController extends Controller
 
             $delivery->update([
                 'delivery_date' => $validated['delivery_date'],
-                'quantity'      => $validated['quantity'],
-                'unit_price'    => $validated['unit_price'] ?? $delivery->unit_price,
+                'quantity' => $validated['quantity'],
+                'unit_price' => $validated['unit_price'] ?? $delivery->unit_price,
                 'quality_grade' => $validated['quality_grade'] ?? null,
-                'notes'         => $validated['notes'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
         });
 
         $delivery->refresh();
 
         return response()->json([
-            'success'  => true,
-            'message'  => 'Entrega atualizada com sucesso.',
+            'success' => true,
+            'message' => 'Entrega atualizada com sucesso.',
             'delivery' => [
-                'id'            => $delivery->id,
+                'id' => $delivery->id,
                 'delivery_date' => $delivery->delivery_date->format('d/m/Y'),
-                'quantity'      => (float) $delivery->quantity,
-                'net_value'     => (float) $delivery->net_value,
+                'quantity' => (float) $delivery->quantity,
+                'net_value' => (float) $delivery->net_value,
                 'quality_grade' => $delivery->quality_grade,
             ],
         ]);
@@ -1700,10 +1734,8 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Selecione uma organização primeiro.'], 403);
         }
 
-        $isStandalone = (bool) $request->input('is_standalone', false);
-
         $validated = $request->validate([
-            'sales_project_id' => $isStandalone ? 'nullable|exists:sales_projects,id' : 'required|exists:sales_projects,id',
+            'sales_project_id' => 'nullable|integer',
             'project_demand_id' => 'nullable|exists:project_demands,id',
             'product_id' => 'nullable|exists:products,id',
             'associate_id' => 'required|exists:associates,id',
@@ -1714,43 +1746,36 @@ class DeliveryRegistrationController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        // Verificar projeto (não aplicável no modo avulso)
-        $project = null;
-        if (! $isStandalone) {
-            $project = SalesProject::where('tenant_id', $tenantId)
-                ->find($validated['sales_project_id']);
+        $projectId = (int) $request->route('project');
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
 
-            if (! $project) {
-                return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
-            }
+        if (! $project) {
+            return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
+        }
 
-            if ($project->status !== ProjectStatus::ACTIVE) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Não é possível registrar entregas para este projeto. Status atual: '.$project->status->getLabel().'. O projeto precisa estar "Em Execução".',
-                ], 422);
-            }
+        if (isset($validated['sales_project_id']) && (int) $validated['sales_project_id'] !== $projectId) {
+            return response()->json(['success' => false, 'message' => 'O projeto informado não corresponde à rota acessada.'], 422);
+        }
 
-            if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
-            }
+        if ($project->status !== ProjectStatus::ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Não é possível registrar entregas para este projeto. Status atual: '.$project->status->getLabel().'. O projeto precisa estar "Em Execução".',
+            ], 422);
+        }
 
-            $associate = Associate::query()
-                ->where('tenant_id', $tenantId)
-                ->findOrFail($validated['associate_id']);
-            if (! $project->isAssociateAllowed($associate->id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
-                ], 422);
-            }
+        if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
+            return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
+        }
 
-            // A entrega-pai nao consome limite financeiro. O consumo ocorre na distribuicao.
-        } else {
-            // Modo avulso: product_id é obrigatório
-            if (empty($validated['product_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
-            }
+        $associate = Associate::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($validated['associate_id']);
+        if (! $project->isAssociateAllowed($associate->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
+            ], 422);
         }
 
         try {
@@ -1761,21 +1786,7 @@ class DeliveryRegistrationController extends Controller
             $productId = null;
             $demandId = null;
 
-            if ($isStandalone) {
-                // Entrega avulsa: sem projeto (preço ao associado não rastreado; preço ao cliente via distribuição)
-                $product = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
-                $unitPrice = 0.0;
-                $productId = $product->id;
-                $demandId = null;
-
-                $duplicate = ProductionDelivery::where('tenant_id', $tenantId)
-                    ->whereNull('sales_project_id')
-                    ->where('product_id', $productId)
-                    ->where('associate_id', $validated['associate_id'])
-                    ->where('delivery_date', $validated['delivery_date'])
-                    ->where('created_at', '>=', now()->subSeconds(30))
-                    ->first();
-            } elseif (! empty($validated['project_demand_id'])) {
+            if (! empty($validated['project_demand_id'])) {
                 $demand = ProjectDemand::where('tenant_id', $tenantId)
                     ->where('sales_project_id', $project->id)
                     ->findOrFail($validated['project_demand_id']);
@@ -1785,7 +1796,7 @@ class DeliveryRegistrationController extends Controller
 
                 // Prevenir duplicatas
                 $duplicate = ProductionDelivery::where('tenant_id', $tenantId)
-                    ->where('sales_project_id', $validated['sales_project_id'])
+                    ->where('sales_project_id', $projectId)
                     ->where('project_demand_id', $demandId)
                     ->where('associate_id', $validated['associate_id'])
                     ->where('delivery_date', $validated['delivery_date'])
@@ -1800,7 +1811,7 @@ class DeliveryRegistrationController extends Controller
                 $demandId = null;
 
                 $duplicate = ProductionDelivery::where('tenant_id', $tenantId)
-                    ->where('sales_project_id', $validated['sales_project_id'])
+                    ->where('sales_project_id', $projectId)
                     ->where('product_id', $productId)
                     ->where('associate_id', $validated['associate_id'])
                     ->where('delivery_date', $validated['delivery_date'])
@@ -1819,8 +1830,7 @@ class DeliveryRegistrationController extends Controller
             }
 
             // Validação: limite de quantidade por produto/associado no projeto
-            if (! $isStandalone && $project && $productId) {
-                $associate ??= Associate::where('tenant_id', $tenantId)->findOrFail($validated['associate_id']);
+            if ($productId) {
                 $limitService = app(AssociateProjectLimitService::class);
                 $limitService->assertContext($project, $associate);
                 $limitService->validateDelivery($project, $associate, $productId, $quantity);
@@ -1829,19 +1839,14 @@ class DeliveryRegistrationController extends Controller
 
             $grossValue = bcmul((string) $quantity, (string) $unitPrice, 8);
 
-            if ($isStandalone || ! $project) {
-                $adminFeeAmount = '0';
-                $netValue       = $grossValue;
-            } else {
-                $calculator     = app(ProjectFinancialCalculator::class);
-                $financial      = $calculator->calculate($project, $grossValue);
-                $adminFeeAmount = $financial['total_fee'];
-                $netValue       = $financial['net'];
-            }
+            $calculator = app(ProjectFinancialCalculator::class);
+            $financial = $calculator->calculate($project, $grossValue);
+            $adminFeeAmount = $financial['total_fee'];
+            $netValue = $financial['net'];
 
             $delivery = ProductionDelivery::create([
                 'tenant_id' => $tenantId,
-                'sales_project_id' => $isStandalone ? null : $validated['sales_project_id'],
+                'sales_project_id' => $projectId,
                 'project_demand_id' => $demandId,
                 'associate_id' => $validated['associate_id'],
                 'product_id' => $productId,
@@ -1861,17 +1866,18 @@ class DeliveryRegistrationController extends Controller
             DB::commit();
 
             return response()->json([
-                'success'  => true,
-                'message'  => 'Entrega registrada com sucesso!',
+                'success' => true,
+                'message' => 'Entrega registrada com sucesso!',
                 'delivery' => [
-                    'id'        => $delivery->id,
-                    'quantity'  => (float) $delivery->quantity,
+                    'id' => $delivery->id,
+                    'quantity' => (float) $delivery->quantity,
                     'net_value' => (float) $delivery->net_value,
-                    'status'    => $delivery->status->getLabel(),
+                    'status' => $delivery->status->getLabel(),
                 ],
             ]);
         } catch (ValidationException $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -2123,12 +2129,13 @@ class DeliveryRegistrationController extends Controller
 
         $result = $approvedByProduct->map(function ($item) {
             $product = $item->product;
+
             return [
-                'product_id'      => $item->product_id,
-                'product_name'    => $product?->name ?? 'Produto #'.$item->product_id,
-                'product_unit'    => $product?->unit ?? 'un',
-                'approved_qty'    => (float) $item->total_qty,
-                'current_stock'   => (float) ($product?->current_stock ?? 0),
+                'product_id' => $item->product_id,
+                'product_name' => $product?->name ?? 'Produto #'.$item->product_id,
+                'product_unit' => $product?->unit ?? 'un',
+                'approved_qty' => (float) $item->total_qty,
+                'current_stock' => (float) ($product?->current_stock ?? 0),
                 'max_deliverable' => min((float) $item->total_qty, (float) ($product?->current_stock ?? 0)),
             ];
         })->values();
@@ -2143,7 +2150,7 @@ class DeliveryRegistrationController extends Controller
     public function projectsList()
     {
         $tenantId = session('tenant_id');
-        if (!$tenantId) {
+        if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
@@ -2171,8 +2178,8 @@ class DeliveryRegistrationController extends Controller
         if ($search = request('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('contract_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
+                    ->orWhere('contract_number', 'like', "%{$search}%")
+                    ->orWhereHas('customer', fn ($cq) => $cq->where('name', 'like', "%{$search}%"));
             });
         }
 
@@ -2259,7 +2266,7 @@ class DeliveryRegistrationController extends Controller
             ->with('organization:id,name,short_name')
             ->get(['id', 'name', 'trade_name', 'organization_id']);
 
-        $organizations = \App\Models\Organization::where('tenant_id', $tenantId)
+        $organizations = Organization::where('tenant_id', $tenantId)
             ->where('active', true)
             ->orderBy('name')
             ->pluck('name', 'id');
@@ -2274,7 +2281,7 @@ class DeliveryRegistrationController extends Controller
     /**
      * Build a filtered query reusing the same filters from allDeliveries.
      */
-    private function buildFilteredDeliveriesQuery(int $tenantId): \Illuminate\Database\Eloquent\Builder
+    private function buildFilteredDeliveriesQuery(int $tenantId): Builder
     {
         // Reports use DISTRIBUTIONS only: financial truth lives on child records (parent_delivery_id NOT NULL).
         // Receptions (parent_delivery_id IS NULL) have unit_price=0 and no customer — they are
@@ -2324,7 +2331,7 @@ class DeliveryRegistrationController extends Controller
             $filters['project'] = SalesProject::where('tenant_id', $tenantId)->find($pid)?->title ?? '';
         }
         if ($oid = request('organization_id')) {
-            $filters['organization'] = \App\Models\Organization::where('tenant_id', $tenantId)->find($oid)?->name ?? '';
+            $filters['organization'] = Organization::where('tenant_id', $tenantId)->find($oid)?->name ?? '';
         }
         if ($s = request('status')) {
             $filters['status'] = match ($s) {
@@ -2333,8 +2340,8 @@ class DeliveryRegistrationController extends Controller
                 default => $s,
             };
         }
-        $filters['date_from'] = request('date_from') ? \Carbon\Carbon::parse(request('date_from'))->format('d/m/Y') : null;
-        $filters['date_to'] = request('date_to') ? \Carbon\Carbon::parse(request('date_to'))->format('d/m/Y') : null;
+        $filters['date_from'] = request('date_from') ? Carbon::parse(request('date_from'))->format('d/m/Y') : null;
+        $filters['date_to'] = request('date_to') ? Carbon::parse(request('date_to'))->format('d/m/Y') : null;
 
         return $filters;
     }
@@ -2345,15 +2352,15 @@ class DeliveryRegistrationController extends Controller
     private function mapDeliveryRow(ProductionDelivery $d): array
     {
         return [
-            'delivery_date'    => $d->delivery_date?->format('d/m/Y') ?? '—',
-            'project'          => $d->salesProject->title ?? 'Avulsa',
-            'associate'        => $d->associate?->display_name ?? 'Associado nao identificado',
-            'product'          => $d->product?->name ?? '—',
-            'unit'             => $d->product?->unit ?? 'un',
-            'customer'         => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
-            'organization'     => $d->customer?->organization?->short_name ?? $d->customer?->organization?->name ?? '—',
-            'quantity'         => (float) $d->quantity,
-            'unit_price'       => (float) $d->unit_price,
+            'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+            'project' => $d->salesProject->title ?? 'Avulsa',
+            'associate' => $d->associate?->display_name ?? 'Associado nao identificado',
+            'product' => $d->product?->name ?? '—',
+            'unit' => $d->product?->unit ?? 'un',
+            'customer' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
+            'organization' => $d->customer?->organization?->short_name ?? $d->customer?->organization?->name ?? '—',
+            'quantity' => (float) $d->quantity,
+            'unit_price' => (float) $d->unit_price,
             'gross_value' => (float) $d->gross_value,
             'admin_fee' => (float) ($d->admin_fee_amount ?? 0),
             'net_value' => (float) ($d->net_value ?? 0),
@@ -2405,7 +2412,7 @@ class DeliveryRegistrationController extends Controller
             'total_net' => $deliveries->sum('net_value'),
         ];
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Associado',
@@ -2468,7 +2475,7 @@ class DeliveryRegistrationController extends Controller
             'total_net' => $deliveries->sum('net_value'),
         ];
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Produto',
@@ -2500,7 +2507,7 @@ class DeliveryRegistrationController extends Controller
             abort(403);
         }
 
-        $tenant  = $this->currentTenant();
+        $tenant = $this->currentTenant();
         $filters = $this->resolveFilterLabels($tenantId);
 
         // Apenas distribuições (parent_delivery_id NOT NULL), sem REJECTED/CANCELLED
@@ -2527,56 +2534,56 @@ class DeliveryRegistrationController extends Controller
         // Agrupar por organização → cliente → produto
         $groups = [];
         foreach ($distributions as $d) {
-            $customerId       = $d->customer_id ?? 0;
-            $customerName     = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
-            $organizationId   = $d->customer?->organization_id ?? 0;
+            $customerId = $d->customer_id ?? 0;
+            $customerName = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
+            $organizationId = $d->customer?->organization_id ?? 0;
             $organizationName = $d->customer?->organization?->name ?? 'Sem organização';
-            $productId        = $d->product_id ?? 0;
-            $productName      = $d->product?->name ?? 'Desconhecido';
-            $unit             = $d->product?->unit ?? 'un';
+            $productId = $d->product_id ?? 0;
+            $productName = $d->product?->name ?? 'Desconhecido';
+            $unit = $d->product?->unit ?? 'un';
 
             if (! isset($groups[$organizationId])) {
                 $groups[$organizationId] = [
                     'organization_name' => $organizationName,
-                    'customers'         => [],
-                    'total_qty'         => 0.0,
-                    'total_gross'       => 0.0,
+                    'customers' => [],
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
             if (! isset($groups[$organizationId]['customers'][$customerId])) {
                 $groups[$organizationId]['customers'][$customerId] = [
                     'customer_name' => $customerName,
-                    'products'      => [],
-                    'total_qty'     => 0.0,
-                    'total_gross'   => 0.0,
+                    'products' => [],
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
             if (! isset($groups[$organizationId]['customers'][$customerId]['products'][$productId])) {
                 $groups[$organizationId]['customers'][$customerId]['products'][$productId] = [
                     'product_name' => $productName,
-                    'unit'         => $unit,
-                    'rows'         => [],
-                    'total_qty'    => 0.0,
-                    'total_gross'  => 0.0,
+                    'unit' => $unit,
+                    'rows' => [],
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
 
-            $qty   = (float) $d->quantity;
+            $qty = (float) $d->quantity;
             $gross = (float) $d->gross_value;
             $groups[$organizationId]['customers'][$customerId]['products'][$productId]['rows'][] = [
                 'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                'associate'     => $d->associate?->display_name ?? 'Associado nao identificado',
-                'quantity'      => $qty,
-                'unit_price'    => (float) $d->unit_price,
-                'gross'         => $gross,
-                'unit'          => $unit,
+                'associate' => $d->associate?->display_name ?? 'Associado nao identificado',
+                'quantity' => $qty,
+                'unit_price' => (float) $d->unit_price,
+                'gross' => $gross,
+                'unit' => $unit,
             ];
-            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_qty']   += $qty;
-            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_gross']  += $gross;
-            $groups[$organizationId]['customers'][$customerId]['total_qty']   += $qty;
-            $groups[$organizationId]['customers'][$customerId]['total_gross']  += $gross;
-            $groups[$organizationId]['total_qty']   += $qty;
-            $groups[$organizationId]['total_gross']  += $gross;
+            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_qty'] += $qty;
+            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_gross'] += $gross;
+            $groups[$organizationId]['customers'][$customerId]['total_qty'] += $qty;
+            $groups[$organizationId]['customers'][$customerId]['total_gross'] += $gross;
+            $groups[$organizationId]['total_qty'] += $qty;
+            $groups[$organizationId]['total_gross'] += $gross;
         }
 
         // Reindexar e ordenar: organização → clientes → produtos
@@ -2596,27 +2603,27 @@ class DeliveryRegistrationController extends Controller
         $totals = [
             'distributions_count' => $distributions->count(),
             'organizations_count' => count($groups),
-            'customers_count'     => $distributions->pluck('customer_id')->unique()->count(),
-            'total_qty'           => $distributions->sum('quantity'),
-            'total_gross'         => $distributions->sum('gross_value'),
+            'customers_count' => $distributions->pluck('customer_id')->unique()->count(),
+            'total_qty' => $distributions->sum('quantity'),
+            'total_gross' => $distributions->sum('gross_value'),
         ];
 
         $singleCustomer = ($totals['customers_count'] === 1)
             ? ($groups[0]['customers'][0]['customer_name'] ?? null)
             : null;
         $title = $singleCustomer
-            ? 'Distribuições — ' . $singleCustomer
+            ? 'Distribuições — '.$singleCustomer
             : 'Relatório de Distribuições por Cliente';
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.distributions-by-customer', [
-            'tenant'       => $tenant,
-            'title'        => $title,
-            'subtitle'     => isset($filters['project']) ? $filters['project'] : null,
+            'tenant' => $tenant,
+            'title' => $title,
+            'subtitle' => isset($filters['project']) ? $filters['project'] : null,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters'      => $filters,
-            'groups'       => $groups,
-            'totals'       => $totals,
+            'filters' => $filters,
+            'groups' => $groups,
+            'totals' => $totals,
         ], array_merge(
             $svc->systemPdfOptions('pdf.distributions-by-customer', $title),
             ['paper' => 'a4', 'orientation' => 'portrait']
@@ -2640,7 +2647,7 @@ class DeliveryRegistrationController extends Controller
             abort(403);
         }
 
-        $tenant  = $this->currentTenant();
+        $tenant = $this->currentTenant();
         $filters = $this->resolveFilterLabels($tenantId);
 
         $query = ProductionDelivery::where('tenant_id', $tenantId)
@@ -2669,47 +2676,47 @@ class DeliveryRegistrationController extends Controller
         // Agrupar por organização → cliente → produto (compacto: só totais)
         $groups = [];
         foreach ($distributions as $d) {
-            $customerId       = $d->customer_id ?? 0;
-            $customerName     = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
-            $organizationId   = $d->customer?->organization_id ?? 0;
+            $customerId = $d->customer_id ?? 0;
+            $customerName = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
+            $organizationId = $d->customer?->organization_id ?? 0;
             $organizationName = $d->customer?->organization?->name ?? 'Sem organização';
-            $productId        = $d->product_id ?? 0;
-            $productName      = $d->product?->name ?? 'Desconhecido';
-            $unit             = $d->product?->unit ?? 'un';
+            $productId = $d->product_id ?? 0;
+            $productName = $d->product?->name ?? 'Desconhecido';
+            $unit = $d->product?->unit ?? 'un';
 
             if (! isset($groups[$organizationId])) {
                 $groups[$organizationId] = [
                     'organization_name' => $organizationName,
-                    'customers'         => [],
-                    'total_qty'         => 0.0,
-                    'total_gross'       => 0.0,
+                    'customers' => [],
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
             if (! isset($groups[$organizationId]['customers'][$customerId])) {
                 $groups[$organizationId]['customers'][$customerId] = [
                     'customer_name' => $customerName,
-                    'products'      => [],
-                    'total_qty'     => 0.0,
-                    'total_gross'   => 0.0,
+                    'products' => [],
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
             if (! isset($groups[$organizationId]['customers'][$customerId]['products'][$productId])) {
                 $groups[$organizationId]['customers'][$customerId]['products'][$productId] = [
                     'product_name' => $productName,
-                    'unit'         => $unit,
-                    'total_qty'    => 0.0,
-                    'total_gross'  => 0.0,
+                    'unit' => $unit,
+                    'total_qty' => 0.0,
+                    'total_gross' => 0.0,
                 ];
             }
 
-            $qty   = (float) $d->quantity;
+            $qty = (float) $d->quantity;
             $gross = (float) $d->gross_value;
-            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_qty']   += $qty;
-            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_gross']  += $gross;
-            $groups[$organizationId]['customers'][$customerId]['total_qty']   += $qty;
-            $groups[$organizationId]['customers'][$customerId]['total_gross']  += $gross;
-            $groups[$organizationId]['total_qty']   += $qty;
-            $groups[$organizationId]['total_gross']  += $gross;
+            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_qty'] += $qty;
+            $groups[$organizationId]['customers'][$customerId]['products'][$productId]['total_gross'] += $gross;
+            $groups[$organizationId]['customers'][$customerId]['total_qty'] += $qty;
+            $groups[$organizationId]['customers'][$customerId]['total_gross'] += $gross;
+            $groups[$organizationId]['total_qty'] += $qty;
+            $groups[$organizationId]['total_gross'] += $gross;
         }
 
         $groups = collect($groups)
@@ -2727,25 +2734,25 @@ class DeliveryRegistrationController extends Controller
 
         $totals = [
             'organizations_count' => count($groups),
-            'customers_count'     => $distributions->pluck('customer_id')->unique()->count(),
-            'total_qty'           => $distributions->sum('quantity'),
-            'total_gross'         => $distributions->sum('gross_value'),
+            'customers_count' => $distributions->pluck('customer_id')->unique()->count(),
+            'total_qty' => $distributions->sum('quantity'),
+            'total_gross' => $distributions->sum('gross_value'),
         ];
 
         $isSingleCustomer = $totals['customers_count'] === 1;
         $title = $isSingleCustomer
-            ? 'Resumo de Distribuições — ' . ($groups[0]['customers'][0]['customer_name'] ?? 'Cliente')
+            ? 'Resumo de Distribuições — '.($groups[0]['customers'][0]['customer_name'] ?? 'Cliente')
             : 'Relatório de Distribuições — Resumo por Organização/Cliente';
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.distributions-by-customer-compact', [
-            'tenant'       => $tenant,
-            'title'        => $title,
-            'subtitle'     => isset($filters['project']) ? $filters['project'] : null,
+            'tenant' => $tenant,
+            'title' => $title,
+            'subtitle' => isset($filters['project']) ? $filters['project'] : null,
             'generated_at' => now()->format('d/m/Y H:i'),
-            'filters'      => $filters,
-            'groups'       => $groups,
-            'totals'       => $totals,
+            'filters' => $filters,
+            'groups' => $groups,
+            'totals' => $totals,
         ], array_merge(
             $svc->systemPdfOptions('pdf.distributions-by-customer-compact', $title),
             ['paper' => 'a4', 'orientation' => 'portrait']
@@ -2785,7 +2792,7 @@ class DeliveryRegistrationController extends Controller
             ->filter(fn ($d) => $d->customer_id)
             ->groupBy('customer_id')
             ->map(fn ($items) => [
-                'id'   => $items->first()->customer_id,
+                'id' => $items->first()->customer_id,
                 'name' => $items->first()->customer?->trade_name ?? $items->first()->customer?->name ?? 'Sem nome',
             ])
             ->values()
@@ -2806,7 +2813,7 @@ class DeliveryRegistrationController extends Controller
             if ($curr === null) {
                 $curr = ['from' => $ds, 'to' => $ds, 'count' => 1];
             } else {
-                $gap = (int) \Carbon\Carbon::parse($curr['to'])->diffInDays(\Carbon\Carbon::parse($ds));
+                $gap = (int) Carbon::parse($curr['to'])->diffInDays(Carbon::parse($ds));
                 if ($gap <= 2) {
                     $curr['to'] = $ds;
                     $curr['count']++;
@@ -2816,23 +2823,26 @@ class DeliveryRegistrationController extends Controller
                 }
             }
         }
-        if ($curr !== null) $dateGroups[] = $curr;
+        if ($curr !== null) {
+            $dateGroups[] = $curr;
+        }
 
         $dateGroups = array_map(function ($g) {
-            $from = \Carbon\Carbon::parse($g['from']);
-            $to   = \Carbon\Carbon::parse($g['to']);
+            $from = Carbon::parse($g['from']);
+            $to = Carbon::parse($g['to']);
             if ($g['from'] === $g['to']) {
                 $label = $from->format('d/m/Y');
             } elseif ($from->format('m/Y') === $to->format('m/Y')) {
-                $label = $from->format('d') . ' a ' . $to->format('d/m/Y');
+                $label = $from->format('d').' a '.$to->format('d/m/Y');
             } else {
-                $label = $from->format('d/m') . ' a ' . $to->format('d/m/Y');
+                $label = $from->format('d/m').' a '.$to->format('d/m/Y');
             }
+
             return [
-                'label'     => $label,
+                'label' => $label,
                 'date_from' => $g['from'],
-                'date_to'   => $g['to'],
-                'count'     => $g['count'],
+                'date_to' => $g['to'],
+                'count' => $g['count'],
             ];
         }, $dateGroups);
 
@@ -2841,18 +2851,18 @@ class DeliveryRegistrationController extends Controller
             ->filter(fn ($d) => $d->delivery_date)
             ->groupBy(fn ($d) => $d->delivery_date->format('Y-m'))
             ->map(fn ($items, $ym) => [
-                'label'     => \Carbon\Carbon::parse($ym . '-01')->translatedFormat('F \d\e Y'),
+                'label' => Carbon::parse($ym.'-01')->translatedFormat('F \d\e Y'),
                 'date_from' => $items->min('delivery_date')->format('Y-m-d'),
-                'date_to'   => $items->max('delivery_date')->format('Y-m-d'),
-                'count'     => $items->count(),
+                'date_to' => $items->max('delivery_date')->format('Y-m-d'),
+                'count' => $items->count(),
             ])
             ->sortKeys()->values()->all();
 
         return response()->json([
-            'customers'      => $customers,
-            'date_groups'    => $dateGroups,
+            'customers' => $customers,
+            'date_groups' => $dateGroups,
             'dates_by_month' => $datesByMonth,
-            'all_dates'      => $sortedDates,
+            'all_dates' => $sortedDates,
         ]);
     }
 
@@ -2861,155 +2871,172 @@ class DeliveryRegistrationController extends Controller
      * Um cliente por relatório, período selecionável. Layout B&W limpo.
      */
     public function reportCustomerDeliveryStatement()
-{
-    $tenantId = session('tenant_id');
-    if (! $tenantId) abort(403);
-
-    $customerId = (int) request('customer_id');
-    if (! $customerId) abort(422, 'customer_id é obrigatório.');
-
-    $tenant   = $this->currentTenant();
-    $dateFrom = request('date_from');
-    $dateTo   = request('date_to');
-    $showUnitPrice = request('col_unit_price', '1') !== '0';
-    $showTotal     = request('col_total', '1') !== '0';
-    $projectId     = request('project_id');
-    $layout        = request('layout', 'grouped'); // 'grouped', 'ungrouped', 'matrix'
-
-    $query = ProductionDelivery::where('tenant_id', $tenantId)
-        ->whereNotNull('parent_delivery_id')
-        ->where('customer_id', $customerId)
-        ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-        ->with(['product', 'associate.user', 'salesProject', 'customer.organization'])
-        ->orderBy('delivery_date')
-        ->orderBy('id');
-
-    if ($dateFrom) $query->whereDate('delivery_date', '>=', $dateFrom);
-    if ($dateTo)   $query->whereDate('delivery_date', '<=', $dateTo);
-    if ($projectId) $query->where('sales_project_id', $projectId);
-
-    $distributions = $query->get();
-
-    if ($distributions->isEmpty()) {
-        abort(404, 'Nenhuma distribuição encontrada.');
-    }
-
-    $customer = $distributions->first()->customer;
-    $organization = $customer?->organization;
-
-    // Período formatado (igual ao original)
-    $periodLabel = null;
-    if ($dateFrom && $dateTo) {
-        $periodLabel = \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') . ' a ' . \Carbon\Carbon::parse($dateTo)->format('d/m/Y');
-    } elseif ($dateFrom) {
-        $periodLabel = 'A partir de ' . \Carbon\Carbon::parse($dateFrom)->format('d/m/Y');
-    } elseif ($dateTo) {
-        $periodLabel = 'Até ' . \Carbon\Carbon::parse($dateTo)->format('d/m/Y');
-    } else {
-        $minDate = $distributions->min('delivery_date');
-        $maxDate = $distributions->max('delivery_date');
-        $periodLabel = $minDate && $maxDate ? $minDate->format('d/m/Y') . ' a ' . $maxDate->format('d/m/Y') : 'Todas as datas';
-    }
-
-    $totals = [
-        'total_qty'   => $distributions->sum('quantity'),
-        'total_gross' => $distributions->sum('gross_value'),
-        'items_count' => $distributions->count(),
-    ];
-
-    // Projeto(s)
-    $projectNames = $distributions->pluck('salesProject.title')->filter()->unique()->values()->all();
-    $projectLabel = count($projectNames) === 1 ? $projectNames[0] : (count($projectNames) > 1 ? implode(', ', $projectNames) : null);
-
-    $data = [
-        'tenant'          => $tenant,
-        'customer'        => $customer,
-        'organization'    => $organization,
-        'period_label'    => $periodLabel,
-        'project_label'   => $projectLabel,
-        'totals'          => $totals,
-        'generated_at'    => now()->format('d/m/Y H:i'),
-        'show_unit_price' => $showUnitPrice,
-        'show_total'      => $showTotal,
-        'layout'          => $layout,
-    ];
-
-    // Prepara dados conforme layout
-    if ($layout === 'ungrouped') {
-        $rows = [];
-        foreach ($distributions as $d) {
-            $rows[] = [
-                'date'        => $d->delivery_date?->format('d/m/Y') ?? '—',
-                'product_name'=> $d->product?->name ?? 'Desconhecido',
-                'quantity'    => (float) $d->quantity,
-                'unit_price'  => (float) $d->unit_price,
-                'total'       => (float) $d->gross_value,
-                'unit'        => $d->product?->unit ?? 'un',
-            ];
+    {
+        $tenantId = session('tenant_id');
+        if (! $tenantId) {
+            abort(403);
         }
-        $data['rows'] = $rows;
-    }
-    elseif ($layout === 'matrix') {
-        // Matrix: produto x data (colunas dinâmicas)
-        // Estrutura: $matrix[$productId]['product_name'] = ... , 'unit' => ... , 'dates' => [ 'data1' => qty, ... ]
-        $matrix = [];
-        $allDates = [];
-        foreach ($distributions as $d) {
-            $dateKey = $d->delivery_date?->format('Y-m-d');
-            if (!$dateKey) continue;
-            $allDates[$dateKey] = $d->delivery_date->format('d/m/Y'); // label
 
-            $prodId = $d->product_id ?? 0;
-            if (!isset($matrix[$prodId])) {
-                $matrix[$prodId] = [
-                    'product_name' => $d->product?->name ?? 'Desconhecido',
-                    'unit'         => $d->product?->unit ?? 'un',
-                    'dates'        => [],
-                    'total_qty'    => 0.0,
-                    'unit_price'   => (float) $d->unit_price, // assume mesmo preço por produto
-                ];
-            }
-            $qty = (float) $d->quantity;
-            $matrix[$prodId]['dates'][$dateKey] = ($matrix[$prodId]['dates'][$dateKey] ?? 0) + $qty;
-            $matrix[$prodId]['total_qty'] += $qty;
+        $customerId = (int) request('customer_id');
+        if (! $customerId) {
+            abort(422, 'customer_id é obrigatório.');
         }
-        // Ordenar datas
-        ksort($allDates);
-        $data['matrix'] = [
-            'dates'   => $allDates,
-            'products'=> $matrix,
+
+        $tenant = $this->currentTenant();
+        $dateFrom = request('date_from');
+        $dateTo = request('date_to');
+        $showUnitPrice = request('col_unit_price', '1') !== '0';
+        $showTotal = request('col_total', '1') !== '0';
+        $projectId = request('project_id');
+        $layout = request('layout', 'grouped'); // 'grouped', 'ungrouped', 'matrix'
+
+        $query = ProductionDelivery::where('tenant_id', $tenantId)
+            ->whereNotNull('parent_delivery_id')
+            ->where('customer_id', $customerId)
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->with(['product', 'associate.user', 'salesProject', 'customer.organization'])
+            ->orderBy('delivery_date')
+            ->orderBy('id');
+
+        if ($dateFrom) {
+            $query->whereDate('delivery_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('delivery_date', '<=', $dateTo);
+        }
+        if ($projectId) {
+            $query->where('sales_project_id', $projectId);
+        }
+
+        $distributions = $query->get();
+
+        if ($distributions->isEmpty()) {
+            abort(404, 'Nenhuma distribuição encontrada.');
+        }
+
+        $customer = $distributions->first()->customer;
+        $organization = $customer?->organization;
+
+        // Período formatado (igual ao original)
+        $periodLabel = null;
+        if ($dateFrom && $dateTo) {
+            $periodLabel = Carbon::parse($dateFrom)->format('d/m/Y').' a '.Carbon::parse($dateTo)->format('d/m/Y');
+        } elseif ($dateFrom) {
+            $periodLabel = 'A partir de '.Carbon::parse($dateFrom)->format('d/m/Y');
+        } elseif ($dateTo) {
+            $periodLabel = 'Até '.Carbon::parse($dateTo)->format('d/m/Y');
+        } else {
+            $minDate = $distributions->min('delivery_date');
+            $maxDate = $distributions->max('delivery_date');
+            $periodLabel = $minDate && $maxDate ? $minDate->format('d/m/Y').' a '.$maxDate->format('d/m/Y') : 'Todas as datas';
+        }
+
+        $totals = [
+            'total_qty' => $distributions->sum('quantity'),
+            'total_gross' => $distributions->sum('gross_value'),
+            'items_count' => $distributions->count(),
         ];
-    }
-    else { // grouped padrão
-        $productGroups = [];
-        foreach ($distributions as $d) {
-            $productId   = $d->product_id ?? 0;
-            $productName = $d->product?->name ?? 'Desconhecido';
-            $unit        = $d->product?->unit ?? 'un';
-            if (!isset($productGroups[$productId])) {
-                $productGroups[$productId] = [
-                    'product_name' => $productName,
-                    'unit'         => $unit,
-                    'total_qty'    => 0.0,
-                    'total_gross'  => 0.0,
-                    'unit_price'   => (float) $d->unit_price,
+
+        // Projeto(s)
+        $projectNames = $distributions->pluck('salesProject.title')->filter()->unique()->values()->all();
+        $projectLabel = count($projectNames) === 1 ? $projectNames[0] : (count($projectNames) > 1 ? implode(', ', $projectNames) : null);
+
+        $data = [
+            'tenant' => $tenant,
+            'customer' => $customer,
+            'organization' => $organization,
+            'period_label' => $periodLabel,
+            'project_label' => $projectLabel,
+            'totals' => $totals,
+            'generated_at' => now()->format('d/m/Y H:i'),
+            'show_unit_price' => $showUnitPrice,
+            'show_total' => $showTotal,
+            'layout' => $layout,
+        ];
+
+        // Prepara dados conforme layout
+        if ($layout === 'ungrouped') {
+            $rows = [];
+            foreach ($distributions as $d) {
+                $rows[] = [
+                    'date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                    'product_name' => $d->product?->name ?? 'Desconhecido',
+                    'quantity' => (float) $d->quantity,
+                    'unit_price' => (float) $d->unit_price,
+                    'total' => (float) $d->gross_value,
+                    'unit' => $d->product?->unit ?? 'un',
                 ];
             }
-            $productGroups[$productId]['total_qty']   += (float) $d->quantity;
-            $productGroups[$productId]['total_gross'] += (float) $d->gross_value;
+            $data['rows'] = $rows;
+        } elseif ($layout === 'matrix') {
+            // Matrix: produto x data (colunas dinâmicas)
+            // Estrutura: $matrix[$productId]['product_name'] = ... , 'unit' => ... , 'dates' => [ 'data1' => qty, ... ]
+            $matrix = [];
+            $allDates = [];
+            foreach ($distributions as $d) {
+                $dateKey = $d->delivery_date?->format('Y-m-d');
+                if (! $dateKey) {
+                    continue;
+                }
+                $allDates[$dateKey] = $d->delivery_date->format('d/m/Y'); // label
+
+                $prodId = $d->product_id ?? 0;
+                if (! isset($matrix[$prodId])) {
+                    $matrix[$prodId] = [
+                        'product_name' => $d->product?->name ?? 'Desconhecido',
+                        'unit' => $d->product?->unit ?? 'un',
+                        'dates' => [],
+                        'total_qty' => 0.0,
+                        'unit_price' => (float) $d->unit_price, // assume mesmo preço por produto
+                    ];
+                }
+                $qty = (float) $d->quantity;
+                $matrix[$prodId]['dates'][$dateKey] = ($matrix[$prodId]['dates'][$dateKey] ?? 0) + $qty;
+                $matrix[$prodId]['total_qty'] += $qty;
+            }
+            // Ordenar datas
+            ksort($allDates);
+            $data['matrix'] = [
+                'dates' => $allDates,
+                'products' => $matrix,
+            ];
+        } else { // grouped padrão
+            $productGroups = [];
+            foreach ($distributions as $d) {
+                $productId = $d->product_id ?? 0;
+                $productName = $d->product?->name ?? 'Desconhecido';
+                $unit = $d->product?->unit ?? 'un';
+                if (! isset($productGroups[$productId])) {
+                    $productGroups[$productId] = [
+                        'product_name' => $productName,
+                        'unit' => $unit,
+                        'total_qty' => 0.0,
+                        'total_gross' => 0.0,
+                        'unit_price' => (float) $d->unit_price,
+                    ];
+                }
+                $productGroups[$productId]['total_qty'] += (float) $d->quantity;
+                $productGroups[$productId]['total_gross'] += (float) $d->gross_value;
+            }
+            $data['product_groups'] = collect($productGroups)->values()->all();
         }
-        $data['product_groups'] = collect($productGroups)->values()->all();
+
+        $pdfService = app(TemplatedPdfService::class);
+        $options = $pdfService->systemPdfOptions(
+            'pdf.customer-delivery-statement',
+            'Extrato de Distribuicoes do Cliente',
+            null,
+            (int) $tenantId,
+        );
+        $options['orientation'] = $layout === 'matrix' ? 'landscape' : ($options['orientation'] ?? 'portrait');
+        $pdf = $pdfService->generateSystemPdf('pdf.customer-delivery-statement', $data, $options);
+
+        $filename = 'extrato-'
+            .Str::slug($customer->trade_name ?? $customer->name ?? 'cliente')
+            .'-'.now()->format('Y-m-d').'.pdf';
+
+        return response()->streamDownload(fn () => print $pdf->output(), $filename, ['Content-Type' => 'application/pdf']);
     }
-
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.customer-delivery-statement', $data)
-        ->setPaper('a4', $layout === 'matrix' ? 'landscape' : 'portrait');
-
-    $filename = 'extrato-'
-        . \Illuminate\Support\Str::slug($customer->trade_name ?? $customer->name ?? 'cliente')
-        . '-' . now()->format('Y-m-d') . '.pdf';
-
-    return response()->streamDownload(fn() => print $pdf->output(), $filename, ['Content-Type' => 'application/pdf']);
-}
 
     /**
      * Lista pública (autenticada) dos produtores que entregaram em um projeto.
@@ -3018,9 +3045,9 @@ class DeliveryRegistrationController extends Controller
     public function projectProducers()
     {
         $projectId = (int) request()->route('project');
-        $tenantId  = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
@@ -3040,16 +3067,17 @@ class DeliveryRegistrationController extends Controller
             ->groupBy('associate_id')
             ->map(function ($items) {
                 $assoc = $items->first()->associate;
+
                 return [
-                    'associate'    => $assoc,
-                    'name'         => $assoc?->display_name ?? 'Associado nao identificado',
-                    'cpf'          => $assoc?->cpf_cnpj ?? '—',
+                    'associate' => $assoc,
+                    'name' => $assoc?->display_name ?? 'Associado nao identificado',
+                    'cpf' => $assoc?->cpf_cnpj ?? '—',
                     'registration' => $assoc?->registration_number ?? '—',
-                    'deliveries'   => $items->count(),
-                    'quantity'     => $items->sum('quantity'),
-                    'gross_value'  => $items->sum('gross_value'),
-                    'admin_fee'    => $items->sum('admin_fee_amount'),
-                    'net_value'    => $items->sum('net_value'),
+                    'deliveries' => $items->count(),
+                    'quantity' => $items->sum('quantity'),
+                    'gross_value' => $items->sum('gross_value'),
+                    'admin_fee' => $items->sum('admin_fee_amount'),
+                    'net_value' => $items->sum('net_value'),
                 ];
             })
             ->sortBy('name')
@@ -3136,7 +3164,7 @@ class DeliveryRegistrationController extends Controller
             ->groupBy('production_deliveries.associate_id', 'associate_members.user_id', 'associate_members.tenant_name', 'associates.cpf_cnpj', 'associates.registration_number');
 
         if ($search !== '') {
-            $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $search) . '%';
+            $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $search).'%';
             $query->where(function ($q) use ($like) {
                 $q->where('associate_members.tenant_name', 'like', $like)
                     ->orWhere('associates.cpf_cnpj', 'like', $like)
@@ -3227,7 +3255,7 @@ class DeliveryRegistrationController extends Controller
 
             return [
                 'associate_id' => (int) $row->associate_id,
-                'name' => $row->associate_name ?: 'Associado #' . $row->associate_id,
+                'name' => $row->associate_name ?: 'Associado #'.$row->associate_id,
                 'cpf' => $row->cpf_cnpj ?: '-',
                 'registration' => $row->registration_number ?: '-',
                 'deliveries' => (int) $row->deliveries_count,
@@ -3271,15 +3299,15 @@ class DeliveryRegistrationController extends Controller
 
     public function checkAssociateReceipt(Request $request)
     {
-        $projectId   = (int) $request->route('project');
+        $projectId = (int) $request->route('project');
         $associateId = (int) $request->route('associate');
-        $tenantId    = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
         }
 
-        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+        $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->orderByDesc('receipt_year')
@@ -3290,17 +3318,17 @@ class DeliveryRegistrationController extends Controller
 
         $tenantSlug = $this->currentTenant()?->slug ?? '';
 
-        $receiptData = $receipts->map(fn($r) => [
-            'id'          => $r->id,
-            'number'      => $r->formatted_number,
-            'issued_at'   => $r->issued_at?->format('d/m/Y') ?? '—',
-            'status'      => $r->status?->value ?? 'draft',
-            'status_label'=> $r->status?->getLabel() ?? 'Rascunho',
+        $receiptData = $receipts->map(fn ($r) => [
+            'id' => $r->id,
+            'number' => $r->formatted_number,
+            'issued_at' => $r->issued_at?->format('d/m/Y') ?? '—',
+            'status' => $r->status?->value ?? 'draft',
+            'status_label' => $r->status?->getLabel() ?? 'Rascunho',
             'obsolete_at' => $r->obsolete_at?->format('d/m/Y H:i'),
             'obsolete_reason' => $r->obsolete_reason,
-            'total_net'   => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
-            'is_paid'     => $r->status === \App\Enums\ReceiptStatus::PAID,
-            'can_update'  => $r->status !== ReceiptStatus::OBSOLETE
+            'total_net' => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
+            'is_paid' => $r->status === ReceiptStatus::PAID,
+            'can_update' => $r->status !== ReceiptStatus::OBSOLETE
                 && $r->canBeOperationallyUpdated()
                 && ! ProductionDelivery::where('tenant_id', $tenantId)
                     ->where('associate_receipt_id', $r->id)
@@ -3312,7 +3340,7 @@ class DeliveryRegistrationController extends Controller
                     ->exists(),
             'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
             'reprint_url' => route('delivery.projects.receipt-reprint', [
-                'tenant'  => $tenantSlug,
+                'tenant' => $tenantSlug,
                 'project' => $projectId,
                 'receipt' => $r->id,
             ]),
@@ -3377,14 +3405,14 @@ class DeliveryRegistrationController extends Controller
         }
 
         return response()->json([
-            'success'         => true,
-            'has_receipts'    => $receipts->count() > 0,
-            'receipt_count'   => $receipts->count(),
-            'receipts'        => $receiptData->all(),
-            'total_dist'      => $totalDist,
+            'success' => true,
+            'has_receipts' => $receipts->count() > 0,
+            'receipt_count' => $receipts->count(),
+            'receipts' => $receiptData->all(),
+            'total_dist' => $totalDist,
             'uncovered_count' => $uncoveredCount,
             'critical_issues' => $criticalIssues,
-            'issues'          => $issues,
+            'issues' => $issues,
         ]);
     }
 
@@ -3393,17 +3421,17 @@ class DeliveryRegistrationController extends Controller
      */
     public function generateAssociateReceiptPdf()
     {
-        $projectId   = (int) request()->route('project');
+        $projectId = (int) request()->route('project');
         $associateId = (int) request()->route('associate');
-        $tenantId    = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
         }
 
-        $project   = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
-        $tenant    = $this->currentTenant();
+        $tenant = $this->currentTenant();
 
         // Comprovante usa DISTRIBUIÇÕES: verdade financeira (customer, price, net_value)
         $distributions = ProductionDelivery::where('tenant_id', $tenantId)
@@ -3426,37 +3454,37 @@ class DeliveryRegistrationController extends Controller
         }
 
         // Criar novo comprovante apenas com distribuicoes pendentes.
-        $year   = now()->year;
-        $receipt = \App\Models\AssociateReceipt::create([
-            'tenant_id'        => $tenantId,
+        $year = now()->year;
+        $receipt = AssociateReceipt::create([
+            'tenant_id' => $tenantId,
             'sales_project_id' => $projectId,
-            'associate_id'     => $associateId,
-            'receipt_year'     => $year,
-            'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
-            'issued_at'        => today(),
-            'delivery_ids'     => $distributions->pluck('id')->all(),
+            'associate_id' => $associateId,
+            'receipt_year' => $year,
+            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at' => today(),
+            'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
 
         // Congelar snapshot financeiro (apenas se o comprovante ainda não foi pago)
         if (! $receipt->isLocked()) {
-            app(\App\Services\AssociateReceiptService::class)
+            app(AssociateReceiptService::class)
                 ->freezeReceipt($receipt, $distributions, $project);
         }
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
-            'tenant'          => $tenant,
-            'project'         => $project,
-            'associate'       => $associate,
-            'receipt'         => $receipt,
-            'summary'         => $receiptData['summary'],
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
-            'feeBreakdown'    => $receiptData['feeBreakdown'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->streamDownload(function () use ($pdf) {
@@ -3471,14 +3499,14 @@ class DeliveryRegistrationController extends Controller
     public function generateSelectedDeliveriesReceipt(Request $request)
     {
         $projectId = (int) $request->route('project');
-        $tenantId  = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
         }
 
         $deliveryIds = $request->input('delivery_ids', []);
-        if (empty($deliveryIds) || !is_array($deliveryIds)) {
+        if (empty($deliveryIds) || ! is_array($deliveryIds)) {
             return response()->json(['success' => false, 'message' => 'Selecione ao menos uma entrega.'], 422);
         }
 
@@ -3486,7 +3514,7 @@ class DeliveryRegistrationController extends Controller
         $deliveryIds = array_values(array_unique(array_map('intval', $deliveryIds)));
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
-        $tenant  = $this->currentTenant();
+        $tenant = $this->currentTenant();
 
         // Aceitar IDs de DISTRIBUIÇÕES diretamente (parent_delivery_id NOT NULL)
         $distributions = ProductionDelivery::where('tenant_id', $tenantId)
@@ -3518,29 +3546,29 @@ class DeliveryRegistrationController extends Controller
             ->findOrFail($associateIds->first());
 
         // Criar novo comprovante armazenando os IDs das recepções originais selecionadas
-        $year    = now()->year;
-        $receipt = \App\Models\AssociateReceipt::create([
-            'tenant_id'        => $tenantId,
+        $year = now()->year;
+        $receipt = AssociateReceipt::create([
+            'tenant_id' => $tenantId,
             'sales_project_id' => $projectId,
-            'associate_id'     => $associate->id,
-            'receipt_year'     => $year,
-            'receipt_number'   => \App\Models\AssociateReceipt::nextNumber($tenantId, $year),
-            'issued_at'        => today(),
-            'delivery_ids'     => $distributions->pluck('id')->all(),
+            'associate_id' => $associate->id,
+            'receipt_year' => $year,
+            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            'issued_at' => today(),
+            'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
 
         // Congelar snapshot financeiro no comprovante e vincular distribuições
-        app(\App\Services\AssociateReceiptService::class)
+        app(AssociateReceiptService::class)
             ->freezeReceipt($receipt, $distributions, $project);
 
         // Verificar distribuições não cobertas pelos comprovantes deste associado/projeto
-        $allReceipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+        $allReceipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associate->id)
             ->get();
 
         $coveredIds = $allReceipts
-            ->flatMap(fn($r) => $r->delivery_ids ?? [])
+            ->flatMap(fn ($r) => $r->delivery_ids ?? [])
             ->unique()
             ->map('intval')
             ->all();
@@ -3553,30 +3581,30 @@ class DeliveryRegistrationController extends Controller
             ->whereNotIn('id', empty($coveredIds) ? [0] : $coveredIds)
             ->count();
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
 
         $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
-        if (!is_array($visibleColumns)) {
+        if (! is_array($visibleColumns)) {
             $visibleColumns = ['unit_price', 'gross'];
         }
         $allowedCols = ['unit_price', 'gross', 'admin_fee', 'net'];
-        $visibleColumns = array_values(array_filter($visibleColumns, fn($c) => in_array($c, $allowedCols)));
+        $visibleColumns = array_values(array_filter($visibleColumns, fn ($c) => in_array($c, $allowedCols)));
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
-            'tenant'          => $tenant,
-            'project'         => $project,
-            'associate'       => $associate,
-            'receipt'         => $receipt,
-            'summary'         => $receiptData['summary'],
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
-            'feeBreakdown'    => $receiptData['feeBreakdown'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
-        $filename     = "comprovante-{$receiptLabel}-{$safeName}-parcial.pdf";
+        $filename = "comprovante-{$receiptLabel}-{$safeName}-parcial.pdf";
 
         // Retornar Base64 para download via JS (POST não permite download direto)
         $base64 = base64_encode($pdf->output());
@@ -3584,14 +3612,14 @@ class DeliveryRegistrationController extends Controller
         $tenantSlug = $this->currentTenant()?->slug ?? '';
 
         return response()->json([
-            'success'         => true,
-            'filename'        => $filename,
-            'pdf'             => $base64,
-            'receipt_id'      => $receipt->id,
-            'receipt_number'  => $receipt->formatted_number,
+            'success' => true,
+            'filename' => $filename,
+            'pdf' => $base64,
+            'receipt_id' => $receipt->id,
+            'receipt_number' => $receipt->formatted_number,
             'uncovered_count' => $uncoveredCount,
-            'reprint_url'     => route('delivery.projects.receipt-reprint', [
-                'tenant'  => $tenantSlug,
+            'reprint_url' => route('delivery.projects.receipt-reprint', [
+                'tenant' => $tenantSlug,
                 'project' => $projectId,
                 'receipt' => $receipt->id,
             ]),
@@ -3652,8 +3680,7 @@ class DeliveryRegistrationController extends Controller
                     throw new \RuntimeException('Uma ou mais distribuicoes nao pertencem a este produtor/projeto ou nao estao mais aprovadas.');
                 }
 
-                $locked = $distributions->first(fn (ProductionDelivery $distribution) =>
-                    $distribution->paid
+                $locked = $distributions->first(fn (ProductionDelivery $distribution) => $distribution->paid
                     || $distribution->billing_status !== BillingStatus::UNBILLED
                     || $distribution->billing_receipt_id
                 );
@@ -3666,7 +3693,7 @@ class DeliveryRegistrationController extends Controller
                 }
 
                 $beforeIds = $currentIds->map(fn ($id) => (int) $id)->values()->all();
-                app(\App\Services\AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
+                app(AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
                 $receipt->update(['delivery_ids' => $allIds->all()]);
 
                 activity('associate_receipt')
@@ -3688,7 +3715,7 @@ class DeliveryRegistrationController extends Controller
         [$receipt, $distributions, $addedCount] = $result;
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant = $this->currentTenant();
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
 
         $visibleColumns = $validated['visible_columns'] ?? ['unit_price', 'gross'];
         $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
@@ -3706,7 +3733,7 @@ class DeliveryRegistrationController extends Controller
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->json([
@@ -3778,8 +3805,7 @@ class DeliveryRegistrationController extends Controller
                     throw new \RuntimeException('Uma ou mais distribuicoes do comprovante nao estao mais validas.');
                 }
 
-                $locked = $distributions->first(fn (ProductionDelivery $distribution) =>
-                    $distribution->paid
+                $locked = $distributions->first(fn (ProductionDelivery $distribution) => $distribution->paid
                     || $distribution->billing_status !== BillingStatus::UNBILLED
                     || $distribution->billing_receipt_id
                 );
@@ -3791,7 +3817,7 @@ class DeliveryRegistrationController extends Controller
                     throw new \RuntimeException($message);
                 }
 
-                app(\App\Services\AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
+                app(AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
                 $receipt->update(['delivery_ids' => $currentIds->all()]);
 
                 activity('associate_receipt')
@@ -3811,7 +3837,7 @@ class DeliveryRegistrationController extends Controller
 
         [$receipt, $distributions] = $result;
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
 
         $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
         $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
@@ -3831,7 +3857,7 @@ class DeliveryRegistrationController extends Controller
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
-        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->json([
@@ -3887,9 +3913,9 @@ class DeliveryRegistrationController extends Controller
             return back()->with('error', $message);
         }
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'title' => 'Comprovante de Entrega',
@@ -3926,87 +3952,74 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Selecione uma organização primeiro.'], 403);
         }
 
-        $isStandalone = (bool) $request->input('is_standalone', false);
-
         $validated = $request->validate([
-            'sales_project_id'         => $isStandalone ? 'nullable|exists:sales_projects,id' : 'required|exists:sales_projects,id',
-            'project_demand_id'        => 'nullable|exists:project_demands,id',
-            'product_id'               => 'nullable|exists:products,id',
-            'associate_id'             => 'required|exists:associates,id',
-            'entries'                  => 'required|array|min:1|max:50',
-            'entries.*.delivery_date'  => 'required|date',
-            'entries.*.quantity'       => 'required|numeric|min:0.001',
-            'entries.*.quality_grade'  => 'nullable|string|max:50',
-            'entries.*.notes'          => 'nullable|string|max:500',
+            'sales_project_id' => 'nullable|integer',
+            'project_demand_id' => 'nullable|exists:project_demands,id',
+            'product_id' => 'nullable|exists:products,id',
+            'associate_id' => 'required|exists:associates,id',
+            'entries' => 'required|array|min:1|max:50',
+            'entries.*.delivery_date' => 'required|date',
+            'entries.*.quantity' => 'required|numeric|min:0.001',
+            'entries.*.quality_grade' => 'nullable|string|max:50',
+            'entries.*.notes' => 'nullable|string|max:500',
         ]);
 
-        $project = null;
-        if (! $isStandalone) {
-            $project = SalesProject::where('tenant_id', $tenantId)->find($validated['sales_project_id']);
-            if (! $project) {
-                return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
-            }
-            if ($project->status !== ProjectStatus::ACTIVE) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'O projeto precisa estar "Em Execução". Status atual: '.$project->status->getLabel(),
-                ], 422);
-            }
-            if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
-            }
+        $projectId = (int) $request->route('project');
+        $project = SalesProject::where('tenant_id', $tenantId)->find($projectId);
+        if (! $project) {
+            return response()->json(['success' => false, 'message' => 'Projeto não encontrado.'], 404);
+        }
+        if (isset($validated['sales_project_id']) && (int) $validated['sales_project_id'] !== $projectId) {
+            return response()->json(['success' => false, 'message' => 'O projeto informado não corresponde à rota acessada.'], 422);
+        }
+        if ($project->status !== ProjectStatus::ACTIVE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'O projeto precisa estar "Em Execução". Status atual: '.$project->status->getLabel(),
+            ], 422);
+        }
+        if (empty($validated['project_demand_id']) && empty($validated['product_id'])) {
+            return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
+        }
 
-            $associate = Associate::query()
-                ->where('tenant_id', $tenantId)
-                ->findOrFail($validated['associate_id']);
-            if (! $project->isAssociateAllowed($associate->id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
-                ], 422);
-            }
-
-            // O limite financeiro sera validado quando houver distribuicao com preco real.
-        } else {
-            if (empty($validated['product_id'])) {
-                return response()->json(['success' => false, 'message' => 'Selecione o produto a ser entregue.'], 422);
-            }
+        $associate = Associate::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail($validated['associate_id']);
+        if (! $project->isAssociateAllowed($associate->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este associado nao esta na lista de participantes ativos deste projeto.',
+            ], 422);
         }
 
         try {
             DB::beginTransaction();
 
-            $unitPrice      = 0.0;
-            $productId      = null;
-            $demandId       = null;
+            $unitPrice = 0.0;
+            $productId = null;
+            $demandId = null;
             $adminFeePercent = 0.0;
 
-            if ($isStandalone) {
-                $product        = Product::where('tenant_id', $tenantId)->findOrFail($validated['product_id']);
-                $unitPrice      = 0.0; // Preço ao associado não rastreado; preço ao cliente via PricingService
-                $productId      = $product->id;
-                $adminFeePercent = 0.0;
-            } elseif (! empty($validated['project_demand_id'])) {
-                $demand         = ProjectDemand::where('tenant_id', $tenantId)
+            if (! empty($validated['project_demand_id'])) {
+                $demand = ProjectDemand::where('tenant_id', $tenantId)
                     ->where('sales_project_id', $project->id)
                     ->findOrFail($validated['project_demand_id']);
-                $unitPrice      = (float) $demand->unit_price;
-                $productId      = $demand->product_id;
-                $demandId       = $demand->id;
+                $unitPrice = (float) $demand->unit_price;
+                $productId = $demand->product_id;
+                $demandId = $demand->id;
                 $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
             } else {
-                $product        = Product::where('tenant_id', $tenantId)
+                $product = Product::where('tenant_id', $tenantId)
                     ->where('status', true)
                     ->findOrFail($validated['product_id']);
-                $unitPrice      = 0.0; // Preço ao associado não rastreado; preço ao cliente via PricingService
-                $productId      = $product->id;
+                $unitPrice = 0.0; // Preço ao associado não rastreado; preço ao cliente via PricingService
+                $productId = $product->id;
                 $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);
             }
 
             $created = [];
 
-            if (! $isStandalone && $project && $productId) {
-                $associate ??= Associate::where('tenant_id', $tenantId)->findOrFail($validated['associate_id']);
+            if ($productId) {
                 $limitService = app(AssociateProjectLimitService::class);
                 $limitService->assertContext($project, $associate);
                 $limitService->validateDelivery(
@@ -4018,45 +4031,40 @@ class DeliveryRegistrationController extends Controller
             }
 
             foreach ($validated['entries'] as $entry) {
-                $quantity       = (float) $entry['quantity'];
+                $quantity = (float) $entry['quantity'];
 
                 $grossValueEntry = bcmul((string) $quantity, (string) $unitPrice, 8);
 
-                if ($isStandalone || ! $project) {
-                    $adminFeeAmountEntry = '0';
-                    $netValueEntry       = $grossValueEntry;
-                } else {
-                    if (! isset($calculatorBatch)) {
-                        $calculatorBatch = app(ProjectFinancialCalculator::class);
-                    }
-                    $finEntry            = $calculatorBatch->calculate($project, $grossValueEntry);
-                    $adminFeeAmountEntry = $finEntry['total_fee'];
-                    $netValueEntry       = $finEntry['net'];
+                if (! isset($calculatorBatch)) {
+                    $calculatorBatch = app(ProjectFinancialCalculator::class);
                 }
+                $finEntry = $calculatorBatch->calculate($project, $grossValueEntry);
+                $adminFeeAmountEntry = $finEntry['total_fee'];
+                $netValueEntry = $finEntry['net'];
 
                 $delivery = ProductionDelivery::create([
-                    'tenant_id'         => $tenantId,
-                    'sales_project_id'  => $isStandalone ? null : $validated['sales_project_id'],
+                    'tenant_id' => $tenantId,
+                    'sales_project_id' => $projectId,
                     'project_demand_id' => $demandId,
-                    'associate_id'      => $validated['associate_id'],
-                    'product_id'        => $productId,
-                    'delivery_date'     => $entry['delivery_date'],
-                    'quantity'          => $quantity,
-                    'unit_price'        => $unitPrice,
-                    'admin_fee_amount'  => $adminFeeAmountEntry,
-                    'net_value'         => $netValueEntry,
-                    'status'            => DeliveryStatus::PENDING,
-                    'quality_grade'     => $entry['quality_grade'] ?? null,
-                    'notes'             => $entry['notes'] ?? null,
-                    'received_by'       => Auth::id(),
-                    'paid'              => false,
+                    'associate_id' => $validated['associate_id'],
+                    'product_id' => $productId,
+                    'delivery_date' => $entry['delivery_date'],
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'admin_fee_amount' => $adminFeeAmountEntry,
+                    'net_value' => $netValueEntry,
+                    'status' => DeliveryStatus::PENDING,
+                    'quality_grade' => $entry['quality_grade'] ?? null,
+                    'notes' => $entry['notes'] ?? null,
+                    'received_by' => Auth::id(),
+                    'paid' => false,
                 ]);
 
                 $created[] = [
-                    'id'         => $delivery->id,
-                    'date'       => $entry['delivery_date'],
-                    'quantity'   => $quantity,
-                    'net_value'  => (float) $netValueEntry,
+                    'id' => $delivery->id,
+                    'date' => $entry['delivery_date'],
+                    'quantity' => $quantity,
+                    'net_value' => (float) $netValueEntry,
                 ];
             }
 
@@ -4065,13 +4073,14 @@ class DeliveryRegistrationController extends Controller
             $count = count($created);
 
             return response()->json([
-                'success'    => true,
-                'message'    => $count.' entrega'.($count > 1 ? 's registradas' : ' registrada').' com sucesso!',
-                'count'      => $count,
+                'success' => true,
+                'message' => $count.' entrega'.($count > 1 ? 's registradas' : ' registrada').' com sucesso!',
+                'count' => $count,
                 'deliveries' => $created,
             ]);
         } catch (ValidationException $e) {
             DB::rollBack();
+
             return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -4090,13 +4099,13 @@ class DeliveryRegistrationController extends Controller
     {
         $projectId = (int) $request->route('project');
         $receiptId = (int) $request->route('receipt');
-        $tenantId  = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Sessão expirada.');
         }
 
-        $receipt = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+        $receipt = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->findOrFail($receiptId);
 
@@ -4104,9 +4113,9 @@ class DeliveryRegistrationController extends Controller
             return redirect()->back()->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
         }
 
-        $project   = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
-        $tenant    = $this->currentTenant();
+        $tenant = $this->currentTenant();
 
         // Reimpressao deve reproduzir somente as distribuicoes vinculadas a este comprovante.
         $storedIds = collect($receipt->delivery_ids ?? [])
@@ -4124,7 +4133,7 @@ class DeliveryRegistrationController extends Controller
             ->with(['product', 'customer', 'parentDelivery'])
             ->orderBy('delivery_date');
 
-        if (!empty($storedIds)) {
+        if (! empty($storedIds)) {
             $query->whereIn('id', $storedIds);
         } else {
             $query->where('associate_receipt_id', $receipt->id);
@@ -4140,22 +4149,22 @@ class DeliveryRegistrationController extends Controller
             return redirect()->back()->with('error', $message);
         }
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
 
-        \App\Jobs\SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
+        SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
-            'tenant'          => $tenant,
-            'project'         => $project,
-            'associate'       => $associate,
-            'receipt'         => $receipt,
-            'summary'         => $receiptData['summary'],
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
-            'feeBreakdown'    => $receiptData['feeBreakdown'],
+            'feeBreakdown' => $receiptData['feeBreakdown'],
         ])->setPaper('a4', 'portrait');
 
-        $safeName     = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return response()->streamDownload(function () use ($pdf) {
@@ -4169,13 +4178,13 @@ class DeliveryRegistrationController extends Controller
     public function projectReceiptsList(Request $request)
     {
         $projectId = (int) $request->route('project');
-        $tenantId  = session('tenant_id');
+        $tenantId = session('tenant_id');
 
-        if (!$tenantId) {
+        if (! $tenantId) {
             return response()->json(['success' => false], 403);
         }
 
-        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+        $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->with('associate.user')
             ->orderByDesc('receipt_year')
@@ -4184,19 +4193,20 @@ class DeliveryRegistrationController extends Controller
             ->orderByDesc('id')
             ->get()
             ->map(function ($r) use ($projectId) {
-                $tenantSlug = request()->route('tenant') instanceof \App\Models\Tenant
+                $tenantSlug = request()->route('tenant') instanceof Tenant
                     ? request()->route('tenant')->slug
-                    : (\App\Models\Tenant::find(session('tenant_id'))?->slug ?? '');
+                    : (Tenant::find(session('tenant_id'))?->slug ?? '');
+
                 return [
-                    'id'             => $r->id,
-                    'number'         => $r->formatted_number,
+                    'id' => $r->id,
+                    'number' => $r->formatted_number,
                     'associate_name' => $r->associate?->display_name ?? 'Associado nao identificado',
-                    'issued_at'      => $r->issued_at?->format('d/m/Y') ?? '—',
+                    'issued_at' => $r->issued_at?->format('d/m/Y') ?? '—',
                     'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
-                    'status'         => $r->status?->value ?? 'draft',
-                    'status_label'   => $r->status?->getLabel() ?? 'Rascunho',
-                    'reprint_url'    => route('delivery.projects.receipt-reprint', [
-                        'tenant'  => $tenantSlug,
+                    'status' => $r->status?->value ?? 'draft',
+                    'status_label' => $r->status?->getLabel() ?? 'Rascunho',
+                    'reprint_url' => route('delivery.projects.receipt-reprint', [
+                        'tenant' => $tenantSlug,
                         'project' => $projectId,
                         'receipt' => $r->id,
                     ]),

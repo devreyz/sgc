@@ -14,7 +14,13 @@
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
 />
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $currentTenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make(
+        'delivery',
+        'projects',
+        $currentTenant->slug ?? request()->route('tenant'),
+    );
+@endphp
 
 @section('content')
 <style>
@@ -386,7 +392,7 @@ $totalNet      = $deliveries->sum('net_value');
 <div class="pd-stats">
     <div class="pd-stat">
         <div class="pd-stat-lbl">Total</div>
-        <div class="pd-stat-val">{{ $totalAll }}</div>
+        <div class="pd-stat-val">{{ $deliveries->count() }}</div>
     </div>
     <div class="pd-stat">
         <div class="pd-stat-lbl">Aprovadas</div>

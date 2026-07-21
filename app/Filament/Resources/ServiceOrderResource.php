@@ -852,10 +852,11 @@ class ServiceOrderResource extends Resource
                     ->action(function (ServiceOrder $record) {
                         $record->load(['associate.user', 'service', 'serviceProvider', 'asset', 'additions']);
                         $tenant = \App\Models\Tenant::find(session('tenant_id'));
-                        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.service-order', [
+                        $pdfService = app(\App\Services\TemplatedPdfService::class);
+                        $pdf = $pdfService->generateSystemPdf('pdf.service-order', [
                             'order' => $record,
                             'tenant' => $tenant,
-                        ])->setPaper('a4', 'portrait');
+                        ], $pdfService->systemPdfOptions('pdf.service-order', 'Ordem de Servico', null, (int) $tenant?->id));
                         return response()->streamDownload(
                             fn () => print($pdf->output()),
                             "OS-{$record->number}.pdf"

@@ -4,7 +4,13 @@
 @section('page-title', 'Projetos')
 @section('user-role', 'Registrador')
 
-@php($bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $tenant->slug ?? request()->route('tenant')))
+@php
+    $bentoNavigation = \App\Support\PortalNavigation::make(
+        'delivery',
+        'projects',
+        $tenant->slug ?? request()->route('tenant'),
+    );
+@endphp
 
 @section('content')
 <style>

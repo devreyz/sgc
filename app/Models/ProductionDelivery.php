@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class ProductionDelivery extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'parent_delivery_id',
@@ -67,10 +68,10 @@ class ProductionDelivery extends Model
             'approved_at' => 'datetime',
             'paid' => 'boolean',
             'paid_date' => 'date',
-            'billing_status'        => BillingStatus::class,
-            'associate_receipt_id'  => 'integer',
-            'billing_receipt_id'    => 'integer',
-            'price_table_id'        => 'integer',
+            'billing_status' => BillingStatus::class,
+            'associate_receipt_id' => 'integer',
+            'billing_receipt_id' => 'integer',
+            'price_table_id' => 'integer',
         ];
     }
 
@@ -109,12 +110,12 @@ class ProductionDelivery extends Model
     /** Comprovante (AssociateReceipt) que cobre esta distribuição. */
     public function associateReceipt(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\AssociateReceipt::class, 'associate_receipt_id');
+        return $this->belongsTo(AssociateReceipt::class, 'associate_receipt_id');
     }
 
     public function billingReceipt(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\CustomerBillingReceipt::class, 'billing_receipt_id');
+        return $this->belongsTo(CustomerBillingReceipt::class, 'billing_receipt_id');
     }
 
     /**
@@ -130,7 +131,7 @@ class ProductionDelivery extends Model
      */
     public function isDistribution(): bool
     {
-        return !is_null($this->parent_delivery_id);
+        return ! is_null($this->parent_delivery_id);
     }
 
     /**
@@ -141,6 +142,7 @@ class ProductionDelivery extends Model
         if ($this->isDistribution()) {
             return 0;
         }
+
         return (float) $this->distributions()->whereNotIn('status', ['rejected', 'cancelled'])->sum('quantity');
     }
 
@@ -218,7 +220,7 @@ class ProductionDelivery extends Model
 
     public function priceTable(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\PriceTable::class, 'price_table_id');
+        return $this->belongsTo(PriceTable::class, 'price_table_id');
     }
 
     /**
@@ -243,10 +245,42 @@ class ProductionDelivery extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         // Auto-fill unit_price from demand when creating
         static::creating(function ($delivery) {
-            if (!$delivery->unit_price && $delivery->project_demand_id) {
+            if (! $delivery->sales_project_id) {
+                throw ValidationException::withMessages([
+                    'sales_project_id' => 'Toda entrega ou distribuição deve pertencer a um projeto de venda.',
+                ]);
+            }
+
+            $projectBelongsToTenant = SalesProject::query()
+                ->whereKey($delivery->sales_project_id)
+                ->where('tenant_id', $delivery->tenant_id)
+                ->exists();
+
+            if (! $projectBelongsToTenant) {
+                throw ValidationException::withMessages([
+                    'sales_project_id' => 'O projeto informado não pertence à organização atual.',
+                ]);
+            }
+
+            if ($delivery->parent_delivery_id) {
+                $parentMatchesContext = self::query()
+                    ->whereKey($delivery->parent_delivery_id)
+                    ->where('tenant_id', $delivery->tenant_id)
+                    ->where('sales_project_id', $delivery->sales_project_id)
+                    ->whereNull('parent_delivery_id')
+                    ->exists();
+
+                if (! $parentMatchesContext) {
+                    throw ValidationException::withMessages([
+                        'parent_delivery_id' => 'A distribuição não corresponde à entrega e ao projeto informados.',
+                    ]);
+                }
+            }
+
+            if (! $delivery->unit_price && $delivery->project_demand_id) {
                 $demand = $delivery->projectDemand;
                 if ($demand) {
                     $delivery->unit_price = $demand->unit_price;
@@ -254,7 +288,7 @@ class ProductionDelivery extends Model
                 }
             }
         });
-        
+
         // Calculate admin fee, cost price and net value before saving (BCMath)
         // Registros de recepção (sem cliente, sem parent) não calculam financeiro —
         // o cálculo ocorre nas distribuições filhas.
@@ -265,12 +299,12 @@ class ProductionDelivery extends Model
             }
 
             if ($delivery->unit_price && $delivery->quantity) {
-                $qty   = (string) $delivery->quantity;
+                $qty = (string) $delivery->quantity;
                 $price = (string) $delivery->unit_price;
                 $grossValue = bcmul($qty, $price, 8);
 
                 // Resolve admin fee percentage: persiste na entrega para histórico
-                if ($delivery->sales_project_id && !$delivery->isDirty('admin_fee_percentage')) {
+                if ($delivery->sales_project_id && ! $delivery->isDirty('admin_fee_percentage')) {
                     $project = $delivery->salesProject;
                     $adminFeePercentage = (string) ($project->admin_fee_percentage ?? 10);
                     $delivery->admin_fee_percentage = $adminFeePercentage;
@@ -283,7 +317,7 @@ class ProductionDelivery extends Model
                 $delivery->net_value = bcsub($grossValue, $adminFee, 8);
 
                 // Calcula e persiste o cost_price_used (valor de repasse por unidade)
-                if (!$delivery->cost_price_used) {
+                if (! $delivery->cost_price_used) {
                     if (bccomp($adminFeePercentage, '0', 8) > 0) {
                         $taxPerUnit = bcmul($price, bcdiv($adminFeePercentage, '100', 8), 8);
                         $delivery->cost_price_used = bcsub($price, $taxPerUnit, 8);
@@ -333,7 +367,7 @@ class ProductionDelivery extends Model
      */
     public function canBePaid(): bool
     {
-        return $this->isApproved() && !$this->isPaid();
+        return $this->isApproved() && ! $this->isPaid();
     }
 
     /**
