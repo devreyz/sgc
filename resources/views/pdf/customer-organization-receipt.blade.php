@@ -277,6 +277,15 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
 </div>
 
+@include('pdf.partials.receipt-consent', [
+    'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
+    'consentFinancial' => [
+        'gross' => $totalGross,
+        'fees' => $totalFees,
+        'net' => $totalNet,
+    ],
+])
+
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}

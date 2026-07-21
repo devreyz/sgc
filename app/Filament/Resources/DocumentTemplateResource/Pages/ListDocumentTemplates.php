@@ -33,6 +33,7 @@ class ListDocumentTemplates extends ListRecords
                             ->where('system_template_key', $key)
                             ->where('template_category', 'system')
                             ->where('tenant_id', session('tenant_id'))
+                            ->whereNull('project_type')
                             ->exists();
 
                         if ($exists) {

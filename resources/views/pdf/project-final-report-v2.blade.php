@@ -8,7 +8,7 @@
             <td class="label">Projeto:</td>
             <td class="value">{{ $project->title }}</td>
             <td class="label">Tipo:</td>
-            <td class="value">{{ $project->type->getLabel() }}</td>
+            <td class="value">{{ $project->type_label }}</td>
         </tr>
         <tr>
             <td class="label">Cliente:</td>

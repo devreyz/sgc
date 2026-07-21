@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\ProjectStatus;
-use App\Enums\ProjectType;
 use App\Models\AssociateReceipt;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -52,7 +51,6 @@ class SalesProject extends Model
     protected function casts(): array
     {
         return [
-            'type' => ProjectType::class,
             'status' => ProjectStatus::class,
             'start_date' => 'date',
             'end_date' => 'date',
@@ -452,9 +450,19 @@ class SalesProject extends Model
     /**
      * Scope to filter by type
      */
-    public function scopeOfType($query, ProjectType $type)
+    public function scopeOfType($query, string|\BackedEnum $type)
     {
-        return $query->where('type', $type);
+        return $query->where('type', $type instanceof \BackedEnum ? $type->value : $type);
+    }
+
+    public function getTypeLabelAttribute(): string
+    {
+        return SalesProjectType::labelFor($this->type, $this->tenant_id);
+    }
+
+    public function getTypeColorAttribute(): string
+    {
+        return SalesProjectType::colorFor($this->type, $this->tenant_id);
     }
 
     /**

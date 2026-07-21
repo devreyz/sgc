@@ -4,7 +4,6 @@ namespace App\Filament\Resources;
 
 use App\Enums\PaymentMethod;
 use App\Enums\ProjectStatus;
-use App\Enums\ProjectType;
 use App\Filament\Resources\SalesProjectResource\Pages;
 use App\Filament\Resources\SalesProjectResource\RelationManagers;
 use App\Filament\Traits\HasExportActions;
@@ -12,6 +11,7 @@ use App\Filament\Traits\TenantScoped;
 use App\Models\Associate;
 use App\Models\Organization;
 use App\Models\SalesProject;
+use App\Models\SalesProjectType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -52,7 +52,14 @@ class SalesProjectResource extends Resource
 
                         Forms\Components\Select::make('type')
                             ->label('Tipo')
-                            ->options(ProjectType::class)
+                            ->options(function (?SalesProject $record): array {
+                                $options = SalesProjectType::options((int) session('tenant_id'));
+
+                                return $record?->type
+                                    ? $options + [$record->type => SalesProjectType::labelFor($record->type, $record->tenant_id)]
+                                    : $options;
+                            })
+                            ->searchable()
                             ->required(),
 
                         Forms\Components\Select::make('status')
@@ -287,8 +294,8 @@ class SalesProjectResource extends Resource
                 Tables\Columns\TextColumn::make('type')
                     ->label('Tipo')
                     ->badge()
-                    ->formatStateUsing(fn (ProjectType $state): string => $state->getLabel())
-                    ->color(fn (ProjectType $state): string => $state->getColor()),
+                    ->formatStateUsing(fn (?string $state, SalesProject $record): string => SalesProjectType::labelFor($state, $record->tenant_id))
+                    ->color(fn (?string $state, SalesProject $record): string => SalesProjectType::colorFor($state, $record->tenant_id)),
 
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
@@ -341,7 +348,7 @@ class SalesProjectResource extends Resource
                 Tables\Filters\TrashedFilter::make(),
                 Tables\Filters\SelectFilter::make('type')
                     ->label('Tipo')
-                    ->options(ProjectType::class),
+                    ->options(fn (): array => SalesProjectType::options((int) session('tenant_id'), false)),
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options(ProjectStatus::class),

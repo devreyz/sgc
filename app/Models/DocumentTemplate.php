@@ -14,11 +14,32 @@ class DocumentTemplate extends Model
 {
     use BelongsToTenant, HasFactory, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $template): void {
+            if (! $template->is_active || $template->template_category !== 'system' || ! $template->system_template_key) {
+                return;
+            }
+
+            static::withoutGlobalScopes()
+                ->where('tenant_id', $template->tenant_id)
+                ->where('template_category', 'system')
+                ->where('system_template_key', $template->system_template_key)
+                ->where('project_type', $template->project_type)
+                ->when($template->exists, fn ($query) => $query->whereKeyNot($template->getKey()))
+                ->update(['is_active' => false]);
+        });
+    }
+
     protected $fillable = [
+        'tenant_id',
         'name',
         'type',
         'template_category',
         'system_template_key',
+        'project_type',
+        'consent_enabled',
+        'consent_content',
         'description',
         'content',
         'available_variables',
@@ -46,6 +67,7 @@ class DocumentTemplate extends Model
             'custom_fields'       => 'array',
             'section_order'       => 'array',
             'is_active'           => 'boolean',
+            'consent_enabled'     => 'boolean',
         ];
     }
 
@@ -235,6 +257,36 @@ class DocumentTemplate extends Model
                     'net_value'      => 'Valor Líquido',
                 ],
                 'paper_orientation' => 'portrait',
+            ],
+            'customer_billing_receipt' => [
+                'label'       => 'Comprovante Individual de Cliente',
+                'blade_view'  => 'pdf.customer-billing-receipt',
+                'type'        => 'receipt',
+                'description' => 'Comprovante financeiro das distribuicoes destinadas a um cliente',
+                'sections' => [
+                    'customer_info' => 'Dados do Cliente',
+                    'project_info'  => 'Dados do Projeto',
+                    'deliveries'    => 'Distribuicoes',
+                    'financial'     => 'Resumo Financeiro',
+                    'signature'     => 'Consentimento e Assinatura',
+                ],
+                'columns' => [],
+                'paper_orientation' => 'portrait',
+            ],
+            'customer_organization_receipt' => [
+                'label'       => 'Comprovante de Organizacao Compradora',
+                'blade_view'  => 'pdf.customer-organization-receipt',
+                'type'        => 'receipt',
+                'description' => 'Comprovante consolidado das distribuicoes destinadas a uma organizacao',
+                'sections' => [
+                    'organization_info' => 'Dados da Organizacao',
+                    'project_info'      => 'Dados do Projeto',
+                    'deliveries'        => 'Distribuicoes',
+                    'financial'         => 'Resumo Financeiro',
+                    'signature'         => 'Consentimento e Assinatura',
+                ],
+                'columns' => [],
+                'paper_orientation' => 'landscape',
             ],
             'project_final_report' => [
                 'label'       => 'Relatório Final de Projeto',

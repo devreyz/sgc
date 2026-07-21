@@ -365,43 +365,14 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 </p>
 @endif
 
-{{-- ═══ CERTIFICAÇÃO E ASSINATURA ═══ --}}
- <p style="text-align: left; font-size: 11px; color: #333; margin: 22px 0 24px;">
-     Recebi da <strong>{{ $tenant->name }}</strong>,
-    @if($tenant?->cnpj)
-        inscrita no CNPJ sob nº <strong>{{ $tenant->cnpj }}</strong>,
-    @endif
-    a quantia líquida de
-    <strong>R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</strong>,
-    referente ao pagamento pelas entregas dos produtos relacionados acima, conforme os preços acordados por cliente. 
-    </p>
-    <p style="text-align: left; font-size: 11px; color: #333; margin: 22px 0 24px;">
-     Por ser verdade, firmo o presente recibo.</p>
-
-<p style="text-align: left; font-size: 10.5px; color: #444; margin-bottom: 0; margin-top: 4px;">
-    {{ $tenant->city ?? '________________' }}{{ $tenant->state ? '/' . $tenant->state : '' }},
-    _______ de ___________________________ de {{ isset($receipt) ? $receipt->receipt_year : date('Y') }}.
-</p>
-
-<table style="margin: 28px 0 0 0; page-break-inside: avoid; width: 100%; border-collapse: collapse;">
-    <tr>
-        <td style="text-align: left; padding: 0; width: 48%;">
-            <div class="sig-line">{{ $associate->display_name ?? 'Associado nao identificado' }}</div>
-            <div class="sig-role">Produtor / Associado</div>
-            <div class="sig-doc">CPF: {{ $associate->cpf_cnpj ?? '___.___.___-__' }}</div>
-        </td>
-        @if($tenant->legal_representative_name)
-        <td style="width: 4%;"></td>
-        <td style="text-align: left; padding: 0; width: 48%;">
-            <div class="sig-line">{{ $tenant->legal_representative_name }}</div>
-            <div class="sig-role">{{ $tenant->legal_representative_role ?? 'Responsável pela Organização' }}</div>
-            @if($tenant->legal_representative_cpf)
-            <div class="sig-doc">CPF: {{ $tenant->legal_representative_cpf }}</div>
-            @endif
-        </td>
-        @endif
-    </tr>
-</table>
+@include('pdf.partials.receipt-consent', [
+    'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
+    'consentFinancial' => [
+        'gross' => $summary['gross_value'] ?? 0,
+        'fees' => $summary['admin_fee'] ?? 0,
+        'net' => $summary['net_value'] ?? 0,
+    ],
+])
 
 {{-- ═══ SEGUNDA VIA ═══ --}}
     @if($isSecondCopy)

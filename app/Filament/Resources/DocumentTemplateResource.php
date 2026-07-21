@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\DocumentTemplateResource\Pages;
 use App\Models\DocumentTemplate;
 use App\Models\PdfLayoutTemplate;
+use App\Models\SalesProjectType;
+use App\Services\ReceiptConsentRenderer;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -86,6 +88,37 @@ class DocumentTemplateResource extends Resource
                 ])
                 ->visible(fn (Get $get) => $get('template_category') === 'system')
                 ->columns(1),
+
+            Forms\Components\Section::make('Consentimento e Assinaturas')
+                ->description('Personalize o texto por tipo de projeto usando as variaveis permitidas.')
+                ->schema([
+                    Forms\Components\Select::make('project_type')
+                        ->label('Tipo de projeto')
+                        ->options(fn (): array => SalesProjectType::options((int) session('tenant_id'), false))
+                        ->placeholder('Todos os tipos (padrao)')
+                        ->searchable()
+                        ->helperText('Para um texto especifico, crie outro modelo deste PDF e selecione PAA, PNAE ou um tipo proprio.'),
+                    Forms\Components\Toggle::make('consent_enabled')
+                        ->label('Exibir consentimento e assinaturas')
+                        ->default(true),
+                    Forms\Components\Placeholder::make('receipt_variables_help')
+                        ->label('Variaveis disponiveis')
+                        ->content(fn () => new HtmlString(self::buildReceiptVariablesHelpHtml()))
+                        ->columnSpanFull(),
+                    Forms\Components\RichEditor::make('consent_content')
+                        ->label('Mensagem do comprovante')
+                        ->toolbarButtons([
+                            'bold', 'italic', 'underline',
+                            'h2', 'h3', 'bulletList', 'orderedList',
+                            'redo', 'undo', 'table',
+                        ])
+                        ->placeholder('Deixe vazio para usar a mensagem padrao do sistema.')
+                        ->helperText('Para ocultar uma assinatura, remova o respectivo bloco {{assinatura.*}} do texto.')
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->visible(fn (Get $get): bool => $get('template_category') === 'system'
+                    && in_array($get('system_template_key'), self::receiptTemplateKeys(), true)),
 
             // ═══ Layout: header, footer, cover & back-cover ═══
             Forms\Components\Section::make('Layout do Documento')
@@ -311,6 +344,31 @@ class DocumentTemplateResource extends Resource
         return $html;
     }
 
+    private static function receiptTemplateKeys(): array
+    {
+        return [
+            ReceiptConsentRenderer::ASSOCIATE,
+            ReceiptConsentRenderer::CUSTOMER,
+            ReceiptConsentRenderer::ORGANIZATION,
+        ];
+    }
+
+    private static function buildReceiptVariablesHelpHtml(): string
+    {
+        $html = '<div class="rounded-lg bg-gray-50 p-4 text-sm dark:bg-gray-900">';
+        foreach (ReceiptConsentRenderer::availableVariables() as $group => $variables) {
+            $html .= '<p class="mt-2 font-semibold">'.e($group).'</p>';
+            $html .= '<div class="grid grid-cols-1 gap-1 md:grid-cols-2">';
+            foreach ($variables as $variable => $label) {
+                $html .= '<div><code class="rounded bg-gray-200 px-1 dark:bg-gray-700">'.e($variable).'</code> '.e($label).'</div>';
+            }
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -347,6 +405,14 @@ class DocumentTemplateResource extends Resource
                     )
                     ->toggleable()
                     ->limit(30),
+
+                Tables\Columns\TextColumn::make('project_type')
+                    ->label('Tipo de projeto')
+                    ->formatStateUsing(fn (?string $state): string => $state
+                        ? SalesProjectType::labelFor($state, (int) session('tenant_id'))
+                        : 'Todos')
+                    ->badge()
+                    ->color('info'),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
@@ -393,6 +459,7 @@ class DocumentTemplateResource extends Resource
                                 DocumentTemplate::where('system_template_key', $record->system_template_key)
                                     ->where('template_category', 'system')
                                     ->where('tenant_id', $record->tenant_id)
+                                    ->where('project_type', $record->project_type)
                                     ->where('id', '!=', $record->id)
                                     ->update(['is_active' => false]);
                             }

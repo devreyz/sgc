@@ -51,7 +51,7 @@
                 <td class="label">Projeto:</td>
                 <td>{{ $project->title }}</td>
                 <td class="label">Tipo:</td>
-                <td>{{ $project->type->getLabel() }}</td>
+                <td>{{ $project->type_label }}</td>
             </tr>
             <tr>
                 <td class="label">Cliente:</td>

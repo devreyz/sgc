@@ -1496,16 +1496,6 @@
                 </button>
             </div>
         </div>
-
-        <svg class="app-header__wave" viewBox="0 0 1440 100" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-                <linearGradient id="app-header-wave-gradient" x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stop-color="#16a34a"></stop>
-                    <stop offset="1" stop-color="#15803d"></stop>
-                </linearGradient>
-            </defs>
-            <path fill="url(#app-header-wave-gradient)" d="M0 0h1440v79c-171-15-283 18-461 15-190-3-303-25-475-12C310 97 166 73 0 86Z"></path>
-        </svg>
     </header>
 
     <div class="user-menu-overlay" id="userMenuOverlay" aria-hidden="true"></div>

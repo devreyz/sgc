@@ -35,6 +35,7 @@ class ListSystemPdfs extends ListRecords
                         $active = DocumentTemplate::where('system_template_key', $key)
                             ->where('template_category', 'system')
                             ->where('tenant_id', $tenantId)
+                            ->whereNull('project_type')
                             ->exists();
 
                         if ($active) {
@@ -47,6 +48,7 @@ class ListSystemPdfs extends ListRecords
                             ->where('system_template_key', $key)
                             ->where('template_category', 'system')
                             ->where('tenant_id', $tenantId)
+                            ->whereNull('project_type')
                             ->first();
 
                         if ($trashed) {

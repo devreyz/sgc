@@ -23,7 +23,7 @@ class DocumentTemplatePolicy
      */
     public function view(User $user, DocumentTemplate $documentTemplate): bool
     {
-        return $user->can('view_system::pdf');
+        return $this->sameTenant($documentTemplate) && $user->can('view_system::pdf');
     }
 
     /**
@@ -39,7 +39,7 @@ class DocumentTemplatePolicy
      */
     public function update(User $user, DocumentTemplate $documentTemplate): bool
     {
-        return $user->can('update_system::pdf');
+        return $this->sameTenant($documentTemplate) && $user->can('update_system::pdf');
     }
 
     /**
@@ -47,7 +47,7 @@ class DocumentTemplatePolicy
      */
     public function delete(User $user, DocumentTemplate $documentTemplate): bool
     {
-        return $user->can('delete_system::pdf');
+        return $this->sameTenant($documentTemplate) && $user->can('delete_system::pdf');
     }
 
     /**
@@ -63,7 +63,7 @@ class DocumentTemplatePolicy
      */
     public function forceDelete(User $user, DocumentTemplate $documentTemplate): bool
     {
-        return $user->can('force_delete_system::pdf');
+        return $this->sameTenant($documentTemplate) && $user->can('force_delete_system::pdf');
     }
 
     /**
@@ -79,7 +79,7 @@ class DocumentTemplatePolicy
      */
     public function restore(User $user, DocumentTemplate $documentTemplate): bool
     {
-        return $user->can('restore_system::pdf');
+        return $this->sameTenant($documentTemplate) && $user->can('restore_system::pdf');
     }
 
     /**
@@ -104,5 +104,10 @@ class DocumentTemplatePolicy
     public function reorder(User $user): bool
     {
         return $user->can('reorder_system::pdf');
+    }
+
+    private function sameTenant(DocumentTemplate $documentTemplate): bool
+    {
+        return (int) session('tenant_id') === (int) $documentTemplate->tenant_id;
     }
 }
