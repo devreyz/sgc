@@ -12,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\HtmlString;
 
 class AssociateProductLimitsRelationManager extends RelationManager
 {
@@ -27,7 +28,9 @@ class AssociateProductLimitsRelationManager extends RelationManager
                 ->label('Associado')
                 ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
                     ->get()->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name]))
-                ->searchable()->required(),
+                ->searchable()
+                ->live()
+                ->required(),
             Forms\Components\Select::make('product_id')
                 ->label('Produto')
                 ->options(fn (): array => Product::query()
@@ -46,32 +49,73 @@ class AssociateProductLimitsRelationManager extends RelationManager
                 ->label('Quantidade maxima')
                 ->numeric()
                 ->minValue(0.001)
-                ->helperText(function (Get $get): string {
-                    $productId = (int) ($get('product_id') ?? 0);
-                    if (! $productId) {
-                        return 'Selecione um produto para consultar a disponibilidade.';
-                    }
-
-                    $summary = app(AssociateProjectLimitService::class)->productAllocationSummary(
-                        $this->getOwnerRecord(),
-                        $productId,
-                        filled($get('associate_id')) ? (int) $get('associate_id') : null,
-                    );
-
-                    if ($summary['project_maximum'] === null) {
-                        return 'Este produto nao possui meta geral; o limite sera individual.';
-                    }
-
-                    return sprintf(
-                        'Meta do projeto: %s | Comprometido com os demais: %s | Disponivel: %s',
-                        number_format($summary['project_maximum'], 3, ',', '.'),
-                        number_format($summary['allocated_to_others'], 3, ',', '.'),
-                        number_format($summary['available_for_associate'], 3, ',', '.')
-                    );
-                })
                 ->required(),
+            Forms\Components\Placeholder::make('allocation_progress')
+                ->label('Disponibilidade da meta')
+                ->content(fn (Get $get): HtmlString => $this->allocationProgress($get)),
             Forms\Components\Textarea::make('notes')->label('Observacoes')->columnSpanFull(),
         ]);
+    }
+
+    private function allocationProgress(Get $get): HtmlString
+    {
+        $productId = (int) ($get('product_id') ?? 0);
+        if (! $productId) {
+            return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">Selecione um produto para consultar a disponibilidade.</p>');
+        }
+
+        $summary = app(AssociateProjectLimitService::class)->productAllocationSummary(
+            $this->getOwnerRecord(),
+            $productId,
+            filled($get('associate_id')) ? (int) $get('associate_id') : null,
+        );
+
+        if ($summary['project_maximum'] === null) {
+            return new HtmlString(
+                '<div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">'.
+                'Este produto nao possui meta geral. O limite sera individual.</div>'
+            );
+        }
+
+        $maximum = (float) $summary['project_maximum'];
+        $allocated = (float) $summary['allocated_to_others'];
+        $available = (float) $summary['available_for_associate'];
+        $allocatedPercent = $maximum > 0 ? min(100, max(0, ($allocated / $maximum) * 100)) : 0;
+        $availablePercent = max(0, 100 - $allocatedPercent);
+        $format = static fn (float $value): string => number_format($value, 3, ',', '.');
+        $ariaLabel = sprintf(
+            'Meta total %s. Reservado para outros associados %s. Disponivel %s.',
+            $format($maximum),
+            $format($allocated),
+            $format($available),
+        );
+
+        return new HtmlString(sprintf(
+            '<div class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5" role="group" aria-label="%s">'.
+                '<div class="flex items-center justify-between gap-3 text-sm">'.
+                    '<span class="font-medium text-gray-600 dark:text-gray-300">Meta total</span>'.
+                    '<strong class="text-gray-950 dark:text-white">%s</strong>'.
+                '</div>'.
+                '<div class="flex h-3 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700" role="progressbar" aria-label="Quantidade reservada" aria-valuemin="0" aria-valuemax="%s" aria-valuenow="%s">'.
+                    '<span class="h-full" style="width: %.4f%%; background-color: #d97706" title="Reservado: %s"></span>'.
+                    '<span class="h-full" style="width: %.4f%%; background-color: #15803d" title="Disponivel: %s"></span>'.
+                '</div>'.
+                '<div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">'.
+                    '<div class="flex items-center gap-2 text-gray-700 dark:text-gray-200"><span class="h-2.5 w-2.5 rounded-sm" style="background-color: #d97706" aria-hidden="true"></span><span>Reservado</span><strong class="ml-auto">%s</strong></div>'.
+                    '<div class="flex items-center gap-2 text-gray-700 dark:text-gray-200"><span class="h-2.5 w-2.5 rounded-sm" style="background-color: #15803d" aria-hidden="true"></span><span>Disponivel</span><strong class="ml-auto">%s</strong></div>'.
+                '</div>'.
+            '</div>',
+            e($ariaLabel),
+            $format($maximum),
+            $format($maximum),
+            $format(min($allocated, $maximum)),
+            $allocatedPercent,
+            $format($allocated),
+            $availablePercent,
+            $format($available),
+            $format($allocated),
+            $format($available),
+        ));
     }
 
     public function table(Table $table): Table

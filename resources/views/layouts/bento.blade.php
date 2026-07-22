@@ -96,6 +96,7 @@
             color: var(--app-text);
             scroll-behavior: smooth;
             -webkit-text-size-adjust: 100%;
+            user-select: none;
         }
 
         body {
