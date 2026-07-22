@@ -45,6 +45,24 @@
         color: var(--pam-text);
     }
 
+    .pam-modal,
+    .pam-toast-root {
+        --pam-green: var(--color-primary, #22c55e);
+        --pam-green-dark: var(--color-primary-dark, #16a34a);
+        --pam-green-deep: var(--color-primary-deep, #15803d);
+        --pam-surface: var(--color-surface, #ffffff);
+        --pam-soft: var(--color-surface-soft, #f8faf9);
+        --pam-muted: var(--color-surface-muted, #f1f5f3);
+        --pam-border: var(--color-border, #dfe7e2);
+        --pam-border-strong: var(--color-border-strong, #cbd8d0);
+        --pam-text: var(--color-text, #102018);
+        --pam-secondary: var(--color-text-secondary, #52645a);
+        --pam-faded: var(--color-text-muted, #839187);
+        --pam-danger: var(--color-danger, #ef4444);
+        --pam-warning: var(--color-warning, #f59e0b);
+        --pam-info: var(--color-info, #0284c7);
+    }
+
     .pam-shell *,
     .pam-shell *::before,
     .pam-shell *::after {
@@ -892,7 +910,7 @@
         width: min(100%, 440px);
         overflow: hidden;
         border: 1px solid rgba(255, 255, 255, .72);
-        border-radius: 22px;
+        border-radius: 8px;
         background: var(--pam-surface);
         box-shadow: 0 24px 64px rgba(15, 23, 42, .22);
         animation: pam-modal-in .2s cubic-bezier(.2, .8, .2, 1);
@@ -916,6 +934,7 @@
         gap: .75rem;
         padding: .9rem 1rem;
         border-bottom: 1px solid var(--pam-border);
+        background: var(--pam-surface);
     }
 
     .pam-modal-head strong {
@@ -930,7 +949,7 @@
         height: 34px;
         place-items: center;
         border: 0;
-        border-radius: 11px;
+        border-radius: 8px;
         background: var(--pam-muted);
         color: var(--pam-secondary);
         cursor: pointer;

@@ -1,8 +1,8 @@
 @extends('layouts.bento')
 
-@section('title', 'Imprimíveis')
-@section('page-title', 'Imprimíveis')
-@section('user-role', 'Registrador')
+@section('title', 'Imprimiveis')
+@section('page-title', 'Imprimiveis')
+@section('user-role', 'Ferramentas')
 
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'printables', $currentTenant->slug ?? request()->route('tenant'));
@@ -10,275 +10,96 @@
 
 @section('content')
 <style>
-.sheet-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    margin-bottom: 1.25rem;
-}
-.sheet-card h2 {
-    font-size: 1rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: .75rem;
-}
-.form-group { margin-bottom: 1rem; }
-.form-label { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--color-text-secondary); display: block; margin-bottom: .35rem; }
-.form-select, .form-input {
-    width: 100%;
-    padding: .55rem .85rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    background: var(--color-bg);
-    color: var(--color-text);
-    font-size: .9rem;
-}
-.form-select:focus, .form-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
-}
-
-/* Products grid */
-.products-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: .6rem;
-    margin-top: .5rem;
-    max-height: 380px;
-    overflow-y: auto;
-    padding: .25rem;
-}
-.product-checkbox {
-    display: flex;
-    align-items: flex-start;
-    gap: .5rem;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
-    padding: .6rem .75rem;
-    cursor: pointer;
-    transition: .15s;
-    user-select: none;
-}
-.product-checkbox:hover { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 5%, transparent); }
-.product-checkbox.selected { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
-.product-checkbox input[type=checkbox] { margin-top: .2rem; accent-color: var(--color-primary); width: 15px; height: 15px; flex-shrink: 0; }
-.product-checkbox .p-name { font-size: .82rem; font-weight: 600; display: block; }
-.product-checkbox .p-price { font-size: .75rem; color: var(--color-text-secondary); display: block; margin-top: .1rem; }
-.product-checkbox .p-unit  { font-size: .7rem; color: var(--color-text-secondary); }
-
-.bulk-actions { display: flex; gap: .5rem; margin-bottom: .5rem; flex-wrap: wrap; }
-.btn-sm { padding: .3rem .7rem; border-radius: var(--radius-sm); font-size: .78rem; font-weight: 600; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); }
-.btn-sm:hover { background: var(--color-surface); }
-.btn-primary { background: var(--color-primary); color: #fff; border-color: var(--color-primary); padding: .6rem 1.4rem; border-radius: var(--radius-md); font-size: .9rem; font-weight: 700; cursor: pointer; width: 100%; }
-.btn-primary:hover { opacity: .9; }
-.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
-
-.loading-overlay { display: none; align-items: center; gap: .5rem; color: var(--color-text-secondary); font-size: .82rem; margin-top: .35rem; }
-.spinner { width: 14px; height: 14px; border: 2px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.selected-count { font-size: .78rem; color: var(--color-primary); font-weight: 600; margin-left: auto; }
-.preview-note { font-size: .75rem; color: var(--color-text-secondary); margin-top: .75rem; text-align: center; }
-#no-products-msg { display: none; padding: 1.5rem; text-align: center; color: var(--color-text-secondary); font-size: .85rem; }
+    .print-shell{display:grid;grid-template-columns:260px minmax(0,1fr);gap:1rem;max-width:1120px;margin:0 auto}.tool-list{display:grid;gap:.55rem;align-content:start}.tool-card{display:flex;align-items:center;gap:.7rem;width:100%;padding:.85rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);text-decoration:none;text-align:left}.tool-card.active{border-color:var(--color-primary);background:color-mix(in srgb,var(--color-primary) 6%,var(--color-surface))}.tool-card svg{width:18px;height:18px;color:var(--color-primary)}.tool-card strong{display:block;font-size:.8rem}.tool-card span{display:block;font-size:.68rem;color:var(--color-text-secondary);margin-top:.12rem}.print-workspace{padding:1.15rem}.print-title{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--color-border);padding-bottom:.85rem;margin-bottom:1rem}.print-title h2{font-size:1rem;margin:0}.print-grid{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:.8rem}.field label{display:block;font-size:.72rem;font-weight:750;margin-bottom:.35rem}.field select,.field input,.search-products{width:100%;border:1px solid var(--color-border);border-radius:7px;background:var(--color-bg);color:var(--color-text);padding:.62rem .7rem;font-size:.82rem}.product-tools{display:flex;align-items:center;gap:.5rem;margin:1rem 0 .55rem}.product-tools .search-products{flex:1}.small-button{border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);border-radius:7px;padding:.58rem .7rem;font-size:.72rem;font-weight:700;white-space:nowrap}.product-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.45rem;max-height:360px;overflow:auto}.product-item{display:flex;gap:.55rem;align-items:flex-start;border:1px solid var(--color-border);border-radius:7px;padding:.65rem;background:var(--color-bg);cursor:pointer}.product-item:has(input:checked){border-color:var(--color-primary);background:color-mix(in srgb,var(--color-primary) 6%,var(--color-bg))}.product-item input{accent-color:var(--color-primary);margin-top:.12rem}.product-item strong{display:block;font-size:.76rem}.product-item span{font-size:.68rem;color:var(--color-text-secondary)}.print-footer{display:flex;align-items:center;justify-content:space-between;gap:1rem;border-top:1px solid var(--color-border);padding-top:1rem;margin-top:1rem}.print-footer p{font-size:.72rem;color:var(--color-text-secondary);margin:0}.generate-button{display:inline-flex;align-items:center;gap:.4rem;border:0;border-radius:7px;background:var(--color-primary);color:#fff;padding:.7rem 1rem;font-size:.78rem;font-weight:800}.generate-button:disabled{opacity:.45}.inline-state{padding:1rem;text-align:center;color:var(--color-text-secondary);font-size:.78rem}.form-error{display:none;margin-top:.7rem;padding:.65rem .75rem;border:1px solid color-mix(in srgb,var(--color-danger) 40%,var(--color-border));border-radius:7px;color:var(--color-danger);font-size:.75rem}@media(max-width:760px){.print-shell{grid-template-columns:1fr}.tool-list{grid-template-columns:1fr 1fr}.print-grid{grid-template-columns:1fr}.print-footer{align-items:stretch;flex-direction:column}.generate-button{justify-content:center;width:100%}}@media(max-width:460px){.tool-list{grid-template-columns:1fr}.product-list{grid-template-columns:1fr}}
+    #selection-count{font-size:.7rem;font-weight:750;color:var(--color-primary)}
 </style>
 
-<form id="sheet-form" method="POST" action="{{ route('delivery.sheet.generate', ['tenant' => request()->route('tenant')]) }}">
-@csrf
+<div class="print-shell">
+    <nav class="tool-list" aria-label="Ferramentas de impressao">
+        <button type="button" class="tool-card active"><i data-lucide="clipboard-list"></i><span><strong>Ficha de entrega</strong><span>Produtos e precos por cliente</span></span></button>
+        <a class="tool-card" href="{{ route('delivery.projects-list', ['tenant' => request()->route('tenant')]) }}"><i data-lucide="folder-kanban"></i><span><strong>Relatorios do projeto</strong><span>Abrir projetos de venda</span></span></a>
+    </nav>
 
-<div class="sheet-card">
-    <h2><i data-lucide="printer" style="width:16px;height:16px"></i> Ficha de entrega</h2>
-
-    <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:end;">
-        <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Cliente</label>
-            <select class="form-select" id="customer-select" name="customer_id" required>
-                <option value="">— selecione um cliente —</option>
-                @foreach($customers as $c)
-                    <option value="{{ $c->id }}">{{ $c->name }}{{ $c->trade_name ? ' ('.$c->trade_name.')' : '' }}</option>
-                @endforeach
-            </select>
+    <form class="bento-card print-workspace" id="sheet-form" method="POST" action="{{ route('delivery.sheet.generate', ['tenant' => request()->route('tenant')]) }}">
+        @csrf
+        <div class="print-title"><h2>Ficha de entrega</h2><span id="selection-count" class="panel-selector-heading-badge">0 produtos</span></div>
+        @if($errors->any())<div class="form-error" style="display:block" role="alert">{{ $errors->first() }}</div>@endif
+        <div class="print-grid">
+            <div class="field"><label for="customer-select">Cliente</label><select id="customer-select" name="customer_id" required><option value="">Selecione</option>@foreach($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</select></div>
+            <div class="field"><label for="sheet-date">Data</label><input id="sheet-date" type="date" name="sheet_date" value="{{ now()->toDateString() }}"></div>
         </div>
-        <div class="form-group" style="margin-bottom:0">
-            <label class="form-label">Data da Ficha</label>
-            <input type="date" class="form-input" style="width:160px" name="sheet_date" value="{{ date('Y-m-d') }}">
+        <div class="product-tools"><input class="search-products" id="product-search" type="search" placeholder="Buscar produto" disabled><button class="small-button" id="toggle-products" type="button" disabled>Desmarcar todos</button></div>
+        <div id="product-list" class="product-list"><div class="inline-state">Selecione um cliente.</div></div>
+        <div class="form-error" id="form-error" role="alert"></div>
+        <div class="print-footer">
+            <div class="field"><label for="layout">Formato</label><select id="layout" name="layout"><option value="landscape">Paisagem, duas vias</option><option value="portrait">Retrato, uma via</option></select></div>
+            <button type="submit" class="generate-button" id="generate-button" disabled><i data-lucide="download"></i>Gerar PDF</button>
         </div>
-    </div>
-
-    <div class="loading-overlay" id="loading-products">
-        <div class="spinner"></div> Carregando produtos...
-    </div>
+    </form>
 </div>
+@endsection
 
-<div class="sheet-card" id="products-card" style="display:none">
-    <h2>
-        <i data-lucide="package" style="width:16px;height:16px"></i> 2. Selecione os Produtos
-        <span class="selected-count" id="selected-count">0 selecionados</span>
-    </h2>
-
-    <div class="bulk-actions">
-        <button type="button" class="btn-sm" id="select-all">Selecionar Todos</button>
-        <button type="button" class="btn-sm" id="deselect-all">Desmarcar Todos</button>
-    </div>
-
-    <div class="products-grid" id="products-grid"></div>
-    <div id="no-products-msg">Nenhum produto encontrado para este cliente.</div>
-</div>
-
-<div class="sheet-card" id="generate-card" style="display:none">
-    <h2><i data-lucide="printer" style="width:16px;height:16px"></i> 3. Gerar Ficha</h2>
-
-    <div class="form-group">
-        <label class="form-label">Orientação do PDF</label>
-        <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;padding:.5rem .9rem;border:1px solid var(--color-border);border-radius:var(--radius-md);transition:.15s;" id="lbl-landscape">
-                <input type="radio" name="layout" value="landscape" checked style="accent-color:var(--color-primary)">
-                <i data-lucide="layout-panel-left" style="width:15px;height:15px"></i>
-                <span style="font-size:.85rem;font-weight:600;">Paisagem — 2 vias (A4 horizontal)</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:.45rem;cursor:pointer;padding:.5rem .9rem;border:1px solid var(--color-border);border-radius:var(--radius-md);transition:.15s;" id="lbl-portrait">
-                <input type="radio" name="layout" value="portrait" style="accent-color:var(--color-primary)">
-                <i data-lucide="file" style="width:15px;height:15px"></i>
-                <span style="font-size:.85rem;font-weight:600;">Retrato — 1 via (A4 vertical, folha inteira)</span>
-            </label>
-        </div>
-    </div>
-
-    <button type="submit" class="btn-primary" id="generate-btn" disabled>
-        <i data-lucide="download" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:4px"></i>
-        Gerar e Baixar PDF
-    </button>
-    <p class="preview-note" id="preview-note">
-        Paisagem: uma página com duas colunas de produtos (org e produtor lado a lado).
-    </p>
-</div>
-
-</form>
-
+@push('scripts')
 <script>
-(function () {
-    const tenantSlug  = '{{ request()->route('tenant') }}';
-    const apiBase     = '/{{ request()->route('tenant') }}/delivery/sheet/products';
-    const customerSel = document.getElementById('customer-select');
-    const productsGrid= document.getElementById('products-grid');
-    const productsCard= document.getElementById('products-card');
-    const generateCard= document.getElementById('generate-card');
-    const generateBtn = document.getElementById('generate-btn');
-    const loadingEl   = document.getElementById('loading-products');
-    const countEl     = document.getElementById('selected-count');
-    const noMsg       = document.getElementById('no-products-msg');
+(() => {
+    const customer = document.getElementById('customer-select');
+    const list = document.getElementById('product-list');
+    const search = document.getElementById('product-search');
+    const toggle = document.getElementById('toggle-products');
+    const count = document.getElementById('selection-count');
+    const submit = document.getElementById('generate-button');
+    const error = document.getElementById('form-error');
+    const endpoint = @json(url('/'.request()->route('tenant').'/delivery/sheet/products'));
+    let products = [];
 
-    function updateCount() {
-        const checked = productsGrid.querySelectorAll('input[type=checkbox]:checked').length;
-        countEl.textContent = checked + ' selecionado' + (checked !== 1 ? 's' : '');
-        generateBtn.disabled = checked === 0;
+    function updateState() {
+        const checked = list.querySelectorAll('input:checked').length;
+        count.textContent = `${checked} produto${checked === 1 ? '' : 's'}`;
+        submit.disabled = checked === 0;
+        toggle.textContent = checked ? 'Desmarcar todos' : 'Marcar todos';
     }
 
-    function renderProducts(products) {
-        productsGrid.innerHTML = '';
-        noMsg.style.display = 'none';
-
-        if (!products.length) {
-            noMsg.style.display = 'block';
-            return;
-        }
-
-        products.forEach(p => {
-            const label = document.createElement('label');
-            label.className = 'product-checkbox';
-            label.innerHTML = `
-                <input type="checkbox" name="product_ids[]" value="${p.id}" checked>
-                <div>
-                    <span class="p-name">${p.name}</span>
-                    <span class="p-price">R$ ${p.sale_price.toFixed(2).replace('.', ',')} / ${p.unit}${p.has_custom ? ' <span style="color:var(--color-primary)">★</span>' : ''}</span>
-                </div>
-            `;
-            const cb = label.querySelector('input');
-            cb.addEventListener('change', () => {
-                label.classList.toggle('selected', cb.checked);
-                updateCount();
-            });
-            label.classList.add('selected');
-            productsGrid.appendChild(label);
+    function render() {
+        const term = search.value.trim().toLocaleLowerCase('pt-BR');
+        list.innerHTML = '';
+        products.filter(product => product.name.toLocaleLowerCase('pt-BR').includes(term)).forEach(product => {
+            const label = document.createElement('label'); label.className = 'product-item';
+            const input = document.createElement('input'); input.type = 'checkbox'; input.name = 'product_ids[]'; input.value = product.id; input.checked = product.selected;
+            const copy = document.createElement('span'); const name = document.createElement('strong'); name.textContent = product.name;
+            const price = document.createElement('span'); price.textContent = `R$ ${Number(product.sale_price).toLocaleString('pt-BR',{minimumFractionDigits:2})} / ${product.unit}`;
+            copy.append(name, price); label.append(input, copy); list.append(label);
+            input.addEventListener('change', () => { product.selected = input.checked; updateState(); });
         });
-
-        updateCount();
+        if (!list.children.length) list.innerHTML = '<div class="inline-state">Nenhum produto com preco encontrado.</div>';
+        updateState();
     }
 
-    customerSel.addEventListener('change', function () {
-        const id = this.value;
-        if (!id) {
-            productsCard.style.display = 'none';
-            generateCard.style.display = 'none';
-            return;
+    customer.addEventListener('change', async () => {
+        products = []; search.disabled = true; toggle.disabled = true; submit.disabled = true;
+        list.innerHTML = '<div class="inline-state">Carregando...</div>'; error.style.display = 'none';
+        if (!customer.value) { list.innerHTML = '<div class="inline-state">Selecione um cliente.</div>'; return; }
+        try {
+            const response = await fetch(`${endpoint}/${encodeURIComponent(customer.value)}`, {headers:{Accept:'application/json'}});
+            if (!response.ok) throw new Error();
+            products = (await response.json()).map(product => ({...product, selected:true}));
+            search.disabled = false; toggle.disabled = false; render();
+        } catch (_) {
+            list.innerHTML = ''; error.textContent = 'Nao foi possivel carregar os produtos.'; error.style.display = 'block';
         }
-
-        loadingEl.style.display = 'flex';
-        productsCard.style.display = 'none';
-        generateCard.style.display = 'none';
-
-        fetch(`${apiBase}/${id}`)
-            .then(r => r.json())
-            .then(products => {
-                loadingEl.style.display = 'none';
-                productsCard.style.display = 'block';
-                generateCard.style.display = 'block';
-                renderProducts(products);
-            })
-            .catch(() => {
-                loadingEl.style.display = 'none';
-                alert('Erro ao carregar produtos. Tente novamente.');
-            });
     });
-
-    document.getElementById('select-all').addEventListener('click', () => {
-        productsGrid.querySelectorAll('input[type=checkbox]').forEach(cb => {
-            cb.checked = true;
-            cb.closest('label').classList.add('selected');
+    search.addEventListener('input', render);
+    toggle.addEventListener('click', () => { const select = !products.some(product => product.selected); products.forEach(product => product.selected = select); render(); });
+    document.getElementById('sheet-form').addEventListener('submit', event => {
+        if (!products.some(product => product.selected)) { event.preventDefault(); return; }
+        event.currentTarget.querySelectorAll('.persisted-product').forEach(input => input.remove());
+        list.querySelectorAll('input[name="product_ids[]"]').forEach(input => input.disabled = true);
+        products.filter(product => product.selected).forEach(product => {
+            const input = document.createElement('input'); input.type = 'hidden'; input.name = 'product_ids[]'; input.value = product.id; input.className = 'persisted-product';
+            event.currentTarget.append(input);
         });
-        updateCount();
-    });
-
-    document.getElementById('deselect-all').addEventListener('click', () => {
-        productsGrid.querySelectorAll('input[type=checkbox]').forEach(cb => {
-            cb.checked = false;
-            cb.closest('label').classList.remove('selected');
-        });
-        updateCount();
-    });
-
-    // Layout radio: highlight selected + update preview note
-    const layoutNotes = {
-        landscape: 'Paisagem: uma página com duas colunas de produtos (org e produtor lado a lado).',
-        portrait:  'Retrato: página inteira para uma única via, colunas mais largas — ideal para listas maiores.',
-    };
-    document.querySelectorAll('input[name="layout"]').forEach(radio => {
-        radio.addEventListener('change', () => {
-            document.getElementById('preview-note').textContent = layoutNotes[radio.value] || '';
-            document.getElementById('lbl-landscape').style.borderColor = radio.value === 'landscape' ? 'var(--color-primary)' : 'var(--color-border)';
-            document.getElementById('lbl-portrait').style.borderColor  = radio.value === 'portrait'  ? 'var(--color-primary)' : 'var(--color-border)';
-        });
-    });
-    // Set initial highlight
-    document.getElementById('lbl-landscape').style.borderColor = 'var(--color-primary)';
-
-    // Show loader on submit
-    document.getElementById('sheet-form').addEventListener('submit', function () {
-        generateBtn.disabled = true;
-        generateBtn.textContent = 'Gerando PDF...';
-        setTimeout(() => {
-            generateBtn.disabled = false;
-            generateBtn.innerHTML = '<i data-lucide="download" style="width:15px;height:15px;display:inline-block;vertical-align:middle;margin-right:4px"></i> Gerar e Baixar PDF';
-            if (window.lucide) lucide.createIcons();
-        }, 4000);
+        submit.disabled = true; submit.textContent = 'Gerando...';
+        setTimeout(() => { list.querySelectorAll('input[name="product_ids[]"]').forEach(input => input.disabled = false); submit.disabled = false; submit.innerHTML = '<i data-lucide="download"></i>Gerar PDF'; window.lucide?.createIcons(); }, 5000);
     });
 })();
 </script>
-@endsection
-
+@endpush

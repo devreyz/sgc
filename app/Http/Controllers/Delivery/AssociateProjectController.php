@@ -15,6 +15,7 @@ use App\Models\SalesProject;
 use App\Services\AssociateFinancialSummaryService;
 use App\Services\AssociateProjectLimitService;
 use App\Services\TenantIdentityService;
+use App\Services\TenantNotificationDispatcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class AssociateProjectController extends Controller
         private readonly AssociateProjectLimitService $limits,
         private readonly AssociateFinancialSummaryService $financial,
         private readonly TenantIdentityService $identities,
+        private readonly TenantNotificationDispatcher $notifications,
     ) {
         $this->middleware(['auth', 'any.role:registrador_entregas']);
     }
@@ -157,6 +159,9 @@ class AssociateProjectController extends Controller
             'status' => $validated['status'],
         ])->log('Participacao do associado atualizada');
 
+        $this->notifyLimitChange($project, $associate, 'Participacao atualizada',
+            $validated['status'] === 'active' ? 'Sua participacao foi liberada.' : 'Sua participacao foi bloqueada.');
+
         return response()->json(['message' => 'Participacao atualizada.', 'status' => $link->status]);
     }
 
@@ -207,6 +212,8 @@ class AssociateProjectController extends Controller
             $validated['notes'] ?? null,
         );
 
+        $this->notifyLimitChange($project, $associate, 'Limite financeiro atualizado', 'O limite financeiro do projeto foi atualizado.');
+
         return response()->json([
             'message' => 'Limite financeiro atualizado.',
             'summary' => $this->summary($project->fresh(), $associate),
@@ -223,7 +230,7 @@ class AssociateProjectController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
-        Product::query()
+        $product = Product::query()
             ->where('tenant_id', $project->tenant_id)
             ->whereKey($validated['product_id'])
             ->firstOrFail();
@@ -235,6 +242,9 @@ class AssociateProjectController extends Controller
             (float) $validated['max_quantity'],
             $validated['notes'] ?? null,
         );
+
+        $this->notifyLimitChange($project, $associate, 'Limite de produto atualizado',
+            sprintf('%s: limite de %.3f %s.', $product->name, (float) $validated['max_quantity'], $product->unit));
 
         return response()->json([
             'message' => 'Limite do produto atualizado.',
@@ -250,6 +260,34 @@ class AssociateProjectController extends Controller
             ->findOrFail((int) $request->route('associate'));
 
         return [$project, $associate];
+    }
+
+    private function notifyLimitChange(SalesProject $project, Associate $associate, string $title, string $body): void
+    {
+        $associate->loadMissing('user');
+        $configuredRoles = $this->notifications->configuredRoles('associate.limit_updated', $project->tenant_id);
+        $roles = array_values(array_diff($configuredRoles, ['associado']));
+        $recipients = $this->notifications->usersForRoles($project->tenant_id, $roles);
+
+        $this->notifications->dispatch('associate.limit_updated', $project->tenant_id, $recipients, [
+            'title' => $title,
+            'body' => $project->name.'. '.$body,
+            'url' => route('delivery.projects.associates.show', [
+                'tenant' => request()->route('tenant'),
+                'project' => $project->id,
+                'associate' => $associate->id,
+            ], false),
+            'icon' => 'gauge',
+        ]);
+
+        if (in_array('associado', $configuredRoles, true) && $associate->user) {
+            $this->notifications->dispatch('associate.limit_updated', $project->tenant_id, [$associate->user], [
+                'title' => $title,
+                'body' => $project->name.'. '.$body,
+                'url' => route('associate.projects', ['tenant' => request()->route('tenant')], false),
+                'icon' => 'gauge',
+            ]);
+        }
     }
 
     private function projectContext(Request $request): SalesProject

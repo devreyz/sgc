@@ -18,8 +18,11 @@ use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
+use App\Http\Controllers\NotificationCenterController;
+use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TenantController;
@@ -99,6 +102,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
     Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
     Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
+    Route::get('/notifications/push/status', [PushSubscriptionController::class, 'status'])->name('notifications.push.status');
+    Route::post('/notifications/push/subscriptions', [PushSubscriptionController::class, 'store'])
+        ->middleware('throttle:20,1')->name('notifications.push.store');
+    Route::delete('/notifications/push/subscriptions', [PushSubscriptionController::class, 'destroy'])
+        ->middleware('throttle:20,1')->name('notifications.push.destroy');
     Route::get('/security/reauth/passkey/options', [PasskeyManagementController::class, 'reauthenticationOptions'])
         ->middleware(['webauthn.config', 'throttle:passkey-options'])->name('security.reauth.passkey.options');
     Route::post('/security/reauth/passkey', [PasskeyManagementController::class, 'reauthenticate'])
@@ -125,6 +133,19 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 // ===========================================================================================
 
 Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
+
+    Route::prefix('notifications')->name('notifications.')->group(function () {
+        Route::get('/', [NotificationCenterController::class, 'index'])->name('index');
+        Route::get('/unread-count', [NotificationCenterController::class, 'unreadCount'])->name('unread-count');
+        Route::post('/read-all', [NotificationCenterController::class, 'markAllRead'])->name('read-all');
+        Route::post('/{notification}/read', [NotificationCenterController::class, 'markRead'])->name('read');
+        Route::get('/{notification}/open', [NotificationCenterController::class, 'open'])->name('open');
+    });
+
+    Route::get('/settings/notifications', [NotificationPreferenceController::class, 'index'])
+        ->name('notifications.settings');
+    Route::put('/settings/notifications', [NotificationPreferenceController::class, 'update'])
+        ->name('notifications.settings.update');
 
     Route::get('/settings/google-drive/connect', [GoogleDriveOAuthController::class, 'connect'])
         ->middleware(['auth.recent', 'throttle:google-drive-oauth'])

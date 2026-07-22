@@ -43,7 +43,7 @@ Comprovantes regenerados e anexos substituidos atualizam o mesmo arquivo pelo ID
 As sincronizacoes usam a fila `documents`. Em servidor com worker persistente, use:
 
 ```shell
-php artisan queue:work --queue=documents,default --tries=3 --timeout=120
+php artisan queue:work --queue=notifications,documents,default --tries=3 --timeout=120
 ```
 
 ### Hostinger e hospedagem compartilhada
@@ -54,7 +54,7 @@ O projeto agenda um worker de execucao unica a cada cinco minutos, protegido por
 * * * * * cd /caminho/absoluto/do/projeto && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Use o caminho do executavel PHP selecionado para o dominio na Hostinger. O worker processa `documents,default`, encerra quando a fila esvazia, limita cada job a 120 segundos e o processo a 240 segundos. Nao crie uma URL publica para disparar a fila e nao coloque tokens no comando do cron.
+Use o caminho do executavel PHP selecionado para o dominio na Hostinger. O worker processa `notifications,documents,default`, encerra quando a fila esvazia, limita cada job a 120 segundos e o processo a 240 segundos. Nao crie uma URL publica para disparar a fila e nao coloque tokens no comando do cron.
 
 Depois de atualizar nomes de projetos ou implantar esta versao, use **Minha Organizacao > Google Drive > Sincronizar agora**. Os jobs serao processados na proxima passagem do cron.
 

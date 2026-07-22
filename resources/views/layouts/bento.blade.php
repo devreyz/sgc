@@ -69,6 +69,7 @@
             /* Compatibility with existing pages */
             --color-primary: var(--app-primary);
             --color-primary-dark: var(--app-primary-600);
+            --color-primary-deep: var(--app-primary-700);
             --color-primary-light: var(--app-primary-muted);
             --color-primary-50: var(--app-primary-soft);
             --color-secondary: var(--app-accent);
@@ -78,8 +79,12 @@
             --color-info: var(--app-info);
             --color-bg: var(--app-bg);
             --color-surface: var(--app-surface);
+            --color-surface-soft: var(--app-surface-soft);
+            --color-surface-muted: #f1f5f3;
             --color-border: var(--app-border);
+            --color-border-strong: var(--app-border-strong);
             --color-text: var(--app-text);
+            --color-text-secondary: var(--app-text-secondary);
             --color-text-muted: var(--app-text-secondary);
             --shadow-sm: var(--app-shadow-xs);
             --shadow-md: var(--app-shadow-sm);
@@ -656,6 +661,14 @@
 
         .col-span-full {
             grid-column: 1 / -1;
+        }
+
+        .notification-header-link { position: relative; }
+        .notification-count {
+            position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px;
+            padding: 0 4px; border-radius: 9px; display: grid; place-items: center;
+            background: var(--app-danger); color: #fff; font-size: 10px; font-weight: 800;
+            border: 2px solid color-mix(in srgb, var(--color-surface) 92%, transparent);
         }
 
         body.portal-associate .bento-grid > .bento-card {
@@ -1509,6 +1522,12 @@
             </div>
 
             <div class="app-header__actions">
+                @if($currentTenantSlug)
+                    <a href="{{ route('notifications.index', ['tenant' => $currentTenantSlug]) }}" class="app-header-action notification-header-link" aria-label="Notificacoes" title="Notificacoes">
+                        <i data-lucide="bell"></i>
+                        <span class="notification-count" data-notification-count hidden>0</span>
+                    </a>
+                @endif
                 <button type="button" class="app-profile-button" id="userMenuToggle" aria-controls="userMenuSheet" aria-expanded="false">
                     <span class="app-profile-copy">
                         <span class="app-profile-name">{{ $authenticatedMemberName }}</span>
@@ -1595,6 +1614,17 @@
             @endif
 
             @if($currentTenantSlug)
+                <a href="{{ route('notifications.index', ['tenant' => $currentTenantSlug]) }}" class="user-menu-item">
+                    <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="bell"></i></span>
+                    <span class="user-menu-text"><h4>Notificacoes</h4><p>Avisos e permissoes do dispositivo</p></span>
+                    <span class="notification-count" data-notification-count hidden>0</span>
+                </a>
+
+                <button type="button" class="user-menu-item" data-pwa-install hidden>
+                    <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="download"></i></span>
+                    <span class="user-menu-text"><h4>Instalar aplicativo</h4><p>Adicionar o SGC a este dispositivo</p></span>
+                </button>
+
                 <a href="{{ url('/' . $currentTenantSlug . '/profile') }}" class="user-menu-item">
                     <span class="user-menu-icon primary" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1616,6 +1646,13 @@
                     </span>
                     <span class="user-menu-text"><h4>Segurança e acesso</h4><p>Passkeys e conta Google</p></span>
                 </a>
+
+                @if($authenticatedUser?->hasRoleInTenant(['admin', 'super_admin'], $currentTenant?->id))
+                    <a href="{{ route('notifications.settings', ['tenant' => $currentTenantSlug]) }}" class="user-menu-item">
+                        <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="settings-2"></i></span>
+                        <span class="user-menu-text"><h4>Preferencias de notificacao</h4><p>Eventos, prioridades e destinatarios</p></span>
+                    </a>
+                @endif
 
                 <a href="{{ url('/' . $currentTenantSlug . '/wallet') }}" class="user-menu-item">
                     <span class="user-menu-icon primary" aria-hidden="true">
@@ -1829,21 +1866,19 @@
         })();
     </script>
 
-    <script src="{{ asset('js/image-compressor.js') }}"></script>
-
+    <?php
+        $sgcPwaConfig = $currentTenantSlug ? [
+            'unreadCountUrl' => route('notifications.unread-count', ['tenant' => $currentTenantSlug]),
+            'pushStatusUrl' => route('notifications.push.status'),
+            'pushStoreUrl' => route('notifications.push.store'),
+            'pushDestroyUrl' => route('notifications.push.destroy'),
+        ] : [];
+    ?>
     <script>
-        // if ('serviceWorker' in navigator) {
-        //     navigator.serviceWorker.getRegistrations()
-        //         .then((registrations) => registrations.forEach((registration) => registration.unregister()))
-        //         .catch(() => {});
-        // }
-
-        // if ('caches' in window) {
-        //     caches.keys()
-        //         .then((keys) => keys.forEach((key) => caches.delete(key)))
-        //         .catch(() => {});
-        // }
+        window.SgcPwaConfig = <?= json_encode($sgcPwaConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
     </script>
+
+    <script src="{{ asset('js/image-compressor.js') }}"></script>
 
     @stack('scripts')
 </body>

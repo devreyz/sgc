@@ -53,6 +53,24 @@
         color: var(--ap-text);
     }
 
+    .ap-modal,
+    .ap-toast-root {
+        --ap-primary: var(--color-primary, #22c55e);
+        --ap-primary-dark: var(--color-primary-dark, #16a34a);
+        --ap-primary-deep: var(--color-primary-deep, #15803d);
+        --ap-surface: var(--color-surface, #ffffff);
+        --ap-soft: var(--color-surface-soft, #f8faf9);
+        --ap-muted: var(--color-surface-muted, #f1f5f3);
+        --ap-border: var(--color-border, #dfe7e2);
+        --ap-border-strong: var(--color-border-strong, #cbd8d0);
+        --ap-text: var(--color-text, #102018);
+        --ap-secondary: var(--color-text-secondary, #52645a);
+        --ap-faded: var(--color-text-muted, #839187);
+        --ap-danger: var(--color-danger, #ef4444);
+        --ap-warning: var(--color-warning, #f59e0b);
+        --ap-info: var(--color-info, #0284c7);
+    }
+
     .ap-shell *,
     .ap-shell *::before,
     .ap-shell *::after {
@@ -896,7 +914,7 @@
         max-height: min(92dvh, 760px);
         overflow-y: auto;
         border: 1px solid rgba(255,255,255,.72);
-        border-radius: 22px;
+        border-radius: 8px;
         background: var(--ap-surface);
         box-shadow: 0 24px 64px rgba(15,23,42,.22);
         animation: ap-modal-in .2s cubic-bezier(.2,.8,.2,1);
@@ -923,7 +941,7 @@
         gap: .75rem;
         padding: .9rem 1rem;
         border-bottom: 1px solid var(--ap-border);
-        background: rgba(255,255,255,.96);
+        background: var(--ap-surface);
         backdrop-filter: blur(14px);
     }
 
@@ -939,7 +957,7 @@
         height: 34px;
         place-items: center;
         border: 0;
-        border-radius: 11px;
+        border-radius: 8px;
         background: var(--ap-muted);
         color: var(--ap-secondary);
         cursor: pointer;

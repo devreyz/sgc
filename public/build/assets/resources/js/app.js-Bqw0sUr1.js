@@ -1,1 +1,0 @@
-import{a as s,P as e}from"../../vendor-KF4U7xcw.js";window.axios=s;window.axios.defaults.headers.common["X-Requested-With"]="XMLHttpRequest";window.SgcPasskeys=e;window.dispatchEvent(new CustomEvent("sgc:passkeys-ready"));

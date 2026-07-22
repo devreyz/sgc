@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('queue:work', [
-    '--queue' => 'documents,default',
+    '--queue' => 'notifications,documents,default',
     '--stop-when-empty' => true,
     '--max-time' => 240,
     '--tries' => 3,

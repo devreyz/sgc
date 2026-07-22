@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Tenant;
 use App\Services\PricingService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class DeliverySheetController extends Controller
 {
@@ -43,12 +44,7 @@ class DeliverySheetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'trade_name']);
 
-        $products = Product::where('tenant_id', $tenantId)
-            ->where('status', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'unit']);
-
-        return view('delivery.sheet-selector', compact('tenant', 'customers', 'products'));
+        return view('delivery.sheet-selector', compact('tenant', 'customers'));
     }
 
     /**
@@ -132,6 +128,12 @@ class DeliverySheetController extends Controller
                 'sale_price' => (float) $pricing['sale_price'],
             ];
         })->filter(fn ($item) => $item['sale_price'] > 0)->values()->all();
+
+        if ($items === []) {
+            throw ValidationException::withMessages([
+                'product_ids' => 'Selecione ao menos um produto com preco configurado para este cliente.',
+            ]);
+        }
 
         $sheetDate = $request->sheet_date
             ? \Carbon\Carbon::parse($request->sheet_date)->format('d/m/Y')

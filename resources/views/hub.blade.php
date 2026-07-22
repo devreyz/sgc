@@ -244,6 +244,11 @@ Bem-vindo, {{ $displayName }}!
         box-shadow: 0 5px 16px rgba(15, 35, 24, .04);
     }
 
+    .hub-notification-link { display:flex;align-items:center;gap:.75rem;margin:1rem 0;padding:.8rem 1rem;border:1px solid var(--color-border);border-radius:8px;background:var(--color-surface);color:var(--color-text);text-decoration:none; }
+    .hub-notification-link svg { width:18px;height:18px;color:var(--color-primary); }
+    .hub-notification-link strong { font-size:.82rem; }
+    .hub-notification-link span { margin-left:auto;min-width:24px;height:24px;padding:0 7px;border-radius:12px;display:grid;place-items:center;background:var(--color-primary);color:#fff;font-size:.72rem;font-weight:800; }
+
     .panel-selector-heading-badge svg {
         width: 13px;
         height: 13px;
@@ -687,6 +692,12 @@ Bem-vindo, {{ $displayName }}!
             </p>
         </aside>
     </section>
+
+    @if(($unreadNotifications ?? 0) > 0)
+        <a class="hub-notification-link" href="{{ route('notifications.index', ['tenant' => $currentTenant]) }}">
+            <i data-lucide="bell-ring"></i><strong>Notificacoes nao lidas</strong><span>{{ min($unreadNotifications, 99) }}</span>
+        </a>
+    @endif
 
     <div class="panel-selector-heading">
         <div>

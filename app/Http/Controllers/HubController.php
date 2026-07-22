@@ -15,7 +15,7 @@ class HubController extends Controller
         $user = Auth::user();
 
         // Verificar se usuário tem tenants antes de mostrar hub
-        $userTenants = $user->tenants;
+        $userTenants = $user->tenants()->wherePivot('status', true)->get();
 
         // Se não tem nenhum tenant, mostrar erro
         if ($userTenants->isEmpty()) {
@@ -46,6 +46,10 @@ class HubController extends Controller
         }
 
         $currentTenant = $userTenants->firstWhere('id', $currentTenantId);
+        $unreadNotifications = $user->notifications()
+            ->where('data->tenant_id', $currentTenant->id)
+            ->whereNull('read_at')
+            ->count();
 
         // Detectar as roles disponíveis do usuário no tenant atual
         $roles = [];
@@ -125,6 +129,6 @@ class HubController extends Controller
         }
 
         // Mostrar hub de seleção com tenant context
-        return view('hub', compact('roles', 'user', 'currentTenant'));
+        return view('hub', compact('roles', 'user', 'currentTenant', 'unreadNotifications'));
     }
 }
