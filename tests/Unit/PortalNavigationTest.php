@@ -23,7 +23,7 @@ class PortalNavigationTest extends TestCase
         );
         $this->assertStringEndsWith(
             '/organizacao-principal/delivery/sheet',
-            $items['sheets']['url'],
+            $items['printables']['url'],
         );
     }
 

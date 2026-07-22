@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use App\Services\TenantIdentityService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class TenantIdentityIsolationTest extends TestCase
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -30,6 +32,7 @@ class TenantIdentityIsolationTest extends TestCase
             $table->id();
             $table->string('name');
             $table->string('slug')->unique();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -80,6 +83,41 @@ class TenantIdentityIsolationTest extends TestCase
         $this->assertSame('Jose Reis', $resolver->displayName($tenantAId, $userId));
         $this->assertSame('Dev Reyz', $resolver->displayName($tenantBId, $userId));
         $this->assertNotSame('Jose da Silva', $resolver->displayName($tenantAId, $userId));
+    }
+
+    public function test_account_menu_only_resolves_active_tenant_memberships(): void
+    {
+        $userId = DB::table('users')->insertGetId([
+            'name' => 'Conta Global',
+            'email' => 'menu@example.test',
+            'password' => bcrypt('password'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $otherUserId = DB::table('users')->insertGetId([
+            'name' => 'Outra Conta',
+            'email' => 'other-menu@example.test',
+            'password' => bcrypt('password'),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $activeId = DB::table('tenants')->insertGetId(['name' => 'Ativa', 'slug' => 'ativa', 'created_at' => now(), 'updated_at' => now()]);
+        $inactiveId = DB::table('tenants')->insertGetId(['name' => 'Inativa', 'slug' => 'inativa', 'created_at' => now(), 'updated_at' => now()]);
+        $unrelatedId = DB::table('tenants')->insertGetId(['name' => 'Nao Autorizada', 'slug' => 'nao-autorizada', 'created_at' => now(), 'updated_at' => now()]);
+
+        DB::table('tenant_user')->insert([
+            ['tenant_id' => $activeId, 'user_id' => $userId, 'tenant_name' => 'Membro Ativo', 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['tenant_id' => $inactiveId, 'user_id' => $userId, 'tenant_name' => 'Membro Inativo', 'status' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['tenant_id' => $unrelatedId, 'user_id' => $otherUserId, 'tenant_name' => 'Outro Membro', 'status' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $tenantIds = User::findOrFail($userId)
+            ->tenants()
+            ->wherePivot('status', true)
+            ->pluck('tenants.id');
+
+        $this->assertSame([$activeId], $tenantIds->map(fn ($id) => (int) $id)->all());
     }
 
     public function test_missing_or_empty_tenant_member_never_falls_back_to_global_name(): void

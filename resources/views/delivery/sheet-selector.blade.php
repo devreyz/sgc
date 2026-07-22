@@ -1,11 +1,11 @@
 @extends('layouts.bento')
 
-@section('title', 'Fichas de Entrega')
-@section('page-title', 'Fichas de Entrega')
+@section('title', 'Imprimíveis')
+@section('page-title', 'Imprimíveis')
 @section('user-role', 'Registrador')
 
 @php
-    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'sheets', $currentTenant->slug ?? request()->route('tenant'));
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'printables', $currentTenant->slug ?? request()->route('tenant'));
 @endphp
 
 @section('content')
@@ -93,7 +93,7 @@
 @csrf
 
 <div class="sheet-card">
-    <h2><i data-lucide="user" style="width:16px;height:16px"></i> 1. Selecione o Cliente</h2>
+    <h2><i data-lucide="printer" style="width:16px;height:16px"></i> Ficha de entrega</h2>
 
     <div style="display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:end;">
         <div class="form-group" style="margin-bottom:0">

@@ -15,22 +15,19 @@
 
     <style>
         :root{
-            --green:#20a957;--green-dark:#16803d;--green-deep:#116a35;--green-soft:#eaf8ef;
-            --surface:#fff;--soft:#f7faf8;--muted:#eef4f0;
-            --text:#102018;--text-2:#53655a;--text-3:#7d8c83;
-            --border:#dce7e0;--border-strong:#c8d7ce;
+            --green:#22c55e;--green-dark:#16a34a;--green-deep:#15803d;--green-soft:#f0fdf4;
+            --surface:#fff;--soft:#f8fafc;--muted:#eef4f0;
+            --text:#0f172a;--text-2:#475569;--text-3:#64748b;
+            --border:#e2e8f0;--border-strong:#cbd5e1;
             --danger:#dc2626;--danger-soft:#fef2f2;
-            --shadow:0 26px 70px rgba(15,46,27,.18)
+            --shadow:0 16px 42px rgba(15,23,42,.09)
         }
 
         *,*::before,*::after{box-sizing:border-box}
         html{min-height:100%;background:#eff7f2;-webkit-text-size-adjust:100%}
         body{
             min-width:320px;min-height:100dvh;margin:0;overflow-x:hidden;
-            background:
-                radial-gradient(circle at 8% 0%,rgba(32,169,87,.14),transparent 28rem),
-                radial-gradient(circle at 94% 14%,rgba(37,99,235,.07),transparent 30rem),
-                linear-gradient(180deg,#fbfdfc 0%,#eff7f2 100%);
+            background:linear-gradient(180deg,#f7fbf8 0%,#f3f7f4 38%,#eef4f0 100%);
             color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
             -webkit-font-smoothing:antialiased
         }
@@ -51,13 +48,13 @@
         }
 
         .login-shell{
-            display:grid;width:min(100%,980px);grid-template-columns:minmax(0,1.1fr) minmax(380px,.9fr);
-            overflow:hidden;border:1px solid rgba(255,255,255,.72);border-radius:30px;
-            background:rgba(255,255,255,.94);box-shadow:var(--shadow);backdrop-filter:blur(18px)
+            display:grid;width:min(100%,480px);grid-template-columns:minmax(0,1fr);
+            overflow:hidden;border:1px solid var(--border);border-radius:8px;
+            background:#fff;box-shadow:var(--shadow)
         }
 
         .login-visual{
-            position:relative;display:flex;min-height:590px;justify-content:flex-end;flex-direction:column;
+            position:relative;display:none;min-height:590px;justify-content:flex-end;flex-direction:column;
             overflow:hidden;padding:2rem 2rem 2.4rem;
             background:
                 radial-gradient(circle at 76% 14%,rgba(255,255,255,.18),transparent 15rem),
@@ -92,8 +89,8 @@
         .visual-card svg{width:18px;height:18px;margin-bottom:.5rem}
         .visual-card strong{display:block;font-size:.72rem;font-weight:760;line-height:1.25}
 
-        .login-panel{display:flex;justify-content:center;flex-direction:column;padding:2rem;background:rgba(255,255,255,.97)}
-        .mobile-brand{display:none;align-items:center;gap:.6rem;margin-bottom:1.5rem}
+        .login-panel{display:flex;justify-content:center;flex-direction:column;padding:2rem;background:#fff}
+        .mobile-brand{display:flex;align-items:center;gap:.6rem;margin-bottom:1.5rem}
         .mobile-brand .brand-icon{border-color:var(--border);background:var(--green-soft);color:var(--green-dark)}
         .mobile-brand strong{font-size:.94rem;font-weight:800}
 
@@ -121,7 +118,7 @@
         }
         .login-button:disabled{cursor:not-allowed;opacity:.52;transform:none}
         .login-button.primary{
-            border-color:var(--green-dark);background:linear-gradient(135deg,var(--green),var(--green-dark));
+            border-color:var(--green-dark);background:var(--green-dark);
             color:#fff;box-shadow:0 10px 24px rgba(32,169,87,.18)
         }
         .login-button.primary:hover{box-shadow:0 14px 30px rgba(32,169,87,.24)}
@@ -160,7 +157,7 @@
         @keyframes spin{to{transform:rotate(360deg)}}
 
         @media(max-width:820px){
-            .login-shell{width:min(100%,440px);grid-template-columns:1fr;border-radius:24px}
+            .login-shell{width:min(100%,440px);grid-template-columns:1fr;border-radius:8px}
             .login-visual{display:none}
             .login-panel{padding:1.5rem}
             .mobile-brand{display:flex}
@@ -168,7 +165,7 @@
 
         @media(max-width:480px){
             .login-page{align-items:flex-start;padding:.7rem;padding-top:max(.7rem,env(safe-area-inset-top))}
-            .login-shell{border-radius:20px}
+            .login-shell{border-radius:8px}
             .login-panel{padding:1.2rem}
             .login-heading h2{font-size:1.5rem}
             .login-footer{align-items:flex-start;flex-direction:column}

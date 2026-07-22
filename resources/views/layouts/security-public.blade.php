@@ -23,16 +23,16 @@
 
     <style>
         :root {
-            --security-green: #16803d;
-            --security-green-dark: #0f6630;
-            --security-green-light: #20a957;
+            --security-green: #16a34a;
+            --security-green-dark: #15803d;
+            --security-green-light: #22c55e;
 
             --security-ink: #132018;
             --security-muted: #617066;
 
-            --security-line: #dce7e0;
-            --security-soft: #f3f8f5;
-            --security-background: #f2f7f4;
+            --security-line: #e2e8f0;
+            --security-soft: #f8fafc;
+            --security-background: #f3f7f4;
 
             --security-danger: #b42318;
             --security-danger-soft: #fff1f0;
@@ -57,22 +57,7 @@
             min-height: 100vh;
             min-height: 100dvh;
             overflow-x: hidden;
-            background:
-                radial-gradient(
-                    circle at 15% 15%,
-                    rgba(32, 169, 87, 0.12),
-                    transparent 30rem
-                ),
-                radial-gradient(
-                    circle at 90% 90%,
-                    rgba(22, 128, 61, 0.09),
-                    transparent 32rem
-                ),
-                linear-gradient(
-                    145deg,
-                    #f7fbf8 0%,
-                    #edf5f0 100%
-                );
+            background: linear-gradient(180deg, #f7fbf8 0%, var(--security-background) 38%, #eef4f0 100%);
             color: var(--security-ink);
             font-family:
                 Inter,
@@ -125,38 +110,18 @@
         }
 
         .security-layout::before {
-            position: fixed;
-            z-index: -2;
-            top: -180px;
-            left: -160px;
-            width: 420px;
-            height: 420px;
-            border-radius: 9999px;
-            background: rgba(32, 169, 87, 0.08);
-            content: "";
-            filter: blur(12px);
-            pointer-events: none;
+            display: none;
         }
 
         .security-layout::after {
-            position: fixed;
-            z-index: -2;
-            right: -160px;
-            bottom: -200px;
-            width: 460px;
-            height: 460px;
-            border-radius: 9999px;
-            background: rgba(22, 128, 61, 0.07);
-            content: "";
-            filter: blur(12px);
-            pointer-events: none;
+            display: none;
         }
 
         .security-pattern {
             position: fixed;
             z-index: -1;
             inset: 0;
-            opacity: 0.4;
+            opacity: 0.65;
             background-image:
                 linear-gradient(
                     rgba(22, 128, 61, 0.025) 1px,
@@ -167,7 +132,7 @@
                     rgba(22, 128, 61, 0.025) 1px,
                     transparent 1px
                 );
-            background-size: 32px 32px;
+            background-size: 24px 24px;
             mask-image:
                 linear-gradient(
                     to bottom,
@@ -190,13 +155,10 @@
         .security-card {
             position: relative;
             overflow: hidden;
-            border: 1px solid rgba(202, 219, 208, 0.95);
-            border-radius: 24px;
-            background: rgba(255, 255, 255, 0.96);
-            box-shadow:
-                0 30px 80px rgba(22, 61, 37, 0.13),
-                0 8px 24px rgba(22, 61, 37, 0.06);
-            backdrop-filter: blur(20px);
+            border: 1px solid var(--security-line);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.09);
         }
 
         .security-card::before {
@@ -204,26 +166,15 @@
             top: 0;
             right: 0;
             left: 0;
-            height: 4px;
-            background:
-                linear-gradient(
-                    90deg,
-                    var(--security-green-dark),
-                    var(--security-green),
-                    var(--security-green-light)
-                );
+            height: 3px;
+            background: var(--security-green);
             content: "";
         }
 
         .security-header {
             padding: 28px 30px 24px;
             border-bottom: 1px solid var(--security-line);
-            background:
-                linear-gradient(
-                    180deg,
-                    rgba(247, 252, 249, 0.95),
-                    rgba(255, 255, 255, 0.95)
-                );
+            background: #fff;
         }
 
         .security-brand-row {
@@ -249,13 +200,8 @@
             flex: none;
             place-items: center;
             border: 1px solid rgba(22, 128, 61, 0.12);
-            border-radius: 13px;
-            background:
-                linear-gradient(
-                    145deg,
-                    #effaf3,
-                    #dff4e6
-                );
+            border-radius: 8px;
+            background: #f0fdf4;
             color: var(--security-green);
             box-shadow:
                 inset 0 1px 0 rgba(255, 255, 255, 0.8),

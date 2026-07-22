@@ -49,6 +49,7 @@ class AssociateProductLimitsRelationManager extends RelationManager
                 ->label('Quantidade maxima')
                 ->numeric()
                 ->minValue(0.001)
+                ->live(debounce: 400)
                 ->required(),
             Forms\Components\Placeholder::make('allocation_progress')
                 ->label('Disponibilidade da meta')
@@ -78,43 +79,58 @@ class AssociateProductLimitsRelationManager extends RelationManager
         }
 
         $maximum = (float) $summary['project_maximum'];
-        $allocated = (float) $summary['allocated_to_others'];
-        $available = (float) $summary['available_for_associate'];
-        $allocatedPercent = $maximum > 0 ? min(100, max(0, ($allocated / $maximum) * 100)) : 0;
-        $availablePercent = max(0, 100 - $allocatedPercent);
+        $allocated = min($maximum, (float) $summary['allocated_to_others']);
+        $available = max(0, (float) $summary['available_for_associate']);
+        $requested = max(0, (float) ($get('max_quantity') ?? 0));
+        $current = min($requested, $available);
+        $free = max(0, $available - $current);
+        $excess = max(0, $requested - $available);
+        $allocatedPercent = $maximum > 0 ? ($allocated / $maximum) * 100 : 0;
+        $currentPercent = $maximum > 0 ? ($current / $maximum) * 100 : 0;
+        $freePercent = max(0, 100 - $allocatedPercent - $currentPercent);
         $format = static fn (float $value): string => number_format($value, 3, ',', '.');
         $ariaLabel = sprintf(
-            'Meta total %s. Reservado para outros associados %s. Disponivel %s.',
+            'Meta total %s. Reservado para outros associados %s. Limite atual %s. Saldo livre %s.',
             $format($maximum),
             $format($allocated),
-            $format($available),
+            $format($current),
+            $format($free),
         );
 
         return new HtmlString(sprintf(
-            '<div class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-white/10 dark:bg-white/5" role="group" aria-label="%s">'.
-                '<div class="flex items-center justify-between gap-3 text-sm">'.
-                    '<span class="font-medium text-gray-600 dark:text-gray-300">Meta total</span>'.
-                    '<strong class="text-gray-950 dark:text-white">%s</strong>'.
+            '<div role="group" aria-label="%s" style="display:grid;gap:12px;padding:14px;border:1px solid #dbe4dd;border-radius:8px;background:#f8faf9">'.
+                '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:#475569">'.
+                    '<span style="font-weight:600">Meta total</span>'.
+                    '<strong style="color:#0f172a;font-size:14px">%s</strong>'.
                 '</div>'.
-                '<div class="flex h-3 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-700" role="progressbar" aria-label="Quantidade reservada" aria-valuemin="0" aria-valuemax="%s" aria-valuenow="%s">'.
-                    '<span class="h-full" style="width: %.4f%%; background-color: #d97706" title="Reservado: %s"></span>'.
-                    '<span class="h-full" style="width: %.4f%%; background-color: #15803d" title="Disponivel: %s"></span>'.
+                '<div style="display:flex;width:100%%;height:12px;overflow:hidden;border-radius:6px;background:#e2e8f0" role="progressbar" aria-label="Distribuicao da meta" aria-valuemin="0" aria-valuemax="%s" aria-valuenow="%s">'.
+                    '<span style="display:block;width:%.4f%%;height:100%%;background:#d97706" title="Outros associados: %s"></span>'.
+                    '<span style="display:block;width:%.4f%%;height:100%%;background:#15803d" title="Este limite: %s"></span>'.
+                    '<span style="display:block;width:%.4f%%;height:100%%;background:#bbf7d0" title="Saldo livre: %s"></span>'.
                 '</div>'.
-                '<div class="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">'.
-                    '<div class="flex items-center gap-2 text-gray-700 dark:text-gray-200"><span class="h-2.5 w-2.5 rounded-sm" style="background-color: #d97706" aria-hidden="true"></span><span>Reservado</span><strong class="ml-auto">%s</strong></div>'.
-                    '<div class="flex items-center gap-2 text-gray-700 dark:text-gray-200"><span class="h-2.5 w-2.5 rounded-sm" style="background-color: #15803d" aria-hidden="true"></span><span>Disponivel</span><strong class="ml-auto">%s</strong></div>'.
+                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;font-size:12px">'.
+                    '<div style="display:flex;align-items:center;gap:7px;color:#475569"><span style="width:10px;height:10px;border-radius:3px;background:#d97706"></span><span>Outros</span><strong style="margin-left:auto;color:#0f172a">%s</strong></div>'.
+                    '<div style="display:flex;align-items:center;gap:7px;color:#475569"><span style="width:10px;height:10px;border-radius:3px;background:#15803d"></span><span>Este limite</span><strong style="margin-left:auto;color:#0f172a">%s</strong></div>'.
+                    '<div style="display:flex;align-items:center;gap:7px;color:#475569"><span style="width:10px;height:10px;border-radius:3px;background:#bbf7d0"></span><span>Livre</span><strong style="margin-left:auto;color:#0f172a">%s</strong></div>'.
                 '</div>'.
+                '%s'.
             '</div>',
             e($ariaLabel),
             $format($maximum),
             $format($maximum),
-            $format(min($allocated, $maximum)),
+            $format(min($maximum, $allocated + $current)),
             $allocatedPercent,
             $format($allocated),
-            $availablePercent,
-            $format($available),
+            $currentPercent,
+            $format($current),
+            $freePercent,
+            $format($free),
             $format($allocated),
-            $format($available),
+            $format($current),
+            $format($free),
+            $excess > 0
+                ? '<div style="padding:9px 10px;border:1px solid #fecaca;border-radius:7px;background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:600">Reduza '.$format($excess).' para respeitar a meta disponível.</div>'
+                : '',
         ));
     }
 

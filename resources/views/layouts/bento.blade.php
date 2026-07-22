@@ -49,10 +49,10 @@
             --app-shadow-md: 0 16px 42px rgba(15, 23, 42, .09);
             --app-shadow-lg: 0 28px 70px rgba(15, 23, 42, .18);
 
-            --app-radius-sm: 10px;
-            --app-radius-md: 14px;
-            --app-radius-lg: 20px;
-            --app-radius-xl: 28px;
+            --app-radius-sm: 6px;
+            --app-radius-md: 8px;
+            --app-radius-lg: 8px;
+            --app-radius-xl: 8px;
 
             --app-content-max: 1480px;
             --app-header-height: 72px;
@@ -104,10 +104,7 @@
             min-height: 100dvh;
             margin: 0;
             overflow-x: hidden;
-            background:
-                radial-gradient(circle at 8% 0%, rgba(34, 197, 94, .11), transparent 27rem),
-                radial-gradient(circle at 96% 8%, rgba(14, 165, 233, .07), transparent 30rem),
-                linear-gradient(180deg, #f7fbf8 0%, var(--app-bg) 32%, #eef4f0 100%);
+            background: linear-gradient(180deg, #f7fbf8 0%, var(--app-bg) 32%, #eef4f0 100%);
             color: var(--app-text);
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             line-height: 1.5;
@@ -491,19 +488,20 @@
             .nav-tabs {
                 position: fixed;
                 z-index: calc(var(--app-layer-navigation) + 50);
-                right: .55rem;
-                bottom: max(.55rem, var(--safe-bottom));
-                left: .55rem;
-                min-height: var(--app-mobile-nav-height);
+                right: 0;
+                bottom: 0;
+                left: 0;
+                min-height: calc(var(--app-mobile-nav-height) + var(--safe-bottom));
                 align-items: stretch;
                 justify-content: space-around;
                 gap: .2rem;
-                padding: .38rem .38rem .32rem;
+                padding: .38rem .45rem calc(.32rem + var(--safe-bottom));
                 overflow: visible;
-                border: 1px solid rgba(226, 232, 240, .92);
-                border-radius: 24px;
-                background: rgba(255, 255, 255, .95);
-                box-shadow: 0 18px 46px rgba(15, 23, 42, .18);
+                border: 0;
+                border-top: 1px solid rgba(203, 213, 225, .92);
+                border-radius: 16px 16px 0 0;
+                background: rgba(255, 255, 255, .97);
+                box-shadow: 0 -8px 28px rgba(15, 23, 42, .10);
                 backdrop-filter: blur(22px) saturate(1.15);
             }
 
@@ -569,14 +567,14 @@
 
             .nav-tab[data-nav-key="register"] .app-nav-icon,
             .nav-tab[data-nav-key="create"] .app-nav-icon {
-                width: 40px;
-                height: 40px;
-                margin-top: -16px;
-                border: 5px solid var(--app-surface);
-                border-radius: 15px;
+                width: 34px;
+                height: 34px;
+                margin-top: 0;
+                border: 0;
+                border-radius: 11px;
                 background: linear-gradient(145deg, var(--app-primary), var(--app-primary-600));
                 color: #fff;
-                box-shadow: 0 10px 24px rgba(22, 163, 74, .28);
+                box-shadow: 0 5px 14px rgba(22, 163, 74, .22);
             }
 
             .nav-tab[data-nav-key="register"] .app-nav-icon svg,
@@ -658,6 +656,42 @@
 
         .col-span-full {
             grid-column: 1 / -1;
+        }
+
+        body.portal-associate .bento-grid > .bento-card {
+            overflow: visible;
+            padding: .2rem 0;
+            border: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            backdrop-filter: none;
+        }
+
+        body.portal-associate .bento-grid > .bento-card:hover {
+            transform: none;
+        }
+
+        body.portal-associate .proj-card,
+        body.portal-associate .stat-card,
+        body.portal-associate .dl-row,
+        body.portal-associate .table-container {
+            border: 1px solid var(--app-border) !important;
+            border-radius: var(--app-radius-lg) !important;
+            background: var(--app-surface) !important;
+            box-shadow: var(--app-shadow-xs);
+        }
+
+        body.portal-associate .proj-card,
+        body.portal-associate .stat-card {
+            padding: 1rem !important;
+        }
+
+        body.portal-associate .dl-row {
+            padding: .8rem !important;
+        }
+
+        body.portal-associate .table-container {
+            overflow: auto;
         }
 
         @media (min-width: 640px) {
@@ -1033,22 +1067,14 @@
         .user-menu-header {
             position: relative;
             overflow: hidden;
-            padding: 1.3rem;
-            color: #fff;
-            background:
-                radial-gradient(circle at 12% -20%, rgba(255, 255, 255, .25), transparent 12rem),
-                linear-gradient(135deg, var(--app-primary-600), var(--app-primary-700));
+            padding: 1.1rem;
+            border-bottom: 1px solid var(--app-border);
+            color: var(--app-text);
+            background: var(--app-surface);
         }
 
         .user-menu-header::after {
-            position: absolute;
-            right: -20%;
-            bottom: -38px;
-            left: -20%;
-            height: 60px;
-            border-radius: 50% 50% 0 0;
-            background: rgba(255, 255, 255, .12);
-            content: "";
+            display: none;
         }
 
         .user-menu-close {
@@ -1060,10 +1086,10 @@
             width: 36px;
             height: 36px;
             place-items: center;
-            border: 1px solid rgba(255, 255, 255, .22);
-            border-radius: 12px;
-            background: rgba(255, 255, 255, .14);
-            color: #fff;
+            border: 1px solid var(--app-border);
+            border-radius: 10px;
+            background: var(--app-surface-soft);
+            color: var(--app-text-secondary);
             cursor: pointer;
         }
 
@@ -1083,10 +1109,10 @@
             flex: 0 0 auto;
             place-items: center;
             overflow: hidden;
-            border: 3px solid rgba(255, 255, 255, .36);
-            border-radius: 19px;
-            background: rgba(255, 255, 255, .17);
-            color: #fff;
+            border: 2px solid rgba(34, 197, 94, .20);
+            border-radius: 15px;
+            background: var(--app-primary-muted);
+            color: var(--app-primary-700);
             font-size: 1.15rem;
             font-weight: 800;
             object-fit: cover;
@@ -1105,7 +1131,8 @@
         }
 
         .user-menu-info h3 { font-size: 1rem; font-weight: 800; }
-        .user-menu-info p { margin-top: .18rem; color: rgba(255, 255, 255, .72); font-size: .7rem; }
+        .user-menu-info h3 { color: var(--app-text); }
+        .user-menu-info p { margin-top: .18rem; color: var(--app-text-muted); font-size: .7rem; }
 
         .user-menu-content {
             padding: .9rem;
@@ -1237,11 +1264,11 @@
                 right: 0;
                 bottom: 0;
                 left: 0;
-                max-height: 86dvh;
+                max-height: min(82dvh, 680px);
                 border-right: 0;
                 border-bottom: 0;
                 border-left: 0;
-                border-radius: 26px 26px 0 0;
+                border-radius: 18px 18px 0 0;
                 transform: translateY(105%);
             }
 
@@ -1422,6 +1449,7 @@
         ? $bentoNavigation
         : [];
     $hasBentoNavigation = ! empty($bentoNavigation['items']);
+    $bentoPortal = preg_replace('/[^a-z0-9_-]/i', '', (string) ($bentoNavigation['portal'] ?? ''));
 
     $currentTenant = null;
     if (session('tenant_id')) {
@@ -1444,12 +1472,12 @@
     $authenticatedMemberName = $authenticatedUser?->getTenantName($currentTenant?->id ?? session('tenant_id'))
         ?? 'Membro não identificado';
 
-    /*
-     * Mantido compatível com o layout anterior. Caso sua aplicação já possua
-     * um relacionamento autorizado de organizações, substitua esta consulta
-     * pelo relacionamento do usuário para não listar tenants indevidos.
-     */
-    $tenants = \App\Models\Tenant::orderBy('name')->get();
+    $tenants = $authenticatedUser
+        ? $authenticatedUser->tenants()
+            ->wherePivot('status', true)
+            ->orderBy('tenants.name')
+            ->get()
+        : collect();
 
     $avatarUrl = null;
     if ($authenticatedUser?->avatar) {
@@ -1459,7 +1487,7 @@
     }
 @endphp
 
-<body class="{{ $hasBentoNavigation ? 'has-app-nav' : '' }}">
+<body class="{{ $hasBentoNavigation ? 'has-app-nav' : '' }}{{ $bentoPortal !== '' ? ' portal-'.$bentoPortal : '' }}">
     <header class="app-header">
         <div class="app-header__content">
             <div class="app-header__left">

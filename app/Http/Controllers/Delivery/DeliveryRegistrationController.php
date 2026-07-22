@@ -16,6 +16,7 @@ use App\Models\PriceTable;
 use App\Models\PriceTableItem;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
+use App\Models\ProjectAssociate;
 use App\Models\ProjectAssociateProductLimit;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
