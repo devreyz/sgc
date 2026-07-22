@@ -179,7 +179,7 @@ class AssociateProjectController extends Controller
         return match ($section) {
             'summary' => response()->json($this->summary($project, $associate)),
             'limits' => response()->json($this->limitsData($project, $associate)),
-            'products' => response()->json(['data' => $this->availableProducts($project)]),
+            'products' => response()->json(['data' => $this->availableProducts($project, $associate)]),
             'deliveries' => response()->json($this->deliveries($request, $project, $associate)),
             'distributions' => response()->json($this->distributions($request, $project, $associate)),
             'receipts' => response()->json($this->receipts($request, $project, $associate)),
@@ -304,7 +304,7 @@ class AssociateProjectController extends Controller
         ];
     }
 
-    private function availableProducts(SalesProject $project): array
+    private function availableProducts(SalesProject $project, Associate $associate): array
     {
         $mode = $this->limits->projectMode($project);
         $table = $mode['customer']?->priceTable;
@@ -312,17 +312,26 @@ class AssociateProjectController extends Controller
             return [];
         }
 
-        return $table->items()->with('product:id,name,unit')
+        $items = $table->items()->with('product:id,name,unit')
             ->whereHas('product', fn (Builder $query) => $query
                 ->where('tenant_id', $project->tenant_id)
                 ->where('status', true))
             ->orderBy('product_id')
-            ->get(['id', 'product_id', 'sale_price'])
-            ->map(fn ($item) => [
+            ->get(['id', 'product_id', 'sale_price']);
+        $allocations = $this->limits->productAllocationSummaries(
+            $project,
+            $items->pluck('product_id'),
+            $associate->id,
+        );
+
+        return $items->map(fn ($item) => [
                 'id' => $item->product_id,
                 'name' => $item->product?->name,
                 'unit' => $item->product?->unit,
                 'price' => (float) $item->sale_price,
+                'project_maximum' => $allocations->get($item->product_id)['project_maximum'] ?? null,
+                'allocated_to_others' => $allocations->get($item->product_id)['allocated_to_others'] ?? 0,
+                'available_for_associate' => $allocations->get($item->product_id)['available_for_associate'] ?? null,
             ])->values()->all();
     }
 

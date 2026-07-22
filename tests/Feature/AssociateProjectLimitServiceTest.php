@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Associate;
 use App\Models\ProductionDelivery;
+use App\Models\ProjectAssociateProductLimit;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Services\AssociateProjectLimitService;
@@ -208,6 +209,68 @@ class AssociateProjectLimitServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $service->validateDelivery($project->fresh(), $associate, $product, 5.001);
+    }
+
+    public function test_sum_of_associate_product_limits_cannot_exceed_project_demand(): void
+    {
+        [$project, $firstAssociate, $product] = $this->fixture(false);
+        DB::table('associates')->insert([
+            ['id' => 2, 'tenant_id' => 1, 'cpf_cnpj' => '2', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'tenant_id' => 1, 'cpf_cnpj' => '3', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $secondAssociate = Associate::findOrFail(2);
+        DB::table('project_demands')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'product_id' => $product,
+            'target_quantity' => 100,
+            'delivered_quantity' => 0,
+            'unit_price' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'associate_id' => 3,
+            'product_id' => $product,
+            'delivery_date' => now(),
+            'quantity' => 10,
+            'unit_price' => 0,
+            'gross_value' => 0,
+            'status' => 'approved',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(AssociateProjectLimitService::class);
+        $service->setProductLimit($project, $firstAssociate, $product, 60);
+        $service->setProductLimit($project, $secondAssociate, $product, 30);
+
+        $summary = $service->productAllocationSummary($project, $product, $firstAssociate->id);
+        $this->assertSame(100.0, $summary['project_maximum']);
+        $this->assertSame(40.0, $summary['allocated_to_others']);
+        $this->assertSame(10.0, $summary['unallocated_delivered_to_others']);
+        $this->assertSame(60.0, $summary['available_for_associate']);
+
+        $batchSummary = $service->productAllocationSummaries(
+            $project,
+            collect([$product]),
+            $firstAssociate->id,
+        )->get($product);
+        $this->assertSame($summary, $batchSummary);
+
+        try {
+            $service->setProductLimit($project, $firstAssociate, $product, 60.001);
+            $this->fail('O limite agregado acima da demanda deveria ser rejeitado.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('max_quantity', $exception->errors());
+        }
+
+        $this->assertSame(60.0, (float) ProjectAssociateProductLimit::query()
+            ->where('associate_id', $firstAssociate->id)
+            ->where('product_id', $product)
+            ->value('max_quantity'));
     }
 
     public function test_eligible_products_only_include_items_priced_for_project_customers(): void

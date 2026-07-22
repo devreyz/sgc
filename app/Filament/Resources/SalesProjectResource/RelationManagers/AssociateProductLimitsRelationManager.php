@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\SalesProjectResource\RelationManagers;
 
 use App\Models\Associate;
+use App\Models\Product;
 use App\Models\ProjectAssociateProductLimit;
 use App\Services\AssociateProjectLimitService;
 use Filament\Forms;
+use Filament\Forms\Get;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -27,9 +29,47 @@ class AssociateProductLimitsRelationManager extends RelationManager
                     ->get()->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name]))
                 ->searchable()->required(),
             Forms\Components\Select::make('product_id')
-                ->label('Produto')->relationship('product', 'name')->searchable()->preload()->required(),
+                ->label('Produto')
+                ->options(fn (): array => Product::query()
+                    ->where('tenant_id', $this->getOwnerRecord()->tenant_id)
+                    ->where('status', true)
+                    ->whereIn('id', app(\App\Services\ProjectDistributionCustomerService::class)
+                        ->pricedProductIds($this->getOwnerRecord()))
+                    ->orderBy('name')
+                    ->pluck('name', 'id')
+                    ->all())
+                ->searchable()
+                ->preload()
+                ->live()
+                ->required(),
             Forms\Components\TextInput::make('max_quantity')
-                ->label('Quantidade maxima')->numeric()->minValue(0.001)->required(),
+                ->label('Quantidade maxima')
+                ->numeric()
+                ->minValue(0.001)
+                ->helperText(function (Get $get): string {
+                    $productId = (int) ($get('product_id') ?? 0);
+                    if (! $productId) {
+                        return 'Selecione um produto para consultar a disponibilidade.';
+                    }
+
+                    $summary = app(AssociateProjectLimitService::class)->productAllocationSummary(
+                        $this->getOwnerRecord(),
+                        $productId,
+                        filled($get('associate_id')) ? (int) $get('associate_id') : null,
+                    );
+
+                    if ($summary['project_maximum'] === null) {
+                        return 'Este produto nao possui meta geral; o limite sera individual.';
+                    }
+
+                    return sprintf(
+                        'Meta do projeto: %s | Comprometido com os demais: %s | Disponivel: %s',
+                        number_format($summary['project_maximum'], 3, ',', '.'),
+                        number_format($summary['allocated_to_others'], 3, ',', '.'),
+                        number_format($summary['available_for_associate'], 3, ',', '.')
+                    );
+                })
+                ->required(),
             Forms\Components\Textarea::make('notes')->label('Observacoes')->columnSpanFull(),
         ]);
     }

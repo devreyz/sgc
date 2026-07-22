@@ -339,6 +339,13 @@ class AssociateProjectLimitService
     public function setProductLimit(SalesProject $project, Associate $associate, int $productId, float $maximum, ?string $notes = null): ProjectAssociateProductLimit
     {
         return DB::transaction(function () use ($project, $associate, $productId, $maximum, $notes) {
+            $this->assertContext($project, $associate);
+            SalesProject::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->whereKey($project->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $mode = $this->projectMode($project);
             if (! $mode['allows_product_limits']) {
                 throw ValidationException::withMessages(['product_id' => 'Limites por produto exigem exatamente um cliente ativo no projeto.']);
@@ -347,6 +354,19 @@ class AssociateProjectLimitService
             $used = $this->deliveredQuantity($project, $associate, $productId);
             if ($maximum + self::QUANTITY_TOLERANCE < $used) {
                 throw ValidationException::withMessages(['max_quantity' => 'A quantidade maxima nao pode ser inferior ao total ja entregue.']);
+            }
+
+            $allocation = $this->productAllocationSummary($project, $productId, $associate->id, true);
+            if ($allocation['project_maximum'] !== null
+                && $maximum > $allocation['available_for_associate'] + self::QUANTITY_TOLERANCE) {
+                throw ValidationException::withMessages([
+                    'max_quantity' => sprintf(
+                        'A soma dos limites excede a meta do produto. Meta: %s | Comprometido com outros associados: %s | Disponivel: %s.',
+                        number_format($allocation['project_maximum'], 3, ',', '.'),
+                        number_format($allocation['allocated_to_others'], 3, ',', '.'),
+                        number_format($allocation['available_for_associate'], 3, ',', '.')
+                    ),
+                ]);
             }
 
             $price = $mode['customer']?->priceTable?->priceFor($productId);
@@ -383,6 +403,116 @@ class AssociateProjectLimitService
             ])->log('Limite de produto do associado atualizado');
 
             return $limit;
+        });
+    }
+
+    public function productAllocationSummary(
+        SalesProject $project,
+        int $productId,
+        ?int $exceptAssociateId = null,
+        bool $lock = false
+    ): array {
+        $demands = ProjectDemand::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $productId)
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->get(['id', 'target_quantity']);
+
+        $limits = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $productId)
+            ->where('status', 'active')
+            ->when($exceptAssociateId, fn ($query) => $query->where('associate_id', '!=', $exceptAssociateId))
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->get(['id', 'associate_id', 'max_quantity']);
+
+        $limitedAssociateIds = $limits->pluck('associate_id')->map(fn ($id) => (int) $id);
+        $unallocatedDeliveries = ProductionDelivery::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $productId)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->when($exceptAssociateId, fn ($query) => $query->where('associate_id', '!=', $exceptAssociateId))
+            ->when($limitedAssociateIds->isNotEmpty(), fn ($query) => $query->whereNotIn('associate_id', $limitedAssociateIds))
+            ->sum('quantity');
+
+        $projectMaximum = $demands->isEmpty() ? null : (float) $demands->sum('target_quantity');
+        $allocatedToOthers = (float) $limits->sum('max_quantity') + (float) $unallocatedDeliveries;
+
+        return [
+            'project_maximum' => $projectMaximum,
+            'allocated_to_others' => $allocatedToOthers,
+            'unallocated_delivered_to_others' => (float) $unallocatedDeliveries,
+            'available_for_associate' => $projectMaximum === null
+                ? null
+                : max(0, $projectMaximum - $allocatedToOthers),
+        ];
+    }
+
+    public function productAllocationSummaries(
+        SalesProject $project,
+        Collection $productIds,
+        ?int $exceptAssociateId = null
+    ): Collection {
+        $productIds = $productIds->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $maximums = ProjectDemand::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('product_id', $productIds)
+            ->selectRaw('product_id, SUM(target_quantity) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $allocated = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('product_id', $productIds)
+            ->where('status', 'active')
+            ->when($exceptAssociateId, fn ($query) => $query->where('associate_id', '!=', $exceptAssociateId))
+            ->selectRaw('product_id, SUM(max_quantity) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
+
+        $unallocated = ProductionDelivery::query()
+            ->leftJoin('project_associate_product_limits as allocation_limits', function ($join) use ($project) {
+                $join->on('allocation_limits.associate_id', '=', 'production_deliveries.associate_id')
+                    ->on('allocation_limits.product_id', '=', 'production_deliveries.product_id')
+                    ->where('allocation_limits.tenant_id', '=', $project->tenant_id)
+                    ->where('allocation_limits.sales_project_id', '=', $project->id)
+                    ->where('allocation_limits.status', '=', 'active');
+            })
+            ->where('production_deliveries.tenant_id', $project->tenant_id)
+            ->where('production_deliveries.sales_project_id', $project->id)
+            ->whereIn('production_deliveries.product_id', $productIds)
+            ->whereNull('production_deliveries.parent_delivery_id')
+            ->whereNull('production_deliveries.deleted_at')
+            ->whereNull('allocation_limits.id')
+            ->whereNotIn('production_deliveries.status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->when($exceptAssociateId, fn ($query) => $query->where('production_deliveries.associate_id', '!=', $exceptAssociateId))
+            ->selectRaw('production_deliveries.product_id, SUM(production_deliveries.quantity) as total')
+            ->groupBy('production_deliveries.product_id')
+            ->pluck('total', 'production_deliveries.product_id');
+
+        return $productIds->mapWithKeys(function (int $productId) use ($maximums, $allocated, $unallocated): array {
+            $projectMaximum = $maximums->has($productId) ? (float) $maximums[$productId] : null;
+            $unallocatedDelivered = (float) ($unallocated[$productId] ?? 0);
+            $allocatedToOthers = (float) ($allocated[$productId] ?? 0) + $unallocatedDelivered;
+
+            return [$productId => [
+                'project_maximum' => $projectMaximum,
+                'allocated_to_others' => $allocatedToOthers,
+                'unallocated_delivered_to_others' => $unallocatedDelivered,
+                'available_for_associate' => $projectMaximum === null
+                    ? null
+                    : max(0, $projectMaximum - $allocatedToOthers),
+            ]];
         });
     }
 

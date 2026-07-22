@@ -1372,6 +1372,7 @@
                         id="limit-value"
                         required
                     >
+                    <small id="limit-availability" hidden></small>
                 </div>
 
                 <div class="ap-field">
@@ -2634,12 +2635,31 @@
                 value="${item.id}"
                 ${current && String(current.product_id) === String(item.id) ? 'selected' : ''}
             >
-                ${esc(item.name)} · ${money(item.price)}/${esc(item.unit)}
+                ${esc(item.name)} · ${money(item.price)}/${esc(item.unit)}${item.available_for_associate === null ? '' : ' · disponível ' + qty(item.available_for_associate)}
             </option>
         `).join('');
 
         document.getElementById('limit-product').disabled = Boolean(current);
+        updateProductLimitAvailability();
         openLimitModal();
+    }
+
+    function updateProductLimitAvailability() {
+        const productId = document.getElementById('limit-product').value;
+        const product = apProducts.find(item => String(item.id) === String(productId));
+        const helper = document.getElementById('limit-availability');
+        const input = document.getElementById('limit-value');
+
+        if (!product || product.project_maximum === null) {
+            helper.textContent = 'Sem meta geral para este produto.';
+            helper.hidden = false;
+            input.removeAttribute('max');
+            return;
+        }
+
+        helper.textContent = `Meta: ${qty(product.project_maximum)} ${product.unit || ''} · comprometido com outros: ${qty(product.allocated_to_others)} · disponível: ${qty(product.available_for_associate)}`;
+        helper.hidden = false;
+        input.max = String(product.available_for_associate);
     }
 
     function openProductLimitById(id) {
@@ -2691,6 +2711,8 @@
         document.getElementById('limit-modal').setAttribute('aria-hidden', 'true');
         document.getElementById('limit-product').disabled = false;
         document.getElementById('limit-notes').value = '';
+        document.getElementById('limit-availability').hidden = true;
+        document.getElementById('limit-value').removeAttribute('max');
     }
 
     function openConfirmModal(title, message, callback) {
@@ -2746,6 +2768,7 @@
 
             closeLimitModal();
             notify(data.message || 'Limite atualizado.');
+            apProducts = [];
             loadSection();
         } catch (error) {
             notify(error.message, 'error');
@@ -2754,6 +2777,8 @@
             submitButton.disabled = false;
         }
     });
+
+    document.getElementById('limit-product').addEventListener('change', updateProductLimitAvailability);
 
     document.getElementById('limit-modal').addEventListener('click', event => {
         if (event.target.id === 'limit-modal') {

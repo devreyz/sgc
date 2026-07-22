@@ -99,6 +99,7 @@ class DemandsRelationManager extends RelationManager
 
                     Forms\Components\DatePicker::make('delivery_end')
                         ->label('Prazo final')
+                        ->default(fn () => $this->ownerRecord->end_date)
                         ->required()
                         ->minDate(fn (Get $get) => $get('delivery_start')),
 
