@@ -1331,12 +1331,8 @@ class DeliveryRegistrationController extends Controller
             ->whereIn('product_id', app(ProjectDistributionCustomerService::class)->pricedProductIds($project))
             ->with('product')
             ->get()
-            ->map(function ($demand) use ($tenantId) {
-                $delivered = ProductionDelivery::where('tenant_id', $tenantId)
-                    ->where('project_demand_id', $demand->id)
-                    ->whereNull('parent_delivery_id')   // apenas recepções, não distribuições
-                    ->where('status', '!=', DeliveryStatus::CANCELLED->value)
-                    ->sum('quantity');
+            ->map(function ($demand) {
+                $distributed = (float) $demand->delivered_quantity;
 
                 return [
                     'id' => $demand->id,
@@ -1344,10 +1340,8 @@ class DeliveryRegistrationController extends Controller
                     'product_name' => $demand->product->name ?? '-',
                     'product_unit' => $demand->product->unit ?? 'un',
                     'target_quantity' => (float) $demand->target_quantity,
-                    'delivered_quantity' => (float) $delivered,
-                    'remaining_quantity' => (float) ($demand->target_quantity - $delivered),
-                    'unit_price' => (float) $demand->unit_price,
-                    'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
+                    'delivered_quantity' => $distributed,
+                    'remaining_quantity' => max(0, (float) $demand->target_quantity - $distributed),
                     'is_free' => false,
                 ];
             });
@@ -1793,7 +1787,7 @@ class DeliveryRegistrationController extends Controller
                 $demand = ProjectDemand::where('tenant_id', $tenantId)
                     ->where('sales_project_id', $project->id)
                     ->findOrFail($validated['project_demand_id']);
-                $unitPrice = (float) $demand->unit_price;
+                $unitPrice = 0.0;
                 $productId = $demand->product_id;
                 $demandId = $demand->id;
 
@@ -4007,7 +4001,7 @@ class DeliveryRegistrationController extends Controller
                 $demand = ProjectDemand::where('tenant_id', $tenantId)
                     ->where('sales_project_id', $project->id)
                     ->findOrFail($validated['project_demand_id']);
-                $unitPrice = (float) $demand->unit_price;
+                $unitPrice = 0.0;
                 $productId = $demand->product_id;
                 $demandId = $demand->id;
                 $adminFeePercent = (float) ($project->admin_fee_percentage ?? 10);

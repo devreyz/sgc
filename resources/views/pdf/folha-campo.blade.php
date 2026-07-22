@@ -90,9 +90,8 @@
             <tr>
                 <th style="width: 30%">Produto</th>
                 <th style="width: 15%">Meta (Qtd)</th>
-                <th style="width: 15%">Preço Unit.</th>
                 <th style="width: 15%">Frequência</th>
-                <th style="width: 25%">Prazo</th>
+                <th style="width: 40%">Prazo</th>
             </tr>
         </thead>
         <tbody>
@@ -100,7 +99,6 @@
             <tr>
                 <td><strong>{{ $demand->product->name ?? '-' }}</strong></td>
                 <td>{{ number_format($demand->target_quantity, 2, ',', '.') }} {{ $demand->product->unit ?? '' }}</td>
-                <td>R$ {{ number_format($demand->unit_price, 2, ',', '.') }}</td>
                 <td>
                     @switch($demand->frequency)
                         @case('unica') Única @break
@@ -113,7 +111,7 @@
                 <td>{{ $demand->delivery_end?->format('d/m/Y') ?? '-' }}</td>
             </tr>
             @empty
-            <tr><td colspan="5" style="text-align:center; color:#999;">Nenhuma demanda cadastrada</td></tr>
+            <tr><td colspan="4" style="text-align:center; color:#999;">Nenhuma demanda cadastrada</td></tr>
             @endforelse
         </tbody>
     </table>

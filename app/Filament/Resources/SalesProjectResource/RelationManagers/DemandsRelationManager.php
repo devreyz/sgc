@@ -2,7 +2,12 @@
 
 namespace App\Filament\Resources\SalesProjectResource\RelationManagers;
 
+use App\Models\ProjectDemand;
+use App\Services\ProjectDemandService;
+use App\Services\ProjectDistributionCustomerService;
 use Filament\Forms;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
@@ -12,279 +17,209 @@ class DemandsRelationManager extends RelationManager
 {
     protected static string $relationship = 'demands';
 
-    protected static ?string $title = 'Demandas';
+    protected static ?string $title = 'Metas de produtos';
 
-    protected static ?string $modelLabel = 'Demanda';
+    protected static ?string $modelLabel = 'Meta';
 
-    protected static ?string $pluralModelLabel = 'Demandas';
+    protected static ?string $pluralModelLabel = 'Metas de produtos';
 
     public function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\Select::make('product_id')
-                    ->label('Produto')
-                    ->relationship('product', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->reactive()
-                    ->afterStateUpdated(function ($state, callable $set) {
-                        if ($state) {
-                            $product = \App\Models\Product::find($state);
-                            if ($product && $product->price) {
-                                $set('unit_price', $product->price);
-                            }
-                        }
-                    })
-                    ->helperText('Selecione o produto. O preço será preenchido automaticamente se cadastrado.')
-                    ->required(),
+        return $form->schema([
+            Forms\Components\Section::make('Produto e destino')
+                ->columns(2)
+                ->schema([
+                    Forms\Components\Select::make('customer_id')
+                        ->label('Destino')
+                        ->options(fn () => app(ProjectDistributionCustomerService::class)
+                            ->customers($this->ownerRecord)
+                            ->mapWithKeys(fn ($customer) => [
+                                $customer->id => $customer->trade_name ?: $customer->name,
+                            ])->all())
+                        ->searchable()
+                        ->native(false)
+                        ->placeholder('Todos os clientes do projeto')
+                        ->live()
+                        ->afterStateUpdated(function (Set $set): void {
+                            $set('product_id', null);
+                            $set('unit_price', 0);
+                        })
+                        ->disabled(fn (?ProjectDemand $record): bool => $record?->deliveries()->exists() ?? false),
 
-                Forms\Components\Grid::make(2)
-                    ->schema([
-                        Forms\Components\TextInput::make('target_quantity')
-                            ->label('Quantidade Meta')
-                            ->numeric()
-                            ->required()
-                            ->minValue(0.01)
-                            ->suffix(fn ($get) => $get('product_id') ? 
-                                \App\Models\Product::find($get('product_id'))?->unit ?? '' : '')
-                            ->helperText('Quantidade total esperada para este produto'),
+                    Forms\Components\Select::make('product_id')
+                        ->label('Produto')
+                        ->options(function (Get $get): array {
+                            $customerId = filled($get('customer_id')) ? (int) $get('customer_id') : null;
 
-                        Forms\Components\TextInput::make('unit_price')
-                            ->label('Preço Unitário')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->required()
-                            ->helperText('Preço pago pelo órgão comprador'),
-                    ]),
+                            return app(ProjectDemandService::class)
+                                ->catalog($this->ownerRecord, $customerId)
+                                ->mapWithKeys(fn (array $item) => [
+                                    $item['product_id'] => $item['product_name'].' · '.$item['price_label'],
+                                ])->all();
+                        })
+                        ->searchable()
+                        ->native(false)
+                        ->live()
+                        ->required()
+                        ->disabled(fn (?ProjectDemand $record): bool => $record?->deliveries()->exists() ?? false),
 
-                Forms\Components\Grid::make(3)
-                    ->schema([
-                        Forms\Components\DatePicker::make('delivery_start')
-                            ->label('Início das Entregas')
-                            ->default(now()),
+                    Forms\Components\Placeholder::make('pricing_context')
+                        ->label('Precos disponiveis')
+                        ->content(fn (Get $get): string => app(ProjectDemandService::class)->pricingSummary(
+                            $this->ownerRecord,
+                            filled($get('customer_id')) ? (int) $get('customer_id') : null,
+                            filled($get('product_id')) ? (int) $get('product_id') : null,
+                        ))
+                        ->columnSpanFull(),
 
-                        Forms\Components\DatePicker::make('delivery_end')
-                            ->label('Prazo Final')
-                            ->required(),
+                    Forms\Components\Hidden::make('unit_price')->default(0),
+                ]),
 
-                        Forms\Components\Select::make('frequency')
-                            ->label('Frequência')
-                            ->options([
-                                'unica' => 'Única',
-                                'semanal' => 'Semanal',
-                                'quinzenal' => 'Quinzenal',
-                                'mensal' => 'Mensal',
-                            ])
-                            ->default('mensal'),
-                    ]),
+            Forms\Components\Section::make('Planejamento')
+                ->columns(3)
+                ->schema([
+                    Forms\Components\TextInput::make('target_quantity')
+                        ->label('Quantidade meta')
+                        ->numeric()
+                        ->required()
+                        ->minValue(0.001)
+                        ->step(0.001)
+                        ->suffix(function (Get $get): string {
+                            $customerId = filled($get('customer_id')) ? (int) $get('customer_id') : null;
+                            $productId = (int) ($get('product_id') ?? 0);
 
-                Forms\Components\Placeholder::make('total_info')
-                    ->label('Valor Total da Demanda')
-                    ->content(function ($get) {
-                        $qty = (float) ($get('target_quantity') ?? 0);
-                        $price = (float) ($get('unit_price') ?? 0);
-                        $total = $qty * $price;
-                        return 'R$ ' . number_format($total, 2, ',', '.');
-                    })
-                    ->reactive(),
+                            return app(ProjectDemandService::class)
+                                ->catalog($this->ownerRecord, $customerId)
+                                ->firstWhere('product_id', $productId)['unit'] ?? 'un';
+                        }),
 
-                Forms\Components\Textarea::make('notes')
-                    ->label('Observações')
-                    ->rows(2)
-                    ->placeholder('Observações adicionais sobre esta demanda (opcional)')
-                    ->columnSpanFull(),
+                    Forms\Components\DatePicker::make('delivery_start')
+                        ->label('Inicio previsto')
+                        ->default(fn () => $this->ownerRecord->start_date ?? now()),
 
-                Forms\Components\Select::make('customer_id')
-                    ->label('Cliente (opcional)')
-                    ->options(function () {
-                        $project = $this->ownerRecord;
-                        $customers = $project->customers()
-                            ->orderBy('name')
-                            ->pluck('name', 'customers.id');
-                        if ($project->customer_id) {
-                            $customers = $customers->prepend(
-                                $project->customer->name,
-                                $project->customer_id
-                            );
-                        }
-                        return $customers->unique();
-                    })
-                    ->searchable()
-                    ->nullable()
-                    ->placeholder('Todos os clientes')
-                    ->helperText('Preencha somente se esta demanda for específica para um cliente do projeto')
-                    ->columnSpanFull(),
-            ]);
+                    Forms\Components\DatePicker::make('delivery_end')
+                        ->label('Prazo final')
+                        ->required()
+                        ->minDate(fn (Get $get) => $get('delivery_start')),
+
+                    Forms\Components\Select::make('frequency')
+                        ->label('Frequencia')
+                        ->options([
+                            'unica' => 'Unica',
+                            'semanal' => 'Semanal',
+                            'quinzenal' => 'Quinzenal',
+                            'mensal' => 'Mensal',
+                        ])
+                        ->native(false)
+                        ->default('mensal'),
+
+                    Forms\Components\Textarea::make('notes')
+                        ->label('Observacoes')
+                        ->rows(2)
+                        ->columnSpan(2),
+                ]),
+        ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
             ->recordTitleAttribute('product.name')
-            ->modifyQueryUsing(fn ($query) => $query->with(['product', 'deliveries', 'customer']))
-            ->poll('5s') // Atualizar a cada 5 segundos automaticamente
+            ->modifyQueryUsing(fn ($query) => $query->with(['product:id,name,unit', 'customer:id,name,trade_name']))
             ->columns([
-                Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Cliente')
-                    ->placeholder('Todos')
-                    ->limit(20)
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->sortable(),
-
                 Tables\Columns\TextColumn::make('product.name')
                     ->label('Produto')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
 
+                Tables\Columns\TextColumn::make('customer.name')
+                    ->label('Destino')
+                    ->formatStateUsing(fn ($state, ProjectDemand $record): string => $record->customer?->trade_name
+                        ?: $record->customer?->name
+                        ?: 'Todos os clientes')
+                    ->badge()
+                    ->color('gray'),
+
                 Tables\Columns\TextColumn::make('target_quantity')
                     ->label('Meta')
-                    ->formatStateUsing(fn ($state, $record): string => 
-                        number_format($state, 2, ',', '.') . ' ' . $record->product->unit
-                    )
-                    ->alignCenter()
+                    ->formatStateUsing(fn ($state, ProjectDemand $record): string =>
+                        number_format((float) $state, 3, ',', '.').' '.($record->product?->unit ?? 'un'))
+                    ->alignEnd()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('delivered_quantity')
-                    ->label('Entregue')
-                    ->formatStateUsing(fn ($state, $record): string => 
-                        number_format($state ?? 0, 2, ',', '.') . ' ' . $record->product->unit
-                    )
-                    ->color(fn ($record): string => 
-                        $record->isFulfilled() ? 'success' : 'gray'
-                    )
-                    ->weight(fn ($record): string => 
-                        $record->isFulfilled() ? 'bold' : 'normal'
-                    )
-                    ->alignCenter()
+                    ->label('Distribuido')
+                    ->formatStateUsing(fn ($state, ProjectDemand $record): string =>
+                        number_format((float) $state, 3, ',', '.').' '.($record->product?->unit ?? 'un'))
+                    ->color(fn (ProjectDemand $record): string => $record->isFulfilled() ? 'success' : 'primary')
+                    ->weight('bold')
+                    ->alignEnd()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('remaining_quantity')
-                    ->label('Falta')
-                    ->state(fn ($record): float => $record->remaining_quantity)
-                    ->formatStateUsing(fn ($state, $record): string => 
-                        number_format($state, 2, ',', '.') . ' ' . $record->product->unit
-                    )
-                    ->color(fn ($state, $record): string => 
-                        $state <= 0 ? 'success' : 
-                        ($state < $record->target_quantity * 0.3 ? 'warning' : 'danger')
-                    )
-                    ->alignCenter()
-                    ->sortable(),
+                    ->label('Pendente')
+                    ->state(fn (ProjectDemand $record): float => $record->remaining_quantity)
+                    ->formatStateUsing(fn ($state, ProjectDemand $record): string =>
+                        number_format((float) $state, 3, ',', '.').' '.($record->product?->unit ?? 'un'))
+                    ->color(fn ($state): string => (float) $state <= 0 ? 'success' : 'warning')
+                    ->alignEnd(),
 
                 Tables\Columns\TextColumn::make('progress_percentage')
-                    ->label('Progresso')
-                    ->state(fn ($record): float => $record->progress_percentage)
-                    ->formatStateUsing(fn ($state): string => 
-                        number_format($state, 1, ',', '.') . '%'
-                    )
+                    ->label('Atendimento')
+                    ->state(fn (ProjectDemand $record): float => $record->progress_percentage)
+                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 1, ',', '.').'%')
                     ->badge()
-                    ->color(fn ($state): string => 
-                        $state >= 100 ? 'success' : 
-                        ($state >= 75 ? 'warning' : 
-                        ($state >= 50 ? 'info' : 'danger'))
-                    )
-                    ->alignCenter()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('unit_price')
-                    ->label('Preço/Un')
-                    ->money('BRL')
-                    ->toggleable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('total_value')
-                    ->label('Valor Total')
-                    ->state(fn ($record): float => $record->total_value)
-                    ->money('BRL')
-                    ->weight('bold')
-                    ->toggleable()
-                    ->sortable(),
+                    ->color(fn ($state): string => match (true) {
+                        $state >= 100 => 'success',
+                        $state > 0 => 'warning',
+                        default => 'gray',
+                    }),
 
                 Tables\Columns\TextColumn::make('delivery_end')
                     ->label('Prazo')
                     ->date('d/m/Y')
-                    ->color(fn ($state): string => 
-                        $state && $state->isPast() ? 'danger' : 'gray'
-                    )
-                    ->icon(fn ($state): string => 
-                        $state && $state->isPast() ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-calendar'
-                    )
-                    ->toggleable()
+                    ->icon(fn ($state): string => $state?->isPast()
+                        ? 'heroicon-o-exclamation-triangle'
+                        : 'heroicon-o-calendar')
+                    ->color(fn ($state): string => $state?->isPast() ? 'danger' : 'gray')
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('frequency')
-                    ->label('Frequência')
-                    ->formatStateUsing(fn ($state): string => match($state) {
-                        'unica' => 'Única',
-                        'semanal' => 'Semanal',
-                        'quinzenal' => 'Quinzenal',
-                        'mensal' => 'Mensal',
-                        default => $state
-                    })
-                    ->badge()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\TernaryFilter::make('fulfilled')
-                    ->label('Status')
+                    ->label('Atendimento')
                     ->placeholder('Todas')
-                    ->trueLabel('Completas')
+                    ->trueLabel('Atendidas')
                     ->falseLabel('Pendentes')
                     ->queries(
-                        true: fn ($query) => $query->whereRaw('delivered_quantity >= target_quantity'),
-                        false: fn ($query) => $query->whereRaw('delivered_quantity < target_quantity'),
+                        true: fn ($query) => $query->whereColumn('delivered_quantity', '>=', 'target_quantity'),
+                        false: fn ($query) => $query->whereColumn('delivered_quantity', '<', 'target_quantity'),
                     ),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Nova Demanda')
+                    ->label('Adicionar meta')
                     ->icon('heroicon-o-plus')
-                    ->before(function (array $data) {
-                        $productId = $data['product_id'] ?? null;
-                        if (! $productId) return;
-
-                        $exists = \App\Models\ProjectDemand::where('sales_project_id', $this->ownerRecord->id)
-                            ->where('product_id', $productId)
-                            ->exists();
-
-                        if ($exists) {
-                            throw \Illuminate\Validation\ValidationException::withMessages([
-                                'product_id' => 'Este produto já foi adicionado a este projeto.'
-                            ]);
-                        }
-                    })
-                    ->successNotificationTitle('Demanda adicionada com sucesso!')
-                    ->after(function () {
-                        // Recalcular total do projeto
-                        $this->ownerRecord->total_value = $this->ownerRecord->demands()->sum('total_value');
-                        $this->ownerRecord->save();
-                    }),
+                    ->mutateFormDataUsing(fn (array $data): array => app(ProjectDemandService::class)
+                        ->normalizedData($this->ownerRecord, $data))
+                    ->successNotificationTitle('Meta adicionada'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->after(function () {
-                        // Recalcular total do projeto
-                        $this->ownerRecord->total_value = $this->ownerRecord->demands()->sum('total_value');
-                        $this->ownerRecord->save();
-                    }),
+                    ->mutateFormDataUsing(function (array $data, ProjectDemand $record): array {
+                        $data['product_id'] ??= $record->product_id;
+                        $data['customer_id'] ??= $record->customer_id;
+
+                        return app(ProjectDemandService::class)->normalizedData($this->ownerRecord, $data);
+                    })
+                    ->successNotificationTitle('Meta atualizada'),
                 Tables\Actions\DeleteAction::make()
-                    ->after(function () {
-                        // Recalcular total do projeto
-                        $this->ownerRecord->total_value = $this->ownerRecord->demands()->sum('total_value');
-                        $this->ownerRecord->save();
-                    }),
+                    ->disabled(fn (ProjectDemand $record): bool => $record->deliveries()->exists())
+                    ->tooltip(fn (ProjectDemand $record): ?string => $record->deliveries()->exists()
+                        ? 'Metas com entregas vinculadas nao podem ser excluidas.'
+                        : null),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => auth()->user()->isSuperAdmin()),
-                ]),
-            ])
-            ->emptyStateHeading('Nenhuma demanda cadastrada')
-            ->emptyStateDescription('Adicione as demandas/produtos deste projeto para começar a registrar entregas.')
+            ->emptyStateHeading('Nenhuma meta cadastrada')
             ->emptyStateIcon('heroicon-o-clipboard-document-list');
     }
 }

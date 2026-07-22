@@ -960,10 +960,9 @@ class ViewSalesProject extends ViewRecord
         $demandsSummary = $record->demands->map(fn ($d) => [
             'product' => $d->product->name,
             'unit' => $d->product->unit,
-            'contracted_qty' => $d->quantity,
+            'contracted_qty' => $d->target_quantity,
             'delivered_qty' => $d->delivered_quantity,
-            'unit_price' => $d->unit_price,
-            'progress' => $d->quantity > 0 ? ($d->delivered_quantity / $d->quantity * 100) : 0,
+            'progress' => $d->target_quantity > 0 ? ($d->delivered_quantity / $d->target_quantity * 100) : 0,
         ]);
 
         $tenantId = session('tenant_id');

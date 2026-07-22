@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Associate;
+use App\Models\ProductionDelivery;
+use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Services\AssociateProjectLimitService;
 use App\Services\ProjectDistributionCustomerService;
@@ -18,6 +20,7 @@ class AssociateProjectLimitServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        activity()->disableLogging();
 
         foreach (['production_deliveries', 'project_demands', 'project_associate_product_limits', 'project_associates', 'sales_project_organizations', 'sales_project_customers', 'price_table_items', 'price_tables', 'customers', 'organizations', 'products', 'associates', 'sales_projects', 'tenants'] as $table) {
             Schema::dropIfExists($table);
@@ -75,8 +78,11 @@ class AssociateProjectLimitServiceTest extends TestCase
         });
         Schema::create('production_deliveries', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('associate_id'); $t->unsignedBigInteger('product_id');
+            $t->unsignedBigInteger('project_demand_id')->nullable(); $t->unsignedBigInteger('customer_id')->nullable();
             $t->unsignedBigInteger('parent_delivery_id')->nullable(); $t->date('delivery_date'); $t->decimal('quantity', 12, 3); $t->decimal('unit_price', 14, 4)->default(0);
+            $t->decimal('cost_price_used', 14, 4)->nullable(); $t->decimal('admin_fee_percentage', 8, 2)->nullable();
             $t->decimal('gross_value', 14, 4)->default(0); $t->decimal('admin_fee_amount', 14, 4)->nullable(); $t->decimal('net_value', 14, 4)->nullable();
+            $t->unsignedBigInteger('price_table_id')->nullable(); $t->string('price_source')->nullable();
             $t->string('status')->default('pending'); $t->timestamps(); $t->softDeletes();
         });
     }
@@ -246,6 +252,120 @@ class AssociateProjectLimitServiceTest extends TestCase
             ->all();
 
         $this->assertSame([$firstProduct, 2], $eligible);
+    }
+
+    public function test_demand_price_is_automatic_and_parent_delivery_stays_non_financial(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $demand = new ProjectDemand([
+            'sales_project_id' => $project->id,
+            'product_id' => $product,
+            'customer_id' => 1,
+            'target_quantity' => 100,
+            'unit_price' => 999,
+        ]);
+        $demand->tenant_id = 1;
+        $demand->save();
+
+        $this->assertSame(5.0, (float) $demand->unit_price);
+
+        $parent = new ProductionDelivery([
+            'sales_project_id' => $project->id,
+            'project_demand_id' => $demand->id,
+            'associate_id' => $associate->id,
+            'product_id' => $product,
+            'delivery_date' => now(),
+            'quantity' => 10,
+            'unit_price' => 999,
+            'status' => 'approved',
+        ]);
+        $parent->tenant_id = 1;
+        $parent->save();
+
+        $this->assertSame(0.0, (float) $parent->unit_price);
+        $this->assertSame(0.0, (float) $parent->net_value);
+        $this->assertSame(0.0, (float) $demand->fresh()->delivered_quantity);
+    }
+
+    public function test_demand_progress_uses_only_approved_distributions_for_its_destination(): void
+    {
+        [$project, $associate, $product] = $this->fixture(true);
+        $demand = new ProjectDemand([
+            'sales_project_id' => $project->id,
+            'product_id' => $product,
+            'customer_id' => 1,
+            'target_quantity' => 20,
+        ]);
+        $demand->tenant_id = 1;
+        $demand->save();
+
+        $parentId = DB::table('production_deliveries')->insertGetId([
+            'tenant_id' => 1, 'sales_project_id' => $project->id, 'project_demand_id' => $demand->id,
+            'associate_id' => $associate->id, 'product_id' => $product, 'delivery_date' => now(),
+            'quantity' => 20, 'unit_price' => 0, 'gross_value' => 0, 'status' => 'approved',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            [
+                'tenant_id' => 1, 'sales_project_id' => $project->id, 'project_demand_id' => $demand->id,
+                'associate_id' => $associate->id, 'product_id' => $product, 'customer_id' => 1,
+                'parent_delivery_id' => $parentId, 'delivery_date' => now(), 'quantity' => 7,
+                'unit_price' => 5, 'gross_value' => 35, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => 1, 'sales_project_id' => $project->id, 'project_demand_id' => $demand->id,
+                'associate_id' => $associate->id, 'product_id' => $product, 'customer_id' => 2,
+                'parent_delivery_id' => $parentId, 'delivery_date' => now(), 'quantity' => 5,
+                'unit_price' => 5, 'gross_value' => 25, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => 1, 'sales_project_id' => $project->id, 'project_demand_id' => $demand->id,
+                'associate_id' => $associate->id, 'product_id' => $product, 'customer_id' => 1,
+                'parent_delivery_id' => $parentId, 'delivery_date' => now(), 'quantity' => 3,
+                'unit_price' => 5, 'gross_value' => 15, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
+            ],
+        ]);
+
+        $demand->updateDeliveredQuantity();
+
+        $this->assertSame(7.0, (float) $demand->fresh()->delivered_quantity);
+    }
+
+    public function test_specific_customer_demand_rejects_distribution_to_another_customer(): void
+    {
+        [$project, $associate, $product] = $this->fixture(true);
+        $demand = new ProjectDemand([
+            'sales_project_id' => $project->id,
+            'product_id' => $product,
+            'customer_id' => 1,
+            'target_quantity' => 20,
+        ]);
+        $demand->tenant_id = 1;
+        $demand->save();
+
+        $parentId = DB::table('production_deliveries')->insertGetId([
+            'tenant_id' => 1, 'sales_project_id' => $project->id, 'project_demand_id' => $demand->id,
+            'associate_id' => $associate->id, 'product_id' => $product, 'delivery_date' => now(),
+            'quantity' => 20, 'unit_price' => 0, 'gross_value' => 0, 'status' => 'approved',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $distribution = new ProductionDelivery([
+            'sales_project_id' => $project->id,
+            'project_demand_id' => $demand->id,
+            'associate_id' => $associate->id,
+            'product_id' => $product,
+            'customer_id' => 2,
+            'parent_delivery_id' => $parentId,
+            'delivery_date' => now(),
+            'quantity' => 5,
+            'unit_price' => 5,
+            'status' => 'approved',
+        ]);
+        $distribution->tenant_id = 1;
+
+        $this->expectException(ValidationException::class);
+        $distribution->save();
     }
 
     public function test_distribution_customers_are_scoped_to_project_customers_and_organizations(): void

@@ -40,6 +40,16 @@ class ProductionDeliveryResource extends Resource
 {
     use TenantScoped;
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return false;
+    }
+
     protected static ?string $model = ProductionDelivery::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';
@@ -123,10 +133,9 @@ class ProductionDeliveryResource extends Resource
                                     ->with('product')
                                     ->get()
                                     ->mapWithKeys(fn ($d) => [
-                                        $d->id => $d->product->name.' - R$ '.
-                                                  number_format($d->unit_price, 2, ',', '.').
-                                                  '/'.$d->product->unit.
-                                                  ' (Resta: '.number_format($d->remaining_quantity, 2, ',', '.').')',
+                                        $d->id => $d->product->name.
+                                                  ' (Saldo da meta: '.number_format($d->remaining_quantity, 2, ',', '.').
+                                                  ' '.$d->product->unit.')',
                                     ]);
                             })
                             ->searchable()
@@ -141,7 +150,7 @@ class ProductionDeliveryResource extends Resource
                                 }
 
                                 $set('product_id', $demand->product_id);
-                                $set('unit_price', $demand->unit_price);
+                                $set('unit_price', 0);
                             })
                             ->required(function (callable $get) {
                                 if ($get('is_standalone')) {
@@ -1227,9 +1236,7 @@ class ProductionDeliveryResource extends Resource
     {
         return [
             'index' => Pages\ListProductionDeliveries::route('/'),
-            'create' => Pages\CreateProductionDelivery::route('/create'),
             'view' => Pages\ViewProductionDelivery::route('/{record}'),
-            'edit' => Pages\EditProductionDelivery::route('/{record}/edit'),
         ];
     }
 

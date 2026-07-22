@@ -23,8 +23,7 @@ class ProductionDeliveryObserver
      */
     public function created(ProductionDelivery $delivery): void
     {
-        // If created already approved, update demand quantity
-        if ($delivery->status === DeliveryStatus::APPROVED && $delivery->projectDemand) {
+        if ($delivery->projectDemand) {
             $delivery->projectDemand->updateDeliveredQuantity();
         }
         
@@ -64,8 +63,7 @@ class ProductionDeliveryObserver
             return;
         }
 
-        // Check if status just changed to approved
-        if ($delivery->wasChanged('status') && $delivery->status === DeliveryStatus::APPROVED) {
+        if ($delivery->wasChanged(['status', 'quantity', 'customer_id', 'project_demand_id', 'parent_delivery_id'])) {
             // Set processing flag to prevent recursive calls
             self::$processing = true;
 
@@ -73,6 +71,11 @@ class ProductionDeliveryObserver
                 // Update demand delivered quantity
                 if ($delivery->projectDemand) {
                     $delivery->projectDemand->updateDeliveredQuantity();
+                }
+
+                $originalDemandId = (int) $delivery->getOriginal('project_demand_id');
+                if ($originalDemandId && $originalDemandId !== (int) $delivery->project_demand_id) {
+                    \App\Models\ProjectDemand::find($originalDemandId)?->updateDeliveredQuantity();
                 }
 
                 // NÃO gerar movimentações financeiras aqui.
@@ -96,8 +99,11 @@ class ProductionDeliveryObserver
      */
     public function deleted(ProductionDelivery $delivery): void
     {
-        // If delivery was approved, we might need to reverse the financial entries
-        // This is a complex operation and should be handled carefully
-        // For now, we'll just log it - reversals should be done manually
+        $delivery->projectDemand?->updateDeliveredQuantity();
+    }
+
+    public function restored(ProductionDelivery $delivery): void
+    {
+        $delivery->projectDemand?->updateDeliveredQuantity();
     }
 }

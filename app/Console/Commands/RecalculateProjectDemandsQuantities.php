@@ -19,7 +19,7 @@ class RecalculateProjectDemandsQuantities extends Command
      *
      * @var string
      */
-    protected $description = 'Recalcular quantidades entregues de todas as demandas baseado nas entregas aprovadas';
+    protected $description = 'Recalcular o atendimento das demandas usando apenas distribuicoes aprovadas';
 
     /**
      * Execute the console command.

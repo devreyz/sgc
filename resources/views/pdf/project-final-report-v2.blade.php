@@ -62,10 +62,8 @@
         <tr>
             <th>Produto</th>
             <th class="text-right">Meta</th>
-            <th class="text-right">Entregue</th>
+            <th class="text-right">Distribuido</th>
             <th class="text-center" style="width:120px;">Progresso</th>
-            <th class="text-right">Preço Un.</th>
-            <th class="text-right">Valor Meta</th>
         </tr>
     </thead>
     <tbody>
@@ -81,8 +79,6 @@
                     <div class="progress-text">{{ number_format($demand['progress'], 1, ',', '.') }}%</div>
                 </div>
             </td>
-            <td class="text-right">R$ {{ number_format($demand['unit_price'], 2, ',', '.') }}</td>
-            <td class="text-right">R$ {{ number_format(($demand['contracted_qty'] ?? 0) * $demand['unit_price'], 2, ',', '.') }}</td>
         </tr>
         @endforeach
     </tbody>

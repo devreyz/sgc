@@ -246,7 +246,7 @@ class ProductionDelivery extends Model
     {
         parent::boot();
 
-        // Auto-fill unit_price from demand when creating
+        // Demand defines product/quantity goals. Prices belong to distributions.
         static::creating(function ($delivery) {
             if (! $delivery->sales_project_id) {
                 throw ValidationException::withMessages([
@@ -266,24 +266,31 @@ class ProductionDelivery extends Model
             }
 
             if ($delivery->parent_delivery_id) {
-                $parentMatchesContext = self::query()
+                $parent = self::query()
+                    ->with('projectDemand:id,customer_id')
                     ->whereKey($delivery->parent_delivery_id)
                     ->where('tenant_id', $delivery->tenant_id)
                     ->where('sales_project_id', $delivery->sales_project_id)
                     ->whereNull('parent_delivery_id')
-                    ->exists();
+                    ->first();
 
-                if (! $parentMatchesContext) {
+                if (! $parent) {
                     throw ValidationException::withMessages([
                         'parent_delivery_id' => 'A distribuição não corresponde à entrega e ao projeto informados.',
                     ]);
                 }
+
+                $demandCustomerId = $parent->projectDemand?->customer_id;
+                if ($demandCustomerId && (int) $delivery->customer_id !== (int) $demandCustomerId) {
+                    throw ValidationException::withMessages([
+                        'customer_id' => 'Esta demanda e especifica para outro cliente do projeto.',
+                    ]);
+                }
             }
 
-            if (! $delivery->unit_price && $delivery->project_demand_id) {
+            if ($delivery->project_demand_id) {
                 $demand = $delivery->projectDemand;
                 if ($demand) {
-                    $delivery->unit_price = $demand->unit_price;
                     $delivery->product_id = $demand->product_id;
                 }
             }
@@ -295,6 +302,12 @@ class ProductionDelivery extends Model
         static::saving(function ($delivery) {
             // Pula cálculo financeiro em registros de recepção pura
             if (is_null($delivery->customer_id) && is_null($delivery->parent_delivery_id)) {
+                $delivery->unit_price = 0;
+                $delivery->cost_price_used = null;
+                $delivery->admin_fee_amount = 0;
+                $delivery->net_value = 0;
+                $delivery->price_table_id = null;
+                $delivery->price_source = null;
                 return;
             }
 
