@@ -236,6 +236,8 @@ let PP_FILTER = 'all';
 let PP_PAGE = 1;
 let PP_LAST_PAGE = 1;
 let PP_SEARCH_TIMER = null;
+const PP_AUTO_ASSOCIATE = Number(new URLSearchParams(window.location.search).get('associate') || 0);
+const PP_AUTO_ASSOCIATE_NAME = new URLSearchParams(window.location.search).get('name') || 'Produtor';
 
 function brMoney(value){return Number(value || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
 function brQty(value){return Number(value || 0).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3});}
@@ -291,7 +293,7 @@ function renderProducers(rows){
             : '<span class="pp-badge gray">Sem comprovante</span>';
         const quickAction=receipt?.status==='obsolete' && !receipt.is_locked
             ? `<button class="btn btn-danger btn-sm" onclick="regenerateReceipt(${receipt.id})">Regenerar</button>`
-            : `<button class="btn btn-success btn-sm" onclick="openReceiptModal(${row.associate_id}, '${escapeHtml(row.name).replace(/&#039;/g,'\\&#039;')}')">Comprovante</button>`;
+            : `<button class="btn btn-success btn-sm" onclick="openReceiptModal(${row.associate_id}, '${escapeHtml(row.name).replace(/&#039;/g,'\\&#039;')}')">${row.pending_distributions ? 'Incluir ' + row.pending_distributions + ' pendente(s)' : (receipt ? 'Gerenciar comprovantes' : 'Gerar comprovante')}</button>`;
         return `<tr>
             <td><strong>${escapeHtml(row.name)}</strong><div class="pp-meta">${row.receipt_count} comprovante(s)</div></td>
             <td style="font-family:monospace">${escapeHtml(row.cpf)}</td>
@@ -299,7 +301,7 @@ function renderProducers(rows){
             <td class="r">${brQty(row.quantity)}</td>
             <td class="r">${brMoney(row.gross_value)}</td>
             <td class="r" style="color:var(--color-success);font-weight:800">${brMoney(row.net_value)}</td>
-            <td class="r">${row.pending_distributions ? `<span class="pp-badge red">${row.pending_distributions}</span>` : '<span class="pp-badge gray">0</span>'}</td>
+            <td class="r">${row.pending_distributions ? `<span class="pp-badge yellow">${row.pending_distributions}</span>` : '<span class="pp-badge gray">0</span>'}</td>
             <td class="r no-print"><div class="pp-receipt-cell"><a class="btn btn-primary btn-sm" href="/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${row.associate_id}"><i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Entregas e limites</a>${receiptInfo}${quickAction}</div></td>
         </tr>`;
     }).join('');
@@ -459,5 +461,9 @@ async function doGenerateReceipt(ids,visibleColumns,btn,originalLabel){
 }
 
 loadProducers();
+if (PP_AUTO_ASSOCIATE > 0) {
+    openReceiptModal(PP_AUTO_ASSOCIATE, PP_AUTO_ASSOCIATE_NAME);
+    history.replaceState(null, '', window.location.pathname);
+}
 </script>
 @endsection

@@ -741,6 +741,11 @@
 .mi-badge.green { background: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary-dark); }
 .mi-badge.amber { background: color-mix(in srgb, #f59e0b 15%, transparent); color: #92400e; }
 .mi-badge.red   { background: color-mix(in srgb, #ef4444 15%, transparent); color: #991b1b; }
+.mi-limit-summary{display:flex;flex-wrap:wrap;gap:.25rem .65rem;margin-top:.35rem;font-size:.68rem;color:var(--color-text-muted)}
+.mi-limit-summary strong{color:var(--color-text);font-weight:700}
+.mi-limit-track{display:flex;height:7px;margin-top:.38rem;overflow:hidden;border-radius:5px;background:#e5e7eb}
+.mi-limit-used{height:100%;background:#d97706}
+.mi-limit-free{height:100%;background:#15803d}
 .modal-empty {
     padding: 2rem 1rem;
     text-align: center;
@@ -1306,7 +1311,7 @@ function renderRegisterIntegrity(integrity) {
     );
     list.innerHTML = issues.map(issue => {
         const action = issue.actionKey
-            ? `<button type="button" class="btn-edit btn-xs" data-integrity-action="${escAttr(issue.actionKey)}" data-delivery-id="${Number(issue.deliveryId || 0)}" data-distribution-id="${Number(issue.distributionId || 0)}">${escHtml(integrityActionLabel(issue.actionKey))}</button>`
+            ? `<button type="button" class="btn-edit btn-xs" data-integrity-action="${escAttr(issue.actionKey)}" data-delivery-id="${Number(issue.deliveryId || 0)}" data-distribution-id="${Number(issue.distributionId || 0)}" data-associate-id="${Number(issue.associateId || 0)}" data-associate-name="${escAttr(issue.associateName || '')}">${escHtml(integrityActionLabel(issue.actionKey))}</button>`
             : '';
         return `<div class="reg-integrity-item ${issue.severity}" data-integrity-item="${escAttr(issue.actionKey || '')}-${Number(issue.distributionId || 0)}">
             <div class="reg-integrity-title">${escHtml(issue.title || '')}</div>
@@ -1333,6 +1338,8 @@ async function handleRegisterIntegrityAction(button) {
     const action = button.dataset.integrityAction;
     const deliveryId = Number(button.dataset.deliveryId || 0);
     const distributionId = Number(button.dataset.distributionId || 0);
+    const associateId = Number(button.dataset.associateId || 0);
+    const associateName = button.dataset.associateName || '';
 
     if (action === 'open_distribution' || action === 'edit_distribution') {
         openDistributeModal(deliveryId);
@@ -1342,7 +1349,8 @@ async function handleRegisterIntegrityAction(button) {
         return;
     }
     if (action === 'open_producers') {
-        window.location.href = '/' + TENANT + '/delivery/projects/' + S.project.id + '/producers';
+        const query = associateId ? `?associate=${associateId}&name=${encodeURIComponent(associateName)}` : '';
+        window.location.href = '/' + TENANT + '/delivery/projects/' + S.project.id + '/producers' + query;
         return;
     }
 
@@ -2236,8 +2244,8 @@ function renderProductList(list, search) {
         const delivered  = d.associate_delivered ?? d.delivered_quantity ?? 0;
         const remaining  = hasLimit ? Math.max(0, d.remaining_quantity) : null;
         const completed  = hasLimit && remaining <= 0;
-        const baseLimit  = d.associate_limit ?? d.project_limit;
-        const percent    = baseLimit > 0 ? Math.min(100, Math.round((delivered / baseLimit) * 100)) : 0;
+        const baseLimit  = hasLimit ? delivered + remaining : null;
+        const percent    = baseLimit > 0 ? Math.min(100, Math.round((delivered / baseLimit) * 100)) : (completed ? 100 : 0);
         const badgeClass = completed ? 'red' : (percent >= 80 ? 'amber' : 'green');
         const badgeText  = hasLimit ? (completed ? 'Limite atingido' : 'Saldo: ' + fmtQty(remaining, d.product_unit)) : 'Sem limite';
 
@@ -2245,8 +2253,8 @@ function renderProductList(list, search) {
             '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
             '<div class="mi-info">' +
                 '<div class="mi-name">' + escHtml(d.product_name) + '</div>' +
-                '<div class="mi-sub">Entregue: ' + fmtQty(delivered, d.product_unit) + (baseLimit ? ' de ' + fmtQty(baseLimit, d.product_unit) : '') + '</div>' +
-                (baseLimit ? '<div style="height:4px;background:#e5e7eb;border-radius:3px;margin-top:5px;overflow:hidden"><span style="display:block;height:100%;width:' + percent + '%;background:' + (completed?'#dc2626':percent>=80?'#d97706':'#059669') + '"></span></div>' : '') +
+                (hasLimit ? '<div class="mi-limit-summary"><span>Limite efetivo <strong>' + fmtQty(baseLimit, d.product_unit) + '</strong></span><span>Entregue <strong>' + fmtQty(delivered, d.product_unit) + '</strong></span><span>Disponivel <strong>' + fmtQty(remaining, d.product_unit) + '</strong></span></div>' : '<div class="mi-sub">Produto sem limite de quantidade</div>') +
+                (hasLimit ? '<div class="mi-limit-track" role="progressbar" aria-label="Quantidade entregue de ' + escHtml(d.product_name) + '" aria-valuemin="0" aria-valuemax="' + baseLimit + '" aria-valuenow="' + delivered + '"><span class="mi-limit-used" style="width:' + percent + '%" title="Entregue: ' + fmtQty(delivered, d.product_unit) + '"></span><span class="mi-limit-free" style="width:' + Math.max(0, 100 - percent) + '%" title="Disponivel: ' + fmtQty(remaining, d.product_unit) + '"></span></div>' : '') +
             '</div>' +
             '<span class="mi-badge ' + badgeClass + '">' + badgeText + '</span>' +
         '</div>';

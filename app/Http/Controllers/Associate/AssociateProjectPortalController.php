@@ -44,9 +44,7 @@ class AssociateProjectPortalController extends Controller
             'summary' => response()->json($this->summary($project, $associate)),
             'limits' => response()->json([
                 'summary' => $this->limits->summary($project, $associate),
-                'products' => $project->allow_any_product
-                    ? $this->limits->productLimits($project, $associate)
-                    : $this->limits->eligibleProducts($project, $associate),
+                'products' => $this->limits->eligibleProducts($project, $associate),
                 'catalog_open' => (bool) $project->allow_any_product,
             ]),
             'deliveries' => response()->json($this->deliveries($request, $project, $associate)),

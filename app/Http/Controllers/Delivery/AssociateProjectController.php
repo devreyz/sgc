@@ -496,13 +496,56 @@ class AssociateProjectController extends Controller
             'actor' => $activity->causer_id
                 ? ($names[$activity->causer_id] ?? 'Membro nao identificado')
                 : 'Sistema',
-            'action' => $activity->description ?: $activity->event ?: 'Alteracao registrada',
-            'subject' => $activity->subject_id
-                ? class_basename((string) $activity->subject_type).' #'.$activity->subject_id
-                : 'Limites do associado',
+            'action' => $this->activityActionLabel($activity),
+            'subject' => $this->activitySubjectLabel($activity),
         ]));
 
         return $page->toArray();
+    }
+
+    private function activityActionLabel(Activity $activity): string
+    {
+        $description = trim((string) $activity->description);
+        if ($description !== '' && ! in_array($description, ['created', 'updated', 'deleted', 'restored'], true)) {
+            return $description;
+        }
+
+        $subject = class_basename((string) $activity->subject_type);
+        $event = $activity->event ?: $description;
+
+        return match ([$subject, $event]) {
+            ['ProductionDelivery', 'created'] => 'Entrega registrada',
+            ['ProductionDelivery', 'updated'] => 'Entrega atualizada',
+            ['ProductionDelivery', 'deleted'] => 'Entrega removida',
+            ['ProjectAssociateProductLimit', 'created'] => 'Limite de produto criado',
+            ['ProjectAssociateProductLimit', 'updated'] => 'Limite de produto atualizado',
+            ['ProjectAssociate', 'created'] => 'Participacao configurada',
+            ['ProjectAssociate', 'updated'] => 'Participacao atualizada',
+            default => match ($event) {
+                'created' => 'Registro criado',
+                'updated' => 'Registro atualizado',
+                'deleted' => 'Registro removido',
+                'restored' => 'Registro restaurado',
+                default => 'Alteracao registrada',
+            },
+        };
+    }
+
+    private function activitySubjectLabel(Activity $activity): string
+    {
+        if (! $activity->subject_id) {
+            return 'Configuracao do associado';
+        }
+
+        $label = match (class_basename((string) $activity->subject_type)) {
+            'ProductionDelivery' => 'Entrega',
+            'ProjectAssociateProductLimit' => 'Limite de produto',
+            'ProjectAssociate' => 'Participacao',
+            'AssociateReceipt' => 'Comprovante',
+            default => 'Registro',
+        };
+
+        return $label.' #'.$activity->subject_id;
     }
 
     private function applyCommonFilters(Builder $query, Request $request): void

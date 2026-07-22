@@ -146,15 +146,20 @@ class DeliveryProjectIntegrityService
             ->where('paid', false)
             ->filter(fn ($delivery) => $delivery->billing_status !== BillingStatus::PAID && ! $delivery->associate_receipt_id);
 
-        if ($pendingReceipt->isNotEmpty()) {
+        $pendingReceipt->groupBy('associate_id')->each(function ($items) use (&$warning): void {
+            $associate = $items->first()?->associate;
+            $associateName = $associate?->display_name ?? 'Associado';
             $warning[] = $this->item(
                 'Distribuicoes sem comprovante',
-                $pendingReceipt->count() . ' distribuicao(oes) aprovadas ainda nao entraram em comprovante de produtor.',
-                'Abra os comprovantes dos produtores e gere um comprovante parcial ou completo.',
+                $associateName.' possui '.$items->count().' distribuicao(oes) aprovadas aguardando comprovante.',
+                'Abra o produtor e inclua as distribuicoes pendentes em um comprovante.',
+                $items->first()?->parent_delivery_id,
+                'open_producers',
                 null,
-                'open_producers'
+                (int) $items->first()->associate_id,
+                $associateName,
             );
-        }
+        });
 
         $receiptAssociateIds = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
@@ -204,7 +209,9 @@ class DeliveryProjectIntegrityService
         ?int $deliveryId = null,
         ?string $actionKey = null,
         ?int $distributionId = null,
+        ?int $associateId = null,
+        ?string $associateName = null,
     ): array {
-        return compact('title', 'message', 'action', 'deliveryId', 'actionKey', 'distributionId');
+        return compact('title', 'message', 'action', 'deliveryId', 'actionKey', 'distributionId', 'associateId', 'associateName');
     }
 }

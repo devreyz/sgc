@@ -187,37 +187,18 @@ class SalesProjectResource extends Resource
                             ->live()
                             ->columnSpanFull(),
 
-                        Forms\Components\Select::make('associates')
+                        Forms\Components\CheckboxList::make('associates')
                             ->label('Associados participantes')
-                            ->multiple()
                             ->relationship('associates', 'id')
-                            ->getSearchResultsUsing(fn (string $search) =>
-                                Associate::query()
-                                    ->select('associates.*')
-                                    ->join('tenant_user', function ($join) {
-                                        $join->on('tenant_user.user_id', '=', 'associates.user_id')
-                                            ->where('tenant_user.tenant_id', '=', session('tenant_id'));
-                                    })
-                                    ->where('associates.tenant_id', session('tenant_id'))
-                                    ->where(function (Builder $query) use ($search) {
-                                        $query->where('tenant_user.tenant_name', 'like', "%{$search}%")
-                                            ->orWhere('associates.member_code', 'like', "%{$search}%")
-                                            ->orWhere('associates.registration_number', 'like', "%{$search}%")
-                                            ->orWhere('associates.district', 'like', "%{$search}%")
-                                            ->orWhere('associates.city', 'like', "%{$search}%");
-                                    })
-                                    ->limit(50)
-                                    ->get()
-                                    ->mapWithKeys(fn (Associate $associate) => [$associate->id => self::associateOptionLabel($associate)])
-                            )
-                            ->getOptionLabelsUsing(fn (array $values): array => Associate::query()
+                            ->options(fn (): array => Associate::query()
                                 ->where('tenant_id', session('tenant_id'))
-                                ->whereIn('id', $values)
                                 ->get()
                                 ->mapWithKeys(fn (Associate $associate) => [$associate->id => self::associateOptionLabel($associate)])
                                 ->all())
-                            ->preload(false)
                             ->searchable()
+                            ->bulkToggleable()
+                            ->columns(['default' => 1, 'md' => 2])
+                            ->gridDirection('row')
                             ->visible(fn (Forms\Get $get): bool => (bool) $get('restrict_participants'))
                             ->saveRelationshipsUsing(function (SalesProject $record, ?array $state): void {
                                 $selectedIds = Associate::query()

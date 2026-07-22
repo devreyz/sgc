@@ -224,6 +224,11 @@
                 <i data-lucide="list" style="width:13px;height:13px"></i> Entregas
             </a>
 
+            <a href="{{ route('delivery.projects.associates.index', ['tenant' => $tenant->slug, 'project' => $proj->id]) }}"
+               class="btn btn-ghost" title="Participacao e limites">
+                <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Limites
+            </a>
+
             @if($isEditable)
                 <a href="{{ route('delivery.register', ['tenant' => $tenant->slug, 'project' => $proj->id]) }}"
                    class="btn btn-success" title="Registrar entregas">

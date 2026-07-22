@@ -593,6 +593,7 @@ function normalizeExisting(d) {
         customer: d.customer || '?',
         qty: parseFloat(d.qty || d.quantity || 0),
         unit_price: parseFloat(d.unit_price || d.unitPrice || 0),
+        price_inconsistent: !!d.price_inconsistent,
         net: parseFloat(d.net || 0),
         billed: !!d.billed,
         paid: !!d.paid,
@@ -615,6 +616,7 @@ function distributionCanDelete(d) {
 
 function statusBadges(d) {
     const badges = [];
+    if (d.price_inconsistent) badges.push('<span class="dm-status-badge" style="background:#fff7ed;color:#9a3412" title="Edite e salve para recalcular o preco pela tabela do cliente">Recalcular preco</span>');
     if (d.in_receipt) badges.push(`<span class="dm-status-badge receipt" title="${d.receipt_number ? 'Comprovante ' + esc(d.receipt_number) : 'Em comprovante'}">Em comprovante</span>`);
     if (d.billed && !d.paid) badges.push('<span class="dm-status-badge billed">Faturada</span>');
     if (d.paid) badges.push('<span class="dm-status-badge paid">Paga</span>');

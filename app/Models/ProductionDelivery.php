@@ -302,6 +302,29 @@ class ProductionDelivery extends Model
         static::saving(function ($delivery) {
             // Pula cálculo financeiro em registros de recepção pura
             if (is_null($delivery->customer_id) && is_null($delivery->parent_delivery_id)) {
+                $requiresLimitValidation = ! $delivery->exists
+                    || $delivery->isDirty(['sales_project_id', 'associate_id', 'product_id', 'quantity', 'status']);
+                if ($requiresLimitValidation && ! in_array($delivery->status instanceof DeliveryStatus ? $delivery->status->value : $delivery->status, [
+                    DeliveryStatus::CANCELLED->value,
+                    DeliveryStatus::REJECTED->value,
+                ], true)) {
+                    $project = SalesProject::query()
+                        ->where('tenant_id', $delivery->tenant_id)
+                        ->findOrFail($delivery->sales_project_id);
+                    $associate = Associate::query()
+                        ->where('tenant_id', $delivery->tenant_id)
+                        ->findOrFail($delivery->associate_id);
+
+                    app(\App\Services\AssociateProjectLimitService::class)->assertContext($project, $associate);
+                    app(\App\Services\AssociateProjectLimitService::class)->validateDelivery(
+                        $project,
+                        $associate,
+                        (int) $delivery->product_id,
+                        (float) $delivery->quantity,
+                        $delivery->exists ? (int) $delivery->id : null,
+                    );
+                }
+
                 $delivery->unit_price = 0;
                 $delivery->cost_price_used = null;
                 $delivery->admin_fee_amount = 0;

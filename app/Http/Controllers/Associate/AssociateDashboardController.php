@@ -104,7 +104,9 @@ class AssociateDashboardController extends Controller
         return SalesProject::where('tenant_id', $tenantId)
             ->where(function ($q) use ($associateId) {
                 $q->where('restrict_participants', false)
-                  ->orWhereHas('projectAssociates', fn ($pa) => $pa->where('associate_id', $associateId));
+                  ->orWhereHas('projectAssociates', fn ($pa) => $pa
+                      ->where('associate_id', $associateId)
+                      ->where('status', 'active'));
             });
     }
 
@@ -267,7 +269,9 @@ class AssociateDashboardController extends Controller
         // Respect restrict_participants
         if ($project->restrict_participants) {
             $allowed = ProjectAssociate::where('sales_project_id', $project->id)
+                ->where('tenant_id', $tenantId)
                 ->where('associate_id', $associate->id)
+                ->where('status', 'active')
                 ->exists();
             if (! $allowed) {
                 abort(403, 'Você não faz parte deste projeto.');

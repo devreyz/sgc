@@ -135,7 +135,8 @@ class DeliveryRegistrationController extends Controller
             'customer_id' => $d->customer_id,
             'customer' => optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '?',
             'qty' => (float) $d->quantity,
-            'unit_price' => (float) $d->unit_price,
+            'unit_price' => $this->effectiveDistributionUnitPrice($d),
+            'price_inconsistent' => (float) ($d->unit_price ?? 0) <= 0,
             'net' => (float) $d->net_value,
             'billed' => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
             'paid' => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
@@ -202,6 +203,23 @@ class DeliveryRegistrationController extends Controller
             'issue_severity' => $issueSeverity,
             'limit' => $limitData,
         ];
+    }
+
+    private function effectiveDistributionUnitPrice(ProductionDelivery $distribution): float
+    {
+        $stored = (float) ($distribution->unit_price ?? 0);
+        $quantity = (float) ($distribution->quantity ?? 0);
+        if ($stored > 0 || $quantity <= 0) {
+            return $stored;
+        }
+
+        $gross = (float) ($distribution->gross_value ?? 0);
+        if ($gross <= 0) {
+            $gross = (float) ($distribution->net_value ?? 0)
+                + (float) ($distribution->admin_fee_amount ?? 0);
+        }
+
+        return $gross > 0 ? $gross / $quantity : 0.0;
     }
 
     private function receiptDistributionIntegrityMessage($distributions, int $tenantId, int $projectId, ?int $associateId = null, ?int $receiptId = null): ?string
@@ -402,6 +420,14 @@ class DeliveryRegistrationController extends Controller
         $projects = collect([$selectedProject]);
 
         $associates = Associate::where('tenant_id', $tenantId)
+            ->when($project->restrict_participants, fn ($query) => $query->whereIn(
+                'id',
+                ProjectAssociate::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $project->id)
+                    ->where('status', 'active')
+                    ->select('associate_id')
+            ))
             ->with('user')
             ->whereHas('user', fn ($q) => $q->where('status', true))
             ->orderBy('id')
@@ -1390,7 +1416,8 @@ class DeliveryRegistrationController extends Controller
                     'organization' => optional($dist->customer?->organization)->short_name
                                         ?? optional($dist->customer?->organization)->name,
                     'qty' => (float) $dist->quantity,
-                    'unit_price' => (float) $dist->unit_price,
+                    'unit_price' => $this->effectiveDistributionUnitPrice($dist),
+                    'price_inconsistent' => (float) ($dist->unit_price ?? 0) <= 0,
                     'net' => (float) $dist->net_value,
                     'price_source' => $dist->price_source,
                     'billed' => $dist->billing_status instanceof BillingStatus

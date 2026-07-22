@@ -2486,7 +2486,7 @@
 
         apRoot.innerHTML = sectionShell(
             'Histórico de atividades',
-            'Veja as principais alterações realizadas neste vínculo.',
+            'Alterações recentes neste projeto.',
             `
                 <div class="ap-table-wrap">
                     <table class="ap-table">

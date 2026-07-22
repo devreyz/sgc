@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class AssociateProjectLimitServiceTest extends TestCase
@@ -149,6 +150,27 @@ class AssociateProjectLimitServiceTest extends TestCase
         app(AssociateProjectLimitService::class)->assertContext($project, $other);
     }
 
+    public function test_blocked_participant_is_rejected_in_restricted_project(): void
+    {
+        [$project, $associate] = $this->fixture(false);
+        $project->update(['restrict_participants' => true]);
+        DB::table('project_associates')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+            'status' => 'blocked',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(AssociateProjectLimitService::class)->assertContext($project->fresh(), $associate);
+            $this->fail('Participante bloqueado nao deveria acessar o projeto restrito.');
+        } catch (HttpException $exception) {
+            $this->assertSame(403, $exception->getStatusCode());
+        }
+    }
+
     public function test_association_creation_always_writes_project_associate_and_tenant_keys(): void
     {
         [$project, $associate] = $this->fixture(false);
@@ -209,6 +231,51 @@ class AssociateProjectLimitServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $service->validateDelivery($project->fresh(), $associate, $product, 5.001);
+    }
+
+    public function test_delivery_model_rejects_product_outside_demand_and_associate_limits(): void
+    {
+        [$project, $associate, $allowedProduct] = $this->fixture(false);
+        $project->update(['allow_any_product' => false]);
+        DB::table('project_demands')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'product_id' => $allowedProduct,
+            'target_quantity' => 50,
+            'delivered_quantity' => 0,
+            'unit_price' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('products')->insert([
+            'id' => 2,
+            'tenant_id' => 1,
+            'name' => 'Produto nao autorizado',
+            'unit' => 'kg',
+            'status' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('price_table_items')->insert([
+            'price_table_id' => 1,
+            'product_id' => 2,
+            'sale_price' => 4,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $delivery = new ProductionDelivery([
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+            'product_id' => 2,
+            'delivery_date' => now(),
+            'quantity' => 5,
+            'status' => 'pending',
+        ]);
+        $delivery->tenant_id = 1;
+
+        $this->expectException(ValidationException::class);
+        $delivery->save();
     }
 
     public function test_sum_of_associate_product_limits_cannot_exceed_project_demand(): void

@@ -448,7 +448,7 @@ $totalNet      = $deliveries->sum('net_value');
                             <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
                             <div class="pd-integrity-actions">
                                 @if(!empty($issue['actionKey']))
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }})">Resolver agora</button>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }}, {{ (int) ($issue['associateId'] ?? 0) }}, @js($issue['associateName'] ?? ''))">{{ match($issue['actionKey']) { 'open_distribution' => 'Distribuir', 'edit_distribution' => 'Corrigir distribuicao', 'open_producers' => 'Abrir produtor', 'detach_missing_associate_receipt' => 'Desvincular', 'delete_orphan_distribution' => 'Excluir orfa', default => 'Ver detalhes' } }}</button>
                                 @endif
                                 @if(!empty($issue['deliveryId']))
                                     <button type="button" class="btn btn-ghost btn-sm" onclick="focusIntegrityDelivery({{ (int) $issue['deliveryId'] }})">Ver entrega</button>
@@ -493,7 +493,7 @@ $totalNet      = $deliveries->sum('net_value');
                                 <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
                                 @if(!empty($issue['actionKey']))
                                     <div class="pd-integrity-actions">
-                                        <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }})">Resolver agora</button>
+                                        <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }}, {{ (int) ($issue['associateId'] ?? 0) }}, @js($issue['associateName'] ?? ''))">{{ match($issue['actionKey']) { 'open_distribution' => 'Distribuir', 'edit_distribution' => 'Corrigir distribuicao', 'open_producers' => 'Abrir produtor', 'detach_missing_associate_receipt' => 'Desvincular', 'delete_orphan_distribution' => 'Excluir orfa', default => 'Ver detalhes' } }}</button>
                                     </div>
                                 @endif
                             </div>
@@ -748,7 +748,7 @@ function applyResolvedIntegrity(integrity, actionKey, distributionId) {
     });
 }
 
-async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0) {
+async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0, associateId = 0, associateName = '') {
     if (actionKey === 'open_distribution') {
         openIntegrityDistribution(deliveryId, distributionId);
         return;
@@ -758,7 +758,8 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
         return;
     }
     if (actionKey === 'open_producers') {
-        window.location.href = `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/producers`;
+        const query = associateId ? `?associate=${associateId}&name=${encodeURIComponent(associateName)}` : '';
+        window.location.href = `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/producers${query}`;
         return;
     }
 

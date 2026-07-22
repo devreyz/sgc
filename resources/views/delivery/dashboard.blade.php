@@ -339,6 +339,11 @@
                         <i data-lucide="users" style="width:12px;height:12px"></i> Produtores
                     </a>
 
+                    <a href="{{ route('delivery.projects.associates.index', ['tenant' => $currentTenant->slug, 'project' => $project['id']]) }}"
+                       class="btn btn-ghost btn-sm" title="Participacao e limites">
+                        <i data-lucide="sliders-horizontal" style="width:12px;height:12px"></i> Limites
+                    </a>
+
                     @if($project['status_value'] === 'active')
                     <button class="btn btn-info btn-sm"
                             onclick="confirmFinalizeProject({{ $project['id'] }},`{{ e($project['title']) }}`,{{ $project['pending_deliveries'] }})">

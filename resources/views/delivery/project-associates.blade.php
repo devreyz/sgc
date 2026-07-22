@@ -1239,8 +1239,8 @@
             </div>
 
             <select class="pam-select" id="pam-status" aria-label="Filtrar participação">
-                <option value="">Todas as participações</option>
-                <option value="active">Ativos</option>
+                <option value="" @selected(! $project->restrict_participants)>Todas as participações</option>
+                <option value="active" @selected($project->restrict_participants)>Participantes ativos</option>
                 <option value="blocked">Bloqueados</option>
                 <option value="unconfigured">Ainda não configurados</option>
             </select>
