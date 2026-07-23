@@ -191,6 +191,7 @@ class ServiceProvider extends Model
             'diarista' => 'Diarista',
             'tecnico' => 'Técnico',
             'registrador_entregas' => 'Registrador de Entregas',
+            'visualizador_entregas' => 'Visualizador de Entregas',
         ];
     }
 }

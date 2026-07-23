@@ -15,6 +15,7 @@ use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
+use App\Http\Controllers\Delivery\DeliveryViewerController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
@@ -269,6 +270,32 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');
         Route::get('/projects/{project}/receipts', [DeliveryRegistrationController::class, 'projectReceiptsList'])->name('projects.receipts-list');
     });
+
+    // Read-only delivery monitoring portal. The only write operation is an audited note.
+    Route::prefix('delivery-viewer')
+        ->name('delivery-viewer.')
+        ->middleware(['any.role:visualizador_entregas'])
+        ->group(function () {
+              Route::get('/', [DeliveryViewerController::class, 'index'])->name('index');
+              Route::get('/projects-data', [DeliveryViewerController::class, 'projectsData'])->name('projects.data-list');
+              Route::get('/projects/{project}', [DeliveryViewerController::class, 'show'])->name('projects.show');
+              Route::get('/projects/{project}/data', [DeliveryViewerController::class, 'projectData'])
+                  ->name('projects.data');
+              Route::get('/projects/{project}/deliveries', [DeliveryViewerController::class, 'deliveriesData'])
+                  ->name('projects.deliveries');
+              Route::get('/projects/{project}/associates/{associateToken}', [DeliveryViewerController::class, 'associate'])
+                  ->name('associates.show');
+              Route::get('/projects/{project}/associates/{associateToken}/data', [DeliveryViewerController::class, 'associateData'])
+                  ->name('associates.data');
+              Route::get('/projects/{project}/notes', [DeliveryViewerController::class, 'notesData'])
+                  ->name('notes.index');
+              Route::post('/projects/{project}/notes', [DeliveryViewerController::class, 'storeNote'])
+                  ->middleware('throttle:30,1')
+                  ->name('notes.store');
+            Route::delete('/projects/{project}/notes/{note}', [DeliveryViewerController::class, 'destroyNote'])
+                ->middleware('throttle:30,1')
+                ->name('notes.destroy');
+        });
 
     // Buyer Organization Portal Routes
     Route::prefix('buyer')->name('buyer.')->middleware(['buyer.organization'])->group(function () {

@@ -94,6 +94,16 @@ class HubController extends Controller
             ];
         }
 
+        if ($user->hasRoleInTenant('visualizador_entregas', $currentTenant->id)) {
+            $roles[] = [
+                'name' => 'Acompanhamento de Entregas',
+                'description' => 'Consultar entregas, limites e distribuicoes',
+                'icon' => 'eye',
+                'url' => route('delivery-viewer.index', ['tenant' => $currentTenant->slug]),
+                'color' => 'info',
+            ];
+        }
+
         if ($user->hasRoleInTenant(['operador_caixa', 'financeiro'], $currentTenant->id)) {
             $roles[] = [
                 'name' => 'PDV - Ponto de Venda',

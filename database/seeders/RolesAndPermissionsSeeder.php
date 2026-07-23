@@ -40,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Delivery recorder role for mobile delivery registration
         $deliveryRecorder = Role::firstOrCreate(['name' => 'registrador_entregas', 'guard_name' => 'web']);
+        $deliveryViewer = Role::firstOrCreate(['name' => 'visualizador_entregas', 'guard_name' => 'web']);
 
         $portalPermissions = collect([
             'view_associate_project',
@@ -52,6 +53,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_distributions',
             'view_receipts',
             'view_payments',
+            'view_delivery_monitor',
+            'create_delivery_notes',
             'access-links.create',
             'access-links.view',
             'access-links.revoke',
@@ -159,6 +162,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'reject_deliveries',
             'view_distributions',
             'view_receipts',
+        ]));
+        $deliveryViewer->givePermissionTo($portalPermissions->whereIn('name', [
+            'view_delivery_monitor',
+            'create_delivery_notes',
         ]));
 
         $superAdminUser = User::firstOrCreate(

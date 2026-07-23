@@ -21,6 +21,10 @@ class PortalNavigation
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'delivery.projects-list'],
                 ['key' => 'printables', 'label' => 'Imprimíveis', 'route' => 'delivery.sheet.index'],
             ],
+            'delivery-viewer' => [
+                ['key' => 'home', 'label' => 'Inicio', 'route' => 'home'],
+                ['key' => 'projects', 'label' => 'Projetos', 'route' => 'delivery-viewer.index'],
+            ],
             'provider' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'provider.dashboard'],
                 ['key' => 'orders', 'label' => 'Ordens', 'route' => 'provider.orders'],
@@ -43,9 +47,13 @@ class PortalNavigation
             'active' => $active,
             'aria_label' => 'Navegacao principal do portal',
             'items' => collect($items)->map(function (array $item) use ($tenantSlug) {
+                $route = Route::getRoutes()->getByName($item['route']);
+                $parameters = $tenantSlug && in_array('tenant', $route?->parameterNames() ?? [], true)
+                    ? ['tenant' => $tenantSlug]
+                    : [];
                 $item['type'] = 'link';
-                $item['url'] = $tenantSlug && Route::has($item['route'])
-                    ? route($item['route'], ['tenant' => $tenantSlug])
+                $item['url'] = Route::has($item['route'])
+                    ? route($item['route'], $parameters)
                     : url('/');
                 unset($item['route']);
 

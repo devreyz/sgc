@@ -135,7 +135,16 @@ class TenantUserResource extends Resource
                             ->options(function () {
                                 return \Spatie\Permission\Models\Role::query()
                                     ->where('name', '!=', 'super_admin')
-                                    ->pluck('name', 'name');
+                                    ->pluck('name')
+                                    ->mapWithKeys(fn (string $name) => [
+                                        $name => match ($name) {
+                                            'visualizador_entregas' => 'Visualizador de Entregas',
+                                            'registrador_entregas' => 'Registrador de Entregas',
+                                            'operador_caixa' => 'Operador de Caixa',
+                                            'service_provider' => 'Prestador de Servicos',
+                                            default => Str::headline($name),
+                                        },
+                                    ]);
                             })
                             ->searchable()
                             ->helperText('Funções do membro nesta organização.'),
