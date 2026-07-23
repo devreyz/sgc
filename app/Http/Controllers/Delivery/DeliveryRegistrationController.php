@@ -37,6 +37,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -1907,9 +1908,19 @@ class DeliveryRegistrationController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
+            $correlationId = (string) Str::uuid();
+            Log::error('Falha ao registrar entrega.', [
+                'correlation_id' => $correlationId,
+                'tenant_id' => $tenantId,
+                'sales_project_id' => $projectId,
+                'associate_id' => $validated['associate_id'] ?? null,
+                'exception' => $e,
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Erro ao registrar entrega: '.$e->getMessage(),
+                'message' => 'Nao foi possivel registrar a entrega. Tente novamente.',
+                'correlation_id' => $correlationId,
             ], 500);
         }
     }

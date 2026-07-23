@@ -9,6 +9,7 @@ use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Services\AssociateProjectLimitService;
 use App\Services\ProjectDistributionCustomerService;
+use App\Services\TenantResolver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -110,6 +111,34 @@ class AssociateProjectLimitServiceTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $service->validateDelivery($project, $associate, $product, 20.001);
+    }
+
+    public function test_reception_resolves_tenant_before_saving_validation(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $this->mock(TenantResolver::class, function ($mock): void {
+            $mock->shouldReceive('resolve')->once()->andReturn(1);
+        });
+
+        $delivery = ProductionDelivery::query()->create([
+            'tenant_id' => $project->tenant_id,
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+            'product_id' => $product,
+            'delivery_date' => now()->toDateString(),
+            'quantity' => 10,
+            'unit_price' => 0,
+            'status' => 'pending',
+        ]);
+
+        $this->assertSame((int) $project->tenant_id, (int) $delivery->tenant_id);
+        $this->assertSame((int) $project->id, (int) $delivery->sales_project_id);
+        $this->assertDatabaseHas('production_deliveries', [
+            'id' => $delivery->id,
+            'tenant_id' => $project->tenant_id,
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+        ]);
     }
 
     public function test_multiple_customers_disable_product_limits_and_financial_limit_uses_distributions(): void

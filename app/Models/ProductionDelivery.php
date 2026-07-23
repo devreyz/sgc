@@ -300,6 +300,19 @@ class ProductionDelivery extends Model
         // Registros de recepção (sem cliente, sem parent) não calculam financeiro —
         // o cálculo ocorre nas distribuições filhas.
         static::saving(function ($delivery) {
+            // The tenant trait fills this during `creating`, but Eloquent fires
+            // `saving` first. Resolve it here before any tenant-scoped lookup.
+            if (! $delivery->getAttribute('tenant_id')) {
+                $tenantId = app(\App\Services\TenantResolver::class)->resolve();
+                if (! $tenantId) {
+                    throw ValidationException::withMessages([
+                        'tenant_id' => 'Selecione uma organizacao antes de registrar a entrega.',
+                    ]);
+                }
+
+                $delivery->setAttribute('tenant_id', $tenantId);
+            }
+
             // Pula cálculo financeiro em registros de recepção pura
             if (is_null($delivery->customer_id) && is_null($delivery->parent_delivery_id)) {
                 $requiresLimitValidation = ! $delivery->exists
