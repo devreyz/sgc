@@ -18,17 +18,17 @@
     .plb-head p { margin:.2rem 0 0; color:var(--color-text-secondary); font-size:.72rem; }
     .plb-button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:.35rem; border:0; border-radius:7px; padding:.48rem .7rem; background:var(--color-primary); color:#fff; font:inherit; font-size:.7rem; font-weight:800; cursor:pointer; text-decoration:none; }
     .plb-button.ghost { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); }
-    .plb-picker { position:sticky; top:calc(var(--app-header-height) + .35rem); z-index:20; display:grid; grid-template-columns:minmax(180px,.8fr) minmax(280px,1.4fr) auto; align-items:center; gap:.8rem; padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:color-mix(in srgb,var(--color-surface) 96%,transparent); box-shadow:0 6px 20px rgba(15,23,42,.1); backdrop-filter:blur(12px); }
+    .plb-picker { position:sticky; top:calc(var(--app-header-height) + .25rem); z-index:20; display:grid; grid-template-columns:minmax(170px,.75fr) minmax(260px,1.4fr) auto; align-items:center; gap:.65rem; padding:.48rem .58rem; border:1px solid var(--color-border); border-radius:8px; background:color-mix(in srgb,var(--color-surface) 96%,transparent); box-shadow:0 5px 16px rgba(15,23,42,.09); backdrop-filter:blur(12px); }
     .plb-selected-product { min-width:0; display:flex; align-items:center; gap:.55rem; }
-    .plb-selected-icon { flex:none; width:36px; height:36px; display:grid; place-items:center; border-radius:7px; background:var(--color-bg); color:var(--color-primary); }
-    .plb-selected-product strong { display:block; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .plb-selected-product span { display:block; margin-top:.12rem; color:var(--color-text-secondary); font-size:.74rem; }
+    .plb-selected-icon { flex:none; width:30px; height:30px; display:grid; place-items:center; border-radius:6px; background:var(--color-bg); color:var(--color-primary); }
+    .plb-selected-product strong { display:block; font-size:.84rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .plb-selected-product span { display:block; margin-top:.05rem; color:var(--color-text-secondary); font-size:.68rem; }
     .plb-control { min-height:44px; width:100%; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-text); padding:.52rem .65rem; font:inherit; font-size:.88rem; }
     .plb-sticky-quota { min-width:0; }
     .plb-sticky-quota-head { display:flex; justify-content:space-between; gap:.5rem; align-items:center; }
-    .plb-sticky-quota-head strong { font-size:.8rem; }
-    .plb-sticky-quota-head span,.plb-sticky-quota > span { color:var(--color-text-secondary); font-size:.72rem; }
-    .plb-sticky-quota .plb-meter { height:9px; margin:.35rem 0 .25rem; }
+    .plb-sticky-quota-head strong { font-size:.75rem; }
+    .plb-sticky-quota-head span { color:var(--color-text-secondary); font-size:.68rem; text-align:right; }
+    .plb-sticky-quota .plb-meter { height:7px; margin:.28rem 0 0; }
     .plb-picker-actions { display:flex; gap:.4rem; }
     .plb-save-status { min-height:1.2rem; color:var(--color-text-secondary); font-size:.76rem; font-weight:700; }
     .plb-save-status.error { color:#b91c1c; }
@@ -85,10 +85,13 @@
     .plb-person strong { display:block; font-size:.68rem; }
     .plb-person span { display:block; margin-top:.1rem; color:var(--color-text-secondary); font-size:.56rem; }
     .plb-product-list { display:grid; gap:.35rem; }
-    .plb-product-option { width:100%; display:flex; align-items:center; justify-content:space-between; gap:.55rem; padding:.62rem; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:inherit; text-align:left; cursor:pointer; }
+    .plb-product-option { width:100%; display:flex; align-items:center; justify-content:space-between; gap:.65rem; min-height:58px; padding:.72rem; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:inherit; text-align:left; cursor:pointer; }
     .plb-product-option.selected { border-color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 6%,var(--color-surface)); }
-    .plb-product-option strong { display:block; font-size:.68rem; }
-    .plb-product-option span { display:block; margin-top:.12rem; color:var(--color-text-secondary); font-size:.56rem; }
+    .plb-product-option strong { display:block; font-size:.9rem; line-height:1.3; }
+    .plb-product-option span { display:block; margin-top:.18rem; color:var(--color-text-secondary); font-size:.72rem; line-height:1.35; }
+    .plb-card.editing { border-color:var(--color-primary); box-shadow:inset 3px 0 var(--color-primary); }
+    .plb-slider:disabled { opacity:.45; cursor:not-allowed; }
+    .plb-control:disabled { opacity:.72; cursor:not-allowed; background:var(--color-bg); }
     .plb-detail-tabs { display:flex; gap:.35rem; padding:.6rem .75rem 0; }
     .plb-detail-tabs button[aria-selected="true"] { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
     .plb-modal-item { padding:.62rem; border:1px solid var(--color-border); border-radius:7px; }
@@ -102,12 +105,15 @@
     .plb-status-text.danger { color:#b91c1c; }
     @media (max-width:680px) {
         .plb-summary { grid-template-columns:1fr; }
-        .plb-picker { top:calc(var(--app-header-height) + .2rem); grid-template-columns:minmax(0,1fr) auto; gap:.55rem; padding:.6rem; }
+        .plb-picker { top:calc(var(--app-header-height) + .15rem); grid-template-columns:minmax(0,1fr) auto; gap:.38rem .5rem; padding:.42rem .48rem; }
         .plb-sticky-quota { grid-column:1/-1; grid-row:2; }
         .plb-picker-actions { grid-column:2; grid-row:1; }
         .plb-picker-actions .plb-button { min-width:42px; padding:.45rem; }
         .plb-picker-actions .plb-button svg { margin:0; }
         .plb-picker-actions .plb-button { font-size:0; }
+        .plb-sticky-quota-head { align-items:flex-end; }
+        .plb-sticky-quota-head strong { font-size:.7rem; }
+        .plb-sticky-quota-head span { font-size:.64rem; }
         .plb-grid { grid-template-columns:1fr; }
         .plb-section-head { align-items:stretch; flex-direction:column; }
         .plb-section-head .plb-button { width:100%; }
@@ -139,7 +145,6 @@
         <div class="plb-selected-product">
             <span class="plb-selected-icon"><i data-lucide="package"></i></span>
             <div>
-                <span>Produto selecionado</span>
                 <strong id="plb-selected-name">Carregando...</strong>
                 <span id="plb-selected-meta"></span>
             </div>
@@ -147,10 +152,9 @@
         <div class="plb-sticky-quota">
             <div class="plb-sticky-quota-head">
                 <strong id="plb-product-quantity">Cota do projeto: -</strong>
-                <span id="plb-product-free">Disponivel: -</span>
+                <span id="plb-product-free">Divisao atual: -</span>
             </div>
             <div class="plb-meter" id="plb-product-meter"><span></span></div>
-            <span id="plb-product-used">Distribuido entre associados: -</span>
         </div>
         <div class="plb-picker-actions">
             <button class="plb-button ghost" id="plb-choose-product" type="button"><i data-lucide="search"></i>Trocar</button>
@@ -253,9 +257,9 @@
         return `<article class="plb-card" data-row="${row.associate_id}" data-price="${row.unit_price}" data-other-planned="${otherPlanned}" data-financial-ceiling="${row.financial_ceiling ?? ''}" data-financial-max="${row.available_by_financial ?? ''}">
             <div class="plb-product-tag"><i data-lucide="package"></i>${esc(state.board.product.name)}</div>
             <div class="plb-card-head"><div><h3>${esc(row.name)}</h3><div class="plb-card-sub">${esc(row.nickname || row.registration || 'Associado do projeto')}</div></div><span class="plb-pill">${row.delivered_quantity > 0 ? `${fmt(row.delivered_quantity)} entregue` : 'Sem entrega'}</span></div>
-            <input class="plb-slider ${tone(financialPercent)}" type="range" min="${row.minimum_quantity}" max="${sliderMaximum}" step="0.001" value="${current}" aria-label="Cota de ${esc(state.board.product.name)} para ${esc(row.name)}" ${canManage ? '' : 'disabled'}>
+            <input class="plb-slider ${tone(financialPercent)}" type="range" min="${row.minimum_quantity}" max="${sliderMaximum}" step="0.001" value="${current}" aria-label="Cota de ${esc(state.board.product.name)} para ${esc(row.name)}" disabled>
             <div class="plb-edit">
-                <label><span class="plb-label">Cota total (${esc(state.board.product.unit)})</span><input class="plb-control plb-quantity" type="number" inputmode="decimal" min="${row.minimum_quantity}" step="0.001" value="${current}" ${canManage ? '' : 'disabled'}></label>
+                <label><span class="plb-label">Cota total (${esc(state.board.product.unit)})</span><input class="plb-control plb-quantity" type="number" inputmode="decimal" min="${row.minimum_quantity}" step="0.001" value="${current}" disabled></label>
                 <div><span class="plb-label">Valor desta cota</span><strong class="plb-simulated">${money(current * row.unit_price)}</strong><div class="plb-card-sub">${money(row.unit_price)} por ${esc(state.board.product.unit)}</div></div>
             </div>
             <div class="plb-reactive-meter">${meterHtml(percent(row.delivered_quantity, current), `Entregue: ${fmt(row.delivered_quantity)}`, `Cota: ${fmt(current)}`)}</div>
@@ -267,6 +271,7 @@
             <div class="plb-card-actions">
                 <span class="plb-message"></span>
                 <div class="plb-card-buttons">
+                    ${canManage ? `<button class="plb-button ghost plb-enable-edit" type="button" aria-pressed="false"><i data-lucide="lock"></i>Editar cota</button>` : ''}
                     <button class="plb-button ghost plb-details" type="button"><i data-lucide="list"></i>Produtos e entregas</button>
                 </div>
             </div>
@@ -384,10 +389,9 @@
         });
 
         const quantityPercent = product.project_maximum > 0 ? totalQuantity / Number(product.project_maximum) * 100 : 0;
-        document.getElementById('plb-product-used').textContent = `Distribuido entre associados: ${fmt(totalQuantity)} ${product.unit}`;
         document.getElementById('plb-product-free').textContent = product.project_maximum === null
-            ? 'Projeto sem cota maxima'
-            : `Disponivel: ${fmt(Math.max(0, Number(product.project_maximum) - totalQuantity))} ${product.unit}`;
+            ? `Cotas configuradas: ${fmt(totalQuantity)} ${product.unit}`
+            : `Cotas: ${fmt(totalQuantity)} | Livre: ${fmt(Math.max(0, Number(product.project_maximum) - totalQuantity))} ${product.unit}`;
         setMeter('plb-product-meter', quantityPercent);
 
         const changed = rows.some(row => Math.abs(
@@ -499,6 +503,32 @@
         }
     });
     root.addEventListener('click', async event => {
+        const editToggle = event.target.closest('.plb-enable-edit');
+        if (editToggle) {
+            const card = editToggle.closest('[data-row]');
+            const enabling = editToggle.getAttribute('aria-pressed') !== 'true';
+            if (enabling) {
+                root.querySelectorAll('.plb-card.editing').forEach(otherCard => {
+                    if (otherCard === card) return;
+                    otherCard.classList.remove('editing');
+                    otherCard.querySelector('.plb-slider').disabled = true;
+                    otherCard.querySelector('.plb-quantity').disabled = true;
+                    const otherToggle = otherCard.querySelector('.plb-enable-edit');
+                    otherToggle?.setAttribute('aria-pressed', 'false');
+                    if (otherToggle) otherToggle.innerHTML = '<i data-lucide="lock"></i>Editar cota';
+                });
+            }
+            editToggle.setAttribute('aria-pressed', enabling ? 'true' : 'false');
+            card.classList.toggle('editing', enabling);
+            card.querySelector('.plb-slider').disabled = !enabling;
+            card.querySelector('.plb-quantity').disabled = !enabling;
+            editToggle.innerHTML = enabling
+                ? '<i data-lucide="unlock"></i>Bloquear edição'
+                : '<i data-lucide="lock"></i>Editar cota';
+            window.lucide?.createIcons();
+            if (enabling) card.querySelector('.plb-quantity').focus();
+            return;
+        }
         const details = event.target.closest('.plb-details');
         if (details) {
             const associateId = Number(details.closest('[data-row]').dataset.row);
