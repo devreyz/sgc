@@ -33,6 +33,7 @@ class AssociateProjectLimitServiceTest extends TestCase
         Schema::create('sales_projects', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('title'); $t->unsignedBigInteger('customer_id')->nullable();
             $t->boolean('restrict_participants')->default(false); $t->decimal('max_total_value_per_associate', 14, 2)->nullable();
+            $t->decimal('total_value', 14, 2)->nullable();
             $t->string('status')->default('active'); $t->boolean('allow_any_product')->default(true); $t->timestamps(); $t->softDeletes();
         });
         Schema::create('customers', function (Blueprint $t) {
@@ -233,6 +234,38 @@ class AssociateProjectLimitServiceTest extends TestCase
         $this->assertSame([$product], $eligible->pluck('product_id')->all());
         $this->assertSame(25.0, $eligible->first()['associate_remaining']);
         $service->validateDelivery($project->fresh(), $associate, $product, 25);
+    }
+
+    public function test_simulated_product_limits_respect_associate_financial_ceiling(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $service = app(AssociateProjectLimitService::class);
+        $service->setFinancialLimit($project, $associate, 400);
+
+        $this->expectException(ValidationException::class);
+        $service->setProductLimit($project->fresh(), $associate, $product, 100);
+    }
+
+    public function test_simulated_product_limits_respect_project_financial_ceiling(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $project->update(['total_value' => 450]);
+
+        $this->expectException(ValidationException::class);
+        app(AssociateProjectLimitService::class)
+            ->setProductLimit($project->fresh(), $associate, $product, 100);
+    }
+
+    public function test_financial_limit_cannot_be_reduced_below_simulated_product_limits(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $service = app(AssociateProjectLimitService::class);
+        $service->setProductLimit($project, $associate, $product, 100);
+
+        $this->assertSame(500.0, $service->simulatedBudgetSummary($project, $associate)['planned_value']);
+
+        $this->expectException(ValidationException::class);
+        $service->setFinancialLimit($project, $associate, 499);
     }
 
     public function test_project_demand_remains_the_general_ceiling(): void

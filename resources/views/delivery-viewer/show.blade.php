@@ -255,7 +255,15 @@
             numberCard('package-check', 'Recebido', fmt(summary.received), 'Entrada fisica') +
             numberCard('route', 'Distribuido', fmt(summary.distributed), 'Destino confirmado') +
             numberCard('users', 'Associados', fmt(summary.associates), 'Com participacao ou movimento') +
-            numberCard('boxes', 'Produtos', fmt(summary.products), `${summary.pending} entrega(s) pendente(s)`);
+            numberCard('boxes', 'Produtos', fmt(summary.products), `${summary.pending} entrega(s) pendente(s)`) +
+            numberCard(
+                'calculator',
+                'Limites planejados',
+                money(summary.planned_limit_value),
+                summary.project_ceiling === null
+                    ? 'Projeto sem teto financeiro'
+                    : `${money(summary.project_budget_remaining)} livre no projeto`
+            );
         document.getElementById('customerGrid').innerHTML = data.customers.length
             ? data.customers.map(customer => `<div class="watch-card"><div class="watch-card-top"><h3>${esc(customer.name)}</h3><i data-lucide="building-2"></i></div><div class="watch-card-sub">Recebeu no projeto</div><strong style="display:block;margin-top:.55rem;font-size:1rem">${fmt(customer.quantity)}</strong></div>`).join('')
             : empty('Nenhuma distribuicao aprovada ate o momento.');

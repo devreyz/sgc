@@ -54,8 +54,55 @@ class AssociateProductLimitsRelationManager extends RelationManager
             Forms\Components\Placeholder::make('allocation_progress')
                 ->label('Disponibilidade da meta')
                 ->content(fn (Get $get): HtmlString => $this->allocationProgress($get)),
+            Forms\Components\Placeholder::make('simulated_value')
+                ->label('Valor simulado')
+                ->content(fn (Get $get, ?ProjectAssociateProductLimit $record): HtmlString => $this->simulatedValue($get, $record)),
             Forms\Components\Textarea::make('notes')->label('Observacoes')->columnSpanFull(),
         ]);
+    }
+
+    private function simulatedValue(Get $get, ?ProjectAssociateProductLimit $record): HtmlString
+    {
+        $project = $this->getOwnerRecord();
+        $associateId = (int) ($get('associate_id') ?? 0);
+        $productId = (int) ($get('product_id') ?? 0);
+        $quantity = max(0, (float) ($get('max_quantity') ?? 0));
+        if (! $associateId || ! $productId) {
+            return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">Selecione associado e produto para simular o valor.</p>');
+        }
+
+        $service = app(AssociateProjectLimitService::class);
+        $associate = Associate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->find($associateId);
+        if (! $associate) {
+            return new HtmlString('<p class="text-sm text-danger-600">Associado nao encontrado.</p>');
+        }
+
+        $mode = $service->projectMode($project);
+        $price = $mode['customer']?->priceTable?->priceFor($productId);
+        if ($price === null) {
+            return new HtmlString('<p class="text-sm text-danger-600">Produto sem preco na tabela do cliente.</p>');
+        }
+
+        $value = $quantity * (float) $price;
+        $recordId = $record?->exists ? $record->id : null;
+        $associateTotal = $service->simulatedLimitValue($project, $associateId, $recordId) + $value;
+        $projectTotal = $service->simulatedLimitValue($project, null, $recordId) + $value;
+        $associateCeiling = $service->financialLimit($project, $associate);
+        $projectCeiling = (float) $project->total_value > 0 ? (float) $project->total_value : null;
+        $hasExcess = ($associateCeiling !== null && $associateTotal > $associateCeiling + .005)
+            || ($projectCeiling !== null && $projectTotal > $projectCeiling + .005);
+        $money = static fn (float $number): string => 'R$ '.number_format($number, 2, ',', '.');
+
+        return new HtmlString(
+            '<div style="display:grid;gap:9px;padding:12px;border:1px solid '.($hasExcess ? '#fecaca' : '#dbe4dd').';border-radius:8px;background:'.($hasExcess ? '#fef2f2' : '#f8faf9').'">'.
+                '<div style="display:flex;justify-content:space-between;gap:10px"><span>Este limite</span><strong>'.$money($value).'</strong></div>'.
+                '<div style="display:flex;justify-content:space-between;gap:10px"><span>Total do associado</span><strong>'.$money($associateTotal).($associateCeiling === null ? '' : ' / '.$money($associateCeiling)).'</strong></div>'.
+                '<div style="display:flex;justify-content:space-between;gap:10px"><span>Total do projeto</span><strong>'.$money($projectTotal).($projectCeiling === null ? '' : ' / '.$money($projectCeiling)).'</strong></div>'.
+                ($hasExcess ? '<div style="color:#b91c1c;font-size:12px;font-weight:700">Reduza a quantidade para respeitar os tetos financeiros.</div>' : '').
+            '</div>'
+        );
     }
 
     private function allocationProgress(Get $get): HtmlString
@@ -138,11 +185,17 @@ class AssociateProductLimitsRelationManager extends RelationManager
     {
         return $table
             ->modifyQueryUsing(fn ($query) => $query->where('status', 'active'))
+            ->description(fn (): HtmlString => $this->budgetSummary())
             ->columns([
                 Tables\Columns\TextColumn::make('associate.display_name')->label('Associado')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('product.name')->label('Produto')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('max_quantity')->label('Limite')->numeric(3)->sortable(),
                 Tables\Columns\TextColumn::make('reference_unit_price')->label('Preco de referencia')->money('BRL'),
+                Tables\Columns\TextColumn::make('estimated_value')
+                    ->label('Valor planejado')
+                    ->state(fn (ProjectAssociateProductLimit $record): float => (float) $record->max_quantity * (float) $record->reference_unit_price)
+                    ->money('BRL')
+                    ->sortable(false),
                 Tables\Columns\TextColumn::make('status')->label('Status')->badge(),
             ])
             ->headerActions([
@@ -180,5 +233,22 @@ class AssociateProductLimitsRelationManager extends RelationManager
                     ])),
             ])
             ->bulkActions([]);
+    }
+
+    private function budgetSummary(): HtmlString
+    {
+        $summary = app(AssociateProjectLimitService::class)
+            ->simulatedBudgetSummary($this->getOwnerRecord());
+        $money = static fn (?float $number): string => $number === null
+            ? 'Sem teto financeiro'
+            : 'R$ '.number_format($number, 2, ',', '.');
+
+        return new HtmlString(
+            '<div style="display:flex;flex-wrap:wrap;gap:8px 18px;padding:10px 12px;border:1px solid #dbe4dd;border-radius:8px;background:#f8faf9;font-size:13px">'.
+                '<span>Planejado: <strong>'.$money($summary['planned_value']).'</strong></span>'.
+                '<span>Teto do projeto: <strong>'.$money($summary['ceiling']).'</strong></span>'.
+                '<span>Disponivel: <strong>'.$money($summary['remaining']).'</strong></span>'.
+            '</div>'
+        );
     }
 }

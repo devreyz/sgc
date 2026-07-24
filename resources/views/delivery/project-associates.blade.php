@@ -1183,6 +1183,13 @@
         <aside class="pam-hero-aside">
             <a
                 class="pam-primary-action"
+                href="{{ route('delivery.projects.product-limits.index', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
+            >
+                <i data-lucide="list-sliders"></i>
+                Limites por produto
+            </a>
+            <a
+                class="pam-primary-action"
                 href="{{ route('delivery.register', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
             >
                 <i data-lucide="package-plus"></i>
@@ -1532,6 +1539,7 @@
         const meta = pamStatusMeta(status);
         const nextStatus = status === 'active' ? 'blocked' : 'active';
         const products = Number(item.product_limits || 0);
+        const planned = Number(item.simulated_limit_value || 0);
 
         const codeLabel = item.code
             ? `Associado #${pamEsc(item.code)}`
@@ -1582,6 +1590,7 @@
                         <div>
                             <strong>${pamNumber(products)}</strong>
                             <span>${products === 1 ? 'produto com limite' : 'produtos com limite'}</span>
+                            <span>${pamMoney(planned)} planejado</span>
                         </div>
                     </div>
                 </div>

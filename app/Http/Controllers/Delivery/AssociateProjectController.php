@@ -92,9 +92,10 @@ class AssociateProjectController extends Controller
             ->where('sales_project_id', $project->id)
             ->whereIn('associate_id', $associateIds)
             ->where('status', 'active')
-            ->selectRaw('associate_id, COUNT(*) as total')
+            ->selectRaw('associate_id, COUNT(*) as total, SUM(max_quantity * COALESCE(reference_unit_price, 0)) as planned_value')
             ->groupBy('associate_id')
-            ->pluck('total', 'associate_id');
+            ->get()
+            ->keyBy('associate_id');
         $consumed = ProductionDelivery::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
@@ -111,6 +112,8 @@ class AssociateProjectController extends Controller
                 ? (float) $specificLimit
                 : ($project->max_total_value_per_associate !== null ? (float) $project->max_total_value_per_associate : null);
             $used = (float) ($consumed[$associate->id] ?? 0);
+            $limitStats = $productCounts->get($associate->id);
+            $planned = (float) ($limitStats?->planned_value ?? 0);
 
             return [
                 'id' => $associate->id,
@@ -121,7 +124,11 @@ class AssociateProjectController extends Controller
                 'financial_limit' => $financialLimit,
                 'financial_consumed' => $used,
                 'financial_remaining' => $financialLimit === null ? null : max(0, $financialLimit - $used),
-                'product_limits' => (int) ($productCounts[$associate->id] ?? 0),
+                'product_limits' => (int) ($limitStats?->total ?? 0),
+                'simulated_limit_value' => $planned,
+                'simulated_limit_remaining' => $financialLimit === null
+                    ? null
+                    : max(0, $financialLimit - $planned),
                 'manage_url' => route('delivery.projects.associates.show', [
                     'tenant' => request()->route('tenant'),
                     'project' => $project->id,
@@ -131,6 +138,224 @@ class AssociateProjectController extends Controller
         }));
 
         return response()->json($page->toArray());
+    }
+
+    public function productLimitsIndex(Request $request)
+    {
+        $project = $this->projectContext($request);
+
+        return view('delivery.project-product-limits', [
+            'project' => $project,
+            'canManage' => $this->canManageLimits($request),
+        ]);
+    }
+
+    public function productLimitsProducts(Request $request): JsonResponse
+    {
+        $project = $this->projectContext($request);
+        $mode = $this->limits->projectMode($project);
+        $table = $mode['customer']?->priceTable;
+        if (! $mode['allows_product_limits'] || ! $table) {
+            return response()->json([
+                'products' => [],
+                'budget' => $this->limits->simulatedBudgetSummary($project),
+                'message' => 'A gestao por produto exige exatamente um cliente ativo com tabela de precos.',
+            ]);
+        }
+
+        $items = $table->items()
+            ->with('product:id,name,unit')
+            ->whereHas('product', fn (Builder $query) => $query
+                ->where('tenant_id', $project->tenant_id)
+                ->where('status', true))
+            ->get(['product_id', 'sale_price']);
+        $productIds = $items->pluck('product_id');
+        $allocations = $this->limits->productAllocationSummaries($project, $productIds);
+
+        return $this->privateJson([
+            'products' => $items
+                ->map(fn ($item) => [
+                    'id' => (int) $item->product_id,
+                    'name' => $item->product?->name ?? 'Produto',
+                    'unit' => $item->product?->unit ?? 'un',
+                    'price' => (float) $item->sale_price,
+                    'project_maximum' => $allocations->get($item->product_id)['project_maximum'] ?? null,
+                    'allocated' => $allocations->get($item->product_id)['allocated_to_others'] ?? 0,
+                    'available' => $allocations->get($item->product_id)['available_for_associate'] ?? null,
+                ])
+                ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values(),
+            'budget' => $this->limits->simulatedBudgetSummary($project),
+        ]);
+    }
+
+    public function productLimitsBoard(Request $request): JsonResponse
+    {
+        $project = $this->projectContext($request);
+        $product = Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereKey((int) $request->route('product'))
+            ->firstOrFail(['id', 'name', 'unit']);
+        $mode = $this->limits->projectMode($project);
+        abort_unless($mode['allows_product_limits'] && $mode['customer']?->priceTable, 422);
+        $price = $mode['customer']->priceTable->priceFor($product->id);
+        abort_if($price === null, 422, 'Produto sem preco na tabela do cliente.');
+        $price = (float) $price;
+
+        $limits = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->where('status', 'active')
+            ->get()
+            ->keyBy('associate_id');
+        $delivered = ProductionDelivery::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->groupBy('associate_id')
+            ->selectRaw('associate_id, SUM(quantity) as quantity')
+            ->pluck('quantity', 'associate_id');
+        $associateIds = $limits->keys()->merge($delivered->keys())->map(fn ($id) => (int) $id)->unique()->values();
+        $requestedAssociateId = $request->integer('associate_id');
+        if ($requestedAssociateId > 0) {
+            $requestedAssociate = Associate::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->findOrFail($requestedAssociateId);
+            if ($project->restrict_participants) {
+                abort_unless(ProjectAssociate::query()
+                    ->where('tenant_id', $project->tenant_id)
+                    ->where('sales_project_id', $project->id)
+                    ->where('associate_id', $requestedAssociate->id)
+                    ->where('status', 'active')
+                    ->exists(), 403);
+            }
+            $associateIds->push($requestedAssociate->id);
+            $associateIds = $associateIds->unique()->values();
+        }
+
+        $associates = Associate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereIn('id', $associateIds)
+            ->get(['id', 'tenant_id', 'user_id', 'nickname', 'registration_number']);
+        $names = $this->identities->namesForUsers($project->tenant_id, $associates->pluck('user_id'));
+        $links = ProjectAssociate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->whereIn('associate_id', $associateIds)
+            ->get(['associate_id', 'financial_limit', 'status'])
+            ->keyBy('associate_id');
+        $plannedByAssociate = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('status', 'active')
+            ->whereIn('associate_id', $associateIds)
+            ->groupBy('associate_id')
+            ->selectRaw('associate_id, SUM(max_quantity * COALESCE(reference_unit_price, 0)) as total')
+            ->pluck('total', 'associate_id');
+
+        $allocation = $this->limits->productAllocationSummary($project, $product->id);
+        $projectMaximum = $allocation['project_maximum'];
+        $totalCommitted = (float) $allocation['allocated_to_others'];
+        $rows = $associates->map(function (Associate $associate) use (
+            $project,
+            $product,
+            $price,
+            $limits,
+            $delivered,
+            $links,
+            $plannedByAssociate,
+            $projectMaximum,
+            $totalCommitted,
+            $names,
+            $request,
+        ) {
+            $limit = $limits->get($associate->id);
+            $current = (float) ($limit?->max_quantity ?? 0);
+            $used = (float) ($delivered[$associate->id] ?? 0);
+            $currentValue = $current * $price;
+            $planned = (float) ($plannedByAssociate[$associate->id] ?? 0);
+            $otherPlanned = max(0, $planned - $currentValue);
+            $link = $links->get($associate->id);
+            $financialCeiling = $link?->financial_limit !== null
+                ? (float) $link->financial_limit
+                : ($project->max_total_value_per_associate !== null
+                    ? (float) $project->max_total_value_per_associate
+                    : null);
+            $availableByProject = $projectMaximum === null
+                ? null
+                : max(0, (float) $projectMaximum - max(0, $totalCommitted - $current));
+            $availableByFinancial = $financialCeiling === null || $price <= 0
+                ? null
+                : max(0, ($financialCeiling - $otherPlanned) / $price);
+            $caps = collect([$availableByProject, $availableByFinancial])
+                ->filter(fn ($value) => $value !== null);
+            $effectiveMaximum = $caps->isEmpty() ? max($current, $used, 1000) : (float) $caps->min();
+            $sliderMaximum = max($current, $used, $effectiveMaximum);
+
+            return [
+                'associate_id' => $associate->id,
+                'name' => $names[$associate->user_id] ?? 'Associado nao identificado',
+                'nickname' => $associate->nickname,
+                'registration' => $associate->registration_number,
+                'participation' => $link?->status ?? ($project->restrict_participants ? 'unconfigured' : 'open'),
+                'current_quantity' => $current,
+                'delivered_quantity' => $used,
+                'minimum_quantity' => $used,
+                'maximum_quantity' => $sliderMaximum,
+                'available_by_project' => $availableByProject,
+                'available_by_financial' => $availableByFinancial,
+                'unit_price' => $price,
+                'simulated_value' => $currentValue,
+                'associate_planned_value' => $planned,
+                'financial_ceiling' => $financialCeiling,
+                'update_url' => route('delivery.projects.associates.limits.product', [
+                    'tenant' => $request->route('tenant'),
+                    'project' => $project->id,
+                    'associate' => $associate->id,
+                ]),
+            ];
+        })->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+
+        $availableQuery = Associate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereHas('user', fn (Builder $query) => $query->where('status', true))
+            ->whereNotIn('id', $associateIds);
+        if ($project->restrict_participants) {
+            $availableQuery->whereIn('id', ProjectAssociate::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->where('sales_project_id', $project->id)
+                ->where('status', 'active')
+                ->select('associate_id'));
+        }
+        $available = $availableQuery
+            ->limit(200)
+            ->get(['id', 'tenant_id', 'user_id', 'nickname', 'registration_number']);
+        $availableNames = $this->identities->namesForUsers($project->tenant_id, $available->pluck('user_id'));
+
+        return $this->privateJson([
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'unit' => $product->unit ?? 'un',
+                'price' => $price,
+                'project_maximum' => $projectMaximum,
+                'committed' => $totalCommitted,
+                'available' => $projectMaximum === null ? null : max(0, (float) $projectMaximum - $totalCommitted),
+                'simulated_value' => $totalCommitted * $price,
+            ],
+            'project_budget' => $this->limits->simulatedBudgetSummary($project),
+            'rows' => $rows,
+            'available_associates' => $available->map(fn (Associate $associate) => [
+                'id' => $associate->id,
+                'name' => $availableNames[$associate->user_id] ?? 'Associado nao identificado',
+                'nickname' => $associate->nickname,
+                'registration' => $associate->registration_number,
+            ])->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
+            'can_manage' => $this->canManageLimits($request),
+        ]);
     }
 
     public function updateParticipation(Request $request): JsonResponse
@@ -604,6 +829,16 @@ class AssociateProjectController extends Controller
     private function perPage(Request $request): int
     {
         return min(50, max(5, $request->integer('per_page', 15)));
+    }
+
+    private function privateJson(mixed $data, int $status = 200): JsonResponse
+    {
+        return response()
+            ->json($data, $status)
+            ->withHeaders([
+                'Cache-Control' => 'no-store, private',
+                'Pragma' => 'no-cache',
+            ]);
     }
 
     private function canManageLimits(Request $request): bool

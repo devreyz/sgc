@@ -1393,6 +1393,14 @@
                     <small id="limit-availability" hidden></small>
                 </div>
 
+                <div class="ap-field" id="limit-simulation" hidden>
+                    <label>Valor simulado</label>
+                    <div class="ap-card" style="padding:.65rem">
+                        <strong id="limit-simulated-value">R$ 0,00</strong>
+                        <small id="limit-simulated-total" style="display:block;margin-top:.2rem"></small>
+                    </div>
+                </div>
+
                 <div class="ap-field">
                     <label for="limit-notes">Observação</label>
                     <textarea
@@ -1452,6 +1460,7 @@
     let apAbort = null;
     let apProducts = [];
     let apLimitRows = {};
+    let apLimitSummary = {};
     let apTimer = null;
     let apPendingConfirmation = null;
 
@@ -1756,6 +1765,7 @@
 
     async function renderLimits(data) {
         const summary = data.summary;
+        apLimitSummary = summary;
         apLimitRows = Object.fromEntries(
             (data.products || []).map(item => [String(item.id), item])
         );
@@ -1796,6 +1806,7 @@
                 <td>${qty(item.delivered_quantity)}</td>
                 <td>${qty(item.remaining_quantity)}</td>
                 <td>${money(item.reference_unit_price)}</td>
+                <td>${money(item.estimated_maximum_value)}</td>
                 <td>
                     <div class="ap-progress ${progressTone(Number(item.percent || 0))}">
                         <span style="width:${Math.min(100, Number(item.percent || 0))}%"></span>
@@ -1853,6 +1864,11 @@
                         <span>Preço</span>
                         <strong>${money(item.reference_unit_price)}</strong>
                     </div>
+
+                    <div class="ap-mobile-metric">
+                        <span>Planejado</span>
+                        <strong>${money(item.estimated_maximum_value)}</strong>
+                    </div>
                 </div>
 
                 <div style="padding:0 .75rem .75rem">
@@ -1900,6 +1916,15 @@
                 )}
 
                 ${statCard(
+                    'Planejado nos produtos',
+                    money(summary.simulated_limit_value),
+                    summary.simulated_limit_remaining === null
+                        ? 'Soma das quantidades pelos preços de referência.'
+                        : money(summary.simulated_limit_remaining) + ' livre no teto.',
+                    'calculator'
+                )}
+
+                ${statCard(
                     'Saldo disponível',
                     summary.financial_remaining === null ? 'Livre' : money(summary.financial_remaining),
                     'Valor restante para novas distribuições.',
@@ -1925,6 +1950,7 @@
                                 <th>Entregue</th>
                                 <th>Saldo</th>
                                 <th>Preço de referência</th>
+                                <th>Valor planejado</th>
                                 <th>Uso</th>
                                 <th>Ação</th>
                             </tr>
@@ -1932,7 +1958,7 @@
                         <tbody>
                             ${rows || `
                                 <tr>
-                                    <td colspan="7">
+                                    <td colspan="8">
                                         ${stateView(
                                             'Nenhum produto autorizado',
                                             'Adicione um limite de produto ou revise as regras do projeto.',
@@ -2628,6 +2654,7 @@
         document.getElementById('limit-value').step = '0.01';
         document.getElementById('limit-value').value = value ?? '';
         document.getElementById('product-field').hidden = true;
+        document.getElementById('limit-simulation').hidden = true;
         openLimitModal();
     }
 
@@ -2647,6 +2674,7 @@
         document.getElementById('limit-value').value = current?.maximum_quantity ?? '';
         document.getElementById('limit-notes').value = current?.notes ?? '';
         document.getElementById('product-field').hidden = false;
+        document.getElementById('limit-simulation').hidden = false;
 
         document.getElementById('limit-product').innerHTML = apProducts.map(item => `
             <option
@@ -2667,6 +2695,30 @@
         const product = apProducts.find(item => String(item.id) === String(productId));
         const helper = document.getElementById('limit-availability');
         const input = document.getElementById('limit-value');
+        const simulation = document.getElementById('limit-simulation');
+        const simulatedValue = document.getElementById('limit-simulated-value');
+        const simulatedTotal = document.getElementById('limit-simulated-total');
+
+        if (product) {
+            const current = Object.values(apLimitRows).find(
+                item => String(item.product_id) === String(productId)
+            );
+            const quantity = Math.max(0, Number(input.value || 0));
+            const value = quantity * Number(product.price || 0);
+            const currentValue = Number(current?.estimated_maximum_value || 0);
+            const total = Math.max(0, Number(apLimitSummary.simulated_limit_value || 0) - currentValue) + value;
+            const ceiling = apLimitSummary.financial_limit === null
+                ? null
+                : Number(apLimitSummary.financial_limit || 0);
+            simulation.hidden = false;
+            simulatedValue.textContent = `${money(value)} neste produto`;
+            simulatedTotal.textContent = ceiling === null
+                ? `${money(total)} planejado no total`
+                : `${money(total)} de ${money(ceiling)} planejado`;
+            simulatedTotal.style.color = ceiling !== null && total > ceiling
+                ? '#b91c1c'
+                : '';
+        }
 
         if (!product || product.project_maximum === null) {
             helper.textContent = 'Sem meta geral para este produto.';
@@ -2730,6 +2782,7 @@
         document.getElementById('limit-product').disabled = false;
         document.getElementById('limit-notes').value = '';
         document.getElementById('limit-availability').hidden = true;
+        document.getElementById('limit-simulation').hidden = true;
         document.getElementById('limit-value').removeAttribute('max');
     }
 
@@ -2797,6 +2850,7 @@
     });
 
     document.getElementById('limit-product').addEventListener('change', updateProductLimitAvailability);
+    document.getElementById('limit-value').addEventListener('input', updateProductLimitAvailability);
 
     document.getElementById('limit-modal').addEventListener('click', event => {
         if (event.target.id === 'limit-modal') {

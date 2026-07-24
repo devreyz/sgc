@@ -92,6 +92,36 @@ class AssociateProjectLimitService
             : ($project->max_total_value_per_associate !== null ? (float) $project->max_total_value_per_associate : null);
     }
 
+    public function simulatedLimitValue(
+        SalesProject $project,
+        ?int $associateId = null,
+        ?int $exceptLimitId = null
+    ): float {
+        return (float) ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('status', 'active')
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
+            ->when($exceptLimitId, fn ($query) => $query->whereKeyNot($exceptLimitId))
+            ->selectRaw('COALESCE(SUM(max_quantity * COALESCE(reference_unit_price, 0)), 0) as total')
+            ->value('total');
+    }
+
+    public function simulatedBudgetSummary(SalesProject $project, ?Associate $associate = null): array
+    {
+        $planned = $this->simulatedLimitValue($project, $associate?->id);
+        $ceiling = $associate
+            ? $this->financialLimit($project, $associate)
+            : ((float) $project->total_value > 0 ? (float) $project->total_value : null);
+
+        return [
+            'planned_value' => $planned,
+            'ceiling' => $ceiling,
+            'remaining' => $ceiling === null ? null : max(0, $ceiling - $planned),
+            'percent' => $ceiling && $ceiling > 0 ? min(100, ($planned / $ceiling) * 100) : null,
+        ];
+    }
+
     public function consumedFinancialValue(SalesProject $project, Associate $associate, ?int $exceptDistributionId = null): float
     {
         return (float) ProductionDelivery::query()
@@ -122,6 +152,7 @@ class AssociateProjectLimitService
         $mode = $this->projectMode($project);
         $financialLimit = $this->financialLimit($project, $associate);
         $consumed = $this->consumedFinancialValue($project, $associate);
+        $simulated = $this->simulatedLimitValue($project, $associate->id);
         $base = ProductionDelivery::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
@@ -148,6 +179,10 @@ class AssociateProjectLimitService
             'undistributed_quantity' => max(0, $received - $distributed),
             'delivery_count' => (clone $base)->whereNull('parent_delivery_id')->count(),
             'distribution_count' => (clone $base)->whereNotNull('parent_delivery_id')->count(),
+            'simulated_limit_value' => $simulated,
+            'simulated_limit_remaining' => $financialLimit === null
+                ? null
+                : max(0, $financialLimit - $simulated),
         ];
     }
 
@@ -317,6 +352,16 @@ class AssociateProjectLimitService
                 ]);
             }
 
+            $planned = $this->simulatedLimitValue($project, $associate->id);
+            if ($limit !== null && $limit + 0.005 < $planned) {
+                throw ValidationException::withMessages([
+                    'financial_limit' => sprintf(
+                        'O limite financeiro nao pode ser inferior ao valor simulado dos limites de produtos (R$ %s).',
+                        number_format($planned, 2, ',', '.')
+                    ),
+                ]);
+            }
+
             $old = $association->only(['financial_limit', 'notes']);
             $association->update([
                 'financial_limit' => $limit,
@@ -380,6 +425,46 @@ class AssociateProjectLimitService
                 'associate_id' => $associate->id,
                 'product_id' => $productId,
             ]);
+            if ($limit->exists) {
+                $limit = ProjectAssociateProductLimit::query()
+                    ->whereKey($limit->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+            }
+
+            $proposedValue = $maximum * (float) $price;
+            $associatePlanned = $this->simulatedLimitValue(
+                $project,
+                $associate->id,
+                $limit->exists ? $limit->id : null,
+            ) + $proposedValue;
+            $associateCeiling = $this->financialLimit($project, $associate);
+            if ($associateCeiling !== null && $associatePlanned > $associateCeiling + 0.005) {
+                throw ValidationException::withMessages([
+                    'max_quantity' => sprintf(
+                        'O valor simulado dos limites deste associado seria R$ %s e ultrapassaria seu teto de R$ %s.',
+                        number_format($associatePlanned, 2, ',', '.'),
+                        number_format($associateCeiling, 2, ',', '.')
+                    ),
+                ]);
+            }
+
+            $projectCeiling = (float) $project->total_value > 0 ? (float) $project->total_value : null;
+            $projectPlanned = $this->simulatedLimitValue(
+                $project,
+                null,
+                $limit->exists ? $limit->id : null,
+            ) + $proposedValue;
+            if ($projectCeiling !== null && $projectPlanned > $projectCeiling + 0.005) {
+                throw ValidationException::withMessages([
+                    'max_quantity' => sprintf(
+                        'O valor simulado de todos os limites seria R$ %s e ultrapassaria o teto do projeto de R$ %s.',
+                        number_format($projectPlanned, 2, ',', '.'),
+                        number_format($projectCeiling, 2, ',', '.')
+                    ),
+                ]);
+            }
+
             if (! $limit->exists) {
                 $limit->created_by = Auth::id();
             }

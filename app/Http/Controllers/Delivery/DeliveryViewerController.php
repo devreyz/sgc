@@ -226,6 +226,7 @@ class DeliveryViewerController extends Controller
                 'name' => $customer->trade_name ?: $customer->name,
                 'quantity' => (float) $customer->quantity,
             ]);
+        $budget = app(AssociateProjectLimitService::class)->simulatedBudgetSummary($project);
 
         return $this->privateJson([
             'project' => [
@@ -243,6 +244,9 @@ class DeliveryViewerController extends Controller
                 'pending' => (int) ($stats->pending ?? 0),
                 'associates' => $associateSummary->count(),
                 'products' => $productSummary->count(),
+                'planned_limit_value' => $budget['planned_value'],
+                'project_ceiling' => $budget['ceiling'],
+                'project_budget_remaining' => $budget['remaining'],
             ],
             'products' => $productSummary,
             'associates' => $associateSummary,
@@ -357,6 +361,7 @@ class DeliveryViewerController extends Controller
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
             ->sum('gross_value');
+        $budget = $limitsService->simulatedBudgetSummary($project, $associate);
 
         return $this->privateJson([
             'associate' => [
@@ -372,6 +377,9 @@ class DeliveryViewerController extends Controller
                 'products' => $limits->count(),
                 'financial_limit' => $participation?->financial_limit !== null ? (float) $participation->financial_limit : null,
                 'distributed_value' => (float) $distributionValue,
+                'planned_limit_value' => $budget['planned_value'],
+                'planned_limit_ceiling' => $budget['ceiling'],
+                'planned_limit_remaining' => $budget['remaining'],
             ],
             'limits' => $limits->map(fn (array $limit) => [
                 'product' => $limit['product'],
@@ -381,6 +389,8 @@ class DeliveryViewerController extends Controller
                 'distributed' => (float) $limit['distributed_quantity'],
                 'remaining' => (float) $limit['remaining_quantity'],
                 'progress' => min(100, (float) $limit['percent']),
+                'unit_price' => (float) $limit['reference_unit_price'],
+                'simulated_value' => (float) $limit['estimated_maximum_value'],
                 'notes' => $limit['notes'],
             ])->values(),
             'deliveries_url' => route('delivery-viewer.projects.deliveries', [

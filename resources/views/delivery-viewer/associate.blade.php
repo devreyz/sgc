@@ -24,7 +24,7 @@
     .person-spinner { width:25px; height:25px; margin:0 auto .6rem; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:person-spin .7s linear infinite; }
     @keyframes person-spin { to { transform:rotate(360deg); } }
     .person-error { padding:1rem; border:1px solid #fecaca; border-radius:8px; background:#fff7f7; color:#991b1b; font-size:.72rem; }
-    .person-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:.55rem; }
+    .person-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.55rem; }
     .person-stat { min-width:0; padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .person-stat span { display:block; color:var(--color-text-secondary); font-size:.59rem; }
     .person-stat strong { display:block; margin-top:.2rem; font-size:.95rem; overflow-wrap:anywhere; }
@@ -127,8 +127,8 @@
         return body;
     }
 
-    function stat(label, value) {
-        return `<div class="person-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`;
+    function stat(label, value, hint = '') {
+        return `<div class="person-stat"><span>${esc(label)}</span><strong>${esc(value)}</strong>${hint ? `<span style="margin-top:.2rem">${esc(hint)}</span>` : ''}</div>`;
     }
 
     function renderLimit(limit) {
@@ -141,6 +141,7 @@
                 <div class="person-value"><span>Distribuido</span><strong>${fmt(limit.distributed)}</strong></div>
                 <div class="person-value"><span>Ainda pode</span><strong>${fmt(limit.remaining)}</strong></div>
             </div>
+            <div class="person-card-sub" style="margin-top:.55rem">${money(limit.simulated_value)} planejado - ${money(limit.unit_price)} por ${esc(limit.unit)}</div>
         </article>`;
     }
 
@@ -184,7 +185,12 @@
             stat('Total recebido', fmt(data.summary.received)) +
             stat('Total distribuido', fmt(data.summary.distributed)) +
             stat('Saldo fisico', fmt(data.summary.physical_balance)) +
-            stat('Valor distribuido', money(data.summary.distributed_value));
+            stat('Valor distribuido', money(data.summary.distributed_value)) +
+            stat(
+                'Limites planejados',
+                money(data.summary.planned_limit_value),
+                data.summary.planned_limit_ceiling === null ? '' : money(data.summary.planned_limit_remaining) + ' livre'
+            );
         document.getElementById('limitGrid').innerHTML = data.limits.length
             ? data.limits.map(renderLimit).join('')
             : empty('Este associado nao possui limites individuais de produto.');

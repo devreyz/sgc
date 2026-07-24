@@ -257,6 +257,9 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/producers-data', [DeliveryRegistrationController::class, 'projectProducersData'])->name('projects.producers-data');
         Route::get('/projects/{project}/associates', [AssociateProjectController::class, 'index'])->name('projects.associates.index');
         Route::get('/projects/{project}/associates-data', [AssociateProjectController::class, 'associatesData'])->name('projects.associates.list');
+        Route::get('/projects/{project}/product-limits', [AssociateProjectController::class, 'productLimitsIndex'])->name('projects.product-limits.index');
+        Route::get('/projects/{project}/product-limits/products', [AssociateProjectController::class, 'productLimitsProducts'])->name('projects.product-limits.products');
+        Route::get('/projects/{project}/product-limits/{product}', [AssociateProjectController::class, 'productLimitsBoard'])->name('projects.product-limits.board');
         Route::get('/projects/{project}/associates/{associate}', [AssociateProjectController::class, 'show'])->name('projects.associates.show');
         Route::get('/projects/{project}/associates/{associate}/data/{section}', [AssociateProjectController::class, 'data'])->name('projects.associates.data');
         Route::put('/projects/{project}/associates/{associate}/participation', [AssociateProjectController::class, 'updateParticipation'])->name('projects.associates.participation');

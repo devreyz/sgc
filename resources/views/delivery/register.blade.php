@@ -608,6 +608,30 @@
     border-top: 1px solid var(--color-border);
     margin-top: 0.15rem;
 }
+.session-collapsible {
+    grid-column: 1 / -1;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    overflow: hidden;
+}
+.session-collapsible > summary {
+    display: flex;
+    min-height: 42px;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .55rem .7rem;
+    color: var(--color-text-secondary);
+    font-size: .7rem;
+    font-weight: 750;
+    cursor: pointer;
+    list-style: none;
+}
+.session-collapsible > summary::-webkit-details-marker { display:none; }
+.session-collapsible > summary::after { content:'+'; font-size:1rem; }
+.session-collapsible[open] > summary::after { content:'-'; }
+.session-collapsible-list { display:grid; gap:.5rem; padding:0 .5rem .5rem; }
 .session-empty {
     grid-column: 1 / -1;
     text-align: center;
@@ -1130,6 +1154,7 @@ const S = {
     loadingProjectId  : null,
     demandsRequestId  : 0,
     loadingDeliveries : false,
+    deliveryReloadPending : null,
     dateConfirmed     : false,
     keyboardStage     : 'project',
     listPage          : 1,
@@ -1250,8 +1275,11 @@ function applyProject(proj) {
     loadProjectDeliveries(proj.id);
 }
 
-async function loadProjectDeliveries(projectId) {
-    if (S.loadingDeliveries) return;
+async function loadProjectDeliveries(projectId, force = false) {
+    if (S.loadingDeliveries) {
+        if (force) S.deliveryReloadPending = projectId;
+        return;
+    }
     S.loadingDeliveries = true;
     const empty = $('session-empty');
     if (empty) { empty.textContent = 'Carregando histórico…'; empty.style.display = 'block'; }
@@ -1271,6 +1299,9 @@ async function loadProjectDeliveries(projectId) {
         S.loadingDeliveries = false;
         renderSessionItems();
         loadRegisterIntegrity(projectId);
+        const pendingProjectId = S.deliveryReloadPending;
+        S.deliveryReloadPending = null;
+        if (pendingProjectId) loadProjectDeliveries(pendingProjectId, true);
     }
 }
 
@@ -1603,6 +1634,7 @@ async function submitEntry() {
                     project_remaining: S.product.project_limit == null ? null : Math.max(0, S.product.project_remaining - qty),
                 },
             });
+            await loadProjectDeliveries(S.project.id, true);
             S.product = null;
             resetProductSelector();
             $('f-qty').value  = '';
@@ -1777,6 +1809,22 @@ function renderSessionItems() {
         return h;
     }
 
+    function buildCollapsibleSection(label, items) {
+        const section = document.createElement('details');
+        section.className = 'session-collapsible';
+        const summary = document.createElement('summary');
+        summary.textContent = `${label} (${items.length})`;
+        const content = document.createElement('div');
+        content.className = 'session-collapsible-list';
+        items.forEach(item => {
+            const card = document.createElement('div');
+            card.innerHTML = buildCard(item);
+            content.appendChild(card.firstElementChild);
+        });
+        section.append(summary, content);
+        return section;
+    }
+
     if (S.associate) {
         const assocItems = pageItems.filter(i => i.associateId === S.associate.id || (!i.associateId && i.associateName === S.associate.name));
         const othersItems = pageItems.filter(i => i.associateId !== S.associate.id && (i.associateId || i.associateName !== S.associate.name));
@@ -1790,12 +1838,7 @@ function renderSessionItems() {
             });
         }
         if (othersItems.length > 0) {
-            list.appendChild(buildSectionHeader('Outros produtores'));
-            othersItems.forEach(item => {
-                const card = document.createElement('div');
-                card.innerHTML = buildCard(item);
-                list.appendChild(card.firstElementChild);
-            });
+            list.appendChild(buildCollapsibleSection('Outros produtores', othersItems));
         }
     } else {
         pageItems.forEach(item => {
@@ -1902,7 +1945,8 @@ async function deleteItem(id, btn, isApproved = false) {
         const data = await res.json();
         if (data.success || res.status === 200) {
             S.items = S.items.filter(i => i.id !== id);
-            renderSessionItems();
+            if (S.project) await loadProjectDeliveries(S.project.id, true);
+            else renderSessionItems();
             toast('Registro excluído.', 'info');
         } else {
             toast(data.message || 'Não foi possível excluir.', 'error');
@@ -1953,7 +1997,9 @@ async function rejectItem(id, btn) {
         const data = await res.json();
         if (data.success) {
             const item = S.items.find(i => i.id === id);
-            if (item) { item.status = 'rejected'; renderSessionItems(); }
+            if (item) item.status = 'rejected';
+            if (S.project) await loadProjectDeliveries(S.project.id, true);
+            else renderSessionItems();
             toast('Entrega rejeitada.', 'info');
         } else {
             toast(data.message || 'Erro ao rejeitar.', 'error');
@@ -1977,7 +2023,9 @@ async function approveItem(id, btn) {
         const data = await res.json();
         if (data.success) {
             const item = S.items.find(i => i.id === id);
-            if (item) { item.status = 'approved'; renderSessionItems(); }
+            if (item) item.status = 'approved';
+            if (S.project) await loadProjectDeliveries(S.project.id, true);
+            else renderSessionItems();
             toast('Entrega aprovada!', 'success');
         } else {
             toast(data.message || 'Erro ao aprovar.', 'error');
@@ -2025,7 +2073,8 @@ async function saveEdit() {
             item.qty     = qty;
             item.date    = date;
             item.quality = qual;
-            renderSessionItems();
+            if (S.project) await loadProjectDeliveries(S.project.id, true);
+            else renderSessionItems();
             closeModal('edit');
             toast('Entrega atualizada.', 'success');
         } else {
