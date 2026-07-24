@@ -76,11 +76,11 @@
     .plb-spinner { width:24px; height:24px; margin:0 auto .55rem; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:plb-spin .7s linear infinite; }
     @keyframes plb-spin { to { transform:rotate(360deg); } }
     .plb-error { padding:.75rem; border:1px solid #fecaca; border-radius:8px; background:#fff7f7; color:#991b1b; font-size:.68rem; }
-    .plb-dialog { position:fixed; inset:0; margin:auto; width:min(560px,calc(100vw - 1rem)); max-height:min(82vh,760px); border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); padding:0; overflow:hidden; }
+    .plb-dialog { position:fixed; inset:0; margin:auto; width:min(560px,calc(100vw - 1rem)); max-height:min(82dvh,760px); min-height: 75dvh; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); padding:0; overflow:hidden; }
     .plb-dialog::backdrop { background:rgba(15,23,42,.45); backdrop-filter:blur(2px); }
     .plb-dialog-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.75rem; border-bottom:1px solid var(--color-border); }
     .plb-dialog-head strong { font-size:.78rem; }
-    .plb-dialog-body { display:grid; gap:.45rem; padding:.75rem; max-height:calc(min(82vh,760px) - 116px); overflow:auto; overscroll-behavior:contain; }
+    .plb-dialog-body { display:grid; gap:.45rem; padding:.75rem; max-height:calc(min(82dvh,760px) - 116px); overflow:auto; overscroll-behavior:contain; }
     .plb-person { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.6rem; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:inherit; text-align:left; cursor:pointer; }
     .plb-person strong { display:block; font-size:.68rem; }
     .plb-person span { display:block; margin-top:.1rem; color:var(--color-text-secondary); font-size:.56rem; }
