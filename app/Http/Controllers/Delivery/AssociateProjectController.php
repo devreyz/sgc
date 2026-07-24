@@ -259,6 +259,7 @@ class AssociateProjectController extends Controller
         $allocation = $this->limits->productAllocationSummary($project, $product->id);
         $projectMaximum = $allocation['project_maximum'];
         $totalCommitted = (float) $allocation['allocated_to_others'];
+        $projectBudget = $this->limits->simulatedBudgetSummary($project);
         $rows = $associates->map(function (Associate $associate) use (
             $project,
             $product,
@@ -269,6 +270,7 @@ class AssociateProjectController extends Controller
             $plannedByAssociate,
             $projectMaximum,
             $totalCommitted,
+            $projectBudget,
             $names,
             $request,
         ) {
@@ -276,8 +278,10 @@ class AssociateProjectController extends Controller
             $current = (float) ($limit?->max_quantity ?? 0);
             $used = (float) ($delivered[$associate->id] ?? 0);
             $currentValue = $current * $price;
+            $storedCurrentValue = $current * (float) ($limit?->reference_unit_price ?? $price);
             $planned = (float) ($plannedByAssociate[$associate->id] ?? 0);
-            $otherPlanned = max(0, $planned - $currentValue);
+            $otherPlanned = max(0, $planned - $storedCurrentValue);
+            $otherProjectPlanned = max(0, (float) $projectBudget['planned_value'] - $storedCurrentValue);
             $link = $links->get($associate->id);
             $financialCeiling = $link?->financial_limit !== null
                 ? (float) $link->financial_limit
@@ -290,10 +294,14 @@ class AssociateProjectController extends Controller
             $availableByFinancial = $financialCeiling === null || $price <= 0
                 ? null
                 : max(0, ($financialCeiling - $otherPlanned) / $price);
-            $caps = collect([$availableByProject, $availableByFinancial])
+            $availableByProjectFinancial = $projectBudget['ceiling'] === null || $price <= 0
+                ? null
+                : max(0, ((float) $projectBudget['ceiling'] - $otherProjectPlanned) / $price);
+            $caps = collect([$availableByProject, $availableByFinancial, $availableByProjectFinancial])
                 ->filter(fn ($value) => $value !== null);
             $effectiveMaximum = $caps->isEmpty() ? max($current, $used, 1000) : (float) $caps->min();
-            $sliderMaximum = max($current, $used, $effectiveMaximum);
+            $effectiveMaximum = max($used, $effectiveMaximum);
+            $overLimit = $current > $effectiveMaximum + 0.0005;
 
             return [
                 'associate_id' => $associate->id,
@@ -304,17 +312,40 @@ class AssociateProjectController extends Controller
                 'current_quantity' => $current,
                 'delivered_quantity' => $used,
                 'minimum_quantity' => $used,
-                'maximum_quantity' => $sliderMaximum,
+                'maximum_quantity' => $effectiveMaximum,
+                'slider_maximum' => max($current, $used, $effectiveMaximum),
+                'is_over_limit' => $overLimit,
                 'available_by_project' => $availableByProject,
                 'available_by_financial' => $availableByFinancial,
+                'available_by_project_financial' => $availableByProjectFinancial,
                 'unit_price' => $price,
                 'simulated_value' => $currentValue,
                 'associate_planned_value' => $planned,
+                'other_planned_value' => $otherPlanned,
                 'financial_ceiling' => $financialCeiling,
                 'update_url' => route('delivery.projects.associates.limits.product', [
                     'tenant' => $request->route('tenant'),
                     'project' => $project->id,
                     'associate' => $associate->id,
+                ]),
+                'limits_url' => route('delivery.projects.associates.data', [
+                    'tenant' => $request->route('tenant'),
+                    'project' => $project->id,
+                    'associate' => $associate->id,
+                    'section' => 'limits',
+                ]),
+                'products_url' => route('delivery.projects.associates.data', [
+                    'tenant' => $request->route('tenant'),
+                    'project' => $project->id,
+                    'associate' => $associate->id,
+                    'section' => 'products',
+                ]),
+                'deliveries_url' => route('delivery.projects.associates.data', [
+                    'tenant' => $request->route('tenant'),
+                    'project' => $project->id,
+                    'associate' => $associate->id,
+                    'section' => 'deliveries',
+                    'per_page' => 12,
                 ]),
             ];
         })->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
@@ -346,7 +377,7 @@ class AssociateProjectController extends Controller
                 'available' => $projectMaximum === null ? null : max(0, (float) $projectMaximum - $totalCommitted),
                 'simulated_value' => $totalCommitted * $price,
             ],
-            'project_budget' => $this->limits->simulatedBudgetSummary($project),
+            'project_budget' => $projectBudget,
             'rows' => $rows,
             'available_associates' => $available->map(fn (Associate $associate) => [
                 'id' => $associate->id,
