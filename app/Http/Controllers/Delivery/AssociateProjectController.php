@@ -19,6 +19,7 @@ use App\Services\TenantNotificationDispatcher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 
 class AssociateProjectController extends Controller
@@ -258,8 +259,21 @@ class AssociateProjectController extends Controller
 
         $allocation = $this->limits->productAllocationSummary($project, $product->id);
         $projectMaximum = $allocation['project_maximum'];
-        $totalCommitted = (float) $allocation['allocated_to_others'];
+        $totalLimitQuantity = (float) $limits->sum('max_quantity');
+        $unallocatedDelivered = $delivered
+            ->reject(fn ($quantity, $associateId) => $limits->has($associateId))
+            ->map(fn ($quantity) => (float) $quantity);
+        $totalUnallocatedDelivered = (float) $unallocatedDelivered->sum();
+        $totalCommitted = $totalLimitQuantity + $totalUnallocatedDelivered;
         $projectBudget = $this->limits->simulatedBudgetSummary($project);
+        $displayProjectPlanned = (float) $projectBudget['planned_value'] + ($totalUnallocatedDelivered * $price);
+        $projectBudget['planned_value'] = $displayProjectPlanned;
+        $projectBudget['remaining'] = $projectBudget['ceiling'] === null
+            ? null
+            : max(0, (float) $projectBudget['ceiling'] - $displayProjectPlanned);
+        $projectBudget['percent'] = $projectBudget['ceiling'] && $projectBudget['ceiling'] > 0
+            ? ($displayProjectPlanned / (float) $projectBudget['ceiling']) * 100
+            : null;
         $rows = $associates->map(function (Associate $associate) use (
             $project,
             $product,
@@ -269,28 +283,36 @@ class AssociateProjectController extends Controller
             $links,
             $plannedByAssociate,
             $projectMaximum,
-            $totalCommitted,
+            $totalLimitQuantity,
+            $totalUnallocatedDelivered,
             $projectBudget,
             $names,
             $request,
         ) {
             $limit = $limits->get($associate->id);
-            $current = (float) ($limit?->max_quantity ?? 0);
+            $saved = (float) ($limit?->max_quantity ?? 0);
             $used = (float) ($delivered[$associate->id] ?? 0);
+            $current = max($saved, $used);
             $currentValue = $current * $price;
-            $storedCurrentValue = $current * (float) ($limit?->reference_unit_price ?? $price);
+            $storedCurrentValue = $saved * (float) ($limit?->reference_unit_price ?? $price);
             $planned = (float) ($plannedByAssociate[$associate->id] ?? 0);
             $otherPlanned = max(0, $planned - $storedCurrentValue);
-            $otherProjectPlanned = max(0, (float) $projectBudget['planned_value'] - $storedCurrentValue);
+            $otherProjectPlanned = max(0, (float) $projectBudget['planned_value'] - $currentValue);
             $link = $links->get($associate->id);
             $financialCeiling = $link?->financial_limit !== null
                 ? (float) $link->financial_limit
                 : ($project->max_total_value_per_associate !== null
                     ? (float) $project->max_total_value_per_associate
                     : null);
+            $ownUnallocatedDelivery = $limit ? 0 : $used;
+            $committedByOthers = max(
+                0,
+                ($totalLimitQuantity - $saved)
+                    + ($totalUnallocatedDelivered - $ownUnallocatedDelivery)
+            );
             $availableByProject = $projectMaximum === null
                 ? null
-                : max(0, (float) $projectMaximum - max(0, $totalCommitted - $current));
+                : max(0, (float) $projectMaximum - $committedByOthers);
             $availableByFinancial = $financialCeiling === null || $price <= 0
                 ? null
                 : max(0, ($financialCeiling - $otherPlanned) / $price);
@@ -310,6 +332,7 @@ class AssociateProjectController extends Controller
                 'registration' => $associate->registration_number,
                 'participation' => $link?->status ?? ($project->restrict_participants ? 'unconfigured' : 'open'),
                 'current_quantity' => $current,
+                'saved_quantity' => $saved,
                 'delivered_quantity' => $used,
                 'minimum_quantity' => $used,
                 'maximum_quantity' => $effectiveMaximum,
@@ -322,6 +345,7 @@ class AssociateProjectController extends Controller
                 'simulated_value' => $currentValue,
                 'associate_planned_value' => $planned,
                 'other_planned_value' => $otherPlanned,
+                'other_project_planned_value' => $otherProjectPlanned,
                 'financial_ceiling' => $financialCeiling,
                 'update_url' => route('delivery.projects.associates.limits.product', [
                     'tenant' => $request->route('tenant'),
@@ -378,6 +402,11 @@ class AssociateProjectController extends Controller
                 'simulated_value' => $totalCommitted * $price,
             ],
             'project_budget' => $projectBudget,
+            'batch_update_url' => route('delivery.projects.product-limits.batch', [
+                'tenant' => $request->route('tenant'),
+                'project' => $project->id,
+                'product' => $product->id,
+            ]),
             'rows' => $rows,
             'available_associates' => $available->map(fn (Associate $associate) => [
                 'id' => $associate->id,
@@ -387,6 +416,65 @@ class AssociateProjectController extends Controller
             ])->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
             'can_manage' => $this->canManageLimits($request),
         ]);
+    }
+
+    public function updateProductLimitsBatch(Request $request): JsonResponse
+    {
+        $this->authorizeLimitManagement($request);
+        $project = $this->projectContext($request);
+        $product = Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->findOrFail((int) $request->route('product'));
+        $validated = $request->validate([
+            'limits' => 'required|array|min:1|max:200',
+            'limits.*.associate_id' => 'required|integer|distinct',
+            'limits.*.max_quantity' => 'required|numeric|min:0.001',
+        ]);
+
+        $changes = collect($validated['limits']);
+        $associateIds = $changes->pluck('associate_id')->map(fn ($id) => (int) $id);
+        $associates = Associate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereIn('id', $associateIds)
+            ->get()
+            ->keyBy('id');
+        abort_unless($associates->count() === $associateIds->unique()->count(), 404);
+
+        if ($project->restrict_participants) {
+            $activeIds = ProjectAssociate::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->where('sales_project_id', $project->id)
+                ->whereIn('associate_id', $associateIds)
+                ->where('status', 'active')
+                ->pluck('associate_id');
+            abort_unless($activeIds->count() === $associateIds->unique()->count(), 403);
+        }
+
+        $current = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereIn('associate_id', $associateIds)
+            ->where('status', 'active')
+            ->pluck('max_quantity', 'associate_id');
+
+        // Reductions run first so a valid reallocation never fails on an intermediate total.
+        $changes = $changes->sortBy(fn (array $change) => (
+            (float) $change['max_quantity'] - (float) ($current[(int) $change['associate_id']] ?? 0)
+        ));
+
+        DB::transaction(function () use ($changes, $associates, $project, $product) {
+            foreach ($changes as $change) {
+                $this->limits->setProductLimit(
+                    $project,
+                    $associates[(int) $change['associate_id']],
+                    $product->id,
+                    (float) $change['max_quantity'],
+                );
+            }
+        });
+
+        return $this->productLimitsBoard($request);
     }
 
     public function updateParticipation(Request $request): JsonResponse

@@ -402,6 +402,43 @@ class AssociateProjectLimitServiceTest extends TestCase
             ->value('max_quantity'));
     }
 
+    public function test_own_delivered_quantity_is_part_of_the_associate_quota_not_subtracted_from_it(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        DB::table('project_demands')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'product_id' => $product,
+            'target_quantity' => 1057,
+            'delivered_quantity' => 0,
+            'unit_price' => 5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'tenant_id' => 1,
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+            'product_id' => $product,
+            'delivery_date' => now(),
+            'quantity' => 220,
+            'unit_price' => 0,
+            'gross_value' => 0,
+            'status' => 'approved',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(AssociateProjectLimitService::class);
+        $summary = $service->productAllocationSummary($project, $product, $associate->id);
+
+        $this->assertSame(1057.0, $summary['available_for_associate']);
+
+        $limit = $service->setProductLimit($project, $associate, $product, 1057);
+
+        $this->assertSame(1057.0, (float) $limit->max_quantity);
+    }
+
     public function test_eligible_products_only_include_items_priced_for_project_customers(): void
     {
         [$project, $associate, $pricedProduct] = $this->fixture(false);
