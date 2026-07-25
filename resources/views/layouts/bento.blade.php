@@ -99,6 +99,7 @@
             min-width: 320px;
             background: var(--app-bg);
             color: var(--app-text);
+            overscroll-behavior-y: none;
             scroll-behavior: smooth;
             -webkit-text-size-adjust: 100%;
             user-select: none;
@@ -109,6 +110,7 @@
             min-height: 100dvh;
             margin: 0;
             overflow-x: hidden;
+            overscroll-behavior-y: none;
             background: linear-gradient(180deg, #f7fbf8 0%, var(--app-bg) 32%, #eef4f0 100%);
             color: var(--app-text);
             font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;

@@ -699,5 +699,6 @@ class AssociateProjectLimitServiceTest extends TestCase
             $table->string($string);
         }
         $table->timestamps();
+        $table->softDeletes();
     }
 }

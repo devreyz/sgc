@@ -526,7 +526,6 @@ function closeCustomerReportModal() {
     document.getElementById('customerReportModal').classList.add('hidden');
     document.body.style.overflow = '';
 }
-document.getElementById('customerReportModal').addEventListener('click', function(e) { if (e.target === this) closeCustomerReportModal(); });
 
 async function crmLoadOptions() {
     document.getElementById('crm-step-loading').style.display = '';
@@ -664,10 +663,6 @@ function openReceiptModal() {
 function closeReceiptModal() {
     document.getElementById('receiptModal').classList.remove('active');
 }
-document.getElementById('receiptModal').addEventListener('click', function(e) {
-    if (e.target === this) closeReceiptModal();
-});
-
 /* ── Distribute button click → component DistModal ── */
 document.addEventListener('click', function(e) {
     const distBtn = e.target.closest('.btn-distribute');

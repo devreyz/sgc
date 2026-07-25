@@ -262,6 +262,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/product-limits/{product}', [AssociateProjectController::class, 'productLimitsBoard'])->name('projects.product-limits.board');
         Route::put('/projects/{project}/product-limits/{product}', [AssociateProjectController::class, 'updateProductLimitsBatch'])->name('projects.product-limits.batch');
         Route::get('/projects/{project}/associates/{associate}', [AssociateProjectController::class, 'show'])->name('projects.associates.show');
+        Route::get('/projects/{project}/associates/{associate}/limits', [AssociateProjectController::class, 'associateLimits'])->name('projects.associates.limits.index');
         Route::get('/projects/{project}/associates/{associate}/data/{section}', [AssociateProjectController::class, 'data'])->name('projects.associates.data');
         Route::put('/projects/{project}/associates/{associate}/participation', [AssociateProjectController::class, 'updateParticipation'])->name('projects.associates.participation');
         Route::put('/projects/{project}/associates/{associate}/limits/financial', [AssociateProjectController::class, 'updateFinancialLimit'])->name('projects.associates.limits.financial');

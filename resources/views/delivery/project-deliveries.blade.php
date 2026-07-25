@@ -465,7 +465,7 @@ $totalNet      = $deliveries->sum('net_value');
 </div>
     </div>
 
-<div class="pd-integrity-overlay" id="pd-integrity-modal" onclick="closeIntegrityModalOnBackdrop(event)" aria-hidden="true">
+<div class="pd-integrity-overlay" id="pd-integrity-modal" aria-hidden="true">
     <div class="pd-integrity-box" role="dialog" aria-modal="true" aria-labelledby="pd-integrity-title">
         <div class="pd-integrity-head">
             <div>
@@ -641,7 +641,7 @@ $totalNet      = $deliveries->sum('net_value');
     @endif
 </div>
 
-<div class="dist-summary-overlay" id="dist-summary-overlay" onclick="closeDistSummaryOnBackdrop(event)">
+<div class="dist-summary-overlay" id="dist-summary-overlay">
     <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
         <div class="dist-summary-head">
             <div>
@@ -699,10 +699,6 @@ function closeIntegrityModal() {
     if (!modal) return;
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
-}
-
-function closeIntegrityModalOnBackdrop(event) {
-    if (event.target === document.getElementById('pd-integrity-modal')) closeIntegrityModal();
 }
 
 function toggleIntegrityPanel() {
@@ -801,15 +797,12 @@ function customConfirm(message) {
             overlay.classList.add('hidden');
             okBtn.removeEventListener('click', okHandler);
             cancelBtn.removeEventListener('click', cancelHandler);
-            overlay.removeEventListener('click', overlayHandler);
             resolve(value);
         };
         const okHandler = () => closeHandler(true);
         const cancelHandler = () => closeHandler(false);
-        const overlayHandler = (e) => { if (e.target === overlay) closeHandler(false); };
         okBtn.addEventListener('click', okHandler);
         cancelBtn.addEventListener('click', cancelHandler);
-        overlay.addEventListener('click', overlayHandler);
     });
 }
 
@@ -944,10 +937,6 @@ function openDistSummaryFromCard(card) {
 
 function closeDistSummary() {
     document.getElementById('dist-summary-overlay')?.classList.remove('open');
-}
-
-function closeDistSummaryOnBackdrop(event) {
-    if (event.target === document.getElementById('dist-summary-overlay')) closeDistSummary();
 }
 
 function clearAllFilters() {

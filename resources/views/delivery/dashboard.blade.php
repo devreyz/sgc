@@ -2211,14 +2211,6 @@
             }
         });
 
-    document.querySelectorAll('.dp-modal-overlay').forEach(function (overlay) {
-        overlay.addEventListener('click', function (event) {
-            if (event.target === overlay) {
-                overlay.classList.remove('open');
-            }
-        });
-    });
-
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {
             document.querySelectorAll('.dp-modal-overlay.open').forEach(function (modal) {

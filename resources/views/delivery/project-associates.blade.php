@@ -1596,9 +1596,14 @@
                 </div>
 
                 <div class="pam-row-actions">
-                    <a class="pam-btn primary" href="${pamEsc(item.manage_url)}">
+                    <a class="pam-btn" href="${pamEsc(item.manage_url)}">
+                        <i data-lucide="user-round-search"></i>
+                        Detalhes
+                    </a>
+
+                    <a class="pam-btn primary" href="${pamEsc(item.limits_url)}">
                         <i data-lucide="sliders-horizontal"></i>
-                        Gerenciar
+                        Cotas
                     </a>
 
                     ${PAM_CAN_MANAGE ? `
@@ -1769,12 +1774,6 @@
     document.getElementById('pam-confirm-close').addEventListener('click', pamCloseConfirm);
     document.getElementById('pam-confirm-cancel').addEventListener('click', pamCloseConfirm);
     pamElements.confirmAction.addEventListener('click', pamRunConfirmation);
-
-    pamElements.confirmModal.addEventListener('click', event => {
-        if (event.target === pamElements.confirmModal) {
-            pamCloseConfirm();
-        }
-    });
 
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && pamElements.confirmModal.classList.contains('active')) {

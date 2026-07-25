@@ -770,6 +770,29 @@
 .mi-limit-track{display:flex;height:7px;margin-top:.38rem;overflow:hidden;border-radius:5px;background:#e5e7eb}
 .mi-limit-used{height:100%;background:#d97706}
 .mi-limit-free{height:100%;background:#15803d}
+.product-modal-actions{display:flex;gap:.4rem;padding:.55rem .75rem;border-bottom:1px solid var(--color-border);background:var(--color-bg)}
+.product-modal-actions .btn-small,.quota-footer .btn-small{min-height:36px;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;border:1px solid var(--color-border);border-radius:7px;background:var(--color-surface);color:var(--color-text);padding:.42rem .6rem;font-size:.7rem;font-weight:750;cursor:pointer}
+.product-modal-actions .btn-small.primary,.quota-footer .btn-small.primary{border-color:var(--color-primary);background:var(--color-primary);color:#fff}
+.product-modal-actions .btn-small.danger,.quota-footer .btn-small.danger{border-color:#fecaca;background:#fff;color:#b91c1c}
+.product-modal-actions .btn-small:disabled,.quota-footer .btn-small:disabled{opacity:.55;cursor:not-allowed}
+.mi-quota-edit{flex:none;width:34px;min-height:34px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--color-border);border-radius:7px;background:var(--color-surface);color:var(--color-text);padding:.38rem;cursor:pointer}
+.mi-quota-edit svg{width:14px;height:14px}
+.quota-modal-box{width:min(620px,calc(100vw - 1rem));max-height:88dvh}
+.quota-body{display:grid;gap:.7rem;padding:.75rem;overflow:auto;overscroll-behavior:contain}
+.quota-picker-list{display:grid;gap:.35rem;max-height:52dvh;overflow:auto}
+.quota-picker-item{display:flex;align-items:center;justify-content:space-between;gap:.6rem;min-height:58px;padding:.65rem;border:1px solid var(--color-border);border-radius:7px;background:var(--color-surface);color:var(--color-text);text-align:left;cursor:pointer}
+.quota-picker-item strong{display:block;font-size:.82rem}.quota-picker-item span{display:block;margin-top:.12rem;color:var(--color-text-muted);font-size:.68rem}
+.quota-picker-item:disabled{opacity:.55;cursor:not-allowed}
+.quota-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.4rem}
+.quota-metric{padding:.55rem;border-radius:7px;background:var(--color-bg)}
+.quota-metric span{display:block;color:var(--color-text-muted);font-size:.64rem}.quota-metric strong{display:block;margin-top:.12rem;font-size:.78rem}
+.quota-progress-block{display:grid;gap:.25rem}.quota-progress-head{display:flex;justify-content:space-between;gap:.5rem;color:var(--color-text-muted);font-size:.66rem;font-weight:700}
+.quota-progress{height:9px;overflow:hidden;border-radius:999px;background:var(--color-bg)}.quota-progress span{display:block;height:100%;border-radius:inherit;background:var(--color-primary);transition:width .18s ease}.quota-progress.warning span{background:#d97706}.quota-progress.danger span{background:#dc2626}
+.quota-edit-grid{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:.65rem;align-items:end}
+.quota-edit-grid label{display:grid;gap:.25rem;color:var(--color-text-muted);font-size:.68rem;font-weight:750}.quota-slider{width:100%;min-height:38px;accent-color:var(--color-primary);touch-action:pan-y}
+.quota-feedback{min-height:1.2rem;color:var(--color-text-muted);font-size:.7rem;line-height:1.4}.quota-feedback.error{color:#b91c1c;font-weight:750}
+.quota-footer{display:flex;align-items:center;justify-content:space-between;gap:.45rem;padding:.65rem .75rem;border-top:1px solid var(--color-border);background:var(--color-surface)}
+@media(max-width:600px){.product-modal-actions{display:grid;grid-template-columns:1fr 1fr}.product-limit-item{align-items:flex-start;flex-wrap:wrap}.product-limit-item .mi-info{min-width:calc(100% - 54px)}.product-limit-item .mi-quota-edit{margin-left:48px}.quota-summary-grid{grid-template-columns:1fr 1fr}.quota-edit-grid{grid-template-columns:1fr}.quota-footer{padding-bottom:calc(.65rem + env(safe-area-inset-bottom))}}
 .modal-empty {
     padding: 2rem 1rem;
     text-align: center;
@@ -1020,7 +1043,7 @@
     <i data-lucide="arrow-up" style="width:18px;height:18px"></i>
 </button>
 
-<div class="dist-summary-overlay" id="dist-summary-overlay" onclick="closeDistSummaryOnBackdrop(event)">
+<div class="dist-summary-overlay" id="dist-summary-overlay">
     <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
         <div class="dist-summary-head">
             <div>
@@ -1034,7 +1057,7 @@
 </div>
 
 {{-- Project modal --}}
-<div class="modal-overlay" id="modal-project" onclick="closeModalOnBackdrop(event, 'project')">
+<div class="modal-overlay" id="modal-project">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Projeto</span>
@@ -1050,7 +1073,7 @@
 </div>
 
 {{-- Associate modal --}}
-<div class="modal-overlay" id="modal-assoc" onclick="closeModalOnBackdrop(event, 'assoc')">
+<div class="modal-overlay" id="modal-assoc">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Associado</span>
@@ -1066,7 +1089,7 @@
 </div>
 
 {{-- Product modal --}}
-<div class="modal-overlay" id="modal-product" onclick="closeModalOnBackdrop(event, 'product')">
+<div class="modal-overlay" id="modal-product">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Produto</span>
@@ -1077,8 +1100,49 @@
         <div class="modal-search-wrap">
             <input class="modal-search" type="search" id="search-product" placeholder="Buscar produto..." oninput="filterList('product')" autocomplete="off">
         </div>
+        <div class="product-modal-actions">
+            <button class="btn-small" id="refresh-products-btn" type="button" onclick="refreshProductList()">
+                <i data-lucide="refresh-cw"></i>
+                Atualizar lista
+            </button>
+            <button class="btn-small primary" id="add-product-limit-btn" type="button" onclick="openQuickQuota()">
+                <i data-lucide="package-plus"></i>
+                Adicionar produto
+            </button>
+        </div>
         <div class="modal-list" id="list-product">
             <div class="modal-empty">Selecione um projeto primeiro</div>
+        </div>
+    </div>
+</div>
+
+{{-- Gestão rápida de cota do associado --}}
+<div class="modal-overlay" id="modal-quota">
+    <div class="modal-box quota-modal-box" role="dialog" aria-modal="true" aria-labelledby="quota-modal-title">
+        <div class="modal-header">
+            <div>
+                <span class="modal-title" id="quota-modal-title">Limite do produto</span>
+                <div class="mi-sub" id="quota-associate-name"></div>
+            </div>
+            <button class="modal-close" type="button" onclick="closeQuickQuota()" aria-label="Fechar">
+                <i data-lucide="x" style="width:16px;height:16px"></i>
+            </button>
+        </div>
+        <div class="quota-body" id="quota-body">
+            <div class="modal-empty">Selecione um associado primeiro.</div>
+        </div>
+        <div class="quota-footer" id="quota-footer" hidden>
+            <button class="btn-small danger" id="quota-delete-btn" type="button" onclick="deleteQuickQuota()" hidden>
+                <i data-lucide="trash-2"></i>
+                Remover limite
+            </button>
+            <div style="display:flex;gap:.4rem;margin-left:auto">
+                <button class="btn-small" type="button" onclick="closeQuickQuota()">Cancelar</button>
+                <button class="btn-small primary" id="quota-save-btn" type="button" onclick="saveQuickQuota()">
+                    <i data-lucide="save"></i>
+                    Salvar limite
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1087,7 +1151,7 @@
 <div id="toast-root"></div>
 
 {{-- ─────────────── MODAL EDITAR ENTREGA (mantido) ──────────────── --}}
-<div class="modal-overlay" id="modal-edit" onclick="closeModalOnBackdrop(event, 'edit')">
+<div class="modal-overlay" id="modal-edit">
     <div class="modal-box" style="max-width:400px">
         <div class="modal-header">
             <span class="modal-title">Editar Entrega</span>
@@ -1159,6 +1223,16 @@ const S = {
     keyboardStage     : 'project',
     listPage          : 1,
     listPerPage       : 30,
+};
+
+const Q = {
+    limits: null,
+    products: [],
+    selected: null,
+    current: null,
+    quantity: 0,
+    busy: false,
+    confirmDelete: false,
 };
 
 /* ─── DOM refs ───────────────────────────────────── */
@@ -1432,6 +1506,353 @@ async function loadDemands(projectId, associateId = S.associate?.id) {
         }
     } finally {
         if (requestId === S.demandsRequestId) S.loadingProjectId = null;
+    }
+}
+
+async function refreshProductList() {
+    if (!S.project) {
+        toast('Selecione um projeto primeiro.', 'info');
+        return;
+    }
+
+    const button = $('refresh-products-btn');
+    const selectedProductId = S.product?.product_id || null;
+
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader-circle"></i> Atualizando';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        await loadDemands(S.project.id, S.associate?.id);
+
+        if (selectedProductId) {
+            S.product = S.demands.find(item => Number(item.product_id) === Number(selectedProductId)) || null;
+            if (!S.product) resetProductSelector();
+        }
+
+        renderModalList('product');
+        toast('Lista de produtos atualizada.', 'success');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="refresh-cw"></i> Atualizar lista';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+function quotaBaseUrl() {
+    return '/' + TENANT + '/delivery/projects/' + S.project.id + '/associates/' + S.associate.id;
+}
+
+async function openQuickQuota(productId = null) {
+    if (!S.project || !S.associate) {
+        toast('Selecione um associado antes de configurar produtos.', 'info');
+        return;
+    }
+
+    const overlay = $('modal-quota');
+    overlay.classList.add('open');
+    $('quota-associate-name').textContent = S.associate.nickname || S.associate.name;
+    $('quota-footer').hidden = true;
+    $('quota-body').innerHTML = '<div class="modal-empty">Carregando limites...</div>';
+    Q.selected = null;
+    Q.current = null;
+    Q.confirmDelete = false;
+
+    try {
+        const [limitsResponse, productsResponse] = await Promise.all([
+            fetch(quotaBaseUrl() + '/data/limits', {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            }),
+            fetch(quotaBaseUrl() + '/data/products', {
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            }),
+        ]);
+        const limits = await limitsResponse.json();
+        const products = await productsResponse.json();
+        if (!limitsResponse.ok) throw new Error(limits.message || 'Não foi possível carregar os limites.');
+        if (!productsResponse.ok) throw new Error(products.message || 'Não foi possível carregar os produtos.');
+
+        Q.limits = limits;
+        Q.products = (products.data || []).filter(product =>
+            S.project.allow_any_product || product.project_maximum !== null
+        );
+
+        if (productId) {
+            selectQuickQuotaProduct(productId);
+        } else {
+            renderQuickQuotaPicker();
+        }
+    } catch (error) {
+        $('quota-body').innerHTML = '<div class="modal-empty">' + escHtml(error.message) + '</div>';
+    }
+}
+
+function closeQuickQuota(force = false) {
+    if (Q.busy && !force) return;
+    $('modal-quota').classList.remove('open');
+    Q.selected = null;
+    Q.current = null;
+}
+
+function renderQuickQuotaPicker() {
+    $('quota-modal-title').textContent = 'Adicionar produto permitido';
+    $('quota-footer').hidden = true;
+    $('quota-body').innerHTML =
+        '<input class="modal-search" id="quota-product-search" type="search" placeholder="Buscar produto..." autocomplete="off">' +
+        '<div class="quota-picker-list" id="quota-picker-list"></div>';
+    $('quota-product-search').addEventListener('input', renderQuickQuotaPickerItems);
+    renderQuickQuotaPickerItems();
+    setTimeout(() => $('quota-product-search')?.focus(), 40);
+}
+
+function renderQuickQuotaPickerItems() {
+    const list = $('quota-picker-list');
+    if (!list) return;
+    const term = normalizeSearch($('quota-product-search')?.value || '');
+    const currentIds = new Set((Q.limits?.products || []).map(item => Number(item.product_id)));
+    const items = Q.products.filter(product =>
+        (!term || normalizeSearch(product.name).includes(term))
+    );
+
+    list.innerHTML = items.length ? items.map(product => {
+        const existing = currentIds.has(Number(product.id));
+        const available = product.available_for_associate === null
+            ? null
+            : Number(product.available_for_associate || 0);
+        const delivered = Number(product.delivered_quantity || 0);
+        const disabled = available !== null && available + .000001 < Math.max(delivered, .001);
+
+        return '<button class="quota-picker-item" type="button" data-quota-product="' + Number(product.id) + '" ' + (disabled ? 'disabled' : '') + '>' +
+            '<div><strong>' + escHtml(product.name) + '</strong><span>' +
+                (existing ? 'Limite já configurado · ' : '') +
+                money(Number(product.price || 0)) + ' por ' + escHtml(product.unit || 'unidade') +
+            '</span></div><span>' +
+                (disabled ? 'Sem saldo' : available === null ? 'Sem meta geral' : fmtQty(available, product.unit)) +
+            '</span></button>';
+    }).join('') : '<div class="modal-empty">Nenhum produto encontrado.</div>';
+
+    list.querySelectorAll('[data-quota-product]').forEach(button => {
+        button.addEventListener('click', () => selectQuickQuotaProduct(Number(button.dataset.quotaProduct)));
+    });
+}
+
+function selectQuickQuotaProduct(productId) {
+    const product = Q.products.find(item => Number(item.id) === Number(productId));
+    if (!product) {
+        $('quota-body').innerHTML = '<div class="modal-empty">Produto não disponível para este projeto.</div>';
+        return;
+    }
+
+    Q.selected = product;
+    Q.current = (Q.limits?.products || []).find(item => Number(item.product_id) === Number(productId)) || null;
+    Q.quantity = Number(Q.current?.maximum_quantity ?? Math.max(Number(product.delivered_quantity || 0), .001));
+    Q.confirmDelete = false;
+    renderQuickQuotaEditor();
+}
+
+function quickQuotaOtherPlanned() {
+    return Math.max(
+        0,
+        Number(Q.limits?.summary?.simulated_limit_value || 0)
+        - Number(Q.current?.estimated_maximum_value || 0)
+    );
+}
+
+function quickQuotaMaximum() {
+    if (!Q.selected) return 0;
+    const productMaximum = Q.selected.available_for_associate === null
+        ? Infinity
+        : Number(Q.selected.available_for_associate || 0);
+    const financialLimit = Q.limits?.summary?.financial_limit === null
+        ? Infinity
+        : Number(Q.limits?.summary?.financial_limit || 0);
+    const price = Number(Q.selected.price || 0);
+    const financialMaximum = Number.isFinite(financialLimit) && price > 0
+        ? Math.max(0, (financialLimit - quickQuotaOtherPlanned()) / price)
+        : Infinity;
+
+    return Math.max(
+        Number(Q.selected.delivered_quantity || Q.current?.delivered_quantity || 0),
+        Math.min(productMaximum, financialMaximum)
+    );
+}
+
+function quickQuotaSliderMaximum() {
+    const maximum = quickQuotaMaximum();
+    return Number.isFinite(maximum)
+        ? maximum
+        : Math.max(100, Q.quantity, Math.ceil(Q.quantity * 1.5));
+}
+
+function renderQuickQuotaEditor() {
+    const product = Q.selected;
+    const delivered = Number(Q.current?.delivered_quantity ?? product.delivered_quantity ?? 0);
+    const maximum = quickQuotaMaximum();
+    Q.quantity = Math.max(delivered, Math.min(Q.quantity, maximum));
+    $('quota-modal-title').textContent = Q.current ? 'Editar limite do produto' : 'Adicionar produto permitido';
+    $('quota-footer').hidden = false;
+    $('quota-delete-btn').hidden = !Q.current;
+    $('quota-delete-btn').innerHTML = '<i data-lucide="trash-2"></i> Remover limite';
+
+    $('quota-body').innerHTML =
+        '<div><strong style="font-size:.92rem">' + escHtml(product.name) + '</strong><div class="mi-sub">' +
+            money(Number(product.price || 0)) + ' por ' + escHtml(product.unit || 'unidade') + '</div></div>' +
+        '<div class="quota-summary-grid">' +
+            '<div class="quota-metric"><span>Já entregue</span><strong id="quota-delivered"></strong></div>' +
+            '<div class="quota-metric"><span>Nova cota</span><strong id="quota-value-label"></strong></div>' +
+            '<div class="quota-metric"><span>Saldo</span><strong id="quota-balance"></strong></div>' +
+            '<div class="quota-metric"><span>Valor planejado</span><strong id="quota-planned-value"></strong></div>' +
+        '</div>' +
+        '<div class="quota-progress-block"><div class="quota-progress-head"><span>Uso da cota do associado</span><span id="quota-use-label"></span></div><div class="quota-progress" id="quota-use-progress"><span></span></div></div>' +
+        '<div class="quota-progress-block"><div class="quota-progress-head"><span>Meta geral do projeto</span><span id="quota-project-label"></span></div><div class="quota-progress" id="quota-project-progress"><span></span></div></div>' +
+        '<div class="quota-progress-block"><div class="quota-progress-head"><span>Teto financeiro do associado</span><span id="quota-financial-label"></span></div><div class="quota-progress" id="quota-financial-progress"><span></span></div></div>' +
+        '<div class="quota-edit-grid"><label>Ajustar deslizando<input class="quota-slider" id="quota-range" type="range" min="' + delivered + '" max="' + quickQuotaSliderMaximum() + '" step=".001" value="' + Q.quantity + '"></label>' +
+        '<label>Cota máxima (' + escHtml(product.unit || 'un') + ')<input class="field-input" id="quota-number" type="number" min="' + delivered + '" ' + (Number.isFinite(maximum) ? 'max="' + maximum + '"' : '') + ' step=".001" value="' + Q.quantity + '"></label></div>' +
+        '<div class="quota-feedback" id="quota-feedback"></div>';
+
+    $('quota-range').addEventListener('input', event => updateQuickQuota(event.target.value));
+    $('quota-number').addEventListener('input', event => updateQuickQuota(event.target.value, true));
+    refreshQuickQuotaEditor();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+function progressTone(element, percent) {
+    element.classList.toggle('warning', percent >= 80 && percent < 100);
+    element.classList.toggle('danger', percent >= 100);
+}
+
+function refreshQuickQuotaEditor(message = '') {
+    if (!Q.selected) return;
+    const product = Q.selected;
+    const delivered = Number(Q.current?.delivered_quantity ?? product.delivered_quantity ?? 0);
+    const maximum = quickQuotaMaximum();
+    const price = Number(product.price || 0);
+    const financialLimit = Q.limits?.summary?.financial_limit === null
+        ? null
+        : Number(Q.limits?.summary?.financial_limit || 0);
+    const plannedTotal = quickQuotaOtherPlanned() + Q.quantity * price;
+    const usePercent = Q.quantity > 0 ? Math.min(100, delivered / Q.quantity * 100) : 0;
+    const projectMaximum = product.project_maximum === null ? null : Number(product.project_maximum || 0);
+    const projectAllocated = Number(product.allocated_to_others || 0) + Q.quantity;
+    const projectPercent = projectMaximum && projectMaximum > 0
+        ? Math.min(100, projectAllocated / projectMaximum * 100)
+        : 0;
+    const financialPercent = financialLimit && financialLimit > 0
+        ? Math.min(100, plannedTotal / financialLimit * 100)
+        : 0;
+
+    $('quota-delivered').textContent = fmtQty(delivered, product.unit);
+    $('quota-value-label').textContent = fmtQty(Q.quantity, product.unit);
+    $('quota-balance').textContent = fmtQty(Math.max(0, Q.quantity - delivered), product.unit);
+    $('quota-planned-value').textContent = money(Q.quantity * price);
+    $('quota-use-label').textContent = Math.round(usePercent) + '% entregue';
+    $('quota-use-progress').querySelector('span').style.width = usePercent + '%';
+    progressTone($('quota-use-progress'), usePercent);
+    $('quota-project-label').textContent = projectMaximum === null
+        ? 'Sem meta geral'
+        : fmtQty(projectAllocated, product.unit) + ' de ' + fmtQty(projectMaximum, product.unit);
+    $('quota-project-progress').querySelector('span').style.width = projectPercent + '%';
+    progressTone($('quota-project-progress'), projectPercent);
+    $('quota-financial-label').textContent = financialLimit === null
+        ? 'Sem teto definido'
+        : money(plannedTotal) + ' de ' + money(financialLimit);
+    $('quota-financial-progress').querySelector('span').style.width = financialPercent + '%';
+    progressTone($('quota-financial-progress'), financialPercent);
+    $('quota-feedback').textContent = message || (
+        Number.isFinite(maximum)
+            ? 'Máximo disponível agora: ' + fmtQty(maximum, product.unit) + '.'
+            : 'Sem limite máximo de quantidade para este produto.'
+    );
+    $('quota-feedback').classList.toggle('error', Boolean(message));
+    $('quota-save-btn').disabled = Q.busy || Q.quantity <= 0 || Q.quantity > maximum + .000001;
+}
+
+function updateQuickQuota(rawValue, fromNumber = false) {
+    if (fromNumber && rawValue === '') {
+        $('quota-save-btn').disabled = true;
+        return;
+    }
+    const parsed = Number(String(rawValue).replace(',', '.'));
+    if (!Number.isFinite(parsed)) return;
+
+    const delivered = Number(Q.current?.delivered_quantity ?? Q.selected?.delivered_quantity ?? 0);
+    const maximum = quickQuotaMaximum();
+    Q.quantity = Math.max(delivered, Math.min(parsed, maximum));
+    $('quota-number').value = Q.quantity;
+    $('quota-range').max = quickQuotaSliderMaximum();
+    $('quota-range').value = Q.quantity;
+    refreshQuickQuotaEditor(parsed > maximum + .000001
+        ? 'A cota foi limitada pela meta do projeto ou pelo teto financeiro.'
+        : ''
+    );
+}
+
+async function saveQuickQuota() {
+    if (!Q.selected || Q.busy) return;
+    const button = $('quota-save-btn');
+
+    try {
+        Q.busy = true;
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader-circle"></i> Salvando';
+        const response = await fetch(quotaBaseUrl() + '/limits/product', {
+            method: 'PUT',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+            },
+            body: JSON.stringify({
+                product_id: Q.selected.id,
+                max_quantity: Number(Q.quantity.toFixed(3)),
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || Object.values(data.errors || {}).flat()[0] || 'Não foi possível salvar o limite.');
+
+        await loadDemands(S.project.id, S.associate.id);
+        closeQuickQuota(true);
+        renderModalList('product');
+        toast(data.message || 'Limite atualizado.', 'success');
+    } catch (error) {
+        refreshQuickQuotaEditor(error.message);
+    } finally {
+        Q.busy = false;
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="save"></i> Salvar limite';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
+async function deleteQuickQuota() {
+    if (!Q.current?.delete_url || Q.busy) return;
+    const button = $('quota-delete-btn');
+    if (!Q.confirmDelete) {
+        Q.confirmDelete = true;
+        button.innerHTML = '<i data-lucide="triangle-alert"></i> Confirmar remoção';
+        refreshQuickQuotaEditor('Clique novamente em Confirmar remoção. As entregas existentes serão preservadas.');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    try {
+        Q.busy = true;
+        button.disabled = true;
+        const response = await fetch(Q.current.delete_url, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            body: '{}',
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Não foi possível remover o limite.');
+        await loadDemands(S.project.id, S.associate.id);
+        closeQuickQuota(true);
+        renderModalList('product');
+        toast(data.message || 'Limite removido.', 'success');
+    } catch (error) {
+        refreshQuickQuotaEditor(error.message);
+    } finally {
+        Q.busy = false;
+        button.disabled = false;
     }
 }
 
@@ -1856,6 +2277,12 @@ function fmtQty(n, unit) {
     const str = num % 1 === 0 ? num.toString() : num.toFixed(2).replace(/\.?0+$/, '');
     return str + (unit ? '\u00a0' + unit : '');
 }
+function money(value) {
+    return Number(value || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    });
+}
 function fmtDate(iso) {
     if (!iso) return '';
     const [y, m, d] = iso.split('-');
@@ -1926,9 +2353,6 @@ function openDistSummaryFromCard(card) {
 }
 function closeDistSummary() {
     $('dist-summary-overlay')?.classList.remove('open');
-}
-function closeDistSummaryOnBackdrop(event) {
-    if (event.target === $('dist-summary-overlay')) closeDistSummary();
 }
 async function deleteItem(id, btn, isApproved = false) {
     const msg = isApproved
@@ -2189,10 +2613,6 @@ function closeModal(type) {
     overlay.classList.remove('open');
 }
 
-function closeModalOnBackdrop(event, type) {
-    if (event.target === $('modal-' + type)) closeModal(type);
-}
-
 function filterList(type) {
     renderModalList(type);
     // Sempre reposiciona o destaque para o primeiro item ao filtrar
@@ -2270,6 +2690,12 @@ function renderAssocList(list, search) {
 }
 
 function renderProductList(list, search) {
+    if ($('add-product-limit-btn')) {
+        $('add-product-limit-btn').disabled = !S.associate;
+        $('add-product-limit-btn').title = S.associate
+            ? 'Adicionar produto e definir cota'
+            : 'Selecione um associado primeiro';
+    }
     if (!S.project) {
         list.innerHTML = '<div class="modal-empty">Selecione um projeto primeiro</div>';
         return;
@@ -2298,18 +2724,29 @@ function renderProductList(list, search) {
         const badgeClass = completed ? 'red' : (percent >= 80 ? 'amber' : 'green');
         const badgeText  = hasLimit ? (completed ? 'Limite atingido' : 'Saldo: ' + fmtQty(remaining, d.product_unit)) : 'Sem limite';
 
-        return '<div class="modal-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + (completed ? ' disabled' : '') + '" data-idx="' + i + '" data-disabled="' + (completed ? '1' : '0') + '">' +
+        return '<div class="modal-item product-limit-item' + (S.product?.product_id === d.product_id ? ' highlighted' : '') + (completed ? ' disabled' : '') + '" data-idx="' + i + '" data-disabled="' + (completed ? '1' : '0') + '">' +
             '<div class="mi-avatar product">' + initials(d.product_name) + '</div>' +
             '<div class="mi-info">' +
                 '<div class="mi-name">' + escHtml(d.product_name) + '</div>' +
                 (hasLimit ? '<div class="mi-limit-summary"><span>Limite efetivo <strong>' + fmtQty(baseLimit, d.product_unit) + '</strong></span><span>Entregue <strong>' + fmtQty(delivered, d.product_unit) + '</strong></span><span>Disponivel <strong>' + fmtQty(remaining, d.product_unit) + '</strong></span></div>' : '<div class="mi-sub">Produto sem limite de quantidade</div>') +
                 (hasLimit ? '<div class="mi-limit-track" role="progressbar" aria-label="Quantidade entregue de ' + escHtml(d.product_name) + '" aria-valuemin="0" aria-valuemax="' + baseLimit + '" aria-valuenow="' + delivered + '"><span class="mi-limit-used" style="width:' + percent + '%" title="Entregue: ' + fmtQty(delivered, d.product_unit) + '"></span><span class="mi-limit-free" style="width:' + Math.max(0, 100 - percent) + '%" title="Disponivel: ' + fmtQty(remaining, d.product_unit) + '"></span></div>' : '') +
             '</div>' +
+            '<button class="mi-quota-edit" type="button" data-edit-quota="' + Number(d.product_id) + '" title="' + (d.associate_limit != null ? 'Editar limite do associado' : 'Definir limite do associado') + '" aria-label="' + (d.associate_limit != null ? 'Editar limite do associado' : 'Definir limite do associado') + '">' +
+                '<i data-lucide="' + (d.associate_limit != null ? 'pencil' : 'plus') + '"></i>' +
+            '</button>' +
             '<span class="mi-badge ' + badgeClass + '">' + badgeText + '</span>' +
         '</div>';
     }).join('');
+    list.querySelectorAll('[data-edit-quota]').forEach(button => {
+        button.addEventListener('click', event => {
+            event.preventDefault();
+            event.stopPropagation();
+            openQuickQuota(Number(button.dataset.editQuota));
+        });
+    });
     list.querySelectorAll('.modal-item').forEach(el => {
-        el.addEventListener('click', () => {
+        el.addEventListener('click', event => {
+            if (event.target.closest('[data-edit-quota]')) return;
             if (el.dataset.disabled === '1') return;
             const idx = parseInt(el.dataset.idx);
             selectProduct(items[idx]);
@@ -2431,7 +2868,6 @@ checkFormReady();
 
 window.openModal            = openModal;
 window.closeModal           = closeModal;
-window.closeModalOnBackdrop = closeModalOnBackdrop;
 window.filterList           = filterList;
 window.submitEntry          = submitEntry;
 window.deleteItem           = deleteItem;
@@ -2444,8 +2880,12 @@ window.scrollToRegisterTop  = scrollToRegisterTop;
 window.setSessionPageSize   = setSessionPageSize;
 window.changeSessionPage    = changeSessionPage;
 window.closeDistSummary     = closeDistSummary;
-window.closeDistSummaryOnBackdrop = closeDistSummaryOnBackdrop;
 window.toggleRegisterIntegrity = toggleRegisterIntegrity;
+window.refreshProductList   = refreshProductList;
+window.openQuickQuota       = openQuickQuota;
+window.closeQuickQuota      = closeQuickQuota;
+window.saveQuickQuota       = saveQuickQuota;
+window.deleteQuickQuota     = deleteQuickQuota;
 window.addDistRegRow        = function() {};
 window.saveDist             = function() {};
 

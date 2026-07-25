@@ -135,6 +135,11 @@ class AssociateProjectController extends Controller
                     'project' => $project->id,
                     'associate' => $associate->id,
                 ]),
+                'limits_url' => route('delivery.projects.associates.limits.index', [
+                    'tenant' => request()->route('tenant'),
+                    'project' => $project->id,
+                    'associate' => $associate->id,
+                ]),
             ];
         }));
 
@@ -520,6 +525,17 @@ class AssociateProjectController extends Controller
         ]);
     }
 
+    public function associateLimits(Request $request)
+    {
+        [$project, $associate] = $this->context($request);
+
+        return view('delivery.associate-product-limits', [
+            'project' => $project,
+            'associate' => $associate,
+            'canManageLimits' => $this->canManageLimits($request),
+        ]);
+    }
+
     public function data(Request $request): JsonResponse
     {
         [$project, $associate] = $this->context($request);
@@ -782,16 +798,51 @@ class AssociateProjectController extends Controller
             $items->pluck('product_id'),
             $associate->id,
         );
+        $delivered = ProductionDelivery::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('associate_id', $associate->id)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::CANCELLED->value, DeliveryStatus::REJECTED->value])
+            ->whereIn('product_id', $items->pluck('product_id'))
+            ->selectRaw('product_id, SUM(quantity) as total')
+            ->groupBy('product_id')
+            ->pluck('total', 'product_id');
 
-        return $items->map(fn ($item) => [
+        $summary = $this->limits->summary($project, $associate);
+        $existingLimits = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('associate_id', $associate->id)
+            ->where('status', 'active')
+            ->get(['product_id', 'max_quantity', 'reference_unit_price'])
+            ->keyBy('product_id');
+        $financialLimit = $summary['financial_limit'];
+        $plannedValue = (float) $summary['simulated_limit_value'];
+
+        return $items->map(function ($item) use ($allocations, $delivered, $existingLimits, $financialLimit, $plannedValue) {
+            $allocation = $allocations->get($item->product_id) ?? [];
+            $currentLimit = $existingLimits->get($item->product_id);
+            $currentValue = $currentLimit
+                ? (float) $currentLimit->max_quantity * (float) ($currentLimit->reference_unit_price ?? $item->sale_price)
+                : 0.0;
+            $financialAvailable = $financialLimit === null || (float) $item->sale_price <= 0
+                ? null
+                : max(0, ((float) $financialLimit - ($plannedValue - $currentValue)) / (float) $item->sale_price);
+
+            return [
                 'id' => $item->product_id,
                 'name' => $item->product?->name,
                 'unit' => $item->product?->unit,
                 'price' => (float) $item->sale_price,
-                'project_maximum' => $allocations->get($item->product_id)['project_maximum'] ?? null,
-                'allocated_to_others' => $allocations->get($item->product_id)['allocated_to_others'] ?? 0,
-                'available_for_associate' => $allocations->get($item->product_id)['available_for_associate'] ?? null,
-            ])->values()->all();
+                'delivered_quantity' => (float) ($delivered[$item->product_id] ?? 0),
+                // Null means that this product has no quantity demand in the project.
+                'project_maximum' => $allocation['project_maximum'] ?? null,
+                'allocated_to_others' => $allocation['allocated_to_others'] ?? 0,
+                'available_for_associate' => $allocation['available_for_associate'] ?? null,
+                'financial_available_for_associate' => $financialAvailable,
+            ];
+        })->values()->all();
     }
 
     private function deliveries(Request $request, SalesProject $project, Associate $associate): array

@@ -26,6 +26,12 @@
         $project->start_date?->format('d/m/Y'),
         $project->end_date?->format('d/m/Y'),
     ])->filter()->implode(' a ');
+
+    $associateLimitsUrl = route('delivery.projects.associates.limits.index', [
+        'tenant' => $tenantSlug,
+        'project' => $project->id,
+        'associate' => $associate->id,
+    ]);
 @endphp
 
 <style>
@@ -73,7 +79,10 @@
 
     .ap-shell *,
     .ap-shell *::before,
-    .ap-shell *::after {
+    .ap-shell *::after,
+    .ap-modal *,
+    .ap-modal *::before,
+    .ap-modal *::after {
         box-sizing: border-box;
     }
 
@@ -1039,6 +1048,235 @@
         line-height: 1.55;
     }
 
+    .ap-quota-dialog {
+        width: min(100%, 860px);
+        max-height: min(94dvh, 880px);
+    }
+
+    .ap-quota-summary {
+        position: sticky;
+        z-index: 1;
+        top: 63px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .8rem;
+        padding: .8rem;
+        border: 1px solid var(--ap-border);
+        border-radius: 8px;
+        background: rgba(248,250,249,.97);
+        box-shadow: 0 8px 22px rgba(15,35,24,.07);
+        backdrop-filter: blur(12px);
+    }
+
+    .ap-quota-summary strong {
+        display: block;
+        margin-top: .18rem;
+        font-size: 1rem;
+    }
+
+    .ap-quota-summary small,
+    .ap-quota-card small {
+        color: var(--ap-faded);
+        font-size: .68rem;
+        line-height: 1.45;
+    }
+
+    .ap-quota-summary-value {
+        min-width: 150px;
+        text-align: right;
+    }
+
+    .ap-quota-summary.danger {
+        border-color: rgba(239,68,68,.38);
+        background: #fff7f7;
+    }
+
+    .ap-quota-summary.danger .ap-quota-summary-value strong {
+        color: var(--ap-danger);
+    }
+
+    .ap-quota-tools {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .55rem;
+        margin: .85rem 0;
+    }
+
+    .ap-quota-search-results {
+        display: grid;
+        max-height: 220px;
+        gap: .35rem;
+        margin: -.45rem 0 .85rem;
+        padding: .4rem;
+        overflow-y: auto;
+        border: 1px solid var(--ap-border);
+        border-radius: 8px;
+        background: var(--ap-surface);
+    }
+
+    .ap-quota-product-option {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        gap: .7rem;
+        padding: .7rem;
+        border: 0;
+        border-radius: 6px;
+        background: var(--ap-soft);
+        color: var(--ap-text);
+        text-align: left;
+        cursor: pointer;
+    }
+
+    .ap-quota-product-option:hover,
+    .ap-quota-product-option:focus-visible {
+        background: var(--ap-muted);
+        outline: 2px solid rgba(34,197,94,.25);
+    }
+
+    .ap-quota-product-option strong {
+        display: block;
+        font-size: .78rem;
+    }
+
+    .ap-quota-product-option span {
+        flex: 0 0 auto;
+        color: var(--ap-secondary);
+        font-size: .7rem;
+    }
+
+    .ap-quota-list {
+        display: grid;
+        gap: .7rem;
+    }
+
+    .ap-quota-card {
+        padding: .85rem;
+        border: 1px solid var(--ap-border);
+        border-radius: 8px;
+        background: var(--ap-surface);
+        transition: border-color .18s ease, box-shadow .18s ease;
+    }
+
+    .ap-quota-card.editing {
+        border-color: rgba(34,197,94,.5);
+        box-shadow: 0 0 0 3px rgba(34,197,94,.08);
+    }
+
+    .ap-quota-card.invalid {
+        border-color: rgba(239,68,68,.45);
+        background: #fffafa;
+    }
+
+    .ap-quota-card-head,
+    .ap-quota-card-actions,
+    .ap-quota-numbers {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .65rem;
+    }
+
+    .ap-quota-card-title {
+        min-width: 0;
+    }
+
+    .ap-quota-card-title strong {
+        display: block;
+        color: var(--ap-text);
+        font-size: .88rem;
+    }
+
+    .ap-quota-card-actions {
+        flex: 0 0 auto;
+    }
+
+    .ap-quota-numbers {
+        margin-top: .65rem;
+        padding: .55rem .65rem;
+        border-radius: 7px;
+        background: var(--ap-soft);
+    }
+
+    .ap-quota-number span {
+        display: block;
+        color: var(--ap-faded);
+        font-size: .62rem;
+    }
+
+    .ap-quota-number strong {
+        display: block;
+        margin-top: .12rem;
+        font-size: .76rem;
+    }
+
+    .ap-quota-controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 145px;
+        align-items: end;
+        gap: .8rem;
+        margin-top: .7rem;
+    }
+
+    .ap-quota-controls label {
+        display: grid;
+        gap: .28rem;
+        color: var(--ap-secondary);
+        font-size: .65rem;
+        font-weight: 750;
+    }
+
+    .ap-quota-slider {
+        width: 100%;
+        min-height: 38px;
+        accent-color: var(--ap-primary-dark);
+        touch-action: pan-y;
+    }
+
+    .ap-quota-slider:disabled {
+        opacity: .78;
+        cursor: not-allowed;
+    }
+
+    .ap-quota-input {
+        width: 100%;
+        min-height: 42px;
+        padding: .55rem .62rem;
+        font-size: .85rem;
+    }
+
+    .ap-quota-message {
+        min-height: 1.1rem;
+        margin-top: .45rem;
+        color: var(--ap-faded);
+        font-size: .68rem;
+    }
+
+    .ap-quota-use {
+        display: flex;
+        justify-content: space-between;
+        gap: .5rem;
+        margin-top: .6rem;
+        color: var(--ap-secondary);
+        font-size: .65rem;
+        font-weight: 700;
+    }
+
+    .ap-quota-message.error {
+        color: #b91c1c;
+        font-weight: 700;
+    }
+
+    .ap-quota-empty {
+        padding: 1.25rem;
+        border: 1px dashed var(--ap-border-strong);
+        border-radius: 8px;
+        color: var(--ap-secondary);
+        text-align: center;
+        font-size: .76rem;
+    }
+
     .ap-toast-root {
         position: fixed;
         z-index: 1250;
@@ -1235,6 +1473,40 @@
             border-radius: 22px 22px 0 0;
         }
 
+        .ap-quota-summary {
+            top: 61px;
+            grid-template-columns: 1fr;
+        }
+
+        .ap-quota-summary-value {
+            min-width: 0;
+            text-align: left;
+        }
+
+        .ap-quota-tools,
+        .ap-quota-controls {
+            grid-template-columns: 1fr;
+        }
+
+        .ap-quota-card-head {
+            align-items: flex-start;
+        }
+
+        .ap-quota-card-actions .ap-btn {
+            width: 36px;
+            min-width: 36px;
+            padding: .48rem;
+        }
+
+        .ap-quota-card-actions .ap-btn span {
+            display: none;
+        }
+
+        .ap-quota-numbers {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
         .ap-skeleton-grid {
             grid-template-columns: 1fr;
         }
@@ -1423,6 +1695,54 @@
     </div>
 </div>
 
+<div class="ap-modal" id="product-limits-modal" aria-hidden="true">
+    <div class="ap-dialog ap-quota-dialog">
+        <div class="ap-dialog-head">
+            <div>
+                <strong>Produtos e cotas</strong>
+                <small style="display:block;margin-top:.15rem;color:var(--ap-faded)">
+                    {{ $associate->display_name }}
+                </small>
+            </div>
+
+            <button class="ap-dialog-close" type="button" onclick="closeProductLimitsManager()" aria-label="Fechar">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+
+        <div class="ap-dialog-body">
+            <div id="quota-summary" class="ap-quota-summary"></div>
+
+            <div class="ap-quota-tools">
+                <input
+                    class="ap-input"
+                    id="quota-product-search"
+                    type="search"
+                    placeholder="Buscar produto para adicionar"
+                    autocomplete="off"
+                    oninput="renderQuotaProductOptions()"
+                >
+
+                <button class="ap-btn primary" type="button" onclick="toggleQuotaProductOptions()">
+                    <i data-lucide="package-plus"></i>
+                    Adicionar produto
+                </button>
+            </div>
+
+            <div class="ap-quota-search-results" id="quota-product-options" hidden></div>
+            <div class="ap-quota-list" id="quota-list"></div>
+        </div>
+
+        <div class="ap-dialog-actions">
+            <button class="ap-btn" type="button" onclick="closeProductLimitsManager()">Cancelar</button>
+            <button class="ap-btn primary" type="button" id="quota-save-all" onclick="saveProductLimitChanges()">
+                <i data-lucide="save"></i>
+                Salvar alterações
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="ap-modal" id="confirm-modal" aria-hidden="true">
     <div class="ap-dialog" style="max-width:440px">
         <div class="ap-dialog-head">
@@ -1454,6 +1774,7 @@
     const AP_TENANT = @json($tenantSlug);
     const AP_CSRF = @json(csrf_token());
     const AP_CAN_MANAGE = @json($canManageLimits);
+    const AP_LIMITS_PAGE = @json($associateLimitsUrl);
 
     let apSection = 'summary';
     let apPage = 1;
@@ -1463,6 +1784,11 @@
     let apLimitSummary = {};
     let apTimer = null;
     let apPendingConfirmation = null;
+    let apQuotaRows = new Map();
+    let apQuotaOriginals = new Map();
+    let apQuotaEditing = null;
+    let apQuotaBatchUrl = null;
+    let apQuotaBusy = false;
 
     const apRoot = document.getElementById('ap-content');
     const apTabs = [...document.querySelectorAll('.ap-tab')];
@@ -1792,10 +2118,10 @@
 
         if (AP_CAN_MANAGE && summary.allows_product_limits) {
             actions += `
-                <button class="ap-btn primary" type="button" onclick="openProductLimit()">
+                <a class="ap-btn primary" href="${AP_LIMITS_PAGE}">
                     <i data-lucide="package-plus"></i>
-                    Adicionar produto
-                </button>
+                    Gerenciar produtos e cotas
+                </a>
             `;
         }
 
@@ -1817,15 +2143,14 @@
                 </td>
                 <td>
                     ${AP_CAN_MANAGE ? `
-                        <button
+                        <a
                             class="ap-btn"
-                            type="button"
-                            onclick="openProductLimitById(${Number(item.id)})"
+                            href="${AP_LIMITS_PAGE}#produto-${Number(item.product_id)}"
                             title="Editar limite"
                         >
                             <i data-lucide="pencil"></i>
                             Editar
-                        </button>
+                        </a>
                     ` : '-'}
                 </td>
             </tr>
@@ -1879,10 +2204,10 @@
 
                 ${AP_CAN_MANAGE ? `
                     <div class="ap-mobile-card-actions">
-                        <button class="ap-btn primary" type="button" onclick="openProductLimitById(${Number(item.id)})">
+                        <a class="ap-btn primary" href="${AP_LIMITS_PAGE}#produto-${Number(item.product_id)}">
                             <i data-lucide="pencil"></i>
                             Editar limite
-                        </button>
+                        </a>
                     </div>
                 ` : ''}
             </article>
@@ -2658,82 +2983,489 @@
         openLimitModal();
     }
 
-    async function openProductLimit(current = null) {
-        if (!apProducts.length) {
-            const data = await api(`${AP_BASE}/data/products`);
-            apProducts = data.data || [];
+    async function openProductLimitsManager(focusProductId = null) {
+        if (apQuotaBusy) return;
+
+        const modal = document.getElementById('product-limits-modal');
+        modal.classList.add('open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.getElementById('quota-list').innerHTML = stateView(
+            'Carregando produtos',
+            'Aguarde um instante.',
+            'loader-circle'
+        );
+
+        try {
+            const [limits, products] = await Promise.all([
+                api(`${AP_BASE}/data/limits`),
+                api(`${AP_BASE}/data/products`),
+            ]);
+
+            hydrateQuotaManager(limits, products.data || []);
+            renderQuotaManager();
+
+            if (focusProductId && apQuotaRows.has(String(focusProductId))) {
+                unlockQuotaCard(focusProductId);
+                window.setTimeout(() => {
+                    document.getElementById(`quota-card-${focusProductId}`)?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                    });
+                }, 80);
+            }
+        } catch (error) {
+            notify(error.message, 'error');
+            closeProductLimitsManager();
         }
-
-        document.getElementById('limit-kind').value = 'product';
-        document.getElementById('limit-title').textContent = current
-            ? 'Editar limite do produto'
-            : 'Adicionar produto permitido';
-
-        document.getElementById('limit-value-label').textContent = 'Quantidade máxima';
-        document.getElementById('limit-value').step = '0.001';
-        document.getElementById('limit-value').value = current?.maximum_quantity ?? '';
-        document.getElementById('limit-notes').value = current?.notes ?? '';
-        document.getElementById('product-field').hidden = false;
-        document.getElementById('limit-simulation').hidden = false;
-
-        document.getElementById('limit-product').innerHTML = apProducts.map(item => `
-            <option
-                value="${item.id}"
-                ${current && String(current.product_id) === String(item.id) ? 'selected' : ''}
-            >
-                ${esc(item.name)} · ${money(item.price)}/${esc(item.unit)}${item.available_for_associate === null ? '' : ' · disponível ' + qty(item.available_for_associate)}
-            </option>
-        `).join('');
-
-        document.getElementById('limit-product').disabled = Boolean(current);
-        updateProductLimitAvailability();
-        openLimitModal();
     }
 
-    function updateProductLimitAvailability() {
-        const productId = document.getElementById('limit-product').value;
-        const product = apProducts.find(item => String(item.id) === String(productId));
-        const helper = document.getElementById('limit-availability');
-        const input = document.getElementById('limit-value');
-        const simulation = document.getElementById('limit-simulation');
-        const simulatedValue = document.getElementById('limit-simulated-value');
-        const simulatedTotal = document.getElementById('limit-simulated-total');
+    function hydrateQuotaManager(limits, products) {
+        apProducts = products;
+        apLimitSummary = limits.summary || {};
+        apQuotaBatchUrl = limits.batch_update_url;
+        apQuotaRows = new Map();
+        apQuotaOriginals = new Map();
+        apQuotaEditing = null;
 
-        if (product) {
-            const current = Object.values(apLimitRows).find(
-                item => String(item.product_id) === String(productId)
-            );
-            const quantity = Math.max(0, Number(input.value || 0));
-            const value = quantity * Number(product.price || 0);
-            const currentValue = Number(current?.estimated_maximum_value || 0);
-            const total = Math.max(0, Number(apLimitSummary.simulated_limit_value || 0) - currentValue) + value;
-            const ceiling = apLimitSummary.financial_limit === null
+        const currentByProduct = new Map(
+            (limits.products || []).map(item => [String(item.product_id), item])
+        );
+
+        products.forEach(product => {
+            const current = currentByProduct.get(String(product.id));
+            if (!current) return;
+
+            const row = quotaRow(product, current);
+            apQuotaRows.set(String(product.id), row);
+            apQuotaOriginals.set(String(product.id), Number(row.quantity));
+        });
+    }
+
+    function quotaRow(product, current = null) {
+        const delivered = Number(current?.delivered_quantity ?? product.delivered_quantity ?? 0);
+        const quantity = Number(current?.maximum_quantity ?? Math.max(delivered, .001));
+
+        return {
+            productId: Number(product.id),
+            name: product.name || current?.product || 'Produto',
+            unit: product.unit || current?.unit || '',
+            price: Number(product.price ?? current?.reference_unit_price ?? 0),
+            quantity,
+            delivered,
+            projectMaximum: product.project_maximum === null ? null : Number(product.project_maximum),
+            allocatedToOthers: Number(product.allocated_to_others || 0),
+            maximum: product.available_for_associate === null
                 ? null
-                : Number(apLimitSummary.financial_limit || 0);
-            simulation.hidden = false;
-            simulatedValue.textContent = `${money(value)} neste produto`;
-            simulatedTotal.textContent = ceiling === null
-                ? `${money(total)} planejado no total`
-                : `${money(total)} de ${money(ceiling)} planejado`;
-            simulatedTotal.style.color = ceiling !== null && total > ceiling
-                ? '#b91c1c'
-                : '';
+                : Number(product.available_for_associate),
+            deleteUrl: current?.delete_url || null,
+            isNew: !current,
+        };
+    }
+
+    function renderQuotaManager() {
+        const root = document.getElementById('quota-list');
+        const rows = [...apQuotaRows.values()].sort((left, right) =>
+            left.name.localeCompare(right.name, 'pt-BR')
+        );
+
+        root.innerHTML = rows.length
+            ? rows.map(renderQuotaCard).join('')
+            : '<div class="ap-quota-empty">Nenhum produto configurado. Use a busca acima para adicionar o primeiro.</div>';
+
+        refreshQuotaState();
+        renderQuotaProductOptions();
+        icons();
+    }
+
+    function renderQuotaCard(row) {
+        const key = String(row.productId);
+        const editing = apQuotaEditing === key;
+        const sliderMaximum = quotaSliderMaximum(row);
+        const percent = Number(row.quantity) > 0
+            ? Math.min(100, (row.delivered / Number(row.quantity)) * 100)
+            : 0;
+
+        return `
+            <article class="ap-quota-card ${editing ? 'editing' : ''}" id="quota-card-${row.productId}">
+                <div class="ap-quota-card-head">
+                    <div class="ap-quota-card-title">
+                        <strong>${esc(row.name)}</strong>
+                        <small>${money(row.price)} por ${esc(row.unit || 'unidade')}</small>
+                    </div>
+
+                    <div class="ap-quota-card-actions">
+                        <button class="ap-btn ${editing ? 'primary' : ''}" type="button" onclick="unlockQuotaCard(${row.productId})">
+                            <i data-lucide="${editing ? 'lock-open' : 'pencil'}"></i>
+                            <span>${editing ? 'Editando' : 'Editar'}</span>
+                        </button>
+                        <button class="ap-btn danger" type="button" onclick="requestQuotaRemoval(${row.productId})">
+                            <i data-lucide="trash-2"></i>
+                            <span>Remover</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ap-quota-numbers">
+                    <div class="ap-quota-number">
+                        <span>Já entregue</span>
+                        <strong>${qty(row.delivered)} ${esc(row.unit)}</strong>
+                    </div>
+                    <div class="ap-quota-number">
+                        <span>Cota definida</span>
+                        <strong id="quota-label-${row.productId}">${qty(row.quantity)} ${esc(row.unit)}</strong>
+                    </div>
+                    <div class="ap-quota-number">
+                        <span>Saldo para entregar</span>
+                        <strong id="quota-remaining-${row.productId}">${qty(Math.max(0, row.quantity - row.delivered))} ${esc(row.unit)}</strong>
+                    </div>
+                    <div class="ap-quota-number">
+                        <span>Valor planejado</span>
+                        <strong id="quota-value-${row.productId}">${money(row.quantity * row.price)}</strong>
+                    </div>
+                </div>
+
+                <div class="ap-quota-use">
+                    <span>Uso da cota</span>
+                    <span id="quota-use-label-${row.productId}">${Math.round(percent)}% já entregue</span>
+                </div>
+                <div class="ap-progress ${progressTone(percent)}">
+                    <span id="quota-progress-${row.productId}" style="width:${percent}%"></span>
+                </div>
+
+                <div class="ap-quota-controls">
+                    <label>
+                        Ajustar cota deslizando
+                        <input
+                            class="ap-quota-slider"
+                            id="quota-slider-${row.productId}"
+                            type="range"
+                            min="${row.delivered}"
+                            max="${sliderMaximum}"
+                            step="0.001"
+                            value="${row.quantity}"
+                            ${editing ? '' : 'disabled'}
+                            oninput="setQuotaQuantity(${row.productId}, this.value, 'slider')"
+                        >
+                    </label>
+
+                    <label>
+                        Cota máxima (${esc(row.unit)})
+                        <input
+                            class="ap-quota-input"
+                            id="quota-input-${row.productId}"
+                            type="number"
+                            min="${row.delivered}"
+                            ${row.maximum === null ? '' : `max="${row.maximum}"`}
+                            step="0.001"
+                            value="${row.quantity}"
+                            ${editing ? '' : 'disabled'}
+                            oninput="setQuotaQuantity(${row.productId}, this.value, 'input')"
+                        >
+                    </label>
+                </div>
+
+                <div class="ap-quota-message" id="quota-message-${row.productId}">
+                    ${quotaAvailabilityText(row)}
+                </div>
+            </article>
+        `;
+    }
+
+    function quotaSliderMaximum(row) {
+        if (row.maximum !== null) {
+            return Math.max(row.delivered, row.maximum);
         }
 
-        if (!product || product.project_maximum === null) {
-            helper.textContent = 'Sem meta geral para este produto.';
-            helper.hidden = false;
-            input.removeAttribute('max');
+        return Math.max(100, row.delivered, row.quantity, Math.ceil(row.quantity * 1.5));
+    }
+
+    function quotaAvailabilityText(row) {
+        if (row.projectMaximum === null) {
+            return 'Sem meta geral para este produto. O limite financeiro continua sendo validado.';
+        }
+
+        return `Meta do projeto: ${qty(row.projectMaximum)} ${row.unit} · reservado aos demais: ${qty(row.allocatedToOthers)} · máximo para este associado: ${qty(row.maximum)}.`;
+    }
+
+    function unlockQuotaCard(productId) {
+        apQuotaEditing = String(productId);
+        renderQuotaManager();
+
+        window.setTimeout(() => {
+            const input = document.getElementById(`quota-input-${productId}`);
+            input?.focus();
+            input?.select();
+        }, 30);
+    }
+
+    function setQuotaQuantity(productId, rawValue, source) {
+        const row = apQuotaRows.get(String(productId));
+        if (!row) return;
+
+        const input = document.getElementById(`quota-input-${productId}`);
+        const slider = document.getElementById(`quota-slider-${productId}`);
+        const parsed = Number(String(rawValue).replace(',', '.'));
+
+        if (source === 'input' && rawValue === '') {
+            row.quantity = NaN;
+            refreshQuotaState();
+            return;
+        }
+        if (!Number.isFinite(parsed)) return;
+
+        row.quantity = Math.max(0, parsed);
+        if (source !== 'input' && input) input.value = String(row.quantity);
+        if (source !== 'slider' && slider) {
+            slider.max = String(Math.max(quotaSliderMaximum(row), row.quantity));
+            slider.value = String(Math.min(row.quantity, Number(slider.max)));
+        }
+
+        refreshQuotaState();
+    }
+
+    function quotaValidation(row) {
+        if (!Number.isFinite(row.quantity) || row.quantity <= 0) {
+            return 'Informe uma cota maior que zero.';
+        }
+        if (row.quantity + .000001 < row.delivered) {
+            return `A cota não pode ser menor que ${qty(row.delivered)} ${row.unit}, pois essa quantidade já foi entregue.`;
+        }
+        if (row.maximum !== null && row.quantity > row.maximum + .000001) {
+            return `A cota máxima disponível para este associado é ${qty(row.maximum)} ${row.unit}.`;
+        }
+
+        return '';
+    }
+
+    function quotaTotals() {
+        const total = [...apQuotaRows.values()].reduce(
+            (sum, row) => sum + (Number.isFinite(row.quantity) ? row.quantity * row.price : 0),
+            0
+        );
+        const ceiling = apLimitSummary.financial_limit === null
+            ? null
+            : Number(apLimitSummary.financial_limit || 0);
+
+        return { total, ceiling, excess: ceiling === null ? 0 : Math.max(0, total - ceiling) };
+    }
+
+    function quotaHasChanges() {
+        if (apQuotaRows.size !== apQuotaOriginals.size) return true;
+
+        return [...apQuotaRows.entries()].some(([key, row]) =>
+            Math.abs(Number(row.quantity) - Number(apQuotaOriginals.get(key))) > .000001
+        );
+    }
+
+    function refreshQuotaState() {
+        const totals = quotaTotals();
+        const summary = document.getElementById('quota-summary');
+        const invalidRows = [];
+
+        apQuotaRows.forEach(row => {
+            const validation = quotaValidation(row);
+            const card = document.getElementById(`quota-card-${row.productId}`);
+            const message = document.getElementById(`quota-message-${row.productId}`);
+            const percent = Number(row.quantity) > 0
+                ? Math.min(100, (row.delivered / Number(row.quantity)) * 100)
+                : 0;
+
+            if (validation) invalidRows.push(row.productId);
+            card?.classList.toggle('invalid', Boolean(validation));
+            if (message) {
+                message.textContent = validation || quotaAvailabilityText(row);
+                message.classList.toggle('error', Boolean(validation));
+            }
+
+            const label = document.getElementById(`quota-label-${row.productId}`);
+            const remaining = document.getElementById(`quota-remaining-${row.productId}`);
+            const value = document.getElementById(`quota-value-${row.productId}`);
+            const progress = document.getElementById(`quota-progress-${row.productId}`);
+            const useLabel = document.getElementById(`quota-use-label-${row.productId}`);
+            if (label) label.textContent = `${qty(row.quantity)} ${row.unit}`;
+            if (remaining) remaining.textContent = `${qty(Math.max(0, row.quantity - row.delivered))} ${row.unit}`;
+            if (value) value.textContent = money(row.quantity * row.price);
+            if (progress) {
+                progress.style.width = `${percent}%`;
+                progress.parentElement?.classList.toggle('warning', percent >= 80 && percent < 100);
+                progress.parentElement?.classList.toggle('danger', percent >= 100);
+            }
+            if (useLabel) useLabel.textContent = `${Math.round(percent)}% já entregue`;
+        });
+
+        const ceilingText = totals.ceiling === null
+            ? 'Sem teto financeiro definido'
+            : `${money(Math.max(0, totals.ceiling - totals.total))} ainda disponível`;
+        summary.classList.toggle('danger', totals.excess > .005);
+        summary.innerHTML = `
+            <div>
+                <small>Valor simulado de todas as cotas</small>
+                <strong>${money(totals.total)}</strong>
+                <div class="ap-progress ${totals.excess > .005 ? 'danger' : progressTone(
+                    totals.ceiling ? (totals.total / totals.ceiling) * 100 : 0
+                )}">
+                    <span style="width:${totals.ceiling ? Math.min(100, (totals.total / totals.ceiling) * 100) : 0}%"></span>
+                </div>
+            </div>
+            <div class="ap-quota-summary-value">
+                <small>${totals.excess > .005 ? 'Teto ultrapassado' : 'Situação financeira'}</small>
+                <strong>${totals.excess > .005 ? money(totals.excess) + ' acima' : ceilingText}</strong>
+            </div>
+        `;
+
+        const save = document.getElementById('quota-save-all');
+        save.disabled = apQuotaBusy
+            || !quotaHasChanges()
+            || invalidRows.length > 0
+            || totals.excess > .005;
+    }
+
+    function toggleQuotaProductOptions() {
+        const options = document.getElementById('quota-product-options');
+        options.hidden = !options.hidden;
+        if (!options.hidden) {
+            document.getElementById('quota-product-search')?.focus();
+            renderQuotaProductOptions();
+        }
+    }
+
+    function renderQuotaProductOptions() {
+        const root = document.getElementById('quota-product-options');
+        const term = (document.getElementById('quota-product-search')?.value || '')
+            .trim()
+            .toLocaleLowerCase('pt-BR');
+        const available = apProducts.filter(product =>
+            !apQuotaRows.has(String(product.id))
+            && (!term || String(product.name || '').toLocaleLowerCase('pt-BR').includes(term))
+        );
+
+        root.innerHTML = available.length
+            ? available.slice(0, 60).map(product => `
+                <button class="ap-quota-product-option" type="button" onclick="addQuotaProduct(${Number(product.id)})">
+                    <div>
+                        <strong>${esc(product.name)}</strong>
+                        <small>${money(product.price)} por ${esc(product.unit || 'unidade')}</small>
+                    </div>
+                    <span>${product.available_for_associate === null
+                        ? 'Sem meta geral'
+                        : qty(product.available_for_associate) + ' disponível'}</span>
+                </button>
+            `).join('')
+            : '<div class="ap-quota-empty">Nenhum produto disponível para esta busca.</div>';
+    }
+
+    function addQuotaProduct(productId) {
+        const product = apProducts.find(item => String(item.id) === String(productId));
+        if (!product) return;
+
+        const row = quotaRow(product);
+        apQuotaRows.set(String(productId), row);
+        apQuotaEditing = String(productId);
+        document.getElementById('quota-product-options').hidden = true;
+        document.getElementById('quota-product-search').value = '';
+        renderQuotaManager();
+
+        window.setTimeout(() => {
+            document.getElementById(`quota-card-${productId}`)?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+            const input = document.getElementById(`quota-input-${productId}`);
+            input?.focus();
+            input?.select();
+        }, 50);
+    }
+
+    function requestQuotaRemoval(productId) {
+        const row = apQuotaRows.get(String(productId));
+        if (!row) return;
+
+        if (row.isNew || !row.deleteUrl) {
+            apQuotaRows.delete(String(productId));
+            apQuotaEditing = null;
+            renderQuotaManager();
             return;
         }
 
-        helper.textContent = `Meta: ${qty(product.project_maximum)} ${product.unit || ''} · comprometido com outros: ${qty(product.allocated_to_others)} · disponível: ${qty(product.available_for_associate)}`;
-        helper.hidden = false;
-        input.max = String(product.available_for_associate);
+        openConfirmModal(
+            'Remover limite do produto',
+            `A definição de ${row.name} será removida. Entregas já registradas serão preservadas.`,
+            async () => {
+                const button = document.getElementById('confirm-action');
+                try {
+                    button.disabled = true;
+                    const response = await api(row.deleteUrl, {
+                        method: 'DELETE',
+                        body: '{}',
+                    });
+                    closeConfirmModal();
+                    notify(response.message || 'Limite removido.');
+                    hydrateQuotaManager(response.data, apProducts);
+                    renderQuotaManager();
+                    if (apSection === 'limits') loadSection();
+                } catch (error) {
+                    notify(error.message, 'error');
+                } finally {
+                    button.disabled = false;
+                }
+            }
+        );
+    }
+
+    async function saveProductLimitChanges() {
+        if (apQuotaBusy || !apQuotaBatchUrl) return;
+
+        const changes = [...apQuotaRows.entries()]
+            .filter(([key, row]) =>
+                !apQuotaOriginals.has(key)
+                || Math.abs(Number(row.quantity) - Number(apQuotaOriginals.get(key))) > .000001
+            )
+            .map(([, row]) => ({
+                product_id: row.productId,
+                max_quantity: Number(row.quantity.toFixed(3)),
+            }));
+
+        if (!changes.length) return;
+
+        const button = document.getElementById('quota-save-all');
+        try {
+            apQuotaBusy = true;
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader-circle"></i> Salvando';
+            icons();
+
+            const response = await api(apQuotaBatchUrl, {
+                method: 'PUT',
+                body: JSON.stringify({ limits: changes }),
+            });
+            notify(response.message || 'Cotas atualizadas.');
+            closeProductLimitsManager();
+            if (apSection === 'limits') loadSection();
+        } catch (error) {
+            notify(error.message, 'error');
+        } finally {
+            apQuotaBusy = false;
+            button.innerHTML = '<i data-lucide="save"></i> Salvar alterações';
+            refreshQuotaState();
+            icons();
+        }
+    }
+
+    function closeProductLimitsManager() {
+        document.getElementById('product-limits-modal').classList.remove('open');
+        document.getElementById('product-limits-modal').setAttribute('aria-hidden', 'true');
+        document.getElementById('quota-product-options').hidden = true;
+        document.getElementById('quota-product-search').value = '';
+        apQuotaEditing = null;
+    }
+
+    function openProductLimit() {
+        openProductLimitsManager();
     }
 
     function openProductLimitById(id) {
-        openProductLimit(apLimitRows[String(id)] || null);
+        const current = apLimitRows[String(id)];
+        openProductLimitsManager(current?.product_id || id);
     }
 
     function requestParticipation(status) {
@@ -2849,24 +3581,10 @@
         }
     });
 
-    document.getElementById('limit-product').addEventListener('change', updateProductLimitAvailability);
-    document.getElementById('limit-value').addEventListener('input', updateProductLimitAvailability);
-
-    document.getElementById('limit-modal').addEventListener('click', event => {
-        if (event.target.id === 'limit-modal') {
-            closeLimitModal();
-        }
-    });
-
-    document.getElementById('confirm-modal').addEventListener('click', event => {
-        if (event.target.id === 'confirm-modal') {
-            closeConfirmModal();
-        }
-    });
-
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
             closeLimitModal();
+            closeProductLimitsManager();
             closeConfirmModal();
         }
     });
