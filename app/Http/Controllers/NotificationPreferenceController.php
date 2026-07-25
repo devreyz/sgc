@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Filament\Pages\NotificationManagement;
 use App\Models\NotificationEventPreference;
 use App\Models\Tenant;
 use App\Support\NotificationEventCatalog;
@@ -9,25 +10,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 class NotificationPreferenceController extends Controller
 {
-    public function index(Request $request, Tenant $tenant): View
+    public function index(Request $request, Tenant $tenant): RedirectResponse
     {
         $this->authorizeAdmin($request, $tenant);
 
-        $preferences = NotificationEventPreference::query()
-            ->where('tenant_id', $tenant->id)
-            ->get()
-            ->keyBy('event_key');
-
-        return view('notifications.settings', [
-            'tenant' => $tenant,
-            'catalog' => NotificationEventCatalog::all(),
-            'roleOptions' => NotificationEventCatalog::roles(),
-            'preferences' => $preferences,
-        ]);
+        return redirect()->to(NotificationManagement::getUrl());
     }
 
     public function update(Request $request, Tenant $tenant): RedirectResponse

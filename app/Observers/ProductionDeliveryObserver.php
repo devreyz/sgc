@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Enums\DeliveryStatus;
 use App\Models\ProductionDelivery;
+use App\Models\ProjectDemand;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\Log;
 
@@ -26,12 +27,16 @@ class ProductionDeliveryObserver
         if ($delivery->projectDemand) {
             $delivery->projectDemand->updateDeliveredQuantity();
         }
-        
+
         // Notify about new delivery
         try {
             $this->notificationService->notifyDelivery($delivery);
         } catch (\Throwable $e) {
-            Log::error('Error notifying delivery: ' . $e->getMessage());
+            Log::error('Falha ao notificar o registro de entrega.', [
+                'tenant_id' => $delivery->tenant_id,
+                'delivery_id' => $delivery->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -75,7 +80,7 @@ class ProductionDeliveryObserver
 
                 $originalDemandId = (int) $delivery->getOriginal('project_demand_id');
                 if ($originalDemandId && $originalDemandId !== (int) $delivery->project_demand_id) {
-                    \App\Models\ProjectDemand::find($originalDemandId)?->updateDeliveredQuantity();
+                    ProjectDemand::find($originalDemandId)?->updateDeliveredQuantity();
                 }
 
                 // NÃO gerar movimentações financeiras aqui.
@@ -83,9 +88,9 @@ class ProductionDeliveryObserver
                 // Distribuições aguardam faturamento manual pelo gestor (billing_status = unbilled).
 
             } catch (\Throwable $e) {
-                Log::error('Error processing delivery approval: ' . $e->getMessage(), [
+                Log::error('Error processing delivery approval: '.$e->getMessage(), [
                     'delivery_id' => $delivery->id,
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
             } finally {
                 // Always reset the flag

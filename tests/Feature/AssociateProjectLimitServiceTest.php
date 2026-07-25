@@ -8,14 +8,15 @@ use App\Models\ProjectAssociateProductLimit;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Services\AssociateProjectLimitService;
+use App\Services\ProjectDemandService;
 use App\Services\ProjectDistributionCustomerService;
 use App\Services\TenantResolver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 class AssociateProjectLimitServiceTest extends TestCase
@@ -671,6 +672,108 @@ class AssociateProjectLimitServiceTest extends TestCase
         ]);
 
         $this->assertSame([], app(ProjectDistributionCustomerService::class)->ids($project->fresh())->all());
+    }
+
+    public function test_product_demand_budget_cannot_exceed_project_financial_ceiling(): void
+    {
+        [$project] = $this->fixture(false);
+        $project->update(['total_value' => 1000]);
+        $service = app(ProjectDemandService::class);
+
+        $first = $service->createDemand($project->fresh(), [
+            'product_id' => 1,
+            'customer_id' => 1,
+            'target_quantity' => 100,
+        ]);
+
+        $this->assertSame(5.0, (float) $first->unit_price);
+        $this->assertSame(500.0, $service->budgetSummary($project->fresh())['planned_value']);
+        $this->assertSame(100.0, $service->budgetPreview(
+            $project->fresh(),
+            1,
+            1,
+            0,
+        )['maximum_quantity']);
+
+        try {
+            $service->createDemand($project->fresh(), [
+                'product_id' => 1,
+                'customer_id' => 1,
+                'target_quantity' => 101,
+            ]);
+            $this->fail('A meta deveria ter sido bloqueada pelo teto financeiro.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('target_quantity', $exception->errors());
+        }
+
+        $this->assertDatabaseCount('project_demands', 1);
+    }
+
+    public function test_editing_product_demand_releases_its_previous_budget_before_recalculation(): void
+    {
+        [$project] = $this->fixture(false);
+        $project->update(['total_value' => 1000]);
+        $service = app(ProjectDemandService::class);
+        $demand = $service->createDemand($project->fresh(), [
+            'product_id' => 1,
+            'customer_id' => 1,
+            'target_quantity' => 100,
+        ]);
+
+        $updated = $service->updateDemand($project->fresh(), $demand, [
+            'product_id' => 1,
+            'customer_id' => 1,
+            'target_quantity' => 180,
+        ]);
+
+        $this->assertSame(180.0, (float) $updated->target_quantity);
+        $this->assertSame(900.0, $service->budgetSummary($project->fresh())['planned_value']);
+
+        $this->expectException(ValidationException::class);
+        $service->updateDemand($project->fresh(), $updated, [
+            'product_id' => 1,
+            'customer_id' => 1,
+            'target_quantity' => 201,
+        ]);
+    }
+
+    public function test_general_demand_uses_highest_destination_price_for_safe_budget_reservation(): void
+    {
+        [$project] = $this->fixture(true);
+        $project->update(['total_value' => 1000]);
+        DB::table('price_tables')->insert([
+            'id' => 2,
+            'tenant_id' => 1,
+            'name' => 'Tabela B',
+            'active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('price_table_items')->insert([
+            'price_table_id' => 2,
+            'product_id' => 1,
+            'sale_price' => 8,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('customers')->where('id', 2)->update(['price_table_id' => 2]);
+
+        $demand = app(ProjectDemandService::class)->createDemand($project->fresh(), [
+            'product_id' => 1,
+            'customer_id' => null,
+            'target_quantity' => 100,
+        ]);
+        $preview = app(ProjectDemandService::class)->budgetPreview(
+            $project->fresh(),
+            null,
+            1,
+            100,
+            $demand->id,
+        );
+
+        $this->assertSame(8.0, (float) $demand->unit_price);
+        $this->assertSame(800.0, app(ProjectDemandService::class)->budgetSummary($project->fresh())['planned_value']);
+        $this->assertTrue($preview['uses_maximum_price']);
     }
 
     private function fixture(bool $withSecondCustomer): array

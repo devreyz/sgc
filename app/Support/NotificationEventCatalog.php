@@ -9,7 +9,7 @@ class NotificationEventCatalog
     public static function all(): array
     {
         return [
-            'delivery.registered' => self::event('Entrega registrada', 'Entregas', 'Nova entrada fisica registrada.', ['registrador_entregas', 'admin'], false, 'normal'),
+            'delivery.registered' => self::event('Entrega registrada', 'Entregas', 'Nova entrada fisica registrada.', ['registrador_entregas', 'admin'], true, 'normal'),
             'distribution.changed' => self::event('Distribuicao alterada', 'Entregas', 'Registro interno de distribuicoes editaveis.', ['registrador_entregas', 'admin'], false, 'info', false),
             'receipt.generated' => self::event('Comprovante gerado', 'Comprovantes', 'Um comprovante do associado foi gerado ou regenerado.', ['associado', 'registrador_entregas', 'admin'], true, 'high'),
             'receipt.obsolete' => self::event('Comprovante obsoleto', 'Comprovantes', 'Um comprovante precisa ser conferido e regenerado.', ['registrador_entregas', 'financeiro', 'admin'], true, 'high'),
@@ -20,6 +20,7 @@ class NotificationEventCatalog
             'expense.overdue' => self::event('Despesa vencida', 'Financeiro', 'Despesa ultrapassou a data de vencimento.', ['financeiro', 'tesoureiro', 'admin'], true, 'high'),
             'associate.limit_updated' => self::event('Limite atualizado', 'Projetos', 'Limite de participacao ou produto do associado alterado.', ['associado', 'registrador_entregas'], true, 'normal'),
             'buyer_request.created' => self::event('Solicitacao recebida', 'Compradores', 'Nova solicitacao de uma organizacao compradora.', ['registrador_entregas', 'admin'], true, 'normal'),
+            'manual.message' => self::event('Mensagem administrativa', 'Administracao', 'Mensagem enviada diretamente por um administrador.', [], true, 'normal'),
         ];
     }
 

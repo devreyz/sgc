@@ -11,13 +11,15 @@ use App\Models\Tenant;
 
 class NotificationService
 {
-    public function __construct(private readonly TenantNotificationDispatcher $dispatcher)
-    {
-    }
+    public function __construct(private readonly TenantNotificationDispatcher $dispatcher) {}
 
     public function notifyDelivery(ProductionDelivery $delivery): void
     {
-        $delivery->loadMissing(['associate:id,tenant_id,name,user_id', 'product:id,name,unit', 'salesProject:id,name']);
+        $delivery->loadMissing([
+            'associate:id,tenant_id,user_id',
+            'product:id,name,unit',
+            'salesProject:id,title',
+        ]);
         $tenantId = (int) $delivery->tenant_id;
         if (! $tenantId || ! $delivery->associate || ! $delivery->product) {
             return;
@@ -38,7 +40,9 @@ class NotificationService
     public function notifyLowStock(Product $product): void
     {
         $tenantId = (int) $product->tenant_id;
-        if (! $tenantId) return;
+        if (! $tenantId) {
+            return;
+        }
 
         $this->dispatcher->dispatchToConfiguredRoles('stock.low', $tenantId, [
             'title' => 'Estoque baixo',
@@ -51,7 +55,9 @@ class NotificationService
     public function notifyDapCafExpiring(Associate $associate): void
     {
         $tenantId = (int) $associate->tenant_id;
-        if (! $tenantId) return;
+        if (! $tenantId) {
+            return;
+        }
 
         $this->dispatcher->dispatchToConfiguredRoles('associate.document_expiring', $tenantId, [
             'title' => 'Documento a vencer',
@@ -64,7 +70,9 @@ class NotificationService
     public function notifyOverdueExpense(Expense $expense): void
     {
         $tenantId = (int) $expense->tenant_id;
-        if (! $tenantId) return;
+        if (! $tenantId) {
+            return;
+        }
 
         $this->dispatcher->dispatchToConfiguredRoles('expense.overdue', $tenantId, [
             'title' => 'Despesa vencida',
@@ -90,7 +98,9 @@ class NotificationService
         $associate = $entry->associate;
         $tenantId = (int) ($entry->tenant_id ?: $associate?->tenant_id);
         $user = $associate?->user;
-        if (! $tenantId || ! $user) return;
+        if (! $tenantId || ! $user) {
+            return;
+        }
 
         $tenant = Tenant::query()->find($tenantId, ['id', 'slug']);
         $this->dispatcher->dispatch($event, $tenantId, [$user], [
@@ -104,7 +114,9 @@ class NotificationService
     private function deliveryUrl(ProductionDelivery $delivery): string
     {
         $tenant = Tenant::query()->find($delivery->tenant_id, ['id', 'slug']);
-        if (! $tenant || ! $delivery->sales_project_id) return '/';
+        if (! $tenant || ! $delivery->sales_project_id) {
+            return '/';
+        }
 
         return route('delivery.projects.deliveries', [
             'tenant' => $tenant->slug,

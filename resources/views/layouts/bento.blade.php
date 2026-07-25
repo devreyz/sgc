@@ -1649,13 +1649,6 @@
                     <span class="user-menu-text"><h4>Segurança e acesso</h4><p>Passkeys e conta Google</p></span>
                 </a>
 
-                @if($authenticatedUser?->hasRoleInTenant(['admin', 'super_admin'], $currentTenant?->id))
-                    <a href="{{ route('notifications.settings', ['tenant' => $currentTenantSlug]) }}" class="user-menu-item">
-                        <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="settings-2"></i></span>
-                        <span class="user-menu-text"><h4>Preferencias de notificacao</h4><p>Eventos, prioridades e destinatarios</p></span>
-                    </a>
-                @endif
-
                 <a href="{{ url('/' . $currentTenantSlug . '/wallet') }}" class="user-menu-item">
                     <span class="user-menu-icon primary" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
