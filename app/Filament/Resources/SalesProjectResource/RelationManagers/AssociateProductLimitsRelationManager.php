@@ -49,13 +49,14 @@ class AssociateProductLimitsRelationManager extends RelationManager
                 ->label('Quantidade maxima')
                 ->numeric()
                 ->minValue(0.001)
+                ->maxValue(fn (Get $get, ?ProjectAssociateProductLimit $record): ?float => $this->quantityCapacity($get, $record)['maximum'])
                 ->live(debounce: 400)
                 ->required(),
             Forms\Components\Placeholder::make('allocation_progress')
                 ->label('Disponibilidade da meta')
                 ->content(fn (Get $get): HtmlString => $this->allocationProgress($get)),
             Forms\Components\Placeholder::make('simulated_value')
-                ->label('Valor simulado')
+                ->label('Valor e quantidade sugerida')
                 ->content(fn (Get $get, ?ProjectAssociateProductLimit $record): HtmlString => $this->simulatedValue($get, $record)),
             Forms\Components\Textarea::make('notes')->label('Observacoes')->columnSpanFull(),
         ]);
@@ -63,7 +64,6 @@ class AssociateProductLimitsRelationManager extends RelationManager
 
     private function simulatedValue(Get $get, ?ProjectAssociateProductLimit $record): HtmlString
     {
-        $project = $this->getOwnerRecord();
         $associateId = (int) ($get('associate_id') ?? 0);
         $productId = (int) ($get('product_id') ?? 0);
         $quantity = max(0, (float) ($get('max_quantity') ?? 0));
@@ -71,38 +71,139 @@ class AssociateProductLimitsRelationManager extends RelationManager
             return new HtmlString('<p class="text-sm text-gray-500 dark:text-gray-400">Selecione associado e produto para simular o valor.</p>');
         }
 
-        $service = app(AssociateProjectLimitService::class);
-        $associate = Associate::query()
-            ->where('tenant_id', $project->tenant_id)
-            ->find($associateId);
-        if (! $associate) {
-            return new HtmlString('<p class="text-sm text-danger-600">Associado nao encontrado.</p>');
-        }
-
-        $mode = $service->projectMode($project);
-        $price = $mode['customer']?->priceTable?->priceFor($productId);
-        if ($price === null) {
+        $capacity = $this->quantityCapacity($get, $record);
+        if ($capacity['price'] === null) {
             return new HtmlString('<p class="text-sm text-danger-600">Produto sem preco na tabela do cliente.</p>');
         }
 
-        $value = $quantity * (float) $price;
-        $recordId = $record?->exists ? $record->id : null;
-        $associateTotal = $service->simulatedLimitValue($project, $associateId, $recordId) + $value;
-        $projectTotal = $service->simulatedLimitValue($project, null, $recordId) + $value;
-        $associateCeiling = $service->financialLimit($project, $associate);
-        $projectCeiling = (float) $project->total_value > 0 ? (float) $project->total_value : null;
+        $price = (float) $capacity['price'];
+        $value = $quantity * $price;
+        $associateTotal = $capacity['associate_planned_without_current'] + $value;
+        $projectTotal = $capacity['project_planned_without_current'] + $value;
+        $associateCeiling = $capacity['associate_ceiling'];
+        $projectCeiling = $capacity['project_ceiling'];
         $hasExcess = ($associateCeiling !== null && $associateTotal > $associateCeiling + .005)
-            || ($projectCeiling !== null && $projectTotal > $projectCeiling + .005);
+            || ($projectCeiling !== null && $projectTotal > $projectCeiling + .005)
+            || ($capacity['maximum'] !== null && $quantity > $capacity['maximum'] + .0005);
         $money = static fn (float $number): string => 'R$ '.number_format($number, 2, ',', '.');
+        $formatQuantity = static fn (float $number): string => number_format($number, 3, ',', '.');
+        $unit = e((string) ($capacity['unit'] ?: 'un'));
+
+        $capacityRows = '';
+        if ($capacity['project_financial_quantity'] !== null) {
+            $capacityRows .= '<div style="display:flex;justify-content:space-between;gap:10px"><span>Saldo financeiro do projeto</span><strong>'.$money($capacity['project_financial_remaining']).'</strong></div>';
+            $capacityRows .= '<div style="display:flex;justify-content:space-between;gap:10px"><span>Maximo pelo saldo do projeto</span><strong>'.$formatQuantity($capacity['project_financial_quantity']).' '.$unit.'</strong></div>';
+        }
+        if ($capacity['associate_financial_quantity'] !== null) {
+            $capacityRows .= '<div style="display:flex;justify-content:space-between;gap:10px"><span>Saldo financeiro do associado</span><strong>'.$money($capacity['associate_financial_remaining']).'</strong></div>';
+            $capacityRows .= '<div style="display:flex;justify-content:space-between;gap:10px"><span>Maximo pelo teto do associado</span><strong>'.$formatQuantity($capacity['associate_financial_quantity']).' '.$unit.'</strong></div>';
+        }
+        if ($capacity['product_quantity'] !== null) {
+            $capacityRows .= '<div style="display:flex;justify-content:space-between;gap:10px"><span>Maximo pela meta do produto</span><strong>'.$formatQuantity($capacity['product_quantity']).' '.$unit.'</strong></div>';
+        }
 
         return new HtmlString(
             '<div style="display:grid;gap:9px;padding:12px;border:1px solid '.($hasExcess ? '#fecaca' : '#dbe4dd').';border-radius:8px;background:'.($hasExcess ? '#fef2f2' : '#f8faf9').'">'.
+                '<div style="display:flex;justify-content:space-between;gap:10px"><span>Preco unitario</span><strong>'.$money($price).'</strong></div>'.
                 '<div style="display:flex;justify-content:space-between;gap:10px"><span>Este limite</span><strong>'.$money($value).'</strong></div>'.
                 '<div style="display:flex;justify-content:space-between;gap:10px"><span>Total do associado</span><strong>'.$money($associateTotal).($associateCeiling === null ? '' : ' / '.$money($associateCeiling)).'</strong></div>'.
                 '<div style="display:flex;justify-content:space-between;gap:10px"><span>Total do projeto</span><strong>'.$money($projectTotal).($projectCeiling === null ? '' : ' / '.$money($projectCeiling)).'</strong></div>'.
+                '<div style="height:1px;background:#dbe4dd;margin:2px 0"></div>'.
+                $capacityRows.
+                ($capacity['maximum'] === null
+                    ? '<div style="padding:9px 10px;border-radius:7px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700">Sem teto calculavel para este produto.</div>'
+                    : '<div style="padding:9px 10px;border-radius:7px;background:#dcfce7;color:#166534;font-size:12px;font-weight:700">Quantidade maxima sugerida: '.$formatQuantity($capacity['maximum']).' '.$unit.'</div>').
                 ($hasExcess ? '<div style="color:#b91c1c;font-size:12px;font-weight:700">Reduza a quantidade para respeitar os tetos financeiros.</div>' : '').
             '</div>'
         );
+    }
+
+    /**
+     * Calcula a capacidade total da cota atual, excluindo o proprio registro
+     * durante a edicao para que seu valor anterior nao seja contado duas vezes.
+     *
+     * @return array<string, float|string|null>
+     */
+    private function quantityCapacity(Get $get, ?ProjectAssociateProductLimit $record): array
+    {
+        $project = $this->getOwnerRecord();
+        $associateId = (int) ($get('associate_id') ?? 0);
+        $productId = (int) ($get('product_id') ?? 0);
+        $empty = [
+            'price' => null,
+            'unit' => null,
+            'maximum' => null,
+            'project_financial_quantity' => null,
+            'project_financial_remaining' => null,
+            'associate_financial_quantity' => null,
+            'associate_financial_remaining' => null,
+            'product_quantity' => null,
+            'project_planned_without_current' => 0.0,
+            'associate_planned_without_current' => 0.0,
+            'project_ceiling' => null,
+            'associate_ceiling' => null,
+        ];
+
+        if (! $associateId || ! $productId) {
+            return $empty;
+        }
+
+        $associate = Associate::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->find($associateId);
+        $product = Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->find($productId);
+        if (! $associate || ! $product) {
+            return $empty;
+        }
+
+        $service = app(AssociateProjectLimitService::class);
+        $price = $service->projectMode($project)['customer']?->priceTable?->priceFor($productId);
+        if ($price === null || (float) $price <= 0) {
+            return array_replace($empty, ['unit' => $product->unit]);
+        }
+
+        $recordId = $record?->exists ? $record->id : null;
+        $projectPlanned = $service->simulatedLimitValue($project, null, $recordId);
+        $associatePlanned = $service->simulatedLimitValue($project, $associateId, $recordId);
+        $projectCeiling = (float) $project->total_value > 0 ? (float) $project->total_value : null;
+        $associateCeiling = $service->financialLimit($project, $associate);
+        $allocation = $service->productAllocationSummary($project, $productId, $associateId);
+
+        $projectFinancialQuantity = $projectCeiling === null
+            ? null
+            : max(0, ($projectCeiling - $projectPlanned) / (float) $price);
+        $projectFinancialRemaining = $projectCeiling === null
+            ? null
+            : max(0, $projectCeiling - $projectPlanned);
+        $associateFinancialQuantity = $associateCeiling === null
+            ? null
+            : max(0, ($associateCeiling - $associatePlanned) / (float) $price);
+        $associateFinancialRemaining = $associateCeiling === null
+            ? null
+            : max(0, $associateCeiling - $associatePlanned);
+        $productQuantity = $allocation['project_maximum'] === null
+            ? null
+            : (float) $allocation['available_for_associate'];
+        $caps = collect([$projectFinancialQuantity, $associateFinancialQuantity, $productQuantity])
+            ->filter(fn ($value) => $value !== null);
+        $maximum = $caps->isEmpty() ? null : floor((float) $caps->min() * 1000) / 1000;
+
+        return [
+            'price' => (float) $price,
+            'unit' => $product->unit,
+            'maximum' => $maximum,
+            'project_financial_quantity' => $projectFinancialQuantity === null ? null : floor($projectFinancialQuantity * 1000) / 1000,
+            'project_financial_remaining' => $projectFinancialRemaining,
+            'associate_financial_quantity' => $associateFinancialQuantity === null ? null : floor($associateFinancialQuantity * 1000) / 1000,
+            'associate_financial_remaining' => $associateFinancialRemaining,
+            'product_quantity' => $productQuantity === null ? null : floor($productQuantity * 1000) / 1000,
+            'project_planned_without_current' => $projectPlanned,
+            'associate_planned_without_current' => $associatePlanned,
+            'project_ceiling' => $projectCeiling,
+            'associate_ceiling' => $associateCeiling,
+        ];
     }
 
     private function allocationProgress(Get $get): HtmlString
