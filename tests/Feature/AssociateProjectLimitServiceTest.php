@@ -439,6 +439,31 @@ class AssociateProjectLimitServiceTest extends TestCase
         $this->assertSame(1057.0, (float) $limit->max_quantity);
     }
 
+    public function test_removing_product_limit_archives_rule_and_preserves_delivered_quantity(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        DB::table('project_demands')->insert([
+            'tenant_id' => 1, 'sales_project_id' => $project->id, 'product_id' => $product,
+            'target_quantity' => 100, 'delivered_quantity' => 0, 'unit_price' => 5,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $service = app(AssociateProjectLimitService::class);
+        $limit = $service->setProductLimit($project, $associate, $product, 50);
+        DB::table('production_deliveries')->insert([
+            'tenant_id' => 1, 'sales_project_id' => $project->id, 'associate_id' => $associate->id,
+            'product_id' => $product, 'delivery_date' => now(), 'quantity' => 20,
+            'unit_price' => 0, 'gross_value' => 0, 'status' => 'approved',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $service->removeProductLimit($project, $associate, $product);
+
+        $this->assertSame('archived', $limit->fresh()->status);
+        $summary = $service->productAllocationSummary($project, $product);
+        $this->assertSame(20.0, $summary['unallocated_delivered_to_others']);
+        $this->assertSame(80.0, $summary['available_for_associate']);
+    }
+
     public function test_eligible_products_only_include_items_priced_for_project_customers(): void
     {
         [$project, $associate, $pricedProduct] = $this->fixture(false);

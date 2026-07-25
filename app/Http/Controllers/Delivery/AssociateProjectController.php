@@ -596,6 +596,68 @@ class AssociateProjectController extends Controller
         ]);
     }
 
+    public function updateAssociateProductLimitsBatch(Request $request): JsonResponse
+    {
+        $this->authorizeLimitManagement($request);
+        [$project, $associate] = $this->context($request);
+        $validated = $request->validate([
+            'limits' => 'required|array|min:1|max:200',
+            'limits.*.product_id' => 'required|integer|distinct',
+            'limits.*.max_quantity' => 'required|numeric|min:0.001',
+        ]);
+        $changes = collect($validated['limits']);
+        $productIds = $changes->pluck('product_id')->map(fn ($id) => (int) $id);
+        abort_unless(Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereIn('id', $productIds)
+            ->count() === $productIds->unique()->count(), 404);
+
+        $current = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->where('associate_id', $associate->id)
+            ->whereIn('product_id', $productIds)
+            ->where('status', 'active')
+            ->pluck('max_quantity', 'product_id');
+        $changes = $changes->sortBy(fn (array $change) => (
+            (float) $change['max_quantity'] - (float) ($current[(int) $change['product_id']] ?? 0)
+        ));
+
+        DB::transaction(function () use ($changes, $project, $associate) {
+            foreach ($changes as $change) {
+                $this->limits->setProductLimit(
+                    $project,
+                    $associate,
+                    (int) $change['product_id'],
+                    (float) $change['max_quantity'],
+                );
+            }
+        });
+
+        return $this->privateJson($this->limitsData($project, $associate));
+    }
+
+    public function destroyProductLimit(Request $request): JsonResponse
+    {
+        $this->authorizeLimitManagement($request);
+        [$project, $associate] = $this->context($request);
+        $product = Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->findOrFail((int) $request->route('product'));
+
+        $this->limits->removeProductLimit(
+            $project,
+            $associate,
+            $product->id,
+            'Limite removido no portal de entregas.',
+        );
+
+        return $this->privateJson([
+            'message' => 'Definicao de limite removida.',
+            'data' => $this->limitsData($project, $associate),
+        ]);
+    }
+
     private function context(Request $request): array
     {
         $project = $this->projectContext($request);
@@ -679,9 +741,24 @@ class AssociateProjectController extends Controller
 
     private function limitsData(SalesProject $project, Associate $associate): array
     {
+        $tenant = request()->route('tenant');
+
         return [
             'summary' => $this->limits->summary($project, $associate),
-            'products' => $this->limits->productLimits($project, $associate),
+            'products' => $this->limits->productLimits($project, $associate)
+                ->map(fn (array $limit) => $limit + [
+                    'delete_url' => route('delivery.projects.associates.limits.product.destroy', [
+                        'tenant' => $tenant,
+                        'project' => $project->id,
+                        'associate' => $associate->id,
+                        'product' => $limit['product_id'],
+                    ]),
+                ]),
+            'batch_update_url' => route('delivery.projects.associates.limits.products', [
+                'tenant' => $tenant,
+                'project' => $project->id,
+                'associate' => $associate->id,
+            ]),
             'can_manage' => request()->user() ? $this->canManageLimits(request()) : false,
         ];
     }

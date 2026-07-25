@@ -76,7 +76,7 @@
     .plb-spinner { width:24px; height:24px; margin:0 auto .55rem; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:plb-spin .7s linear infinite; }
     @keyframes plb-spin { to { transform:rotate(360deg); } }
     .plb-error { padding:.75rem; border:1px solid #fecaca; border-radius:8px; background:#fff7f7; color:#991b1b; font-size:.68rem; }
-    .plb-dialog { position:fixed; inset:0; margin:auto; width:min(560px,calc(100vw - 1rem)); max-height:min(82dvh,760px); min-height: 75dvh; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); padding:0; overflow:hidden; }
+    .plb-dialog { position:fixed; inset:0; margin:auto; width:min(560px,calc(100vw - 1rem)); max-height:min(82dvh,760px); min-height: 82dvh; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); padding:0; overflow:hidden; }
     .plb-dialog::backdrop { background:rgba(15,23,42,.45); backdrop-filter:blur(2px); }
     .plb-dialog-head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; padding:.75rem; border-bottom:1px solid var(--color-border); }
     .plb-dialog-head strong { font-size:.78rem; }
@@ -90,7 +90,7 @@
     .plb-product-option strong { display:block; font-size:.9rem; line-height:1.3; }
     .plb-product-option span { display:block; margin-top:.18rem; color:var(--color-text-secondary); font-size:.72rem; line-height:1.35; }
     .plb-card.editing { border-color:var(--color-primary); box-shadow:inset 3px 0 var(--color-primary); }
-    .plb-slider:disabled { opacity:.45; cursor:not-allowed; }
+    .plb-slider:disabled { opacity:.78; cursor:not-allowed; filter:saturate(.7); }
     .plb-control:disabled { opacity:.72; cursor:not-allowed; background:var(--color-bg); }
     .plb-detail-tabs { display:flex; gap:.35rem; padding:.6rem .75rem 0; }
     .plb-detail-tabs button[aria-selected="true"] { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
@@ -103,6 +103,17 @@
     .plb-status-text { font-size:.57rem; font-weight:750; }
     .plb-status-text.warning { color:#a16207; }
     .plb-status-text.danger { color:#b91c1c; }
+    .plb-modal-summary { position:sticky; top:0; z-index:2; padding:.7rem; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); box-shadow:0 3px 10px rgba(15,23,42,.06); }
+    .plb-modal-summary-head { display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; }
+    .plb-modal-summary strong { font-size:.86rem; }
+    .plb-modal-summary span { color:var(--color-text-secondary); font-size:.72rem; }
+    .plb-modal-summary .plb-meter { height:8px; margin:.42rem 0 .25rem; }
+    .plb-modal-footer { position:sticky; bottom:0; z-index:2; display:flex; align-items:center; justify-content:space-between; gap:.6rem; padding:.65rem; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); box-shadow:0 -3px 12px rgba(15,23,42,.06); }
+    .plb-button.danger { background:#b91c1c; color:#fff; }
+    .plb-delete-limit { color:#b91c1c; border-color:#fecaca !important; }
+    .plb-confirm-dialog { width:min(430px,calc(100vw - 1rem)); }
+    .plb-confirm-dialog p { margin:0; font-size:.82rem; line-height:1.5; }
+    .plb-confirm-actions { display:flex; justify-content:flex-end; gap:.45rem; margin-top:.4rem; }
     @media (max-width:680px) {
         .plb-summary { grid-template-columns:1fr; }
         .plb-picker { top:calc(var(--app-header-height) + .15rem); grid-template-columns:minmax(0,1fr) auto; gap:.38rem .5rem; padding:.42rem .48rem; }
@@ -204,6 +215,17 @@
         </div>
         <div class="plb-dialog-body" id="plb-details-body"></div>
     </dialog>
+
+    <dialog class="plb-dialog plb-confirm-dialog" id="plb-delete-dialog">
+        <div class="plb-dialog-head"><strong>Remover limite</strong><button class="plb-button ghost" data-close-dialog="plb-delete-dialog" type="button" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+        <div class="plb-dialog-body">
+            <p id="plb-delete-message">Deseja remover esta definicao de limite?</p>
+            <div class="plb-confirm-actions">
+                <button class="plb-button ghost" data-close-dialog="plb-delete-dialog" type="button">Cancelar</button>
+                <button class="plb-button danger" id="plb-confirm-delete" type="button"><i data-lucide="trash-2"></i>Remover limite</button>
+            </div>
+        </div>
+    </dialog>
 </div>
 @endsection
 
@@ -213,7 +235,7 @@
     const root = document.getElementById('productLimitBoard');
     if (!root) return;
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const state = { products: [], selected: null, board: null, draft: new Map(), original: new Map(), detailRow: null, detailProducts: null, detailDeliveries: null };
+    const state = { products: [], selected: null, board: null, draft: new Map(), original: new Map(), detailRow: null, detailProducts: null, detailDraft: new Map(), detailOriginal: new Map(), detailDeliveries: null, deleteTarget: null };
     const canManage = root.dataset.canManage === '1';
     const fmt = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(Number(value || 0));
     const money = value => new Intl.NumberFormat('pt-BR', { style:'currency', currency:'BRL' }).format(Number(value || 0));
@@ -428,40 +450,120 @@
                     json(state.detailRow.products_url),
                 ]);
                 state.detailProducts = { limits, products: products.data || [] };
+                state.detailDraft = new Map(limits.products.map(limit => [Number(limit.product_id), Number(limit.maximum_quantity)]));
+                state.detailOriginal = new Map(state.detailDraft);
             }
             const { limits, products } = state.detailProducts;
             const available = new Map(products.map(item => [Number(item.id), item]));
-            body.innerHTML = limits.products.length ? limits.products.map(limit => {
+            body.innerHTML = limits.products.length ? `
+                <div class="plb-modal-summary">
+                    <div class="plb-modal-summary-head">
+                        <div><span>Total planejado nos produtos</span><strong id="plb-detail-total">-</strong></div>
+                        <span id="plb-detail-ceiling"></span>
+                    </div>
+                    <div class="plb-meter" id="plb-detail-meter"><span></span></div>
+                    <span id="plb-detail-balance"></span>
+                </div>
+                ${limits.products.map(limit => {
                 const option = available.get(Number(limit.product_id));
                 const price = Number(option?.price ?? limit.reference_unit_price ?? 0);
-                const other = Math.max(0, Number(limits.summary.simulated_limit_value || 0) - Number(limit.estimated_maximum_value || 0));
-                const financialCap = limits.summary.financial_limit === null || price <= 0
-                    ? null
-                    : Math.max(0, (Number(limits.summary.financial_limit) - other) / price);
                 const quantityCap = option?.available_for_associate === null || option?.available_for_associate === undefined
                     ? null
                     : Number(option.available_for_associate);
-                const caps = [financialCap, quantityCap].filter(value => value !== null);
-                const effectiveMax = caps.length
-                    ? Math.max(Number(limit.delivered_quantity || 0), Math.min(...caps))
-                    : null;
-                const quotaPercent = percent(limit.delivered_quantity, limit.maximum_quantity);
-                const overLimit = effectiveMax !== null && Number(limit.maximum_quantity) > effectiveMax + .0005;
-                return `<article class="plb-modal-item ${overLimit ? 'over-limit' : ''}" data-detail-product="${limit.product_id}" data-detail-max="${effectiveMax ?? ''}">
-                    <div class="plb-modal-item-head"><div><h4>${esc(limit.product)}</h4><p>${money(price)} por ${esc(limit.unit)} - ${fmt(limit.delivered_quantity)} entregue</p></div><strong>${money(Number(limit.maximum_quantity) * price)}</strong></div>
-                    ${meterHtml(quotaPercent, `Entregue: ${fmt(limit.delivered_quantity)}`, `Cota: ${fmt(limit.maximum_quantity)}`)}
+                const draftValue = Number(state.detailDraft.get(Number(limit.product_id)));
+                const quotaPercent = percent(limit.delivered_quantity, draftValue);
+                return `<article class="plb-modal-item" data-detail-product="${limit.product_id}" data-detail-max="${quantityCap ?? ''}" data-detail-price="${price}">
+                    <div class="plb-modal-item-head"><div><h4>${esc(limit.product)}</h4><p>${money(price)} por ${esc(limit.unit)} - ${fmt(limit.delivered_quantity)} entregue</p></div><strong class="plb-detail-value">${money(draftValue * price)}</strong></div>
+                    ${meterHtml(quotaPercent, `Entregue: ${fmt(limit.delivered_quantity)}`, `Cota: ${fmt(draftValue)}`)}
                     <div class="plb-modal-edit">
-                        <label><span class="plb-label">Nova cota (${esc(limit.unit)})</span><input class="plb-control plb-detail-quantity" type="number" min="${limit.delivered_quantity}" ${effectiveMax === null ? '' : `max="${effectiveMax}"`} step="0.001" value="${limit.maximum_quantity}" ${canManage ? '' : 'disabled'}></label>
-                        <div><span class="plb-label">Maximo permitido agora</span><strong>${effectiveMax === null ? 'Sem teto' : `${fmt(effectiveMax)} ${esc(limit.unit)}`}</strong></div>
-                        ${canManage ? `<button class="plb-button plb-detail-save" type="button" ${overLimit ? 'disabled' : ''}>Salvar</button>` : ''}
+                        <label><span class="plb-label">Nova cota (${esc(limit.unit)})</span><input class="plb-control plb-detail-quantity" type="number" min="${limit.delivered_quantity}" ${quantityCap === null ? '' : `max="${quantityCap}"`} step="0.001" value="${draftValue}" ${canManage ? '' : 'disabled'}></label>
+                        <div><span class="plb-label">Limite deste produto no projeto</span><strong>${quantityCap === null ? 'Sem teto' : `${fmt(quantityCap)} ${esc(limit.unit)}`}</strong></div>
+                        ${canManage ? `<button class="plb-button ghost plb-delete-limit" type="button" data-delete-url="${esc(limit.delete_url)}" data-product-name="${esc(limit.product)}"><i data-lucide="trash-2"></i>Remover</button>` : ''}
                     </div>
-                    <div class="plb-message ${overLimit ? 'error' : ''}">${overLimit ? `Reduza a cota para ate ${fmt(effectiveMax)} ${esc(limit.unit)}.` : ''}</div>
+                    <div class="plb-message"></div>
                 </article>`;
-            }).join('') : '<div class="plb-empty">Este associado ainda nao possui cotas de produtos.</div>';
+            }).join('')}
+                ${canManage ? `<div class="plb-modal-footer"><span class="plb-message" id="plb-detail-status"></span><button class="plb-button" id="plb-detail-save-all" type="button" disabled><i data-lucide="save"></i>Salvar alteracoes</button></div>` : ''}
+            ` : '<div class="plb-empty">Este associado ainda nao possui cotas de produtos.</div>';
+            recalculateDetailProducts();
             window.lucide?.createIcons();
         } catch (error) {
             body.innerHTML = `<div class="plb-error">${esc(error.message)}</div>`;
         }
+    }
+
+    function recalculateDetailProducts() {
+        if (!state.detailProducts) return;
+        const { limits, products } = state.detailProducts;
+        const available = new Map(products.map(item => [Number(item.id), item]));
+        const storedProductsTotal = limits.products.reduce((sum, limit) => sum + Number(limit.estimated_maximum_value || 0), 0);
+        const baseValue = Math.max(0, Number(limits.summary.simulated_limit_value || 0) - storedProductsTotal);
+        let total = baseValue;
+        let invalidItem = false;
+
+        limits.products.forEach(limit => {
+            const productId = Number(limit.product_id);
+            const item = document.querySelector(`[data-detail-product="${productId}"]`);
+            if (!item) return;
+            const value = Number(state.detailDraft.get(productId));
+            const option = available.get(productId);
+            const price = Number(option?.price ?? limit.reference_unit_price ?? 0);
+            const minimum = Number(limit.delivered_quantity || 0);
+            const maximum = option?.available_for_associate === null || option?.available_for_associate === undefined
+                ? null
+                : Number(option.available_for_associate);
+            const valid = Number.isFinite(value)
+                && value + .0005 >= minimum
+                && (maximum === null || value <= maximum + .0005);
+            invalidItem ||= !valid;
+            total += (Number.isFinite(value) ? value : 0) * price;
+
+            item.querySelector('.plb-detail-value').textContent = money((Number.isFinite(value) ? value : 0) * price);
+            const quotaMeter = item.querySelector('.plb-card-meter');
+            if (quotaMeter) {
+                quotaMeter.querySelectorAll('.plb-card-meter-head span')[1].textContent = `Cota: ${Number.isFinite(value) ? fmt(value) : '-'}`;
+                const meter = quotaMeter.querySelector('.plb-meter');
+                const quotaPercent = percent(minimum, Number.isFinite(value) ? value : 0);
+                meter.querySelector('span').style.width = `${Math.min(100, quotaPercent)}%`;
+                meter.className = `plb-meter ${tone(quotaPercent)}`;
+            }
+            const message = item.querySelector('.plb-message');
+            if (!Number.isFinite(value)) {
+                message.textContent = 'Digite a nova cota.';
+            } else if (value + .0005 < minimum) {
+                message.textContent = `A cota nao pode ser menor que ${fmt(minimum)}, pois essa quantidade ja foi entregue.`;
+            } else if (maximum !== null && value > maximum + .0005) {
+                message.textContent = `A cota deste produto pode ser de ate ${fmt(maximum)}.`;
+            } else {
+                message.textContent = '';
+            }
+            message.classList.toggle('error', !valid);
+            item.classList.toggle('over-limit', !valid);
+            item.classList.toggle('changed', Math.abs(value - Number(state.detailOriginal.get(productId))) > .0005);
+        });
+
+        const ceiling = limits.summary.financial_limit === null ? null : Number(limits.summary.financial_limit);
+        const exceedsFinancial = ceiling !== null && total > ceiling + .005;
+        const changed = limits.products.some(limit => Math.abs(
+            Number(state.detailDraft.get(Number(limit.product_id)))
+                - Number(state.detailOriginal.get(Number(limit.product_id)))
+        ) > .0005);
+        document.getElementById('plb-detail-total').textContent = money(total);
+        document.getElementById('plb-detail-ceiling').textContent = ceiling === null ? 'Sem teto financeiro' : `Teto: ${money(ceiling)}`;
+        document.getElementById('plb-detail-balance').textContent = ceiling === null
+            ? ''
+            : (exceedsFinancial ? `Excesso: ${money(total - ceiling)}` : `Livre: ${money(ceiling - total)}`);
+        setMeter('plb-detail-meter', ceiling > 0 ? total / ceiling * 100 : 0);
+
+        const status = document.getElementById('plb-detail-status');
+        if (status) {
+            status.textContent = exceedsFinancial
+                ? `Reduza uma ou mais cotas em ${money(total - ceiling)}.`
+                : (invalidItem ? 'Revise os produtos destacados.' : (changed ? 'Alteracoes ainda nao salvas.' : ''));
+            status.classList.toggle('error', exceedsFinancial || invalidItem);
+        }
+        const save = document.getElementById('plb-detail-save-all');
+        if (save) save.disabled = !changed || invalidItem || exceedsFinancial;
     }
 
     async function showDetailDeliveries() {
@@ -567,9 +669,9 @@
             status.className = 'plb-save-status success';
             status.textContent = 'Cotas atualizadas com sucesso.';
         } catch (error) {
+            recalculateBoard();
             status.className = 'plb-save-status error';
             status.textContent = error.message;
-            recalculateBoard();
         }
     });
 
@@ -603,49 +705,80 @@
     document.getElementById('plb-tab-products').addEventListener('click', () => setDetailTab('products'));
     document.getElementById('plb-tab-deliveries').addEventListener('click', () => setDetailTab('deliveries'));
     document.getElementById('plb-details-body').addEventListener('click', async event => {
-        const save = event.target.closest('.plb-detail-save');
-        if (!save) return;
-        const item = save.closest('[data-detail-product]');
-        const message = item.querySelector('.plb-message');
-        save.disabled = true;
-        message.classList.remove('error');
-        message.textContent = 'Salvando...';
-        try {
-            await json(state.detailRow.update_url, {
-                method:'PUT',
-                body:JSON.stringify({
-                    product_id:Number(item.dataset.detailProduct),
-                    max_quantity:item.querySelector('.plb-detail-quantity').value,
-                }),
-            });
-            state.detailProducts = null;
-            await showDetailProducts();
-            await loadBoard();
-        } catch (error) {
-            message.textContent = error.message;
-            message.classList.add('error');
-            save.disabled = false;
+        const remove = event.target.closest('.plb-delete-limit');
+        if (remove) {
+            state.deleteTarget = {
+                url:remove.dataset.deleteUrl,
+                name:remove.dataset.productName,
+            };
+            document.getElementById('plb-delete-message').textContent = `Remover a definicao de limite de ${state.deleteTarget.name}? As entregas registradas serao mantidas.`;
+            document.getElementById('plb-delete-dialog').showModal();
+            return;
+        }
+
+        const save = event.target.closest('#plb-detail-save-all');
+        if (save) {
+            const status = document.getElementById('plb-detail-status');
+            save.disabled = true;
+            status.classList.remove('error');
+            status.textContent = 'Salvando alteracoes...';
+            try {
+                const changed = state.detailProducts.limits.products
+                    .filter(limit => Math.abs(
+                        Number(state.detailDraft.get(Number(limit.product_id)))
+                            - Number(state.detailOriginal.get(Number(limit.product_id)))
+                    ) > .0005)
+                    .map(limit => ({
+                        product_id:Number(limit.product_id),
+                        max_quantity:Number(state.detailDraft.get(Number(limit.product_id))),
+                    }));
+                const updated = await json(state.detailProducts.limits.batch_update_url, {
+                    method:'PUT',
+                    body:JSON.stringify({ limits:changed }),
+                });
+                const availableProducts = state.detailProducts.products;
+                state.detailProducts = { limits:updated, products:availableProducts };
+                state.detailDraft = new Map(updated.products.map(limit => [Number(limit.product_id), Number(limit.maximum_quantity)]));
+                state.detailOriginal = new Map(state.detailDraft);
+                await showDetailProducts();
+                await loadBoard();
+            } catch (error) {
+                recalculateDetailProducts();
+                status.textContent = error.message;
+                status.classList.add('error');
+            }
         }
     });
     document.getElementById('plb-details-body').addEventListener('input', event => {
         if (!event.target.matches('.plb-detail-quantity')) return;
         const item = event.target.closest('[data-detail-product]');
-        const value = Number(event.target.value || 0);
-        const hasMaximum = item.dataset.detailMax !== '';
-        const maximum = hasMaximum ? Number(item.dataset.detailMax) : null;
-        const minimum = Number(event.target.min || 0);
-        const valid = event.target.value !== ''
-            && value >= minimum - .0005
-            && (maximum === null || value <= maximum + .0005);
-        item.querySelector('.plb-detail-save').disabled = !valid;
-        const message = item.querySelector('.plb-message');
-        message.textContent = valid
-            ? ''
-            : (maximum === null
-                ? `Informe um valor a partir de ${fmt(minimum)}.`
-                : `Informe um valor entre ${fmt(minimum)} e ${fmt(maximum)}.`);
-        message.classList.toggle('error', !valid);
-        item.classList.toggle('over-limit', !valid);
+        state.detailDraft.set(
+            Number(item.dataset.detailProduct),
+            event.target.value === '' ? Number.NaN : Number(event.target.value)
+        );
+        recalculateDetailProducts();
+    });
+
+    document.getElementById('plb-confirm-delete').addEventListener('click', async event => {
+        const button = event.currentTarget;
+        if (!state.deleteTarget) return;
+        button.disabled = true;
+        const original = button.innerHTML;
+        button.textContent = 'Removendo...';
+        try {
+            await json(state.deleteTarget.url, { method:'DELETE' });
+            document.getElementById('plb-delete-dialog').close();
+            state.deleteTarget = null;
+            state.detailProducts = null;
+            await showDetailProducts();
+            await loadBoard();
+        } catch (error) {
+            document.getElementById('plb-delete-message').textContent = error.message;
+        } finally {
+            button.disabled = false;
+            button.innerHTML = original;
+            window.lucide?.createIcons();
+        }
     });
     document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => {
         document.getElementById(button.dataset.closeDialog)?.close();

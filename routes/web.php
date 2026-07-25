@@ -266,6 +266,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::put('/projects/{project}/associates/{associate}/participation', [AssociateProjectController::class, 'updateParticipation'])->name('projects.associates.participation');
         Route::put('/projects/{project}/associates/{associate}/limits/financial', [AssociateProjectController::class, 'updateFinancialLimit'])->name('projects.associates.limits.financial');
         Route::put('/projects/{project}/associates/{associate}/limits/product', [AssociateProjectController::class, 'updateProductLimit'])->name('projects.associates.limits.product');
+        Route::put('/projects/{project}/associates/{associate}/limits/products', [AssociateProjectController::class, 'updateAssociateProductLimitsBatch'])->name('projects.associates.limits.products');
+        Route::delete('/projects/{project}/associates/{associate}/limits/product/{product}', [AssociateProjectController::class, 'destroyProductLimit'])->name('projects.associates.limits.product.destroy');
         Route::get('/projects/{project}/associates/{associate}/receipt-check', [DeliveryRegistrationController::class, 'checkAssociateReceipt'])->name('projects.associate-receipt-check');
         Route::get('/projects/{project}/associates/{associate}/receipt', [DeliveryRegistrationController::class, 'generateAssociateReceiptPdf'])->name('projects.associate-receipt');
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');

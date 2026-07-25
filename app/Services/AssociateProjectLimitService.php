@@ -491,6 +491,46 @@ class AssociateProjectLimitService
         });
     }
 
+    public function removeProductLimit(
+        SalesProject $project,
+        Associate $associate,
+        int $productId,
+        ?string $reason = null
+    ): void {
+        DB::transaction(function () use ($project, $associate, $productId, $reason) {
+            $this->assertContext($project, $associate);
+            SalesProject::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->whereKey($project->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $limit = ProjectAssociateProductLimit::query()
+                ->where('tenant_id', $project->tenant_id)
+                ->where('sales_project_id', $project->id)
+                ->where('associate_id', $associate->id)
+                ->where('product_id', $productId)
+                ->where('status', 'active')
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $limit->update([
+                'status' => 'archived',
+                'archived_at' => now(),
+                'archived_by' => Auth::id(),
+                'archive_reason' => $reason ?: 'Limite removido pela gestao do projeto.',
+                'updated_by' => Auth::id(),
+            ]);
+
+            activity('associate_project_limits')->performedOn($limit)->withProperties([
+                'tenant_id' => $project->tenant_id,
+                'sales_project_id' => $project->id,
+                'associate_id' => $associate->id,
+                'product_id' => $productId,
+            ])->log('Limite de produto do associado removido');
+        });
+    }
+
     public function productAllocationSummary(
         SalesProject $project,
         int $productId,
