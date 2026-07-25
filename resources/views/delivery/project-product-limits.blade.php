@@ -200,9 +200,10 @@
     </dialog>
 
     <dialog class="plb-dialog" id="plb-product-dialog">
-        <div class="plb-dialog-head"><strong>Selecionar produto</strong><button class="plb-button ghost" data-close-dialog="plb-product-dialog" type="button" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+        <div class="plb-dialog-head">        <input class="plb-control" id="plb-product-search" type="search" placeholder="Buscar produto" autocomplete="off">
+        <button class="plb-button ghost" data-close-dialog="plb-product-dialog" type="button" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+        
         <div class="plb-dialog-body">
-            <input class="plb-control" id="plb-product-search" type="search" placeholder="Buscar produto" autocomplete="off">
             <div class="plb-product-list" id="plb-product-list"></div>
         </div>
     </dialog>
