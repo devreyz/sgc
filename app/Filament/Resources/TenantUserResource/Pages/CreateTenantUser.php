@@ -16,7 +16,8 @@ class CreateTenantUser extends CreateRecord
      *
      * 1) Admin informa APENAS "nome do membro na organização" (user_name) + email.
      * 2) Se o email NÃO existe → cria User global com esse nome.
-     *    O tenant_name fica nulo (membro usa o nome global dele).
+     *    O mesmo nome também é salvo em tenant_name como a identidade inicial
+     *    do membro nesta organização.
      * 3) Se o email JÁ existe → reutiliza o User existente.
      *    O nome digitado é salvo como tenant_name (identidade local na organização).
      *    O nome global do User NÃO é alterado.
@@ -45,8 +46,9 @@ class CreateTenantUser extends CreateRecord
                 'status'   => true,
             ]);
 
-            // tenant_name fica nulo: membro usará o nome global
-            $data['tenant_name'] = null;
+            // A conta global recebe o nome inicial, mas a apresentação dentro
+            // do tenant deve continuar sempre no vínculo TenantUser.
+            $data['tenant_name'] = $nameInput ?: 'Membro sem nome cadastrado';
         } else {
             // Restaura se estava soft-deleted
             if ($existingUser->trashed()) {
@@ -54,7 +56,7 @@ class CreateTenantUser extends CreateRecord
             }
 
             // Nome digitado vira identidade local na organização
-            $data['tenant_name'] = $nameInput ?: null;
+            $data['tenant_name'] = $nameInput ?: 'Membro sem nome cadastrado';
         }
 
         $data['user_id']   = $existingUser->id;

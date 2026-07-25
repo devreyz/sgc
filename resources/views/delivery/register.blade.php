@@ -74,7 +74,7 @@
 @media (min-width: 900px) {
     .entry-card {
         position: sticky;
-        top: 1rem;
+        top: 6rem;
         align-self: start;
     }
     .history-card {
@@ -1711,6 +1711,7 @@ function renderQuickQuotaEditor() {
 
     $('quota-range').addEventListener('input', event => updateQuickQuota(event.target.value));
     $('quota-number').addEventListener('input', event => updateQuickQuota(event.target.value, true));
+    $('quota-number').addEventListener('blur', commitQuickQuota);
     refreshQuickQuotaEditor();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
@@ -1726,13 +1727,14 @@ function refreshQuickQuotaEditor(message = '') {
     const delivered = Number(Q.current?.delivered_quantity ?? product.delivered_quantity ?? 0);
     const maximum = quickQuotaMaximum();
     const price = Number(product.price || 0);
+    const quantity = Number.isFinite(Q.quantity) ? Q.quantity : 0;
     const financialLimit = Q.limits?.summary?.financial_limit === null
         ? null
         : Number(Q.limits?.summary?.financial_limit || 0);
-    const plannedTotal = quickQuotaOtherPlanned() + Q.quantity * price;
-    const usePercent = Q.quantity > 0 ? Math.min(100, delivered / Q.quantity * 100) : 0;
+    const plannedTotal = quickQuotaOtherPlanned() + quantity * price;
+    const usePercent = quantity > 0 ? Math.min(100, delivered / quantity * 100) : 0;
     const projectMaximum = product.project_maximum === null ? null : Number(product.project_maximum || 0);
-    const projectAllocated = Number(product.allocated_to_others || 0) + Q.quantity;
+    const projectAllocated = Number(product.allocated_to_others || 0) + quantity;
     const projectPercent = projectMaximum && projectMaximum > 0
         ? Math.min(100, projectAllocated / projectMaximum * 100)
         : 0;
@@ -1741,9 +1743,9 @@ function refreshQuickQuotaEditor(message = '') {
         : 0;
 
     $('quota-delivered').textContent = fmtQty(delivered, product.unit);
-    $('quota-value-label').textContent = fmtQty(Q.quantity, product.unit);
-    $('quota-balance').textContent = fmtQty(Math.max(0, Q.quantity - delivered), product.unit);
-    $('quota-planned-value').textContent = money(Q.quantity * price);
+    $('quota-value-label').textContent = Number.isFinite(Q.quantity) ? fmtQty(quantity, product.unit) : '—';
+    $('quota-balance').textContent = Number.isFinite(Q.quantity) ? fmtQty(Math.max(0, quantity - delivered), product.unit) : '—';
+    $('quota-planned-value').textContent = Number.isFinite(Q.quantity) ? money(quantity * price) : '—';
     $('quota-use-label').textContent = Math.round(usePercent) + '% entregue';
     $('quota-use-progress').querySelector('span').style.width = usePercent + '%';
     progressTone($('quota-use-progress'), usePercent);
@@ -1757,18 +1759,21 @@ function refreshQuickQuotaEditor(message = '') {
         : money(plannedTotal) + ' de ' + money(financialLimit);
     $('quota-financial-progress').querySelector('span').style.width = financialPercent + '%';
     progressTone($('quota-financial-progress'), financialPercent);
-    $('quota-feedback').textContent = message || (
-        Number.isFinite(maximum)
+    $('quota-feedback').textContent = message || (!Number.isFinite(Q.quantity)
+        ? 'Informe uma cota para continuar.'
+        : (Number.isFinite(maximum)
             ? 'Máximo disponível agora: ' + fmtQty(maximum, product.unit) + '.'
-            : 'Sem limite máximo de quantidade para este produto.'
+            : 'Sem limite máximo de quantidade para este produto.')
     );
-    $('quota-feedback').classList.toggle('error', Boolean(message));
-    $('quota-save-btn').disabled = Q.busy || Q.quantity <= 0 || Q.quantity > maximum + .000001;
+    const invalid = !Number.isFinite(Q.quantity) || Q.quantity <= 0 || Q.quantity < delivered - .000001 || Q.quantity > maximum + .000001;
+    $('quota-feedback').classList.toggle('error', Boolean(message) || invalid);
+    $('quota-save-btn').disabled = Q.busy || invalid;
 }
 
 function updateQuickQuota(rawValue, fromNumber = false) {
-    if (fromNumber && rawValue === '') {
-        $('quota-save-btn').disabled = true;
+    if (fromNumber) {
+        Q.quantity = rawValue === '' ? Number.NaN : Number(String(rawValue).replace(',', '.'));
+        refreshQuickQuotaEditor();
         return;
     }
     const parsed = Number(String(rawValue).replace(',', '.'));
@@ -1786,8 +1791,20 @@ function updateQuickQuota(rawValue, fromNumber = false) {
     );
 }
 
+function commitQuickQuota() {
+    if (!Number.isFinite(Q.quantity) || !Q.selected) return;
+
+    const delivered = Number(Q.current?.delivered_quantity ?? Q.selected.delivered_quantity ?? 0);
+    const maximum = quickQuotaMaximum();
+    Q.quantity = Math.max(delivered, Math.min(Q.quantity, maximum));
+    $('quota-number').value = Q.quantity;
+    $('quota-range').max = quickQuotaSliderMaximum();
+    $('quota-range').value = Q.quantity;
+    refreshQuickQuotaEditor();
+}
+
 async function saveQuickQuota() {
-    if (!Q.selected || Q.busy) return;
+    if (!Q.selected || Q.busy || !Number.isFinite(Q.quantity)) return;
     const button = $('quota-save-btn');
 
     try {

@@ -66,14 +66,14 @@ class TenantUserResource extends Resource
                             ->required()
                             ->maxLength(255)
                             ->visible(fn (string $operation): bool => $operation === 'create')
-                            ->helperText('Se o email já existir no sistema, será vinculado automaticamente. Caso contrário, um novo usuário será criado.')
+                            ->helperText('Se o email já existir, a conta será vinculada. Caso contrário, uma nova conta será criada.')
                             ->live(onBlur: true)
                             ->afterStateUpdated(function ($state, $set) {
-                                // Se o email já existe, preenche o nome
+                                // A conta global é identificada pelo e-mail, mas o nome
+                                // precisa ser informado para o vínculo desta organização.
                                 if ($state && filter_var($state, FILTER_VALIDATE_EMAIL)) {
                                     $existingUser = User::withTrashed()->where('email', $state)->first();
                                     if ($existingUser) {
-                                        $set('user_name', $existingUser->name);
                                         $set('_existing_user', true);
                                     } else {
                                         $set('_existing_user', false);
@@ -82,11 +82,11 @@ class TenantUserResource extends Resource
                             }),
 
                         Forms\Components\TextInput::make('user_name')
-                            ->label('Nome Completo')
+                            ->label('Nome na Organização')
                             ->required()
                             ->maxLength(255)
                             ->visible(fn (string $operation): bool => $operation === 'create')
-                            ->helperText('Nome completo do membro.'),
+                            ->helperText('Para uma conta nova, este também será o nome inicial da conta global.'),
 
                         Forms\Components\TextInput::make('tenant_password')
                             ->label('Senha de Acesso')
@@ -110,8 +110,8 @@ class TenantUserResource extends Resource
                         Forms\Components\TextInput::make('tenant_name')
                             ->label('Nome de Exibição na Organização')
                             ->maxLength(255)
-                            ->helperText('Nome do membro nesta organização. Se vazio, usa o nome global do usuário.')
-                            ->placeholder('Deixe vazio para usar o nome global')
+                            ->helperText('Nome exibido apenas nesta organização.')
+                            ->placeholder('Informe o nome do membro na organização')
                             ->visible(fn (string $operation): bool => $operation === 'edit'),
 
                         Forms\Components\TextInput::make('tenant_password')
@@ -199,13 +199,10 @@ class TenantUserResource extends Resource
                 Tables\Columns\TextColumn::make('display_name')
                     ->label('Nome')
                     ->searchable(query: function (Builder $query, string $search): Builder {
-                        return $query->where(function ($q) use ($search) {
-                            $q->where('tenant_name', 'like', "%{$search}%")
-                              ->orWhereHas('user', fn ($uq) => $uq->where('name', 'like', "%{$search}%"));
-                        });
+                        return $query->where('tenant_name', 'like', "%{$search}%");
                     })
                     ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query->orderByRaw("COALESCE(tenant_name, (SELECT name FROM users WHERE users.id = tenant_user.user_id)) {$direction}");
+                        return $query->orderByRaw("COALESCE(NULLIF(TRIM(tenant_name), ''), 'zzzz') {$direction}");
                     }),
 
                 Tables\Columns\TextColumn::make('user.email')

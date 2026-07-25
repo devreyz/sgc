@@ -51,7 +51,7 @@
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="form-label">Quantidade</label>
-                        <input class="form-input" type="number" step="0.001" min="0.001" name="items[0][quantity]" required>
+                        <input class="form-input" type="number" step="0.01" min="0.01" name="items[0][quantity]" required>
                     </div>
                 </div>
                 <input type="hidden" class="item-customer" name="items[0][customer_id]">

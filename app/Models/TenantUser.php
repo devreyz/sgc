@@ -192,7 +192,7 @@ class TenantUser extends Model
     }
 
     /**
-     * Retorna o nome de exibição (tenant_name ou nome global do user).
+     * Retorna o nome de exibição específico do tenant.
      */
     public function getDisplayNameAttribute(): string
     {

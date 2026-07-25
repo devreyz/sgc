@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Delivery;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
 use App\Models\DeliveryProjectNote;
@@ -36,7 +37,11 @@ class DeliveryViewerController extends Controller
     {
         $tenantId = $this->tenantId();
         $search = trim((string) $request->query('search'));
-        $status = trim((string) $request->query('status'));
+        $status = trim((string) $request->query('status', ProjectStatus::ACTIVE->value));
+        $selectedStatus = $status === 'all' ? null : ProjectStatus::tryFrom($status);
+        // The listing is operational by default. An invalid or absent status
+        // must not expand the query to every historical project.
+        $selectedStatus ??= ProjectStatus::ACTIVE;
         $projects = SalesProject::query()
             ->where('tenant_id', $tenantId)
             ->with('customer:id,name,trade_name')
@@ -59,7 +64,7 @@ class DeliveryViewerController extends Controller
                     ->whereNotNull('parent_delivery_id')
                     ->where('status', DeliveryStatus::APPROVED->value),
             ], 'quantity')
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->when($status !== 'all', fn ($query) => $query->where('status', $selectedStatus))
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($nested) use ($search) {
                     $nested->where('title', 'like', "%{$search}%")
@@ -69,9 +74,8 @@ class DeliveryViewerController extends Controller
                             ->orWhere('trade_name', 'like', "%{$search}%"));
                 });
             })
-            ->orderByRaw("CASE status WHEN 'active' THEN 0 WHEN 'deliveries_closed' THEN 1 ELSE 2 END")
-            ->orderByDesc('reference_year')
-            ->orderBy('title')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(12)
             ->withQueryString();
         $projects->getCollection()->transform(fn (SalesProject $project) => [

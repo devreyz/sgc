@@ -66,9 +66,9 @@
     <div class="viewer-filter">
         <input class="viewer-control" id="projectSearch" type="search" placeholder="Buscar projeto ou cliente">
         <select class="viewer-control" id="projectStatus">
-            <option value="">Todos os projetos</option>
+            <option value="all">Todos os projetos</option>
             @foreach(\App\Enums\ProjectStatus::cases() as $status)
-                <option value="{{ $status->value }}">{{ $status->getLabel() }}</option>
+                <option value="{{ $status->value }}" @selected($status === \App\Enums\ProjectStatus::ACTIVE)>{{ $status->getLabel() }}</option>
             @endforeach
         </select>
     </div>
