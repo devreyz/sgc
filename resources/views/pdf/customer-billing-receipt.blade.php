@@ -154,6 +154,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $totalGross,
         'fees' => $totalFees,
         'net' => $totalNet,
+        'items_count' => count($productRows ?? []),
     ],
 ])
 
@@ -286,6 +287,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $totalGross,
         'fees' => $totalFees,
         'net' => $totalNet,
+        'items_count' => count($productRows ?? []),
     ],
 ])
 

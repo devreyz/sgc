@@ -189,6 +189,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $totalGross,
         'fees' => $totalFees,
         'net' => $totalNet,
+        'items_count' => collect($priceGroups ?? [])->sum(fn ($group) => count($group['table'] ?? [])),
     ],
 ])
 
@@ -335,6 +336,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $totalGross,
         'fees' => $totalFees,
         'net' => $totalNet,
+        'items_count' => collect($priceGroups ?? [])->sum(fn ($group) => count($group['table'] ?? [])),
     ],
 ])
 

@@ -101,10 +101,19 @@ class DocumentTemplateResource extends Resource
                     Forms\Components\Toggle::make('consent_enabled')
                         ->label('Exibir consentimento e assinaturas')
                         ->default(true),
+                    Forms\Components\Toggle::make('show_recipient_signature')
+                        ->label(fn (Get $get): string => match ($get('system_template_key')) {
+                            ReceiptConsentRenderer::ASSOCIATE => 'Assinatura do associado',
+                            ReceiptConsentRenderer::CUSTOMER => 'Assinatura do cliente',
+                            ReceiptConsentRenderer::ORGANIZATION => 'Assinatura da organização compradora',
+                            default => 'Assinatura do destinatário',
+                        })
+                        ->default(true)
+                        ->helperText('Pode ser usada sozinha ou junto com a assinatura do representante.'),
                     Forms\Components\Toggle::make('show_representative_signature')
                         ->label('Assinatura do representante da organização')
                         ->default(true)
-                        ->helperText('Controla o bloco {{assinatura.representante}} sem precisar editar o texto.'),
+                        ->helperText('Pode ser usada sozinha ou junto com a assinatura do destinatário.'),
                     Forms\Components\Select::make('consent_position')
                         ->label('Posição da mensagem')
                         ->options([
@@ -138,7 +147,7 @@ class DocumentTemplateResource extends Resource
                             'redo', 'undo', 'table',
                         ])
                         ->placeholder('Deixe vazio para usar a mensagem padrao do sistema.')
-                        ->helperText('Para ocultar uma assinatura, remova o respectivo bloco {{assinatura.*}} do texto.')
+                        ->helperText('As assinaturas selecionadas acima serão exibidas mesmo sem variáveis no texto.')
                         ->visible(fn (Get $get): bool => in_array($get('consent_position'), ['after', 'both'], true))
                         ->columnSpanFull(),
                 ])

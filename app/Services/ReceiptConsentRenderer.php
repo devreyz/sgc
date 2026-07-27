@@ -19,6 +19,10 @@ class ReceiptConsentRenderer
 
     public const ORGANIZATION = 'customer_organization_receipt';
 
+    public function __construct(
+        private readonly NumberInWordsService $numberInWords,
+    ) {}
+
     public function render(
         string $kind,
         Tenant $tenant,
@@ -46,6 +50,8 @@ class ReceiptConsentRenderer
         }
 
         $content = $this->sanitize($content);
+        $showRecipientSignature = $template?->show_recipient_signature ?? true;
+        $showRepresentativeSignature = $template?->show_representative_signature ?? true;
         $variables = $this->variables(
             $tenant,
             $project,
@@ -54,7 +60,8 @@ class ReceiptConsentRenderer
             $associate,
             $customer,
             $organization,
-            $template?->show_representative_signature ?? true,
+            $showRecipientSignature,
+            $showRepresentativeSignature,
         );
 
         $rendered = preg_replace_callback(
@@ -63,8 +70,18 @@ class ReceiptConsentRenderer
             $content,
         ) ?? '';
 
-        if (! ($template?->show_representative_signature ?? true)) {
-            $rendered = preg_replace('#<td>\s*</td>#i', '', $rendered) ?? $rendered;
+        $rendered = $this->removeEmptySignatureCells($rendered);
+        $rendered .= $this->automaticSignatures(
+            $template,
+            $kind,
+            $position,
+            $variables,
+            $showRecipientSignature,
+            $showRepresentativeSignature,
+        );
+
+        if (trim(strip_tags($rendered)) === '') {
+            return new HtmlString('');
         }
 
         return new HtmlString('<div class="receipt-consent">'.$rendered.'</div>');
@@ -108,14 +125,28 @@ class ReceiptConsentRenderer
                 '{{projeto.tipo}}' => 'Tipo do projeto',
                 '{{projeto.codigo}}' => 'Codigo do projeto',
                 '{{projeto.contrato}}' => 'Numero do contrato',
+                '{{projeto.ano_referencia}}' => 'Ano de referencia do projeto',
+                '{{projeto.ano_referencia_extenso}}' => 'Ano de referencia por extenso',
+                '{{projeto.valor_total}}' => 'Valor total do projeto',
+                '{{projeto.valor_total_extenso}}' => 'Valor total do projeto por extenso',
+                '{{projeto.taxa_admin}}' => 'Taxa administrativa do projeto',
+                '{{projeto.taxa_admin_extenso}}' => 'Taxa administrativa por extenso',
                 '{{comprovante.numero}}' => 'Numero do comprovante',
+                '{{comprovante.numero_extenso}}' => 'Numero sequencial do comprovante por extenso',
                 '{{comprovante.ano}}' => 'Ano do comprovante',
+                '{{comprovante.ano_extenso}}' => 'Ano do comprovante por extenso',
                 '{{comprovante.data}}' => 'Data de emissao',
+                '{{comprovante.data_extenso}}' => 'Data de emissao por extenso',
+                '{{comprovante.itens}}' => 'Quantidade de itens/distribuicoes',
+                '{{comprovante.itens_extenso}}' => 'Quantidade de itens/distribuicoes por extenso',
             ],
             'Valores' => [
                 '{{valor.bruto}}' => 'Valor bruto',
+                '{{valor.bruto_extenso}}' => 'Valor bruto por extenso (reais e centavos)',
                 '{{valor.taxas}}' => 'Taxas e deducoes',
+                '{{valor.taxas_extenso}}' => 'Taxas e deducoes por extenso (reais e centavos)',
                 '{{valor.liquido}}' => 'Valor liquido',
+                '{{valor.liquido_extenso}}' => 'Valor liquido por extenso (reais e centavos)',
             ],
             'Destinatarios' => [
                 '{{associado.nome}}' => 'Nome do associado',
@@ -130,6 +161,7 @@ class ReceiptConsentRenderer
             'Data e assinaturas' => [
                 '{{data.hoje}}' => 'Data atual',
                 '{{data.ano}}' => 'Ano atual',
+                '{{data.ano_extenso}}' => 'Ano atual por extenso',
                 '{{assinatura.associado}}' => 'Bloco de assinatura do associado',
                 '{{assinatura.cliente}}' => 'Bloco de assinatura do cliente',
                 '{{assinatura.organizacao}}' => 'Bloco da organizacao compradora',
@@ -164,11 +196,20 @@ class ReceiptConsentRenderer
         ?Associate $associate,
         ?Customer $customer,
         ?Organization $organization,
+        bool $showRecipientSignature,
         bool $showRepresentativeSignature,
     ): array {
         $receiptDate = $receipt?->issued_at ?? now();
         $receiptNumber = $receipt?->formatted_number
             ?? collect([$receipt?->receipt_number, $receipt?->receipt_year])->filter()->implode('/');
+        $receiptYear = $receipt?->receipt_year ?? now()->year;
+        $grossValue = $financial['gross'] ?? $financial['gross_value'] ?? 0;
+        $feeValue = $financial['fees'] ?? $financial['admin_fee'] ?? 0;
+        $netValue = $financial['net'] ?? $financial['net_value'] ?? 0;
+        $itemsCount = $financial['items_count'] ?? $financial['deliveries_count'] ?? null;
+        $projectValue = $project?->total_value;
+        $projectFeePercentage = $project?->admin_fee_percentage;
+        $projectReferenceYear = $project?->reference_year;
 
         $plain = [
             'tenant.nome' => $tenant->name,
@@ -180,12 +221,28 @@ class ReceiptConsentRenderer
             'projeto.tipo' => $project?->type_label,
             'projeto.codigo' => $project?->code,
             'projeto.contrato' => $project?->contract_number,
+            'projeto.ano_referencia' => $projectReferenceYear,
+            'projeto.ano_referencia_extenso' => $this->numberInWords->number($projectReferenceYear),
+            'projeto.valor_total' => $projectValue === null ? '' : $this->money($projectValue),
+            'projeto.valor_total_extenso' => $this->numberInWords->money($projectValue),
+            'projeto.taxa_admin' => $projectFeePercentage === null
+                ? ''
+                : number_format((float) $projectFeePercentage, 2, ',', '.').'%',
+            'projeto.taxa_admin_extenso' => $this->numberInWords->percentage($projectFeePercentage),
             'comprovante.numero' => $receiptNumber,
-            'comprovante.ano' => $receipt?->receipt_year ?? now()->year,
+            'comprovante.numero_extenso' => $this->numberInWords->number($receipt?->receipt_number),
+            'comprovante.ano' => $receiptYear,
+            'comprovante.ano_extenso' => $this->numberInWords->number($receiptYear),
             'comprovante.data' => $receiptDate?->format('d/m/Y'),
-            'valor.bruto' => $this->money($financial['gross'] ?? $financial['gross_value'] ?? 0),
-            'valor.taxas' => $this->money($financial['fees'] ?? $financial['admin_fee'] ?? 0),
-            'valor.liquido' => $this->money($financial['net'] ?? $financial['net_value'] ?? 0),
+            'comprovante.data_extenso' => $receiptDate?->translatedFormat('d \\d\\e F \\d\\e Y'),
+            'comprovante.itens' => $itemsCount,
+            'comprovante.itens_extenso' => $this->numberInWords->number($itemsCount),
+            'valor.bruto' => $this->money($grossValue),
+            'valor.bruto_extenso' => $this->numberInWords->money($grossValue),
+            'valor.taxas' => $this->money($feeValue),
+            'valor.taxas_extenso' => $this->numberInWords->money($feeValue),
+            'valor.liquido' => $this->money($netValue),
+            'valor.liquido_extenso' => $this->numberInWords->money($netValue),
             'associado.nome' => $associate?->display_name,
             'associado.cpf' => $associate?->cpf_cnpj,
             'cliente.nome' => $customer?->name,
@@ -196,6 +253,7 @@ class ReceiptConsentRenderer
             'organizacao.responsavel' => $organization?->responsible_name,
             'data.hoje' => now()->format('d/m/Y'),
             'data.ano' => now()->year,
+            'data.ano_extenso' => $this->numberInWords->number(now()->year),
         ];
 
         $escaped = collect($plain)
@@ -206,29 +264,121 @@ class ReceiptConsentRenderer
             'tenant.cnpj_texto' => $tenant->cnpj
                 ? ', inscrita no CNPJ sob no <strong>'.e($tenant->cnpj).'</strong>'
                 : '',
-            'assinatura.associado' => $this->signature(
-                $associate?->display_name ?: 'Associado nao identificado',
-                'Produtor / Associado',
-                $associate?->cpf_cnpj,
-            ),
-            'assinatura.cliente' => $this->signature(
-                $customer?->responsible_name ?: $customer?->name ?: 'Responsavel pelo cliente',
-                $customer?->responsible_role ?: 'Cliente / Recebedor',
-                $customer?->cnpj,
-            ),
-            'assinatura.organizacao' => $this->signature(
-                $organization?->responsible_name ?: $organization?->name ?: 'Responsavel pela organizacao compradora',
-                $organization?->responsible_role ?: 'Organizacao compradora',
-                $organization?->cnpj,
-            ),
-            'assinatura.representante' => $showRepresentativeSignature && $tenant->legal_representative_name
+            'assinatura.associado' => $showRecipientSignature
                 ? $this->signature(
-                    $tenant->legal_representative_name,
+                    $associate?->display_name ?: 'Associado nao identificado',
+                    'Produtor / Associado',
+                    $associate?->cpf_cnpj,
+                )
+                : '',
+            'assinatura.cliente' => $showRecipientSignature
+                ? $this->signature(
+                    $customer?->responsible_name ?: $customer?->name ?: 'Responsavel pelo cliente',
+                    $customer?->responsible_role ?: 'Cliente / Recebedor',
+                    $customer?->cnpj,
+                )
+                : '',
+            'assinatura.organizacao' => $showRecipientSignature
+                ? $this->signature(
+                    $organization?->responsible_name ?: $organization?->name ?: 'Responsavel pela organizacao compradora',
+                    $organization?->responsible_role ?: 'Organizacao compradora',
+                    $organization?->cnpj,
+                )
+                : '',
+            'assinatura.representante' => $showRepresentativeSignature
+                ? $this->signature(
+                    $tenant->legal_representative_name ?: 'Representante da organizacao',
                     $tenant->legal_representative_role ?: 'Responsavel pela Organizacao',
                     $tenant->legal_representative_cpf,
                 )
                 : '',
         ];
+    }
+
+    private function automaticSignatures(
+        ?DocumentTemplate $template,
+        string $kind,
+        string $position,
+        array $variables,
+        bool $showRecipientSignature,
+        bool $showRepresentativeSignature,
+    ): string {
+        if (! $this->isAutomaticSignaturePosition($template, $position)) {
+            return '';
+        }
+
+        $blocks = [];
+        $recipientVariable = $this->recipientSignatureVariable($kind);
+
+        if (
+            $showRecipientSignature
+            && $recipientVariable
+            && ! $this->templateContainsVariable($template, $kind, $recipientVariable)
+            && ($variables[$recipientVariable] ?? '') !== ''
+        ) {
+            $blocks[] = $variables[$recipientVariable];
+        }
+
+        if (
+            $showRepresentativeSignature
+            && ! $this->templateContainsVariable($template, $kind, 'assinatura.representante')
+            && ($variables['assinatura.representante'] ?? '') !== ''
+        ) {
+            $blocks[] = $variables['assinatura.representante'];
+        }
+
+        if ($blocks === []) {
+            return '';
+        }
+
+        $cells = implode('', array_map(
+            fn (string $block): string => '<td>'.$block.'</td>',
+            $blocks,
+        ));
+
+        return '<table class="receipt-signatures"><tr>'.$cells.'</tr></table>';
+    }
+
+    private function isAutomaticSignaturePosition(?DocumentTemplate $template, string $position): bool
+    {
+        $configured = $template?->consent_position ?: 'after';
+
+        return $configured === 'before'
+            ? $position === 'before'
+            : $position === 'after';
+    }
+
+    private function recipientSignatureVariable(string $kind): ?string
+    {
+        return match ($kind) {
+            self::ASSOCIATE => 'assinatura.associado',
+            self::CUSTOMER => 'assinatura.cliente',
+            self::ORGANIZATION => 'assinatura.organizacao',
+            default => null,
+        };
+    }
+
+    private function templateContainsVariable(
+        ?DocumentTemplate $template,
+        string $kind,
+        string $variable,
+    ): bool {
+        $content = ($template?->consent_content_before ?? '').' '
+            .($template?->consent_content ?: $this->defaultContent($kind));
+
+        return (bool) preg_match(
+            '/\{\{\s*'.preg_quote($variable, '/').'\s*\}\}/i',
+            $content,
+        );
+    }
+
+    private function removeEmptySignatureCells(string $html): string
+    {
+        $html = preg_replace('#<td>\s*</td>#i', '', $html) ?? $html;
+        $html = preg_replace('#<tr>\s*</tr>#i', '', $html) ?? $html;
+        $html = preg_replace('#<tbody>\s*</tbody>#i', '', $html) ?? $html;
+
+        return preg_replace('#<table>\s*</table>#i', '', $html) ?? $html;
     }
 
     private function defaultContent(string $kind): string

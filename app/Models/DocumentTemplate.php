@@ -42,6 +42,7 @@ class DocumentTemplate extends Model
         'consent_position',
         'consent_content_before',
         'consent_content',
+        'show_recipient_signature',
         'show_representative_signature',
         'description',
         'content',
@@ -71,6 +72,7 @@ class DocumentTemplate extends Model
             'section_order'       => 'array',
             'is_active'           => 'boolean',
             'consent_enabled'     => 'boolean',
+            'show_recipient_signature' => 'boolean',
             'show_representative_signature' => 'boolean',
         ];
     }
@@ -538,20 +540,26 @@ class DocumentTemplate extends Model
                 '{{projeto.numero_contrato}}' => 'Número do Contrato',
                 '{{projeto.cliente}}' => 'Nome do Cliente',
                 '{{projeto.data_inicio}}' => 'Data de Início',
+                '{{projeto.data_inicio_extenso}}' => 'Data de Início por Extenso',
                 '{{projeto.data_fim}}' => 'Data de Término',
+                '{{projeto.data_fim_extenso}}' => 'Data de Término por Extenso',
                 '{{projeto.valor_total}}' => 'Valor Total',
+                '{{projeto.valor_total_extenso}}' => 'Valor Total por Extenso (reais e centavos)',
                 '{{projeto.taxa_admin}}' => 'Taxa Administrativa (%)',
+                '{{projeto.taxa_admin_extenso}}' => 'Taxa Administrativa por Extenso (por cento)',
             ],
             'Financeiro' => [
                 '{{financeiro.valor}}' => 'Valor em R$',
                 '{{financeiro.valor_extenso}}' => 'Valor por Extenso',
                 '{{financeiro.saldo}}' => 'Saldo da Conta',
+                '{{financeiro.saldo_extenso}}' => 'Saldo da Conta por Extenso',
             ],
             'Data e Hora' => [
                 '{{data.hoje}}' => 'Data de Hoje',
                 '{{data.hoje_extenso}}' => 'Data de Hoje por Extenso',
                 '{{data.mes_atual}}' => 'Mês Atual',
                 '{{data.ano_atual}}' => 'Ano Atual',
+                '{{data.ano_atual_extenso}}' => 'Ano Atual por Extenso',
             ],
         ];
     }

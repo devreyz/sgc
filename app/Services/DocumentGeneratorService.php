@@ -8,11 +8,14 @@ use App\Models\GeneratedDocument;
 use App\Models\SalesProject;
 use App\Models\PurchaseProject;
 use Illuminate\Database\Eloquent\Model;
-use NumberFormatter;
 
 class DocumentGeneratorService
 {
     protected array $variables = [];
+
+    public function __construct(
+        private readonly NumberInWordsService $numberInWords,
+    ) {}
 
     /**
      * Generate document from template with context.
@@ -72,6 +75,7 @@ class DocumentGeneratorService
         $this->variables['{{data.hoje_extenso}}'] = $this->dateExtense($now);
         $this->variables['{{data.mes_atual}}'] = $now->translatedFormat('F');
         $this->variables['{{data.ano_atual}}'] = $now->format('Y');
+        $this->variables['{{data.ano_atual_extenso}}'] = $this->numberInWords->number($now->year);
     }
 
     /**
@@ -96,6 +100,7 @@ class DocumentGeneratorService
         // Financial
         $balance = $associate->current_balance ?? 0;
         $this->variables['{{financeiro.saldo}}'] = 'R$ ' . number_format($balance, 2, ',', '.');
+        $this->variables['{{financeiro.saldo_extenso}}'] = $this->numberInWords->money($balance);
     }
 
     /**
@@ -110,17 +115,28 @@ class DocumentGeneratorService
             $this->variables['{{projeto.numero_contrato}}'] = $project->contract_number ?? '';
             $this->variables['{{projeto.cliente}}'] = $project->customer?->name ?? '';
             $this->variables['{{projeto.data_inicio}}'] = $project->start_date?->format('d/m/Y') ?? '';
+            $this->variables['{{projeto.data_inicio_extenso}}'] = $project->start_date?->translatedFormat('d \\d\\e F \\d\\e Y') ?? '';
             $this->variables['{{projeto.data_fim}}'] = $project->end_date?->format('d/m/Y') ?? '';
-            $this->variables['{{projeto.valor_total}}'] = 'R$ ' . number_format($project->total_value ?? 0, 2, ',', '.');
-            $this->variables['{{projeto.taxa_admin}}'] = number_format($project->admin_fee_percentage ?? 0, 1, ',', '.') . '%';
+            $this->variables['{{projeto.data_fim_extenso}}'] = $project->end_date?->translatedFormat('d \\d\\e F \\d\\e Y') ?? '';
+            $projectValue = $project->total_value ?? 0;
+            $adminFeePercentage = $project->admin_fee_percentage ?? 0;
+            $this->variables['{{projeto.valor_total}}'] = 'R$ ' . number_format($projectValue, 2, ',', '.');
+            $this->variables['{{projeto.valor_total_extenso}}'] = $this->numberInWords->money($projectValue);
+            $this->variables['{{projeto.taxa_admin}}'] = number_format($adminFeePercentage, 1, ',', '.') . '%';
+            $this->variables['{{projeto.taxa_admin_extenso}}'] = $this->numberInWords->percentage($adminFeePercentage);
         } elseif ($project instanceof PurchaseProject) {
             $this->variables['{{projeto.titulo}}'] = $project->title ?? '';
             $this->variables['{{projeto.numero_contrato}}'] = $project->contract_number ?? '';
             $this->variables['{{projeto.cliente}}'] = '';
             $this->variables['{{projeto.data_inicio}}'] = $project->start_date?->format('d/m/Y') ?? '';
+            $this->variables['{{projeto.data_inicio_extenso}}'] = $project->start_date?->translatedFormat('d \\d\\e F \\d\\e Y') ?? '';
             $this->variables['{{projeto.data_fim}}'] = $project->end_date?->format('d/m/Y') ?? '';
-            $this->variables['{{projeto.valor_total}}'] = 'R$ ' . number_format($project->estimated_value ?? 0, 2, ',', '.');
+            $this->variables['{{projeto.data_fim_extenso}}'] = $project->end_date?->translatedFormat('d \\d\\e F \\d\\e Y') ?? '';
+            $projectValue = $project->estimated_value ?? 0;
+            $this->variables['{{projeto.valor_total}}'] = 'R$ ' . number_format($projectValue, 2, ',', '.');
+            $this->variables['{{projeto.valor_total_extenso}}'] = $this->numberInWords->money($projectValue);
             $this->variables['{{projeto.taxa_admin}}'] = '';
+            $this->variables['{{projeto.taxa_admin_extenso}}'] = '';
         }
     }
 
@@ -130,34 +146,9 @@ class DocumentGeneratorService
     public function setFinancialValue(float $value): self
     {
         $this->variables['{{financeiro.valor}}'] = 'R$ ' . number_format($value, 2, ',', '.');
-        $this->variables['{{financeiro.valor_extenso}}'] = $this->moneyExtense($value);
+        $this->variables['{{financeiro.valor_extenso}}'] = $this->numberInWords->money($value);
         
         return $this;
-    }
-
-    /**
-     * Convert money to words in Portuguese.
-     */
-    protected function moneyExtense(float $value): string
-    {
-        if (!class_exists(NumberFormatter::class)) {
-            return 'R$ ' . number_format($value, 2, ',', '.');
-        }
-
-        $formatter = new NumberFormatter('pt_BR', NumberFormatter::SPELLOUT);
-        
-        $reais = floor($value);
-        $centavos = round(($value - $reais) * 100);
-
-        $text = $formatter->format($reais);
-        $text .= $reais === 1.0 ? ' real' : ' reais';
-
-        if ($centavos > 0) {
-            $text .= ' e ' . $formatter->format($centavos);
-            $text .= $centavos === 1.0 ? ' centavo' : ' centavos';
-        }
-
-        return ucfirst($text);
     }
 
     /**

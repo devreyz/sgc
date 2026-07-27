@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AssociateReceipt;
 use App\Models\DocumentTemplate;
 use App\Models\SalesProject;
 use App\Models\SalesProjectType;
@@ -49,6 +50,7 @@ class ReceiptConsentCustomizationTest extends TestCase
             $table->string('consent_position', 16)->default('after');
             $table->longText('consent_content_before')->nullable();
             $table->longText('consent_content')->nullable();
+            $table->boolean('show_recipient_signature')->default(true);
             $table->boolean('show_representative_signature')->default(true);
             $table->longText('content');
             $table->boolean('is_active')->default(true);
@@ -238,6 +240,147 @@ class ReceiptConsentCustomizationTest extends TestCase
 
         $this->assertStringNotContainsString('Presidente da Cooperativa', $html);
         $this->assertStringNotContainsString('<td></td>', $html);
+    }
+
+    public function test_recipient_and_representative_signatures_are_independently_configurable(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'signature-selection');
+        $tenant->update(['legal_representative_name' => 'Presidente da Cooperativa']);
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $template = $this->template(
+            $tenant,
+            'paa',
+            '<p>Consentimento</p><table><tr><td>{{assinatura.associado}}</td><td>{{assinatura.representante}}</td></tr></table>',
+        );
+
+        $template->update([
+            'show_recipient_signature' => false,
+            'show_representative_signature' => true,
+        ]);
+
+        $representativeOnly = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant->refresh(),
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringContainsString('Presidente da Cooperativa', $representativeOnly);
+        $this->assertStringNotContainsString('Produtor / Associado', $representativeOnly);
+
+        $template->update([
+            'show_recipient_signature' => true,
+            'show_representative_signature' => false,
+        ]);
+
+        $associateOnly = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant->refresh(),
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringContainsString('Produtor / Associado', $associateOnly);
+        $this->assertStringNotContainsString('Presidente da Cooperativa', $associateOnly);
+    }
+
+    public function test_enabled_signatures_are_appended_when_custom_text_has_no_signature_variables(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'automatic-signatures');
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $template = $this->template($tenant, 'paa', '<p>Texto personalizado sem blocos.</p>');
+        $template->update([
+            'show_recipient_signature' => true,
+            'show_representative_signature' => true,
+        ]);
+
+        $html = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringContainsString('Texto personalizado sem blocos.', $html);
+        $this->assertStringContainsString('Produtor / Associado', $html);
+        $this->assertStringContainsString('Representante da organizacao', $html);
+        $this->assertSame(2, substr_count($html, 'class="receipt-signature"'));
+    }
+
+    public function test_both_signatures_can_be_disabled_without_hiding_consent_text(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'no-signatures');
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $template = $this->template($tenant, 'paa', '<p>Somente o consentimento.</p>');
+        $template->update([
+            'show_recipient_signature' => false,
+            'show_representative_signature' => false,
+        ]);
+
+        $html = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringContainsString('Somente o consentimento.', $html);
+        $this->assertStringNotContainsString('receipt-signature', $html);
+    }
+
+    public function test_receipt_numeric_variables_have_semantically_typed_extensive_versions(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'extensive-values');
+        $project = new SalesProject([
+            'title' => 'Projeto',
+            'type' => 'paa',
+            'reference_year' => 2026,
+            'total_value' => 2000,
+            'admin_fee_percentage' => 7.5,
+        ]);
+        $project->tenant_id = $tenant->id;
+        $receipt = new AssociateReceipt([
+            'receipt_number' => 21,
+            'receipt_year' => 2026,
+            'issued_at' => '2026-07-27',
+        ]);
+        $this->template(
+            $tenant,
+            'paa',
+            '<p>{{projeto.ano_referencia_extenso}} | {{projeto.valor_total_extenso}} | '
+                .'{{projeto.taxa_admin_extenso}} | {{comprovante.numero_extenso}} | '
+                .'{{comprovante.ano_extenso}} | {{comprovante.itens_extenso}} | '
+                .'{{valor.bruto_extenso}} | {{valor.taxas_extenso}} | {{valor.liquido_extenso}}</p>',
+        );
+
+        $html = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            $receipt,
+            [
+                'gross' => 150.50,
+                'fees' => 10.25,
+                'net' => 140.25,
+                'items_count' => 3,
+            ],
+        );
+
+        $this->assertStringContainsString('dois mil e vinte e seis', $html);
+        $this->assertStringContainsString('dois mil reais', $html);
+        $this->assertStringContainsString('sete vírgula cinco por cento', $html);
+        $this->assertStringContainsString('vinte e um', $html);
+        $this->assertStringContainsString('três', $html);
+        $this->assertStringContainsString('cento e cinquenta reais e cinquenta centavos', $html);
+        $this->assertStringContainsString('dez reais e vinte e cinco centavos', $html);
+        $this->assertStringContainsString('cento e quarenta reais e vinte e cinco centavos', $html);
     }
 
     private function template(Tenant $tenant, ?string $projectType, string $content): DocumentTemplate

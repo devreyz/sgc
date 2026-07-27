@@ -53,6 +53,8 @@ class ListDocumentTemplates extends ListRecords
                             'visible_columns'     => $def['default_columns'] ?? array_keys($def['columns']),
                             'paper_size'          => 'a4',
                             'paper_orientation'   => $def['paper_orientation'] ?? 'portrait',
+                            'show_recipient_signature' => true,
+                            'show_representative_signature' => true,
                             'is_active'           => true,
                             'created_by'          => auth()->id(),
                         ]);

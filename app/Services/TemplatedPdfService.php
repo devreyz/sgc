@@ -15,8 +15,10 @@ class TemplatedPdfService
 {
     protected DocumentGeneratorService $varService;
 
-    public function __construct(DocumentGeneratorService $varService)
-    {
+    public function __construct(
+        DocumentGeneratorService $varService,
+        private readonly NumberInWordsService $numberInWords,
+    ) {
         $this->varService = $varService;
     }
 
@@ -647,13 +649,18 @@ HTMLDOC;
             '{{data.hoje_extenso}}' => $now->translatedFormat('d \\d\\e F \\d\\e Y'),
             '{{data.mes_atual}}' => $now->translatedFormat('F'),
             '{{data.ano_atual}}' => $now->format('Y'),
+            '{{data.ano_atual_extenso}}' => $this->numberInWords->number($now->year),
             '{{data.hora_atual}}' => $now->format('H:i'),
             '{{pagina.atual}}' => '<span class="pdf-pgnum"></span>',
             '{{pagina.total}}' => '<span class="pdf-pgtot"></span>',
         ];
 
         // Merge financial variables if provided by caller
-        return array_merge($base, $this->resolveFinancialVariables($contextVars));
+        return array_merge(
+            $base,
+            $this->resolveFinancialVariables($contextVars),
+            $this->resolveProjectExtensiveVariables($contextVars),
+        );
     }
 
     /**
@@ -665,10 +672,14 @@ HTMLDOC;
         if (isset($contextVars['{{financeiro.valor}}'])) {
             $val = (float) $contextVars['{{financeiro.valor}}'];
             $vars['{{financeiro.valor}}'] = 'R$ '.number_format($val, 2, ',', '.');
-            $vars['{{financeiro.valor_extenso}}'] = $contextVars['{{financeiro.valor_extenso}}'] ?? '';
+            $vars['{{financeiro.valor_extenso}}'] = $contextVars['{{financeiro.valor_extenso}}']
+                ?? $this->numberInWords->money($contextVars['{{financeiro.valor}}']);
         }
         if (isset($contextVars['{{financeiro.saldo}}'])) {
-            $vars['{{financeiro.saldo}}'] = 'R$ '.number_format((float) $contextVars['{{financeiro.saldo}}'], 2, ',', '.');
+            $balance = $contextVars['{{financeiro.saldo}}'];
+            $vars['{{financeiro.saldo}}'] = 'R$ '.number_format((float) $balance, 2, ',', '.');
+            $vars['{{financeiro.saldo_extenso}}'] = $contextVars['{{financeiro.saldo_extenso}}']
+                ?? $this->numberInWords->money($balance);
         }
         // Pass through any remaining {{financeiro.*}} raw from contextVars
         foreach ($contextVars as $key => $val) {
@@ -678,6 +689,54 @@ HTMLDOC;
         }
 
         return $vars;
+    }
+
+    private function resolveProjectExtensiveVariables(array $contextVars): array
+    {
+        $variables = [];
+
+        if (isset($contextVars['{{projeto.valor_total}}'])) {
+            $variables['{{projeto.valor_total_extenso}}'] = $contextVars['{{projeto.valor_total_extenso}}']
+                ?? $this->numberInWords->money($contextVars['{{projeto.valor_total}}']);
+        }
+
+        if (isset($contextVars['{{projeto.taxa_admin}}'])) {
+            $variables['{{projeto.taxa_admin_extenso}}'] = $contextVars['{{projeto.taxa_admin_extenso}}']
+                ?? $this->numberInWords->percentage($contextVars['{{projeto.taxa_admin}}']);
+        }
+
+        foreach (['data_inicio', 'data_fim'] as $field) {
+            $key = '{{projeto.'.$field.'}}';
+            $extensiveKey = '{{projeto.'.$field.'_extenso}}';
+            if (isset($contextVars[$key])) {
+                $variables[$extensiveKey] = $contextVars[$extensiveKey]
+                    ?? $this->dateInWords($contextVars[$key]);
+            }
+        }
+
+        return $variables;
+    }
+
+    private function dateInWords(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return \Illuminate\Support\Carbon::instance($value)
+                ->translatedFormat('d \\d\\e F \\d\\e Y');
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return '';
+        }
+
+        try {
+            $date = str_contains($value, '/')
+                ? \Illuminate\Support\Carbon::createFromFormat('d/m/Y', $value)
+                : \Illuminate\Support\Carbon::parse($value);
+
+            return $date->translatedFormat('d \\d\\e F \\d\\e Y');
+        } catch (\Throwable) {
+            return '';
+        }
     }
 
     /**

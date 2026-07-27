@@ -229,6 +229,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $summary['gross_value'] ?? 0,
         'fees' => $summary['admin_fee'] ?? 0,
         'net' => $summary['net_value'] ?? 0,
+        'items_count' => $summary['deliveries_count'] ?? null,
     ],
 ])
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
@@ -420,6 +421,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'gross' => $summary['gross_value'] ?? 0,
         'fees' => $summary['admin_fee'] ?? 0,
         'net' => $summary['net_value'] ?? 0,
+        'items_count' => $summary['deliveries_count'] ?? null,
     ],
 ])
 

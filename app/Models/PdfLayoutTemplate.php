@@ -344,6 +344,7 @@ class PdfLayoutTemplate extends Model
             '{{data.hoje_extenso}}' => 'Data por Extenso',
             '{{data.mes_atual}}' => 'Mês Atual',
             '{{data.ano_atual}}' => 'Ano Atual',
+            '{{data.ano_atual_extenso}}' => 'Ano Atual por Extenso',
             '{{data.hora_atual}}' => 'Hora Atual',
             // Documento e paginação
             '{{documento.titulo}}' => 'Título do Documento',
@@ -364,10 +365,23 @@ class PdfLayoutTemplate extends Model
             '{{associado.propriedade}}' => 'Nome da Propriedade',
             '{{associado.dap_caf}}' => 'Nº DAP/CAF',
             '{{associado.matricula}}' => 'Nº Matrícula',
+            // Projeto (números contratuais permanecem como identificadores)
+            '{{projeto.titulo}}' => 'Título do Projeto',
+            '{{projeto.numero_contrato}}' => 'Número do Contrato',
+            '{{projeto.cliente}}' => 'Nome do Cliente',
+            '{{projeto.data_inicio}}' => 'Data de Início',
+            '{{projeto.data_inicio_extenso}}' => 'Data de Início por Extenso',
+            '{{projeto.data_fim}}' => 'Data de Término',
+            '{{projeto.data_fim_extenso}}' => 'Data de Término por Extenso',
+            '{{projeto.valor_total}}' => 'Valor Total',
+            '{{projeto.valor_total_extenso}}' => 'Valor Total por Extenso (reais e centavos)',
+            '{{projeto.taxa_admin}}' => 'Taxa Administrativa',
+            '{{projeto.taxa_admin_extenso}}' => 'Taxa Administrativa por Extenso (por cento)',
             // Financeiro (contextual — disponível em documentos financeiros)
             '{{financeiro.valor}}' => 'Valor em R$ (contextual)',
             '{{financeiro.valor_extenso}}' => 'Valor por Extenso (contextual)',
             '{{financeiro.saldo}}' => 'Saldo da Conta (contextual)',
+            '{{financeiro.saldo_extenso}}' => 'Saldo por Extenso (reais e centavos)',
         ];
     }
 
