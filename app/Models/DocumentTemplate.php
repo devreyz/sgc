@@ -320,6 +320,27 @@ class DocumentTemplate extends Model
                 'default_columns' => ['date', 'product', 'quantity', 'unit_value', 'gross_value'],
                 'paper_orientation' => 'portrait',
             ],
+            'associate_portal_receipt' => [
+                'label'       => 'Comprovante Simplificado do Portal do Associado',
+                'blade_view'  => 'pdf.associate-portal-receipt',
+                'type'        => 'receipt',
+                'description' => 'Comprovante resumido para consulta do associado, sem controles administrativos ou assinaturas',
+                'sections' => [
+                    'associate_info' => 'Associado e Projeto',
+                    'financial'      => 'Resumo Financeiro',
+                    'distributions'  => 'Distribuições',
+                ],
+                'columns' => [
+                    'date'        => 'Data',
+                    'product'     => 'Produto',
+                    'customer'    => 'Destino',
+                    'quantity'    => 'Quantidade',
+                    'unit_value'  => 'Valor Unitário',
+                    'gross_value' => 'Valor Total',
+                ],
+                'default_columns' => ['date', 'product', 'quantity', 'unit_value', 'gross_value'],
+                'paper_orientation' => 'portrait',
+            ],
             'associate_payment_statement' => [
                 'label'       => 'Extrato de Pagamentos do Associado',
                 'blade_view'  => 'pdf.associate-payment-statement',

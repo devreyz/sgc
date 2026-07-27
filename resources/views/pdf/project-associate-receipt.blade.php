@@ -64,14 +64,14 @@ body {
     font-size: 11px;
     color: #1e3a5f;
     background: #fff;
-    padding: 16mm 18mm 14mm 18mm;
+    padding: 11mm 14mm 10mm 14mm;
 }
-.hdr { display: table; width: 100%; padding-bottom: 10px; border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
-.hdr-logo { display: table-cell; width: 70px; padding-top: 4px; vertical-align: start; }
-.hdr-logo img { width: 72px; height: 72px; object-fit: contain; border: 0px solid #ffffff; outline: none; }
-.hdr-org  { display: table-cell; vertical-align: start; padding-left: 12px; }
+.hdr { display: table; width: 100%; padding-bottom: 6px; border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 9px; }
+.hdr-logo { display: table-cell; width: 56px; padding-top: 2px; vertical-align: top; }
+.hdr-logo img { width: 52px; height: 52px; object-fit: contain; border: 0; outline: none; }
+.hdr-org  { display: table-cell; vertical-align: top; padding-left: 9px; }
 .hdr-org .org-name { font-size: 11px; width: 90%; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; line-height: 1.3; }
-.hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
+.hdr-org .org-meta { font-size: 9px; color: #444; margin-top: 2px; line-height: 1.4; }
 .hdr-right { display: table-cell; text-align: right; vertical-align: start; white-space: nowrap; }
 .hdr-right .doc-type { font-size: 9px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px; }
 .hdr-right .doc-num  { font-size: 15px; font-weight: bold; color: {{ $textColor }}; display: block; }
@@ -83,7 +83,7 @@ body {
 .assoc-col-last { display: table-cell; vertical-align: top; }
 .field-label { font-size: 8.5px; color: #777; text-transform: uppercase; letter-spacing: 0.3px; display: block; margin-bottom: 2px; }
 .field-value { font-size: 12px; font-weight: bold; color: #333; }
-.proj-strip { background: #f4f6f8; border-left: 3px solid {{ $primaryColor }}; padding: 8px 12px; margin-bottom: 14px; display: table; width: 100%; }
+.proj-strip { background: #f4f6f8; border-left: 3px solid {{ $primaryColor }}; padding: 6px 9px; margin-bottom: 8px; display: table; width: 100%; }
 .proj-cell { display: table-cell; vertical-align: top; padding-right: 20px; }
 .proj-cell-last { display: table-cell; vertical-align: top; }
 .proj-label { font-size: 8.5px; color: #666; display: block; }
@@ -91,21 +91,21 @@ body {
 .decl { margin-bottom: 14px; padding: 10px 14px; border: 1px solid {{ $lineColor }}; background: #fafbfc; }
 .decl p { font-size: 11px; line-height: 1.7; color: #333; text-align: justify; }
 .decl strong { color: {{ $textColor }}; }
-.sec-label { font-size: 10px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 12px 0 8px; }
+.sec-label { font-size: 9.5px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 6px; margin: 8px 0 5px; }
 /* ─── Tabela de entregas (estilo limpo) ─── */
-table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; }
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8.5pt; }
 table.tbl thead tr { background: #e5e7eb; }
 table.tbl thead th { border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; font-size: 8pt; font-weight: 700; color: #374151; }
 table.tbl thead th.r { text-align: right; }
-table.tbl tbody td { border: 1px solid #e5e7eb; padding: 4px 6px; }
+table.tbl tbody td { border: 1px solid #e5e7eb; padding: 3px 5px; }
 table.tbl tbody td.r { text-align: right; }
 table.tbl tbody tr:nth-child(even) td { background: #f9fafb; }
 table.tbl tfoot td { padding: 5px 6px; font-weight: 700; background: #f3f4f6; border-top: 2px solid #9ca3af; font-size: 8.5pt; }
 table.tbl tfoot td.r { text-align: right; color: #059669; }
 /* ─── Resumo financeiro ─── */
-.fin-summary { display: table; width: 100%; margin-bottom: 14px; border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8.5pt; }
-.fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 8px 10px; border-right: 1px solid #e2e8f0; }
-.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 8px 12px; }
+.fin-summary { display: table; width: 100%; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8.5pt; page-break-inside: avoid; }
+.fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 6px 8px; border-right: 1px solid #e2e8f0; }
+.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 6px 9px; }
 .fin-label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 3px; }
 .fin-cheque-box { border: 1px solid #9ca3af; background: #fff; border-radius: 2px; padding: 4px 8px; font-size: 9pt; font-weight: 700; min-height: 22px; }
 .fin-cheque-empty { border-bottom: 1px solid #374151; height: 20px; width: 100%; }
@@ -120,7 +120,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .sig-line { border-top: 1px solid #333; padding-top: 6px; margin-top: 40px; font-size: 11px; font-weight: bold; }
 .sig-role { font-size: 9px; color: #555; margin-top: 3px; }
 .sig-doc  { font-size: 9px; color: #333; margin-top: 1px; }
-.ftr { margin-top: 20px; border-top: 1px solid {{ $lineColor }}; padding-top: 6px; text-align: center; font-size: 8.5px; color: #999; }
+.ftr { margin-top: 10px; border-top: 1px solid {{ $lineColor }}; padding-top: 4px; text-align: center; font-size: 8px; color: #777; }
 @include('pdf.partials.theme')
 </style>
 </head>
@@ -164,7 +164,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 <div class="proj-strip">
     @if($isStandalone)
         <div class="proj-cell" style="width:50%;">
-            <span class="proj-label">Produtor / Associado</span>
+            <span class="proj-label">Nome</span>
             <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
         </div>
         
@@ -182,7 +182,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @endif
     @else
     <div class="proj-cell" style="width:50%;">
-            <span class="proj-label">Produtor / Associado</span>
+            <span class="proj-label">Nome</span>
             <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
         </div>
         <div class="proj-cell" style="width: 50%;">
@@ -233,7 +233,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     ],
 ])
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
-<div style="margin: 14px 0 8px; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a5f; border-left: 3px solid #1e3a5f; padding-left: 7px;">{{ $hideCustomerColumn ? 'Entregas' : 'Entregas por Cliente' }}</div>
+
 <table class="tbl receipt-data-table">
     <thead>
         <tr>

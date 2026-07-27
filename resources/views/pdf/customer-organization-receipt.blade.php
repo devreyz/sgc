@@ -59,15 +59,15 @@ body {
     font-size: 10px;
     color: #000;
     background: #fff;
-    padding: {{ $manyClients ? '12mm 14mm 10mm 14mm' : '16mm 18mm 14mm 18mm' }};
+    padding: {{ $manyClients ? '9mm 11mm 8mm 11mm' : '11mm 14mm 10mm 14mm' }};
 }
 
 /* ── Cabeçalho ── */
-.hdr { display: table; width: 100%; padding-bottom: 10px;
-    border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
-.hdr-logo { display: table-cell; width: 70px; padding-top: 4px; vertical-align: top; }
-.hdr-logo img { width: 64px; height: 64px; object-fit: contain; }
-.hdr-org  { display: table-cell; vertical-align: top; padding-left: 12px; }
+.hdr { display: table; width: 100%; padding-bottom: 6px;
+    border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 9px; }
+.hdr-logo { display: table-cell; width: 56px; padding-top: 2px; vertical-align: top; }
+.hdr-logo img { width: 52px; height: 52px; object-fit: contain; }
+.hdr-org  { display: table-cell; vertical-align: top; padding-left: 9px; }
 .hdr-org .org-name { font-size: 11px; font-weight: bold; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9px; color: #444; margin-top: 3px; line-height: 1.6; }
 .hdr-right { display: table-cell; text-align: right; vertical-align: top; white-space: nowrap; }
@@ -77,7 +77,7 @@ body {
 
 /* ── Strip ── */
 .strip { background: #f4f6f8; border-left: 3px solid {{ $primaryColor }};
-    padding: 8px 12px; margin-bottom: 14px; display: table; width: 100%; }
+    padding: 6px 9px; margin-bottom: 8px; display: table; width: 100%; }
 .strip-cell { display: table-cell; vertical-align: top; padding-right: 20px; }
 .strip-label { font-size: 8px; color: #666; display: block; }
 .strip-value { font-size: 10px; font-weight: bold; color: #111; }
@@ -89,7 +89,7 @@ body {
 table.main-tbl {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 14px;
+    margin-bottom: 8px;
     font-size: {{ $manyClients ? '7pt' : '8.5pt' }};
 }
 table.main-tbl thead tr { background: #e5e7eb; }
@@ -118,10 +118,10 @@ table.main-tbl tfoot td {
 table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 
 /* ── Resumo financeiro ── */
-.fin-summary { display: table; width: 100%; margin-bottom: 14px;
+.fin-summary { display: table; width: 100%; margin-bottom: 8px; page-break-inside: avoid;
     border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8pt; }
-.fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 8px 10px; border-right: 1px solid #e2e8f0; }
-.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 8px 12px; }
+.fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 6px 8px; border-right: 1px solid #e2e8f0; }
+.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 6px 9px; }
 .fin-label { font-size: 7pt; color: #6b7280; text-transform: uppercase; display: block; margin-bottom: 3px; }
 .fin-row { display: table; width: 100%; padding: 2px 0; }
 .fin-row-label { display: table-cell; color: #4b5563; font-size: 7.5pt; padding: 1px 0; }
@@ -129,8 +129,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 .fin-total { background: #ecfdf5; }
 .c-danger  { color: #dc2626; }
 .c-success { color: #059669; }
-.ftr { margin-top: 16px; border-top: 1px solid {{ $lineColor }};
-    padding-top: 6px; text-align: center; font-size: 8px; color: #999; }
+.ftr { margin-top: 9px; border-top: 1px solid {{ $lineColor }};
+    padding-top: 4px; text-align: center; font-size: 8px; color: #777; }
 @include('pdf.partials.theme')
 </style>
 </head>

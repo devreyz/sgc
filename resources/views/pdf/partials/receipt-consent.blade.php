@@ -14,14 +14,14 @@
 
 @if((string) $receiptConsent !== '')
 <style>
-    .receipt-consent { margin-top: 20px; color: #333; font-size: 10.5px; line-height: 1.55; page-break-inside: avoid; }
-    .receipt-consent p { margin: 0 0 12px; text-align: left; }
-    .receipt-consent table { width: 100%; margin-top: 26px; border-collapse: collapse; page-break-inside: avoid; }
-    .receipt-consent td { width: 50%; padding: 0 12px 0 0; vertical-align: top; }
-    .receipt-consent td + td { padding-right: 0; padding-left: 12px; }
+    .receipt-consent { margin-top: 10px; color: #333; font-size: 9.5px; line-height: 1.4; page-break-inside: auto; }
+    .receipt-consent p { margin: 0 0 6px; text-align: left; page-break-inside: avoid; }
+    .receipt-consent table { width: 100%; margin-top: 14px; border-collapse: collapse; page-break-inside: avoid; }
+    .receipt-consent td { width: 50%; padding: 0 9px 0 0; vertical-align: top; }
+    .receipt-consent td + td { padding-right: 0; padding-left: 9px; }
     .receipt-consent td:only-child { width: 100%; padding-right: 0; }
     .receipt-signature { width: 100%; text-align: left; }
-    .receipt-signature .sig-line { margin-top: 36px; padding-top: 5px; border-top: 1px solid #333; font-size: 11px; font-weight: 700; }
+    .receipt-signature .sig-line { margin-top: 24px; padding-top: 4px; border-top: 1px solid #333; font-size: 10px; font-weight: 700; }
     .receipt-signature .sig-role { margin-top: 2px; color: #555; font-size: 9px; }
     .receipt-signature .sig-doc { margin-top: 1px; color: #666; font-size: 8.5px; }
 </style>

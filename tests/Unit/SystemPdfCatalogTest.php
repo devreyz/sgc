@@ -15,6 +15,7 @@ class SystemPdfCatalogTest extends TestCase
             'pdf.distributions-by-customer-compact',
             'pdf.customer-delivery-statement',
             'pdf.project-associate-receipt',
+            'pdf.associate-portal-receipt',
             'pdf.associate-payment-statement',
             'pdf.associate-receipt-payments',
             'pdf.customer-billing-receipt',

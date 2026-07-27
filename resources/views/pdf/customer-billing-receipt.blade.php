@@ -48,13 +48,13 @@ if (! function_exists('fmtQtyBilling')) {
 body {
     font-family: 'DejaVu Sans', Arial, sans-serif;
     font-size: 11px; color: {{ $textColor }};
-    background: #fff; padding: 16mm 18mm 14mm 18mm;
+    background: #fff; padding: 11mm 14mm 10mm 14mm;
 }
-.hdr { display: table; width: 100%; padding-bottom: 10px;
-    border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 16px; }
-.hdr-logo { display: table-cell; width: 70px; padding-top: 4px; vertical-align: top; }
-.hdr-logo img { width: 72px; height: 72px; object-fit: contain; }
-.hdr-org  { display: table-cell; vertical-align: top; padding-left: 12px; }
+.hdr { display: table; width: 100%; padding-bottom: 6px;
+    border-bottom: 2px solid {{ $primaryColor }}; margin-bottom: 9px; }
+.hdr-logo { display: table-cell; width: 56px; padding-top: 2px; vertical-align: top; }
+.hdr-logo img { width: 52px; height: 52px; object-fit: contain; }
+.hdr-org  { display: table-cell; vertical-align: top; padding-left: 9px; }
 .hdr-org .org-name { font-size: 11px; font-weight: bold; text-transform: uppercase; line-height: 1.3; }
 .hdr-org .org-meta { font-size: 9.5px; color: #444; margin-top: 3px; line-height: 1.6; }
 .hdr-right { display: table-cell; text-align: right; vertical-align: top; white-space: nowrap; }
@@ -64,7 +64,7 @@ body {
 .hdr-right .doc-date { font-size: 9.5px; color: #555; display: block; margin-top: 2px; }
 
 .proj-strip { background: #f4f6f8; border-left: 3px solid {{ $primaryColor }};
-    padding: 8px 12px; margin-bottom: 14px; display: table; width: 100%; }
+    padding: 6px 9px; margin-bottom: 8px; display: table; width: 100%; }
 .proj-cell { display: table-cell; vertical-align: top; padding-right: 20px; }
 .proj-label { font-size: 8.5px; color: #666; display: block; }
 .proj-value { font-size: 10.5px; font-weight: bold; color: #111; }
@@ -73,23 +73,23 @@ body {
     text-transform: uppercase; letter-spacing: 0.3px;
     border-left: 3px solid {{ $primaryColor }}; padding-left: 7px; margin: 12px 0 8px; }
 
-table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 14px; font-size: 8.5pt; }
+table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8.5pt; }
 table.tbl thead tr { background: #e5e7eb; }
 table.tbl thead th { border: 1px solid #d1d5db; padding: 4px 6px;
     text-align: left; font-size: 8pt; font-weight: normal; color: #374151; }
 table.tbl thead th.r { text-align: right; }
-table.tbl tbody td { border: 1px solid #e5e7eb; padding: 4px 6px; }
+table.tbl tbody td { border: 1px solid #e5e7eb; padding: 3px 5px; }
 table.tbl tbody td.r { text-align: right; }
 table.tbl tbody tr:nth-child(even) td { background: #f9fafb; }
 table.tbl tfoot td { padding: 5px 6px; font-weight: normal; background: #f3f4f6;
     border-top: 2px solid #9ca3af; font-size: 8.5pt; }
 table.tbl tfoot td.r { text-align: right; color: #059669; }
 
-.fin-summary { display: table; width: 100%; margin-bottom: 14px;
+.fin-summary { display: table; width: 100%; margin-bottom: 8px; page-break-inside: avoid;
     border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8.5pt; }
 .fin-left  { display: table-cell; vertical-align: top; width: 35%;
-    padding: 8px 10px; border-right: 1px solid #e2e8f0; }
-.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 8px 12px; }
+    padding: 6px 8px; border-right: 1px solid #e2e8f0; }
+.fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 6px 9px; }
 .fin-label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase;
     letter-spacing: 0.03em; display: block; margin-bottom: 3px; }
 .fin-row { display: table; width: 100%; padding: 2px 0; }
@@ -99,8 +99,8 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .fin-total { background: #ecfdf5; font-weight: bold; }
 .c-danger  { color: #dc2626; }
 .c-success { color: #059669; }
-.ftr { margin-top: 20px; border-top: 1px solid {{ $lineColor }};
-    padding-top: 6px; text-align: center; font-size: 8.5px; color: #999; }
+.ftr { margin-top: 10px; border-top: 1px solid {{ $lineColor }};
+    padding-top: 4px; text-align: center; font-size: 8px; color: #777; }
 @include('pdf.partials.theme')
 </style>
 </head>

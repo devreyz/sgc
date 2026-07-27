@@ -89,7 +89,7 @@ class AssociateProjectPortalController extends Controller
             ? $request->route('tenant')
             : Tenant::findOrFail($project->tenant_id);
         $pdfService = app(\App\Services\TemplatedPdfService::class);
-        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
+        $pdf = $pdfService->generateSystemPdf('pdf.associate-portal-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -100,8 +100,8 @@ class AssociateProjectPortalController extends Controller
             'feeBreakdown' => $data['feeBreakdown'],
             'feeColumns' => $data['feeColumns'],
         ], $pdfService->systemPdfOptions(
-            'pdf.project-associate-receipt',
-            'Comprovante de Entrega',
+            'pdf.associate-portal-receipt',
+            'Comprovante do Associado',
             $project->type,
             (int) $project->tenant_id,
         ));
