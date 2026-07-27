@@ -14,6 +14,7 @@
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
 />
+<x-delivery.notes-modal />
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make(
         'delivery',

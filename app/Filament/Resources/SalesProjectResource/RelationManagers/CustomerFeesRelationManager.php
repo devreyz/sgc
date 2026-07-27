@@ -34,6 +34,13 @@ class CustomerFeesRelationManager extends RelationManager
                 ->placeholder('Ex: Taxa de Intermediação, Frete ao Cliente')
                 ->columnSpan(2),
 
+            Forms\Components\TextInput::make('receipt_column_name')
+                ->label('Nome curto no comprovante')
+                ->maxLength(40)
+                ->placeholder('Ex: Frete')
+                ->helperText('Quando vazio, usa o nome completo da taxa.')
+                ->columnSpan(2),
+
             Forms\Components\Select::make('type')
                 ->label('Tipo')
                 ->options([
@@ -85,6 +92,11 @@ class CustomerFeesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('name')
                     ->label('Taxa')
                     ->searchable(),
+
+                Tables\Columns\TextColumn::make('receipt_column_name')
+                    ->label('Coluna no PDF')
+                    ->placeholder('Mesmo nome')
+                    ->toggleable(),
 
                 Tables\Columns\BadgeColumn::make('type')
                     ->label('Tipo')

@@ -8,6 +8,8 @@
     $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', request()->route('tenant'));
 @endphp
 
+<x-delivery.notes-modal />
+
 @section('content')
 @php
     $tenantSlug = request()->route('tenant') instanceof \App\Models\Tenant
@@ -2411,6 +2413,10 @@
                 </td>
                 <td>
                     <div class="ap-actions">
+                        ${item.notes ? `<button type="button" class="delivery-note-trigger"
+                            data-delivery-notes="${esc(item.notes)}"
+                            data-delivery-notes-title="Observações da entrega"
+                            data-delivery-notes-meta="${esc(item.product + ' · ' + item.date)}">Observações</button>` : ''}
                         ${item.can_approve ? `
                             <button class="ap-btn primary" type="button" onclick="requestDeliveryAction(${item.id}, 'approve')">
                                 <i data-lucide="check"></i>
@@ -2476,6 +2482,10 @@
                 </div>
 
                 <div class="ap-mobile-card-actions">
+                    ${item.notes ? `<button type="button" class="delivery-note-trigger"
+                        data-delivery-notes="${esc(item.notes)}"
+                        data-delivery-notes-title="Observações da entrega"
+                        data-delivery-notes-meta="${esc(item.product + ' · ' + item.date)}">Observações</button>` : ''}
                     ${item.can_approve ? `
                         <button class="ap-btn primary" type="button" onclick="requestDeliveryAction(${item.id}, 'approve')">
                             Aprovar

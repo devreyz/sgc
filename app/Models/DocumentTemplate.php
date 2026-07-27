@@ -42,6 +42,7 @@ class DocumentTemplate extends Model
         'consent_position',
         'consent_content_before',
         'consent_content',
+        'show_representative_signature',
         'description',
         'content',
         'available_variables',
@@ -70,6 +71,7 @@ class DocumentTemplate extends Model
             'section_order'       => 'array',
             'is_active'           => 'boolean',
             'consent_enabled'     => 'boolean',
+            'show_representative_signature' => 'boolean',
         ];
     }
 

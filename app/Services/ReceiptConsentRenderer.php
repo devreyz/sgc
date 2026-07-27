@@ -46,13 +46,26 @@ class ReceiptConsentRenderer
         }
 
         $content = $this->sanitize($content);
-        $variables = $this->variables($tenant, $project, $receipt, $financial, $associate, $customer, $organization);
+        $variables = $this->variables(
+            $tenant,
+            $project,
+            $receipt,
+            $financial,
+            $associate,
+            $customer,
+            $organization,
+            $template?->show_representative_signature ?? true,
+        );
 
         $rendered = preg_replace_callback(
             '/\{\{\s*([a-z0-9_.-]+)\s*\}\}/i',
             fn (array $match): string => $variables[$match[1]] ?? '',
             $content,
         ) ?? '';
+
+        if (! ($template?->show_representative_signature ?? true)) {
+            $rendered = preg_replace('#<td>\s*</td>#i', '', $rendered) ?? $rendered;
+        }
 
         return new HtmlString('<div class="receipt-consent">'.$rendered.'</div>');
     }
@@ -151,6 +164,7 @@ class ReceiptConsentRenderer
         ?Associate $associate,
         ?Customer $customer,
         ?Organization $organization,
+        bool $showRepresentativeSignature,
     ): array {
         $receiptDate = $receipt?->issued_at ?? now();
         $receiptNumber = $receipt?->formatted_number
@@ -207,7 +221,7 @@ class ReceiptConsentRenderer
                 $organization?->responsible_role ?: 'Organizacao compradora',
                 $organization?->cnpj,
             ),
-            'assinatura.representante' => $tenant->legal_representative_name
+            'assinatura.representante' => $showRepresentativeSignature && $tenant->legal_representative_name
                 ? $this->signature(
                     $tenant->legal_representative_name,
                     $tenant->legal_representative_role ?: 'Responsavel pela Organizacao',

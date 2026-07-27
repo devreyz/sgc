@@ -19,6 +19,7 @@
     .receipt-consent table { width: 100%; margin-top: 26px; border-collapse: collapse; page-break-inside: avoid; }
     .receipt-consent td { width: 50%; padding: 0 12px 0 0; vertical-align: top; }
     .receipt-consent td + td { padding-right: 0; padding-left: 12px; }
+    .receipt-consent td:only-child { width: 100%; padding-right: 0; }
     .receipt-signature { width: 100%; text-align: left; }
     .receipt-signature .sig-line { margin-top: 36px; padding-top: 5px; border-top: 1px solid #333; font-size: 11px; font-weight: 700; }
     .receipt-signature .sig-role { margin-top: 2px; color: #555; font-size: 9px; }

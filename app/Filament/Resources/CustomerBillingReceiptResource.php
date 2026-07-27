@@ -424,13 +424,35 @@ class CustomerBillingReceiptResource extends Resource
                                     'gross' => 'Valor bruto',
                                     'net' => 'Valor líquido',
                                 ] + $service->options($definitions))
-                                ->default(['unit_price', 'gross'])
+                                ->default(fn (): array => session(
+                                    "receipt_print.customer.{$record->tenant_id}.{$record->sales_project_id}.columns",
+                                    ['unit_price', 'gross'],
+                                ))
                                 ->columns(2)
                                 ->bulkToggleable(),
+                            Forms\Components\Select::make('table_scale')
+                                ->label('Escala da tabela')
+                                ->options([
+                                    100 => '100% · Normal',
+                                    90 => '90% · Compacta',
+                                    80 => '80% · Reduzida',
+                                    70 => '70% · Muito reduzida',
+                                ])
+                                ->default(fn (): int => (int) session(
+                                    "receipt_print.customer.{$record->tenant_id}.{$record->sales_project_id}.scale",
+                                    100,
+                                ))
+                                ->required(),
                         ];
                     })
                     ->modalSubmitActionLabel('Gerar PDF')
                     ->action(function (CustomerBillingReceipt $record, array $data): mixed {
+                        $requestedColumns = is_array($data['visible_columns'] ?? null)
+                            ? $data['visible_columns']
+                            : ['unit_price', 'gross'];
+                        $tableScale = in_array((int) ($data['table_scale'] ?? 100), [70, 80, 90, 100], true)
+                            ? (int) $data['table_scale']
+                            : 100;
                         if (empty($record->delivery_ids)) {
                             Notification::make()->warning()
                                 ->title('Sem distribuições')->body('Adicione distribuições antes de gerar o PDF.')->send();
@@ -468,7 +490,7 @@ class CustomerBillingReceiptResource extends Resource
                                 $tenant,
                                 $project,
                                 $organization,
-                                $data['visible_columns'] ?? [],
+                                $requestedColumns,
                             );
                         } else {
                             // Comprovante individual do cliente
@@ -479,9 +501,14 @@ class CustomerBillingReceiptResource extends Resource
                                 $tenant,
                                 $project,
                                 $customer,
-                                $data['visible_columns'] ?? [],
+                                $requestedColumns,
                             );
                         }
+                        $data['table_scale'] = $tableScale;
+                        session([
+                            "receipt_print.customer.{$record->tenant_id}.{$record->sales_project_id}.columns" => $data['visibleColumns'],
+                            "receipt_print.customer.{$record->tenant_id}.{$record->sales_project_id}.scale" => $tableScale,
+                        ]);
 
                         $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf($view, $data,

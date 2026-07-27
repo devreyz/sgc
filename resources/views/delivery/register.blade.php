@@ -13,6 +13,7 @@
     :csrf="csrf_token()"
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name,'organization_name'=>$c->organization?->short_name??$c->organization?->name])->values()->all()"
 />
+<x-delivery.notes-modal />
 
 
 @section('content')
@@ -1336,6 +1337,7 @@ function applyProject(proj) {
         allowAny     : proj.allow_any_product,
         adminFee     : proj.admin_fee_percentage,
         customerIds  : proj.customer_ids || proj.customerIds || [],
+        defaultCustomerId: proj.default_customer_id || proj.defaultCustomerId || null,
     };
     $('pb-title').textContent = proj.title;
     $('pb-sub').textContent   = proj.customer_name;
@@ -1365,6 +1367,7 @@ async function loadProjectDeliveries(projectId, force = false) {
         S.items = (await res.json()).map(item => ({
             ...item,
             customerIds: item.customerIds || S.project?.customerIds || [],
+            defaultCustomerId: item.defaultCustomerId || S.project?.defaultCustomerId || null,
         }));
     } catch (e) {
         toast('Erro ao carregar histórico: ' + e.message, 'error');
@@ -2058,12 +2061,14 @@ async function submitEntry() {
                 qty          : qty,
                 date         : date,
                 quality      : S.quality,
+                notes        : payload.notes || '',
                 status       : 'pending',
                 distributedQty: 0,
                 distributions : [],
                 has_billed   : false,
                 dist_net_value: 0,
                 customerIds   : S.project?.customerIds || [],
+                defaultCustomerId: S.project?.defaultCustomerId || null,
                 limit: {
                     associate_limit: S.product.associate_limit ?? null,
                     associate_delivered: (S.product.associate_delivered || 0) + qty,
@@ -2191,7 +2196,12 @@ function renderSessionItems() {
         const limitHtml = limit.associate_limit == null ? '' : `<div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.45rem;font-size:.68rem;color:var(--color-text-muted);padding:.2rem 0"><span>Limite</span><div style="height:5px;background:#e5e7eb;border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${limitPct}%;background:${limitColor}"></span></div><strong style="color:var(--color-text)">${fmtQty(limit.associate_remaining,item.productUnit)} livres</strong></div>`;
 
         const actionsHtml = (() => {
-            let btns = '';
+            let btns = item.notes
+                ? `<button class="delivery-note-trigger" type="button"
+                    data-delivery-notes="${escAttr(item.notes)}"
+                    data-delivery-notes-title="Observações da entrega"
+                    data-delivery-notes-meta="${escAttr(item.productName + ' · ' + item.associateName)}">Observações</button>`
+                : '';
             if (isPending) {
                 btns += `<button class="btn-approve btn-xs" data-action="approve" data-id="${item.id}">Aprovar</button>`;
                 btns += `<button class="btn-reject btn-xs" data-action="reject" data-id="${item.id}">Rejeitar</button>`;
@@ -2559,6 +2569,8 @@ function openDistributeModal(id) {
             billing_status: d.billing_status || null,
         })),
         participants: item.customerIds || S.project?.customerIds || [],
+        defaultCustomerId: item.defaultCustomerId || S.project?.defaultCustomerId || null,
+        notes: item.notes || '',
         context: (item.projectId || S.project?.id || 0) + ':' + (item.associateId || S.associate?.id || 0),
     });
 }

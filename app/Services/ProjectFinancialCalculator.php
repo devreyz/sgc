@@ -152,6 +152,7 @@ class ProjectFinancialCalculator
         $fees = [[
             'id'     => null,
             'name'   => 'Taxa Administrativa',
+            'column_name' => 'Taxa Adm.',
             'type'   => 'percentage',
             'nature' => 'discount',
             'rate'   => $pct,
@@ -176,6 +177,7 @@ class ProjectFinancialCalculator
                 $fees[] = [
                     'id'     => null,
                     'name'   => 'Taxa Administrativa',
+                    'column_name' => 'Taxa Adm.',
                     'type'   => 'percentage',
                     'nature' => 'discount',
                     'rate'   => $pct,
@@ -197,6 +199,7 @@ class ProjectFinancialCalculator
             $fees[] = [
                 'id'     => $fee->id,
                 'name'   => $fee->name,
+                'column_name' => $fee->receipt_column_name ?: $fee->name,
                 'type'   => $fee->type,
                 'nature' => $nature,
                 'rate'   => (string) $fee->value,

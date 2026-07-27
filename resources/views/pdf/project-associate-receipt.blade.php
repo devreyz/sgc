@@ -206,7 +206,22 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     $selectedFeeColumns = collect($feeColumns ?? [])
         ->filter(fn ($fee) => in_array($fee['key'], $vcols, true))
         ->values();
+    $tableScale = in_array((int) ($table_scale ?? 100), [70, 80, 90, 100], true)
+        ? (int) ($table_scale ?? 100)
+        : 100;
+    $tableScaleRatio = $tableScale / 100;
+    $summaryCustomerIds = collect($summary['customer_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+    $hideCustomerColumn = isset($project)
+        && (int) ($project->customer_id ?? 0) > 0
+        && $summaryCustomerIds->count() === 1
+        && (int) $summaryCustomerIds->first() === (int) $project->customer_id;
 @endphp
+<style>
+    table.receipt-data-table { font-size: {{ 8.5 * $tableScaleRatio }}pt; }
+    table.receipt-data-table thead th { font-size: {{ 8 * $tableScaleRatio }}pt; padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px; }
+    table.receipt-data-table tbody td,
+    table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px; }
+</style>
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
     'consentPosition' => 'before',
@@ -217,13 +232,13 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     ],
 ])
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
-<div style="margin: 14px 0 8px; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a5f; border-left: 3px solid #1e3a5f; padding-left: 7px;">Entregas por Cliente</div>
-<table class="tbl">
+<div style="margin: 14px 0 8px; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a5f; border-left: 3px solid #1e3a5f; padding-left: 7px;">{{ $hideCustomerColumn ? 'Entregas' : 'Entregas por Cliente' }}</div>
+<table class="tbl receipt-data-table">
     <thead>
         <tr>
             <th>Produto</th>
             <th style="width:11%;">Data</th>
-            <th>Cliente</th>
+            @unless($hideCustomerColumn)<th>Cliente</th>@endunless
             <th class="r" style="width:9%;">Qtd.</th>
             @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
@@ -258,7 +273,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             <td rowspan="{{ $spanCount }}" style="vertical-align:middle;background:#f8fafc;"><strong>{{ $ps['product_name'] }}</strong></td>
             <td rowspan="{{ $spanCount }}" style="vertical-align:middle;white-space:nowrap;background:#f8fafc;">{{ $groupDate }}</td>
             @endif
-            <td>{{ $dist['customer_name'] }}</td>
+            @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
@@ -274,7 +289,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @if($rowCount > 1)
         {{-- Linha de subtotal por entrega (produto+data cobertos pelo rowspan acima) --}}
         <tr style="background:#eef2f7;">
-            <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
+            @unless($hideCustomerColumn)
+                <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
+            @endunless
             <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
             @if($showGross)<td class="r" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
@@ -291,7 +308,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="4"><strong>TOTAL GERAL</strong></td>
+            <td colspan="{{ $hideCustomerColumn ? 3 : 4 }}"><strong>TOTAL GERAL</strong></td>
             @if($showUnitPrice)<td class="r"></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif

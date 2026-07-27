@@ -78,6 +78,14 @@ $limitColor = $limitPercent === null ? '#94a3b8' : ($limitPercent >= 100 ? '#dc2
         </div>
     </td>
     <td>
+        @if(filled($delivery['notes'] ?? null))
+        <button type="button" class="delivery-note-trigger"
+            data-delivery-notes="{{ $delivery['notes'] }}"
+            data-delivery-notes-title="Observações da entrega"
+            data-delivery-notes-meta="{{ $delivery['product_name'] }} · {{ $delivery['associate_name'] }}">
+            Observações
+        </button>
+        @endif
         @if($delivery['status_value'] === 'pending')
         <div class="action-btns">
             <button class="btn-approve" data-id="{{ $delivery['id'] }}" title="Aprovar">
@@ -109,6 +117,8 @@ $limitColor = $limitPercent === null ? '#94a3b8' : ($limitPercent >= 100 ? '#dc2
                 data-distributed="{{ $delivery['distributed_qty'] }}"
                 data-existing="{{ json_encode($delivery['distributions']) }}"
                 data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
+                data-default-customer-id="{{ $delivery['default_customer_id'] ?? '' }}"
+                data-notes="{{ $delivery['notes'] ?? '' }}"
                 data-context="{{ $delivery['sales_project_id'] }}:{{ $delivery['associate_id'] }}"
                 title="Distribuir para clientes">
                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir

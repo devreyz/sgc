@@ -97,6 +97,14 @@ $stateIcon = $overDistributed
             </div>
 
             <div class="mc-actions" style="display:flex; gap:.3rem; margin-left:auto; flex-shrink:0;">
+                @if(filled($delivery['notes'] ?? null))
+                <button type="button" class="delivery-note-trigger"
+                    data-delivery-notes="{{ $delivery['notes'] }}"
+                    data-delivery-notes-title="Observações da entrega"
+                    data-delivery-notes-meta="{{ $delivery['product_name'] }} · {{ $delivery['associate_name'] }}">
+                    Observações
+                </button>
+                @endif
                 @if($delivery['status_value'] === 'pending')
                 <button class="btn-approve btn-xs" data-id="{{ $delivery['id'] }}">Aprovar</button>
                 <button class="btn-reject btn-xs" data-id="{{ $delivery['id'] }}">Rejeitar</button>
@@ -119,6 +127,8 @@ $stateIcon = $overDistributed
                     data-distributed="{{ $delivery['distributed_qty'] }}"
                     data-existing="{{ json_encode($delivery['distributions']) }}"
                     data-participants="{{ json_encode($customers->pluck('id')->values()->all()) }}"
+                    data-default-customer-id="{{ $delivery['default_customer_id'] ?? '' }}"
+                    data-notes="{{ $delivery['notes'] ?? '' }}"
                     data-context="{{ $delivery['sales_project_id'] }}:{{ $delivery['associate_id'] }}"
                 >Distribuir</button>
                 <button class="btn-edit btn-xs"

@@ -49,6 +49,7 @@ class ReceiptConsentCustomizationTest extends TestCase
             $table->string('consent_position', 16)->default('after');
             $table->longText('consent_content_before')->nullable();
             $table->longText('consent_content')->nullable();
+            $table->boolean('show_representative_signature')->default(true);
             $table->longText('content');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
@@ -212,6 +213,31 @@ class ReceiptConsentCustomizationTest extends TestCase
             [],
             position: 'after',
         ));
+    }
+
+    public function test_representative_signature_can_be_disabled_without_leaving_an_empty_cell(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'no-representative');
+        $tenant->update(['legal_representative_name' => 'Presidente da Cooperativa']);
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $template = $this->template(
+            $tenant,
+            'paa',
+            '<table><tr><td>{{assinatura.associado}}</td><td>{{assinatura.representante}}</td></tr></table>',
+        );
+        $template->update(['show_representative_signature' => false]);
+
+        $html = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant->refresh(),
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringNotContainsString('Presidente da Cooperativa', $html);
+        $this->assertStringNotContainsString('<td></td>', $html);
     }
 
     private function template(Tenant $tenant, ?string $projectType, string $content): DocumentTemplate

@@ -4,6 +4,8 @@
 @section('page-title', $project->title)
 @section('user-role', 'Visualizacao')
 
+<x-delivery.notes-modal />
+
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make(
         'delivery-viewer',
@@ -328,6 +330,11 @@
                 <div class="watch-destinations">${delivery.destinations.length
                     ? delivery.destinations.map(item => `<span class="watch-destination">${esc(item.customer)}: <strong>${fmt(item.quantity)}</strong></span>`).join('')
                     : '<span class="watch-destination">Ainda sem distribuicao</span>'}</div>
+                ${delivery.notes ? `<button type="button" class="delivery-note-trigger"
+                    data-delivery-notes="${esc(delivery.notes)}"
+                    data-delivery-notes-title="Observações da entrega"
+                    data-delivery-notes-meta="${esc(delivery.product + ' · ' + (delivery.date || ''))}"
+                    style="margin-top:.55rem">Observações</button>` : ''}
             </article>`).join('');
             list.innerHTML = reset ? (cards || empty('Nenhuma entrega encontrada.')) : list.innerHTML + cards;
             list.dataset.loaded = '1';

@@ -105,6 +105,7 @@ class ReceiptDataBuilder
             'admin_fee'        => $totalFee,
             'net_value'        => $totalNet,
             'fee_totals'       => self::sumFeeValues($deliveries, $calcMap, $feeColumns),
+            'customer_ids'     => $deliveries->pluck('customer_id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all(),
         ];
 
         // Flat rows mantidos apenas para verificação de arredondamento

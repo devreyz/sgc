@@ -4,6 +4,8 @@
 @section('page-title', 'Comprovantes dos produtores')
 @section('user-role', 'Registrador')
 
+<x-delivery.notes-modal />
+
 @php
     $tenantSlug = $tenant->slug ?? request()->route('tenant');
     $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $tenantSlug);
@@ -223,6 +225,15 @@
                         <label><input class="pr-column" type="checkbox" value="admin_fee"> Taxa administrativa</label>
                         <label><input class="pr-column" type="checkbox" value="net"> Valor líquido</label>
                     </div>
+                    <div style="padding:0 .7rem .7rem">
+                        <label for="pr-table-scale" style="display:block;font-size:.72rem;font-weight:800;margin-bottom:.3rem">Escala da tabela</label>
+                        <select id="pr-table-scale" class="pr-control" style="width:100%">
+                            <option value="100">100% · Normal</option>
+                            <option value="90">90% · Compacta</option>
+                            <option value="80">80% · Reduzida</option>
+                            <option value="70">70% · Muito reduzida</option>
+                        </select>
+                    </div>
                 </details>
             </div>
         </div>
@@ -260,6 +271,7 @@
     const tenant = root.dataset.tenant;
     const project = Number(root.dataset.project);
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const printPreferenceKey = `sgc.receipt.associate.${tenant}.${project}.print.v1`;
     const state = {
         page: 1, lastPage: 1, filter: 'all', timer: null, busy: false,
         associateId: null, associateName: '', check: null, receiptId: null, distributions: [],
@@ -500,6 +512,10 @@
                     <div class="pr-dist-value"><span>Preço unitário</span><strong>${money(item.unit_price)}</strong></div>
                     <div class="pr-dist-value"><span>Valor líquido</span><strong>${money(item.net_value)}</strong></div>
                 </div>
+                ${item.notes ? `<button type="button" class="delivery-note-trigger"
+                    data-delivery-notes="${esc(item.notes)}"
+                    data-delivery-notes-title="Observações da entrega"
+                    data-delivery-notes-meta="${esc(item.product_name + ' · ' + item.delivery_date)}">Observações</button>` : ''}
                 ${reason ? `<div class="pr-dist-error">${esc(reason)}</div>` : ''}
             </div>
         </label>`;
@@ -557,11 +573,47 @@
         return [...document.querySelectorAll('.pr-column:checked')].map(input => input.value);
     }
 
+    function tableScale() {
+        return Number($('pr-table-scale')?.value || 100);
+    }
+
+    function storedPrintPreferences() {
+        try {
+            return JSON.parse(localStorage.getItem(printPreferenceKey) || 'null');
+        } catch {
+            return null;
+        }
+    }
+
+    function applyPrintPreferences() {
+        const preferences = storedPrintPreferences() || state.check?.print_preferences || {};
+        const selected = Array.isArray(preferences.columns) ? preferences.columns : ['unit_price', 'gross'];
+        document.querySelectorAll('.pr-column').forEach(input => {
+            input.checked = selected.includes(input.value);
+        });
+        const scale = [70, 80, 90, 100].includes(Number(preferences.table_scale))
+            ? Number(preferences.table_scale)
+            : 100;
+        $('pr-table-scale').value = String(scale);
+    }
+
+    function persistPrintPreferences() {
+        try {
+            localStorage.setItem(printPreferenceKey, JSON.stringify({
+                columns: columns(),
+                table_scale: tableScale(),
+            }));
+        } catch {
+            // A preferência em sessão continua disponível quando o navegador bloqueia armazenamento local.
+        }
+    }
+
     function renderFeeColumns() {
         const options = state.check?.fee_columns || {};
         $('pr-fee-columns').innerHTML = Object.entries(options).map(([value, label]) =>
             `<label><input class="pr-column" type="checkbox" value="${esc(value)}"> ${esc(label)}</label>`
         ).join('');
+        applyPrintPreferences();
     }
 
     function downloadPdf(data) {
@@ -589,7 +641,7 @@
             const data = await json(url, {
                 method: state.receiptId ? 'PUT' : 'POST',
                 headers:{ 'Content-Type':'application/json' },
-                body:JSON.stringify({ delivery_ids:ids, visible_columns:columns() }),
+                body:JSON.stringify({ delivery_ids:ids, visible_columns:columns(), table_scale:tableScale() }),
             });
             downloadPdf(data);
             toast(data.message || `Comprovante ${data.receipt_number} gerado.`);
@@ -614,7 +666,7 @@
             const data = await json(`/${tenant}/delivery/projects/${project}/receipts/${receiptId}/regenerate`, {
                 method:'POST',
                 headers:{ 'Content-Type':'application/json' },
-                body:JSON.stringify({ visible_columns:columns() }),
+                body:JSON.stringify({ visible_columns:columns(), table_scale:tableScale() }),
             });
             downloadPdf(data);
             toast(data.message);
@@ -730,6 +782,11 @@
     });
     $('pr-distributions').addEventListener('change', event => {
         if (event.target.classList.contains('pr-dist-check')) updateSelection();
+    });
+    document.querySelector('.pr-columns')?.addEventListener('change', event => {
+        if (event.target.classList.contains('pr-column') || event.target.id === 'pr-table-scale') {
+            persistPrintPreferences();
+        }
     });
     $('pr-receipts').addEventListener('click', event => {
         const edit = event.target.closest('[data-edit-receipt]');

@@ -66,7 +66,7 @@ class DeliveryRegistrationController extends Controller
         SalesProject $project,
         ?array $feeSnapshot = null,
     ): array {
-        $defaults = ['unit_price', 'gross'];
+        $defaults = session($this->receiptPreferenceKey($project, 'columns'), ['unit_price', 'gross']);
         $requested = is_array($requested) ? $requested : $defaults;
         $service = app(ReceiptFeeColumnService::class);
         $fees = $service->definitions($project, 'associate', $feeSnapshot);
@@ -76,6 +76,29 @@ class DeliveryRegistrationController extends Controller
             $fees,
             ['unit_price', 'gross', 'admin_fee', 'net'],
         );
+    }
+
+    private function receiptTableScale(mixed $scale, SalesProject $project): int
+    {
+        $allowed = [70, 80, 90, 100];
+        $scale = is_numeric($scale)
+            ? (int) $scale
+            : (int) session($this->receiptPreferenceKey($project, 'scale'), 100);
+
+        return in_array($scale, $allowed, true) ? $scale : 100;
+    }
+
+    private function rememberReceiptPreferences(SalesProject $project, array $columns, int $scale): void
+    {
+        session([
+            $this->receiptPreferenceKey($project, 'columns') => $columns,
+            $this->receiptPreferenceKey($project, 'scale') => $scale,
+        ]);
+    }
+
+    private function receiptPreferenceKey(SalesProject $project, string $setting): string
+    {
+        return "receipt_print.associate.{$project->tenant_id}.{$project->getKey()}.{$setting}";
     }
 
     private function deliveryLimitContext(Collection $deliveries, SalesProject $project): array
@@ -141,7 +164,11 @@ class DeliveryRegistrationController extends Controller
         })->all();
     }
 
-    private function deliveryViewData(ProductionDelivery $delivery, array $limitData = []): array
+    private function deliveryViewData(
+        ProductionDelivery $delivery,
+        array $limitData = [],
+        ?int $defaultCustomerId = null,
+    ): array
     {
         $productName = $delivery->projectDemand?->product?->name
             ?? $delivery->product?->name
@@ -214,6 +241,7 @@ class DeliveryRegistrationController extends Controller
             'dist_net_value' => (float) $distributions->sum('net'),
             'quality_grade' => $delivery->quality_grade ?? '',
             'notes' => $delivery->notes ?? '',
+            'default_customer_id' => $defaultCustomerId,
             'status' => $delivery->status->getLabel(),
             'status_value' => $delivery->status->value,
             'distributions' => $distributions->toArray(),
@@ -437,6 +465,7 @@ class DeliveryRegistrationController extends Controller
             'id' => $project->id,
             'title' => $project->title,
             'customer_name' => $project->customer->name ?? '-',
+            'default_customer_id' => $project->customer_id ? (int) $project->customer_id : null,
             'allow_any_product' => (bool) $project->allow_any_product,
             'admin_fee_percentage' => (float) ($project->admin_fee_percentage ?? 10),
             'customer_ids' => app(ProjectDistributionCustomerService::class)->ids($project)->all(),
@@ -1426,8 +1455,9 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         $limitContext = $this->deliveryLimitContext($deliveryModels, $project);
+        $defaultCustomerId = $project->customer_id ? (int) $project->customer_id : null;
         $deliveries = $deliveryModels
-            ->map(function ($d) use ($projectCustomerIds, $limitContext) {
+            ->map(function ($d) use ($projectCustomerIds, $limitContext, $defaultCustomerId) {
                 $productName = $d->projectDemand?->product?->name ?? $d->product?->name ?? '-';
                 $productUnit = $d->projectDemand?->product?->unit ?? $d->product?->unit ?? 'un';
                 $associateName = $d->associate?->display_name ?? 'Associado nao identificado';
@@ -1496,6 +1526,7 @@ class DeliveryRegistrationController extends Controller
                     'qty' => (float) $d->quantity,
                     'date' => $d->delivery_date?->format('Y-m-d') ?? '',
                     'quality' => $d->quality_grade ?? '',
+                    'notes' => $d->notes ?? '',
                     'status' => $d->status?->value ?? 'pending',
                     'distributedQty' => (float) $distributions->sum('qty'),
                     'distributions' => $distributions->values()->all(),
@@ -1504,6 +1535,7 @@ class DeliveryRegistrationController extends Controller
                     'issue_severity' => $issueSeverity,
                     'limit' => $limitContext[$d->id] ?? [],
                     'customerIds' => $projectCustomerIds,
+                    'defaultCustomerId' => $defaultCustomerId,
                 ];
             });
 
@@ -1698,6 +1730,7 @@ class DeliveryRegistrationController extends Controller
                 'net_value' => (float) $delivery->net_value,
                 'unit_price' => (float) $delivery->unit_price,
                 'parent_delivery_id' => (int) $delivery->parent_delivery_id,
+                'notes' => $delivery->parentDelivery?->notes ?? '',
                 'status' => $delivery->status->getLabel(),
                 'status_value' => $delivery->status->value,
                 'selectable' => (bool) $delivery->customer_id
@@ -2038,8 +2071,13 @@ class DeliveryRegistrationController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         $limitContext = $this->deliveryLimitContext($deliveryModels, $project);
+        $defaultCustomerId = $project->customer_id ? (int) $project->customer_id : null;
         $deliveries = $deliveryModels
-            ->map(fn ($delivery) => $this->deliveryViewData($delivery, $limitContext[$delivery->id] ?? []));
+            ->map(fn ($delivery) => $this->deliveryViewData(
+                $delivery,
+                $limitContext[$delivery->id] ?? [],
+                $defaultCustomerId,
+            ));
 
         $customers = app(ProjectDistributionCustomerService::class)->customers($project);
 
@@ -2070,7 +2108,11 @@ class DeliveryRegistrationController extends Controller
         $customers = app(ProjectDistributionCustomerService::class)->customers($project);
 
         $limitContext = $this->deliveryLimitContext(collect([$deliveryModel]), $project);
-        $delivery = $this->deliveryViewData($deliveryModel, $limitContext[$deliveryModel->id] ?? []);
+        $delivery = $this->deliveryViewData(
+            $deliveryModel,
+            $limitContext[$deliveryModel->id] ?? [],
+            $project->customer_id ? (int) $project->customer_id : null,
+        );
 
         return response()->json([
             'success' => true,
@@ -3505,6 +3547,10 @@ class DeliveryRegistrationController extends Controller
             'critical_issues' => $criticalIssues,
             'issues' => $issues,
             'fee_columns' => $this->associateReceiptFeeOptions($project, $receipts),
+            'print_preferences' => [
+                'columns' => session($this->receiptPreferenceKey($project, 'columns'), ['unit_price', 'gross']),
+                'table_scale' => $this->receiptTableScale(null, $project),
+            ],
         ]);
     }
 
@@ -3589,6 +3635,7 @@ class DeliveryRegistrationController extends Controller
         });
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
+        $tableScale = $this->receiptTableScale(null, $project);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3600,6 +3647,7 @@ class DeliveryRegistrationController extends Controller
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
+            'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
@@ -3718,6 +3766,8 @@ class DeliveryRegistrationController extends Controller
             $project,
             $receipt->fee_snapshot,
         );
+        $tableScale = $this->receiptTableScale($request->input('table_scale'), $project);
+        $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3730,6 +3780,7 @@ class DeliveryRegistrationController extends Controller
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
@@ -3775,6 +3826,7 @@ class DeliveryRegistrationController extends Controller
             'delivery_ids' => 'required|array|min:1',
             'delivery_ids.*' => 'integer',
             'visible_columns' => 'nullable|array',
+            'table_scale' => 'nullable|integer|in:70,80,90,100',
         ]);
         $selectedIds = collect($validated['delivery_ids'])->map(fn ($id) => (int) $id)->unique()->values();
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
@@ -3857,6 +3909,8 @@ class DeliveryRegistrationController extends Controller
             $project,
             $receipt->fee_snapshot,
         );
+        $tableScale = $this->receiptTableScale($validated['table_scale'] ?? null, $project);
+        $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3869,6 +3923,7 @@ class DeliveryRegistrationController extends Controller
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
@@ -3981,6 +4036,8 @@ class DeliveryRegistrationController extends Controller
             $project,
             $receipt->fee_snapshot,
         );
+        $tableScale = $this->receiptTableScale($request->input('table_scale'), $project);
+        $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3993,6 +4050,7 @@ class DeliveryRegistrationController extends Controller
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');

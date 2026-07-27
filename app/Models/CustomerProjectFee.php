@@ -24,6 +24,7 @@ class CustomerProjectFee extends Model
         'tenant_id',
         'sales_project_id',
         'name',
+        'receipt_column_name',
         'type',       // 'percentage' | 'fixed'
         'nature',     // 'discount' | 'accrual'
         'sort_order',

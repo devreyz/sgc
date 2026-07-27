@@ -200,7 +200,17 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     $selectedFeeColumns = collect($feeColumns ?? [])
         ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
         ->values();
+    $tableScale = in_array((int) ($table_scale ?? 100), [70, 80, 90, 100], true)
+        ? (int) ($table_scale ?? 100)
+        : 100;
+    $tableScaleRatio = $tableScale / 100;
 @endphp
+<style>
+    table.receipt-data-table { font-size: {{ 7.8 * $tableScaleRatio }}pt; }
+    table.receipt-data-table thead th,
+    table.receipt-data-table tbody td,
+    table.receipt-data-table tfoot td { padding: {{ 3 * $tableScaleRatio }}px {{ 5 * $tableScaleRatio }}px; }
+</style>
 
 @foreach($priceGroups as $group)
 @php $groupCustomers = $group['customers']; @endphp
@@ -214,7 +224,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 </div>
 @endif
 
-<table class="main-tbl">
+<table class="main-tbl receipt-data-table">
     <thead>
         <tr>
             <th style="width:22%">Produto</th>

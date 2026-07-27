@@ -47,6 +47,7 @@ class ReceiptFeeColumnService
             ->map(fn ($fee): array => $this->normalize([
                 'id' => $fee->getKey(),
                 'name' => $fee->name,
+                'column_name' => $fee->receipt_column_name,
                 'type' => $fee->type,
                 'nature' => $fee->nature,
                 'rate' => $fee->value,
@@ -58,6 +59,7 @@ class ReceiptFeeColumnService
             $definitions->prepend($this->normalize([
                 'id' => null,
                 'name' => 'Taxa Administrativa',
+                'column_name' => 'Taxa Adm.',
                 'type' => 'percentage',
                 'nature' => 'discount',
                 'rate' => $project->admin_fee_percentage,
@@ -77,6 +79,13 @@ class ReceiptFeeColumnService
         return collect($definitions)->mapWithKeys(function (array $fee): array {
             $nature = ($fee['nature'] ?? 'discount') === 'accrual' ? 'Acréscimo' : 'Desconto';
             $label = trim((string) ($fee['label'] ?? ''));
+            $fullName = trim((string) ($fee['full_name'] ?? $fee['name'] ?? 'Taxa'));
+            $columnName = trim((string) ($fee['name'] ?? $fullName));
+
+            $fee['name'] = $fullName;
+            if ($columnName !== '' && $columnName !== $fullName) {
+                $fee['name'] .= " · coluna: {$columnName}";
+            }
 
             return [$fee['key'] => trim($fee['name'].' '.($label !== '' ? "({$label}) " : '')."· {$nature}")];
         })->all();
@@ -142,12 +151,14 @@ class ReceiptFeeColumnService
     {
         $id = isset($fee['id']) && $fee['id'] !== null ? (int) $fee['id'] : null;
         $name = trim((string) ($fee['name'] ?? 'Taxa'));
+        $columnName = trim((string) ($fee['column_name'] ?? ''));
         $slug = $id === null ? 'admin' : (string) $id;
 
         return [
             'key' => self::PREFIX.Str::slug($scope, '_').':'.$slug,
             'id' => $id,
-            'name' => $name !== '' ? $name : 'Taxa',
+            'name' => $columnName !== '' ? $columnName : ($name !== '' ? $name : 'Taxa'),
+            'full_name' => $name !== '' ? $name : 'Taxa',
             'type' => ($fee['type'] ?? 'percentage') === 'fixed' ? 'fixed' : 'percentage',
             'nature' => ($fee['nature'] ?? 'discount') === 'accrual' ? 'accrual' : 'discount',
             'rate' => (float) ($fee['rate'] ?? $fee['value'] ?? 0),

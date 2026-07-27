@@ -10,6 +10,7 @@
     :csrf="csrf_token()"
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name])->values()->all()"
 />
+<x-delivery.notes-modal />
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make(
         'delivery',
@@ -333,6 +334,14 @@
                     </td>
                     <td>{{ $d->quality_grade ?? '-' }}</td>
                     <td>
+                        @if(filled($d->notes))
+                        <button type="button" class="delivery-note-trigger"
+                            data-delivery-notes="{{ $d->notes }}"
+                            data-delivery-notes-title="Observações da entrega"
+                            data-delivery-notes-meta="{{ optional($d->product)->name ?? 'Produto' }} · {{ $d->delivery_date?->format('d/m/Y') }}">
+                            Observações
+                        </button>
+                        @endif
                         @if($d->status->value === 'pending')
                         <div class="action-btns">
                             <button class="btn-xs btn-approve" data-id="{{ $d->id }}" title="Aprovar">
@@ -356,6 +365,7 @@
                                 data-unit="{{ optional($d->product)->unit ?? 'un' }}"
                                 data-qty="{{ $d->quantity }}"
                                 data-distributed="{{ $d->distributions->sum('quantity') }}"
+                                data-notes="{{ $d->notes ?? '' }}"
                                 data-existing="{{ json_encode($d->distributions->map(fn($dist) => ['id' => $dist->id, 'customer_id' => $dist->customer_id, 'customer' => optional($dist->customer)->name ?? '?', 'qty' => $dist->quantity, 'net' => (float)$dist->net_value, 'billed' => $dist->billing_status instanceof \App\Enums\BillingStatus && $dist->billing_status !== \App\Enums\BillingStatus::UNBILLED])) }}"
                                 title="Distribuir para clientes">
                                 <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir

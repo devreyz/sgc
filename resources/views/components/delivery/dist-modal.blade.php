@@ -68,6 +68,13 @@
     color: var(--color-text-muted); flex-shrink: 0; font-size: 1.1rem;
 }
 .dm-close-btn:hover { background: var(--color-border); }
+.dm-notes-btn {
+    min-height:28px; display:none; align-items:center; gap:.3rem;
+    border:1px solid var(--color-border); border-radius:var(--radius-md);
+    background:var(--color-surface); color:var(--color-text-secondary);
+    padding:.25rem .45rem; font-size:.68rem; font-weight:700; cursor:pointer;
+}
+.dm-notes-btn.visible { display:inline-flex; }
 
 /* ── Progress ─────────────────────────────────────────────────────────── */
 .dm-progress-wrap {
@@ -314,10 +321,14 @@
     display: flex; justify-content: flex-end; gap: .5rem;
     flex-shrink: 0;
 }
+.dm-shortcuts { margin-right:auto; align-self:center; color:var(--color-text-muted); font-size:.65rem; }
+@media (max-width:560px) {
+    .dm-shortcuts { display:none; }
+}
 </style>
 
 {{-- ══ HTML ═════════════════════════════════════════════════════════════ --}}
-<div id="dm-overlay" onclick="if(event.target===this)DistModal.close()">
+<div id="dm-overlay">
     <div class="dm-box">
 
         {{-- Head --}}
@@ -332,6 +343,7 @@
                     Distribuir Recepção
                 </div>
                 <div id="dm-subtitle" class="dm-subtitle"></div>
+                <button type="button" class="dm-notes-btn" id="dm-notes-btn">Observações</button>
             </div>
             <button class="dm-close-btn" onclick="DistModal.close()" aria-label="Fechar modal de distribuição">✕</button>
         </div>
@@ -374,11 +386,15 @@
                 <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.restoreDefaultCustomers()" aria-label="Restaurar clientes padrao">
                     Restaurar clientes padrao
                 </button>
+                <button type="button" class="dm-add-btn" id="dm-fill-default-btn" style="margin-top:.4rem;display:none" onclick="DistModal.fillAvailable()" aria-label="Preencher o saldo para o cliente padrão">
+                    Preencher saldo disponível
+                </button>
             </div>
         </div>
 
         {{-- Footer --}}
         <div class="dm-foot">
+            <span class="dm-shortcuts">Enter: salvar · Esc: fechar · Alt+A: adicionar cliente</span>
             <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar modal">Cancelar</button>
             <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
                 <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
@@ -392,7 +408,7 @@
 </div>
 
 {{-- ══ JS ══════════════════════════════════════════════════════════════ --}}
-<div id="dm-confirm-overlay" onclick="if(event.target===this)DistModal.cancelDangerConfirm()">
+<div id="dm-confirm-overlay">
     <div class="dm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="dm-confirm-title">
         <div class="dm-confirm-title" id="dm-confirm-title">Confirmar exclusao</div>
         <div class="dm-confirm-text" id="dm-confirm-text"></div>
@@ -407,7 +423,7 @@
     </div>
 </div>
 
-<div id="dm-notice-overlay" onclick="if(event.target===this)DistModal.closeNotice()">
+<div id="dm-notice-overlay">
     <div class="dm-notice-box" id="dm-notice-box" role="alertdialog" aria-modal="true" aria-labelledby="dm-notice-title">
         <div class="dm-notice-head">
             <div class="dm-notice-icon" aria-hidden="true">
@@ -454,6 +470,9 @@ const _customerStates = new Map();
 const _priceCache = new Map();
 let _noticeAction = null;
 let _priceEditor = null;
+let _defaultCustomerId = null;
+let _singleDefaultCustomerId = null;
+let _notes = '';
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -690,7 +709,7 @@ function renderExisting(existing) {
 }
 
 /* ── Build one new-row ──────────────────────────────────────────────── */
-function buildRow(preselectId = null, autofocus = false) {
+function buildRow(preselectId = null, autofocus = false, initialQuantity = null) {
     const row = document.createElement('div');
     row.className = 'dm-row';
     row.setAttribute('role', 'group');
@@ -714,6 +733,9 @@ function buildRow(preselectId = null, autofocus = false) {
     inp.min         = '0.001';
     inp.step        = '0.001';
     inp.placeholder = '0';
+    if (initialQuantity !== null && Number(initialQuantity) > 0) {
+        inp.value = Number(initialQuantity).toFixed(3).replace(/\.?0+$/, '');
+    }
     inp.setAttribute('aria-label', 'Quantidade para distribuição ' + rowIdx);
     inp.addEventListener('input', updateProgress);
     inp.addEventListener('keydown', (event) => {
@@ -777,6 +799,8 @@ window.DistModal = {
             existing,
             participants,
             context: btn.dataset.context || null,
+            defaultCustomerId: btn.dataset.defaultCustomerId || null,
+            notes: btn.dataset.notes || '',
         });
     },
 
@@ -786,6 +810,8 @@ window.DistModal = {
         _unit     = cfg.unit      || 'un';
         _totalQty = cfg.qty       || 0;
         _distQty  = cfg.distributed || 0;
+        _defaultCustomerId = cfg.defaultCustomerId ? String(cfg.defaultCustomerId) : null;
+        _notes = String(cfg.notes || '').trim();
 
         // Subtitle
         $('dm-subtitle').textContent =
@@ -800,11 +826,19 @@ window.DistModal = {
         $('dm-new-rows').innerHTML = '';
         const participants = Array.isArray(cfg.participants) ? cfg.participants : [];
         customerState(participants, cfg.context || null);
+        _singleDefaultCustomerId = _defaultCustomerId
+            && _activeCustomers.length === 1
+            && String(_activeCustomers[0].id) === _defaultCustomerId
+                ? _defaultCustomerId
+                : null;
+        const availableQuantity = Math.max(0, _totalQty - _distQty);
         // Determine which customers are already fully existing (all listed = skip pre-populating those)
         const existingIds = new Set((cfg.existing || []).map(d => d.customer_id || d.customerId).filter(Boolean).map(String));
         // Filter participants to those not yet in existing
         const toPreload = participants.filter(id => _activeCustomers.some(c => c.id == id) && !existingIds.has(String(id)));
-        if (toPreload.length > 0) {
+        if (_singleDefaultCustomerId && availableQuantity > 0.0005) {
+            $('dm-new-rows').appendChild(buildRow(_singleDefaultCustomerId, false, availableQuantity));
+        } else if (toPreload.length > 0) {
             toPreload.forEach(id => {
                 $('dm-new-rows').appendChild(buildRow(id));
             });
@@ -818,10 +852,17 @@ window.DistModal = {
         // Open
         $('dm-overlay').classList.add('dm-open');
         $('dm-save-btn').disabled = false;
+        $('dm-fill-default-btn').style.display = _singleDefaultCustomerId ? '' : 'none';
+        $('dm-notes-btn').classList.toggle('visible', !!_notes);
+        $('dm-notes-btn').onclick = () => window.DeliveryNotesModal?.open(
+            _notes,
+            'Observações da entrega',
+            (cfg.product || '') + ' · ' + fmt(_totalQty, _unit),
+        );
 
         // Focus first useful field for keyboard accessibility
         setTimeout(() => {
-            const target = toPreload.length > 0
+            const target = (_singleDefaultCustomerId || toPreload.length > 0)
                 ? $('dm-new-rows').querySelector('input[type=number]')
                 : $('dm-new-rows').querySelector('select');
             target?.focus();
@@ -832,6 +873,8 @@ window.DistModal = {
     close() {
         $('dm-overlay').classList.remove('dm-open');
         _id = null;
+        _notes = '';
+        _singleDefaultCustomerId = null;
     },
 
     addRow() {
@@ -855,6 +898,17 @@ window.DistModal = {
         $('dm-new-rows').innerHTML = '';
         $('dm-new-rows').appendChild(buildRow());
         updateProgress();
+    },
+
+    fillAvailable() {
+        if (!_singleDefaultCustomerId) return;
+        const available = Math.max(0, _totalQty - _distQty);
+        const rows = $('dm-new-rows');
+        rows.innerHTML = '';
+        const row = buildRow(_singleDefaultCustomerId, false, available);
+        rows.appendChild(row);
+        updateProgress();
+        setTimeout(() => row.querySelector('input')?.focus(), 30);
     },
 
     editExisting(distributionId) {
@@ -1003,7 +1057,7 @@ window.DistModal = {
     },
 
     async save() {
-        if (!_id) return;
+        if (!_id || $('dm-save-btn').disabled) return;
 
         const rows = $('dm-new-rows').querySelectorAll('.dm-row');
         const distributions = [];
@@ -1090,7 +1144,8 @@ window.DistModal = {
         const action = $('dm-notice-action');
         action.style.display = '';
         action.textContent = 'Salvar preco';
-        action.onclick = () => this.saveQuickPrice();
+        _noticeAction = () => this.saveQuickPrice();
+        action.onclick = _noticeAction;
         setTimeout(() => $('dm-price-input')?.focus(), 40);
     },
 
@@ -1128,6 +1183,71 @@ window.DistModal = {
 };
 
 /* ── Backward-compat aliases ────────────────────────────────────────── */
+document.addEventListener('keydown', event => {
+    if (!$('dm-overlay').classList.contains('dm-open')) return;
+
+    if ($('dm-confirm-overlay').classList.contains('open')) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            DistModal.cancelDangerConfirm();
+        } else if (event.key === 'Enter') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            DistModal.acceptDangerConfirm();
+        }
+        return;
+    }
+
+    if ($('dm-notice-overlay').classList.contains('open')) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            DistModal.closeNotice();
+        } else if (event.key === 'Enter' && _noticeAction) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            _noticeAction();
+        }
+        return;
+    }
+
+    if (window.DeliveryNotesModal?.isOpen?.()) return;
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        DistModal.close();
+        return;
+    }
+
+    if (event.altKey && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        DistModal.addRow();
+        return;
+    }
+
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    const inlineEdit = event.target.closest?.('.dm-inline-edit');
+    if (inlineEdit) {
+        const distributionId = inlineEdit.closest('[id^="dmex-"]')?.id.replace('dmex-', '');
+        if (distributionId) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            DistModal.saveExistingEdit(distributionId);
+        }
+        return;
+    }
+    if (event.target.matches?.('select, button')) {
+        event.stopImmediatePropagation();
+        return;
+    }
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    DistModal.save();
+});
+
 window.openDistModal  = (btn) => DistModal.openFromBtn(btn);
 window.closeDistModal = ()    => DistModal.close();
 

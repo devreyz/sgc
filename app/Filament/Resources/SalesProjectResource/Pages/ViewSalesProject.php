@@ -455,9 +455,25 @@ class ViewSalesProject extends ViewRecord
                                         'net' => 'Vlr. Líquido',
                                     ] + $service->options($service->definitions($record));
                                 })
-                                ->default(['unit_price', 'gross'])
+                                ->default(fn (SalesProject $record): array => session(
+                                    "receipt_print.associate.{$record->tenant_id}.{$record->id}.columns",
+                                    ['unit_price', 'gross'],
+                                ))
                                 ->columns(2)
                                 ->helperText('Produto, Cliente, Data e Qtd. são sempre exibidos. Os totais financeiros aparecem sempre no resumo abaixo da tabela.'),
+                            Forms\Components\Select::make('table_scale')
+                                ->label('Escala da tabela')
+                                ->options([
+                                    100 => '100% · Normal',
+                                    90 => '90% · Compacta',
+                                    80 => '80% · Reduzida',
+                                    70 => '70% · Muito reduzida',
+                                ])
+                                ->default(fn (SalesProject $record): int => (int) session(
+                                    "receipt_print.associate.{$record->tenant_id}.{$record->id}.scale",
+                                    100,
+                                ))
+                                ->required(),
                         ];
                     })
                     ->action(function (SalesProject $record, array $data) {
@@ -830,6 +846,13 @@ class ViewSalesProject extends ViewRecord
             $feeColumns,
             ['unit_price', 'gross', 'admin_fee', 'net'],
         );
+        $tableScale = in_array((int) ($formData['table_scale'] ?? 100), [70, 80, 90, 100], true)
+            ? (int) $formData['table_scale']
+            : 100;
+        session([
+            "receipt_print.associate.{$record->tenant_id}.{$record->id}.columns" => $visibleColumns,
+            "receipt_print.associate.{$record->tenant_id}.{$record->id}.scale" => $tableScale,
+        ]);
 
         $svc = app(\App\Services\TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -843,6 +866,7 @@ class ViewSalesProject extends ViewRecord
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
             'isSecondCopy' => false,
         ], [
             'paper' => 'a4',

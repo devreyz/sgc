@@ -310,6 +310,7 @@ class DeliveryViewerController extends Controller
                 'quantity' => (float) $delivery->quantity,
                 'distributed' => (float) $distributed,
                 'balance' => max(0, (float) $delivery->quantity - (float) $distributed),
+                'notes' => $delivery->notes ?? '',
                 'status' => $delivery->status->value,
                 'status_label' => $delivery->status->getLabel(),
                 'destinations' => $delivery->distributions->map(fn (ProductionDelivery $distribution) => [

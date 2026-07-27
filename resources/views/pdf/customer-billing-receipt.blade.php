@@ -165,11 +165,21 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     $selectedFeeColumns = collect($feeColumns ?? [])
         ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
         ->values();
+    $tableScale = in_array((int) ($table_scale ?? 100), [70, 80, 90, 100], true)
+        ? (int) ($table_scale ?? 100)
+        : 100;
+    $tableScaleRatio = $tableScale / 100;
 @endphp
+<style>
+    table.receipt-data-table { font-size: {{ 8.5 * $tableScaleRatio }}pt; }
+    table.receipt-data-table thead th,
+    table.receipt-data-table tbody td,
+    table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px; }
+</style>
 
 {{-- ═══ TABELA DE PRODUTOS ═══ --}}
 <div class="sec-label">Entregas por Produto</div>
-<table class="tbl">
+<table class="tbl receipt-data-table">
     <thead>
         <tr>
             <th>Produto</th>

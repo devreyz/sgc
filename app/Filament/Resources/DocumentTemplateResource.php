@@ -101,6 +101,10 @@ class DocumentTemplateResource extends Resource
                     Forms\Components\Toggle::make('consent_enabled')
                         ->label('Exibir consentimento e assinaturas')
                         ->default(true),
+                    Forms\Components\Toggle::make('show_representative_signature')
+                        ->label('Assinatura do representante da organização')
+                        ->default(true)
+                        ->helperText('Controla o bloco {{assinatura.representante}} sem precisar editar o texto.'),
                     Forms\Components\Select::make('consent_position')
                         ->label('Posição da mensagem')
                         ->options([
