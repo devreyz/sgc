@@ -154,4 +154,61 @@ class AssociateReceiptDistributionSyncTest extends TestCase
         $this->assertSame('100.0000', $receipt->total_gross);
         $this->assertSame('100.0000', $receipt->total_net);
     }
+
+    public function test_billed_distribution_cannot_be_frozen_into_producer_receipt(): void
+    {
+        DB::table('associate_receipts')->insert([
+            'id' => 11,
+            'tenant_id' => 1,
+            'sales_project_id' => 20,
+            'associate_id' => 30,
+            'receipt_year' => 2026,
+            'receipt_number' => 2,
+            'issued_at' => '2026-07-27',
+            'status' => ReceiptStatus::DRAFT->value,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'id' => 4,
+            'tenant_id' => 1,
+            'sales_project_id' => 20,
+            'associate_id' => 30,
+            'parent_delivery_id' => 104,
+            'customer_id' => 200,
+            'quantity' => 10,
+            'unit_price' => 5,
+            'gross_value' => 50,
+            'paid' => false,
+            'billing_status' => 'billed',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $calculator = Mockery::mock(ProjectFinancialCalculator::class);
+        $calculator->shouldReceive('calculate')->once()->andReturn([
+            'fees' => [],
+            'total_fee' => '0',
+            'net' => '50',
+        ]);
+
+        $project = new SalesProject();
+        $project->setRawAttributes([
+            'id' => 20,
+            'tenant_id' => 1,
+            'admin_fee_percentage' => 0,
+        ], true);
+        $project->exists = true;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('faturadas, pagas ou vinculadas a cobranca');
+
+        AssociateReceipt::withoutEvents(
+            fn () => (new AssociateReceiptService($calculator))->freezeReceipt(
+                AssociateReceipt::query()->findOrFail(11),
+                ProductionDelivery::query()->whereKey(4)->get(),
+                $project,
+            )
+        );
+    }
 }

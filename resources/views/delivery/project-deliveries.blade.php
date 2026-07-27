@@ -1361,6 +1361,29 @@ document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     updateSelectionBar();
     applyFilters(); // initial count
+
+    const params = new URLSearchParams(window.location.search);
+    const deliveryId = Number(params.get('open_delivery') || 0);
+    const distributionId = Number(params.get('edit_distribution') || 0);
+    if (!deliveryId) return;
+
+    let attempts = 0;
+    const openRequestedDistribution = () => {
+        attempts++;
+        const button = document.querySelector(`.btn-distribute[data-id="${deliveryId}"]`);
+        if (!button && attempts < 8) {
+            window.setTimeout(openRequestedDistribution, 250);
+            return;
+        }
+
+        openIntegrityDistribution(deliveryId, distributionId, distributionId > 0);
+        params.delete('open_delivery');
+        params.delete('edit_distribution');
+        const query = params.toString();
+        window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    };
+
+    openRequestedDistribution();
 });
 
 /* ========== MODAL RELATÓRIO POR CLIENTE (mantido) ========== */

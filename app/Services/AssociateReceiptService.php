@@ -175,11 +175,14 @@ class AssociateReceiptService
                 );
             }
 
-            $paidOrLocked = $locked->filter(fn ($d) => $d->paid || $d->billing_status === BillingStatus::PAID);
+            $paidOrLocked = $locked->filter(fn ($d) => $d->paid
+                || $d->billing_status !== BillingStatus::UNBILLED
+                || ! is_null($d->billing_receipt_id)
+            );
 
             if ($paidOrLocked->isNotEmpty()) {
                 throw new \RuntimeException(
-                    'As distribuicoes a seguir ja foram pagas e nao podem entrar em novo comprovante: '
+                    'As distribuicoes a seguir estao faturadas, pagas ou vinculadas a cobranca: '
                     . $paidOrLocked->pluck('id')->implode(', ')
                 );
             }

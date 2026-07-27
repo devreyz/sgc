@@ -10,7 +10,7 @@ use App\Models\SalesProject;
 
 class DeliveryProjectIntegrityService
 {
-    public function inspect(int $tenantId, SalesProject $project): array
+    public function inspect(int $tenantId, SalesProject $project, ?int $associateId = null): array
     {
         $critical = [];
         $warning = [];
@@ -19,12 +19,14 @@ class DeliveryProjectIntegrityService
         $parents = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->whereNull('parent_delivery_id')
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
             ->with(['associate.user', 'product', 'projectDemand.product', 'distributions.customer', 'distributions.associateReceipt'])
             ->get();
 
         $distributions = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->whereNotNull('parent_delivery_id')
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
             ->with(['associate.user', 'product', 'customer', 'parentDelivery', 'associateReceipt'])
             ->get();
 
@@ -144,7 +146,9 @@ class DeliveryProjectIntegrityService
         $pendingReceipt = $distributions
             ->where('status', DeliveryStatus::APPROVED)
             ->where('paid', false)
-            ->filter(fn ($delivery) => $delivery->billing_status !== BillingStatus::PAID && ! $delivery->associate_receipt_id);
+            ->filter(fn ($delivery) => $delivery->billing_status === BillingStatus::UNBILLED
+                && ! $delivery->billing_receipt_id
+                && ! $delivery->associate_receipt_id);
 
         $pendingReceipt->groupBy('associate_id')->each(function ($items) use (&$warning): void {
             $associate = $items->first()?->associate;
@@ -163,6 +167,7 @@ class DeliveryProjectIntegrityService
 
         $receiptAssociateIds = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
             ->pluck('associate_id')
             ->unique();
 
@@ -172,7 +177,7 @@ class DeliveryProjectIntegrityService
             ->unique()
             ->count();
 
-        if ($associatesWithPendingAfterReceipt > 0) {
+        if (! $associateId && $associatesWithPendingAfterReceipt > 0) {
             $warning[] = $this->item(
                 'Novas distribuicoes apos comprovante',
                 "{$associatesWithPendingAfterReceipt} associado(s) ja possuem comprovante e tambem novas distribuicoes pendentes.",
@@ -184,8 +189,10 @@ class DeliveryProjectIntegrityService
 
         if (empty($critical) && empty($warning)) {
             $info[] = $this->item(
-                'Projeto sem pendencias criticas',
-                'Nenhuma inconsistencia financeira encontrada neste momento.',
+                $associateId ? 'Produtor sem pendencias' : 'Projeto sem pendencias criticas',
+                $associateId
+                    ? 'Nenhuma inconsistencia financeira encontrada para este produtor.'
+                    : 'Nenhuma inconsistencia financeira encontrada neste momento.',
                 'Continue operando normalmente.'
             );
         }
