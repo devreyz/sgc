@@ -64,6 +64,8 @@ class OrganizationSettingsPage extends Page implements HasForms
         $this->form->fill([
             // Básico
             'name'                     => $tenant->name,
+            'associate_term_singular'  => $tenant->associateTerm(),
+            'associate_term_plural'    => $tenant->associateTerm(plural: true),
             'legal_name'               => $tenant->legal_name,
             'cnpj'                     => $tenant->cnpj,
             'state_registration'       => $tenant->state_registration,
@@ -147,6 +149,25 @@ class OrganizationSettingsPage extends Page implements HasForms
                                 Forms\Components\DatePicker::make('foundation_date')
                                     ->label('Data de Fundação')
                                     ->displayFormat('d/m/Y'),
+
+                                Forms\Components\Fieldset::make('Terminologia')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('associate_term_singular')
+                                            ->label('Nome no singular')
+                                            ->required()
+                                            ->maxLength(50)
+                                            ->placeholder('Associado')
+                                            ->helperText('Ex.: Produtor, Agricultor ou Cooperado'),
+
+                                        Forms\Components\TextInput::make('associate_term_plural')
+                                            ->label('Nome no plural')
+                                            ->required()
+                                            ->maxLength(50)
+                                            ->placeholder('Associados')
+                                            ->helperText('Ex.: Produtores, Agricultores ou Cooperados'),
+                                    ])
+                                    ->columns(2)
+                                    ->columnSpanFull(),
                             ])
                             ->columns(4),
 

@@ -66,7 +66,9 @@ class DeliveryRegistrationController extends Controller
         SalesProject $project,
         ?array $feeSnapshot = null,
     ): array {
-        $defaults = session($this->receiptPreferenceKey($project, 'columns'), ['unit_price', 'gross']);
+        $defaults = is_array($project->associate_receipt_columns)
+            ? $project->associate_receipt_columns
+            : ['unit_price', 'gross'];
         $requested = is_array($requested) ? $requested : $defaults;
         $service = app(ReceiptFeeColumnService::class);
         $fees = $service->definitions($project, 'associate', $feeSnapshot);
@@ -83,22 +85,17 @@ class DeliveryRegistrationController extends Controller
         $allowed = [70, 80, 90, 100];
         $scale = is_numeric($scale)
             ? (int) $scale
-            : (int) session($this->receiptPreferenceKey($project, 'scale'), 100);
+            : (int) ($project->associate_receipt_table_scale ?: 100);
 
         return in_array($scale, $allowed, true) ? $scale : 100;
     }
 
     private function rememberReceiptPreferences(SalesProject $project, array $columns, int $scale): void
     {
-        session([
-            $this->receiptPreferenceKey($project, 'columns') => $columns,
-            $this->receiptPreferenceKey($project, 'scale') => $scale,
-        ]);
-    }
-
-    private function receiptPreferenceKey(SalesProject $project, string $setting): string
-    {
-        return "receipt_print.associate.{$project->tenant_id}.{$project->getKey()}.{$setting}";
+        $project->forceFill([
+            'associate_receipt_columns' => array_values($columns),
+            'associate_receipt_table_scale' => $scale,
+        ])->save();
     }
 
     private function deliveryLimitContext(Collection $deliveries, SalesProject $project): array
@@ -3536,6 +3533,15 @@ class DeliveryRegistrationController extends Controller
                 $issues[] = array_merge($issue, ['severity' => $severity]);
             }
         }
+        $feeDefinitions = $this->associateReceiptFeeDefinitions($project, $receipts);
+        $storedColumns = is_array($project->associate_receipt_columns)
+            ? $project->associate_receipt_columns
+            : ['unit_price', 'gross'];
+        $projectColumns = app(ReceiptFeeColumnService::class)->sanitize(
+            $storedColumns,
+            $feeDefinitions,
+            ['unit_price', 'gross', 'admin_fee', 'net'],
+        );
 
         return response()->json([
             'success' => true,
@@ -3546,15 +3552,58 @@ class DeliveryRegistrationController extends Controller
             'uncovered_count' => $availableCount,
             'critical_issues' => $criticalIssues,
             'issues' => $issues,
-            'fee_columns' => $this->associateReceiptFeeOptions($project, $receipts),
+            'fee_columns' => app(ReceiptFeeColumnService::class)->options($feeDefinitions),
             'print_preferences' => [
-                'columns' => session($this->receiptPreferenceKey($project, 'columns'), ['unit_price', 'gross']),
+                'columns' => $projectColumns,
                 'table_scale' => $this->receiptTableScale(null, $project),
             ],
         ]);
     }
 
+    public function updateAssociateReceiptPrintPreferences(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        abort_unless($tenantId > 0, 403);
+
+        $validated = $request->validate([
+            'visible_columns' => ['present', 'array'],
+            'visible_columns.*' => ['string', 'max:100'],
+            'table_scale' => ['required', 'integer', 'in:70,80,90,100'],
+        ]);
+        $project = SalesProject::query()
+            ->where('tenant_id', $tenantId)
+            ->findOrFail((int) $request->route('project'));
+        $receipts = AssociateReceipt::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->get(['id', 'fee_snapshot']);
+        $feeService = app(ReceiptFeeColumnService::class);
+        $columns = $feeService->sanitize(
+            $validated['visible_columns'],
+            $this->associateReceiptFeeDefinitions($project, $receipts),
+            ['unit_price', 'gross', 'admin_fee', 'net'],
+        );
+        $scale = $this->receiptTableScale($validated['table_scale'], $project);
+        $this->rememberReceiptPreferences($project, $columns, $scale);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Configuração dos comprovantes salva para este projeto.',
+            'print_preferences' => [
+                'columns' => $columns,
+                'table_scale' => $scale,
+            ],
+        ]);
+    }
+
     private function associateReceiptFeeOptions(SalesProject $project, Collection $receipts): array
+    {
+        $service = app(ReceiptFeeColumnService::class);
+
+        return $service->options($this->associateReceiptFeeDefinitions($project, $receipts));
+    }
+
+    private function associateReceiptFeeDefinitions(SalesProject $project, Collection $receipts): array
     {
         $service = app(ReceiptFeeColumnService::class);
         $definitions = collect($service->definitions($project, 'associate'));
@@ -3565,7 +3614,7 @@ class DeliveryRegistrationController extends Controller
             );
         }
 
-        return $service->options($definitions->unique('key')->values()->all());
+        return $definitions->unique('key')->values()->all();
     }
 
     /**
@@ -3635,6 +3684,7 @@ class DeliveryRegistrationController extends Controller
         });
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
+        $visibleColumns = $this->associateReceiptColumns(null, $project, $receipt->fee_snapshot);
         $tableScale = $this->receiptTableScale(null, $project);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
@@ -3647,6 +3697,7 @@ class DeliveryRegistrationController extends Controller
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
+            'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
@@ -4110,6 +4161,8 @@ class DeliveryRegistrationController extends Controller
         }
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+        $visibleColumns = $this->associateReceiptColumns(null, $project);
+        $tableScale = $this->receiptTableScale(null, $project);
 
         $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -4125,6 +4178,8 @@ class DeliveryRegistrationController extends Controller
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
+            'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ], array_merge(
             $svc->systemPdfOptions('pdf.project-associate-receipt', 'Comprovante de Entrega'),
             ['paper' => 'a4', 'orientation' => 'portrait']
@@ -4347,6 +4402,8 @@ class DeliveryRegistrationController extends Controller
         }
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project, $receipt->fee_snapshot);
+        $visibleColumns = $this->associateReceiptColumns(null, $project, $receipt->fee_snapshot);
+        $tableScale = $this->receiptTableScale(null, $project);
 
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
 
@@ -4360,6 +4417,8 @@ class DeliveryRegistrationController extends Controller
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
+            'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');

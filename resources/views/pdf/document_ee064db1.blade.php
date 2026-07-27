@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -201,7 +202,7 @@
                     <th>Projeto</th>
                 @endif
                 @if(in_array('associate', $columns))
-                    <th>Produtor</th>
+                    <th>{{ $associateTerm }}</th>
                 @endif
                 @if(in_array('product', $columns))
                     <th>Produto</th>
@@ -239,7 +240,7 @@
                         <td>{{ \Illuminate\Support\Str::limit($delivery->salesProject?->title, 20) }}</td>
                     @endif
                     @if(in_array('associate', $columns))
-                        <td>{{ $delivery->associate?->display_name ?? 'Associado nao identificado' }}</td>
+                        <td>{{ $delivery->associate?->display_name ?? $associateTerm.' nao identificado' }}</td>
                     @endif
                     @if(in_array('product', $columns))
                         <td>{{ $delivery->product?->name }}</td>

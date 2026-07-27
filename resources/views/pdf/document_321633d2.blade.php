@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -123,7 +124,7 @@
     <table>
         <thead>
             <tr>
-                <th>Nome do Produtor</th>
+                <th>Nome do {{ $associateTerm }}</th>
                 <th>Produto</th>
                 <th>Qtd (Kg)</th>
                 <th>Data</th>
@@ -134,7 +135,7 @@
             @foreach($associates as $associate)
             @foreach($demands as $demand)
             <tr>
-                <td>{{ $associate->display_name ?? 'Associado nao identificado' }}</td>
+                <td>{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</td>
                 <td>{{ $demand->product->name }}</td>
                 <td></td>
                 <td></td>

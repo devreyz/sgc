@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -106,7 +107,7 @@
         <tr>
             <td class="label">Nome</td>
             <td class="value" colspan="3">
-                {{ $order->associate ? ($order->associate->display_name ?? $order->associate->property_name ?? "Associado #{$order->associate_id}") : 'Avulso' }}
+                {{ $order->associate ? ($order->associate->display_name ?? $order->associate->property_name ?? "{$associateTerm} #{$order->associate_id}") : 'Avulso' }}
             </td>
         </tr>
         @if($order->associate)
@@ -228,7 +229,7 @@
         <div class="signature-block">
             <div class="signature-line">
                 {{ $order->associate ? ($order->associate->display_name ?? 'Cliente') : 'Cliente' }}<br>
-                <small>Cliente / Associado</small>
+                <small>Cliente / {{ $associateTerm }}</small>
             </div>
         </div>
         <div class="signature-block" style="display: table-cell;">

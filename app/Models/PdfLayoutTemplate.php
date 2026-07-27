@@ -339,6 +339,8 @@ class PdfLayoutTemplate extends Model
             '{{cooperativa.site}}' => 'Site',
             '{{cooperativa.ie}}' => 'Inscrição Estadual',
             '{{cooperativa.logo_img}}' => 'Logo da Cooperativa (imagem HTML)',
+            '{{cooperativa.termo_associado}}' => 'Termo para associado no singular',
+            '{{cooperativa.termo_associados}}' => 'Termo para associado no plural',
             // Datas
             '{{data.hoje}}' => 'Data de Hoje (dd/mm/aaaa)',
             '{{data.hoje_extenso}}' => 'Data por Extenso',

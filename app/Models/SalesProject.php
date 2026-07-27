@@ -45,6 +45,8 @@ class SalesProject extends Model
         'restrict_participants',
         'max_total_value_per_associate',
         'completion_notes',
+        'associate_receipt_columns',
+        'associate_receipt_table_scale',
         'completed_at',
     ];
 
@@ -64,6 +66,8 @@ class SalesProject extends Model
             'allow_any_product' => 'boolean',
             'restrict_participants' => 'boolean',
             'max_total_value_per_associate' => 'decimal:2',
+            'associate_receipt_columns' => 'array',
+            'associate_receipt_table_scale' => 'integer',
             'completed_at' => 'datetime',
         ];
     }

@@ -70,7 +70,7 @@ class AssociateReceiptResource extends Resource
                             ->required(),
 
                         Forms\Components\Select::make('associate_id')
-                            ->label('Produtor / Associado')
+                            ->label(fn (): string => static::associateTerm())
                             ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
                                 ->get()
                                 ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
@@ -211,7 +211,7 @@ class AssociateReceiptResource extends Resource
                     ->searchable(query: fn ($query, $search) => $query->whereRaw("CONCAT(LPAD(receipt_number,3,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])),
 
                 Tables\Columns\TextColumn::make('associate.display_name')
-                    ->label('Produtor')
+                    ->label(fn (): string => static::associateTerm())
                     ->searchable()
                     ->sortable(),
 
@@ -362,6 +362,19 @@ class AssociateReceiptResource extends Resource
 
                         // ── Marcar como segunda via se já foi assinado ───────
                         $isSecondCopy = $record->acknowledged_at !== null;
+                        $feeService = app(\App\Services\ReceiptFeeColumnService::class);
+                        $visibleColumns = $feeService->sanitize(
+                            is_array($project?->associate_receipt_columns)
+                                ? $project->associate_receipt_columns
+                                : ['unit_price', 'gross'],
+                            $project
+                                ? $feeService->definitions($project, 'associate', $record->fee_snapshot)
+                                : [],
+                            ['unit_price', 'gross', 'admin_fee', 'net'],
+                        );
+                        $tableScale = $project && in_array((int) $project->associate_receipt_table_scale, [70, 80, 90, 100], true)
+                            ? (int) $project->associate_receipt_table_scale
+                            : 100;
 
                         $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -374,6 +387,8 @@ class AssociateReceiptResource extends Resource
                             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
                             'feeBreakdown' => $receiptData['feeBreakdown'],
                             'feeColumns' => $receiptData['feeColumns'],
+                            'visible_columns' => $visibleColumns,
+                            'table_scale' => $tableScale,
                             'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 
@@ -648,6 +663,13 @@ class AssociateReceiptResource extends Resource
                 ->orderByDesc('receipt_number')
                 ->orderByDesc('issued_at')
                 ->orderByDesc('id'));
+    }
+
+    private static function associateTerm(): string
+    {
+        return Tenant::query()
+            ->find((int) session('tenant_id'))
+            ?->associateTerm() ?? 'Associado';
     }
 
     public static function getPages(): array

@@ -26,6 +26,8 @@ class ReceiptConsentCustomizationTest extends TestCase
         Schema::create('tenants', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('associate_term_singular')->default('Associado');
+            $table->string('associate_term_plural')->default('Associados');
             $table->string('slug')->unique();
             $table->boolean('active')->default(true);
             $table->string('cnpj')->nullable();
@@ -268,7 +270,7 @@ class ReceiptConsentCustomizationTest extends TestCase
         );
 
         $this->assertStringContainsString('Presidente da Cooperativa', $representativeOnly);
-        $this->assertStringNotContainsString('Produtor / Associado', $representativeOnly);
+        $this->assertStringNotContainsString('Associado', $representativeOnly);
 
         $template->update([
             'show_recipient_signature' => true,
@@ -283,7 +285,7 @@ class ReceiptConsentCustomizationTest extends TestCase
             [],
         );
 
-        $this->assertStringContainsString('Produtor / Associado', $associateOnly);
+        $this->assertStringContainsString('Associado', $associateOnly);
         $this->assertStringNotContainsString('Presidente da Cooperativa', $associateOnly);
     }
 
@@ -307,7 +309,7 @@ class ReceiptConsentCustomizationTest extends TestCase
         );
 
         $this->assertStringContainsString('Texto personalizado sem blocos.', $html);
-        $this->assertStringContainsString('Produtor / Associado', $html);
+        $this->assertStringContainsString('Associado', $html);
         $this->assertStringContainsString('Representante da organizacao', $html);
         $this->assertSame(2, substr_count($html, 'class="receipt-signature"'));
     }
@@ -333,6 +335,34 @@ class ReceiptConsentCustomizationTest extends TestCase
 
         $this->assertStringContainsString('Somente o consentimento.', $html);
         $this->assertStringNotContainsString('receipt-signature', $html);
+    }
+
+    public function test_associate_terminology_is_resolved_from_the_receipt_tenant(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'custom-associate-term');
+        $tenant->forceFill([
+            'associate_term_singular' => 'Cooperado',
+            'associate_term_plural' => 'Cooperados',
+        ])->saveQuietly();
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $this->template(
+            $tenant,
+            'paa',
+            '<p>{{tenant.termo_associado}} / {{tenant.termo_associados}}</p>{{assinatura.associado}}',
+        );
+
+        $html = (string) app(ReceiptConsentRenderer::class)->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant->refresh(),
+            $project,
+            null,
+            [],
+        );
+
+        $this->assertStringContainsString('Cooperado / Cooperados', $html);
+        $this->assertStringContainsString('class="sig-role">Cooperado', $html);
+        $this->assertStringNotContainsString('Produtor / Associado', $html);
     }
 
     public function test_receipt_numeric_variables_have_semantically_typed_extensive_versions(): void

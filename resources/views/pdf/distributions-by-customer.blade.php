@@ -12,6 +12,7 @@
         }
     }
     $isSingleCustomer = ($totals['customers_count'] ?? 0) === 1;
+    $associateTerm = $tenant?->associateTerm() ?? 'Associado';
     $periodLabel = null;
     if (!empty($filters['date_from']) || !empty($filters['date_to'])) {
         $periodLabel = ($filters['date_from'] ?? 'â€”') . ' a ' . ($filters['date_to'] ?? 'â€”');
@@ -145,7 +146,7 @@ table.tbl tfoot td.r { text-align: right; }
                 <thead>
                     <tr>
                         <th style="width:60px;">Data</th>
-                        <th>Associado (origem)</th>
+                        <th>{{ $associateTerm }} (origem)</th>
                         <th class="r" style="width:80px;">Qtd. ({{ $prod['unit'] }})</th>
                         <th class="r" style="width:68px;">Vlr. Unit.</th>
                         <th class="r" style="width:82px;">Total</th>

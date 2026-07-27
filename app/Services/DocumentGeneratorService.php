@@ -29,7 +29,7 @@ class DocumentGeneratorService
         $this->variables = [];
 
         // Load cooperativa variables
-        $this->loadCooperativaVariables();
+        $this->loadCooperativaVariables($template);
 
         // Load date variables
         $this->loadDateVariables();
@@ -54,14 +54,18 @@ class DocumentGeneratorService
     /**
      * Load cooperativa info from config.
      */
-    protected function loadCooperativaVariables(): void
+    protected function loadCooperativaVariables(DocumentTemplate $template): void
     {
-        $this->variables['{{cooperativa.nome}}'] = config('app.name', 'SGC');
-        $this->variables['{{cooperativa.cnpj}}'] = config('sgc.cnpj', '00.000.000/0001-00');
-        $this->variables['{{cooperativa.endereco}}'] = config('sgc.endereco', '');
-        $this->variables['{{cooperativa.cidade}}'] = config('sgc.cidade', '');
-        $this->variables['{{cooperativa.estado}}'] = config('sgc.estado', '');
-        $this->variables['{{cooperativa.telefone}}'] = config('sgc.telefone', '');
+        $tenant = $template->tenant;
+
+        $this->variables['{{cooperativa.nome}}'] = $tenant?->name ?? config('app.name', 'SGC');
+        $this->variables['{{cooperativa.cnpj}}'] = $tenant?->cnpj ?? '';
+        $this->variables['{{cooperativa.endereco}}'] = $tenant?->full_address ?? '';
+        $this->variables['{{cooperativa.cidade}}'] = $tenant?->city ?? '';
+        $this->variables['{{cooperativa.estado}}'] = $tenant?->state ?? '';
+        $this->variables['{{cooperativa.telefone}}'] = $tenant?->phone ?? '';
+        $this->variables['{{cooperativa.termo_associado}}'] = $tenant?->associateTerm() ?? 'Associado';
+        $this->variables['{{cooperativa.termo_associados}}'] = $tenant?->associateTerm(plural: true) ?? 'Associados';
     }
 
     /**

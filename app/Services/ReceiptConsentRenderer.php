@@ -119,6 +119,8 @@ class ReceiptConsentRenderer
                 '{{tenant.cidade}}' => 'Cidade',
                 '{{tenant.estado}}' => 'Estado',
                 '{{tenant.cidade_uf}}' => 'Cidade/UF',
+                '{{tenant.termo_associado}}' => 'Nome adotado para associado, no singular',
+                '{{tenant.termo_associados}}' => 'Nome adotado para associados, no plural',
             ],
             'Projeto e comprovante' => [
                 '{{projeto.nome}}' => 'Nome do projeto',
@@ -217,6 +219,8 @@ class ReceiptConsentRenderer
             'tenant.cidade' => $tenant->city,
             'tenant.estado' => $tenant->state,
             'tenant.cidade_uf' => collect([$tenant->city, $tenant->state])->filter()->implode('/'),
+            'tenant.termo_associado' => $tenant->associateTerm(),
+            'tenant.termo_associados' => $tenant->associateTerm(plural: true),
             'projeto.nome' => $project?->title,
             'projeto.tipo' => $project?->type_label,
             'projeto.codigo' => $project?->code,
@@ -266,8 +270,8 @@ class ReceiptConsentRenderer
                 : '',
             'assinatura.associado' => $showRecipientSignature
                 ? $this->signature(
-                    $associate?->display_name ?: 'Associado nao identificado',
-                    'Produtor / Associado',
+                    $associate?->display_name ?: $tenant->associateTerm().' nao identificado',
+                    $tenant->associateTerm(),
                     $associate?->cpf_cnpj,
                 )
                 : '',

@@ -542,6 +542,8 @@ class DocumentTemplate extends Model
                 '{{cooperativa.cidade}}' => 'Cidade da Cooperativa',
                 '{{cooperativa.estado}}' => 'Estado da Cooperativa',
                 '{{cooperativa.telefone}}' => 'Telefone da Cooperativa',
+                '{{cooperativa.termo_associado}}' => 'Termo para associado no singular',
+                '{{cooperativa.termo_associados}}' => 'Termo para associado no plural',
             ],
             'Associado' => [
                 '{{associado.nome}}' => 'Nome do Associado',

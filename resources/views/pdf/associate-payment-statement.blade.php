@@ -10,6 +10,7 @@
     $cpf            = $cpf ?? '—';
     $genAt          = $generated_at ?? now()->format('d/m/Y H:i');
     $adminFee       = optional($project)->admin_fee_percentage ?? 0;
+    $associateTerm  = $tenant?->associateTerm() ?? 'Associado';
 
     $totalGross     = $distributions->sum('gross_value');
     $totalFees      = $distributions->sum(fn ($d) => $d->gross_value - $d->net_value);
@@ -24,7 +25,7 @@
     $receiptNum     = $payment ? ($payment->receipt_number ?? '—') : '—';
 
     $copies = [
-        '1ª VIA — ASSOCIADO',
+        '1ª VIA — '.mb_strtoupper($associateTerm, 'UTF-8'),
         '2ª VIA — ASSOCIAÇÃO / COOPERATIVA',
     ];
 @endphp
@@ -123,7 +124,7 @@
             <td>{{ $payDate }}</td>
         </tr>
         <tr>
-            <td class="info-label">Associado</td>
+            <td class="info-label">{{ $associateTerm }}</td>
             <td>{{ $associateName }}</td>
             <td class="info-label">CPF/CNPJ</td>
             <td>{{ $cpf }}</td>
@@ -212,7 +213,7 @@
             <tr>
                 <td class="sig-cell">
                     <div class="sig-line"></div>
-                    <div class="sig-label">Associado / Beneficiário<br><small>{{ $associateName }}</small></div>
+                    <div class="sig-label">{{ $associateTerm }} / Beneficiário<br><small>{{ $associateName }}</small></div>
                 </td>
                 <td class="sig-cell">
                     <div class="sig-line"></div>

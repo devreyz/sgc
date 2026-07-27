@@ -7,6 +7,7 @@
     $vc = $visible_columns ?? ['date', 'product', 'quantity', 'gross_value', 'net_value'];
     $showSection = fn(string $s) => $vs === null || in_array($s, $vs);
     $showCol = fn(string $c) => in_array($c, $vc, true);
+    $associatesTerm = ($tenant ?? null)?->associateTerm(plural: true) ?? 'Associados';
 @endphp
 
 {{-- ═══ FILTROS APLICADOS ═══ --}}
@@ -30,7 +31,7 @@
 <div class="summary-cards">
     <div class="summary-card">
         <div class="card-value">{{ $totals['associates_count'] ?? 0 }}</div>
-        <div class="card-label">Associados</div>
+        <div class="card-label">{{ $associatesTerm }}</div>
     </div>
     <div class="summary-card">
         <div class="card-value info">{{ $totals['deliveries_count'] ?? 0 }}</div>
@@ -126,7 +127,7 @@
 <div class="totals-box">
     <table>
         <tr>
-            <td class="label">Total de Associados:</td>
+            <td class="label">Total de {{ $associatesTerm }}:</td>
             <td class="value">{{ $totals['associates_count'] }}</td>
             <td class="label">Total de Distribuições:</td>
             <td class="value">{{ $totals['deliveries_count'] }}</td>

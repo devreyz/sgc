@@ -6,6 +6,7 @@
     $vc = $visible_columns ?? ['date', 'associate', 'quantity', 'gross_value', 'net_value'];
     $showSection = fn(string $k) => $vs === null || in_array($k, $vs);
     $showCol     = fn(string $k) => in_array($k, $vc, true);
+    $associateTerm = ($tenant ?? null)?->associateTerm() ?? 'Associado';
 @endphp
 
 {{-- ═══ FILTROS APLICADOS ═══ --}}
@@ -66,7 +67,7 @@
             <tr>
                 @if($showCol('date'))<th style="width:60px;">Data</th>@endif
                 @if($showCol('project'))<th>Projeto</th>@endif
-                @if($showCol('associate'))<th>Associado</th>@endif
+                @if($showCol('associate'))<th>{{ $associateTerm }}</th>@endif
                 <th>Cliente</th>
                 @if($showCol('quantity'))<th class="text-right" style="width:65px;">Qtd</th>@endif
                 @if($showCol('unit_price'))<th class="text-right" style="width:65px;">Vlr Unit.</th>@endif

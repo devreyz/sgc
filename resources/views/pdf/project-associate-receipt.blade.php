@@ -51,6 +51,7 @@
 
     $hasContract = !$isStandalone && !empty($project->contract_number);
     $hasProcess  = !$isStandalone && !empty($project->process_number);
+    $associateTerm = $tenant?->associateTerm() ?? 'Associado';
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -165,7 +166,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     @if($isStandalone)
         <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Nome</span>
-            <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
+            <span class="proj-value">{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</span>
         </div>
         
         @if(isset($receipt) && $receipt->from_date)
@@ -183,7 +184,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     @else
     <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Nome</span>
-            <span class="proj-value">{{ $associate->display_name ?? 'Associado nao identificado' }}</span>
+            <span class="proj-value">{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</span>
         </div>
         <div class="proj-cell" style="width: 50%;">
             <span class="proj-label">Referente</span>
@@ -409,9 +410,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 </div>
 
 @if(!empty($hasRoundingDivergence))
-<p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
+<!-- <p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
     * A soma visual dos itens pode divergir do total devido a arredondamentos de exibição. Os valores totais são calculados com precisão interna.
-</p>
+</p> -->
 @endif
 
 @include('pdf.partials.receipt-consent', [

@@ -645,6 +645,8 @@ HTMLDOC;
             '{{cooperativa.site}}' => $tenant?->website ?? '',
             '{{cooperativa.ie}}' => $tenant?->state_registration ?? '',
             '{{cooperativa.logo_img}}' => $logoImg,
+            '{{cooperativa.termo_associado}}' => $tenant?->associateTerm() ?? 'Associado',
+            '{{cooperativa.termo_associados}}' => $tenant?->associateTerm(plural: true) ?? 'Associados',
             '{{data.hoje}}' => $now->format('d/m/Y'),
             '{{data.hoje_extenso}}' => $now->translatedFormat('d \\d\\e F \\d\\e Y'),
             '{{data.mes_atual}}' => $now->translatedFormat('F'),

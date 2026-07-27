@@ -1,6 +1,7 @@
 @extends('pdf.partials.header')
 
 @section('content')
+@php($associateTerm = ($tenant ?? null)?->associateTerm() ?? 'Associado')
 {{-- ═══ DADOS DO PROJETO ═══ --}}
 <div class="info-box">
     <table>
@@ -85,11 +86,11 @@
 </table>
 
 {{-- ═══ RESUMO POR PRODUTOR ═══ --}}
-<div class="section-title">Resumo por Produtor</div>
+<div class="section-title">Resumo por {{ $associateTerm }}</div>
 <table class="data-table">
     <thead>
         <tr>
-            <th>Produtor</th>
+            <th>{{ $associateTerm }}</th>
             <th class="text-center">Entregas</th>
             <th class="text-right">Qtd Total</th>
             <th class="text-right">V. Bruto</th>

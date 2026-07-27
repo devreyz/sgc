@@ -47,6 +47,17 @@ class AssociateReceiptArchiveService
             $receipt->project,
             $receipt->fee_snapshot,
         );
+        $feeService = app(ReceiptFeeColumnService::class);
+        $visibleColumns = $feeService->sanitize(
+            is_array($receipt->project->associate_receipt_columns)
+                ? $receipt->project->associate_receipt_columns
+                : ['unit_price', 'gross'],
+            $feeService->definitions($receipt->project, 'associate', $receipt->fee_snapshot),
+            ['unit_price', 'gross', 'admin_fee', 'net'],
+        );
+        $tableScale = in_array((int) $receipt->project->associate_receipt_table_scale, [70, 80, 90, 100], true)
+            ? (int) $receipt->project->associate_receipt_table_scale
+            : 100;
         $pdfService = app(TemplatedPdfService::class);
         $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $receipt->tenant,
@@ -58,6 +69,8 @@ class AssociateReceiptArchiveService
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
             'feeColumns' => $data['feeColumns'],
+            'visible_columns' => $visibleColumns,
+            'table_scale' => $tableScale,
         ], $pdfService->systemPdfOptions(
             'pdf.project-associate-receipt',
             'Comprovante de Entrega',

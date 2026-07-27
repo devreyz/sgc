@@ -11,6 +11,7 @@
 --}}
 @php
     $padH = $isPortrait ? '0' : '5mm';
+    $associateTerm = ($tenant ?? null)?->associateTerm() ?? 'Associado';
 @endphp
 <table style="width:100%;border-collapse:collapse; padding-bottom: 5px;"><tbody><tr>
 <td style="padding:0 {{ $padH }};vertical-align:top;">
@@ -49,7 +50,7 @@
     </tr>
     @endif -->
     <tr>
-        <td class="lbl">Produtor</td>
+        <td class="lbl">{{ $associateTerm }}</td>
         <td class="val blank">&nbsp;</td>
     </tr>
 </table>

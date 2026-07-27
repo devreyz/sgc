@@ -108,6 +108,9 @@
     .pr-columns summary { padding:.6rem .7rem; cursor:pointer; font-size:.7rem; font-weight:800; }
     .pr-column-grid { display:grid; grid-template-columns:1fr 1fr; gap:.4rem; padding:0 .7rem .7rem; }
     .pr-column-grid label { display:flex; align-items:center; gap:.4rem; font-size:.72rem; }
+    .pr-print-status { min-height:1rem; padding:0 .7rem .65rem; color:var(--color-text-secondary); font-size:.68rem; }
+    .pr-print-status.saved { color:var(--color-success); }
+    .pr-print-status.error { color:var(--color-danger); }
     .pr-dialog { width:min(430px,calc(100vw - 1rem)); padding:0; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:var(--color-text); }
     .pr-dialog::backdrop { background:rgba(15,23,42,.55); backdrop-filter:blur(3px); }
     .pr-dialog-body { padding:1rem; }
@@ -143,6 +146,7 @@
     data-tenant="{{ $tenantSlug }}"
     data-project="{{ $project->id }}"
     data-list-url="{{ route('delivery.projects.producers-data', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
+    data-preferences-url="{{ route('delivery.projects.receipt-print-preferences.update', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
 >
     <header class="pr-head">
         <div>
@@ -196,6 +200,27 @@
             <button class="pr-btn icon" id="pr-modal-close" type="button" aria-label="Fechar"><i data-lucide="x"></i></button>
         </header>
         <div class="pr-sheet-body">
+            <details class="pr-columns" id="pr-print-settings" open>
+                <summary>Colunas e tamanho dos comprovantes deste projeto</summary>
+                <div class="pr-column-grid">
+                    <div id="pr-fee-columns" style="display:contents"></div>
+                    <label><input class="pr-column" type="checkbox" value="unit_price" checked> Valor unitário</label>
+                    <label><input class="pr-column" type="checkbox" value="gross" checked> Valor bruto</label>
+                    <label><input class="pr-column" type="checkbox" value="admin_fee"> Taxa administrativa</label>
+                    <label><input class="pr-column" type="checkbox" value="net"> Valor líquido</label>
+                </div>
+                <div style="padding:0 .7rem .45rem">
+                    <label for="pr-table-scale" style="display:block;font-size:.72rem;font-weight:800;margin-bottom:.3rem">Escala da tabela</label>
+                    <select id="pr-table-scale" class="pr-control" style="width:100%">
+                        <option value="100">100% · Normal</option>
+                        <option value="90">90% · Compacta</option>
+                        <option value="80">80% · Reduzida</option>
+                        <option value="70">70% · Muito reduzida</option>
+                    </select>
+                </div>
+                <div class="pr-print-status" id="pr-print-status">Configuração compartilhada por todos os comprovantes deste projeto.</div>
+            </details>
+
             <div class="pr-state-loading" id="pr-modal-loading"><div><div class="pr-loading-ring"></div>Carregando comprovantes...</div></div>
 
             <div id="pr-overview" hidden>
@@ -216,25 +241,6 @@
                     <button class="pr-btn" id="pr-toggle-all" type="button"><i data-lucide="list-checks"></i> Marcar disponíveis</button>
                 </div>
                 <div class="pr-selection-list" id="pr-distributions"></div>
-                <details class="pr-columns">
-                    <summary>Colunas do PDF</summary>
-                    <div class="pr-column-grid">
-                        <div id="pr-fee-columns" style="display:contents"></div>
-                        <label><input class="pr-column" type="checkbox" value="unit_price" checked> Valor unitário</label>
-                        <label><input class="pr-column" type="checkbox" value="gross" checked> Valor bruto</label>
-                        <label><input class="pr-column" type="checkbox" value="admin_fee"> Taxa administrativa</label>
-                        <label><input class="pr-column" type="checkbox" value="net"> Valor líquido</label>
-                    </div>
-                    <div style="padding:0 .7rem .7rem">
-                        <label for="pr-table-scale" style="display:block;font-size:.72rem;font-weight:800;margin-bottom:.3rem">Escala da tabela</label>
-                        <select id="pr-table-scale" class="pr-control" style="width:100%">
-                            <option value="100">100% · Normal</option>
-                            <option value="90">90% · Compacta</option>
-                            <option value="80">80% · Reduzida</option>
-                            <option value="70">70% · Muito reduzida</option>
-                        </select>
-                    </div>
-                </details>
             </div>
         </div>
         <footer class="pr-sheet-footer">
@@ -271,10 +277,10 @@
     const tenant = root.dataset.tenant;
     const project = Number(root.dataset.project);
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const printPreferenceKey = `sgc.receipt.associate.${tenant}.${project}.print.v1`;
     const state = {
         page: 1, lastPage: 1, filter: 'all', timer: null, busy: false,
         associateId: null, associateName: '', check: null, receiptId: null, distributions: [],
+        preferenceTimer: null, preferencePromise: null,
     };
     const $ = id => document.getElementById(id);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
@@ -463,7 +469,7 @@
                 <div class="pr-receipt-actions">
                     ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i data-lucide="list-checks"></i> Alterar distribuições</button>` : ''}
                     ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i data-lucide="refresh-cw"></i> Regenerar</button>` : ''}
-                    ${receipt.status !== 'obsolete' ? `<a class="pr-btn" href="${esc(receipt.reprint_url)}" target="_blank"><i data-lucide="printer"></i> Reimprimir</a>` : ''}
+                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}"><i data-lucide="printer"></i> Reimprimir</button>` : ''}
                 </div>
             </article>`).join('') : '<div class="pr-empty">Nenhum comprovante gerado para este produtor.</div>';
         $('pr-modal-primary').hidden = false;
@@ -577,16 +583,8 @@
         return Number($('pr-table-scale')?.value || 100);
     }
 
-    function storedPrintPreferences() {
-        try {
-            return JSON.parse(localStorage.getItem(printPreferenceKey) || 'null');
-        } catch {
-            return null;
-        }
-    }
-
     function applyPrintPreferences() {
-        const preferences = storedPrintPreferences() || state.check?.print_preferences || {};
+        const preferences = state.check?.print_preferences || {};
         const selected = Array.isArray(preferences.columns) ? preferences.columns : ['unit_price', 'gross'];
         document.querySelectorAll('.pr-column').forEach(input => {
             input.checked = selected.includes(input.value);
@@ -597,15 +595,48 @@
         $('pr-table-scale').value = String(scale);
     }
 
-    function persistPrintPreferences() {
-        try {
-            localStorage.setItem(printPreferenceKey, JSON.stringify({
-                columns: columns(),
-                table_scale: tableScale(),
+    async function savePrintPreferences(showFeedback = true) {
+        clearTimeout(state.preferenceTimer);
+        const status = $('pr-print-status');
+        status.className = 'pr-print-status';
+        status.textContent = 'Salvando configuração do projeto...';
+
+        const payload = {
+            visible_columns:columns(),
+            table_scale:tableScale(),
+        };
+        const previous = state.preferencePromise;
+        const request = (previous ? previous.catch(() => null) : Promise.resolve())
+            .then(() => json(root.dataset.preferencesUrl, {
+                method:'PUT',
+                headers:{ 'Content-Type':'application/json' },
+                body:JSON.stringify(payload),
             }));
-        } catch {
-            // A preferência em sessão continua disponível quando o navegador bloqueia armazenamento local.
+        state.preferencePromise = request;
+
+        try {
+            const data = await request;
+            if (state.check) state.check.print_preferences = data.print_preferences;
+            if (state.preferencePromise === request) {
+                status.classList.add('saved');
+                status.textContent = 'Configuração salva para todos os comprovantes deste projeto.';
+            }
+            if (showFeedback) toast(data.message);
+            return data;
+        } catch (error) {
+            status.classList.add('error');
+            status.textContent = error.message;
+            throw error;
+        } finally {
+            if (state.preferencePromise === request) state.preferencePromise = null;
         }
+    }
+
+    function schedulePrintPreferenceSave() {
+        clearTimeout(state.preferenceTimer);
+        state.preferenceTimer = setTimeout(() => {
+            savePrintPreferences(false).catch(error => toast(error.message, 'error'));
+        }, 350);
     }
 
     function renderFeeColumns() {
@@ -635,6 +666,7 @@
         updateSelection();
         $('pr-modal-primary').innerHTML = '<i data-lucide="loader-circle"></i> Processando...';
         try {
+            await savePrintPreferences(false);
             const url = state.receiptId
                 ? `/${tenant}/delivery/projects/${project}/receipts/${state.receiptId}/distributions`
                 : `/${tenant}/delivery/projects/${project}/receipt-selected`;
@@ -663,6 +695,7 @@
         state.busy = true;
         button.disabled = true;
         try {
+            await savePrintPreferences(false);
             const data = await json(`/${tenant}/delivery/projects/${project}/receipts/${receiptId}/regenerate`, {
                 method:'POST',
                 headers:{ 'Content-Type':'application/json' },
@@ -783,9 +816,9 @@
     $('pr-distributions').addEventListener('change', event => {
         if (event.target.classList.contains('pr-dist-check')) updateSelection();
     });
-    document.querySelector('.pr-columns')?.addEventListener('change', event => {
+    $('pr-print-settings')?.addEventListener('change', event => {
         if (event.target.classList.contains('pr-column') || event.target.id === 'pr-table-scale') {
-            persistPrintPreferences();
+            schedulePrintPreferenceSave();
         }
     });
     $('pr-receipts').addEventListener('click', event => {
@@ -793,6 +826,14 @@
         if (edit) { openSelection(edit.dataset.editReceipt); return; }
         const refresh = event.target.closest('[data-regenerate]');
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
+        const reprint = event.target.closest('[data-reprint-url]');
+        if (reprint) {
+            reprint.disabled = true;
+            savePrintPreferences(false)
+                .then(() => { window.location.href = reprint.dataset.reprintUrl; })
+                .catch(error => toast(error.message, 'error'))
+                .finally(() => { reprint.disabled = false; });
+        }
     });
     $('pr-issues-slot').addEventListener('click', event => {
         const action = event.target.closest('[data-issue-action]');

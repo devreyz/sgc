@@ -9,6 +9,7 @@
     // $columns is the export column selector; $visible_columns overrides if set
     $colsToShow = $vc ?? $columns ?? ['delivery_date', 'project', 'associate', 'product', 'quantity', 'status'];
     $showCol = fn(string $k) => in_array($k, $colsToShow);
+    $associateTerm = ($tenant ?? null)?->associateTerm() ?? 'Associado';
 @endphp
 
 {{-- ═══ FILTROS / CONTEXTO ═══ --}}
@@ -34,7 +35,7 @@
         <tr>
             @if($showCol('delivery_date'))<th>Data</th>@endif
             @if($showCol('project'))<th>Projeto</th>@endif
-            @if($showCol('associate'))<th>Produtor</th>@endif
+            @if($showCol('associate'))<th>{{ $associateTerm }}</th>@endif
             @if($showCol('product'))<th>Produto</th>@endif
             @if($showCol('quantity'))<th class="text-right">Qtd</th>@endif
             @if($showCol('unit_price'))<th class="text-right">Preço Un.</th>@endif
@@ -55,7 +56,7 @@
                 <td>{{ $delivery->salesProject->title ?? '—' }}</td>
             @endif
             @if($showCol('associate'))
-                <td>{{ $delivery->associate?->display_name ?? 'Associado nao identificado' }}</td>
+                <td>{{ $delivery->associate?->display_name ?? $associateTerm.' nao identificado' }}</td>
             @endif
             @if($showCol('product'))
                 <td>{{ $delivery->product->name ?? '—' }}</td>
@@ -128,9 +129,9 @@
     </table>
 </div>
 @if(!empty($hasRoundingDivergence))
-<p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
+<!--<p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
     * A soma visual dos itens pode divergir do total devido a arredondamentos de exibição.
-</p>
+</p> -->
 @endif
 @endif
 @endsection

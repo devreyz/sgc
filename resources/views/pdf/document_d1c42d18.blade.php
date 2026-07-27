@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -319,11 +320,11 @@
     </div>
 
     <div class="section">
-        <div class="section-title">Resumo por Produtor</div>
+        <div class="section-title">Resumo por {{ $associateTerm }}</div>
         <table>
             <thead>
                 <tr>
-                    <th>Produtor</th>
+                    <th>{{ $associateTerm }}</th>
                     <th class="text-center">Entregas</th>
                     <th class="text-right">Qtd Total</th>
                     <th class="text-right">Valor Bruto</th>

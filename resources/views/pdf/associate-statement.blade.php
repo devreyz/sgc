@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -61,14 +62,14 @@
             </div>
         </div>
         <div class="org-header-right">
-            <div class="doc-title">EXTRATO DE CONTA - ASSOCIADO</div>
+            <div class="doc-title">EXTRATO DE CONTA - {{ mb_strtoupper($associateTerm, 'UTF-8') }}</div>
             <div class="doc-subtitle">{{ $associate->display_name ?? $associate->property_name ?? "#".$associate->id }}</div>
             <div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>
         </div>
     </div>
     @else
     <div class="header">
-        <h1>EXTRATO DE CONTA - ASSOCIADO</h1>
+        <h1>EXTRATO DE CONTA - {{ mb_strtoupper($associateTerm, 'UTF-8') }}</h1>
         <h2>{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</h2>
         <p>Período: {{ $period['from'] }} a {{ $period['until'] }} | Gerado em: {{ $generated_at }}</p>
     </div>
@@ -184,7 +185,7 @@
             <div class="signature-line">Responsável - Cooperativa</div>
         </div>
         <div class="signature-box" style="float: right;">
-            <div class="signature-line">{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }} - Associado</div>
+            <div class="signature-line">{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }} - {{ $associateTerm }}</div>
         </div>
     </div>
 

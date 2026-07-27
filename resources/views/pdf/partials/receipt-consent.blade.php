@@ -14,7 +14,7 @@
 
 @if((string) $receiptConsent !== '')
 <style>
-    .receipt-consent { margin-top: 10px; color: #333; font-size: 9.5px; line-height: 1.4; page-break-inside: auto; }
+    .receipt-consent { margin-top: 10px; color: #333; font-size: 10px; line-height: 1.4; page-break-inside: auto; }
     .receipt-consent p { margin: 0 0 6px; text-align: left; page-break-inside: avoid; }
     .receipt-consent table { width: 100%; margin-top: 14px; border-collapse: collapse; page-break-inside: avoid; }
     .receipt-consent td { width: 50%; padding: 0 9px 0 0; vertical-align: top; }

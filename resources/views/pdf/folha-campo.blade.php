@@ -1,3 +1,8 @@
+@php
+    $associateTerm = $tenant?->associateTerm() ?? 'Associado';
+    $associatesTerm = $tenant?->associateTerm(plural: true) ?? 'Associados';
+    $associateTermLower = $tenant?->associateTerm(lowercase: true) ?? 'associado';
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -116,12 +121,12 @@
         </tbody>
     </table>
 
-    <div class="section-title">Registro de Entregas por Produtor</div>
+    <div class="section-title">Registro de Entregas por {{ $associateTerm }}</div>
     <table class="main">
         <thead>
             <tr>
                 <th style="width: 5%">Nº</th>
-                <th style="width: 25%">Produtor</th>
+                <th style="width: 25%">{{ $associateTerm }}</th>
                 <th style="width: 20%">Produto</th>
                 <th style="width: 12%">Quantidade</th>
                 <th style="width: 13%">Qualidade</th>
@@ -133,14 +138,14 @@
             @forelse ($associates as $associate)
             <tr>
                 <td>{{ $n++ }}</td>
-                <td>{{ $associate->display_name ?? 'Associado nao identificado' }}</td>
+                <td>{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</td>
                 <td><span class="fill-line"></span></td>
                 <td><span class="fill-line"></span></td>
                 <td><span class="fill-line"></span></td>
                 <td><span class="fill-line"></span></td>
             </tr>
             @empty
-            <tr><td colspan="6" style="text-align:center; color:#999;">Nenhum associado cadastrado</td></tr>
+            <tr><td colspan="6" style="text-align:center; color:#999;">Nenhum {{ $associateTermLower }} cadastrado</td></tr>
             @endforelse
             {{-- Linhas extras em branco --}}
             @for ($i = 0; $i < 5; $i++)

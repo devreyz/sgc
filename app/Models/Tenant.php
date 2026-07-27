@@ -36,6 +36,8 @@ class Tenant extends Model
      */
     protected $fillable = [
         'name',
+        'associate_term_singular',
+        'associate_term_plural',
         'legal_name',
         'slug',
         'cnpj',
@@ -108,7 +110,14 @@ class Tenant extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'slug', 'active', 'settings'])
+            ->logOnly([
+                'name',
+                'slug',
+                'active',
+                'settings',
+                'associate_term_singular',
+                'associate_term_plural',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -231,6 +240,16 @@ class Tenant extends Model
         ]);
 
         return implode(', ', $parts);
+    }
+
+    public function associateTerm(bool $plural = false, bool $lowercase = false): string
+    {
+        $attribute = $plural ? 'associate_term_plural' : 'associate_term_singular';
+        $fallback = $plural ? 'Associados' : 'Associado';
+        $term = trim((string) $this->getAttribute($attribute));
+        $term = $term !== '' ? $term : $fallback;
+
+        return $lowercase ? mb_strtolower($term, 'UTF-8') : $term;
     }
 
     /**

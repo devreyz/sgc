@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -141,7 +142,7 @@
                 <th style="width: 65px;">Data</th>
                 <th>Descrição</th>
                 <th>Ordem Serviço</th>
-                <th>Associado</th>
+                <th>{{ $associateTerm }}</th>
                 <th class="text-center" style="width: 50px;">Horas</th>
                 <th class="text-right" style="width: 80px;">Valor</th>
                 <th class="text-center" style="width: 60px;">Status</th>
@@ -154,7 +155,7 @@
                 <td>{{ $work->work_date->format('d/m/Y') }}</td>
                 <td>{{ $work->description }}</td>
                 <td>{{ $work->serviceOrder?->code ?? '-' }}</td>
-                <td>{{ $work->associate?->display_name ?? 'Associado nao identificado' }}</td>
+                <td>{{ $work->associate?->display_name ?? $associateTerm.' nao identificado' }}</td>
                 <td class="text-center">{{ $work->hours_worked ? number_format($work->hours_worked, 1, ',', '.') : '-' }}</td>
                 <td class="text-right">R$ {{ number_format($work->total_value, 2, ',', '.') }}</td>
                 <td class="text-center">

@@ -19,6 +19,8 @@
         ->unique()
         ->values();
     $hideCustomer = $customerNames->count() <= 1;
+    $associateTerm = $tenant?->associateTerm() ?? 'Associado';
+    $associateTermLower = $tenant?->associateTerm(lowercase: true) ?? 'associado';
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -118,7 +120,7 @@ body {
     </div>
     <div class="portal-org">
         <strong>{{ $tenant->name ?? '' }}</strong>
-        <span>Comprovante disponibilizado ao associado</span>
+        <span>Comprovante disponibilizado ao {{ $associateTermLower }}</span>
     </div>
     <div class="portal-doc">
         <span>Comprovante</span>
@@ -130,8 +132,8 @@ body {
 <table class="portal-info">
     <tr>
         <td style="width:52%">
-            <span class="portal-label">Associado</span>
-            <span class="portal-value">{{ $associate->display_name ?? 'Associado não identificado' }}</span>
+            <span class="portal-label">{{ $associateTerm }}</span>
+            <span class="portal-value">{{ $associate->display_name ?? $associateTerm.' não identificado' }}</span>
         </td>
         <td>
             <span class="portal-label">Projeto</span>

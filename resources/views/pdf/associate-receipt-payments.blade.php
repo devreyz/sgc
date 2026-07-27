@@ -1,3 +1,4 @@
+@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -18,7 +19,7 @@
     <h1>Comprovante de pagamentos</h1>
     <div class="muted">{{ $tenant->name }} · Comprovante {{ $receipt->formatted_number }}</div>
     <div class="summary">
-        <strong>Associado:</strong> {{ $associate->display_name }}<br>
+        <strong>{{ $associateTerm }}:</strong> {{ $associate->display_name }}<br>
         <strong>Projeto:</strong> {{ $project->title }}<br>
         <strong>Total líquido:</strong> R$ {{ number_format((float) $receipt->total_net, 2, ',', '.') }}<br>
         <strong>Total pago:</strong> R$ {{ number_format((float) $receipt->amount_paid, 2, ',', '.') }}
