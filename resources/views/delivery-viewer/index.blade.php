@@ -16,28 +16,29 @@
 <style>
     .viewer-home { grid-column:1/-1; min-width:0; display:grid; gap:.85rem; }
     .viewer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:.8rem; }
-    .viewer-head h1 { margin:0; font-size:1.15rem; }
-    .viewer-head p { margin:.25rem 0 0; color:var(--color-text-secondary); font-size:.7rem; line-height:1.45; }
-    .viewer-count { flex:none; padding:.25rem .5rem; border:1px solid var(--color-border); border-radius:999px; background:var(--color-surface); font-size:.61rem; font-weight:800; }
+    .viewer-head h1 { margin:0; font-size:1.25rem; }
+    .viewer-head p { margin:.3rem 0 0; color:var(--color-text-secondary); font-size:.82rem; line-height:1.5; }
+    .viewer-count { flex:none; padding:.32rem .58rem; border:1px solid var(--color-border); border-radius:999px; background:var(--color-surface); font-size:.72rem; font-weight:800; }
     .viewer-filter { display:grid; grid-template-columns:minmax(170px,1fr) minmax(140px,200px); gap:.45rem; }
-    .viewer-control { min-height:43px; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-text); padding:.52rem .68rem; font:inherit; font-size:.72rem; }
+    .viewer-control { min-height:46px; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-text); padding:.58rem .72rem; font:inherit; font-size:.82rem; }
     .viewer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:.65rem; }
     .viewer-card { display:flex; min-width:0; flex-direction:column; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); color:inherit; text-decoration:none; overflow:hidden; transition:border-color .15s,transform .15s; }
     .viewer-card:hover { border-color:var(--color-primary); transform:translateY(-1px); }
-    .viewer-main { flex:1; padding:.78rem; }
+    .viewer-main { flex:1; padding:.95rem; }
     .viewer-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.55rem; }
-    .viewer-card h2 { margin:0; font-size:.82rem; line-height:1.35; }
-    .viewer-client { margin-top:.18rem; color:var(--color-text-secondary); font-size:.61rem; }
-    .viewer-status { flex:none; padding:.2rem .42rem; border-radius:999px; background:var(--color-bg); font-size:.57rem; font-weight:800; }
+    .viewer-card h2 { margin:0; font-size:1rem; line-height:1.4; }
+    .viewer-client { margin-top:.24rem; color:var(--color-text-secondary); font-size:.75rem; }
+    .viewer-status { flex:none; padding:.25rem .48rem; border-radius:999px; background:var(--color-bg); font-size:.66rem; font-weight:800; }
     .viewer-status.active { background:#dcfce7; color:#166534; }
-    .viewer-meter { height:8px; margin:.65rem 0 .42rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
+    .viewer-meter { height:11px; margin:.8rem 0 .48rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
     .viewer-meter span { display:block; height:100%; border-radius:inherit; background:var(--color-primary); }
-    .viewer-progress-label { color:var(--color-text-secondary); font-size:.59rem; }
+    .viewer-progress-label { display:flex; justify-content:space-between; gap:.5rem; color:var(--color-text-secondary); font-size:.72rem; }
+    .viewer-progress-label strong { color:var(--color-text); }
     .viewer-values { display:grid; grid-template-columns:repeat(3,1fr); gap:.35rem; margin-top:.58rem; }
-    .viewer-value span { display:block; color:var(--color-text-secondary); font-size:.55rem; }
-    .viewer-value strong { display:block; margin-top:.1rem; font-size:.68rem; overflow-wrap:anywhere; }
-    .viewer-alert { display:flex; align-items:center; gap:.3rem; margin-top:.58rem; color:#92400e; font-size:.61rem; font-weight:750; }
-    .viewer-open { display:flex; align-items:center; justify-content:space-between; padding:.62rem .78rem; border-top:1px solid var(--color-border); color:var(--color-primary); font-size:.65rem; font-weight:800; }
+    .viewer-value span { display:block; color:var(--color-text-secondary); font-size:.66rem; }
+    .viewer-value strong { display:block; margin-top:.14rem; font-size:.82rem; overflow-wrap:anywhere; }
+    .viewer-alert { display:flex; align-items:center; gap:.35rem; margin-top:.68rem; color:#92400e; font-size:.73rem; font-weight:750; }
+    .viewer-open { display:flex; align-items:center; justify-content:space-between; padding:.72rem .95rem; border-top:1px solid var(--color-border); color:var(--color-primary); font-size:.76rem; font-weight:800; }
     .viewer-loading,.viewer-empty { min-height:210px; display:grid; place-items:center; border:1px dashed var(--color-border); border-radius:8px; color:var(--color-text-secondary); text-align:center; font-size:.7rem; }
     .viewer-spinner { width:25px; height:25px; margin:0 auto .6rem; border:3px solid var(--color-border); border-top-color:var(--color-primary); border-radius:50%; animation:viewer-spin .7s linear infinite; }
     @keyframes viewer-spin { to { transform:rotate(360deg); } }
@@ -112,8 +113,8 @@
                 return `<a class="viewer-card" href="${esc(project.url)}">
                     <div class="viewer-main">
                         <div class="viewer-card-top"><div><h2>${esc(project.title)}</h2><div class="viewer-client">${esc(project.client || 'Projeto com varios destinos')}</div></div><span class="viewer-status ${esc(project.status)}">${esc(project.status_label)}</span></div>
-                        <div class="viewer-meter"><span style="width:${percent}%"></span></div>
-                        <div class="viewer-progress-label">${Math.round(percent)}% do recebido ja foi distribuido</div>
+                        <div class="viewer-meter" role="progressbar" aria-label="Progresso de distribuicao" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"><span style="width:${percent}%"></span></div>
+                        <div class="viewer-progress-label"><span>Recebido ja distribuido</span><strong>${Math.round(percent)}%</strong></div>
                         <div class="viewer-values">
                             <div class="viewer-value"><span>Recebido</span><strong>${fmt(project.received)}</strong></div>
                             <div class="viewer-value"><span>Distribuido</span><strong>${fmt(project.distributed)}</strong></div>

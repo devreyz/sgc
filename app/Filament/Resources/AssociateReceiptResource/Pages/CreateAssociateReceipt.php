@@ -5,7 +5,10 @@ namespace App\Filament\Resources\AssociateReceiptResource\Pages;
 use App\Filament\Resources\AssociateReceiptResource;
 use App\Models\AssociateReceipt;
 use App\Models\SalesProject;
+use App\Services\AssociateReceiptService;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CreateAssociateReceipt extends CreateRecord
@@ -33,5 +36,29 @@ class CreateAssociateReceipt extends CreateRecord
         }
 
         return $data;
+    }
+
+    protected function handleRecordCreation(array $data): Model
+    {
+        try {
+            return DB::transaction(function () use ($data) {
+                $record = parent::handleRecordCreation($data);
+                $project = SalesProject::query()
+                    ->where('tenant_id', $record->tenant_id)
+                    ->findOrFail($record->sales_project_id);
+
+                app(AssociateReceiptService::class)->replaceDistributions(
+                    $record,
+                    $data['delivery_ids'] ?? [],
+                    $project
+                );
+
+                return $record->refresh();
+            });
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'delivery_ids' => $exception->getMessage(),
+            ]);
+        }
     }
 }

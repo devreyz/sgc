@@ -1597,6 +1597,16 @@ class DeliveryRegistrationController extends Controller
         $fromDate = request()->query('from_date');
         $toDate = request()->query('to_date');
         $approvedOnly = (bool) request()->query('approved_only', false);
+        $receiptId = (int) request()->query('receipt_id', 0);
+
+        if ($receiptId > 0 && ! AssociateReceipt::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->where('associate_id', $associateId)
+            ->whereKey($receiptId)
+            ->exists()) {
+            return response()->json(['message' => 'Comprovante nao encontrado neste projeto.'], 404);
+        }
 
         // SOMENTE distribuições (parent_delivery_id NOT NULL) — verdade financeira
         $query = ProductionDelivery::where('tenant_id', $tenantId)
@@ -1613,7 +1623,13 @@ class DeliveryRegistrationController extends Controller
             // ou via novo fluxo (associado a comprovante PAGO)
             $query->where('paid', false)
                 ->where('billing_status', '!=', BillingStatus::PAID->value)
-                ->whereNull('associate_receipt_id');
+                ->where(function ($query) use ($receiptId) {
+                    $query->whereNull('associate_receipt_id');
+
+                    if ($receiptId > 0) {
+                        $query->orWhere('associate_receipt_id', $receiptId);
+                    }
+                });
         }
         if ($fromDate) {
             $query->whereDate('delivery_date', '>=', $fromDate);
@@ -1646,6 +1662,8 @@ class DeliveryRegistrationController extends Controller
                 'net_value' => (float) $delivery->net_value,
                 'status' => $delivery->status->getLabel(),
                 'status_value' => $delivery->status->value,
+                'in_current_receipt' => $receiptId > 0
+                    && (int) $delivery->associate_receipt_id === $receiptId,
             ];
         });
 
@@ -3491,21 +3509,32 @@ class DeliveryRegistrationController extends Controller
 
         // Criar novo comprovante apenas com distribuicoes pendentes.
         $year = now()->year;
-        $receipt = AssociateReceipt::create([
-            'tenant_id' => $tenantId,
-            'sales_project_id' => $projectId,
-            'associate_id' => $associateId,
-            'receipt_year' => $year,
-            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
-            'issued_at' => today(),
-            'delivery_ids' => $distributions->pluck('id')->all(),
-        ]);
+        $receipt = DB::transaction(function () use (
+            $tenantId,
+            $projectId,
+            $associateId,
+            $year,
+            $distributions,
+            $project
+        ) {
+            $receipt = AssociateReceipt::create([
+                'tenant_id' => $tenantId,
+                'sales_project_id' => $projectId,
+                'associate_id' => $associateId,
+                'receipt_year' => $year,
+                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at' => today(),
+                'delivery_ids' => $distributions->pluck('id')->all(),
+            ]);
 
-        // Congelar snapshot financeiro (apenas se o comprovante ainda não foi pago)
-        if (! $receipt->isLocked()) {
-            app(AssociateReceiptService::class)
-                ->freezeReceipt($receipt, $distributions, $project);
-        }
+            app(AssociateReceiptService::class)->replaceDistributions(
+                $receipt,
+                $distributions->pluck('id')->all(),
+                $project
+            );
+
+            return $receipt->refresh();
+        });
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
 
@@ -3583,19 +3612,32 @@ class DeliveryRegistrationController extends Controller
 
         // Criar novo comprovante armazenando os IDs das recepções originais selecionadas
         $year = now()->year;
-        $receipt = AssociateReceipt::create([
-            'tenant_id' => $tenantId,
-            'sales_project_id' => $projectId,
-            'associate_id' => $associate->id,
-            'receipt_year' => $year,
-            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
-            'issued_at' => today(),
-            'delivery_ids' => $distributions->pluck('id')->all(),
-        ]);
+        $receipt = DB::transaction(function () use (
+            $tenantId,
+            $projectId,
+            $associate,
+            $year,
+            $distributions,
+            $project
+        ) {
+            $receipt = AssociateReceipt::create([
+                'tenant_id' => $tenantId,
+                'sales_project_id' => $projectId,
+                'associate_id' => $associate->id,
+                'receipt_year' => $year,
+                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                'issued_at' => today(),
+                'delivery_ids' => $distributions->pluck('id')->all(),
+            ]);
 
-        // Congelar snapshot financeiro no comprovante e vincular distribuições
-        app(AssociateReceiptService::class)
-            ->freezeReceipt($receipt, $distributions, $project);
+            app(AssociateReceiptService::class)->replaceDistributions(
+                $receipt,
+                $distributions->pluck('id')->all(),
+                $project
+            );
+
+            return $receipt->refresh();
+        });
 
         // Verificar distribuições não cobertas pelos comprovantes deste associado/projeto
         $allReceipts = AssociateReceipt::where('tenant_id', $tenantId)
@@ -3699,20 +3741,21 @@ class DeliveryRegistrationController extends Controller
                 $currentIds = ProductionDelivery::where('tenant_id', $tenantId)
                     ->where('associate_receipt_id', $receipt->id)
                     ->pluck('id')
-                    ->merge($receipt->delivery_ids ?? []);
-                $allIds = $currentIds->merge($selectedIds)->map(fn ($id) => (int) $id)->unique()->values();
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
 
                 $distributions = ProductionDelivery::where('tenant_id', $tenantId)
                     ->where('sales_project_id', $projectId)
                     ->where('associate_id', $receipt->associate_id)
                     ->whereNotNull('parent_delivery_id')
                     ->where('status', DeliveryStatus::APPROVED)
-                    ->whereIn('id', $allIds)
+                    ->whereIn('id', $selectedIds)
                     ->with(['product', 'customer', 'parentDelivery'])
                     ->lockForUpdate()
                     ->get();
 
-                if ($distributions->count() !== $allIds->count()) {
+                if ($distributions->count() !== $selectedIds->count()) {
                     throw new \RuntimeException('Uma ou mais distribuicoes nao pertencem a este produtor/projeto ou nao estao mais aprovadas.');
                 }
 
@@ -3729,8 +3772,11 @@ class DeliveryRegistrationController extends Controller
                 }
 
                 $beforeIds = $currentIds->map(fn ($id) => (int) $id)->values()->all();
-                app(AssociateReceiptService::class)->freezeReceipt($receipt, $distributions, $project);
-                $receipt->update(['delivery_ids' => $allIds->all()]);
+                $sync = app(AssociateReceiptService::class)->replaceDistributions(
+                    $receipt,
+                    $selectedIds->all(),
+                    $project
+                );
 
                 activity('associate_receipt')
                     ->performedOn($receipt)
@@ -3738,17 +3784,19 @@ class DeliveryRegistrationController extends Controller
                     ->withProperties([
                         'action' => 'add_pending_distributions',
                         'previous_delivery_ids' => $beforeIds,
-                        'delivery_ids' => $allIds->all(),
+                        'delivery_ids' => $selectedIds->all(),
+                        'added_delivery_ids' => $sync['added'],
+                        'removed_delivery_ids' => $sync['removed'],
                     ])
-                    ->log('Comprovante atualizado com distribuicoes pendentes');
+                    ->log('Distribuicoes do comprovante atualizadas');
 
-                return [$receipt->fresh(), $distributions, max(0, $allIds->count() - count($beforeIds))];
+                return [$receipt->fresh(), $distributions, count($sync['added']), count($sync['removed'])];
             });
         } catch (\RuntimeException $exception) {
             return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
         }
 
-        [$receipt, $distributions, $addedCount] = $result;
+        [$receipt, $distributions, $addedCount, $removedCount] = $result;
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant = $this->currentTenant();
         $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
@@ -3775,7 +3823,7 @@ class DeliveryRegistrationController extends Controller
         return response()->json([
             'success' => true,
             'updated' => true,
-            'message' => "Comprovante {$receipt->formatted_number} atualizado com {$addedCount} distribuicao(oes). Gere o PDF atualizado.",
+            'message' => "Comprovante {$receipt->formatted_number} atualizado: {$addedCount} adicionada(s) e {$removedCount} removida(s).",
             'receipt_id' => $receipt->id,
             'receipt_number' => $receipt->formatted_number,
             'receipt_status' => $receipt->status?->value,

@@ -43,25 +43,25 @@
     .watch-number strong { display:block; margin-top:.15rem; font-size:1rem; overflow-wrap:anywhere; }
     .watch-hint { margin-top:.15rem; color:var(--color-text-secondary); font-size:.6rem; }
     .watch-section-head { display:flex; align-items:end; justify-content:space-between; gap:.7rem; margin-bottom:.65rem; }
-    .watch-section-head h2 { margin:0; font-size:.96rem; }
-    .watch-section-head p { margin:.2rem 0 0; color:var(--color-text-secondary); font-size:.67rem; }
-    .watch-search { width:min(310px,100%); min-height:42px; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-text); padding:.55rem .7rem; font:inherit; font-size:.72rem; }
+    .watch-section-head h2 { margin:0; font-size:1.05rem; }
+    .watch-section-head p { margin:.24rem 0 0; color:var(--color-text-secondary); font-size:.78rem; line-height:1.45; }
+    .watch-search { width:min(310px,100%); min-height:44px; border:1px solid var(--color-border); border-radius:7px; background:var(--color-surface); color:var(--color-text); padding:.58rem .72rem; font:inherit; font-size:.8rem; }
     .watch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.65rem; }
-    .watch-card { min-width:0; padding:.75rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
+    .watch-card { min-width:0; padding:.9rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .watch-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.55rem; }
-    .watch-card h3 { margin:0; font-size:.78rem; line-height:1.35; }
-    .watch-card-sub { margin-top:.16rem; color:var(--color-text-secondary); font-size:.61rem; }
-    .watch-meter { height:9px; margin:.62rem 0 .45rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
+    .watch-card h3 { margin:0; font-size:.94rem; line-height:1.4; }
+    .watch-card-sub { margin-top:.2rem; color:var(--color-text-secondary); font-size:.72rem; line-height:1.4; }
+    .watch-meter { height:11px; margin:.72rem 0 .48rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
     .watch-meter span { display:block; height:100%; border-radius:inherit; background:var(--color-primary); transition:width .3s ease; }
     .watch-meter.warn span { background:#d97706; }
     .watch-meter.done span { background:#15803d; }
     .watch-values { display:grid; grid-template-columns:repeat(3,1fr); gap:.35rem; }
     .watch-value { min-width:0; }
-    .watch-value span { display:block; color:var(--color-text-secondary); font-size:.57rem; }
-    .watch-value strong { display:block; margin-top:.12rem; font-size:.68rem; overflow-wrap:anywhere; }
+    .watch-value span { display:block; color:var(--color-text-secondary); font-size:.66rem; }
+    .watch-value strong { display:block; margin-top:.14rem; font-size:.8rem; overflow-wrap:anywhere; }
     .watch-link-card { display:block; color:inherit; text-decoration:none; transition:border-color .15s,transform .15s; }
     .watch-link-card:hover { border-color:var(--color-primary); transform:translateY(-1px); }
-    .watch-open { display:flex; align-items:center; justify-content:space-between; margin-top:.62rem; padding-top:.55rem; border-top:1px solid var(--color-border); color:var(--color-primary); font-size:.65rem; font-weight:800; }
+    .watch-open { display:flex; align-items:center; justify-content:space-between; margin-top:.72rem; padding-top:.65rem; border-top:1px solid var(--color-border); color:var(--color-primary); font-size:.75rem; font-weight:800; }
     .watch-filter { display:grid; grid-template-columns:minmax(160px,1fr) minmax(140px,190px) auto; gap:.45rem; margin-bottom:.65rem; }
     .watch-control,.watch-button { min-height:42px; border-radius:7px; font:inherit; font-size:.7rem; }
     .watch-control { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text); padding:.5rem .65rem; }
@@ -69,8 +69,8 @@
     .watch-deliveries { display:grid; gap:.55rem; }
     .watch-delivery { padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .watch-delivery-head { display:grid; grid-template-columns:minmax(150px,1.2fr) minmax(100px,.7fr) auto; gap:.65rem; align-items:center; }
-    .watch-delivery h3 { margin:0; font-size:.76rem; }
-    .watch-delivery p { margin:.18rem 0 0; color:var(--color-text-secondary); font-size:.61rem; }
+    .watch-delivery h3 { margin:0; font-size:.88rem; }
+    .watch-delivery p { margin:.2rem 0 0; color:var(--color-text-secondary); font-size:.7rem; }
     .watch-badge { padding:.2rem .45rem; border-radius:999px; background:var(--color-bg); font-size:.59rem; font-weight:800; }
     .watch-badge.approved { background:#dcfce7; color:#166534; }
     .watch-badge.pending { background:#fef3c7; color:#92400e; }
@@ -275,7 +275,7 @@
         const progressLabel = hasTarget ? 'da meta recebida' : 'do recebido distribuido';
         return `<article class="watch-card" data-search="${esc(product.name.toLowerCase())}">
             <div class="watch-card-top"><div><h3>${esc(product.name)}</h3><div class="watch-card-sub">${hasTarget ? `Meta: ${fmt(product.target)} ${esc(product.unit)}` : 'Sem meta geral definida'}</div></div><i data-lucide="package"></i></div>
-            <div class="watch-meter ${progress >= 100 ? 'done' : ''}"><span style="width:${Math.min(100,progress)}%"></span></div>
+            <div class="watch-meter ${progress >= 100 ? 'done' : ''}" role="progressbar" aria-label="Uso da meta de ${esc(product.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><span style="width:${Math.min(100,progress)}%"></span></div>
             <div class="watch-card-sub">${Math.round(progress)}% ${progressLabel}</div>
             <div class="watch-values" style="margin-top:.55rem">
                 <div class="watch-value"><span>Recebido</span><strong>${fmt(product.received)}</strong></div>
@@ -289,7 +289,7 @@
         const subtitle = associate.nickname || associate.registration || `${associate.deliveries_count} entrega(s)`;
         return `<a class="watch-card watch-link-card" href="${esc(associate.url)}" data-search="${esc(`${associate.name} ${associate.nickname || ''} ${associate.registration || ''}`.toLowerCase())}">
             <div class="watch-card-top"><div><h3>${esc(associate.name)}</h3><div class="watch-card-sub">${esc(subtitle)}</div></div><i data-lucide="user-round"></i></div>
-            ${associate.maximum > 0 ? `<div class="watch-meter ${associate.progress >= 100 ? 'done' : ''}"><span style="width:${associate.progress}%"></span></div><div class="watch-card-sub">${Math.round(associate.progress)}% dos limites de produtos utilizados</div>` : '<div class="watch-card-sub" style="margin-top:.65rem">Sem limites individuais de produto</div>'}
+            ${associate.maximum > 0 ? `<div class="watch-meter ${associate.progress >= 100 ? 'done' : ''}" role="progressbar" aria-label="Uso dos limites do associado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(associate.progress)}"><span style="width:${associate.progress}%"></span></div><div class="watch-card-sub">${Math.round(associate.progress)}% dos limites de produtos utilizados</div>` : '<div class="watch-card-sub" style="margin-top:.65rem">Sem limites individuais de produto</div>'}
             <div class="watch-values" style="margin-top:.55rem">
                 <div class="watch-value"><span>Recebido</span><strong>${fmt(associate.received)}</strong></div>
                 <div class="watch-value"><span>Distribuido</span><strong>${fmt(associate.distributed)}</strong></div>

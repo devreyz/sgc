@@ -322,7 +322,7 @@ async function openReceiptModal(associateId,name){
         document.getElementById('rm-dist-count').textContent=PP_CHECK_DATA.total_dist ?? 0;
         document.getElementById('rm-receipt-count').textContent=PP_CHECK_DATA.receipt_count ?? 0;
         renderIssues(PP_CHECK_DATA.issues || [], PP_CHECK_DATA.critical_issues || 0);
-        if(!PP_CHECK_DATA.has_receipts){setModalState('no-receipt');return;}
+        if(!PP_CHECK_DATA.has_receipts){await enterSelectingMode();return;}
         renderReceiptsList(PP_CHECK_DATA.receipts || []);
         const uncovCount=PP_CHECK_DATA.uncovered_count ?? 0;
         document.getElementById('rm-uncovered-count').textContent=uncovCount;
@@ -357,7 +357,7 @@ function renderReceiptsList(receipts){
         const obsolete=r.status==='obsolete';
         const actions=[];
         if(r.can_regenerate) actions.push(`<button type="button" class="btn btn-danger btn-sm" onclick="regenerateReceipt(${r.id})">Regenerar</button>`);
-        if(r.can_update && (PP_CHECK_DATA.uncovered_count ?? 0)>0) actions.push(`<button type="button" class="btn btn-ghost btn-sm" onclick="enterSelectingMode(${r.id})">Adicionar pendentes</button>`);
+        if(r.can_update) actions.push(`<button type="button" class="btn btn-ghost btn-sm" onclick="enterSelectingMode(${r.id})">Selecionar distribuicoes</button>`);
         if(!obsolete) actions.push(`<a class="btn btn-ghost btn-sm" href="${r.reprint_url}" target="_blank">Reimprimir</a>`);
         const obsoleteNote=obsolete?`<div class="pp-meta" style="color:#991b1b">${escapeHtml(r.obsolete_reason || 'Precisa ser regenerado.')}${r.obsolete_at?' · '+escapeHtml(r.obsolete_at):''}</div>`:'';
         return `<div class="rm-receipt-item">
@@ -371,7 +371,6 @@ function renderReceiptsList(receipts){
 }
 
 function closeReceiptModal(){document.getElementById('receipt-modal').classList.add('hidden');PP_ASSOCIATE=null;}
-document.getElementById('receipt-modal')?.addEventListener('click',e=>{if(e.target===e.currentTarget)closeReceiptModal();});
 function ppIntegrityActionLabel(action){return({open_distribution:'Abrir entrega',edit_distribution:'Corrigir distribuicao',detach_missing_associate_receipt:'Desvincular comprovante',delete_orphan_distribution:'Excluir distribuicao orfa',open_producers:'Atualizar comprovantes'})[action] || 'Ver correcao';}
 async function ppHandleIntegrityAction(action,deliveryId,distributionId){
     if(action==='open_distribution'||action==='edit_distribution'){window.location.href=`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/deliveries`;return;}
@@ -401,23 +400,29 @@ async function enterSelectingMode(receiptId=null){
     PP_EDIT_RECEIPT_ID=receiptId?Number(receiptId):null;
     setModalState('selecting');
     const updating=!!PP_EDIT_RECEIPT_ID;
-    document.querySelector('#rm-selecting .rm-info span').textContent=updating?'Selecione as distribuicoes pendentes para incluir no comprovante existente.':'Selecione as distribuicoes que farao parte deste comprovante adicional.';
+    document.querySelector('#rm-selecting .rm-info span').textContent=updating?'Marque todas as distribuicoes que devem permanecer neste comprovante. As desmarcadas voltarao a ficar disponiveis.':'Selecione as distribuicoes que farao parte deste comprovante.';
     document.getElementById('rm-btn-gen-sel').innerHTML=`<i data-lucide="file-down" style="width:13px;height:13px"></i> ${updating?'Atualizar comprovante':'Gerar PDF'}`;
     const area=document.getElementById('rm-sel-area');area.innerHTML='<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Carregando distribuicoes...</p>';
     try{
-        const res=await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${PP_ASSOCIATE}/deliveries?approved_only=1`,{headers:{Accept:'application/json','X-CSRF-TOKEN':PP_CSRF}});
+        const params=new URLSearchParams({approved_only:'1'});
+        if(PP_EDIT_RECEIPT_ID)params.set('receipt_id',String(PP_EDIT_RECEIPT_ID));
+        const res=await fetch(`/${PP_TENANT}/delivery/projects/${PP_PROJECT}/associates/${PP_ASSOCIATE}/deliveries?${params}`,{headers:{Accept:'application/json','X-CSRF-TOKEN':PP_CSRF}});
         const data=await res.json();
         if(!data.length){area.innerHTML='<p style="padding:.75rem;font-size:.8rem;color:var(--color-text-secondary)">Nenhuma distribuicao pendente encontrada.</p>';return;}
         area.innerHTML=`<div style="display:grid;grid-template-columns:auto 1fr 92px 82px 80px 82px;gap:.45rem;padding:.35rem .6rem;background:var(--color-bg);font-size:.72rem;font-weight:800;color:var(--color-text-secondary);border-bottom:1px solid var(--color-border)">
             <input type="checkbox" id="rm-sel-all"><span>Produto</span><span>Cliente</span><span>Data</span><span>Qtd</span><span>Liquido</span></div>`+
-            data.map(d=>`<label class="delivery-item"><input type="checkbox" class="rm-dist-chk" value="${d.id}" data-net="${d.net_value}"><span>${escapeHtml(d.product_name)}</span><span>${escapeHtml(d.customer_name || '')}</span><span>${escapeHtml(d.delivery_date)}</span><span>${brQty(d.quantity)} ${escapeHtml(d.unit || '')}</span><span style="color:var(--color-success)">${brMoney(d.net_value)}</span></label>`).join('');
+            data.map(d=>`<label class="delivery-item"><input type="checkbox" class="rm-dist-chk" value="${d.id}" data-net="${d.net_value}" ${d.in_current_receipt?'checked':''}><span>${escapeHtml(d.product_name)}</span><span>${escapeHtml(d.customer_name || '')}</span><span>${escapeHtml(d.delivery_date)}</span><span>${brQty(d.quantity)} ${escapeHtml(d.unit || '')}</span><span style="color:var(--color-success)">${brMoney(d.net_value)}</span></label>`).join('');
         document.getElementById('rm-sel-all')?.addEventListener('change',function(){document.querySelectorAll('.rm-dist-chk').forEach(c=>c.checked=this.checked);updateSelSummary();});
         document.querySelectorAll('.rm-dist-chk').forEach(c=>c.addEventListener('change',updateSelSummary));
         updateSelSummary();
     }catch(error){area.innerHTML='<p style="padding:.75rem;font-size:.8rem;color:var(--color-danger)">Erro ao carregar distribuicoes.</p>';}
 }
 
-function showHasReceiptState(){PP_EDIT_RECEIPT_ID=null;setModalState('has-receipt');}
+function showHasReceiptState(){
+    PP_EDIT_RECEIPT_ID=null;
+    if(PP_CHECK_DATA?.has_receipts)setModalState('has-receipt');
+    else closeReceiptModal();
+}
 function updateSelSummary(){const checks=document.querySelectorAll('.rm-dist-chk:checked');let total=0;checks.forEach(c=>total+=Number(c.dataset.net || 0));document.getElementById('rm-sel-count').textContent=checks.length;document.getElementById('rm-sel-total').textContent=total.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 async function generateSelectedReceipt(){
     const checks=document.querySelectorAll('.rm-dist-chk:checked');

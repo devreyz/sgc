@@ -145,7 +145,7 @@ class AssociateReceiptResource extends Resource
                     ->columns(2),
 
                 Forms\Components\Section::make('Entregas Vinculadas')
-                    ->description('Selecione as entregas que compõem este comprovante. Deixe em branco para incluir todas as aprovadas do produtor/projeto.')
+                    ->description('Selecione as distribuicoes deste comprovante. Itens desmarcados voltam a ficar disponiveis para outro comprovante.')
                     ->schema([
                         Forms\Components\CheckboxList::make('delivery_ids')
                             ->label('Entregas Aprovadas')
@@ -162,6 +162,13 @@ class AssociateReceiptResource extends Resource
                                     ->where('associate_id', $associateId)
                                     ->where('status', DeliveryStatus::APPROVED)
                                     ->whereNotNull('parent_delivery_id')
+                                    ->where(function ($query) use ($record) {
+                                        $query->whereNull('associate_receipt_id');
+
+                                        if ($record?->id) {
+                                            $query->orWhere('associate_receipt_id', $record->id);
+                                        }
+                                    })
                                     ->with('product', 'customer')
                                     ->orderBy('delivery_date');
 
@@ -184,6 +191,8 @@ class AssociateReceiptResource extends Resource
                                 ? array_values(array_map('intval', $state))
                                 : [])
                             ->live()
+                            ->required()
+                            ->minItems(1)
                             ->columns(1)
                             ->bulkToggleable(),
                     ])

@@ -3,9 +3,15 @@
 namespace App\Filament\Resources\AssociateReceiptResource\Pages;
 
 use App\Filament\Resources\AssociateReceiptResource;
+use App\Models\ProductionDelivery;
+use App\Models\SalesProject;
+use App\Services\AssociateReceiptService;
 use Filament\Notifications\Notification;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class EditAssociateReceipt extends EditRecord
 {
@@ -50,5 +56,48 @@ class EditAssociateReceipt extends EditRecord
                     $this->redirect(AssociateReceiptResource::getUrl('index'));
                 }),
         ];
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        try {
+            return DB::transaction(function () use ($record, $data) {
+                $selectedIds = collect($data['delivery_ids'] ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values();
+                $linkedIds = ProductionDelivery::query()
+                    ->where('tenant_id', $record->tenant_id)
+                    ->where('associate_receipt_id', $record->id)
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->sort()
+                    ->values();
+
+                $updated = parent::handleRecordUpdate($record, $data);
+
+                if ($selectedIds->all() !== $linkedIds->all()) {
+                    $project = SalesProject::query()
+                        ->where('tenant_id', $updated->tenant_id)
+                        ->findOrFail($updated->sales_project_id);
+
+                    app(AssociateReceiptService::class)->replaceDistributions(
+                        $updated,
+                        $selectedIds->all(),
+                        $project,
+                        true,
+                        'As distribuicoes vinculadas foram alteradas no painel administrativo. Regenere o comprovante.'
+                    );
+                }
+
+                return $updated->refresh();
+            });
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages([
+                'delivery_ids' => $exception->getMessage(),
+            ]);
+        }
     }
 }

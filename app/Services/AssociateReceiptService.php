@@ -248,6 +248,166 @@ class AssociateReceiptService
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
     }
 
+    /**
+     * Substitui integralmente as distribuicoes de um comprovante operacional.
+     *
+     * O array delivery_ids e a FK associate_receipt_id permanecem sempre
+     * representando o mesmo conjunto.
+     *
+     * @param  array<int, int|string>  $distributionIds
+     * @return array{added: array<int>, removed: array<int>, selected: array<int>}
+     */
+    public function replaceDistributions(
+        AssociateReceipt $receipt,
+        array $distributionIds,
+        SalesProject $project,
+        bool $markObsolete = false,
+        string $obsoleteReason = 'As distribuicoes do comprovante foram alteradas.'
+    ): array {
+        $selectedIds = collect($distributionIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($selectedIds->isEmpty()) {
+            throw new \RuntimeException('Selecione ao menos uma distribuicao para o comprovante.');
+        }
+
+        $result = DB::transaction(function () use (
+            $receipt,
+            $selectedIds,
+            $project,
+            $markObsolete,
+            $obsoleteReason
+        ) {
+            $lockedReceipt = AssociateReceipt::query()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->where('sales_project_id', $receipt->sales_project_id)
+                ->where('associate_id', $receipt->associate_id)
+                ->lockForUpdate()
+                ->findOrFail($receipt->id);
+
+            if (! $lockedReceipt->canBeOperationallyUpdated()) {
+                throw new \RuntimeException(
+                    'Este comprovante esta faturado, pago ou possui bloqueio financeiro e nao pode ser alterado.'
+                );
+            }
+
+            $currentIds = ProductionDelivery::query()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('associate_receipt_id', $lockedReceipt->id)
+                ->lockForUpdate()
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values();
+
+            $allIds = $currentIds->merge($selectedIds)->unique()->values();
+            $lockedRows = ProductionDelivery::query()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->whereIn('id', $allIds)
+                ->lockForUpdate()
+                ->get([
+                    'id',
+                    'parent_delivery_id',
+                    'tenant_id',
+                    'sales_project_id',
+                    'associate_id',
+                    'customer_id',
+                    'quantity',
+                    'unit_price',
+                    'paid',
+                    'billing_status',
+                    'associate_receipt_id',
+                    'billing_receipt_id',
+                ]);
+
+            if ($lockedRows->count() !== $allIds->count()) {
+                throw new \RuntimeException(
+                    'Uma ou mais distribuicoes foram removidas durante a edicao. Atualize a pagina e tente novamente.'
+                );
+            }
+
+            $selectedRows = $lockedRows
+                ->whereIn('id', $selectedIds->all())
+                ->values();
+
+            $invalid = $selectedRows->first(function (ProductionDelivery $distribution) use ($lockedReceipt) {
+                return (int) $distribution->tenant_id !== (int) $lockedReceipt->tenant_id
+                    || (int) $distribution->sales_project_id !== (int) $lockedReceipt->sales_project_id
+                    || (int) $distribution->associate_id !== (int) $lockedReceipt->associate_id
+                    || is_null($distribution->parent_delivery_id)
+                    || is_null($distribution->customer_id)
+                    || (float) $distribution->quantity <= 0
+                    || (float) $distribution->unit_price <= 0
+                    || (
+                        ! is_null($distribution->associate_receipt_id)
+                        && (int) $distribution->associate_receipt_id !== (int) $lockedReceipt->id
+                    );
+            });
+
+            if ($selectedRows->count() !== $selectedIds->count() || $invalid) {
+                $id = $invalid?->id;
+                throw new \RuntimeException(
+                    $id
+                        ? "A distribuicao #{$id} nao e valida ou ja pertence a outro comprovante."
+                        : 'Uma ou mais distribuicoes selecionadas nao existem.'
+                );
+            }
+
+            $financiallyLocked = $lockedRows->first(fn (ProductionDelivery $distribution) => $distribution->paid
+                || $distribution->billing_status !== BillingStatus::UNBILLED
+                || ! is_null($distribution->billing_receipt_id)
+            );
+
+            if ($financiallyLocked) {
+                throw new \RuntimeException(
+                    "A distribuicao #{$financiallyLocked->id} esta faturada, paga ou vinculada a cobranca."
+                );
+            }
+
+            $removedIds = $currentIds->diff($selectedIds)->values();
+            $addedIds = $selectedIds->diff($currentIds)->values();
+
+            if ($removedIds->isNotEmpty()) {
+                ProductionDelivery::query()
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->where('associate_receipt_id', $lockedReceipt->id)
+                    ->whereIn('id', $removedIds)
+                    ->update(['associate_receipt_id' => null]);
+            }
+
+            $this->freezeReceipt($lockedReceipt, $selectedRows, $project);
+
+            $lockedReceipt->forceFill([
+                'delivery_ids' => $selectedIds->all(),
+            ])->saveQuietly();
+
+            if ($markObsolete) {
+                $lockedReceipt->forceFill([
+                    'status' => ReceiptStatus::OBSOLETE,
+                    'obsolete_at' => now(),
+                    'obsolete_by' => Auth::id(),
+                    'obsolete_reason' => $obsoleteReason,
+                ])->save();
+            }
+
+            return [
+                'added' => $addedIds->all(),
+                'removed' => $removedIds->all(),
+                'selected' => $selectedIds->all(),
+            ];
+        });
+
+        activity('associate_receipt')
+            ->performedOn($receipt)
+            ->causedBy(Auth::user())
+            ->withProperties($result)
+            ->log('Distribuicoes do comprovante sincronizadas');
+
+        return $result;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Pagar comprovante
     // ─────────────────────────────────────────────────────────────────────────

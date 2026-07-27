@@ -26,27 +26,27 @@
     .person-error { padding:1rem; border:1px solid #fecaca; border-radius:8px; background:#fff7f7; color:#991b1b; font-size:.72rem; }
     .person-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.55rem; }
     .person-stat { min-width:0; padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
-    .person-stat span { display:block; color:var(--color-text-secondary); font-size:.59rem; }
-    .person-stat strong { display:block; margin-top:.2rem; font-size:.95rem; overflow-wrap:anywhere; }
+    .person-stat span { display:block; color:var(--color-text-secondary); font-size:.7rem; }
+    .person-stat strong { display:block; margin-top:.22rem; font-size:1.02rem; overflow-wrap:anywhere; }
     .person-section { min-width:0; }
-    .person-section h2 { margin:0; font-size:.9rem; }
-    .person-section > p { margin:.18rem 0 .65rem; color:var(--color-text-secondary); font-size:.65rem; }
+    .person-section h2 { margin:0; font-size:1.02rem; }
+    .person-section > p { margin:.22rem 0 .7rem; color:var(--color-text-secondary); font-size:.77rem; line-height:1.45; }
     .person-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:.6rem; }
-    .person-card { padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
+    .person-card { padding:.9rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .person-card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
-    .person-card h3 { margin:0; font-size:.76rem; }
-    .person-card-sub { margin-top:.16rem; color:var(--color-text-secondary); font-size:.6rem; }
-    .person-meter { height:10px; margin:.65rem 0 .42rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
+    .person-card h3 { margin:0; font-size:.94rem; line-height:1.4; }
+    .person-card-sub { margin-top:.2rem; color:var(--color-text-secondary); font-size:.72rem; line-height:1.4; }
+    .person-meter { height:11px; margin:.72rem 0 .45rem; border-radius:999px; background:var(--color-bg); overflow:hidden; }
     .person-meter span { display:block; height:100%; border-radius:inherit; background:var(--color-primary); }
     .person-meter.done span { background:#15803d; }
     .person-values { display:grid; grid-template-columns:repeat(3,1fr); gap:.3rem; margin-top:.55rem; }
-    .person-value span { display:block; color:var(--color-text-secondary); font-size:.56rem; }
-    .person-value strong { display:block; margin-top:.1rem; font-size:.66rem; overflow-wrap:anywhere; }
+    .person-value span { display:block; color:var(--color-text-secondary); font-size:.66rem; }
+    .person-value strong { display:block; margin-top:.12rem; font-size:.8rem; overflow-wrap:anywhere; }
     .person-deliveries { display:grid; gap:.5rem; }
     .person-delivery { padding:.7rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .person-delivery-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; }
-    .person-delivery h3 { margin:0; font-size:.73rem; }
-    .person-delivery p { margin:.17rem 0 0; color:var(--color-text-secondary); font-size:.59rem; }
+    .person-delivery h3 { margin:0; font-size:.88rem; line-height:1.4; }
+    .person-delivery p { margin:.2rem 0 0; color:var(--color-text-secondary); font-size:.7rem; }
     .person-status { padding:.18rem .4rem; border-radius:999px; background:var(--color-bg); font-size:.57rem; font-weight:800; }
     .person-status.approved { background:#dcfce7; color:#166534; }
     .person-status.pending { background:#fef3c7; color:#92400e; }
@@ -134,7 +134,7 @@
     function renderLimit(limit) {
         return `<article class="person-card">
             <div class="person-card-top"><div><h3>${esc(limit.product)}</h3><div class="person-card-sub">Limite: ${fmt(limit.maximum)} ${esc(limit.unit)}</div></div><i data-lucide="package"></i></div>
-            <div class="person-meter ${limit.progress >= 100 ? 'done' : ''}"><span style="width:${Math.min(100,limit.progress)}%"></span></div>
+            <div class="person-meter ${limit.progress >= 100 ? 'done' : ''}" role="progressbar" aria-label="Uso do limite de ${esc(limit.product)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(limit.progress)}"><span style="width:${Math.min(100,limit.progress)}%"></span></div>
             <div class="person-card-sub">${Math.round(limit.progress)}% utilizado</div>
             <div class="person-values">
                 <div class="person-value"><span>Entregue</span><strong>${fmt(limit.received)}</strong></div>
