@@ -203,7 +203,19 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     $showGross     = in_array('gross',      $vcols);
     $showAdminFee  = in_array('admin_fee',  $vcols);
     $showNet       = in_array('net',        $vcols);
+    $selectedFeeColumns = collect($feeColumns ?? [])
+        ->filter(fn ($fee) => in_array($fee['key'], $vcols, true))
+        ->values();
 @endphp
+@include('pdf.partials.receipt-consent', [
+    'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
+    'consentPosition' => 'before',
+    'consentFinancial' => [
+        'gross' => $summary['gross_value'] ?? 0,
+        'fees' => $summary['admin_fee'] ?? 0,
+        'net' => $summary['net_value'] ?? 0,
+    ],
+])
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
 <div style="margin: 14px 0 8px; font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #1e3a5f; border-left: 3px solid #1e3a5f; padding-left: 7px;">Entregas por Cliente</div>
 <table class="tbl">
@@ -216,6 +228,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
             @if($showAdminFee)<th class="r" style="width:10%;">Taxa Adm.</th>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <th class="r">{{ $fee['name'] }}</th>
+            @endforeach
             @if($showNet)<th class="r" style="width:13%;">Vlr. Líquido</th>@endif
         </tr>
     </thead>
@@ -248,6 +263,11 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($dist['admin_fee'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
+                    {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($dist['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}
+                </td>
+            @endforeach
             @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($dist['net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endforeach
@@ -259,6 +279,11 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showUnitPrice)<td style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
             @if($showGross)<td class="r" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r c-danger" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">-&nbsp;R$&nbsp;{{ number_format($ps['total_admin_fee'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">
+                    {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($ps['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}
+                </td>
+            @endforeach
             @if($showNet)<td class="r c-success" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endif
@@ -270,6 +295,11 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showUnitPrice)<td class="r"></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
+                    {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($summary['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}
+                </td>
+            @endforeach
             @if($showNet)<td class="r">R$&nbsp;{{ number_format($summary['net_value'], 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
@@ -368,6 +398,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
+    'consentPosition' => 'after',
     'consentFinancial' => [
         'gross' => $summary['gross_value'] ?? 0,
         'fees' => $summary['admin_fee'] ?? 0,

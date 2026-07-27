@@ -23,7 +23,8 @@ class ReceiptDataBuilder
     public static function fromDeliveries(
         Collection $deliveries,
         ?DistributionBilling $billing = null,
-        ?SalesProject $project = null
+        ?SalesProject $project = null,
+        ?array $feeSnapshot = null,
     ): array {
         $deliveries = $deliveries
             ->filter(fn ($delivery) => ! is_null($delivery->parent_delivery_id))
@@ -34,20 +35,56 @@ class ReceiptDataBuilder
         // ── Per-distribution recalculation when project is available ─────────
         // Ensures fees are always fresh from the calculator, not stale DB values.
         $calcMap = [];
+        $feeColumns = [];
+        $feeColumnService = app(ReceiptFeeColumnService::class);
+        $snapshot = $feeSnapshot ?? $billing?->fee_snapshot;
+
+        if ($project && ! empty($snapshot['fees'])) {
+            $feeColumns = $feeColumnService->definitions($project, 'associate', $snapshot);
+            foreach ($deliveries as $d) {
+                $gross = (float) ($d->gross_value
+                    ?? ((float) ($d->quantity ?? 0) * (float) ($d->unit_price ?? 0)));
+                $feeValues = $feeColumnService->values($gross, $feeColumns);
+                $discounts = 0.0;
+                $accruals = 0.0;
+                foreach ($feeColumns as $fee) {
+                    if ($fee['nature'] === 'accrual') {
+                        $accruals += $feeValues[$fee['key']] ?? 0;
+                    } else {
+                        $discounts += $feeValues[$fee['key']] ?? 0;
+                    }
+                }
+                $calcMap[$d->id] = [
+                    'admin_fee' => $discounts - $accruals,
+                    'net' => $gross - $discounts + $accruals,
+                    'fee_values' => $feeValues,
+                ];
+            }
+        }
+
         if ($project) {
             /** @var ProjectFinancialCalculator $calculator */
             $calculator = app(ProjectFinancialCalculator::class);
             foreach ($deliveries as $d) {
+                if (isset($calcMap[$d->id])) {
+                    continue;
+                }
                 $gross = (string) ($d->gross_value
                     ?? bcmul((string) ($d->quantity ?? 0), (string) ($d->unit_price ?? 0), 8));
                 if (bccomp($gross, '0', 4) > 0) {
                     $result = $calculator->calculate($project, $gross);
+                    if (empty($feeColumns) && ! empty($result['fees'])) {
+                        $feeColumns = $feeColumnService->definitions($project, 'associate', [
+                            'fees' => $result['fees'],
+                        ]);
+                    }
                     $calcMap[$d->id] = [
                         'admin_fee' => (float) $result['total_fee'],
                         'net'       => (float) $result['net'],
+                        'fee_values' => $feeColumnService->values((float) $gross, $feeColumns),
                     ];
                 } else {
-                    $calcMap[$d->id] = ['admin_fee' => 0.0, 'net' => 0.0];
+                    $calcMap[$d->id] = ['admin_fee' => 0.0, 'net' => 0.0, 'fee_values' => []];
                 }
             }
         }
@@ -67,6 +104,7 @@ class ReceiptDataBuilder
             'gross_value'      => $totalGross,
             'admin_fee'        => $totalFee,
             'net_value'        => $totalNet,
+            'fee_totals'       => self::sumFeeValues($deliveries, $calcMap, $feeColumns),
         ];
 
         // Flat rows mantidos apenas para verificação de arredondamento
@@ -79,12 +117,21 @@ class ReceiptDataBuilder
         $hasRoundingDivergence = PricingService::hasRoundingDivergence($flatForCheck, $summary);
 
         // Breakdown detalhado das taxas
-        $feeBreakdown = self::buildFeeBreakdown($billing, $project, $totalGross, $totalFee, $totalNet);
+        $feeBreakdown = self::buildFeeBreakdown(
+            $billing,
+            $project,
+            $totalGross,
+            $totalFee,
+            $totalNet,
+            $snapshot,
+            $feeColumns,
+            $summary['fee_totals'],
+        );
 
         // Agrupar distribuições pela entrega-pai (mesma recepção = mesmo produto/data)
         $productsSummary = $deliveries
             ->groupBy(fn($d) => $d->parent_delivery_id ?? ('_' . $d->id))
-            ->map(function ($group) use ($calcMap) {
+            ->map(function ($group) use ($calcMap, $feeColumns) {
                 $first = $group->first();
                 return [
                     'product_name'    => $first->product?->name ?? '—',
@@ -98,6 +145,7 @@ class ReceiptDataBuilder
                     'total_net'       => ! empty($calcMap)
                         ? (float) array_sum(array_map(fn($d) => $calcMap[$d->id]['net'] ?? 0, $group->all()))
                         : (float) $group->sum('net_value'),
+                    'fee_totals'      => self::sumFeeValues($group, $calcMap, $feeColumns),
                     'distributions'   => $group->map(fn($d) => [
                         'customer_name' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
                         'quantity'      => (float) $d->quantity,
@@ -105,6 +153,7 @@ class ReceiptDataBuilder
                         'gross'         => (float) ($d->gross_value ?? 0),
                         'admin_fee'     => isset($calcMap[$d->id]) ? $calcMap[$d->id]['admin_fee'] : (float) ($d->admin_fee_amount ?? 0),
                         'net'           => isset($calcMap[$d->id]) ? $calcMap[$d->id]['net'] : (float) ($d->net_value ?? 0),
+                        'fee_values'    => $calcMap[$d->id]['fee_values'] ?? [],
                     ])->values()->all(),
                 ];
             })
@@ -115,7 +164,22 @@ class ReceiptDataBuilder
             'productsSummary'       => $productsSummary,
             'hasRoundingDivergence' => $hasRoundingDivergence,
             'feeBreakdown'          => $feeBreakdown,
+            'feeColumns'            => $feeColumns,
+            'feeColumnOptions'      => $feeColumnService->options($feeColumns),
         ];
+    }
+
+    private static function sumFeeValues(Collection $deliveries, array $calcMap, array $feeColumns): array
+    {
+        $totals = array_fill_keys(array_column($feeColumns, 'key'), 0.0);
+
+        foreach ($deliveries as $delivery) {
+            foreach (($calcMap[$delivery->id]['fee_values'] ?? []) as $key => $amount) {
+                $totals[$key] = ($totals[$key] ?? 0) + (float) $amount;
+            }
+        }
+
+        return $totals;
     }
 
     /**
@@ -138,18 +202,21 @@ class ReceiptDataBuilder
         ?SalesProject $project,
         float|string $totalGross,
         float|string $totalFee,
-        float|string $totalNet
+        float|string $totalNet,
+        ?array $explicitSnapshot = null,
+        array $feeColumns = [],
+        array $feeTotals = [],
     ): array {
-        $snapshot = $billing?->fee_snapshot;
+        $snapshot = $explicitSnapshot ?? $billing?->fee_snapshot;
 
         // ── Prioridade 1: snapshot congelado no faturamento ──────────────────
         if ($snapshot && ! empty($snapshot['fees'])) {
-            $fees = array_map(fn($f) => [
+            $fees = array_map(fn($f, $index) => [
                 'name'   => $f['name'],
                 'nature' => $f['nature'] ?? 'discount',
-                'amount' => (float) ($f['amount'] ?? 0),
+                'amount' => (float) ($feeTotals[$feeColumns[$index]['key'] ?? ''] ?? $f['amount'] ?? 0),
                 'label'  => $f['label'] ?? '',
-            ], $snapshot['fees']);
+            ], $snapshot['fees'], array_keys($snapshot['fees']));
 
             return [
                 'fees'             => $fees,
@@ -167,17 +234,27 @@ class ReceiptDataBuilder
             $result = $calculator->calculate($project, $grossStr);
 
             if (! empty($result['fees'])) {
-                $fees = array_map(fn($f) => [
+                $fees = array_map(fn($f, $index) => [
                     'name'   => $f['name'],
                     'nature' => $f['nature'] ?? 'discount',
-                    'amount' => (float) $f['amount'],
+                    'amount' => (float) ($feeTotals[$feeColumns[$index]['key'] ?? ''] ?? $f['amount']),
                     'label'  => $f['label'] ?? '',
-                ], $result['fees']);
+                ], $result['fees'], array_keys($result['fees']));
+
+                $discountTotal = 0.0;
+                $accrualTotal = 0.0;
+                foreach ($feeColumns as $fee) {
+                    if ($fee['nature'] === 'accrual') {
+                        $accrualTotal += (float) ($feeTotals[$fee['key']] ?? 0);
+                    } else {
+                        $discountTotal += (float) ($feeTotals[$fee['key']] ?? 0);
+                    }
+                }
 
                 return [
                     'fees'            => $fees,
-                    'total_discounts' => (float) $result['total_discounts'],
-                    'total_accruals'  => (float) $result['total_accruals'],
+                    'total_discounts' => $discountTotal,
+                    'total_accruals'  => $accrualTotal,
                     'has_detail'      => true,
                 ];
             }

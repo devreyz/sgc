@@ -101,12 +101,33 @@ class DocumentTemplateResource extends Resource
                     Forms\Components\Toggle::make('consent_enabled')
                         ->label('Exibir consentimento e assinaturas')
                         ->default(true),
+                    Forms\Components\Select::make('consent_position')
+                        ->label('Posição da mensagem')
+                        ->options([
+                            'before' => 'Antes da tabela',
+                            'after' => 'Depois da tabela',
+                            'both' => 'Antes e depois da tabela',
+                        ])
+                        ->default('after')
+                        ->required()
+                        ->live(),
                     Forms\Components\Placeholder::make('receipt_variables_help')
                         ->label('Variaveis disponiveis')
                         ->content(fn () => new HtmlString(self::buildReceiptVariablesHelpHtml()))
                         ->columnSpanFull(),
+                    Forms\Components\RichEditor::make('consent_content_before')
+                        ->label('Mensagem antes da tabela')
+                        ->toolbarButtons([
+                            'bold', 'italic', 'underline',
+                            'h2', 'h3', 'bulletList', 'orderedList',
+                            'redo', 'undo', 'table',
+                        ])
+                        ->placeholder('Texto introdutório, declaração prévia ou observações.')
+                        ->helperText('No modo “Antes e depois”, deixe vazio para não exibir conteúdo antes da tabela.')
+                        ->visible(fn (Get $get): bool => in_array($get('consent_position'), ['before', 'both'], true))
+                        ->columnSpanFull(),
                     Forms\Components\RichEditor::make('consent_content')
-                        ->label('Mensagem do comprovante')
+                        ->label('Mensagem depois da tabela')
                         ->toolbarButtons([
                             'bold', 'italic', 'underline',
                             'h2', 'h3', 'bulletList', 'orderedList',
@@ -114,6 +135,7 @@ class DocumentTemplateResource extends Resource
                         ])
                         ->placeholder('Deixe vazio para usar a mensagem padrao do sistema.')
                         ->helperText('Para ocultar uma assinatura, remova o respectivo bloco {{assinatura.*}} do texto.')
+                        ->visible(fn (Get $get): bool => in_array($get('consent_position'), ['after', 'both'], true))
                         ->columnSpanFull(),
                 ])
                 ->columns(2)

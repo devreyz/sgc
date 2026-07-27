@@ -217,6 +217,7 @@
                 <details class="pr-columns">
                     <summary>Colunas do PDF</summary>
                     <div class="pr-column-grid">
+                        <div id="pr-fee-columns" style="display:contents"></div>
                         <label><input class="pr-column" type="checkbox" value="unit_price" checked> Valor unitário</label>
                         <label><input class="pr-column" type="checkbox" value="gross" checked> Valor bruto</label>
                         <label><input class="pr-column" type="checkbox" value="admin_fee"> Taxa administrativa</label>
@@ -471,6 +472,7 @@
         setModalView('loading');
         try {
             state.check = await json(`/${tenant}/delivery/projects/${project}/associates/${state.associateId}/receipt-check`);
+            renderFeeColumns();
             if (state.check.has_receipts) renderReceipts();
             else await openSelection();
         } catch (error) {
@@ -553,6 +555,13 @@
 
     function columns() {
         return [...document.querySelectorAll('.pr-column:checked')].map(input => input.value);
+    }
+
+    function renderFeeColumns() {
+        const options = state.check?.fee_columns || {};
+        $('pr-fee-columns').innerHTML = Object.entries(options).map(([value, label]) =>
+            `<label><input class="pr-column" type="checkbox" value="${esc(value)}"> ${esc(label)}</label>`
+        ).join('');
     }
 
     function downloadPdf(data) {

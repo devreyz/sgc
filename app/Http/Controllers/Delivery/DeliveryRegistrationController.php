@@ -29,6 +29,7 @@ use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
+use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -58,6 +59,23 @@ class DeliveryRegistrationController extends Controller
         $tenantId = session('tenant_id');
 
         return $tenantId ? Tenant::find($tenantId) : null;
+    }
+
+    private function associateReceiptColumns(
+        mixed $requested,
+        SalesProject $project,
+        ?array $feeSnapshot = null,
+    ): array {
+        $defaults = ['unit_price', 'gross'];
+        $requested = is_array($requested) ? $requested : $defaults;
+        $service = app(ReceiptFeeColumnService::class);
+        $fees = $service->definitions($project, 'associate', $feeSnapshot);
+
+        return $service->sanitize(
+            $requested,
+            $fees,
+            ['unit_price', 'gross', 'admin_fee', 'net'],
+        );
     }
 
     private function deliveryLimitContext(Collection $deliveries, SalesProject $project): array
@@ -1656,7 +1674,7 @@ class DeliveryRegistrationController extends Controller
             $query->whereDate('delivery_date', '<=', $toDate);
         }
 
-        $deliveries = $query->get()->map(function ($delivery) {
+        $deliveries = $query->get()->map(function ($delivery) use ($receiptId) {
             // Nome do produto: via demanda da recepção pai, ou diretamente
             $productName = $delivery->parentDelivery?->projectDemand?->product?->name
                 ?? $delivery->product?->name
@@ -3486,7 +3504,22 @@ class DeliveryRegistrationController extends Controller
             'uncovered_count' => $availableCount,
             'critical_issues' => $criticalIssues,
             'issues' => $issues,
+            'fee_columns' => $this->associateReceiptFeeOptions($project, $receipts),
         ]);
+    }
+
+    private function associateReceiptFeeOptions(SalesProject $project, Collection $receipts): array
+    {
+        $service = app(ReceiptFeeColumnService::class);
+        $definitions = collect($service->definitions($project, 'associate'));
+
+        foreach ($receipts as $receipt) {
+            $definitions = $definitions->concat(
+                $service->definitions($project, 'associate', $receipt->fee_snapshot),
+            );
+        }
+
+        return $service->options($definitions->unique('key')->values()->all());
     }
 
     /**
@@ -3555,7 +3588,7 @@ class DeliveryRegistrationController extends Controller
             return $receipt->refresh();
         });
 
-        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3566,6 +3599,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
@@ -3678,14 +3712,12 @@ class DeliveryRegistrationController extends Controller
             ->whereNotIn('id', empty($coveredIds) ? [0] : $coveredIds)
             ->count();
 
-        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
-
-        $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
-        if (! is_array($visibleColumns)) {
-            $visibleColumns = ['unit_price', 'gross'];
-        }
-        $allowedCols = ['unit_price', 'gross', 'admin_fee', 'net'];
-        $visibleColumns = array_values(array_filter($visibleColumns, fn ($c) => in_array($c, $allowedCols)));
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
+        $visibleColumns = $this->associateReceiptColumns(
+            $request->input('visible_columns'),
+            $project,
+            $receipt->fee_snapshot,
+        );
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3696,6 +3728,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
@@ -3818,11 +3851,12 @@ class DeliveryRegistrationController extends Controller
         [$receipt, $distributions, $addedCount, $removedCount] = $result;
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant = $this->currentTenant();
-        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
-
-        $visibleColumns = $validated['visible_columns'] ?? ['unit_price', 'gross'];
-        $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
-        $visibleColumns = array_values(array_filter($visibleColumns, fn ($column) => in_array($column, $allowedColumns, true)));
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
+        $visibleColumns = $this->associateReceiptColumns(
+            $validated['visible_columns'] ?? null,
+            $project,
+            $receipt->fee_snapshot,
+        );
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3833,6 +3867,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
@@ -3940,13 +3975,12 @@ class DeliveryRegistrationController extends Controller
 
         [$receipt, $distributions] = $result;
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
-        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
-
-        $visibleColumns = $request->input('visible_columns', ['unit_price', 'gross']);
-        $allowedColumns = ['unit_price', 'gross', 'admin_fee', 'net'];
-        $visibleColumns = is_array($visibleColumns)
-            ? array_values(array_filter($visibleColumns, fn ($column) => in_array($column, $allowedColumns, true)))
-            : ['unit_price', 'gross'];
+        $receiptData = ReceiptDataBuilder::fromDeliveries($distributions, null, $project, $receipt->fee_snapshot);
+        $visibleColumns = $this->associateReceiptColumns(
+            $request->input('visible_columns'),
+            $project,
+            $receipt->fee_snapshot,
+        );
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', [
             'tenant' => $tenant,
@@ -3957,6 +3991,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
         ])->setPaper('a4', 'portrait');
 
@@ -4031,6 +4066,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
         ], array_merge(
             $svc->systemPdfOptions('pdf.project-associate-receipt', 'Comprovante de Entrega'),
             ['paper' => 'a4', 'orientation' => 'portrait']
@@ -4252,7 +4288,7 @@ class DeliveryRegistrationController extends Controller
             return redirect()->back()->with('error', $message);
         }
 
-        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project, $receipt->fee_snapshot);
 
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
 
@@ -4265,6 +4301,7 @@ class DeliveryRegistrationController extends Controller
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
         ])->setPaper('a4', 'portrait');
 
         $safeName = Str::slug($associate->display_name ?? 'associado');

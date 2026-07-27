@@ -79,7 +79,12 @@ class AssociateProjectPortalController extends Controller
 
         abort_if($distributions->isEmpty(), 404, 'O comprovante nao possui distribuicoes validas.');
 
-        $data = ReceiptDataBuilder::fromDeliveries($distributions, null, $project);
+        $data = ReceiptDataBuilder::fromDeliveries(
+            $distributions,
+            null,
+            $project,
+            $receipt->fee_snapshot,
+        );
         $tenant = $request->route('tenant') instanceof Tenant
             ? $request->route('tenant')
             : Tenant::findOrFail($project->tenant_id);
@@ -93,6 +98,7 @@ class AssociateProjectPortalController extends Controller
             'productsSummary' => $data['productsSummary'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
+            'feeColumns' => $data['feeColumns'],
         ], $pdfService->systemPdfOptions(
             'pdf.project-associate-receipt',
             'Comprovante de Entrega',

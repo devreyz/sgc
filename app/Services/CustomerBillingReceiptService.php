@@ -67,6 +67,8 @@ class CustomerBillingReceiptService
         $totalGross = '0';
         $totalFees  = '0';
         $totalNet   = '0';
+        $totalDiscounts = '0';
+        $totalAccruals = '0';
         $feeDetails = null;
 
         foreach ($distributions as $dist) {
@@ -82,6 +84,8 @@ class CustomerBillingReceiptService
                     'net'       => $gross,
                     'total_fee' => '0',
                     'fees'      => [],
+                    'total_discounts' => '0',
+                    'total_accruals' => '0',
                 ];
             } else {
                 $result = $this->calculator->calculateWithFees($project, $gross, $customerFees);
@@ -90,6 +94,11 @@ class CustomerBillingReceiptService
             $totalGross = bcadd($totalGross, $gross, 8);
             $totalFees  = bcadd($totalFees, $result['total_fee'], 8);
             $totalNet   = bcadd($totalNet, $result['net'], 8);
+            $netFee = (string) ($result['total_fee'] ?? '0');
+            $discounts = (string) ($result['total_discounts'] ?? (bccomp($netFee, '0', 8) >= 0 ? $netFee : '0'));
+            $accruals = (string) ($result['total_accruals'] ?? (bccomp($netFee, '0', 8) < 0 ? bcsub('0', $netFee, 8) : '0'));
+            $totalDiscounts = bcadd($totalDiscounts, $discounts, 8);
+            $totalAccruals = bcadd($totalAccruals, $accruals, 8);
 
             if ($feeDetails === null) {
                 $feeDetails = $result['fees'];
@@ -98,8 +107,8 @@ class CustomerBillingReceiptService
 
         $feeSnapshot = [
             'fees'               => $feeDetails ?? [],
-            'total_discounts'    => $totalFees,
-            'total_accruals'     => '0',
+            'total_discounts'    => $totalDiscounts,
+            'total_accruals'     => $totalAccruals,
             'total_fee'          => $totalFees,
             'distribution_count' => $distributions->count(),
             'fee_source'         => $customerFees->isNotEmpty() ? 'customer_project_fees' : 'no_fees',

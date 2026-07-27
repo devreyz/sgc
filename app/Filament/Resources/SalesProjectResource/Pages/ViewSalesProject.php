@@ -445,12 +445,16 @@ class ViewSalesProject extends ViewRecord
                                 ->required(),
                             Forms\Components\CheckboxList::make('visible_columns')
                                 ->label('Colunas da tabela')
-                                ->options([
-                                    'unit_price' => 'Vlr. Unitário',
-                                    'gross' => 'Vlr. Bruto',
-                                    'admin_fee' => 'Taxa Adm.',
-                                    'net' => 'Vlr. Líquido',
-                                ])
+                                ->options(function (SalesProject $record): array {
+                                    $service = app(\App\Services\ReceiptFeeColumnService::class);
+
+                                    return [
+                                        'unit_price' => 'Vlr. Unitário',
+                                        'gross' => 'Vlr. Bruto',
+                                        'admin_fee' => 'Taxas agrupadas',
+                                        'net' => 'Vlr. Líquido',
+                                    ] + $service->options($service->definitions($record));
+                                })
                                 ->default(['unit_price', 'gross'])
                                 ->columns(2)
                                 ->helperText('Produto, Cliente, Data e Qtd. são sempre exibidos. Os totais financeiros aparecem sempre no resumo abaixo da tabela.'),
@@ -812,8 +816,20 @@ class ViewSalesProject extends ViewRecord
         app(\App\Services\AssociateReceiptService::class)
             ->freezeReceipt($receipt, $distributions, $record);
 
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries($distributions, null, $record);
-        $visibleColumns = $formData['visible_columns'] ?? ['unit_price', 'gross'];
+        $receipt->refresh();
+        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries(
+            $distributions,
+            null,
+            $record,
+            $receipt->fee_snapshot,
+        );
+        $feeColumnService = app(\App\Services\ReceiptFeeColumnService::class);
+        $feeColumns = $feeColumnService->definitions($record, 'associate', $receipt->fee_snapshot);
+        $visibleColumns = $feeColumnService->sanitize(
+            $formData['visible_columns'] ?? ['unit_price', 'gross'],
+            $feeColumns,
+            ['unit_price', 'gross', 'admin_fee', 'net'],
+        );
 
         $svc = app(\App\Services\TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
@@ -825,6 +841,7 @@ class ViewSalesProject extends ViewRecord
             'productsSummary' => $receiptData['productsSummary'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
+            'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'isSecondCopy' => false,
         ], [

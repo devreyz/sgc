@@ -147,6 +147,26 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     @endif
 </div>
 
+@include('pdf.partials.receipt-consent', [
+    'consentKind' => \App\Services\ReceiptConsentRenderer::CUSTOMER,
+    'consentPosition' => 'before',
+    'consentFinancial' => [
+        'gross' => $totalGross,
+        'fees' => $totalFees,
+        'net' => $totalNet,
+    ],
+])
+
+@php
+    $pdfColumns = $visibleColumns ?? ['unit_price', 'gross'];
+    $showUnitPrice = in_array('unit_price', $pdfColumns, true);
+    $showGross = in_array('gross', $pdfColumns, true);
+    $showNet = in_array('net', $pdfColumns, true);
+    $selectedFeeColumns = collect($feeColumns ?? [])
+        ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
+        ->values();
+@endphp
+
 {{-- ═══ TABELA DE PRODUTOS ═══ --}}
 <div class="sec-label">Entregas por Produto</div>
 <table class="tbl">
@@ -154,8 +174,10 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         <tr>
             <th>Produto</th>
             <th class="r" style="width:18%;">Quantidade Total</th>
-            <th class="r" style="width:14%;">Vlr. Unit.</th>
-            <th class="r" style="width:14%;">Vlr. Bruto</th>
+            @if($showUnitPrice)<th class="r">Vlr. Unit.</th>@endif
+            @if($showGross)<th class="r">Vlr. Bruto</th>@endif
+            @foreach($selectedFeeColumns as $fee)<th class="r">{{ $fee['name'] }}</th>@endforeach
+            @if($showNet)<th class="r">Vlr. Líquido</th>@endif
         </tr>
     </thead>
     <tbody>
@@ -163,15 +185,26 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         <tr>
             <td>{{ $row['product'] }}</td>
             <td class="r">{{ fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
-            <td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>
-            <td class="r">R$ {{ number_format($row['gross'], 2, ',', '.') }}</td>
+            @if($showUnitPrice)<td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
+            @if($showGross)<td class="r">R$ {{ number_format($row['gross'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
+                    {{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$ {{ number_format($row['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}
+                </td>
+            @endforeach
+            @if($showNet)<td class="r">R$ {{ number_format($row['net'] ?? $row['gross'], 2, ',', '.') }}</td>@endif
         </tr>
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="3"><strong>TOTAL</strong></td>
-            <td class="r">R$ {{ number_format($totalGross, 2, ',', '.') }}</td>
+            <td colspan="2"><strong>TOTAL</strong></td>
+            @if($showUnitPrice)<td></td>@endif
+            @if($showGross)<td class="r">R$ {{ number_format($totalGross, 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$ {{ number_format(collect($productRows)->sum(fn ($row) => $row['fee_values'][$fee['key']] ?? 0), 2, ',', '.') }}</td>
+            @endforeach
+            @if($showNet)<td class="r">R$ {{ number_format($totalNet, 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
 </table>
@@ -238,6 +271,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::CUSTOMER,
+    'consentPosition' => 'after',
     'consentFinancial' => [
         'gross' => $totalGross,
         'fees' => $totalFees,

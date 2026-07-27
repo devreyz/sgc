@@ -46,6 +46,8 @@ class ReceiptConsentCustomizationTest extends TestCase
             $table->string('system_template_key')->nullable();
             $table->string('project_type')->nullable();
             $table->boolean('consent_enabled')->default(true);
+            $table->string('consent_position', 16)->default('after');
+            $table->longText('consent_content_before')->nullable();
             $table->longText('consent_content')->nullable();
             $table->longText('content');
             $table->boolean('is_active')->default(true);
@@ -152,6 +154,64 @@ class ReceiptConsentCustomizationTest extends TestCase
 
         $this->assertStringContainsString('Recebi da <strong>Cooperativa sem CNPJ</strong>, a quantia', $html);
         $this->assertStringNotContainsString('inscrita no CNPJ', $html);
+    }
+
+    public function test_template_can_render_distinct_content_before_and_after_the_table(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'consent-both');
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $template = $this->template($tenant, 'paa', '<p>Texto posterior</p>');
+        $template->update([
+            'consent_position' => 'both',
+            'consent_content_before' => '<p>Texto anterior</p>',
+        ]);
+
+        $renderer = app(ReceiptConsentRenderer::class);
+
+        $this->assertStringContainsString('Texto anterior', (string) $renderer->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+            position: 'before',
+        ));
+        $this->assertStringContainsString('Texto posterior', (string) $renderer->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+            position: 'after',
+        ));
+    }
+
+    public function test_legacy_template_remains_after_the_table_only(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'legacy-consent');
+        $project = new SalesProject(['title' => 'Projeto', 'type' => 'paa']);
+        $project->tenant_id = $tenant->id;
+        $this->template($tenant, 'paa', '<p>Texto legado</p>');
+
+        $renderer = app(ReceiptConsentRenderer::class);
+
+        $this->assertSame('', (string) $renderer->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+            position: 'before',
+        ));
+        $this->assertStringContainsString('Texto legado', (string) $renderer->render(
+            ReceiptConsentRenderer::ASSOCIATE,
+            $tenant,
+            $project,
+            null,
+            [],
+            position: 'after',
+        ));
     }
 
     private function template(Tenant $tenant, ?string $projectType, string $content): DocumentTemplate

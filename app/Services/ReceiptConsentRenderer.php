@@ -28,6 +28,7 @@ class ReceiptConsentRenderer
         ?Associate $associate = null,
         ?Customer $customer = null,
         ?Organization $organization = null,
+        string $position = 'after',
     ): HtmlString {
         $template = $this->resolveTemplate($tenant->getKey(), $kind, $project?->type);
 
@@ -35,7 +36,11 @@ class ReceiptConsentRenderer
             return new HtmlString('');
         }
 
-        $content = trim((string) ($template?->consent_content ?: $this->defaultContent($kind)));
+        if (! $this->supportsPosition($template, $position)) {
+            return new HtmlString('');
+        }
+
+        $content = trim((string) $this->contentForPosition($template, $kind, $position));
         if ($content === '') {
             return new HtmlString('');
         }
@@ -50,6 +55,28 @@ class ReceiptConsentRenderer
         ) ?? '';
 
         return new HtmlString('<div class="receipt-consent">'.$rendered.'</div>');
+    }
+
+    private function supportsPosition(?DocumentTemplate $template, string $position): bool
+    {
+        $configured = $template?->consent_position ?: 'after';
+
+        return $configured === 'both' || $configured === $position;
+    }
+
+    private function contentForPosition(?DocumentTemplate $template, string $kind, string $position): string
+    {
+        if ($position === 'before') {
+            if ($template?->consent_content_before) {
+                return (string) $template->consent_content_before;
+            }
+
+            return $template?->consent_position === 'before'
+                ? (string) ($template->consent_content ?: $this->defaultContent($kind))
+                : '';
+        }
+
+        return (string) ($template?->consent_content ?: $this->defaultContent($kind));
     }
 
     public static function availableVariables(): array

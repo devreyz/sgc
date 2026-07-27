@@ -53,6 +53,8 @@ class AssociateReceiptService
         $totalGross = '0';
         $totalFees  = '0';
         $totalNet   = '0';
+        $totalDiscounts = '0';
+        $totalAccruals = '0';
         $feeDetails = null;
 
         foreach ($distributions as $dist) {
@@ -69,6 +71,11 @@ class AssociateReceiptService
             $totalGross = bcadd($totalGross, $gross, 8);
             $totalFees  = bcadd($totalFees, $result['total_fee'], 8);
             $totalNet   = bcadd($totalNet, $result['net'], 8);
+            $netFee = (string) ($result['total_fee'] ?? '0');
+            $discounts = (string) ($result['total_discounts'] ?? (bccomp($netFee, '0', 8) >= 0 ? $netFee : '0'));
+            $accruals = (string) ($result['total_accruals'] ?? (bccomp($netFee, '0', 8) < 0 ? bcsub('0', $netFee, 8) : '0'));
+            $totalDiscounts = bcadd($totalDiscounts, $discounts, 8);
+            $totalAccruals = bcadd($totalAccruals, $accruals, 8);
 
             // Estrutura das taxas é a mesma para todas as distribuições do projeto
             if ($feeDetails === null) {
@@ -79,8 +86,8 @@ class AssociateReceiptService
         // fee_snapshot escalonado para exibição (percentuais já congelados)
         $feeSnapshot = [
             'fees'            => $feeDetails ?? [],
-            'total_discounts' => $totalFees,
-            'total_accruals'  => '0',
+            'total_discounts' => $totalDiscounts,
+            'total_accruals'  => $totalAccruals,
             'total_fee'       => $totalFees,
             'distribution_count' => $distributions->count(),
         ];

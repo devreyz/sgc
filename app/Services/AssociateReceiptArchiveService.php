@@ -41,7 +41,12 @@ class AssociateReceiptArchiveService
             throw new RuntimeException('O comprovante nao possui distribuicoes financeiras validas.');
         }
 
-        $data = ReceiptDataBuilder::fromDeliveries($distributions, null, $receipt->project);
+        $data = ReceiptDataBuilder::fromDeliveries(
+            $distributions,
+            null,
+            $receipt->project,
+            $receipt->fee_snapshot,
+        );
         $pdfService = app(TemplatedPdfService::class);
         $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $receipt->tenant,
@@ -52,6 +57,7 @@ class AssociateReceiptArchiveService
             'productsSummary' => $data['productsSummary'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
+            'feeColumns' => $data['feeColumns'],
         ], $pdfService->systemPdfOptions(
             'pdf.project-associate-receipt',
             'Comprovante de Entrega',

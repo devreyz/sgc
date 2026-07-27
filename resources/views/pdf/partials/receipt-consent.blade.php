@@ -8,6 +8,7 @@
         associate: $associate ?? null,
         customer: $customer ?? null,
         organization: $organization ?? null,
+        position: $consentPosition ?? 'after',
     );
 @endphp
 

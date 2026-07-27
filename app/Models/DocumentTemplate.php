@@ -39,6 +39,8 @@ class DocumentTemplate extends Model
         'system_template_key',
         'project_type',
         'consent_enabled',
+        'consent_position',
+        'consent_content_before',
         'consent_content',
         'description',
         'content',

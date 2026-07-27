@@ -353,7 +353,12 @@ class AssociateReceiptResource extends Resource
                             return null;
                         }
 
-                        $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project);
+                        $receiptData = ReceiptDataBuilder::fromDeliveries(
+                            $deliveries,
+                            null,
+                            $project,
+                            $record->fee_snapshot,
+                        );
 
                         // ── Marcar como segunda via se já foi assinado ───────
                         $isSecondCopy = $record->acknowledged_at !== null;
@@ -368,6 +373,7 @@ class AssociateReceiptResource extends Resource
                             'productsSummary' => $receiptData['productsSummary'],
                             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
                             'feeBreakdown' => $receiptData['feeBreakdown'],
+                            'feeColumns' => $receiptData['feeColumns'],
                             'isSecondCopy' => $isSecondCopy,
                         ], ['paper' => 'a4', 'orientation' => 'portrait', 'title' => 'Comprovante de Entrega']);
 

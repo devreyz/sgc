@@ -182,6 +182,26 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 <div class="sec-label">Entregas</div>
 @endif
 
+@include('pdf.partials.receipt-consent', [
+    'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
+    'consentPosition' => 'before',
+    'consentFinancial' => [
+        'gross' => $totalGross,
+        'fees' => $totalFees,
+        'net' => $totalNet,
+    ],
+])
+
+@php
+    $pdfColumns = $visibleColumns ?? ['unit_price', 'gross'];
+    $showUnitPrice = in_array('unit_price', $pdfColumns, true);
+    $showGross = in_array('gross', $pdfColumns, true);
+    $showNet = in_array('net', $pdfColumns, true);
+    $selectedFeeColumns = collect($feeColumns ?? [])
+        ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
+        ->values();
+@endphp
+
 @foreach($priceGroups as $group)
 @php $groupCustomers = $group['customers']; @endphp
 
@@ -201,9 +221,11 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @foreach($groupCustomers as $c)
             <th class="r">{{ $c->name }}</th>
             @endforeach
-            <th class="r" style="width:9%; white-space:nowrap;">Vlr. Unit.</th>
+            @if($showUnitPrice)<th class="r" style="white-space:nowrap;">Vlr. Unit.</th>@endif
             <th class="r" style="width:13%">Qtd. Total</th>
-            <th class="r" style="width:11%">Total R$</th>
+            @if($showGross)<th class="r">Total R$</th>@endif
+            @foreach($selectedFeeColumns as $fee)<th class="r">{{ $fee['name'] }}</th>@endforeach
+            @if($showNet)<th class="r">Líquido</th>@endif
         </tr>
     </thead>
     <tbody>
@@ -218,17 +240,35 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                 <td class="c">—</td>
                 @endif
             @endforeach
-            <td class="up">R$&nbsp;{{ number_format($row['unit_price'], 2, ',', '.') }}</td>
+            @if($showUnitPrice)<td class="up">R$&nbsp;{{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
             <td class="r">{{ fmtQtyOrg((float) $row['total_qty']) }}&nbsp;{{ $row['unit'] }}</td>
-            <td class="r">R$&nbsp;{{ number_format($row['total_gross'], 2, ',', '.') }}</td>
+            @if($showGross)<td class="r">R$&nbsp;{{ number_format($row['total_gross'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$&nbsp;{{ number_format($row['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
+            @endforeach
+            @if($showNet)
+                @php
+                    $rowNet = (float) $row['total_gross'];
+                    foreach ($feeColumns ?? [] as $fee) {
+                        $amount = (float) ($row['fee_values'][$fee['key']] ?? 0);
+                        $rowNet += $fee['nature'] === 'accrual' ? $amount : -$amount;
+                    }
+                @endphp
+                <td class="r">R$&nbsp;{{ number_format($rowNet, 2, ',', '.') }}</td>
+            @endif
         </tr>
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ 2 + $groupCustomers->count() }}">{{ $multiplePriceTables ? 'Subtotal — '.$group['price_table_name'] : 'Total Geral' }}</td>
+            <td colspan="{{ 1 + $groupCustomers->count() }}">{{ $multiplePriceTables ? 'Subtotal — '.$group['price_table_name'] : 'Total Geral' }}</td>
+            @if($showUnitPrice)<td></td>@endif
             <td></td>
-            <td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>
+            @if($showGross)<td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>@endif
+            @foreach($selectedFeeColumns as $fee)
+                <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$&nbsp;{{ number_format($group['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
+            @endforeach
+            @if($showNet)<td class="r">R$&nbsp;{{ number_format($group['subtotal_net'], 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
 </table>
@@ -280,6 +320,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
+    'consentPosition' => 'after',
     'consentFinancial' => [
         'gross' => $totalGross,
         'fees' => $totalFees,

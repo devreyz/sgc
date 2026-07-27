@@ -16,6 +16,7 @@ use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\CustomerBillingReceiptService;
+use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -409,7 +410,27 @@ class CustomerBillingReceiptResource extends Resource
                     ->label('PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('info')
-                    ->action(function (CustomerBillingReceipt $record): mixed {
+                    ->form(function (CustomerBillingReceipt $record): array {
+                        $service = app(ReceiptFeeColumnService::class);
+                        $definitions = $record->project
+                            ? $service->definitions($record->project, 'customer', $record->fee_snapshot)
+                            : [];
+
+                        return [
+                            Forms\Components\CheckboxList::make('visible_columns')
+                                ->label('Colunas do PDF')
+                                ->options([
+                                    'unit_price' => 'Valor unitário',
+                                    'gross' => 'Valor bruto',
+                                    'net' => 'Valor líquido',
+                                ] + $service->options($definitions))
+                                ->default(['unit_price', 'gross'])
+                                ->columns(2)
+                                ->bulkToggleable(),
+                        ];
+                    })
+                    ->modalSubmitActionLabel('Gerar PDF')
+                    ->action(function (CustomerBillingReceipt $record, array $data): mixed {
                         if (empty($record->delivery_ids)) {
                             Notification::make()->warning()
                                 ->title('Sem distribuições')->body('Adicione distribuições antes de gerar o PDF.')->send();
@@ -420,19 +441,46 @@ class CustomerBillingReceiptResource extends Resource
                         $project = $record->project;
                         $customer = $record->customer;
                         $organization = $record->organization;
-                        $distributions = ProductionDelivery::whereIn('id', $record->delivery_ids)
+                        $distributions = ProductionDelivery::query()
+                            ->where('tenant_id', $record->tenant_id)
+                            ->where('sales_project_id', $record->sales_project_id)
+                            ->whereNotNull('parent_delivery_id')
+                            ->whereIn('id', $record->delivery_ids)
                             ->with(['product', 'customer.priceTable'])->orderBy('delivery_date')->get();
+
+                        if ($distributions->count() !== count(array_unique(array_map('intval', $record->delivery_ids)))) {
+                            Notification::make()->danger()
+                                ->title('Comprovante inconsistente')
+                                ->body('Uma ou mais distribuições não pertencem mais a este tenant ou projeto.')
+                                ->send();
+
+                            return null;
+                        }
 
                         $isOrgReport = $organization && ! $customer;
 
                         if ($isOrgReport) {
                             // Relatório por organização: agrupa por produto x cliente
                             $view = 'pdf.customer-organization-receipt';
-                            $data = static::buildOrganizationReportData($distributions, $record, $tenant, $project, $organization);
+                            $data = static::buildOrganizationReportData(
+                                $distributions,
+                                $record,
+                                $tenant,
+                                $project,
+                                $organization,
+                                $data['visible_columns'] ?? [],
+                            );
                         } else {
                             // Comprovante individual do cliente
                             $view = 'pdf.customer-billing-receipt';
-                            $data = static::buildCustomerReceiptData($distributions, $record, $tenant, $project, $customer);
+                            $data = static::buildCustomerReceiptData(
+                                $distributions,
+                                $record,
+                                $tenant,
+                                $project,
+                                $customer,
+                                $data['visible_columns'] ?? [],
+                            );
                         }
 
                         $svc = app(TemplatedPdfService::class);
@@ -646,14 +694,30 @@ class CustomerBillingReceiptResource extends Resource
         CustomerBillingReceipt $receipt,
         ?Tenant $tenant,
         ?SalesProject $project,
-        ?Customer $customer
+        ?Customer $customer,
+        array $requestedColumns = [],
     ): array {
+        $feeColumnService = app(ReceiptFeeColumnService::class);
+        $feeColumns = $project
+            ? $feeColumnService->definitions($project, 'customer', $receipt->fee_snapshot)
+            : [];
+        $visibleColumns = $feeColumnService->sanitize(
+            $requestedColumns,
+            $feeColumns,
+            ['unit_price', 'gross', 'net'],
+        );
         $productRows = $distributions
             ->groupBy(fn ($d) => $d->product_id)
-            ->map(function ($group) {
+            ->map(function ($group) use ($feeColumnService, $feeColumns) {
                 $first = $group->first();
                 $qty = $group->sum(fn ($d) => (float) $d->quantity);
                 $gross = $group->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
+                $feeValues = $feeColumnService->totals($group, $feeColumns);
+                $net = $gross;
+                foreach ($feeColumns as $fee) {
+                    $amount = $feeValues[$fee['key']] ?? 0;
+                    $net += $fee['nature'] === 'accrual' ? $amount : -$amount;
+                }
 
                 return [
                     'product' => $first->product?->name ?? '—',
@@ -661,6 +725,8 @@ class CustomerBillingReceiptResource extends Resource
                     'quantity' => $qty,
                     'unit_price' => (float) $first->unit_price,
                     'gross' => $gross,
+                    'fee_values' => $feeValues,
+                    'net' => $net,
                 ];
             })
             ->values()->toArray();
@@ -671,11 +737,12 @@ class CustomerBillingReceiptResource extends Resource
 
         $feeBreakdown = [];
         $snapshot = $receipt->fee_snapshot ?? [];
+        $receiptFeeTotals = $feeColumnService->totals($distributions, $feeColumns);
         if (! empty($snapshot['fees'])) {
-            foreach ($snapshot['fees'] as $fee) {
+            foreach (array_values($snapshot['fees']) as $index => $fee) {
                 $feeBreakdown[] = [
                     'name' => $fee['name'] ?? '—',
-                    'amount' => (float) ($fee['amount'] ?? 0),
+                    'amount' => (float) ($receiptFeeTotals[$feeColumns[$index]['key'] ?? ''] ?? $fee['amount'] ?? 0),
                     'nature' => $fee['nature'] ?? 'discount',
                 ];
             }
@@ -692,7 +759,7 @@ class CustomerBillingReceiptResource extends Resource
         return compact(
             'tenant', 'project', 'customer', 'receipt',
             'productRows', 'totalGross', 'totalFees', 'totalNet', 'feeBreakdown',
-            'periodLabel'
+            'periodLabel', 'feeColumns', 'visibleColumns'
         );
     }
 
@@ -705,15 +772,25 @@ class CustomerBillingReceiptResource extends Resource
         CustomerBillingReceipt $receipt,
         ?Tenant $tenant,
         ?SalesProject $project,
-        ?Organization $organization
+        ?Organization $organization,
+        array $requestedColumns = [],
     ): array {
+        $feeColumnService = app(ReceiptFeeColumnService::class);
+        $feeColumns = $project
+            ? $feeColumnService->definitions($project, 'customer', $receipt->fee_snapshot)
+            : [];
+        $visibleColumns = $feeColumnService->sanitize(
+            $requestedColumns,
+            $feeColumns,
+            ['unit_price', 'gross', 'net'],
+        );
         // Todos os clientes distintos (para o rodapé)
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
         // Agrupa distribuições pela tabela de preço do cliente (null → chave 0)
         $byPriceTable = $distributions->groupBy(fn ($d) => $d->customer?->price_table_id ?? 0);
 
-        $priceGroups = $byPriceTable->map(function ($groupDists) {
+        $priceGroups = $byPriceTable->map(function ($groupDists) use ($feeColumnService, $feeColumns) {
             $groupCustomers = $groupDists->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
             $ptName = $groupCustomers->first()?->priceTable?->name ?? 'Tabela Padrão';
 
@@ -728,6 +805,7 @@ class CustomerBillingReceiptResource extends Resource
                         'by_customer' => [],
                         'total_qty' => 0.0,
                         'total_gross' => 0.0,
+                        'fee_values' => array_fill_keys(array_column($feeColumns, 'key'), 0.0),
                     ];
                 }
                 $cid = $d->customer_id;
@@ -735,13 +813,26 @@ class CustomerBillingReceiptResource extends Resource
                 $table[$pid]['by_customer'][$cid] = ($table[$pid]['by_customer'][$cid] ?? 0.0) + $qty;
                 $table[$pid]['total_qty'] += $qty;
                 $table[$pid]['total_gross'] += $qty * (float) $d->unit_price;
+                foreach ($feeColumnService->values($qty * (float) $d->unit_price, $feeColumns) as $key => $amount) {
+                    $table[$pid]['fee_values'][$key] = ($table[$pid]['fee_values'][$key] ?? 0) + $amount;
+                }
+            }
+
+            $feeTotals = $feeColumnService->totals($groupDists, $feeColumns);
+            $subtotalGross = array_sum(array_column($table, 'total_gross'));
+            $subtotalNet = $subtotalGross;
+            foreach ($feeColumns as $fee) {
+                $amount = $feeTotals[$fee['key']] ?? 0;
+                $subtotalNet += $fee['nature'] === 'accrual' ? $amount : -$amount;
             }
 
             return [
                 'price_table_name' => $ptName,
                 'customers' => $groupCustomers,
                 'table' => $table,
-                'subtotal_gross' => array_sum(array_column($table, 'total_gross')),
+                'subtotal_gross' => $subtotalGross,
+                'subtotal_net' => $subtotalNet,
+                'fee_totals' => $feeTotals,
             ];
         })->values()->all();
 
@@ -761,7 +852,8 @@ class CustomerBillingReceiptResource extends Resource
         return compact(
             'tenant', 'project', 'organization', 'receipt',
             'customers', 'priceGroups', 'multiplePriceTables',
-            'totalGross', 'totalFees', 'totalNet', 'periodLabel'
+            'totalGross', 'totalFees', 'totalNet', 'periodLabel',
+            'feeColumns', 'visibleColumns'
         );
     }
 
