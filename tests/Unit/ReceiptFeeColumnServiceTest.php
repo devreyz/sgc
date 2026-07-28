@@ -8,6 +8,12 @@ use PHPUnit\Framework\TestCase;
 
 class ReceiptFeeColumnServiceTest extends TestCase
 {
+    public function test_delivery_date_is_a_supported_default_receipt_column(): void
+    {
+        $this->assertContains('delivery_date', ReceiptFeeColumnService::DEFAULT_COLUMNS);
+        $this->assertContains('delivery_date', ReceiptFeeColumnService::STATIC_COLUMNS);
+    }
+
     public function test_snapshot_definitions_calculate_percentage_and_fixed_columns(): void
     {
         $project = new SalesProject();

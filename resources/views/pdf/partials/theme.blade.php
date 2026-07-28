@@ -107,7 +107,7 @@ table.items, table.items-table, table.report-table, table.fin-table, table.main 
 table.tbl thead th, table.main-tbl thead th, table.data-table thead th, table.dist-table thead th,
 table.items thead th, table.items-table thead th, table.report-table thead th, table.fin-table thead th,
 table.main thead th {
-    background: #eceeef !important;
+    background: #f7f7f7 !important;
     color: {{ $pdfThemeText }} !important;
     border: 1px solid #bfc4c7 !important;
     border-bottom: 1.5px solid #81878c !important;
@@ -126,7 +126,7 @@ table.main tbody td {
     color: {{ $pdfThemeText }} !important;
     font-size: 9.4px !important;
     line-height: 1.4 !important;
-    vertical-align: top;
+    vertical-align: middle !important;
 }
 
 table.tbl tbody tr:nth-child(even) td, table.main-tbl tbody tr:nth-child(even) td,
@@ -140,7 +140,7 @@ table.main tbody tr:nth-child(even) td {
 table.tbl tfoot td, table.main-tbl tfoot td, table.data-table tfoot td, table.dist-table tfoot td,
 table.items tfoot td, table.items-table tfoot td, table.report-table tfoot td, table.fin-table tfoot td,
 table.main tfoot td {
-    background: #f3f4f4 !important;
+    background: #ffffff !important;
     border-top: 1.5px solid #81878c !important;
     color: {{ $pdfThemeText }} !important;
     padding: 6px 7px !important;
@@ -166,7 +166,7 @@ table.main tfoot td {
 
 .grand-total, .totals-box, .fin-summary, .financial-summary,
 .summary, .description-box, .notes-box {
-    background: #f7f7f7 !important;
+    background: #ffffff !important;
     border: 1px solid {{ $pdfThemeBorder }} !important;
     border-left: 3px solid {{ $pdfThemeAccent }} !important;
     color: {{ $pdfThemePrimary }} !important;

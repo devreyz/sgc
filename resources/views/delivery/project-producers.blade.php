@@ -204,6 +204,7 @@
                 <summary>Colunas e tamanho dos comprovantes deste projeto</summary>
                 <div class="pr-column-grid">
                     <div id="pr-fee-columns" style="display:contents"></div>
+                    <label><input class="pr-column" type="checkbox" value="delivery_date" checked> Data da entrega</label>
                     <label><input class="pr-column" type="checkbox" value="unit_price" checked> Valor unitário</label>
                     <label><input class="pr-column" type="checkbox" value="gross" checked> Valor bruto</label>
                     <label><input class="pr-column" type="checkbox" value="admin_fee"> Taxa administrativa</label>
@@ -585,7 +586,7 @@
 
     function applyPrintPreferences() {
         const preferences = state.check?.print_preferences || {};
-        const selected = Array.isArray(preferences.columns) ? preferences.columns : ['unit_price', 'gross'];
+        const selected = Array.isArray(preferences.columns) ? preferences.columns : ['delivery_date', 'unit_price', 'gross'];
         document.querySelectorAll('.pr-column').forEach(input => {
             input.checked = selected.includes(input.value);
         });

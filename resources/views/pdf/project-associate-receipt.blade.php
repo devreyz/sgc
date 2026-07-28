@@ -95,16 +95,16 @@ body {
 .sec-label { font-size: 9.5px; font-weight: bold; color: {{ $textColor }}; text-transform: uppercase; letter-spacing: 0.3px; border-left: 3px solid {{ $primaryColor }}; padding-left: 6px; margin: 8px 0 5px; }
 /* ─── Tabela de entregas (estilo limpo) ─── */
 table.tbl { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 8.5pt; }
-table.tbl thead tr { background: #e5e7eb; }
-table.tbl thead th { border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; font-size: 8pt; font-weight: 700; color: #374151; }
+table.tbl thead tr { background: #f7f7f7; }
+table.tbl thead th { border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; vertical-align: middle; font-size: 8pt; font-weight: 700; color: #374151; }
 table.tbl thead th.r { text-align: right; }
-table.tbl tbody td { border: 1px solid #e5e7eb; padding: 3px 5px; }
+table.tbl tbody td { border: 1px solid #e5e7eb; padding: 3px 5px; vertical-align: middle; }
 table.tbl tbody td.r { text-align: right; }
-table.tbl tbody tr:nth-child(even) td { background: #f9fafb; }
-table.tbl tfoot td { padding: 5px 6px; font-weight: 700; background: #f3f4f6; border-top: 2px solid #9ca3af; font-size: 8.5pt; }
-table.tbl tfoot td.r { text-align: right; color: #059669; }
+table.tbl tfoot td { padding: 5px 6px; vertical-align: middle; font-weight: 700; background: #fff; border-top: 2px solid #6b7280; font-size: 8.5pt; }
+table.tbl tfoot td.r { text-align: right; }
+table.tbl .fee-col { width: 1%; white-space: nowrap; }
 /* ─── Resumo financeiro ─── */
-.fin-summary { display: table; width: 100%; margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 3px; background: #f8fafc; font-size: 8.5pt; page-break-inside: avoid; }
+.fin-summary { display: table; width: 100%; margin-bottom: 8px; border: 1px solid #d1d5db; border-radius: 3px; background: #fff; font-size: 8.5pt; page-break-inside: avoid; }
 .fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 6px 8px; border-right: 1px solid #e2e8f0; }
 .fin-right { display: table-cell; vertical-align: top; width: 65%; padding: 6px 9px; }
 .fin-label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; display: block; margin-bottom: 3px; }
@@ -113,7 +113,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .fin-row { display: table; width: 100%; padding: 2px 0; }
 .fin-row-label { display: table-cell; color: #4b5563; font-size: 8pt; padding: 1px 0; }
 .fin-row-val   { display: table-cell; text-align: right; white-space: nowrap; font-size: 8.5pt; padding: 1px 0; }
-.fin-total { background: #ecfdf5; font-weight: 700; }
+.fin-total { background: #fff; font-weight: 700; }
 .c-danger { color: #dc2626; }
 .c-success { color: #059669; }
 .sig-area { margin-top: 30px; display: table; width: 55%; page-break-inside: avoid; }
@@ -199,7 +199,8 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @php
     // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
-    $vcols         = $visible_columns ?? ['unit_price', 'gross'];
+    $vcols         = $visible_columns ?? ['delivery_date', 'unit_price', 'gross'];
+    $showDeliveryDate = in_array('delivery_date', $vcols, true);
     $showUnitPrice = in_array('unit_price', $vcols);
     $showGross     = in_array('gross',      $vcols);
     $showAdminFee  = in_array('admin_fee',  $vcols);
@@ -216,12 +217,14 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         && (int) ($project->customer_id ?? 0) > 0
         && $summaryCustomerIds->count() === 1
         && (int) $summaryCustomerIds->first() === (int) $project->customer_id;
+    $leadingColumnCount = 2 + ($showDeliveryDate ? 1 : 0) + ($hideCustomerColumn ? 0 : 1);
 @endphp
 <style>
-    table.receipt-data-table { font-size: {{ 8.5 * $tableScaleRatio }}pt; }
-    table.receipt-data-table thead th { font-size: {{ 8 * $tableScaleRatio }}pt; padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px; }
+    table.receipt-data-table { font-size: {{ 8.5 * $tableScaleRatio }}pt !important; }
+    table.receipt-data-table thead th { font-size: {{ 8 * $tableScaleRatio }}pt !important; padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px !important; }
     table.receipt-data-table tbody td,
-    table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px; }
+    table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px !important; }
+    table.receipt-data-table .fee-col { width: 1% !important; white-space: nowrap !important; }
 </style>
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
@@ -239,14 +242,14 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     <thead>
         <tr>
             <th>Produto</th>
-            <th style="width:11%;">Data</th>
+            @if($showDeliveryDate)<th style="width:11%;">Data</th>@endif
             @unless($hideCustomerColumn)<th>Cliente</th>@endunless
             <th class="r" style="width:9%;">Qtd.</th>
             @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
-            @if($showAdminFee)<th class="r" style="width:10%;">Taxa Adm.</th>@endif
+            @if($showAdminFee)<th class="r fee-col">Taxa Adm.</th>@endif
             @foreach($selectedFeeColumns as $fee)
-                <th class="r">{{ $fee['name'] }}</th>
+                <th class="r fee-col">{{ $fee['name'] }}</th>
             @endforeach
             @if($showNet)<th class="r" style="width:13%;">Vlr. Líquido</th>@endif
         </tr>
@@ -272,16 +275,16 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @foreach($ps['distributions'] as $di => $dist)
         <tr>
             @if($di === 0)
-            <td rowspan="{{ $spanCount }}" style="vertical-align:middle;background:#f8fafc;"><strong>{{ $ps['product_name'] }}</strong></td>
-            <td rowspan="{{ $spanCount }}" style="vertical-align:middle;white-space:nowrap;background:#f8fafc;">{{ $groupDate }}</td>
+            <td rowspan="{{ $spanCount }}"><strong>{{ $ps['product_name'] }}</strong></td>
+            @if($showDeliveryDate)<td rowspan="{{ $spanCount }}" style="white-space:nowrap;">{{ $groupDate }}</td>@endif
             @endif
             @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
-            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($dist['admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r fee-col c-danger">-&nbsp;R$&nbsp;{{ number_format($dist['admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
-                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
+                <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
                     {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($dist['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}
                 </td>
             @endforeach
@@ -290,16 +293,16 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @endforeach
         @if($rowCount > 1)
         {{-- Linha de subtotal por entrega (produto+data cobertos pelo rowspan acima) --}}
-        <tr style="background:#eef2f7;">
+        <tr>
             @unless($hideCustomerColumn)
                 <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
             @endunless
             <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
             @if($showGross)<td class="r" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
-            @if($showAdminFee)<td class="r c-danger" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">-&nbsp;R$&nbsp;{{ number_format($ps['total_admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r fee-col c-danger" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">-&nbsp;R$&nbsp;{{ number_format($ps['total_admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
-                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">
+                <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">
                     {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($ps['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}
                 </td>
             @endforeach
@@ -310,12 +313,12 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ $hideCustomerColumn ? 3 : 4 }}"><strong>TOTAL GERAL</strong></td>
+            <td colspan="{{ $leadingColumnCount }}"><strong>TOTAL GERAL</strong></td>
             @if($showUnitPrice)<td class="r"></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
-            @if($showAdminFee)<td class="r c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
+            @if($showAdminFee)<td class="r fee-col c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
-                <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
+                <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
                     {{ $fee['nature'] === 'accrual' ? '+' : '-' }}&nbsp;R$&nbsp;{{ number_format($summary['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}
                 </td>
             @endforeach

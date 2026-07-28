@@ -51,9 +51,9 @@ class AssociateReceiptArchiveService
         $visibleColumns = $feeService->sanitize(
             is_array($receipt->project->associate_receipt_columns)
                 ? $receipt->project->associate_receipt_columns
-                : ['unit_price', 'gross'],
+                : ReceiptFeeColumnService::DEFAULT_COLUMNS,
             $feeService->definitions($receipt->project, 'associate', $receipt->fee_snapshot),
-            ['unit_price', 'gross', 'admin_fee', 'net'],
+            ReceiptFeeColumnService::STATIC_COLUMNS,
         );
         $tableScale = in_array((int) $receipt->project->associate_receipt_table_scale, [70, 80, 90, 100], true)
             ? (int) $receipt->project->associate_receipt_table_scale

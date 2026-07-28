@@ -366,11 +366,11 @@ class AssociateReceiptResource extends Resource
                         $visibleColumns = $feeService->sanitize(
                             is_array($project?->associate_receipt_columns)
                                 ? $project->associate_receipt_columns
-                                : ['unit_price', 'gross'],
+                                : \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS,
                             $project
                                 ? $feeService->definitions($project, 'associate', $record->fee_snapshot)
                                 : [],
-                            ['unit_price', 'gross', 'admin_fee', 'net'],
+                            \App\Services\ReceiptFeeColumnService::STATIC_COLUMNS,
                         );
                         $tableScale = $project && in_array((int) $project->associate_receipt_table_scale, [70, 80, 90, 100], true)
                             ? (int) $project->associate_receipt_table_scale

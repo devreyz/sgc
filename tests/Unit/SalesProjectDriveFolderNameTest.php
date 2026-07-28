@@ -30,11 +30,11 @@ class SalesProjectDriveFolderNameTest extends TestCase
     public function test_associate_receipt_print_preferences_are_project_attributes(): void
     {
         $project = new SalesProject([
-            'associate_receipt_columns' => ['unit_price', 'gross', 'net'],
+            'associate_receipt_columns' => ['delivery_date', 'unit_price', 'gross', 'net'],
             'associate_receipt_table_scale' => 90,
         ]);
 
-        $this->assertSame(['unit_price', 'gross', 'net'], $project->associate_receipt_columns);
+        $this->assertSame(['delivery_date', 'unit_price', 'gross', 'net'], $project->associate_receipt_columns);
         $this->assertSame(90, $project->associate_receipt_table_scale);
     }
 }

@@ -68,7 +68,7 @@ class DeliveryRegistrationController extends Controller
     ): array {
         $defaults = is_array($project->associate_receipt_columns)
             ? $project->associate_receipt_columns
-            : ['unit_price', 'gross'];
+            : ReceiptFeeColumnService::DEFAULT_COLUMNS;
         $requested = is_array($requested) ? $requested : $defaults;
         $service = app(ReceiptFeeColumnService::class);
         $fees = $service->definitions($project, 'associate', $feeSnapshot);
@@ -76,7 +76,7 @@ class DeliveryRegistrationController extends Controller
         return $service->sanitize(
             $requested,
             $fees,
-            ['unit_price', 'gross', 'admin_fee', 'net'],
+            ReceiptFeeColumnService::STATIC_COLUMNS,
         );
     }
 
@@ -3536,11 +3536,11 @@ class DeliveryRegistrationController extends Controller
         $feeDefinitions = $this->associateReceiptFeeDefinitions($project, $receipts);
         $storedColumns = is_array($project->associate_receipt_columns)
             ? $project->associate_receipt_columns
-            : ['unit_price', 'gross'];
+            : ReceiptFeeColumnService::DEFAULT_COLUMNS;
         $projectColumns = app(ReceiptFeeColumnService::class)->sanitize(
             $storedColumns,
             $feeDefinitions,
-            ['unit_price', 'gross', 'admin_fee', 'net'],
+            ReceiptFeeColumnService::STATIC_COLUMNS,
         );
 
         return response()->json([
@@ -3581,7 +3581,7 @@ class DeliveryRegistrationController extends Controller
         $columns = $feeService->sanitize(
             $validated['visible_columns'],
             $this->associateReceiptFeeDefinitions($project, $receipts),
-            ['unit_price', 'gross', 'admin_fee', 'net'],
+            ReceiptFeeColumnService::STATIC_COLUMNS,
         );
         $scale = $this->receiptTableScale($validated['table_scale'], $project);
         $this->rememberReceiptPreferences($project, $columns, $scale);

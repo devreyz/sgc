@@ -36,7 +36,7 @@ class PdfRenderingCompatibilityTest extends TestCase
 
         $this->assertStringContainsString('#374151', $html);
         $this->assertStringContainsString('margin: 16mm 15mm 18mm 15mm', $html);
-        $this->assertStringContainsString('background: #eceeef', $html);
+        $this->assertStringContainsString('background: #f7f7f7', $html);
         $this->assertStringContainsString('font-size: 9.4px', $html);
         $this->assertStringContainsString('Projeto', $html);
         $this->assertStringNotContainsString('Taxa Admin</th>', $html);
@@ -46,6 +46,48 @@ class PdfRenderingCompatibilityTest extends TestCase
     }
 
     public function test_five_distribution_receipts_remain_on_one_page(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+
+        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary');
+        $data += [
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+        ];
+
+        foreach (['pdf.project-associate-receipt', 'pdf.associate-portal-receipt'] as $view) {
+            $pdf = Pdf::loadView($view, $data)->setPaper('a4', 'portrait');
+            $pdf->render();
+
+            $this->assertSame(
+                1,
+                $pdf->getDomPDF()->get_canvas()->get_page_count(),
+                $view.' should fit five simple distributions on one page.',
+            );
+        }
+    }
+
+    public function test_associate_receipt_delivery_date_column_can_be_hidden(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+
+        $html = view('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_columns' => ['unit_price', 'gross'],
+        ])->render();
+
+        $this->assertStringNotContainsString('<th style="width:11%;">Data</th>', $html);
+    }
+
+    private function associateReceiptFixtures(): array
     {
         if (! Schema::hasTable('document_templates')) {
             Schema::create('document_templates', function (Blueprint $table): void {
@@ -127,22 +169,7 @@ class PdfRenderingCompatibilityTest extends TestCase
             'fee_totals' => [],
             'customer_ids' => [1],
         ];
-        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary');
-        $data += [
-            'productsSummary' => $products,
-            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
-            'feeColumns' => [],
-        ];
 
-        foreach (['pdf.project-associate-receipt', 'pdf.associate-portal-receipt'] as $view) {
-            $pdf = Pdf::loadView($view, $data)->setPaper('a4', 'portrait');
-            $pdf->render();
-
-            $this->assertSame(
-                1,
-                $pdf->getDomPDF()->get_canvas()->get_page_count(),
-                $view.' should fit five simple distributions on one page.',
-            );
-        }
+        return [$tenant, $project, $associate, $receipt, $summary, $products];
     }
 }

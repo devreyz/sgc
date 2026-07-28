@@ -12,6 +12,10 @@ class ReceiptFeeColumnService
 {
     public const PREFIX = 'fee:';
 
+    public const STATIC_COLUMNS = ['delivery_date', 'unit_price', 'gross', 'admin_fee', 'net'];
+
+    public const DEFAULT_COLUMNS = ['delivery_date', 'unit_price', 'gross'];
+
     /**
      * @return list<array{key:string,id:int|null,name:string,type:string,nature:string,rate:float,label:string}>
      */

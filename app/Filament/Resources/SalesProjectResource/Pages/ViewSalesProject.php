@@ -449,6 +449,7 @@ class ViewSalesProject extends ViewRecord
                                     $service = app(\App\Services\ReceiptFeeColumnService::class);
 
                                     return [
+                                        'delivery_date' => 'Data da entrega',
                                         'unit_price' => 'Vlr. Unitário',
                                         'gross' => 'Vlr. Bruto',
                                         'admin_fee' => 'Taxas agrupadas',
@@ -457,9 +458,9 @@ class ViewSalesProject extends ViewRecord
                                 })
                                 ->default(fn (SalesProject $record): array => is_array($record->associate_receipt_columns)
                                     ? $record->associate_receipt_columns
-                                    : ['unit_price', 'gross'])
+                                    : \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS)
                                 ->columns(2)
-                                ->helperText('Produto, Cliente, Data e Qtd. são sempre exibidos. Os totais financeiros aparecem sempre no resumo abaixo da tabela.'),
+                                ->helperText('Produto e quantidade são sempre exibidos. Cliente é ocultado automaticamente quando o projeto possui apenas um cliente padrão.'),
                             Forms\Components\Select::make('table_scale')
                                 ->label('Escala da tabela')
                                 ->options([
@@ -838,9 +839,9 @@ class ViewSalesProject extends ViewRecord
         $feeColumnService = app(\App\Services\ReceiptFeeColumnService::class);
         $feeColumns = $feeColumnService->definitions($record, 'associate', $receipt->fee_snapshot);
         $visibleColumns = $feeColumnService->sanitize(
-            $formData['visible_columns'] ?? ['unit_price', 'gross'],
+            $formData['visible_columns'] ?? \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS,
             $feeColumns,
-            ['unit_price', 'gross', 'admin_fee', 'net'],
+            \App\Services\ReceiptFeeColumnService::STATIC_COLUMNS,
         );
         $tableScale = in_array((int) ($formData['table_scale'] ?? 100), [70, 80, 90, 100], true)
             ? (int) $formData['table_scale']
