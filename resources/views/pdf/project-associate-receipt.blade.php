@@ -103,6 +103,7 @@ table.tbl tbody td.r { text-align: right; }
 table.tbl tfoot td { padding: 5px 6px; vertical-align: middle; font-weight: 700; background: #fff; border-top: 2px solid #6b7280; font-size: 8.5pt; }
 table.tbl tfoot td.r { text-align: right; }
 table.tbl .fee-col { width: 1%; white-space: nowrap; }
+table.tbl .money-col { width: 1%; white-space: nowrap; }
 /* ─── Resumo financeiro ─── */
 .fin-summary { display: table; width: 100%; margin-bottom: 8px; border: 1px solid #d1d5db; border-radius: 3px; background: #fff; font-size: 8.5pt; page-break-inside: avoid; }
 .fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 6px 8px; border-right: 1px solid #e2e8f0; }
@@ -225,6 +226,7 @@ table.tbl .fee-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table tbody td,
     table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px !important; }
     table.receipt-data-table .fee-col { width: 1% !important; white-space: nowrap !important; }
+    table.receipt-data-table .money-col { width: 1% !important; white-space: nowrap !important; }
 </style>
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
@@ -245,8 +247,8 @@ table.tbl .fee-col { width: 1%; white-space: nowrap; }
             @if($showDeliveryDate)<th style="width:11%;">Data</th>@endif
             @unless($hideCustomerColumn)<th>Cliente</th>@endunless
             <th class="r" style="width:9%;">Qtd.</th>
-            @if($showUnitPrice)<th class="r" style="width:11%;">Vlr. Unit.</th>@endif
-            @if($showGross)<th class="r" style="width:12%;">Vlr. Bruto</th>@endif
+            @if($showUnitPrice)<th class="r money-col">Vlr. Unit.</th>@endif
+            @if($showGross)<th class="r money-col">Vlr. Bruto</th>@endif
             @if($showAdminFee)<th class="r fee-col">Taxa Adm.</th>@endif
             @foreach($selectedFeeColumns as $fee)
                 <th class="r fee-col">{{ $fee['name'] }}</th>
@@ -280,8 +282,8 @@ table.tbl .fee-col { width: 1%; white-space: nowrap; }
             @endif
             @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
-            @if($showUnitPrice)<td class="r">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
-            @if($showGross)<td class="r">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
+            @if($showUnitPrice)<td class="r money-col">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
+            @if($showGross)<td class="r money-col">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r fee-col c-danger">-&nbsp;R$&nbsp;{{ number_format($dist['admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
                 <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
@@ -298,8 +300,8 @@ table.tbl .fee-col { width: 1%; white-space: nowrap; }
                 <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
             @endunless
             <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
-            @if($showUnitPrice)<td style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
-            @if($showGross)<td class="r" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
+            @if($showUnitPrice)<td class="money-col" style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
+            @if($showGross)<td class="r money-col" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r fee-col c-danger" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">-&nbsp;R$&nbsp;{{ number_format($ps['total_admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
                 <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">
@@ -314,8 +316,8 @@ table.tbl .fee-col { width: 1%; white-space: nowrap; }
     <tfoot>
         <tr>
             <td colspan="{{ $leadingColumnCount }}"><strong>TOTAL GERAL</strong></td>
-            @if($showUnitPrice)<td class="r"></td>@endif
-            @if($showGross)<td class="r">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
+            @if($showUnitPrice)<td class="r money-col"></td>@endif
+            @if($showGross)<td class="r money-col">R$&nbsp;{{ number_format($summary['gross_value'], 2, ',', '.') }}</td>@endif
             @if($showAdminFee)<td class="r fee-col c-danger">-&nbsp;R$&nbsp;{{ number_format($summary['admin_fee'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
                 <td class="r fee-col {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
