@@ -2132,9 +2132,14 @@
                 ? 'warn'
                 : '';
 
+        const url = product?.url
+            ? String(product.url)
+            : '#';
+
         return `
-            <article
-                class="watch-card"
+            <a
+                class="watch-card watch-link-card"
+                href="${esc(url)}"
                 data-search="${esc(name.toLocaleLowerCase('pt-BR'))}"
             >
                 <div class="watch-card-top">
@@ -2190,7 +2195,12 @@
                         </strong>
                     </div>
                 </div>
-            </article>
+
+                <div class="watch-open">
+                    <span>Ver produto</span>
+                    <i data-lucide="arrow-right"></i>
+                </div>
+            </a>
         `;
     }
 

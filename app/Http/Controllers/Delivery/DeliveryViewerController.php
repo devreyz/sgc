@@ -127,7 +127,7 @@ class DeliveryViewerController extends Controller
             ->whereIn('id', $productIds)
             ->get(['id', 'name', 'unit'])
             ->keyBy('id');
-        $productSummary = $productIds->map(function ($productId) use ($products, $demandTotals, $receivedByProduct, $distributedByProduct) {
+        $productSummary = $productIds->map(function ($productId) use ($products, $demandTotals, $receivedByProduct, $distributedByProduct, $request, $project) {
             $target = $demandTotals->has($productId) ? (float) $demandTotals[$productId] : null;
             $received = (float) ($receivedByProduct[$productId] ?? 0);
             $distributed = (float) ($distributedByProduct[$productId] ?? 0);
@@ -142,6 +142,11 @@ class DeliveryViewerController extends Controller
                 'remaining_target' => $target === null ? null : max(0, $target - $received),
                 'physical_balance' => max(0, $received - $distributed),
                 'progress' => $target && $target > 0 ? min(100, ($received / $target) * 100) : 0,
+                'url' => route('delivery-viewer.products.show', [
+                    'tenant' => $request->route('tenant')->slug,
+                    'project' => $project->id,
+                    'productToken' => $this->productToken($project->id, (int) $productId),
+                ]),
             ];
         })->sortBy('name')->values();
 
@@ -332,6 +337,168 @@ class DeliveryViewerController extends Controller
         $tenant = $request->route('tenant');
 
         return view('delivery-viewer.associate', compact('project', 'associate', 'tenant'));
+    }
+
+    public function product(Request $request): View
+    {
+        $project = $this->project($request);
+        $product = $this->productForProject($request, $project);
+        $tenant = $request->route('tenant');
+
+        return view('delivery-viewer.product', compact('project', 'product', 'tenant'));
+    }
+
+    public function productData(Request $request): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $project = $this->project($request);
+        $product = $this->productForProject($request, $project);
+        $targetValue = ProjectDemand::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->selectRaw('SUM(target_quantity) AS aggregate')
+            ->value('aggregate');
+        $plannedValue = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->where('status', 'active')
+            ->selectRaw('SUM(max_quantity) AS aggregate')
+            ->value('aggregate');
+        $receptions = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->selectRaw('COALESCE(SUM(quantity), 0) AS quantity, COUNT(*) AS records')
+            ->first();
+        $distributions = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED->value)
+            ->selectRaw('COALESCE(SUM(quantity), 0) AS quantity, COALESCE(SUM(gross_value), 0) AS gross_value')
+            ->first();
+        $target = $targetValue !== null ? (float) $targetValue : null;
+        $planned = $plannedValue !== null ? (float) $plannedValue : null;
+        $received = (float) ($receptions?->quantity ?? 0);
+        $distributed = (float) ($distributions?->quantity ?? 0);
+
+        return $this->privateJson([
+            'product' => [
+                'name' => $product->name,
+                'unit' => $product->unit ?: 'un',
+            ],
+            'project' => [
+                'title' => $project->title,
+                'status' => $project->status->getLabel(),
+            ],
+            'summary' => [
+                'target' => $target,
+                'planned' => $planned,
+                'unallocated_target' => $target === null ? null : max(0, $target - (float) ($planned ?? 0)),
+                'received' => $received,
+                'distributed' => $distributed,
+                'physical_balance' => max(0, $received - $distributed),
+                'remaining_target' => $target === null ? null : max(0, $target - $received),
+                'deliveries_count' => (int) ($receptions?->records ?? 0),
+                'associates_count' => $this->productAssociatesQuery($tenantId, $project->id, $product->id)->count(),
+                'distributed_value' => (float) ($distributions?->gross_value ?? 0),
+            ],
+            'associates_url' => route('delivery-viewer.products.associates', [
+                'tenant' => $request->route('tenant')->slug,
+                'project' => $project->id,
+                'productToken' => $request->route('productToken'),
+            ]),
+        ]);
+    }
+
+    public function productAssociatesData(Request $request): JsonResponse
+    {
+        $tenantId = $this->tenantId();
+        $project = $this->project($request);
+        $product = $this->productForProject($request, $project);
+        $search = mb_substr(trim((string) $request->query('search')), 0, 80);
+        $associates = $this->productAssociatesQuery($tenantId, $project->id, $product->id)
+            ->when($search !== '', function ($query) use ($search, $tenantId): void {
+                $query->where(function ($nested) use ($search, $tenantId): void {
+                    $nested->where('associates.nickname', 'like', "%{$search}%")
+                        ->orWhere('associates.registration_number', 'like', "%{$search}%")
+                        ->orWhereExists(fn ($membership) => $membership
+                            ->selectRaw('1')
+                            ->from('tenant_user')
+                            ->whereColumn('tenant_user.user_id', 'associates.user_id')
+                            ->where('tenant_user.tenant_id', $tenantId)
+                            ->where('tenant_user.tenant_name', 'like', "%{$search}%"));
+                });
+            })
+            ->orderBy('associates.id')
+            ->paginate(12);
+        $associateIds = $associates->getCollection()->pluck('id')->map(fn ($id) => (int) $id);
+        $names = app(TenantIdentityService::class)->namesForUsers($tenantId, $associates->getCollection()->pluck('user_id'));
+        $receptions = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereIn('associate_id', $associateIds)
+            ->whereNull('parent_delivery_id')
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->groupBy('associate_id')
+            ->selectRaw('associate_id, SUM(quantity) AS received, COUNT(*) AS deliveries_count, MAX(delivery_date) AS last_delivery_date')
+            ->get()
+            ->keyBy('associate_id');
+        $distributions = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereIn('associate_id', $associateIds)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED->value)
+            ->groupBy('associate_id')
+            ->selectRaw('associate_id, SUM(quantity) AS distributed, SUM(gross_value) AS gross_value')
+            ->get()
+            ->keyBy('associate_id');
+        $limits = ProjectAssociateProductLimit::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->where('product_id', $product->id)
+            ->whereIn('associate_id', $associateIds)
+            ->where('status', 'active')
+            ->get(['associate_id', 'max_quantity'])
+            ->keyBy('associate_id');
+        $associates->getCollection()->transform(function (Associate $associate) use ($names, $receptions, $distributions, $limits, $request, $project) {
+            $reception = $receptions->get($associate->id);
+            $distribution = $distributions->get($associate->id);
+            $limit = $limits->get($associate->id);
+            $received = (float) ($reception?->received ?? 0);
+            $maximum = $limit ? (float) $limit->max_quantity : null;
+
+            return [
+                'name' => $names[$associate->user_id] ?? 'Associado nao identificado',
+                'nickname' => $associate->nickname,
+                'registration' => $associate->registration_number,
+                'maximum' => $maximum,
+                'received' => $received,
+                'distributed' => (float) ($distribution?->distributed ?? 0),
+                'remaining' => $maximum === null ? null : max(0, $maximum - $received),
+                'progress' => $maximum && $maximum > 0 ? min(100, ($received / $maximum) * 100) : null,
+                'deliveries_count' => (int) ($reception?->deliveries_count ?? 0),
+                'last_delivery_date' => $reception?->last_delivery_date
+                    ? \Carbon\Carbon::parse($reception->last_delivery_date)->format('d/m/Y')
+                    : null,
+                'distributed_value' => (float) ($distribution?->gross_value ?? 0),
+                'url' => route('delivery-viewer.associates.show', [
+                    'tenant' => $request->route('tenant')->slug,
+                    'project' => $project->id,
+                    'associateToken' => $this->associateToken($associate->id),
+                ]),
+            ];
+        });
+
+        return $this->privateJson($associates);
     }
 
     public function associateData(Request $request, AssociateProjectLimitService $limitsService): JsonResponse
@@ -562,6 +729,65 @@ class DeliveryViewerController extends Controller
             ->findOrFail($associateId);
     }
 
+    private function productForProject(Request $request, SalesProject $project): Product
+    {
+        $productId = $this->productIdFromToken((string) $request->route('productToken'), $project->id);
+
+        return Product::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->whereKey($productId)
+            ->where(function ($query) use ($project): void {
+                $query->whereExists(fn ($demand) => $demand
+                    ->selectRaw('1')
+                    ->from('project_demands')
+                    ->whereColumn('project_demands.product_id', 'products.id')
+                    ->where('project_demands.tenant_id', $project->tenant_id)
+                    ->where('project_demands.sales_project_id', $project->id))
+                    ->orWhereExists(fn ($limit) => $limit
+                        ->selectRaw('1')
+                        ->from('project_associate_product_limits')
+                        ->whereColumn('project_associate_product_limits.product_id', 'products.id')
+                        ->where('project_associate_product_limits.tenant_id', $project->tenant_id)
+                        ->where('project_associate_product_limits.sales_project_id', $project->id)
+                        ->where('project_associate_product_limits.status', 'active'))
+                    ->orWhereExists(fn ($delivery) => $delivery
+                        ->selectRaw('1')
+                        ->from('production_deliveries')
+                        ->whereColumn('production_deliveries.product_id', 'products.id')
+                        ->where('production_deliveries.tenant_id', $project->tenant_id)
+                        ->where('production_deliveries.sales_project_id', $project->id)
+                        ->whereNull('production_deliveries.deleted_at'));
+            })
+            ->firstOrFail(['id', 'tenant_id', 'name', 'unit']);
+    }
+
+    private function productAssociatesQuery(int $tenantId, int $projectId, int $productId)
+    {
+        return Associate::query()
+            ->where('associates.tenant_id', $tenantId)
+            ->where(function ($query) use ($tenantId, $projectId, $productId): void {
+                $query->whereExists(fn ($delivery) => $delivery
+                    ->selectRaw('1')
+                    ->from('production_deliveries')
+                    ->whereColumn('production_deliveries.associate_id', 'associates.id')
+                    ->where('production_deliveries.tenant_id', $tenantId)
+                    ->where('production_deliveries.sales_project_id', $projectId)
+                    ->where('production_deliveries.product_id', $productId)
+                    ->whereNull('production_deliveries.parent_delivery_id')
+                    ->whereNotIn('production_deliveries.status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+                    ->whereNull('production_deliveries.deleted_at'))
+                    ->orWhereExists(fn ($limit) => $limit
+                        ->selectRaw('1')
+                        ->from('project_associate_product_limits')
+                        ->whereColumn('project_associate_product_limits.associate_id', 'associates.id')
+                        ->where('project_associate_product_limits.tenant_id', $tenantId)
+                        ->where('project_associate_product_limits.sales_project_id', $projectId)
+                        ->where('project_associate_product_limits.product_id', $productId)
+                        ->where('project_associate_product_limits.status', 'active'));
+            })
+            ->select(['associates.id', 'associates.tenant_id', 'associates.user_id', 'associates.nickname', 'associates.registration_number']);
+    }
+
     private function associateIdFromToken(string $token): int
     {
         try {
@@ -580,6 +806,38 @@ class DeliveryViewerController extends Controller
     private function associateToken(int $associateId): string
     {
         return rtrim(strtr(Crypt::encryptString((string) $associateId), '+/', '-_'), '=');
+    }
+
+    private function productIdFromToken(string $token, int $projectId): int
+    {
+        try {
+            $base64 = strtr($token, '-_', '+/');
+            $base64 .= str_repeat('=', (4 - strlen($base64) % 4) % 4);
+            $payload = json_decode(Crypt::decryptString($base64), true, 4, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            abort(404);
+        }
+
+        abort_unless(
+            is_array($payload)
+            && ($payload['scope'] ?? null) === 'delivery-viewer-product'
+            && (int) ($payload['project_id'] ?? 0) === $projectId
+            && (int) ($payload['product_id'] ?? 0) > 0,
+            404,
+        );
+
+        return (int) $payload['product_id'];
+    }
+
+    private function productToken(int $projectId, int $productId): string
+    {
+        $payload = json_encode([
+            'scope' => 'delivery-viewer-product',
+            'project_id' => $projectId,
+            'product_id' => $productId,
+        ], JSON_THROW_ON_ERROR);
+
+        return rtrim(strtr(Crypt::encryptString($payload), '+/', '-_'), '=');
     }
 
     private function quantityByProduct(int $tenantId, int $projectId, bool $distributions)

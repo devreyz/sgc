@@ -50,6 +50,7 @@ class CashMovementResource extends Resource
                         Forms\Components\TextInput::make('amount')
                             ->label('Valor')
                             ->numeric()
+                            ->minValue(0.01)
                             ->required()
                             ->prefix('R$'),
 
@@ -66,6 +67,8 @@ class CashMovementResource extends Resource
                             ->relationship('transferToAccount', 'name')
                             ->options(BankAccount::where('status', true)->pluck('name', 'id'))
                             ->visible(fn (Forms\Get $get) => $get('type') === CashMovementType::TRANSFER->value)
+                            ->required(fn (Forms\Get $get) => $get('type') === CashMovementType::TRANSFER->value)
+                            ->different('bank_account_id')
                             ->searchable(),
 
                         Forms\Components\Select::make('chart_account_id')
@@ -178,15 +181,8 @@ class CashMovementResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\RestoreAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
-                ]),
-            ])
+            ->bulkActions([])
             ->defaultSort('movement_date', 'desc');
     }
 
@@ -204,7 +200,6 @@ class CashMovementResource extends Resource
             'index' => \App\Filament\Resources\CashMovementResource\Pages\ListCashMovements::route('/'),
             'create' => \App\Filament\Resources\CashMovementResource\Pages\CreateCashMovement::route('/create'),
             'view' => \App\Filament\Resources\CashMovementResource\Pages\ViewCashMovement::route('/{record}'),
-            'edit' => \App\Filament\Resources\CashMovementResource\Pages\EditCashMovement::route('/{record}/edit'),
         ];
     }
 }

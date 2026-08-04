@@ -27,6 +27,7 @@ class RolesAndPermissionsSeeder extends Seeder
         // Criar roles comuns do sistema (atribuídas por tenant via pivot)
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $financeiro = Role::firstOrCreate(['name' => 'financeiro', 'guard_name' => 'web']);
+        $tesoureiro = Role::firstOrCreate(['name' => 'tesoureiro', 'guard_name' => 'web']);
         $operadorCaixa = Role::firstOrCreate(['name' => 'operador_caixa', 'guard_name' => 'web']);
         $assistente = Role::firstOrCreate(['name' => 'assistente', 'guard_name' => 'web']);
         $associado = Role::firstOrCreate(['name' => 'associado', 'guard_name' => 'web']);
@@ -106,6 +107,8 @@ class RolesAndPermissionsSeeder extends Seeder
                     'project',
                     'loan',
                     'document',
+                    'financial',
+                    'receipt',
                 ];
 
                 foreach ($financeModules as $module) {
@@ -117,6 +120,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 return false;
             });
             $financeiro->syncPermissions($financeiroPermissions);
+            $tesoureiro->syncPermissions($financeiroPermissions);
             $this->command->info('✓ Financeiro: ' . $financeiroPermissions->count() . ' permissions atribuídas');
         }
 
@@ -124,7 +128,7 @@ class RolesAndPermissionsSeeder extends Seeder
         if ($operadorCaixa) {
             $operadorPermissions = $allPermissions->filter(function ($permission) {
                 // Acesso apenas a movimentações de caixa e consultas básicas
-                $modules = ['cash_movement', 'bank_account'];
+                $modules = ['cash_movement', 'bank_account', 'financial::receipt', 'financial_receipt'];
 
                 foreach ($modules as $module) {
                     if (str_contains($permission->name, $module)) {

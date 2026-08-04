@@ -1069,256 +1069,556 @@
         }
 
         .user-menu-sheet {
-            position: fixed;
-            z-index: calc(var(--app-layer-drawer) + 10);
-            overflow-y: auto;
-            border: 1px solid rgba(226, 232, 240, .88);
-            background: rgba(255, 255, 255, .98);
-            box-shadow: var(--app-shadow-lg);
-            transition: transform 260ms cubic-bezier(.2, .8, .2, 1);
-            overscroll-behavior: contain;
+        --menu-green: var(--app-primary-600, #16a34a);
+        --menu-green-dark: var(--app-primary-700, #15803d);
+        --menu-surface: var(--app-surface, #ffffff);
+        --menu-soft: var(--app-surface-soft, #f8faf9);
+        --menu-muted: var(--app-primary-muted, #dcfce7);
+        --menu-border: var(--app-border, #dce6df);
+        --menu-border-strong: #cbd8d0;
+        --menu-text: var(--app-text, #102018);
+        --menu-secondary: var(--app-text-secondary, #52645a);
+        --menu-faded: var(--app-text-muted, #809087);
+        --menu-danger: #dc2626;
+        --menu-shadow: 0 24px 64px rgba(15, 35, 24, .18);
+
+        position: fixed;
+        z-index: calc(var(--app-layer-drawer) + 10);
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid rgba(220, 230, 223, .96);
+        background: rgba(255, 255, 255, .985);
+        color: var(--menu-text);
+        box-shadow: var(--menu-shadow);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+            transform 260ms cubic-bezier(.2, .8, .2, 1),
+            opacity 180ms ease,
+            visibility 180ms ease;
+        overscroll-behavior: contain;
+        backdrop-filter: blur(18px);
+    }
+
+    .user-menu-sheet.active {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .user-menu-sheet *,
+    .user-menu-sheet *::before,
+    .user-menu-sheet *::after {
+        box-sizing: border-box;
+    }
+
+    .user-menu-drag {
+        display: none;
+    }
+
+    .user-menu-header {
+        position: relative;
+        flex: 0 0 auto;
+        padding: .85rem;
+        border-bottom: 1px solid var(--menu-border);
+        background:
+            linear-gradient(
+                90deg,
+                rgba(236, 253, 245, .82),
+                rgba(255, 255, 255, .98) 48%
+            ),
+            var(--menu-surface);
+    }
+
+    .user-menu-header::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 4px;
+        background: linear-gradient(
+            180deg,
+            var(--menu-green),
+            var(--menu-green-dark)
+        );
+        content: "";
+    }
+
+    .user-menu-close {
+        position: absolute;
+        z-index: 3;
+        top: .72rem;
+        right: .72rem;
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid var(--menu-border);
+        border-radius: 10px;
+        background: var(--menu-surface);
+        color: var(--menu-secondary);
+        cursor: pointer;
+        transition:
+            border-color 150ms ease,
+            color 150ms ease,
+            background 150ms ease,
+            transform 150ms ease;
+    }
+
+    .user-menu-close:hover,
+    .user-menu-close:focus-visible {
+        border-color: rgba(34, 197, 94, .42);
+        background: #ecfdf5;
+        color: var(--menu-green-dark);
+        outline: none;
+        transform: rotate(2deg);
+    }
+
+    .user-menu-close svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .user-menu-profile {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .72rem;
+        align-items: center;
+        padding-right: 2.9rem;
+    }
+
+    .user-menu-avatar {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        flex: 0 0 auto;
+        place-items: center;
+        overflow: hidden;
+        border: 2px solid rgba(34, 197, 94, .18);
+        border-radius: 13px;
+        background: var(--menu-muted);
+        color: var(--menu-green-dark);
+        font-size: 1rem;
+        font-weight: 850;
+        object-fit: cover;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .65);
+    }
+
+    .user-menu-info {
+        min-width: 0;
+    }
+
+    .user-menu-kicker {
+        display: flex;
+        align-items: center;
+        gap: .32rem;
+        margin-bottom: .14rem;
+        color: var(--menu-green-dark);
+        font-size: .57rem;
+        font-weight: 820;
+        letter-spacing: .065em;
+        text-transform: uppercase;
+    }
+
+    .user-menu-kicker svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    .user-menu-info h3,
+    .user-menu-info p {
+        overflow: hidden;
+        margin: 0;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-menu-info h3 {
+        color: var(--menu-text);
+        font-size: .92rem;
+        font-weight: 840;
+        letter-spacing: -.02em;
+    }
+
+    .user-menu-info p {
+        margin-top: .14rem;
+        color: var(--menu-faded);
+        font-size: .63rem;
+    }
+
+    .user-menu-content {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: .72rem;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: var(--menu-border-strong) transparent;
+    }
+
+    .user-menu-content::-webkit-scrollbar {
+        width: 7px;
+    }
+
+    .user-menu-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .user-menu-content::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background: var(--menu-border-strong);
+        background-clip: padding-box;
+    }
+
+    .user-menu-section {
+        overflow: hidden;
+        margin-bottom: .72rem;
+        border: 1px solid var(--menu-border);
+        border-radius: 13px;
+        background: var(--menu-surface);
+        box-shadow: 0 5px 18px rgba(15, 35, 24, .045);
+    }
+
+    .user-menu-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .user-menu-section-head {
+        display: flex;
+        min-height: 48px;
+        align-items: center;
+        justify-content: space-between;
+        gap: .65rem;
+        padding: .58rem .65rem;
+        border-bottom: 1px solid var(--menu-border);
+        background: linear-gradient(
+            180deg,
+            var(--menu-soft),
+            var(--menu-surface)
+        );
+    }
+
+    .user-menu-section-title {
+        display: flex;
+        align-items: center;
+        gap: .42rem;
+        margin: 0;
+        color: var(--menu-text);
+        font-size: .66rem;
+        font-weight: 820;
+        letter-spacing: .02em;
+    }
+
+    .user-menu-section-title svg {
+        width: 15px;
+        height: 15px;
+        color: var(--menu-green-dark);
+    }
+
+    .user-menu-section-count {
+        display: inline-grid;
+        min-width: 22px;
+        height: 22px;
+        place-items: center;
+        padding: 0 .32rem;
+        border-radius: 999px;
+        background: var(--menu-muted);
+        color: var(--menu-green-dark);
+        font-size: .57rem;
+        font-weight: 850;
+    }
+
+    .tenant-list,
+    .user-menu-list {
+        display: grid;
+        gap: .38rem;
+        padding: .52rem;
+    }
+
+    .tenant-switch-form,
+    .user-menu-logout-form {
+        margin: 0;
+    }
+
+    .tenant-switch-button,
+    .user-menu-item {
+        position: relative;
+        display: grid;
+        width: 100%;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .62rem;
+        align-items: center;
+        padding: .62rem;
+        border: 1px solid transparent;
+        border-radius: 11px;
+        background: transparent;
+        color: var(--menu-text);
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+            border-color 150ms ease,
+            background 150ms ease,
+            box-shadow 150ms ease,
+            transform 150ms ease;
+    }
+
+    .tenant-switch-button:hover,
+    .tenant-switch-button:focus-visible,
+    .user-menu-item:hover,
+    .user-menu-item:focus-visible {
+        border-color: var(--menu-border);
+        background: var(--menu-soft);
+        box-shadow: 0 5px 15px rgba(15, 35, 24, .045);
+        outline: none;
+        transform: translateY(-1px);
+    }
+
+    .tenant-switch-button.active {
+        border-color: rgba(34, 197, 94, .23);
+        background: #ecfdf5;
+        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .05);
+    }
+
+    .tenant-switch-button.active::before {
+        position: absolute;
+        top: .55rem;
+        bottom: .55rem;
+        left: 0;
+        width: 3px;
+        border-radius: 0 999px 999px 0;
+        background: var(--menu-green);
+        content: "";
+    }
+
+    .user-menu-icon,
+    .tenant-icon {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--menu-soft);
+        color: var(--menu-secondary);
+        transition: background 150ms ease, color 150ms ease;
+    }
+
+    .tenant-switch-button.active .tenant-icon,
+    .user-menu-icon.primary {
+        background: var(--menu-muted);
+        color: var(--menu-green-dark);
+    }
+
+    .tenant-switch-button:hover .tenant-icon,
+    .tenant-switch-button:focus-visible .tenant-icon,
+    .user-menu-item:hover .user-menu-icon.primary,
+    .user-menu-item:focus-visible .user-menu-icon.primary {
+        background: var(--menu-green);
+        color: #fff;
+    }
+
+    .user-menu-icon.danger {
+        background: #fef2f2;
+        color: var(--menu-danger);
+    }
+
+    .user-menu-item:hover .user-menu-icon.danger,
+    .user-menu-item:focus-visible .user-menu-icon.danger {
+        background: var(--menu-danger);
+        color: #fff;
+    }
+
+    .user-menu-icon svg,
+    .tenant-icon svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .tenant-copy,
+    .user-menu-text {
+        min-width: 0;
+    }
+
+    .tenant-copy strong,
+    .tenant-copy span,
+    .user-menu-text h4,
+    .user-menu-text p {
+        display: block;
+        overflow: hidden;
+        margin: 0;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .tenant-copy strong,
+    .user-menu-text h4 {
+        color: var(--menu-text);
+        font-size: .72rem;
+        font-weight: 780;
+    }
+
+    .tenant-copy span,
+    .user-menu-text p {
+        margin-top: .1rem;
+        color: var(--menu-faded);
+        font-size: .6rem;
+        line-height: 1.35;
+    }
+
+    .tenant-check,
+    .user-menu-arrow {
+        width: 17px;
+        height: 17px;
+        flex: 0 0 auto;
+        color: var(--menu-green);
+    }
+
+    .user-menu-arrow {
+        color: var(--menu-faded);
+        transition: color 150ms ease, transform 150ms ease;
+    }
+
+    .user-menu-item:hover .user-menu-arrow,
+    .user-menu-item:focus-visible .user-menu-arrow {
+        color: var(--menu-green-dark);
+        transform: translateX(2px);
+    }
+
+    .user-menu-item .notification-count {
+        display: inline-grid;
+        min-width: 23px;
+        height: 23px;
+        place-items: center;
+        padding: 0 .32rem;
+        border-radius: 999px;
+        background: var(--menu-green);
+        color: #fff;
+        font-size: .57rem;
+        font-weight: 850;
+    }
+
+    .user-menu-item .notification-count[hidden] {
+        display: none !important;
+    }
+
+    .user-menu-footer {
+        flex: 0 0 auto;
+        padding: .62rem .72rem calc(.62rem + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--menu-border);
+        background: rgba(248, 250, 249, .96);
+    }
+
+    .user-menu-footer .user-menu-item {
+        border-color: rgba(220, 38, 38, .08);
+        background: #fff;
+    }
+
+    @media (max-width: 767px) {
+        .user-menu-sheet {
+            right: 0;
+            bottom: 0;
+            left: 0;
+            max-height: min(88dvh, 720px);
+            border-right: 0;
+            border-bottom: 0;
+            border-left: 0;
+            border-radius: 18px 18px 0 0;
+            transform: translateY(105%);
+        }
+
+        .user-menu-sheet.active {
+            transform: translateY(0);
+        }
+
+        .user-menu-drag {
+            display: block;
+            width: 42px;
+            height: 5px;
+            flex: 0 0 auto;
+            margin: .42rem auto .08rem;
+            border-radius: 999px;
+            background: #cbd5e1;
         }
 
         .user-menu-header {
-            position: relative;
-            overflow: hidden;
-            padding: 1.1rem;
-            border-bottom: 1px solid var(--app-border);
-            color: var(--app-text);
-            background: var(--app-surface);
+            padding-top: .62rem;
         }
-
-        .user-menu-header::after {
-            display: none;
-        }
-
-        .user-menu-close {
-            position: absolute;
-            z-index: 2;
-            top: .75rem;
-            right: .75rem;
-            display: grid;
-            width: 36px;
-            height: 36px;
-            place-items: center;
-            border: 1px solid var(--app-border);
-            border-radius: 10px;
-            background: var(--app-surface-soft);
-            color: var(--app-text-secondary);
-            cursor: pointer;
-        }
-
-        .user-menu-profile {
-            position: relative;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            gap: .85rem;
-            padding-right: 2.5rem;
-        }
-
-        .user-menu-avatar {
-            display: grid;
-            width: 58px;
-            height: 58px;
-            flex: 0 0 auto;
-            place-items: center;
-            overflow: hidden;
-            border: 2px solid rgba(34, 197, 94, .20);
-            border-radius: 15px;
-            background: var(--app-primary-muted);
-            color: var(--app-primary-700);
-            font-size: 1.15rem;
-            font-weight: 800;
-            object-fit: cover;
-        }
-
-        .user-menu-info {
-            min-width: 0;
-        }
-
-        .user-menu-info h3,
-        .user-menu-info p {
-            overflow: hidden;
-            margin: 0;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .user-menu-info h3 { font-size: 1rem; font-weight: 800; }
-        .user-menu-info h3 { color: var(--app-text); }
-        .user-menu-info p { margin-top: .18rem; color: var(--app-text-muted); font-size: .7rem; }
 
         .user-menu-content {
-            padding: .9rem;
+            padding: .62rem;
         }
 
-        .user-menu-section-title {
-            margin: .35rem .35rem .55rem;
-            color: var(--app-text-muted);
-            font-size: .65rem;
-            font-weight: 800;
-            letter-spacing: .08em;
-            text-transform: uppercase;
-        }
-
-        .tenant-list {
-            display: grid;
-            gap: .42rem;
-        }
-
-        .tenant-switch-form {
-            margin: 0;
+        .user-menu-section {
+            border-radius: 12px;
         }
 
         .tenant-switch-button,
         .user-menu-item {
-            display: flex;
-            width: 100%;
-            min-width: 0;
-            align-items: center;
-            gap: .72rem;
-            padding: .7rem;
-            border: 1px solid transparent;
-            border-radius: 15px;
-            background: transparent;
-            color: var(--app-text);
-            text-align: left;
-            text-decoration: none;
-            cursor: pointer;
-            transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+            min-height: 54px;
+        }
+    }
+
+    @media (min-width: 768px) {
+        .user-menu-sheet {
+            top: .7rem;
+            right: .7rem;
+            bottom: .7rem;
+            width: min(420px, calc(100vw - 1.4rem));
+            border-radius: 18px;
+            transform: translateX(calc(100% + 1rem));
         }
 
-        .tenant-switch-button:hover,
-        .user-menu-item:hover {
-            border-color: var(--app-border);
-            background: var(--app-surface-soft);
-            transform: translateY(-1px);
+        .user-menu-sheet.active {
+            transform: translateX(0);
+        }
+    }
+
+    @media (max-width: 390px) {
+        .user-menu-profile {
+            gap: .58rem;
         }
 
-        .tenant-switch-button.active {
-            border-color: rgba(34, 197, 94, .22);
-            background: var(--app-primary-soft);
+        .user-menu-avatar {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+        }
+
+        .user-menu-info h3 {
+            font-size: .84rem;
+        }
+
+        .tenant-switch-button,
+        .user-menu-item {
+            gap: .52rem;
+            padding: .56rem;
         }
 
         .user-menu-icon,
         .tenant-icon {
-            display: grid;
-            width: 38px;
-            height: 38px;
-            flex: 0 0 auto;
-            place-items: center;
-            border-radius: 12px;
-            background: var(--app-surface-soft);
-            color: var(--app-text-secondary);
+            width: 34px;
+            height: 34px;
         }
+    }
 
-        .tenant-switch-button.active .tenant-icon,
-        .user-menu-icon.primary {
-            background: var(--app-primary-muted);
-            color: var(--app-primary-700);
+    @media (prefers-reduced-motion: reduce) {
+        .user-menu-sheet,
+        .user-menu-close,
+        .tenant-switch-button,
+        .user-menu-item,
+        .user-menu-icon,
+        .tenant-icon,
+        .user-menu-arrow {
+            transition: none;
         }
-
-        .user-menu-icon.danger {
-            background: #fef2f2;
-            color: #dc2626;
-        }
-
-        .user-menu-icon svg,
-        .tenant-icon svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .tenant-copy,
-        .user-menu-text {
-            min-width: 0;
-            flex: 1;
-        }
-
-        .tenant-copy strong,
-        .tenant-copy span,
-        .user-menu-text h4,
-        .user-menu-text p {
-            display: block;
-            overflow: hidden;
-            margin: 0;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .tenant-copy strong,
-        .user-menu-text h4 {
-            color: var(--app-text);
-            font-size: .78rem;
-            font-weight: 750;
-        }
-
-        .tenant-copy span,
-        .user-menu-text p {
-            margin-top: .12rem;
-            color: var(--app-text-muted);
-            font-size: .65rem;
-        }
-
-        .tenant-check {
-            width: 18px;
-            height: 18px;
-            flex: 0 0 auto;
-            color: var(--app-primary-600);
-        }
-
-        .user-menu-divider {
-            height: 1px;
-            margin: .7rem .35rem;
-            background: var(--app-border);
-        }
-
-        @media (max-width: 767px) {
-            .user-menu-sheet {
-                right: 0;
-                bottom: 0;
-                left: 0;
-                max-height: min(82dvh, 680px);
-                border-right: 0;
-                border-bottom: 0;
-                border-left: 0;
-                border-radius: 18px 18px 0 0;
-                transform: translateY(105%);
-            }
-
-            .user-menu-sheet.active {
-                transform: translateY(0);
-            }
-
-            .user-menu-sheet::before {
-                display: block;
-                width: 44px;
-                height: 5px;
-                margin: .45rem auto 0;
-                border-radius: 999px;
-                background: #cbd5e1;
-                content: "";
-            }
-        }
-
-        @media (min-width: 768px) {
-            .user-menu-sheet {
-                top: 0;
-                right: 0;
-                bottom: 0;
-                width: min(410px, 100vw);
-                border-top: 0;
-                border-right: 0;
-                border-bottom: 0;
-                border-radius: 24px 0 0 24px;
-                transform: translateX(105%);
-            }
-
-            .user-menu-sheet.active {
-                transform: translateX(0);
-            }
-        }
+    }
 
         /* ========================================================
            GLOBAL LOADER
@@ -1548,32 +1848,75 @@
 
     <div class="user-menu-overlay" id="userMenuOverlay" aria-hidden="true"></div>
 
-    <aside class="user-menu-sheet" id="userMenuSheet" aria-label="Menu da conta" aria-hidden="true">
-        <div class="user-menu-header">
-            <button type="button" class="user-menu-close" id="userMenuClose" aria-label="Fechar menu">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
-                    <path d="M18 6 6 18"></path>
-                    <path d="m6 6 12 12"></path>
-                </svg>
-            </button>
+     <aside
+    class="user-menu-sheet"
+    id="userMenuSheet"
+    aria-label="Menu da conta"
+    aria-hidden="true"
+>
+    <span class="user-menu-drag" aria-hidden="true"></span>
 
-            <div class="user-menu-profile">
-                @if($avatarUrl)
-                    <img src="{{ $avatarUrl }}" alt="{{ $authenticatedMemberName }}" class="user-menu-avatar">
-                @else
-                    <span class="user-menu-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($authenticatedMemberName, 0, 1)) }}</span>
-                @endif
+    <header class="user-menu-header">
+        <button
+            type="button"
+            class="user-menu-close"
+            id="userMenuClose"
+            aria-label="Fechar menu"
+        >
+            <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.2"
+                stroke-linecap="round"
+                aria-hidden="true"
+            >
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+            </svg>
+        </button>
 
-                <div class="user-menu-info">
-                    <h3>{{ $authenticatedMemberName }}</h3>
-                    <p>{{ $authenticatedUser?->email }}</p>
+        <div class="user-menu-profile">
+            @if($avatarUrl)
+                <img
+                    src="{{ $avatarUrl }}"
+                    alt="{{ $authenticatedMemberName }}"
+                    class="user-menu-avatar"
+                >
+            @else
+                <span class="user-menu-avatar" aria-hidden="true">
+                    {{ mb_strtoupper(mb_substr($authenticatedMemberName, 0, 1)) }}
+                </span>
+            @endif
+
+            <div class="user-menu-info">
+                <div class="user-menu-kicker">
+                    <i data-lucide="circle-user-round"></i>
+                    Minha conta
                 </div>
+
+                <h3>{{ $authenticatedMemberName }}</h3>
+                <p>{{ $authenticatedUser?->email }}</p>
             </div>
         </div>
+    </header>
 
-        <div class="user-menu-content">
-            @if($tenants->isNotEmpty())
-                <h2 class="user-menu-section-title">Minhas organizações</h2>
+    <div class="user-menu-content">
+        @if($tenants->isNotEmpty())
+            <section class="user-menu-section">
+                <header class="user-menu-section-head">
+                    <h2 class="user-menu-section-title">
+                        <i data-lucide="building-2"></i>
+                        Minhas organizações
+                    </h2>
+
+                    <span
+                        class="user-menu-section-count"
+                        aria-label="{{ $tenants->count() }} organizações"
+                    >
+                        {{ $tenants->count() }}
+                    </span>
+                </header>
 
                 <div class="tenant-list">
                     @foreach($tenants as $tenantItem)
@@ -1586,11 +1929,28 @@
                             data-tenant-slug="{{ $tenantItem->slug }}"
                         >
                             @csrf
-                            <input type="hidden" name="tenant_id" value="{{ $tenantItem->id }}">
 
-                            <button type="submit" class="tenant-switch-button {{ $isActiveTenant ? 'active' : '' }}">
+                            <input
+                                type="hidden"
+                                name="tenant_id"
+                                value="{{ $tenantItem->id }}"
+                            >
+
+                            <button
+                                type="submit"
+                                class="tenant-switch-button {{ $isActiveTenant ? 'active' : '' }}"
+                                @if($isActiveTenant)
+                                    aria-current="true"
+                                @endif
+                            >
                                 <span class="tenant-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linejoin="round"
+                                    >
                                         <path d="M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path>
                                         <path d="M16 8h2a2 2 0 0 1 2 2v11"></path>
                                         <path d="M8 7h4M8 11h4M8 15h4"></path>
@@ -1599,90 +1959,184 @@
 
                                 <span class="tenant-copy">
                                     <strong>{{ $tenantItem->name }}</strong>
-                                    <span>{{ $tenantItem->slug }}</span>
+
+                                    <span>
+                                        {{ $isActiveTenant ? 'Organização atual' : $tenantItem->slug }}
+                                    </span>
                                 </span>
 
                                 @if($isActiveTenant)
-                                    <svg class="tenant-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-label="Organização atual">
+                                    <svg
+                                        class="tenant-check"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2.5"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        aria-label="Organização atual"
+                                    >
                                         <path d="m20 6-11 11-5-5"></path>
                                     </svg>
+                                @else
+                                    <i
+                                        class="user-menu-arrow"
+                                        data-lucide="chevron-right"
+                                        aria-hidden="true"
+                                    ></i>
                                 @endif
                             </button>
                         </form>
                     @endforeach
                 </div>
+            </section>
+        @endif
 
-                <div class="user-menu-divider"></div>
-            @endif
+        @if($currentTenantSlug)
+            <section class="user-menu-section">
+                <header class="user-menu-section-head">
+                    <h2 class="user-menu-section-title">
+                        <i data-lucide="settings-2"></i>
+                        Conta e aplicativo
+                    </h2>
+                </header>
 
-            @if($currentTenantSlug)
-                <a href="{{ route('notifications.index', ['tenant' => $currentTenantSlug]) }}" class="user-menu-item">
-                    <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="bell"></i></span>
-                    <span class="user-menu-text"><h4>Notificacoes</h4><p>Avisos e permissoes do dispositivo</p></span>
-                    <span class="notification-count" data-notification-count hidden>0</span>
-                </a>
+                <div class="user-menu-list">
+                    <a
+                        href="{{ route('notifications.index', ['tenant' => $currentTenantSlug]) }}"
+                        class="user-menu-item"
+                    >
+                        <span class="user-menu-icon primary" aria-hidden="true">
+                            <i data-lucide="bell"></i>
+                        </span>
 
-                <button type="button" class="user-menu-item" data-pwa-install hidden>
-                    <span class="user-menu-icon primary" aria-hidden="true"><i data-lucide="download"></i></span>
-                    <span class="user-menu-text"><h4>Instalar aplicativo</h4><p>Adicionar o SGC a este dispositivo</p></span>
-                </button>
+                        <span class="user-menu-text">
+                            <h4>Notificações</h4>
+                            <p>Avisos e permissões do dispositivo</p>
+                        </span>
 
-                <a href="{{ url('/' . $currentTenantSlug . '/profile') }}" class="user-menu-item">
-                    <span class="user-menu-icon primary" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="8" r="4"></circle>
-                            <path d="M4 21a8 8 0 0 1 16 0"></path>
-                        </svg>
-                    </span>
-                    <span class="user-menu-text">
-                        <h4>Meu perfil</h4>
-                        <p>Dados pessoais e segurança</p>
-                    </span>
-                </a>
+                        <span
+                            class="notification-count"
+                            data-notification-count
+                            hidden
+                        >
+                            0
+                        </span>
+                    </a>
 
-                <a href="{{ route('security.index') }}" class="user-menu-item">
-                    <span class="user-menu-icon primary" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="8" cy="15" r="4"></circle><path d="M10.85 12.15 19 4"></path><path d="m18 5 2 2"></path>
-                        </svg>
-                    </span>
-                    <span class="user-menu-text"><h4>Segurança e acesso</h4><p>Passkeys e conta Google</p></span>
-                </a>
+                    <button
+                        type="button"
+                        class="user-menu-item"
+                        data-pwa-install
+                        hidden
+                    >
+                        <span class="user-menu-icon primary" aria-hidden="true">
+                            <i data-lucide="download"></i>
+                        </span>
 
-                <a href="{{ url('/' . $currentTenantSlug . '/wallet') }}" class="user-menu-item">
-                    <span class="user-menu-icon primary" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path>
-                            <path d="M16 12h3"></path>
-                        </svg>
-                    </span>
-                    <span class="user-menu-text">
-                        <h4>Minha carteira</h4>
-                        <p>Carteirinha e extrato financeiro</p>
-                    </span>
-                </a>
+                        <span class="user-menu-text">
+                            <h4>Instalar aplicativo</h4>
+                            <p>Adicionar o SGC a este dispositivo</p>
+                        </span>
 
-                <div class="user-menu-divider"></div>
-            @endif
+                        <i
+                            class="user-menu-arrow"
+                            data-lucide="chevron-right"
+                            aria-hidden="true"
+                        ></i>
+                    </button>
 
-            <form action="{{ route('logout') }}" method="POST">
-                @csrf
-                <button type="submit" class="user-menu-item">
-                    <span class="user-menu-icon danger" aria-hidden="true">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <path d="m16 17 5-5-5-5"></path>
-                            <path d="M21 12H9"></path>
-                        </svg>
-                    </span>
-                    <span class="user-menu-text">
-                        <h4>Sair</h4>
-                        <p>Encerrar esta sessão</p>
-                    </span>
-                </button>
-            </form>
-        </div>
-    </aside>
+                    <a
+                        href="{{ url('/' . $currentTenantSlug . '/profile') }}"
+                        class="user-menu-item"
+                    >
+                        <span class="user-menu-icon primary" aria-hidden="true">
+                            <i data-lucide="user-round"></i>
+                        </span>
+
+                        <span class="user-menu-text">
+                            <h4>Meu perfil</h4>
+                            <p>Dados pessoais e segurança</p>
+                        </span>
+
+                        <i
+                            class="user-menu-arrow"
+                            data-lucide="chevron-right"
+                            aria-hidden="true"
+                        ></i>
+                    </a>
+
+                    <a
+                        href="{{ route('security.index') }}"
+                        class="user-menu-item"
+                    >
+                        <span class="user-menu-icon primary" aria-hidden="true">
+                            <i data-lucide="key-round"></i>
+                        </span>
+
+                        <span class="user-menu-text">
+                            <h4>Segurança e acesso</h4>
+                            <p>Passkeys e conta Google</p>
+                        </span>
+
+                        <i
+                            class="user-menu-arrow"
+                            data-lucide="chevron-right"
+                            aria-hidden="true"
+                        ></i>
+                    </a>
+
+                    <a
+                        href="{{ url('/' . $currentTenantSlug . '/wallet') }}"
+                        class="user-menu-item"
+                    >
+                        <span class="user-menu-icon primary" aria-hidden="true">
+                            <i data-lucide="wallet-cards"></i>
+                        </span>
+
+                        <span class="user-menu-text">
+                            <h4>Minha carteira</h4>
+                            <p>Carteirinha e extrato financeiro</p>
+                        </span>
+
+                        <i
+                            class="user-menu-arrow"
+                            data-lucide="chevron-right"
+                            aria-hidden="true"
+                        ></i>
+                    </a>
+                </div>
+            </section>
+        @endif
+    </div>
+
+    <footer class="user-menu-footer">
+        <form
+            action="{{ route('logout') }}"
+            method="POST"
+            class="user-menu-logout-form"
+        >
+            @csrf
+
+            <button type="submit" class="user-menu-item">
+                <span class="user-menu-icon danger" aria-hidden="true">
+                    <i data-lucide="log-out"></i>
+                </span>
+
+                <span class="user-menu-text">
+                    <h4>Sair</h4>
+                    <p>Encerrar esta sessão</p>
+                </span>
+
+                <i
+                    class="user-menu-arrow"
+                    data-lucide="chevron-right"
+                    aria-hidden="true"
+                ></i>
+            </button>
+        </form>
+    </footer>
+</aside>
 
     @if($hasBentoNavigation)
         <div class="app-nav-layer" aria-label="Navegação principal do portal">

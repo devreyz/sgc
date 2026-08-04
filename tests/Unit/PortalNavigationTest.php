@@ -51,7 +51,7 @@ class PortalNavigationTest extends TestCase
 
         $viewerRoutes = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($route) => str_starts_with((string) $route->getName(), 'delivery-viewer.'));
-        $this->assertCount(10, $viewerRoutes);
+        $this->assertCount(13, $viewerRoutes);
         $this->assertSame(
             ['DELETE', 'GET', 'HEAD', 'POST'],
             $viewerRoutes->flatMap->methods()->unique()->sort()->values()->all(),

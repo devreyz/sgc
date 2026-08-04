@@ -39,7 +39,7 @@ class CashMovementPolicy
      */
     public function update(User $user, CashMovement $cashMovement): bool
     {
-        return $user->can('update_cash::movement');
+        return false;
     }
 
     /**
@@ -47,7 +47,7 @@ class CashMovementPolicy
      */
     public function delete(User $user, CashMovement $cashMovement): bool
     {
-        return $user->can('delete_cash::movement');
+        return false;
     }
 
     /**
@@ -55,7 +55,7 @@ class CashMovementPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_cash::movement');
+        return false;
     }
 
     /**
@@ -63,7 +63,7 @@ class CashMovementPolicy
      */
     public function forceDelete(User $user, CashMovement $cashMovement): bool
     {
-        return $user->can('force_delete_cash::movement');
+        return false;
     }
 
     /**
@@ -71,7 +71,7 @@ class CashMovementPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_cash::movement');
+        return false;
     }
 
     /**
@@ -79,7 +79,7 @@ class CashMovementPolicy
      */
     public function restore(User $user, CashMovement $cashMovement): bool
     {
-        return $user->can('restore_cash::movement');
+        return false;
     }
 
     /**
@@ -87,7 +87,7 @@ class CashMovementPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_cash::movement');
+        return false;
     }
 
     /**

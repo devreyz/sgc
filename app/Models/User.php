@@ -22,7 +22,13 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements FilamentUser, PasskeyUser
 {
-    use HasFactory, HasRoles, LogsActivity, Notifiable, PasskeyAuthenticatable, SoftDeletes;
+    use HasFactory, LogsActivity, Notifiable, PasskeyAuthenticatable, SoftDeletes;
+    use HasRoles {
+        checkPermissionTo as protected checkGlobalPermissionTo;
+    }
+
+    /** @var array<int, array<int, string>> */
+    protected array $tenantPermissionNames = [];
 
     /**
      * The attributes that are mass assignable.
@@ -143,12 +149,14 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         }
 
         // Super admin, admin, and financeiro always have access
-        if ($this->hasAnyRole(['super_admin', 'admin', 'financeiro'])) {
+        if ($this->hasRole('super_admin')) {
             return true;
         }
 
-        // Block if user only has portal roles (no admin access)
-        return false;
+        return $this->hasRoleInTenant(
+            ['admin', 'financeiro', 'tesoureiro', 'operador_caixa'],
+            session('tenant_id'),
+        );
     }
 
     /**
@@ -340,7 +348,10 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
             return false;
         }
 
-        return $this->tenants()->where('tenant_id', $tenantId)->exists();
+        return $this->tenants()
+            ->where('tenant_id', $tenantId)
+            ->wherePivot('status', true)
+            ->exists();
     }
 
     /**
@@ -368,7 +379,10 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
             return [];
         }
 
-        $pivot = $this->tenants()->where('tenant_id', $tenantId)->first();
+        $pivot = $this->tenants()
+            ->where('tenant_id', $tenantId)
+            ->wherePivot('status', true)
+            ->first();
 
         if (! $pivot) {
             return [];
@@ -376,11 +390,68 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
 
         $roles = $pivot->pivot->roles ?? null;
 
-        if (is_string($roles)) {
-            return json_decode($roles, true) ?? [];
+        $roles = is_string($roles) ? (json_decode($roles, true) ?? []) : ($roles ?? []);
+
+        if ((bool) $pivot->pivot->is_admin) {
+            $roles[] = 'admin';
         }
 
-        return $roles ?? [];
+        return array_values(array_unique(array_filter($roles, 'is_string')));
+    }
+
+    /**
+     * Resolve permissions through the active tenant membership roles.
+     * Global roles are never reused between tenants, except super_admin.
+     */
+    public function checkPermissionTo($permission, $guardName = null): bool
+    {
+        if ($this->hasRole('super_admin')) {
+            return true;
+        }
+
+        $guardName ??= $this->getDefaultGuardName();
+        $permissionModel = null;
+
+        if ($permission instanceof \BackedEnum) {
+            $permission = $permission->value;
+        }
+
+        if ($permission instanceof \Spatie\Permission\Contracts\Permission) {
+            $permissionModel = $permission;
+        } elseif (is_int($permission)) {
+            $permissionModel = Permission::query()->whereKey($permission)->where('guard_name', $guardName)->first();
+        } elseif (is_string($permission)) {
+            $permissionModel = Permission::query()->where('name', $permission)->where('guard_name', $guardName)->first();
+        }
+
+        if (! $permissionModel) {
+            return false;
+        }
+
+        // Explicit user permissions are global by definition.
+        if ($this->permissions()->whereKey($permissionModel->getKey())->exists()) {
+            return true;
+        }
+
+        $tenantId = (int) session('tenant_id');
+        if ($tenantId <= 0) {
+            return false;
+        }
+
+        if (! array_key_exists($tenantId, $this->tenantPermissionNames)) {
+            $roles = $this->getRolesForTenant($tenantId);
+            $this->tenantPermissionNames[$tenantId] = $roles === [] ? [] : Role::query()
+                ->whereIn('name', $roles)
+                ->where('guard_name', $guardName)
+                ->with('permissions:id,name,guard_name')
+                ->get()
+                ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return in_array($permissionModel->name, $this->tenantPermissionNames[$tenantId], true);
     }
 
     /**

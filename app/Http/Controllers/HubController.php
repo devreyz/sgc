@@ -54,12 +54,24 @@ class HubController extends Controller
         // Detectar as roles disponíveis do usuário no tenant atual
         $roles = [];
 
-        if ($user->hasRoleInTenant(['super_admin', 'admin', 'financeiro'], $currentTenant->id)) {
+        $hasAdministration = $user->hasRoleInTenant(['super_admin', 'admin'], $currentTenant->id);
+
+        if ($hasAdministration) {
             $roles[] = [
                 'name' => 'Administração',
                 'description' => 'Gerenciar sistema completo',
                 'icon' => 'shield',
                 'url' => '/admin',
+                'color' => 'primary',
+            ];
+        }
+
+        if ($hasAdministration || $user->hasRoleInTenant(['financeiro', 'tesoureiro'], $currentTenant->id)) {
+            $roles[] = [
+                'name' => 'Gestão Financeira',
+                'description' => 'Recebimentos, pagamentos, contas, caixa e comprovantes',
+                'icon' => 'currency',
+                'url' => route('finance.index', ['tenant' => $currentTenant->slug]),
                 'color' => 'primary',
             ];
         }

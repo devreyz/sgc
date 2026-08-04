@@ -35,6 +35,12 @@ class PortalNavigation
                 ['key' => 'create', 'label' => 'Nova venda', 'route' => 'pdv.index'],
                 ['key' => 'history', 'label' => 'Historico', 'route' => 'pdv.history'],
             ],
+            'finance' => [
+                ['key' => 'dashboard', 'label' => 'Visão geral', 'route' => 'finance.index'],
+                ['key' => 'receipts', 'label' => 'Recebimentos', 'route' => 'finance.receipts.index'],
+                ['key' => 'management', 'label' => 'Cadastros', 'route' => 'finance.management.index', 'parameters' => ['module' => 'accounts']],
+                ['key' => 'new-receipt', 'label' => 'Novo recibo', 'route' => 'finance.receipts.create'],
+            ],
             'buyer' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'buyer.dashboard'],
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'buyer.projects'],
@@ -51,11 +57,12 @@ class PortalNavigation
                 $parameters = $tenantSlug && in_array('tenant', $route?->parameterNames() ?? [], true)
                     ? ['tenant' => $tenantSlug]
                     : [];
+                $parameters = array_merge($parameters, $item['parameters'] ?? []);
                 $item['type'] = 'link';
                 $item['url'] = Route::has($item['route'])
                     ? route($item['route'], $parameters)
                     : url('/');
-                unset($item['route']);
+                unset($item['route'], $item['parameters']);
 
                 return $item;
             })->all(),

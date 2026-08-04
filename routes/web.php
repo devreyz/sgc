@@ -2,32 +2,36 @@
 
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
-use App\Http\Controllers\Auth\GoogleAuthController;
-use App\Http\Controllers\Auth\GoogleDriveOAuthController;
-use App\Http\Controllers\Auth\AuthenticationStateController;
 use App\Http\Controllers\Auth\AccessInvitationAdminController;
 use App\Http\Controllers\Auth\AccessInvitationController;
+use App\Http\Controllers\Auth\AuthenticationStateController;
+use App\Http\Controllers\Auth\GoogleAuthController;
+use App\Http\Controllers\Auth\GoogleDriveOAuthController;
 use App\Http\Controllers\Auth\InvitationPasskeyController;
 use App\Http\Controllers\Auth\PasskeyAuthenticationController;
 use App\Http\Controllers\Auth\PasskeyManagementController;
 use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
-use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
+use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\Delivery\DeliveryViewerController;
 use App\Http\Controllers\DocumentVerificationController;
+use App\Http\Controllers\Finance\FinanceManagementController;
+use App\Http\Controllers\Finance\FinancialPortalController;
+use App\Http\Controllers\FinancialReceiptController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
 use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
+use App\Services\AuthenticationRedirector;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -52,7 +56,7 @@ Route::get('/', [HubController::class, 'index'])->name('home');
 // Login route (named) — used by authentication redirects
 Route::get('/login', function () {
     if (auth()->check()) {
-        return redirect()->to(app(\App\Services\AuthenticationRedirector::class)->pathFor(auth()->user()));
+        return redirect()->to(app(AuthenticationRedirector::class)->pathFor(auth()->user()));
     }
 
     return view('auth.login');
@@ -100,6 +104,8 @@ Route::middleware('invitation.headers')->group(function () {
 
 // Tenant Selection Routes (authenticated users)
 Route::middleware('auth')->group(function () {
+    Route::get('/financial-receipts/{financialReceipt}/print', [FinancialReceiptController::class, 'print'])
+        ->name('financial-receipts.print');
     Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
     Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
     Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
@@ -176,6 +182,24 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile/avatar', [ProfileController::class, 'removeAvatar'])->name('profile.remove-avatar');
+
+    Route::prefix('finance')->name('finance.')->middleware(['any.role:financeiro,tesoureiro,operador_caixa'])->group(function () {
+        Route::get('/', [FinancialPortalController::class, 'index'])->name('index');
+        Route::get('/receipts', [FinancialPortalController::class, 'receipts'])->name('receipts.index');
+        Route::get('/receipts/create', [FinancialPortalController::class, 'create'])->name('receipts.create');
+        Route::post('/receipts', [FinancialPortalController::class, 'store'])->middleware('throttle:30,1')->name('receipts.store');
+        Route::get('/receipts/{financialReceipt}', [FinancialPortalController::class, 'show'])->name('receipts.show');
+        Route::get('/receipts/{financialReceipt}/edit', [FinancialPortalController::class, 'edit'])->name('receipts.edit');
+        Route::put('/receipts/{financialReceipt}', [FinancialPortalController::class, 'update'])->middleware('throttle:30,1')->name('receipts.update');
+        Route::post('/receipts/{financialReceipt}/issue', [FinancialPortalController::class, 'issue'])->middleware('throttle:15,1')->name('receipts.issue');
+        Route::post('/receipts/{financialReceipt}/cancel', [FinancialPortalController::class, 'cancel'])->middleware('throttle:10,1')->name('receipts.cancel');
+        Route::get('/receipts/{financialReceipt}/print', [FinancialPortalController::class, 'print'])->name('receipts.print');
+        Route::get('/management/{module}', [FinanceManagementController::class, 'index'])->name('management.index');
+        Route::get('/management/{module}/data', [FinanceManagementController::class, 'data'])->name('management.data');
+        Route::post('/management/{module}/data', [FinanceManagementController::class, 'store'])->middleware('throttle:30,1')->name('management.store');
+        Route::put('/management/{module}/data/{record}', [FinanceManagementController::class, 'update'])->middleware('throttle:30,1')->name('management.update');
+        Route::delete('/management/{module}/data/{record}', [FinanceManagementController::class, 'destroy'])->middleware('throttle:20,1')->name('management.destroy');
+    });
 
     // Report Routes (Authenticated — relying on session tenant_id)
     Route::prefix('reports')->name('reports.')->group(function () {
@@ -284,22 +308,28 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         ->name('delivery-viewer.')
         ->middleware(['any.role:visualizador_entregas'])
         ->group(function () {
-              Route::get('/', [DeliveryViewerController::class, 'index'])->name('index');
-              Route::get('/projects-data', [DeliveryViewerController::class, 'projectsData'])->name('projects.data-list');
-              Route::get('/projects/{project}', [DeliveryViewerController::class, 'show'])->name('projects.show');
-              Route::get('/projects/{project}/data', [DeliveryViewerController::class, 'projectData'])
-                  ->name('projects.data');
-              Route::get('/projects/{project}/deliveries', [DeliveryViewerController::class, 'deliveriesData'])
-                  ->name('projects.deliveries');
-              Route::get('/projects/{project}/associates/{associateToken}', [DeliveryViewerController::class, 'associate'])
-                  ->name('associates.show');
-              Route::get('/projects/{project}/associates/{associateToken}/data', [DeliveryViewerController::class, 'associateData'])
-                  ->name('associates.data');
-              Route::get('/projects/{project}/notes', [DeliveryViewerController::class, 'notesData'])
-                  ->name('notes.index');
-              Route::post('/projects/{project}/notes', [DeliveryViewerController::class, 'storeNote'])
-                  ->middleware('throttle:30,1')
-                  ->name('notes.store');
+            Route::get('/', [DeliveryViewerController::class, 'index'])->name('index');
+            Route::get('/projects-data', [DeliveryViewerController::class, 'projectsData'])->name('projects.data-list');
+            Route::get('/projects/{project}', [DeliveryViewerController::class, 'show'])->name('projects.show');
+            Route::get('/projects/{project}/data', [DeliveryViewerController::class, 'projectData'])
+                ->name('projects.data');
+            Route::get('/projects/{project}/deliveries', [DeliveryViewerController::class, 'deliveriesData'])
+                ->name('projects.deliveries');
+            Route::get('/projects/{project}/products/{productToken}', [DeliveryViewerController::class, 'product'])
+                ->name('products.show');
+            Route::get('/projects/{project}/products/{productToken}/data', [DeliveryViewerController::class, 'productData'])
+                ->name('products.data');
+            Route::get('/projects/{project}/products/{productToken}/associates', [DeliveryViewerController::class, 'productAssociatesData'])
+                ->name('products.associates');
+            Route::get('/projects/{project}/associates/{associateToken}', [DeliveryViewerController::class, 'associate'])
+                ->name('associates.show');
+            Route::get('/projects/{project}/associates/{associateToken}/data', [DeliveryViewerController::class, 'associateData'])
+                ->name('associates.data');
+            Route::get('/projects/{project}/notes', [DeliveryViewerController::class, 'notesData'])
+                ->name('notes.index');
+            Route::post('/projects/{project}/notes', [DeliveryViewerController::class, 'storeNote'])
+                ->middleware('throttle:30,1')
+                ->name('notes.store');
             Route::delete('/projects/{project}/notes/{note}', [DeliveryViewerController::class, 'destroyNote'])
                 ->middleware('throttle:30,1')
                 ->name('notes.destroy');

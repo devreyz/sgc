@@ -49,14 +49,17 @@ class CashMovementObserver
             return;
         }
 
-        $account = BankAccount::find($cashMovement->bank_account_id);
-        if (!$account) {
-            return;
-        }
+        DB::transaction(function () use ($cashMovement) {
+            $account = BankAccount::query()
+                ->whereKey($cashMovement->bank_account_id)
+                ->where('tenant_id', $cashMovement->tenant_id)
+                ->lockForUpdate()
+                ->first();
+            if (! $account) {
+                throw new \RuntimeException('Conta financeira inválida para esta organização.');
+            }
 
-        $amount = $cashMovement->amount;
-
-        DB::transaction(function () use ($account, $cashMovement, $amount) {
+            $amount = $cashMovement->amount;
             // Atualizar saldo baseado no tipo de movimentação
             if ($cashMovement->type === CashMovementType::INCOME) {
                 $newBalance = $account->current_balance + $amount;
@@ -68,13 +71,18 @@ class CashMovementObserver
                 
                 // E credita na conta destino
                 if ($cashMovement->transfer_to_account_id) {
-                    $toAccount = BankAccount::find($cashMovement->transfer_to_account_id);
-                    if ($toAccount) {
-                        $toAccount->update([
-                            'current_balance' => $toAccount->current_balance + $amount,
-                            'balance_date' => now(),
-                        ]);
+                    $toAccount = BankAccount::query()
+                        ->whereKey($cashMovement->transfer_to_account_id)
+                        ->where('tenant_id', $cashMovement->tenant_id)
+                        ->lockForUpdate()
+                        ->first();
+                    if (! $toAccount || $toAccount->is($account)) {
+                        throw new \RuntimeException('Conta de destino inválida para a transferência.');
                     }
+                    $toAccount->update([
+                        'current_balance' => $toAccount->current_balance + $amount,
+                        'balance_date' => now(),
+                    ]);
                 }
             } else {
                 return;
@@ -87,7 +95,7 @@ class CashMovementObserver
             ]);
 
             // Atualizar o balance_after no próprio movimento
-            $cashMovement->update(['balance_after' => $newBalance]);
+            $cashMovement->forceFill(['balance_after' => $newBalance])->saveQuietly();
         });
     }
 }
