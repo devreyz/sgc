@@ -31,7 +31,6 @@ use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -165,8 +164,7 @@ class DeliveryRegistrationController extends Controller
         ProductionDelivery $delivery,
         array $limitData = [],
         ?int $defaultCustomerId = null,
-    ): array
-    {
+    ): array {
         $productName = $delivery->projectDemand?->product?->name
             ?? $delivery->product?->name
             ?? '-';
@@ -3687,7 +3685,8 @@ class DeliveryRegistrationController extends Controller
         $visibleColumns = $this->associateReceiptColumns(null, $project, $receipt->fee_snapshot);
         $tableScale = $this->receiptTableScale(null, $project);
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -3699,7 +3698,12 @@ class DeliveryRegistrationController extends Controller
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $tenant->id,
+        ));
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
@@ -3820,7 +3824,8 @@ class DeliveryRegistrationController extends Controller
         $tableScale = $this->receiptTableScale($request->input('table_scale'), $project);
         $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -3832,7 +3837,12 @@ class DeliveryRegistrationController extends Controller
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $tenant->id,
+        ));
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
@@ -3963,7 +3973,8 @@ class DeliveryRegistrationController extends Controller
         $tableScale = $this->receiptTableScale($validated['table_scale'] ?? null, $project);
         $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -3975,7 +3986,12 @@ class DeliveryRegistrationController extends Controller
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $tenant->id,
+        ));
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
@@ -4090,7 +4106,8 @@ class DeliveryRegistrationController extends Controller
         $tableScale = $this->receiptTableScale($request->input('table_scale'), $project);
         $this->rememberReceiptPreferences($project, $visibleColumns, $tableScale);
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -4102,7 +4119,12 @@ class DeliveryRegistrationController extends Controller
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $tenant->id,
+        ));
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
@@ -4407,7 +4429,8 @@ class DeliveryRegistrationController extends Controller
 
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
 
-        $pdf = Pdf::loadView('pdf.project-associate-receipt', [
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $project,
             'associate' => $associate,
@@ -4419,7 +4442,12 @@ class DeliveryRegistrationController extends Controller
             'feeColumns' => $receiptData['feeColumns'],
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
-        ])->setPaper('a4', 'portrait');
+        ], $pdfService->systemPdfOptions(
+            'pdf.project-associate-receipt',
+            'Comprovante de Entrega',
+            $project->type,
+            (int) $tenant->id,
+        ));
 
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);

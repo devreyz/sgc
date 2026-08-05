@@ -28,12 +28,22 @@ class FinanceModuleRegistry
                 'bank_name' => self::field('Banco', 'text', ['nullable', 'string', 'max:255']),
                 'agency' => self::field('Agencia', 'text', ['nullable', 'string', 'max:10']),
                 'account_number' => self::field('Conta', 'text', ['nullable', 'string', 'max:20']),
-                'initial_balance' => self::field('Saldo inicial', 'money', ['required', 'numeric']),
+                'initial_balance' => self::field('Saldo inicial', 'money', ['required', 'numeric']) + ['immutable_on_update' => true],
                 'is_default' => self::field('Conta padrao', 'toggle', ['boolean']),
                 'status' => self::field('Ativa', 'toggle', ['boolean']),
                 'notes' => self::field('Observacoes', 'textarea', ['nullable', 'string', 'max:3000']),
             ]),
-            'movements' => self::module(CashMovement::class, 'Movimentacoes', 'arrow-left-right', 'cash::movement', ['movement_date', 'description', 'type', 'amount', 'document_number'], [], false),
+            'movements' => self::module(
+                CashMovement::class,
+                'Movimentacoes',
+                'arrow-left-right',
+                'cash::movement',
+                ['movement_date', 'description', 'type', 'amount', 'document_number'],
+                [],
+                false,
+                true,
+                ['balance_after', 'bank_account_id', 'transfer_to_account_id', 'reference_type', 'reference_id', 'chart_account_id', 'payment_method', 'notes', 'created_by', 'created_at'],
+            ),
             'expenses' => self::module(Expense::class, 'Despesas', 'circle-minus', 'expense', ['due_date', 'description', 'status', 'amount', 'paid_amount'], [
                 'description' => self::field('Descricao', 'text', ['required', 'string', 'max:1000']),
                 'document_number' => self::field('Documento', 'text', ['nullable', 'string', 'max:100']),
@@ -105,9 +115,23 @@ class FinanceModuleRegistry
         ]);
     }
 
-    private static function module(string $model, string $label, string $icon, string $permission, array $columns, array $fields, bool $writable = true): array
+    private static function module(string $model, string $label, string $icon, string $permission, array $columns, array $fields, bool $writable = true, bool $printable = true, array $detailColumns = []): array
     {
-        return compact('model', 'label', 'icon', 'permission', 'columns', 'fields', 'writable');
+        return [
+            'model' => $model,
+            'label' => $label,
+            'icon' => $icon,
+            'permission' => $permission,
+            'columns' => $columns,
+            'fields' => $fields,
+            'writable' => $writable,
+            'creatable' => $writable,
+            'updatable' => $writable,
+            'deletable' => false,
+            'viewable' => true,
+            'printable' => $printable,
+            'detail_columns' => array_values(array_unique(array_merge($columns, array_keys($fields), $detailColumns))),
+        ];
     }
 
     private static function field(string $label, string $type, array $rules, array $options = []): array

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\DocumentTemplateResource\Pages;
+use App\Filament\Traits\TenantScoped;
 use App\Models\DocumentTemplate;
 use App\Models\PdfLayoutTemplate;
 use App\Models\SalesProjectType;
@@ -15,7 +16,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Traits\TenantScoped;
 use Illuminate\Support\HtmlString;
 
 class DocumentTemplateResource extends Resource
@@ -23,10 +23,15 @@ class DocumentTemplateResource extends Resource
     use TenantScoped;
 
     protected static ?string $model = DocumentTemplate::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-duplicate';
+
     protected static ?string $navigationGroup = 'Sistema';
+
     protected static ?string $modelLabel = 'Modelo de Documento';
+
     protected static ?string $pluralModelLabel = 'Modelos de Documentos';
+
     protected static ?int $navigationSort = 10;
 
     // Esconde da navegação — substituído pelos dois sub-resources
@@ -85,6 +90,12 @@ class DocumentTemplateResource extends Resource
                         ->disabled(fn ($record) => $record && $record->isSystem())
                         ->dehydrated()
                         ->helperText('Selecione qual PDF do sistema este modelo configurará.'),
+                    Forms\Components\Select::make('project_type')
+                        ->label('Tipo de projeto')
+                        ->options(fn (): array => SalesProjectType::options((int) session('tenant_id'), false))
+                        ->placeholder('Todos os tipos (padrao)')
+                        ->searchable()
+                        ->helperText('A configuração específica prevalece somente neste tipo; sem tipo, funciona como padrão do tenant.'),
                 ])
                 ->visible(fn (Get $get) => $get('template_category') === 'system')
                 ->columns(1),
@@ -92,12 +103,6 @@ class DocumentTemplateResource extends Resource
             Forms\Components\Section::make('Consentimento e Assinaturas')
                 ->description('Personalize o texto por tipo de projeto usando as variaveis permitidas.')
                 ->schema([
-                    Forms\Components\Select::make('project_type')
-                        ->label('Tipo de projeto')
-                        ->options(fn (): array => SalesProjectType::options((int) session('tenant_id'), false))
-                        ->placeholder('Todos os tipos (padrao)')
-                        ->searchable()
-                        ->helperText('Para um texto especifico, crie outro modelo deste PDF e selecione PAA, PNAE ou um tipo proprio.'),
                     Forms\Components\Toggle::make('consent_enabled')
                         ->label('Exibir consentimento e assinaturas')
                         ->default(true),
@@ -158,7 +163,7 @@ class DocumentTemplateResource extends Resource
             // ═══ Layout: header, footer, cover & back-cover ═══
             Forms\Components\Section::make('Layout do Documento')
                 ->description(fn (Get $get) => $get('template_category') === 'system'
-                    ? 'Os PDFs operacionais usam o layout padrão do sistema. Ajuste apenas papel e orientação.'
+                    ? 'Estas opções serão aplicadas em todos os pontos que geram este PDF.'
                     : 'Escolha os layouts e o tema visual deste documento personalizado.')
                 ->schema([
                     Forms\Components\Select::make('header_layout_id')
@@ -171,8 +176,7 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Padrão do Sistema')
-                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
+                        ->placeholder('Padrão do Sistema'),
 
                     Forms\Components\Select::make('footer_layout_id')
                         ->label('Rodapé')
@@ -184,8 +188,7 @@ class DocumentTemplateResource extends Resource
                         )
                         ->default('')
                         ->searchable()
-                        ->placeholder('Padrão do Sistema')
-                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
+                        ->placeholder('Padrão do Sistema'),
 
                     Forms\Components\Select::make('cover_layout_id')
                         ->label('Capa')
@@ -223,12 +226,18 @@ class DocumentTemplateResource extends Resource
                         ->options(DocumentTemplate::PAPER_ORIENTATIONS)
                         ->default('portrait'),
 
+                    Forms\Components\Select::make('table_scale')
+                        ->label('Escala da tabela')
+                        ->options([100 => '100% - normal', 90 => '90%', 80 => '80%', 70 => '70% - compacta'])
+                        ->default(100)
+                        ->helperText('Reduz apenas a tabela para documentos com muitas colunas.')
+                        ->visible(fn (Get $get) => $get('template_category') === 'system'),
+
                     Forms\Components\Select::make('color_theme')
                         ->label('Tema de Cor')
                         ->options(DocumentTemplate::COLOR_THEMES)
                         ->default('org')
-                        ->helperText('Cores que serão usadas ao gerar o PDF.')
-                        ->visible(fn (Get $get) => $get('template_category') !== 'system'),
+                        ->helperText('Cores que serão usadas ao gerar o PDF.'),
                 ])
                 ->columns(4),
 
@@ -242,7 +251,7 @@ class DocumentTemplateResource extends Resource
                         ->columns(3)
                         ->bulkToggleable(),
                 ])
-                ->visible(fn (Get $get) => $get('template_category') === 'system' && !empty($get('system_template_key'))),
+                ->visible(fn (Get $get) => $get('template_category') === 'system' && ! empty($get('system_template_key'))),
 
             // ═══ System: Columns visibility ═══
             Forms\Components\Section::make('Colunas Visíveis nas Tabelas')
@@ -254,9 +263,8 @@ class DocumentTemplateResource extends Resource
                         ->columns(4)
                         ->bulkToggleable(),
                 ])
-                ->visible(fn (Get $get) =>
-                    $get('template_category') === 'system'
-                    && !empty($get('system_template_key'))
+                ->visible(fn (Get $get) => $get('template_category') === 'system'
+                    && ! empty($get('system_template_key'))
                     && count(self::getColumnsForKey($get('system_template_key'))) > 0
                 ),
 
@@ -324,7 +332,7 @@ class DocumentTemplateResource extends Resource
                         ])
                         ->addActionLabel('+ Adicionar Campo Personalizado')
                         ->collapsible()
-                        ->itemLabel(fn (array $state) => ($state['label'] ?? 'Campo') . ' [' . ($state['type'] ?? 'text') . ']' . (isset($state['key']) ? ' {{custom.' . $state['key'] . '}}' : ''))
+                        ->itemLabel(fn (array $state) => ($state['label'] ?? 'Campo').' ['.($state['type'] ?? 'text').']'.(isset($state['key']) ? ' {{custom.'.$state['key'].'}}' : ''))
                         ->columnSpanFull(),
                 ])
                 ->visible(fn (Get $get) => $get('template_category') === 'custom')
@@ -342,6 +350,7 @@ class DocumentTemplateResource extends Resource
                                     $opts[$var] = "{$label} ({$var})";
                                 }
                             }
+
                             return $opts;
                         })
                         ->columns(3)
@@ -354,17 +363,19 @@ class DocumentTemplateResource extends Resource
 
     private static function getSectionsForKey(?string $key): array
     {
-        if (!$key) {
+        if (! $key) {
             return [];
         }
+
         return DocumentTemplate::getSystemTemplateDefinitions()[$key]['sections'] ?? [];
     }
 
     private static function getColumnsForKey(?string $key): array
     {
-        if (!$key) {
+        if (! $key) {
             return [];
         }
+
         return DocumentTemplate::getSystemTemplateDefinitions()[$key]['columns'] ?? [];
     }
 
@@ -375,14 +386,15 @@ class DocumentTemplateResource extends Resource
         $html .= '<p class="font-bold text-blue-700 dark:text-blue-300 mb-2">��� Variáveis do Sistema disponíveis</p>';
         $html .= '<div class="grid grid-cols-3 gap-1 text-xs">';
         foreach ($groups as $group => $vars) {
-            $html .= '<div class="col-span-3 font-semibold text-blue-600 dark:text-blue-400 mt-2">' . $group . '</div>';
+            $html .= '<div class="col-span-3 font-semibold text-blue-600 dark:text-blue-400 mt-2">'.$group.'</div>';
             foreach ($vars as $var => $label) {
-                $html .= '<div><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">' . e($var) . '</code> ' . e($label) . '</div>';
+                $html .= '<div><code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">'.e($var).'</code> '.e($label).'</div>';
             }
         }
         $html .= '</div>';
         $html .= '<p class="text-xs text-blue-500 mt-3 font-medium">Para campos personalizados use: <code>{{custom.chave_do_campo}}</code></p>';
         $html .= '</div>';
+
         return $html;
     }
 
@@ -432,11 +444,11 @@ class DocumentTemplateResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn ($state) => DocumentTemplate::TYPES[$state] ?? $state)
                     ->color(fn ($state) => match ($state) {
-                        'contract'      => 'primary',
-                        'declaration'   => 'info',
-                        'receipt'       => 'success',
+                        'contract' => 'primary',
+                        'declaration' => 'info',
+                        'receipt' => 'success',
                         'authorization' => 'warning',
-                        default         => 'gray',
+                        default => 'gray',
                     }),
 
                 Tables\Columns\TextColumn::make('system_template_key')
@@ -495,7 +507,7 @@ class DocumentTemplateResource extends Resource
                     ->requiresConfirmation()
                     ->hidden(fn ($record) => $record->trashed())
                     ->action(function ($record) {
-                        if (!$record->is_active) {
+                        if (! $record->is_active) {
                             // Deactivate others with same key when activating
                             if ($record->system_template_key) {
                                 DocumentTemplate::where('system_template_key', $record->system_template_key)
@@ -506,7 +518,7 @@ class DocumentTemplateResource extends Resource
                                     ->update(['is_active' => false]);
                             }
                         }
-                        $record->update(['is_active' => !$record->is_active]);
+                        $record->update(['is_active' => ! $record->is_active]);
                     }),
 
                 Tables\Actions\Action::make('preview')
@@ -516,8 +528,8 @@ class DocumentTemplateResource extends Resource
                     ->modalHeading('Pré-visualização do Modelo')
                     ->modalContent(fn ($record) => new HtmlString(
                         '<div style="font-family:Arial,sans-serif;font-size:13px;padding:20px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;color:#1f2937;">'
-                        . ($record->content ?: '<p style="color:#9ca3af;"><em>Este modelo não possui conteúdo de editor (é um PDF do Sistema configurável).</em></p>')
-                        . '</div>'
+                        .($record->content ?: '<p style="color:#9ca3af;"><em>Este modelo não possui conteúdo de editor (é um PDF do Sistema configurável).</em></p>')
+                        .'</div>'
                     ))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
@@ -529,7 +541,7 @@ class DocumentTemplateResource extends Resource
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $new = $record->replicate();
-                        $new->name = $record->name . ' (Cópia)';
+                        $new->name = $record->name.' (Cópia)';
                         $new->created_by = auth()->id();
                         $new->is_active = false;
                         $new->save();
@@ -559,10 +571,10 @@ class DocumentTemplateResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListDocumentTemplates::route('/'),
+            'index' => Pages\ListDocumentTemplates::route('/'),
             'create' => Pages\CreateDocumentTemplate::route('/create'),
-            'view'   => Pages\ViewDocumentTemplate::route('/{record}'),
-            'edit'   => Pages\EditDocumentTemplate::route('/{record}/edit'),
+            'view' => Pages\ViewDocumentTemplate::route('/{record}'),
+            'edit' => Pages\EditDocumentTemplate::route('/{record}/edit'),
         ];
     }
 

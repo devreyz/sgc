@@ -2,8 +2,9 @@
 
 namespace App\Policies;
 
-use App\Models\User;
+use App\Enums\ExpenseStatus;
 use App\Models\Expense;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class ExpensePolicy
@@ -47,7 +48,9 @@ class ExpensePolicy
      */
     public function delete(User $user, Expense $expense): bool
     {
-        return $user->can('delete_expense');
+        return $expense->status === ExpenseStatus::PENDING
+            && (float) $expense->paid_amount === 0.0
+            && $user->can('delete_expense');
     }
 
     /**
@@ -55,7 +58,7 @@ class ExpensePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_expense');
+        return false;
     }
 
     /**
@@ -63,7 +66,7 @@ class ExpensePolicy
      */
     public function forceDelete(User $user, Expense $expense): bool
     {
-        return $user->can('force_delete_expense');
+        return false;
     }
 
     /**
@@ -71,7 +74,7 @@ class ExpensePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_expense');
+        return false;
     }
 
     /**

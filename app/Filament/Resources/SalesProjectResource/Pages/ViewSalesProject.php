@@ -5,22 +5,35 @@ namespace App\Filament\Resources\SalesProjectResource\Pages;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
+use App\Exports\DeliveriesExport;
 use App\Filament\Resources\SalesProjectResource;
+use App\Models\Associate;
 use App\Models\AssociateReceipt;
+use App\Models\Customer;
+use App\Models\DocumentTemplate;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Models\Tenant;
+use App\Services\AssociateReceiptService;
+use App\Services\ReceiptDataBuilder;
+use App\Services\ReceiptFeeColumnService;
 use App\Services\StockService;
+use App\Services\SystemPdfConfigurationResolver;
 use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
+use Filament\Support\Enums\FontWeight;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ViewSalesProject extends ViewRecord
 {
@@ -59,7 +72,7 @@ class ViewSalesProject extends ViewRecord
                     }
 
                     $record->update([
-                        'status'           => ProjectStatus::DELIVERIES_CLOSED,
+                        'status' => ProjectStatus::DELIVERIES_CLOSED,
                         'completion_notes' => $data['completion_notes'] ?? null,
                     ]);
 
@@ -167,7 +180,7 @@ class ViewSalesProject extends ViewRecord
 
                     $customerId = (int) ($data['customer_id'] ?? 0);
                     $customerName = $customerId
-                        ? (\App\Models\Customer::find($customerId)?->name ?? "Cliente #{$customerId}")
+                        ? (Customer::find($customerId)?->name ?? "Cliente #{$customerId}")
                         : 'Cliente';
 
                     try {
@@ -229,7 +242,7 @@ class ViewSalesProject extends ViewRecord
                 ->modalDescription('Deseja reabrir o projeto para receber novas entregas dos associados?')
                 ->action(function (SalesProject $record) {
                     $record->update([
-                        'status'       => ProjectStatus::ACTIVE,
+                        'status' => ProjectStatus::ACTIVE,
                         'completed_at' => null,
                     ]);
 
@@ -256,7 +269,7 @@ class ViewSalesProject extends ViewRecord
                 ->modalDescription('Marcar este projeto como concluído definitivamente? Ele poderá ser reaberto se necessário.')
                 ->action(function (SalesProject $record) {
                     $record->update([
-                        'status'       => ProjectStatus::COMPLETED,
+                        'status' => ProjectStatus::COMPLETED,
                         'completed_at' => now(),
                     ]);
 
@@ -331,10 +344,10 @@ class ViewSalesProject extends ViewRecord
                     ])
                     ->action(function (SalesProject $record, array $data) {
                         $demands = $record->demands()->with('product')->get();
-                        $associates = \App\Models\Associate::with('user')->get();
+                        $associates = Associate::with('user')->get();
                         $tmplCfg = $this->getTemplateConfig('folha_campo', ['paper_orientation' => 'portrait']);
 
-                        $svc = app(\App\Services\TemplatedPdfService::class);
+                        $svc = app(TemplatedPdfService::class);
                         $pdf = $svc->generateSystemPdf('pdf.folha-campo', [
                             'project' => $record,
                             'demands' => $demands,
@@ -342,7 +355,7 @@ class ViewSalesProject extends ViewRecord
                             'date' => now()->format('d/m/Y'),
                             'date_from' => $data['date_from'] ?? null,
                             'date_to' => $data['date_to'] ?? null,
-                            'tenant' => \App\Models\Tenant::find(session('tenant_id')),
+                            'tenant' => Tenant::find(session('tenant_id')),
                             'visible_sections' => $tmplCfg['visible_sections'],
                             'visible_columns' => $tmplCfg['visible_columns'],
                         ], [
@@ -374,11 +387,11 @@ class ViewSalesProject extends ViewRecord
                             ->placeholder('Sem filtro'),
                         Forms\Components\Select::make('associate_id')
                             ->label('Associado (opcional)')
-                            ->options(fn (SalesProject $record) => \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                            ->options(fn (SalesProject $record) => Associate::where('tenant_id', session('tenant_id'))
                                 ->whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
                                 ->with('user')
                                 ->get()
-                                ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name])
+                                ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
                             )
                             ->searchable()
                             ->placeholder('Todos'),
@@ -399,7 +412,7 @@ class ViewSalesProject extends ViewRecord
                             ->placeholder('Sem filtro'),
                         Forms\Components\Select::make('product_id')
                             ->label('Produto (opcional)')
-                            ->options(fn (SalesProject $record) => \App\Models\Product::whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
+                            ->options(fn (SalesProject $record) => Product::whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
                                 ->pluck('name', 'id')
                             )
                             ->searchable()
@@ -413,7 +426,7 @@ class ViewSalesProject extends ViewRecord
                     ->color('warning')
                     ->modalWidth('xl')
                     ->form(function (SalesProject $record): array {
-                        $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                        $associates = Associate::where('tenant_id', session('tenant_id'))
                             ->whereHas('productionDeliveries', fn ($q) => $q
                                 ->where('sales_project_id', $record->id)
                                 ->whereNotNull('parent_delivery_id')
@@ -421,7 +434,7 @@ class ViewSalesProject extends ViewRecord
                             )
                             ->with('user')
                             ->get()
-                            ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name]);
+                            ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name]);
 
                         return [
                             Forms\Components\Select::make('associate_id')
@@ -446,7 +459,7 @@ class ViewSalesProject extends ViewRecord
                             Forms\Components\CheckboxList::make('visible_columns')
                                 ->label('Colunas da tabela')
                                 ->options(function (SalesProject $record): array {
-                                    $service = app(\App\Services\ReceiptFeeColumnService::class);
+                                    $service = app(ReceiptFeeColumnService::class);
 
                                     return [
                                         'delivery_date' => 'Data da entrega',
@@ -458,7 +471,7 @@ class ViewSalesProject extends ViewRecord
                                 })
                                 ->default(fn (SalesProject $record): array => is_array($record->associate_receipt_columns)
                                     ? $record->associate_receipt_columns
-                                    : \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS)
+                                    : ReceiptFeeColumnService::DEFAULT_COLUMNS)
                                 ->columns(2)
                                 ->helperText('Produto e quantidade são sempre exibidos. Cliente é ocultado automaticamente quando o projeto possui apenas um cliente padrão.'),
                             Forms\Components\Select::make('table_scale')
@@ -483,7 +496,7 @@ class ViewSalesProject extends ViewRecord
                     ->color('gray')
                     ->modalWidth('xl')
                     ->form(function (SalesProject $record): array {
-                        $associates = \App\Models\Associate::where('tenant_id', session('tenant_id'))
+                        $associates = Associate::where('tenant_id', session('tenant_id'))
                             ->whereHas('productionDeliveries', fn ($q) => $q
                                 ->where('sales_project_id', $record->id)
                                 ->whereNotNull('parent_delivery_id')
@@ -491,7 +504,7 @@ class ViewSalesProject extends ViewRecord
                             )
                             ->with('user')
                             ->get()
-                            ->mapWithKeys(fn (\App\Models\Associate $associate) => [$associate->id => $associate->display_name]);
+                            ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name]);
 
                         return [
                             Forms\Components\Select::make('associate_id')
@@ -568,8 +581,8 @@ class ViewSalesProject extends ViewRecord
                         return $this->exportDeliveriesPdf($record, $data['columns'], $data);
                     }
 
-                    return \Maatwebsite\Excel\Facades\Excel::download(
-                        new \App\Exports\DeliveriesExport($data['columns'], $record->id),
+                    return Excel::download(
+                        new DeliveriesExport($data['columns'], $record->id),
                         'entregas-projeto-'.$record->id.'.xlsx'
                     );
                 }),
@@ -582,7 +595,7 @@ class ViewSalesProject extends ViewRecord
     protected function generateProjectReportByAssociate(SalesProject $record, array $filters = []): mixed
     {
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
         $query = $record->deliveries()
             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
@@ -645,7 +658,7 @@ class ViewSalesProject extends ViewRecord
 
         $tmplCfg = $this->getTemplateConfig('deliveries_associate', ['paper_orientation' => 'landscape']);
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Associado',
@@ -653,8 +666,8 @@ class ViewSalesProject extends ViewRecord
             'generated_at' => now()->format('d/m/Y H:i'),
             'filters' => [
                 'project' => $record->title,
-                'date_from' => ! empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => ! empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+                'date_from' => ! empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => ! empty($filters['date_to']) ? Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
             ],
             'groups' => $groups,
             'totals' => $totals,
@@ -680,7 +693,7 @@ class ViewSalesProject extends ViewRecord
     protected function generateProjectReportByProduct(SalesProject $record, array $filters = []): mixed
     {
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
         $query = $record->deliveries()
             ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
@@ -744,7 +757,7 @@ class ViewSalesProject extends ViewRecord
 
         $tmplCfg = $this->getTemplateConfig('deliveries_product', ['paper_orientation' => 'landscape']);
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
             'tenant' => $tenant,
             'title' => 'Relatório de Entregas por Produto',
@@ -752,8 +765,8 @@ class ViewSalesProject extends ViewRecord
             'generated_at' => now()->format('d/m/Y H:i'),
             'filters' => [
                 'project' => $record->title,
-                'date_from' => ! empty($filters['date_from']) ? \Carbon\Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => ! empty($filters['date_to']) ? \Carbon\Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
+                'date_from' => ! empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
+                'date_to' => ! empty($filters['date_to']) ? Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
             ],
             'groups' => $groups,
             'totals' => $totals,
@@ -779,9 +792,9 @@ class ViewSalesProject extends ViewRecord
     protected function generateProjectAssociateReceipt(SalesProject $record, int $associateId, array $formData = []): mixed
     {
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-        $associate = \App\Models\Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
 
         // Buscar SOMENTE distribuições (parent_delivery_id NOT NULL) aprovadas do associado
         $query = $record->deliveries()
@@ -826,22 +839,22 @@ class ViewSalesProject extends ViewRecord
         ]);
 
         // Congelar snapshot financeiro e vincular distribuições ao comprovante
-        app(\App\Services\AssociateReceiptService::class)
+        app(AssociateReceiptService::class)
             ->freezeReceipt($receipt, $distributions, $record);
 
         $receipt->refresh();
-        $receiptData = \App\Services\ReceiptDataBuilder::fromDeliveries(
+        $receiptData = ReceiptDataBuilder::fromDeliveries(
             $distributions,
             null,
             $record,
             $receipt->fee_snapshot,
         );
-        $feeColumnService = app(\App\Services\ReceiptFeeColumnService::class);
+        $feeColumnService = app(ReceiptFeeColumnService::class);
         $feeColumns = $feeColumnService->definitions($record, 'associate', $receipt->fee_snapshot);
         $visibleColumns = $feeColumnService->sanitize(
-            $formData['visible_columns'] ?? \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS,
+            $formData['visible_columns'] ?? ReceiptFeeColumnService::DEFAULT_COLUMNS,
             $feeColumns,
-            \App\Services\ReceiptFeeColumnService::STATIC_COLUMNS,
+            ReceiptFeeColumnService::STATIC_COLUMNS,
         );
         $tableScale = in_array((int) ($formData['table_scale'] ?? 100), [70, 80, 90, 100], true)
             ? (int) $formData['table_scale']
@@ -851,7 +864,7 @@ class ViewSalesProject extends ViewRecord
             'associate_receipt_table_scale' => $tableScale,
         ])->save();
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $tenant,
             'project' => $record,
@@ -871,7 +884,7 @@ class ViewSalesProject extends ViewRecord
             'title' => 'Comprovante de Entrega',
         ]);
 
-        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -882,9 +895,9 @@ class ViewSalesProject extends ViewRecord
     protected function generateAssociatePaymentStatement(SalesProject $record, int $associateId, array $formData = []): mixed
     {
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-        $associate = \App\Models\Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
+        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
 
         $query = $record->deliveries()
             ->where('associate_id', $associateId)
@@ -928,12 +941,12 @@ class ViewSalesProject extends ViewRecord
         ]);
 
         // Congelar snapshot financeiro e vincular distribuições ao comprovante
-        app(\App\Services\AssociateReceiptService::class)
+        app(AssociateReceiptService::class)
             ->freezeReceipt($receipt, $distributions, $record);
 
         $totalNet = $distributions->sum('net_value');
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.associate-payment-statement', [
             'tenant' => $tenant,
             'project' => $record,
@@ -950,7 +963,7 @@ class ViewSalesProject extends ViewRecord
             'title' => 'Comprovante de Distribuições — 2 Vias',
         ]);
 
-        $safeName = \Illuminate\Support\Str::slug($associate->display_name ?? 'associado');
+        $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
         return Response::streamDownload(function () use ($pdf) {
@@ -1004,9 +1017,9 @@ class ViewSalesProject extends ViewRecord
         ]);
 
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.project-final-report-v2', [
             'tenant' => $tenant,
             'title' => 'Relatório Final do Projeto',
@@ -1028,21 +1041,26 @@ class ViewSalesProject extends ViewRecord
      */
     protected function getTemplateConfig(string $systemKey, array $defaults = []): array
     {
-        $tmpl = TemplatedPdfService::getActiveSystemTemplate($systemKey);
-        if ($tmpl) {
-            $def = $tmpl->getSystemDefinition();
-            $resolved = app(TemplatedPdfService::class)->getSystemTemplateConfig($tmpl);
+        $definition = DocumentTemplate::getSystemTemplateDefinitions()[$systemKey] ?? null;
+        if ($definition) {
+            $resolved = app(SystemPdfConfigurationResolver::class)->resolve(
+                $definition['blade_view'],
+                (int) $this->record->tenant_id,
+                $this->record->type,
+            );
 
-            return [
-                'visible_sections' => $resolved['visible_sections'] ?? ($def['default_sections'] ?? array_keys($def['sections'] ?? [])),
-                'visible_columns' => $resolved['visible_columns'] ?? ($def['default_columns'] ?? array_keys($def['columns'] ?? [])),
-                'paper_size' => $tmpl->paper_size ?? ($defaults['paper_size'] ?? 'a4'),
-                'paper_orientation' => $tmpl->paper_orientation ?? ($def['paper_orientation'] ?? ($defaults['paper_orientation'] ?? 'portrait')),
-            'primary_color' => '#374151',
-            'accent_color' => '#64786f',
-                'header_layout_id' => null,
-                'footer_layout_id' => null,
-            ];
+            if (! empty($resolved)) {
+                return [
+                    'visible_sections' => $resolved['visible_sections'],
+                    'visible_columns' => $resolved['visible_columns'],
+                    'paper_size' => $resolved['paper'],
+                    'paper_orientation' => $resolved['orientation'],
+                    'primary_color' => $resolved['primary_color'],
+                    'accent_color' => $resolved['accent_color'],
+                    'header_layout_id' => $resolved['header_layout_id'],
+                    'footer_layout_id' => $resolved['footer_layout_id'],
+                ];
+            }
         }
 
         return array_merge([
@@ -1074,11 +1092,12 @@ class ViewSalesProject extends ViewRecord
         $deliveries = $query->get();
 
         $tenantId = session('tenant_id');
-        $tenant = $tenantId ? \App\Models\Tenant::find($tenantId) : null;
+        $tenant = $tenantId ? Tenant::find($tenantId) : null;
 
-        $svc = app(\App\Services\TemplatedPdfService::class);
+        $svc = app(TemplatedPdfService::class);
         $pdf = $svc->generateSystemPdf('pdf.deliveries-report-v2', [
             'tenant' => $tenant,
+            'project' => $record,
             'deliveries' => $deliveries,
             'columns' => $columns,
             'title' => 'Entregas - '.$record->title,
@@ -1237,7 +1256,7 @@ class ViewSalesProject extends ViewRecord
                             ->icon('heroicon-o-printer')
                             ->color('gray')
                             ->url(fn (SalesProject $record) => route('delivery.projects.producers', [
-                                'tenant' => session('tenant_slug') ?? \App\Models\Tenant::find(session('tenant_id'))?->slug,
+                                'tenant' => session('tenant_slug') ?? Tenant::find(session('tenant_id'))?->slug,
                                 'project' => $record->id,
                             ]))
                             ->openUrlInNewTab(),
@@ -1273,7 +1292,7 @@ class ViewSalesProject extends ViewRecord
                                     ->schema([
                                         Infolists\Components\TextEntry::make('name')
                                             ->label('Produtor')
-                                            ->weight(\Filament\Support\Enums\FontWeight::Bold),
+                                            ->weight(FontWeight::Bold),
                                         Infolists\Components\TextEntry::make('cpf')
                                             ->label('CPF'),
                                         Infolists\Components\TextEntry::make('registration')

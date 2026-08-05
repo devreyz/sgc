@@ -196,6 +196,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/receipts/{financialReceipt}/print', [FinancialPortalController::class, 'print'])->name('receipts.print');
         Route::get('/management/{module}', [FinanceManagementController::class, 'index'])->name('management.index');
         Route::get('/management/{module}/data', [FinanceManagementController::class, 'data'])->name('management.data');
+        Route::get('/management/{module}/{record}', [FinanceManagementController::class, 'show'])->whereNumber('record')->name('management.show');
+        Route::get('/management/{module}/{record}/print', [FinanceManagementController::class, 'print'])->whereNumber('record')->name('management.print');
         Route::post('/management/{module}/data', [FinanceManagementController::class, 'store'])->middleware('throttle:30,1')->name('management.store');
         Route::put('/management/{module}/data/{record}', [FinanceManagementController::class, 'update'])->middleware('throttle:30,1')->name('management.update');
         Route::delete('/management/{module}/data/{record}', [FinanceManagementController::class, 'destroy'])->middleware('throttle:20,1')->name('management.destroy');

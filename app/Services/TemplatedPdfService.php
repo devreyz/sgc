@@ -4,8 +4,11 @@ namespace App\Services;
 
 use App\Models\DocumentTemplate;
 use App\Models\PdfLayoutTemplate;
+use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPDF;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\View;
 
 /**
  * Service responsible for generating PDFs from DocumentTemplate models.
@@ -18,6 +21,7 @@ class TemplatedPdfService
     public function __construct(
         DocumentGeneratorService $varService,
         private readonly NumberInWordsService $numberInWords,
+        private readonly SystemPdfConfigurationResolver $systemPdfConfiguration,
     ) {
         $this->varService = $varService;
     }
@@ -33,7 +37,7 @@ class TemplatedPdfService
         array $customVars = [],
         array $contextVars = []
     ): DomPDF {
-        $tenant = session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null;
+        $tenant = session('tenant_id') ? Tenant::find(session('tenant_id')) : null;
         $themeColors = $this->resolveThemeColors($template, $tenant);
 
         // Resolve system variables from Tenant data
@@ -48,7 +52,7 @@ class TemplatedPdfService
 
         // Add document-level variables (resolved from the template itself)
         $allVars['{{documento.titulo}}'] = $template->name;
-        $allVars['{{documento.tipo}}'] = \App\Models\DocumentTemplate::TYPES[$template->type ?? ''] ?? ($template->type ?? '');
+        $allVars['{{documento.tipo}}'] = DocumentTemplate::TYPES[$template->type ?? ''] ?? ($template->type ?? '');
 
         // Replace variables in content (HTML-typed vars like logo_img are not escaped)
         $content = $this->applyVars($template->content ?? '', $allVars);
@@ -148,7 +152,7 @@ class TemplatedPdfService
         DocumentTemplate $template,
         string $title,
         array $themeColors = [],
-        ?\App\Models\Tenant $tenant = null,
+        ?Tenant $tenant = null,
         array $allVars = []
     ): string {
         $primaryColor = $themeColors['primary'] ?? '#1e40af';
@@ -284,7 +288,7 @@ HTML;
         string $accentColor,
         string $type = 'header',
         array $allVars = [],
-        ?\App\Models\Tenant $tenant = null
+        ?Tenant $tenant = null
     ): string {
         if ($layoutId) {
             $layout = PdfLayoutTemplate::find($layoutId);
@@ -298,7 +302,7 @@ HTML;
 
         // Default minimal header/footer fallback
         if (! $tenant) {
-            $tenant = session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null;
+            $tenant = session('tenant_id') ? Tenant::find(session('tenant_id')) : null;
         }
 
         $orgName = $tenant?->name ?? config('app.name', 'SGC');
@@ -368,19 +372,40 @@ HTML;
      *                          'accent_color'     => string,
      *                          ]
      */
-    public function generateSystemPdf(string $view, array $viewData, array $options = []): \Barryvdh\DomPDF\PDF
+    public function generateSystemPdf(string $view, array $viewData, array $options = []): DomPDF
     {
-        $tenant = $options['tenant'] ?? (session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null);
+        $tenant = $options['tenant'] ?? $viewData['tenant'] ?? null;
+        $tenantId = (int) ($tenant?->id ?? session('tenant_id'));
+        $projectType = $options['project_type'] ?? data_get($viewData, 'project.type');
+        $configured = $tenantId > 0
+            ? $this->systemPdfConfiguration->resolve($view, $tenantId, $projectType)
+            : [];
 
-        $primaryColor = '#374151';
-        $accentColor = '#64786f';
-        $paper = $options['paper'] ?? 'a4';
-        $orientation = $options['orientation'] ?? 'portrait';
+        // The active system template is authoritative. Call-site options may
+        // still provide a title, but cannot silently replace persisted layout.
+        $tenant = $configured['tenant'] ?? $tenant;
+        $primaryColor = $configured['primary_color'] ?? '#374151';
+        $accentColor = $configured['accent_color'] ?? '#64786f';
+        $paper = $configured['paper'] ?? ($options['paper'] ?? 'a4');
+        $orientation = $configured['orientation'] ?? ($options['orientation'] ?? 'portrait');
         $title = $options['title'] ?? '';
-        // Operational PDFs use one predictable visual identity. Free-form
-        // layouts remain available only to custom documents.
-        $headerLayoutId = null;
-        $footerLayoutId = null;
+        $headerLayoutId = $configured['header_layout_id'] ?? null;
+        $footerLayoutId = $configured['footer_layout_id'] ?? null;
+
+        if (! empty($configured)) {
+            $authoritative = (bool) ($configured['has_template'] ?? false);
+            if ($authoritative || ! array_key_exists('visible_sections', $viewData)) {
+                $viewData['visible_sections'] = $configured['visible_sections'];
+            }
+            if ($authoritative || (! array_key_exists('visible_columns', $viewData) && ! array_key_exists('visibleColumns', $viewData))) {
+                $viewData['visible_columns'] = $configured['visible_columns'];
+            }
+            // Older receipt views used camelCase. Keep the alias at this one boundary.
+            $viewData['visibleColumns'] = $viewData['visible_columns'] ?? $viewData['visibleColumns'] ?? [];
+            if ($authoritative || ! array_key_exists('table_scale', $viewData)) {
+                $viewData['table_scale'] = $configured['table_scale'];
+            }
+        }
 
         // When NO custom layout is configured, preserve the blade view's own
         // internal header/footer exactly as they were before this feature was added.
@@ -400,7 +425,7 @@ HTML;
         $allVars['{{documento.tipo}}'] = $title;
 
         // Render blade view with suppress flags so it hides its own header/footer
-        $bladeHtml = \Illuminate\Support\Facades\View::make($view, array_merge($viewData, [
+        $bladeHtml = View::make($view, array_merge($viewData, [
             'suppress_internal_header' => true,
             'suppress_internal_footer' => true,
         ]))->render();
@@ -535,42 +560,18 @@ HTMLDOC;
         string $title = '',
         ?string $projectType = null,
         ?int $tenantId = null,
-    ): array
-    {
+    ): array {
         $tenantId ??= (int) session('tenant_id') ?: null;
-        $definition = DocumentTemplate::systemDefinitionForView($view);
-
-        if (! $definition || ! $tenantId) {
+        if (! $tenantId) {
             return ['title' => $title];
         }
 
-        $templates = \App\Models\DocumentTemplate::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->where('is_active', true)
-            ->where('template_category', 'system')
-            ->where('system_template_key', $definition['key'])
-            ->get();
+        $resolved = $this->systemPdfConfiguration->resolve($view, $tenantId, $projectType);
 
-        // A project-specific configuration overrides the tenant default. Never
-        // pick an arbitrary variation when no project type was supplied.
-        $template = $projectType
-            ? $templates->firstWhere('project_type', $projectType)
-            : null;
-        $template ??= $templates->firstWhere('project_type', null);
-
-        if (! $template) {
-            return ['title' => $title];
-        }
-
-        $tenant = \App\Models\Tenant::find($tenantId);
-        return [
-            'paper' => $template->paper_size ?? 'a4',
-            'orientation' => $template->paper_orientation ?? 'portrait',
-            'title' => $title ?: $template->name,
-            'primary_color' => '#374151',
-            'accent_color' => '#64786f',
-            'tenant' => $tenant,
-        ];
+        return array_merge($resolved, [
+            'title' => $title ?: ($resolved['template']?->name ?? ''),
+            'project_type' => $projectType,
+        ]);
     }
 
     /**
@@ -598,12 +599,12 @@ HTMLDOC;
      *
      * @param  array  $contextVars  May contain {{financeiro.*}} passed externally
      */
-    public function resolveSystemVariables(?\App\Models\Tenant $tenant = null, array $contextVars = []): array
+    public function resolveSystemVariables(?Tenant $tenant = null, array $contextVars = []): array
     {
         $now = now();
 
         if (! $tenant) {
-            $tenant = session('tenant_id') ? \App\Models\Tenant::find(session('tenant_id')) : null;
+            $tenant = session('tenant_id') ? Tenant::find(session('tenant_id')) : null;
         }
 
         $address = '';
@@ -722,7 +723,7 @@ HTMLDOC;
     private function dateInWords(mixed $value): string
     {
         if ($value instanceof \DateTimeInterface) {
-            return \Illuminate\Support\Carbon::instance($value)
+            return Carbon::instance($value)
                 ->translatedFormat('d \\d\\e F \\d\\e Y');
         }
 
@@ -732,8 +733,8 @@ HTMLDOC;
 
         try {
             $date = str_contains($value, '/')
-                ? \Illuminate\Support\Carbon::createFromFormat('d/m/Y', $value)
-                : \Illuminate\Support\Carbon::parse($value);
+                ? Carbon::createFromFormat('d/m/Y', $value)
+                : Carbon::parse($value);
 
             return $date->translatedFormat('d \\d\\e F \\d\\e Y');
         } catch (\Throwable) {
@@ -778,8 +779,8 @@ HTMLDOC;
             'visible_columns' => $configuredColumns,
             'paper_size' => $template->paper_size ?? 'a4',
             'paper_orientation' => $template->paper_orientation ?? ($def['paper_orientation'] ?? 'portrait'),
-            'header_layout_id' => null,
-            'footer_layout_id' => null,
+            'header_layout_id' => $template->header_layout_id,
+            'footer_layout_id' => $template->footer_layout_id,
             'cover_layout_id' => null,
             'back_cover_layout_id' => null,
         ];
@@ -788,9 +789,9 @@ HTMLDOC;
     /**
      * Resolve theme colors from DocumentTemplate color_theme.
      */
-    public function resolveThemeColors(DocumentTemplate $template, ?\App\Models\Tenant $tenant = null): array
+    public function resolveThemeColors(DocumentTemplate $template, ?Tenant $tenant = null): array
     {
-        return \App\Models\DocumentTemplate::getThemeColors(
+        return DocumentTemplate::getThemeColors(
             $template->color_theme ?? 'org',
             $tenant?->primary_color,
             $tenant?->accent_color
@@ -800,11 +801,20 @@ HTMLDOC;
     /**
      * Get the active system template for a given key (tenant-scoped).
      */
-    public static function getActiveSystemTemplate(string $key): ?DocumentTemplate
+    public static function getActiveSystemTemplate(string $key, ?int $tenantId = null, ?string $projectType = null): ?DocumentTemplate
     {
-        return DocumentTemplate::where('system_template_key', $key)
+        $tenantId ??= (int) session('tenant_id') ?: null;
+        if (! $tenantId) {
+            return null;
+        }
+
+        $base = DocumentTemplate::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('system_template_key', $key)
             ->where('template_category', 'system')
-            ->where('is_active', true)
-            ->first();
+            ->where('is_active', true);
+
+        return ($projectType ? (clone $base)->where('project_type', $projectType)->latest('id')->first() : null)
+            ?? $base->whereNull('project_type')->latest('id')->first();
     }
 }

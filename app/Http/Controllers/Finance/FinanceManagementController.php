@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Finance;
 use App\Http\Controllers\Controller;
 use App\Models\BankAccount;
 use App\Models\Tenant;
+use App\Services\TemplatedPdfService;
 use App\Support\FinanceModuleRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -46,9 +47,11 @@ class FinanceManagementController extends Controller
             'data' => collect($page->items())->map(fn (Model $record) => $this->serialize($record, $columns)),
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()],
             'abilities' => [
-                'create' => $config['writable'] && $request->user()->can('create_'.$config['permission']),
-                'update' => $config['writable'] && $request->user()->can('update_'.$config['permission']),
-                'delete' => $config['writable'] && $request->user()->can('delete_'.$config['permission']),
+                'create' => $config['creatable'] && $request->user()->can('create_'.$config['permission']),
+                'update' => $config['updatable'] && $request->user()->can('update_'.$config['permission']),
+                'delete' => $config['deletable'] && $request->user()->can('delete_'.$config['permission']),
+                'view' => $config['viewable'],
+                'print' => $config['printable'],
             ],
         ]);
     }
@@ -56,7 +59,7 @@ class FinanceManagementController extends Controller
     public function store(Request $request, Tenant $tenant, string $module): JsonResponse
     {
         $config = $this->authorizeModule($request, $tenant, $module, 'create');
-        abort_unless($config['writable'], 405);
+        abort_unless($config['creatable'], 405);
         $data = $request->validate(Arr::map($config['fields'], fn ($field) => $field['rules']));
         $model = $config['model'];
         try {
@@ -86,11 +89,14 @@ class FinanceManagementController extends Controller
     public function update(Request $request, Tenant $tenant, string $module, int $record): JsonResponse
     {
         $config = $this->authorizeModule($request, $tenant, $module, 'update');
-        abort_unless($config['writable'], 405);
+        abort_unless($config['updatable'], 405);
         $model = $this->record($config, $tenant, $record);
         $data = $request->validate(Arr::map($config['fields'], fn ($field) => $field['rules']));
         try {
             DB::transaction(function () use ($model, $data, $tenant): void {
+                if ($model instanceof BankAccount) {
+                    unset($data['initial_balance']);
+                }
                 $model->fill($data);
                 if ($model instanceof BankAccount && $model->is_default) {
                     BankAccount::query()->where('tenant_id', $tenant->id)->whereKeyNot($model->id)->update(['is_default' => false]);
@@ -107,7 +113,7 @@ class FinanceManagementController extends Controller
     public function destroy(Request $request, Tenant $tenant, string $module, int $record): JsonResponse
     {
         $config = $this->authorizeModule($request, $tenant, $module, 'delete');
-        abort_unless($config['writable'], 405);
+        abort_unless($config['deletable'], 405, 'Este cadastro deve ser desativado ou cancelado para preservar o historico.');
         $model = $this->record($config, $tenant, $record);
         try {
             DB::transaction(fn () => $model->delete());
@@ -116,6 +122,37 @@ class FinanceManagementController extends Controller
         }
 
         return response()->json(['message' => 'Registro removido.']);
+    }
+
+    public function show(Request $request, Tenant $tenant, string $module, int $record): View
+    {
+        $config = $this->authorizeModule($request, $tenant, $module, 'view');
+        abort_unless($config['viewable'], 404);
+        $model = $this->record($config, $tenant, $record);
+        $columns = array_values(array_unique(array_merge(['id'], $config['detail_columns'])));
+
+        return view('finance.management.show', [
+            'tenant' => $tenant,
+            'module' => $module,
+            'config' => $config,
+            'record' => $this->serialize($model, $columns),
+        ]);
+    }
+
+    public function print(Request $request, Tenant $tenant, string $module, int $record, TemplatedPdfService $pdfService)
+    {
+        $config = $this->authorizeModule($request, $tenant, $module, 'view');
+        abort_unless($config['printable'], 404);
+        $model = $this->record($config, $tenant, $record);
+        $columns = array_values(array_unique(array_merge(['id'], $config['detail_columns'])));
+        $pdf = $pdfService->generateSystemPdf('pdf.finance-record-detail', [
+            'tenant' => $tenant,
+            'title' => $config['label'],
+            'record' => $this->serialize($model, $columns),
+            'labels' => collect($config['fields'])->map(fn ($field) => $field['label'])->all(),
+        ], ['tenant' => $tenant, 'title' => $config['label']]);
+
+        return $pdf->stream(str($config['label'])->slug().'-'.$model->getKey().'.pdf');
     }
 
     private function authorizeModule(Request $request, Tenant $tenant, string $module, string $ability): array

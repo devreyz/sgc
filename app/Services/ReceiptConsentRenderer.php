@@ -21,6 +21,7 @@ class ReceiptConsentRenderer
 
     public function __construct(
         private readonly NumberInWordsService $numberInWords,
+        private readonly SystemPdfConfigurationResolver $systemPdfConfiguration,
     ) {}
 
     public function render(
@@ -34,7 +35,7 @@ class ReceiptConsentRenderer
         ?Organization $organization = null,
         string $position = 'after',
     ): HtmlString {
-        $template = $this->resolveTemplate($tenant->getKey(), $kind, $project?->type);
+        $template = $this->systemPdfConfiguration->templateForKey($kind, $tenant->getKey(), $project?->type);
 
         if ($template && ! $template->consent_enabled) {
             return new HtmlString('');
@@ -170,24 +171,6 @@ class ReceiptConsentRenderer
                 '{{assinatura.representante}}' => 'Bloco do representante da tenant',
             ],
         ];
-    }
-
-    private function resolveTemplate(int $tenantId, string $kind, ?string $projectType): ?DocumentTemplate
-    {
-        $base = DocumentTemplate::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->where('template_category', 'system')
-            ->where('system_template_key', $kind)
-            ->where('is_active', true);
-
-        if ($projectType) {
-            $exact = (clone $base)->where('project_type', $projectType)->latest('id')->first();
-            if ($exact) {
-                return $exact;
-            }
-        }
-
-        return $base->whereNull('project_type')->latest('id')->first();
     }
 
     private function variables(

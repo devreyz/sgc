@@ -370,7 +370,7 @@ class FinancialReceiptServiceTest extends TestCase
         $this->getJson(route('finance.management.data', ['tenant' => $tenant->slug, 'module' => 'accounts']))
             ->assertForbidden();
 
-        $permissions = collect(['view_any_bank::account', 'create_bank::account', 'update_bank::account', 'delete_bank::account'])
+        $permissions = collect(['view_any_bank::account', 'view_bank::account', 'create_bank::account', 'update_bank::account', 'delete_bank::account'])
             ->map(fn (string $name) => Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']));
         Role::query()->where('name', 'tesoureiro')->firstOrFail()->givePermissionTo($permissions);
         app(PermissionRegistrar::class)->forgetCachedPermissions();
@@ -398,6 +398,12 @@ class FinancialReceiptServiceTest extends TestCase
         ])->assertNotFound();
         $this->getJson(route('finance.management.data', ['tenant' => $other->slug, 'module' => 'accounts']))
             ->assertForbidden();
+        $this->get(route('finance.management.show', ['tenant' => $tenant->slug, 'module' => 'accounts', 'record' => $accountId]))
+            ->assertOk()
+            ->assertSee('Caixa secundario');
+        $this->deleteJson(route('finance.management.destroy', ['tenant' => $tenant->slug, 'module' => 'accounts', 'record' => $accountId]))
+            ->assertStatus(405);
+        $this->assertDatabaseHas('bank_accounts', ['id' => $accountId, 'tenant_id' => $tenant->id]);
     }
 
     private function context(): array

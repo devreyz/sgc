@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\BankAccount;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class BankAccountPolicy
@@ -47,7 +47,7 @@ class BankAccountPolicy
      */
     public function delete(User $user, BankAccount $bankAccount): bool
     {
-        return $user->can('delete_bank::account');
+        return false;
     }
 
     /**
@@ -55,7 +55,7 @@ class BankAccountPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_bank::account');
+        return false;
     }
 
     /**
@@ -63,7 +63,7 @@ class BankAccountPolicy
      */
     public function forceDelete(User $user, BankAccount $bankAccount): bool
     {
-        return $user->can('force_delete_bank::account');
+        return false;
     }
 
     /**
@@ -71,7 +71,7 @@ class BankAccountPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_bank::account');
+        return false;
     }
 
     /**

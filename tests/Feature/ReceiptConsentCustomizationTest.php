@@ -8,6 +8,7 @@ use App\Models\SalesProject;
 use App\Models\SalesProjectType;
 use App\Models\Tenant;
 use App\Services\ReceiptConsentRenderer;
+use App\Services\SystemPdfConfigurationResolver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -54,6 +55,14 @@ class ReceiptConsentCustomizationTest extends TestCase
             $table->longText('consent_content')->nullable();
             $table->boolean('show_recipient_signature')->default(true);
             $table->boolean('show_representative_signature')->default(true);
+            $table->json('visible_sections')->nullable();
+            $table->json('visible_columns')->nullable();
+            $table->string('paper_size')->default('a4');
+            $table->string('paper_orientation')->default('portrait');
+            $table->unsignedTinyInteger('table_scale')->default(100);
+            $table->unsignedBigInteger('header_layout_id')->nullable();
+            $table->unsignedBigInteger('footer_layout_id')->nullable();
+            $table->string('color_theme')->nullable();
             $table->longText('content');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
@@ -96,6 +105,40 @@ class ReceiptConsentCustomizationTest extends TestCase
         $this->assertStringNotContainsString('NAO PODE VAZAR', $html);
         $this->assertStringNotContainsString('<script', $html);
         $this->assertStringNotContainsString('onclick', $html);
+    }
+
+    public function test_system_pdf_configuration_has_one_tenant_and_project_type_aware_precedence(): void
+    {
+        $tenantA = $this->tenant('Cooperativa A', 'pdf-coop-a');
+        $tenantB = $this->tenant('Cooperativa B', 'pdf-coop-b');
+        $generic = $this->template($tenantA, null, 'Padrao');
+        $generic->update([
+            'visible_columns' => ['unit_price'],
+            'paper_orientation' => 'portrait',
+            'table_scale' => 90,
+        ]);
+        $specific = $this->template($tenantA, 'paa', 'PAA');
+        $specific->update([
+            'visible_columns' => ['gross', 'net'],
+            'paper_orientation' => 'landscape',
+            'table_scale' => 70,
+        ]);
+        $this->template($tenantB, 'paa', 'Outro tenant')->update([
+            'visible_columns' => ['unit_price'],
+            'table_scale' => 80,
+        ]);
+
+        $resolver = app(SystemPdfConfigurationResolver::class);
+        $paa = $resolver->resolve('pdf.project-associate-receipt', $tenantA->id, 'paa');
+        $pnae = $resolver->resolve('pdf.project-associate-receipt', $tenantA->id, 'pnae');
+
+        $this->assertSame($specific->id, $paa['template']->id);
+        $this->assertSame(['gross', 'net'], $paa['visible_columns']);
+        $this->assertSame('landscape', $paa['orientation']);
+        $this->assertSame(70, $paa['table_scale']);
+        $this->assertSame($generic->id, $pnae['template']->id);
+        $this->assertSame(['unit_price'], $pnae['visible_columns']);
+        $this->assertSame(90, $pnae['table_scale']);
     }
 
     public function test_generic_template_is_fallback_and_specific_template_can_hide_section(): void
