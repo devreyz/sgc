@@ -806,9 +806,7 @@ class ProductionDeliveryResource extends Resource
                             $paidCount = 0;
                             $total = 0;
                             $tenantId = session('tenant_id');
-                            $year = now()->year;
-
-                            DB::transaction(function () use ($eligible, $data, $tenantId, $year, &$paidCount, &$total) {
+                            DB::transaction(function () use ($eligible, $data, $tenantId, &$paidCount, &$total) {
                                 // Agrupar por associado + projeto para criar um recibo por grupo
                                 $grouped = $eligible->groupBy(fn ($r) => $r->associate_id.'_'.($r->sales_project_id ?? 0));
 
@@ -817,14 +815,16 @@ class ProductionDeliveryResource extends Resource
                                     $associateId = $first->associate_id;
                                     $projectId = $first->sales_project_id;
                                     $deliveryIds = $groupRecords->pluck('id')->toArray();
+                                    $project = SalesProject::query()
+                                        ->where('tenant_id', $tenantId)
+                                        ->findOrFail($projectId);
 
                                     // Criar comprovante de pagamento
                                     AssociateReceipt::create([
                                         'tenant_id' => $tenantId,
                                         'sales_project_id' => $projectId,
                                         'associate_id' => $associateId,
-                                        'receipt_year' => $year,
-                                        'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                                        ...AssociateReceipt::numberingFor($project),
                                         'issued_at' => $data['paid_date'],
                                         'from_date' => $groupRecords->min('delivery_date'),
                                         'to_date' => $groupRecords->max('delivery_date'),

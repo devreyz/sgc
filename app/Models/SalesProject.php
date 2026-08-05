@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProjectStatus;
-use App\Models\AssociateReceipt;
+use App\Services\ProjectReceiptNumberingService;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class SalesProject extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'title',
@@ -27,6 +27,9 @@ class SalesProject extends Model
         'start_date',
         'end_date',
         'reference_year',
+        'receipt_numbering_scope',
+        'receipt_project_reference',
+        'receipt_number_format',
         'total_value',
         'admin_fee_percentage',
         'status',
@@ -94,8 +97,33 @@ class SalesProject extends Model
     public function organizations(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class, 'sales_project_organizations', 'sales_project_id', 'organization_id')
-                    ->withPivot('notes', 'enforce_request_limits')
-                    ->withTimestamps();
+            ->withPivot('notes', 'enforce_request_limits')
+            ->withTimestamps();
+    }
+
+    public function setReceiptNumberFormatAttribute(mixed $value): void
+    {
+        $service = app(ProjectReceiptNumberingService::class);
+        $this->attributes['receipt_number_format'] = $service->validatedFormat($value)
+            ?? (($this->attributes['receipt_numbering_scope'] ?? null) === ProjectReceiptNumberingService::PROJECT_YEAR
+                ? ProjectReceiptNumberingService::DEFAULT_PROJECT_FORMAT
+                : ProjectReceiptNumberingService::DEFAULT_TENANT_FORMAT);
+    }
+
+    public function setReceiptNumberingScopeAttribute(mixed $value): void
+    {
+        $this->attributes['receipt_numbering_scope'] = in_array($value, [
+            ProjectReceiptNumberingService::TENANT_YEAR,
+            ProjectReceiptNumberingService::PROJECT_YEAR,
+        ], true) ? $value : ProjectReceiptNumberingService::TENANT_YEAR;
+    }
+
+    public function setReceiptProjectReferenceAttribute(mixed $value): void
+    {
+        $reference = preg_replace('/[^A-Za-z0-9._\-]/', '', trim((string) $value));
+        $this->attributes['receipt_project_reference'] = $reference !== ''
+            ? mb_substr($reference, 0, 30)
+            : null;
     }
 
     public function driveFolderName(): string
@@ -130,9 +158,10 @@ class SalesProject extends Model
     public function getAllCustomersAttribute()
     {
         $list = $this->customers;
-        if ($this->customer && !$list->contains('id', $this->customer_id)) {
+        if ($this->customer && ! $list->contains('id', $this->customer_id)) {
             $list = $list->prepend($this->customer);
         }
+
         return $list;
     }
 
@@ -180,7 +209,7 @@ class SalesProject extends Model
      */
     public function customerFees(): HasMany
     {
-        return $this->hasMany(\App\Models\CustomerProjectFee::class);
+        return $this->hasMany(CustomerProjectFee::class);
     }
 
     /**
@@ -306,7 +335,7 @@ class SalesProject extends Model
      */
     public function customerBillingReceipts(): HasMany
     {
-        return $this->hasMany(\App\Models\CustomerBillingReceipt::class, 'sales_project_id');
+        return $this->hasMany(CustomerBillingReceipt::class, 'sales_project_id');
     }
 
     /**
@@ -350,11 +379,11 @@ class SalesProject extends Model
     {
         $totalTarget = $this->demands()->sum('target_quantity');
         $totalDelivered = $this->demands()->sum('delivered_quantity');
-        
+
         if ($totalTarget <= 0) {
             return 0;
         }
-        
+
         return min(100, ($totalDelivered / $totalTarget) * 100);
     }
 
@@ -386,6 +415,7 @@ class SalesProject extends Model
     {
         $totalToPay = $this->total_associates_payment;
         $totalPaid = $this->associates_paid_amount ?? 0;
+
         return max(0, $totalToPay - $totalPaid);
     }
 
@@ -396,6 +426,7 @@ class SalesProject extends Model
     {
         $totalFees = $this->total_admin_fees;
         $collected = $this->admin_fee_collected ?? 0;
+
         return max(0, $totalFees - $collected);
     }
 
@@ -408,8 +439,9 @@ class SalesProject extends Model
         if ($totalDeliveries === 0) {
             return false;
         }
-        
+
         $approvedDeliveries = $this->deliveries()->where('status', 'approved')->count();
+
         return $totalDeliveries === $approvedDeliveries;
     }
 
@@ -438,8 +470,9 @@ class SalesProject extends Model
         if ($totalApproved === 0) {
             return false;
         }
-        
+
         $totalPaid = $this->deliveries()->where('paid', true)->count();
+
         return $totalApproved === $totalPaid;
     }
 

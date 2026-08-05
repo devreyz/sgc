@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CustomerReceiptStatus;
+use App\Services\ProjectReceiptNumberingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +17,7 @@ class CustomerBillingReceipt extends Model
         'organization_id',
         'receipt_year',
         'receipt_number',
+        'receipt_label',
         'issued_at',
         'from_date',
         'to_date',
@@ -42,19 +44,19 @@ class CustomerBillingReceipt extends Model
     protected function casts(): array
     {
         return [
-            'issued_at'      => 'date',
-            'from_date'      => 'date',
-            'to_date'        => 'date',
-            'receipt_year'   => 'integer',
+            'issued_at' => 'date',
+            'from_date' => 'date',
+            'to_date' => 'date',
+            'receipt_year' => 'integer',
             'receipt_number' => 'integer',
-            'delivery_ids'   => 'array',
-            'status'         => CustomerReceiptStatus::class,
-            'total_gross'    => 'decimal:4',
-            'total_fees'     => 'decimal:4',
-            'total_net'      => 'decimal:4',
-            'fee_snapshot'   => 'array',
-            'paid_at'        => 'datetime',
-            'amount_paid'    => 'decimal:2',
+            'delivery_ids' => 'array',
+            'status' => CustomerReceiptStatus::class,
+            'total_gross' => 'decimal:4',
+            'total_fees' => 'decimal:4',
+            'total_net' => 'decimal:4',
+            'fee_snapshot' => 'array',
+            'paid_at' => 'datetime',
+            'amount_paid' => 'decimal:2',
         ];
     }
 
@@ -125,13 +127,30 @@ class CustomerBillingReceipt extends Model
     /**
      * Gera o próximo número sequencial de comprovante para um tenant/ano.
      */
-    public static function nextNumber(int $tenantId, int $year): int
+    public static function nextNumber(int $tenantId, int $year, SalesProject|int|null $project = null): int
     {
-        $max = static::where('tenant_id', $tenantId)
-            ->where('receipt_year', $year)
-            ->max('receipt_number');
+        if (is_int($project)) {
+            $project = SalesProject::query()
+                ->where('tenant_id', $tenantId)
+                ->find($project);
+        }
 
-        return ($max ?? 0) + 1;
+        return app(ProjectReceiptNumberingService::class)
+            ->nextNumber(static::class, $tenantId, $year, $project);
+    }
+
+    /** @return array{receipt_year: int, receipt_number: int, receipt_label: string} */
+    public static function numberingFor(SalesProject $project): array
+    {
+        $year = (int) ($project->reference_year ?: now()->year);
+        $number = static::nextNumber((int) $project->tenant_id, $year, $project);
+
+        return [
+            'receipt_year' => $year,
+            'receipt_number' => $number,
+            'receipt_label' => app(ProjectReceiptNumberingService::class)
+                ->format($project, $number, $year, 'COM-'),
+        ];
     }
 
     /**
@@ -139,7 +158,11 @@ class CustomerBillingReceipt extends Model
      */
     public function getFormattedNumberAttribute(): string
     {
-        return 'COM-' . str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT) . '/' . $this->receipt_year;
+        if (filled($this->receipt_label)) {
+            return (string) $this->receipt_label;
+        }
+
+        return 'COM-'.str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT).'/'.$this->receipt_year;
     }
 
     /**
@@ -153,6 +176,7 @@ class CustomerBillingReceipt extends Model
         if ($this->customer_id && $this->customer) {
             return $this->customer->name ?? '—';
         }
+
         return '—';
     }
 

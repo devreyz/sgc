@@ -20,20 +20,17 @@ class CreateAssociateReceipt extends CreateRecord
         $tenantId = session('tenant_id');
         $data['tenant_id'] = $tenantId;
 
-        if (! SalesProject::query()
+        $project = SalesProject::query()
             ->where('tenant_id', $tenantId)
-            ->whereKey((int) ($data['sales_project_id'] ?? 0))
-            ->exists()) {
+            ->find((int) ($data['sales_project_id'] ?? 0));
+
+        if (! $project) {
             throw ValidationException::withMessages([
                 'sales_project_id' => 'Selecione um projeto de venda válido desta organização.',
             ]);
         }
 
-        // Auto-gerar número se não informado
-        if (empty($data['receipt_number'])) {
-            $year = (int) ($data['receipt_year'] ?? now()->year);
-            $data['receipt_number'] = AssociateReceipt::nextNumber($tenantId, $year);
-        }
+        $data = array_merge($data, AssociateReceipt::numberingFor($project));
 
         return $data;
     }

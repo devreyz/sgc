@@ -25,18 +25,17 @@ if ($tenant && ! empty($tenant->logo)) {
 
 $receiptLabel = $receipt->formatted_number ?? '—';
 $issuedAt     = $receipt->issued_at?->format('d/m/Y') ?? now()->format('d/m/Y');
+$pdfSections = $visible_sections ?? ['document_info', 'customer_info', 'project_info', 'deliveries', 'financial', 'signature'];
+$showSection = fn (string $section): bool => in_array($section, $pdfSections, true);
 $primaryColor = '#0a0a0a';
 $lineColor    = '#c0c8d4';
 $textColor    = '#000000';
 
-if (! function_exists('fmtQtyBilling')) {
-    function fmtQtyBilling(float $n): string {
-        if ($n == floor($n)) return number_format((int) $n, 0, ',', '.');
-        if (round($n, 2) == $n) return number_format($n, 2, ',', '.');
-        $str = number_format($n, 4, ',', '.');
-        return rtrim(rtrim($str, '0'), ',');
-    }
-}
+$fmtQtyBilling = static function (float $number): string {
+    if ($number == floor($number)) return number_format((int) $number, 0, ',', '.');
+    if (round($number, 2) == $number) return number_format($number, 2, ',', '.');
+    return rtrim(rtrim(number_format($number, 4, ',', '.'), '0'), ',');
+};
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -120,33 +119,42 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
     <div class="hdr-right">
         <span class="doc-type">Distribuição de Produtos — Cliente</span>
-        <span class="doc-num">Nº {{ $receiptLabel }}</span>
+        @if($showSection('document_info'))
+        <span class="doc-num">Nº Documento: {{ $receiptLabel }}</span>
         @if(!empty($periodLabel))
         <span class="doc-date" style="margin-top:1px;">Período: {{ $periodLabel }}</span>
         @endif
+        @endif
+        @if($showSection('financial'))
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:9px; color:#666; text-transform:uppercase; letter-spacing:0.04em;">Valor Líquido</div>
             <div style="color:#1a5c3a; font-size:14px; font-weight:700; margin-top:4px;">
                 R$ {{ number_format($totalNet, 2, ',', '.') }}
             </div>
         </div>
+        @endif
     </div>
 </div>
 
 {{-- ═══ CLIENTE / PROJETO ═══ --}}
+@if($showSection('customer_info') || $showSection('project_info'))
 <div class="proj-strip">
+    @if($showSection('customer_info'))
     <div class="proj-cell" style="width:50%;">
         <span class="proj-label">Cliente</span>
         <span class="proj-value">{{ $customer?->name ?? '—' }}</span>
     </div>
-    @if($project)
+    @endif
+    @if($project && $showSection('project_info'))
     <div class="proj-cell" style="width:50%;">
         <span class="proj-label">Referente</span>
         <span class="proj-value">{{ $project->title }}</span>
     </div>
     @endif
 </div>
+@endif
 
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::CUSTOMER,
     'consentPosition' => 'before',
@@ -157,6 +165,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'items_count' => count($productRows ?? []),
     ],
 ])
+@endif
 
 @php
     $pdfColumns = $visibleColumns ?? ['unit_price', 'gross'];
@@ -179,6 +188,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 </style>
 
 {{-- ═══ TABELA DE PRODUTOS ═══ --}}
+@if($showSection('deliveries'))
 <div class="sec-label">Entregas por Produto</div>
 <table class="tbl receipt-data-table">
     <thead>
@@ -195,7 +205,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @foreach($productRows as $row)
         <tr>
             <td>{{ $row['product'] }}</td>
-            <td class="r">{{ fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
+            <td class="r">{{ $fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$ {{ number_format($row['gross'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
@@ -219,8 +229,11 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         </tr>
     </tfoot>
 </table>
+@endif
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}
+@if($showSection('financial'))
+<div class="sec-label">Resumo financeiro</div>
 <div class="fin-summary">
     <div class="fin-left">
         <span class="fin-label">Nº do Documento</span>
@@ -279,7 +292,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         @endif
     </div>
 </div>
+@endif
 
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::CUSTOMER,
     'consentPosition' => 'after',
@@ -290,6 +305,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         'items_count' => count($productRows ?? []),
     ],
 ])
+@endif
 
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">

@@ -2,16 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\PaymentMethod;
 use App\Enums\ProjectStatus;
 use App\Filament\Resources\SalesProjectResource\Pages;
 use App\Filament\Resources\SalesProjectResource\RelationManagers;
 use App\Filament\Traits\HasExportActions;
 use App\Filament\Traits\TenantScoped;
 use App\Models\Associate;
+use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\SalesProject;
 use App\Models\SalesProjectType;
+use App\Services\ProjectReceiptNumberingService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -20,6 +21,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\DB;
 
 class SalesProjectResource extends Resource
 {
@@ -118,6 +120,64 @@ class SalesProjectResource extends Resource
                     ])
                     ->columns(2),
 
+                Forms\Components\Section::make('Numeração dos comprovantes')
+                    ->description('Defina uma sequência fácil de identificar. O número gravado em comprovantes emitidos não muda depois.')
+                    ->schema([
+                        Forms\Components\Select::make('receipt_numbering_scope')
+                            ->label('Sequência')
+                            ->options([
+                                'tenant_year' => 'Uma sequência por organização e ano',
+                                'project_year' => 'Uma sequência própria para este projeto',
+                            ])
+                            ->default('tenant_year')
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function (Forms\Set $set, ?string $state): void {
+                                $set('receipt_number_format', $state === 'project_year'
+                                    ? '{prefix}{number}/{year}-{project}'
+                                    : '{prefix}{number}/{year}');
+                            })
+                            ->helperText('No modo por projeto, cada projeto pode iniciar em 0001 no mesmo ano.'),
+
+                        Forms\Components\TextInput::make('receipt_project_reference')
+                            ->label('Identificador do projeto nos comprovantes')
+                            ->placeholder(fn (?SalesProject $record): string => $record ? 'P'.$record->id : 'Ex.: P12')
+                            ->maxLength(30)
+                            ->regex('/^[A-Za-z0-9._\-]+$/')
+                            ->visible(fn (Forms\Get $get): bool => $get('receipt_numbering_scope') === 'project_year')
+                            ->helperText('Use algo curto, como P12 ou PNAE24. Se ficar vazio, será usado P seguido do número do projeto.'),
+
+                        Forms\Components\TextInput::make('receipt_number_format')
+                            ->label('Formato de exibição')
+                            ->default('{prefix}{number}/{year}')
+                            ->required()
+                            ->maxLength(80)
+                            ->regex('/^[A-Za-z0-9\s._\-\/{\}]+$/')
+                            ->helperText('Variáveis: {prefix}, {number}, {year} e {project}. Ex.: {prefix}{number}/{year}-{project}.'),
+
+                        Forms\Components\Placeholder::make('receipt_number_preview')
+                            ->label('Prévia')
+                            ->content(function (Forms\Get $get, ?SalesProject $record): string {
+                                $format = app(ProjectReceiptNumberingService::class)
+                                    ->validatedFormat($get('receipt_number_format'))
+                                    ?? ProjectReceiptNumberingService::DEFAULT_TENANT_FORMAT;
+                                $reference = trim((string) $get('receipt_project_reference'))
+                                    ?: ($record ? 'P'.$record->id : 'P12');
+                                $year = (int) ($get('reference_year') ?: now()->year);
+
+                                $producer = strtr($format, [
+                                    '{prefix}' => '', '{number}' => '0001', '{year}' => (string) $year, '{project}' => $reference,
+                                ]);
+                                $customer = strtr($format, [
+                                    '{prefix}' => 'COM-', '{number}' => '0001', '{year}' => (string) $year, '{project}' => $reference,
+                                ]);
+
+                                return "Produtor: {$producer} | Cliente/organização: {$customer}";
+                            }),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
+
                 Forms\Components\Section::make('Clientes (Referência)')
                     ->description('Associação de referência — clientes reais são definidos via distribuição de entregas.')
                     ->schema([
@@ -127,15 +187,13 @@ class SalesProjectResource extends Resource
                             ->relationship('customers', 'name')
                             ->searchable()
                             ->preload()
-                            ->getSearchResultsUsing(fn (string $search) =>
-                                \App\Models\Customer::where('tenant_id', session('tenant_id'))
-                                    ->where('name', 'like', "%{$search}%")
-                                    ->orderBy('name')
-                                    ->limit(50)
-                                    ->pluck('name', 'id')
+                            ->getSearchResultsUsing(fn (string $search) => Customer::where('tenant_id', session('tenant_id'))
+                                ->where('name', 'like', "%{$search}%")
+                                ->orderBy('name')
+                                ->limit(50)
+                                ->pluck('name', 'id')
                             )
-                            ->getOptionLabelUsing(fn ($value) =>
-                                \App\Models\Customer::find($value)?->name ?? $value
+                            ->getOptionLabelUsing(fn ($value) => Customer::find($value)?->name ?? $value
                             )
                             ->helperText('Opcional. O vínculo financeiro real acontece nas distribuições de cada entrega.')
                             ->columnSpanFull(),
@@ -150,16 +208,14 @@ class SalesProjectResource extends Resource
                             ->label('Organizações')
                             ->multiple()
                             ->relationship('organizations', 'name')
-                            ->getSearchResultsUsing(fn (string $search) =>
-                                Organization::where('tenant_id', session('tenant_id'))
-                                    ->where('active', true)
-                                    ->where('name', 'like', "%{$search}%")
-                                    ->orderBy('name')
-                                    ->limit(50)
-                                    ->pluck('name', 'id')
+                            ->getSearchResultsUsing(fn (string $search) => Organization::where('tenant_id', session('tenant_id'))
+                                ->where('active', true)
+                                ->where('name', 'like', "%{$search}%")
+                                ->orderBy('name')
+                                ->limit(50)
+                                ->pluck('name', 'id')
                             )
-                            ->getOptionLabelUsing(fn ($value) =>
-                                Organization::find($value)?->name ?? $value
+                            ->getOptionLabelUsing(fn ($value) => Organization::find($value)?->name ?? $value
                             )
                             ->searchable()
                             ->preload()
@@ -206,7 +262,7 @@ class SalesProjectResource extends Resource
                                     ->whereIn('id', collect($state)->filter()->map(fn ($id) => (int) $id))
                                     ->pluck('id');
 
-                                \Illuminate\Support\Facades\DB::transaction(function () use ($record, $selectedIds): void {
+                                DB::transaction(function () use ($record, $selectedIds): void {
                                     if ($record->restrict_participants) {
                                         $record->projectAssociates()
                                             ->where('tenant_id', $record->tenant_id)
@@ -395,7 +451,7 @@ class SalesProjectResource extends Resource
                     ->modalDescription('Marcar como concluído definitivamente?')
                     ->action(function (SalesProject $record) {
                         $record->update([
-                            'status'       => ProjectStatus::COMPLETED,
+                            'status' => ProjectStatus::COMPLETED,
                             'completed_at' => now(),
                         ]);
 

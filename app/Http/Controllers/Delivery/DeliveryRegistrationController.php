@@ -3653,12 +3653,10 @@ class DeliveryRegistrationController extends Controller
         }
 
         // Criar novo comprovante apenas com distribuicoes pendentes.
-        $year = now()->year;
         $receipt = DB::transaction(function () use (
             $tenantId,
             $projectId,
             $associateId,
-            $year,
             $distributions,
             $project
         ) {
@@ -3666,8 +3664,7 @@ class DeliveryRegistrationController extends Controller
                 'tenant_id' => $tenantId,
                 'sales_project_id' => $projectId,
                 'associate_id' => $associateId,
-                'receipt_year' => $year,
-                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                ...AssociateReceipt::numberingFor($project),
                 'issued_at' => today(),
                 'delivery_ids' => $distributions->pluck('id')->all(),
             ]);
@@ -3767,12 +3764,10 @@ class DeliveryRegistrationController extends Controller
             ->findOrFail($associateIds->first());
 
         // Criar novo comprovante armazenando os IDs das recepções originais selecionadas
-        $year = now()->year;
         $receipt = DB::transaction(function () use (
             $tenantId,
             $projectId,
             $associate,
-            $year,
             $distributions,
             $project
         ) {
@@ -3780,8 +3775,7 @@ class DeliveryRegistrationController extends Controller
                 'tenant_id' => $tenantId,
                 'sales_project_id' => $projectId,
                 'associate_id' => $associate->id,
-                'receipt_year' => $year,
-                'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+                ...AssociateReceipt::numberingFor($project),
                 'issued_at' => today(),
                 'delivery_ids' => $distributions->pluck('id')->all(),
             ]);

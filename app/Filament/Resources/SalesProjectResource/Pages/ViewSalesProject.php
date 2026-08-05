@@ -824,7 +824,6 @@ class ViewSalesProject extends ViewRecord
             return null;
         }
 
-        $year = now()->year;
         $issuedAt = ! empty($formData['issued_at']) ? $formData['issued_at'] : today();
 
         // Sempre cria um novo recibo com número incrementado a cada geração
@@ -832,8 +831,7 @@ class ViewSalesProject extends ViewRecord
             'tenant_id' => $tenantId,
             'sales_project_id' => $record->id,
             'associate_id' => $associateId,
-            'receipt_year' => $year,
-            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            ...AssociateReceipt::numberingFor($record),
             'issued_at' => $issuedAt,
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
@@ -926,7 +924,6 @@ class ViewSalesProject extends ViewRecord
             return null;
         }
 
-        $year = now()->year;
         $issuedAt = ! empty($formData['issued_at']) ? $formData['issued_at'] : today();
 
         // Sempre cria um novo recibo com número incrementado a cada geração
@@ -934,8 +931,7 @@ class ViewSalesProject extends ViewRecord
             'tenant_id' => $tenantId,
             'sales_project_id' => $record->id,
             'associate_id' => $associateId,
-            'receipt_year' => $year,
-            'receipt_number' => AssociateReceipt::nextNumber($tenantId, $year),
+            ...AssociateReceipt::numberingFor($record),
             'issued_at' => $issuedAt,
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);

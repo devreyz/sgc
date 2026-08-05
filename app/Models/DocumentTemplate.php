@@ -365,6 +365,7 @@ class DocumentTemplate extends Model
                 'type' => 'receipt',
                 'description' => 'Comprovante financeiro das distribuicoes destinadas a um cliente',
                 'sections' => [
+                    'document_info' => 'Número e período do documento',
                     'customer_info' => 'Dados do Cliente',
                     'project_info' => 'Dados do Projeto',
                     'deliveries' => 'Distribuicoes',

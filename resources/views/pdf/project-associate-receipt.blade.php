@@ -52,6 +52,8 @@
     $hasContract = !$isStandalone && !empty($project->contract_number);
     $hasProcess  = !$isStandalone && !empty($project->process_number);
     $associateTerm = $tenant?->associateTerm() ?? 'Associado';
+    $pdfSections = $visible_sections ?? ['associate_info', 'project_info', 'deliveries', 'financial', 'signature'];
+    $showSection = fn (string $section): bool => in_array($section, $pdfSections, true);
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -153,22 +155,27 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
     
+        @if($showSection('financial'))
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:9px; color:#666; text-transform:uppercase; letter-spacing:0.04em;">Valor Líquido</div>
             <div style="color:#1a5c3a; font-size:14px; font-weight:700; margin-top:4px;">R$ {{ number_format($summary['net_value'], 2, ',', '.') }}</div>
         </div>
+        @endif
         
     </div>
 </div>
 
 
 {{-- ═══ PROJETO / PERÍODO ═══ --}}
+@if($showSection('associate_info') || $showSection('project_info'))
 <div class="proj-strip">
     @if($isStandalone)
+        @if($showSection('associate_info'))
         <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Nome</span>
             <span class="proj-value">{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</span>
         </div>
+        @endif
         
         @if(isset($receipt) && $receipt->from_date)
         <div class="proj-cell" style="width:25%;">
@@ -183,19 +190,24 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </div>
         @endif
     @else
+    @if($showSection('associate_info'))
     <div class="proj-cell" style="width:50%;">
             <span class="proj-label">Nome</span>
             <span class="proj-value">{{ $associate->display_name ?? $associateTerm.' nao identificado' }}</span>
         </div>
+    @endif
+        @if($showSection('project_info'))
         <div class="proj-cell" style="width: 50%;">
             <span class="proj-label">Referente</span>
             <span class="proj-value">{{ $project->title }}</span>
         </div>
+        @endif
         
        
         
     @endif
 </div>
+@endif
 
 
 @php
@@ -228,6 +240,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table .fee-col { width: 1% !important; white-space: nowrap !important; }
     table.receipt-data-table .money-col { width: 1% !important; white-space: nowrap !important; }
 </style>
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
     'consentPosition' => 'before',
@@ -238,8 +251,10 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         'items_count' => $summary['deliveries_count'] ?? null,
     ],
 ])
+@endif
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
 
+@if($showSection('deliveries'))
 <table class="tbl receipt-data-table">
     <thead>
         <tr>
@@ -328,8 +343,10 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </tr>
     </tfoot>
 </table>
+@endif
 
 {{-- ═══ RESUMO FINANCEIRO + CHEQUE ═══ --}}
+@if($showSection('financial'))
 @php
     $__cheque_val  = $receipt?->cheque_number ?? $receipt?->check_number ?? null;
     $__feeBreakdown = $feeBreakdown ?? null;
@@ -413,6 +430,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </div>
     </div>
 </div>
+@endif
 
 @if(!empty($hasRoundingDivergence))
 <!-- <p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
@@ -420,6 +438,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 </p> -->
 @endif
 
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ASSOCIATE,
     'consentPosition' => 'after',
@@ -430,6 +449,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         'items_count' => $summary['deliveries_count'] ?? null,
     ],
 ])
+@endif
 
 {{-- ═══ SEGUNDA VIA ═══ --}}
     @if($isSecondCopy)

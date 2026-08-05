@@ -144,6 +144,68 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertSame(1, substr_count($html, 'Total Geral'));
     }
 
+    public function test_customer_receipt_hides_disabled_financial_and_signature_sections(): void
+    {
+        $tenant = new Tenant(['name' => 'Cooperativa Teste']);
+        $project = new SalesProject(['title' => 'PNAE 2026']);
+        $customer = new Customer(['name' => 'Escola Central']);
+        $receipt = new CustomerBillingReceipt([
+            'receipt_year' => 2026,
+            'receipt_number' => 3,
+            'issued_at' => '2026-08-05',
+        ]);
+
+        $html = view('pdf.customer-billing-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'customer' => $customer,
+            'receipt' => $receipt,
+            'productRows' => [[
+                'product' => 'Banana',
+                'unit' => 'kg',
+                'quantity' => 10,
+                'unit_price' => 5,
+                'gross' => 50,
+                'net' => 50,
+                'fee_values' => [],
+            ]],
+            'totalGross' => 50,
+            'totalFees' => 0,
+            'totalNet' => 50,
+            'feeBreakdown' => [],
+            'feeColumns' => [],
+            'visibleColumns' => ['unit_price', 'gross'],
+            'visible_sections' => ['document_info', 'customer_info', 'project_info', 'deliveries'],
+        ])->render();
+
+        $this->assertStringContainsString('Nº Documento:', $html);
+        $this->assertStringContainsString('Entregas por Produto', $html);
+        $this->assertStringNotContainsString('<div class="sec-label">Resumo financeiro</div>', $html);
+        $this->assertStringNotContainsString('<div class="fin-summary">', $html);
+        $this->assertStringNotContainsString('Valor Líquido</div>', $html);
+    }
+
+    public function test_associate_receipt_hides_disabled_financial_section(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+
+        $html = view('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_sections' => ['associate_info', 'project_info', 'deliveries'],
+        ])->render();
+
+        $this->assertStringContainsString('TOTAL GERAL', $html);
+        $this->assertStringNotContainsString('<div class="fin-summary">', $html);
+        $this->assertStringNotContainsString('Valor Líquido a Receber', $html);
+    }
+
     private function associateReceiptFixtures(): array
     {
         if (! Schema::hasTable('document_templates')) {
