@@ -9,9 +9,13 @@ use App\Models\SalesProjectType;
 use App\Models\Tenant;
 use App\Services\ReceiptConsentRenderer;
 use App\Services\SystemPdfConfigurationResolver;
+use App\Services\TemplatedPdfService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfDocument;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Mockery;
 use Tests\TestCase;
 
 class ReceiptConsentCustomizationTest extends TestCase
@@ -139,6 +143,45 @@ class ReceiptConsentCustomizationTest extends TestCase
         $this->assertSame($generic->id, $pnae['template']->id);
         $this->assertSame(['unit_price'], $pnae['visible_columns']);
         $this->assertSame(90, $pnae['table_scale']);
+    }
+
+    public function test_project_receipt_columns_and_scale_override_generic_template_preferences(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'runtime-project-columns');
+        $template = $this->template($tenant, 'paa', '');
+        $template->update([
+            'visible_columns' => ['gross'],
+            'visible_sections' => ['associate_info', 'deliveries'],
+            'table_scale' => 70,
+        ]);
+
+        $project = new SalesProject(['title' => 'PAA 2026', 'type' => 'paa']);
+        $project->id = 12;
+        $project->tenant_id = $tenant->id;
+
+        $document = Mockery::mock(DomPdfDocument::class);
+        $document->shouldReceive('setPaper')->once()->with('a4', 'portrait')->andReturnSelf();
+
+        Pdf::shouldReceive('loadView')
+            ->once()
+            ->with('pdf.project-associate-receipt', Mockery::on(function (array $data): bool {
+                $this->assertSame(['fee:associate:7', 'net'], $data['visible_columns']);
+                $this->assertSame(['fee:associate:7', 'net'], $data['visibleColumns']);
+                $this->assertSame(90, $data['table_scale']);
+                $this->assertSame(['associate_info', 'deliveries'], $data['visible_sections']);
+
+                return true;
+            }))
+            ->andReturn($document);
+
+        $result = app(TemplatedPdfService::class)->generateSystemPdf('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'visible_columns' => ['fee:associate:7', 'net'],
+            'table_scale' => 90,
+        ]);
+
+        $this->assertSame($document, $result);
     }
 
     public function test_generic_template_is_fallback_and_specific_template_can_hide_section(): void

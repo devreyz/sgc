@@ -167,14 +167,18 @@ class PdfRenderingCompatibilityTest extends TestCase
                 'unit_price' => 5,
                 'gross' => 50,
                 'net' => 50,
-                'fee_values' => [],
+                'fee_values' => ['fee:customer:7' => 2.5],
             ]],
             'totalGross' => 50,
             'totalFees' => 0,
             'totalNet' => 50,
             'feeBreakdown' => [],
-            'feeColumns' => [],
-            'visibleColumns' => ['unit_price', 'gross'],
+            'feeColumns' => [[
+                'key' => 'fee:customer:7',
+                'name' => 'Gestão',
+                'nature' => 'discount',
+            ]],
+            'visibleColumns' => ['unit_price', 'gross', 'fee:customer:7'],
             'visible_sections' => ['document_info', 'customer_info', 'project_info', 'deliveries'],
         ])->render();
 
@@ -183,6 +187,8 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringNotContainsString('<div class="sec-label">Resumo financeiro</div>', $html);
         $this->assertStringNotContainsString('<div class="fin-summary">', $html);
         $this->assertStringNotContainsString('Valor Líquido</div>', $html);
+        $this->assertStringContainsString('Gestão', $html);
+        $this->assertStringContainsString('- R$ 2,50', $html);
     }
 
     public function test_associate_receipt_hides_disabled_financial_section(): void
@@ -204,6 +210,36 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringContainsString('TOTAL GERAL', $html);
         $this->assertStringNotContainsString('<div class="fin-summary">', $html);
         $this->assertStringNotContainsString('Valor Líquido a Receber', $html);
+    }
+
+    public function test_associate_receipt_renders_selected_project_fee_column(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        foreach ($products as &$product) {
+            $product['fee_totals']['fee:associate:7'] = 3.5;
+            foreach ($product['distributions'] as &$distribution) {
+                $distribution['fee_values']['fee:associate:7'] = 3.5;
+            }
+        }
+
+        $html = view('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [[
+                'key' => 'fee:associate:7',
+                'name' => 'Frete',
+                'nature' => 'discount',
+            ]],
+            'visible_columns' => ['gross', 'fee:associate:7'],
+        ])->render();
+
+        $this->assertStringContainsString('<th class="r fee-col">Frete</th>', $html);
+        $this->assertStringContainsString('-&nbsp;R$&nbsp;3,50', $html);
     }
 
     private function associateReceiptFixtures(): array

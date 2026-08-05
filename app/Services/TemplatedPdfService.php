@@ -394,15 +394,24 @@ HTML;
 
         if (! empty($configured)) {
             $authoritative = (bool) ($configured['has_template'] ?? false);
+            $hasProjectContext = data_get($viewData, 'project.id') !== null;
+            $hasRuntimeColumns = $hasProjectContext
+                && (array_key_exists('visible_columns', $viewData) || array_key_exists('visibleColumns', $viewData));
+            $hasRuntimeScale = $hasProjectContext && array_key_exists('table_scale', $viewData);
+
             if ($authoritative || ! array_key_exists('visible_sections', $viewData)) {
                 $viewData['visible_sections'] = $configured['visible_sections'];
             }
-            if ($authoritative || (! array_key_exists('visible_columns', $viewData) && ! array_key_exists('visibleColumns', $viewData))) {
+            // Project receipt screens intentionally persist fee columns per project.
+            // The system template still owns sections/layout, but must not erase
+            // the project-specific selection immediately before rendering.
+            if (($authoritative && ! $hasRuntimeColumns)
+                || (! array_key_exists('visible_columns', $viewData) && ! array_key_exists('visibleColumns', $viewData))) {
                 $viewData['visible_columns'] = $configured['visible_columns'];
             }
             // Older receipt views used camelCase. Keep the alias at this one boundary.
             $viewData['visibleColumns'] = $viewData['visible_columns'] ?? $viewData['visibleColumns'] ?? [];
-            if ($authoritative || ! array_key_exists('table_scale', $viewData)) {
+            if (($authoritative && ! $hasRuntimeScale) || ! array_key_exists('table_scale', $viewData)) {
                 $viewData['table_scale'] = $configured['table_scale'];
             }
         }
