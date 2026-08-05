@@ -82,5 +82,43 @@ class ProjectReceiptNumberingServiceTest extends TestCase
 
         $project->receipt_numbering_scope = ProjectReceiptNumberingService::TENANT_YEAR;
         $this->assertSame(9, $service->nextNumber(AssociateReceipt::class, 1, 2024, $project));
+
+        Schema::table('associate_receipts', function (Blueprint $table): void {
+            $table->unsignedSmallInteger('tenant_receipt_year')->nullable();
+            $table->unsignedInteger('tenant_receipt_number')->nullable();
+            $table->unsignedSmallInteger('project_receipt_year')->nullable();
+            $table->unsignedInteger('project_receipt_number')->nullable();
+        });
+        DB::table('associate_receipts')->where('sales_project_id', 12)->update([
+            'tenant_receipt_year' => 2026,
+            'tenant_receipt_number' => 1,
+            'project_receipt_year' => 2024,
+            'project_receipt_number' => 1,
+        ]);
+        DB::table('associate_receipts')->where('sales_project_id', 13)->update([
+            'tenant_receipt_year' => 2026,
+            'tenant_receipt_number' => 2,
+            'project_receipt_year' => 2024,
+            'project_receipt_number' => 1,
+        ]);
+
+        $project->tenant_id = 1;
+        $project->reference_year = 2024;
+        $project->receipt_project_reference = 'P12';
+        $project->receipt_number_format = ProjectReceiptNumberingService::DEFAULT_PROJECT_FORMAT;
+        $project->receipt_numbering_scope = ProjectReceiptNumberingService::PROJECT_YEAR;
+        $numbers = $service->numberingFor(AssociateReceipt::class, $project, '', '2026-08-05');
+
+        $this->assertSame(3, $numbers['tenant_receipt_number']);
+        $this->assertSame(4, $numbers['project_receipt_number']);
+        $this->assertSame('0004/2024-P12', $numbers['receipt_label']);
+
+        $receipt = new AssociateReceipt($numbers);
+        $receipt->setRelation('project', $project);
+        $this->assertSame('0004/2024-P12', $receipt->formatted_number);
+
+        $project->receipt_numbering_scope = ProjectReceiptNumberingService::TENANT_YEAR;
+        $project->receipt_number_format = ProjectReceiptNumberingService::DEFAULT_TENANT_FORMAT;
+        $this->assertSame('0003/2026', $receipt->formatted_number);
     }
 }

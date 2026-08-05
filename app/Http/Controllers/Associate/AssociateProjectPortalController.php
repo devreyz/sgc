@@ -14,7 +14,7 @@ use App\Models\Tenant;
 use App\Services\AssociateFinancialSummaryService;
 use App\Services\AssociateProjectLimitService;
 use App\Services\ReceiptDataBuilder;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\TemplatedPdfService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -88,7 +88,7 @@ class AssociateProjectPortalController extends Controller
         $tenant = $request->route('tenant') instanceof Tenant
             ? $request->route('tenant')
             : Tenant::findOrFail($project->tenant_id);
-        $pdfService = app(\App\Services\TemplatedPdfService::class);
+        $pdfService = app(TemplatedPdfService::class);
         $pdf = $pdfService->generateSystemPdf('pdf.associate-portal-receipt', [
             'tenant' => $tenant,
             'project' => $project,
@@ -163,6 +163,7 @@ class AssociateProjectPortalController extends Controller
         $page = $query->orderByDesc('delivery_date')->orderByDesc('id')->paginate($this->perPage($request));
         $page->setCollection(collect($page->items())->map(function (ProductionDelivery $item) {
             $distributed = (float) $item->distributions->sum('quantity');
+
             return [
                 'id' => $item->id,
                 'date' => $item->delivery_date?->format('d/m/Y'),
@@ -219,10 +220,11 @@ class AssociateProjectPortalController extends Controller
         $baseQuery = AssociateReceipt::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
-            ->where('associate_id', $associate->id);
+            ->where('associate_id', $associate->id)
+            ->with('project');
         $currentReceipt = (clone $baseQuery)
             ->where('status', '!=', ReceiptStatus::OBSOLETE->value)
-            ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->first(['id', 'receipt_year', 'receipt_number']);
+            ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->first();
         $page = $baseQuery
             ->withSum('payments', 'amount')
             ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->orderByDesc('issued_at')
@@ -261,12 +263,12 @@ class AssociateProjectPortalController extends Controller
             ->orderByDesc('payment_date')->orderByDesc('id')
             ->paginate($this->perPage($request));
         $page->setCollection(collect($page->items())->map(fn ($payment) => [
-                'id' => $payment->id,
-                'receipt' => $payment->receipt?->formatted_number,
-                'date' => $payment->payment_date?->format('d/m/Y'),
-                'amount' => (float) $payment->amount,
-                'method' => $payment->payment_method,
-            ]));
+            'id' => $payment->id,
+            'receipt' => $payment->receipt?->formatted_number,
+            'date' => $payment->payment_date?->format('d/m/Y'),
+            'amount' => (float) $payment->amount,
+            'method' => $payment->payment_method,
+        ]));
 
         return $page->toArray();
     }

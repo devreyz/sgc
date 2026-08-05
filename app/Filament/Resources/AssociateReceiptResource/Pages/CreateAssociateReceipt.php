@@ -30,7 +30,7 @@ class CreateAssociateReceipt extends CreateRecord
             ]);
         }
 
-        $data = array_merge($data, AssociateReceipt::numberingFor($project));
+        $data = array_merge($data, AssociateReceipt::numberingFor($project, $data['issued_at'] ?? null));
 
         return $data;
     }

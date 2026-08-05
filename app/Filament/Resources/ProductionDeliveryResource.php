@@ -824,7 +824,7 @@ class ProductionDeliveryResource extends Resource
                                         'tenant_id' => $tenantId,
                                         'sales_project_id' => $projectId,
                                         'associate_id' => $associateId,
-                                        ...AssociateReceipt::numberingFor($project),
+                                        ...AssociateReceipt::numberingFor($project, $data['paid_date']),
                                         'issued_at' => $data['paid_date'],
                                         'from_date' => $groupRecords->min('delivery_date'),
                                         'to_date' => $groupRecords->max('delivery_date'),

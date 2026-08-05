@@ -4,9 +4,12 @@ namespace App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 
 use App\Filament\Resources\CustomerBillingReceiptResource;
 use App\Models\ProductionDelivery;
+use App\Models\SalesProject;
+use App\Services\ProjectReceiptNumberingService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Validation\ValidationException;
 
 class EditCustomerBillingReceipt extends EditRecord
 {
@@ -30,7 +33,40 @@ class EditCustomerBillingReceipt extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Nunca permite alterar campos de controle
-        unset($data['tenant_id'], $data['receipt_year'], $data['receipt_number'], $data['status']);
+        unset($data['tenant_id'], $data['status']);
+        $tenantDuplicate = $this->record->newQuery()
+            ->where('tenant_id', $this->record->tenant_id)
+            ->where('tenant_receipt_year', $data['tenant_receipt_year'])
+            ->where('tenant_receipt_number', $data['tenant_receipt_number'])
+            ->whereKeyNot($this->record->getKey())
+            ->exists();
+        $projectDuplicate = $this->record->newQuery()
+            ->where('tenant_id', $this->record->tenant_id)
+            ->where('sales_project_id', $this->record->sales_project_id)
+            ->where('project_receipt_year', $data['project_receipt_year'])
+            ->where('project_receipt_number', $data['project_receipt_number'])
+            ->whereKeyNot($this->record->getKey())
+            ->exists();
+
+        if ($tenantDuplicate || $projectDuplicate) {
+            throw ValidationException::withMessages([
+                $tenantDuplicate ? 'tenant_receipt_number' : 'project_receipt_number' => $tenantDuplicate
+                        ? 'Este numero geral ja esta em uso neste ano.'
+                        : 'Este numero ja esta em uso neste projeto e ano.',
+            ]);
+        }
+
+        $project = SalesProject::query()
+            ->where('tenant_id', $this->record->tenant_id)
+            ->findOrFail($this->record->sales_project_id);
+        $service = app(ProjectReceiptNumberingService::class);
+        $usesProject = $service->usesProjectSequence($project);
+        $data['receipt_number'] = (int) $data[$usesProject ? 'project_receipt_number' : 'tenant_receipt_number'];
+        $data['receipt_year'] = (int) $data[$usesProject ? 'project_receipt_year' : 'tenant_receipt_year'];
+        $data['receipt_label'] = $usesProject
+            ? $service->format($project, $data['receipt_number'], $data['receipt_year'], 'COM-')
+            : $service->format($project, $data['receipt_number'], $data['receipt_year'], 'COM-');
+
         return $data;
     }
 

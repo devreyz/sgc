@@ -3370,6 +3370,7 @@ class DeliveryRegistrationController extends Controller
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->whereIn('associate_id', $associateIds ?: [0])
+            ->with('project')
             ->orderByDesc('receipt_year')
             ->orderByDesc('receipt_number')
             ->orderByDesc('issued_at')
@@ -3463,6 +3464,7 @@ class DeliveryRegistrationController extends Controller
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
+            ->with('project')
             ->withCount('distributions')
             ->orderByDesc('receipt_year')
             ->orderByDesc('receipt_number')
@@ -3664,7 +3666,7 @@ class DeliveryRegistrationController extends Controller
                 'tenant_id' => $tenantId,
                 'sales_project_id' => $projectId,
                 'associate_id' => $associateId,
-                ...AssociateReceipt::numberingFor($project),
+                ...AssociateReceipt::numberingFor($project, today()),
                 'issued_at' => today(),
                 'delivery_ids' => $distributions->pluck('id')->all(),
             ]);
@@ -3775,7 +3777,7 @@ class DeliveryRegistrationController extends Controller
                 'tenant_id' => $tenantId,
                 'sales_project_id' => $projectId,
                 'associate_id' => $associate->id,
-                ...AssociateReceipt::numberingFor($project),
+                ...AssociateReceipt::numberingFor($project, today()),
                 'issued_at' => today(),
                 'delivery_ids' => $distributions->pluck('id')->all(),
             ]);
@@ -4465,7 +4467,7 @@ class DeliveryRegistrationController extends Controller
 
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
-            ->with('associate.user')
+            ->with(['associate.user', 'project'])
             ->orderByDesc('receipt_year')
             ->orderByDesc('receipt_number')
             ->orderByDesc('issued_at')

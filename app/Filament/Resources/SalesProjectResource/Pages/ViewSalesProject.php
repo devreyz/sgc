@@ -831,7 +831,7 @@ class ViewSalesProject extends ViewRecord
             'tenant_id' => $tenantId,
             'sales_project_id' => $record->id,
             'associate_id' => $associateId,
-            ...AssociateReceipt::numberingFor($record),
+            ...AssociateReceipt::numberingFor($record, $issuedAt),
             'issued_at' => $issuedAt,
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);
@@ -931,7 +931,7 @@ class ViewSalesProject extends ViewRecord
             'tenant_id' => $tenantId,
             'sales_project_id' => $record->id,
             'associate_id' => $associateId,
-            ...AssociateReceipt::numberingFor($record),
+            ...AssociateReceipt::numberingFor($record, $issuedAt),
             'issued_at' => $issuedAt,
             'delivery_ids' => $distributions->pluck('id')->all(),
         ]);

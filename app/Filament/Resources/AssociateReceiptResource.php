@@ -16,6 +16,7 @@ use App\Models\Tenant;
 use App\Services\AssociateReceiptService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
+use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -63,6 +64,8 @@ class AssociateReceiptResource extends Resource
                 Forms\Components\Section::make('Dados do Comprovante')
                     ->schema([
                         Forms\Components\Select::make('sales_project_id')
+                            ->disabled(fn ($record): bool => $record !== null)
+                            ->dehydrated()
                             ->label('Projeto de Venda')
                             ->options(fn () => SalesProject::where('tenant_id', session('tenant_id'))
                                 ->pluck('title', 'id'))
@@ -70,6 +73,8 @@ class AssociateReceiptResource extends Resource
                             ->required(),
 
                         Forms\Components\Select::make('associate_id')
+                            ->disabled(fn ($record): bool => $record !== null)
+                            ->dehydrated()
                             ->label(fn (): string => static::associateTerm())
                             ->options(fn () => Associate::where('tenant_id', session('tenant_id'))
                                 ->get()
@@ -87,6 +92,7 @@ class AssociateReceiptResource extends Resource
                             ->dehydrated(false),
 
                         Forms\Components\TextInput::make('receipt_year')
+                            ->hidden()
                             ->label('Ano')
                             ->numeric()
                             ->default(now()->year)
@@ -95,6 +101,7 @@ class AssociateReceiptResource extends Resource
                             ->maxValue(2099),
 
                         Forms\Components\TextInput::make('receipt_number')
+                            ->hidden()
                             ->label('Número do Recibo')
                             ->numeric()
                             ->nullable()
@@ -143,6 +150,32 @@ class AssociateReceiptResource extends Resource
                             ->columnSpanFull(),
                     ])
                     ->columns(2),
+
+                Forms\Components\Section::make('Identificadores do Comprovante')
+                    ->description('Os dois numeros ficam gravados. O projeto decide qual deles sera impresso.')
+                    ->schema([
+                        Forms\Components\TextInput::make('tenant_receipt_number')
+                            ->label('Sequencia geral da organizacao')
+                            ->numeric()->integer()->minValue(1)->required(),
+                        Forms\Components\TextInput::make('tenant_receipt_year')
+                            ->label('Ano da sequencia geral')
+                            ->numeric()->integer()->minValue(2020)->maxValue(2099)->required(),
+                        Forms\Components\TextInput::make('project_receipt_number')
+                            ->label('Sequencia deste projeto')
+                            ->numeric()->integer()->minValue(1)->required(),
+                        Forms\Components\TextInput::make('project_receipt_year')
+                            ->label('Ano de referencia do projeto')
+                            ->numeric()->integer()->minValue(2020)->maxValue(2099)->required(),
+                        Forms\Components\Placeholder::make('numbering_preview')
+                            ->label('Numeros disponiveis')
+                            ->content(fn ($record): string => $record
+                                ? 'Geral: '.$record->tenant_formatted_number.' | Projeto: '.$record->project_formatted_number
+                                : 'As duas sequencias serao reservadas ao criar o comprovante.')
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->visible(fn ($record): bool => $record !== null)
+                    ->collapsible(),
 
                 Forms\Components\Section::make('Entregas Vinculadas')
                     ->description('Selecione as distribuicoes deste comprovante. Itens desmarcados voltam a ficar disponiveis para outro comprovante.')
@@ -208,7 +241,12 @@ class AssociateReceiptResource extends Resource
                 Tables\Columns\TextColumn::make('formatted_number')
                     ->label('Nº Recibo')
                     ->sortable(['receipt_year', 'receipt_number'])
-                    ->searchable(query: fn ($query, $search) => $query->whereRaw("CONCAT(LPAD(receipt_number,3,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])),
+                    ->searchable(query: fn ($query, $search) => $query->where(function ($query) use ($search) {
+                        $query->whereRaw("CONCAT(LPAD(receipt_number,3,'0'), '/', receipt_year) LIKE ?", ["%{$search}%"])
+                            ->orWhereRaw("CONCAT(LPAD(tenant_receipt_number,4,'0'), '/', tenant_receipt_year) LIKE ?", ["%{$search}%"])
+                            ->orWhereRaw("CONCAT(LPAD(project_receipt_number,4,'0'), '/', project_receipt_year) LIKE ?", ["%{$search}%"]);
+                    }))
+                    ->description(fn (AssociateReceipt $record): string => 'Geral '.$record->tenant_formatted_number.' | Projeto '.$record->project_formatted_number),
 
                 Tables\Columns\TextColumn::make('associate.display_name')
                     ->label(fn (): string => static::associateTerm())
@@ -362,15 +400,15 @@ class AssociateReceiptResource extends Resource
 
                         // ── Marcar como segunda via se já foi assinado ───────
                         $isSecondCopy = $record->acknowledged_at !== null;
-                        $feeService = app(\App\Services\ReceiptFeeColumnService::class);
+                        $feeService = app(ReceiptFeeColumnService::class);
                         $visibleColumns = $feeService->sanitize(
                             is_array($project?->associate_receipt_columns)
                                 ? $project->associate_receipt_columns
-                                : \App\Services\ReceiptFeeColumnService::DEFAULT_COLUMNS,
+                                : ReceiptFeeColumnService::DEFAULT_COLUMNS,
                             $project
                                 ? $feeService->definitions($project, 'associate', $record->fee_snapshot)
                                 : [],
-                            \App\Services\ReceiptFeeColumnService::STATIC_COLUMNS,
+                            ReceiptFeeColumnService::STATIC_COLUMNS,
                         );
                         $tableScale = $project && in_array((int) $project->associate_receipt_table_scale, [70, 80, 90, 100], true)
                             ? (int) $project->associate_receipt_table_scale

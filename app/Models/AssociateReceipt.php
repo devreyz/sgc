@@ -18,6 +18,10 @@ class AssociateReceipt extends Model
         'receipt_year',
         'receipt_number',
         'receipt_label',
+        'tenant_receipt_year',
+        'tenant_receipt_number',
+        'project_receipt_year',
+        'project_receipt_number',
         'issued_at',
         'from_date',
         'to_date',
@@ -52,6 +56,10 @@ class AssociateReceipt extends Model
             'to_date' => 'date',
             'receipt_year' => 'integer',
             'receipt_number' => 'integer',
+            'tenant_receipt_year' => 'integer',
+            'tenant_receipt_number' => 'integer',
+            'project_receipt_year' => 'integer',
+            'project_receipt_number' => 'integer',
             'acknowledged_at' => 'datetime',
             'delivery_ids' => 'array',
             'status' => ReceiptStatus::class,
@@ -134,17 +142,10 @@ class AssociateReceipt extends Model
     }
 
     /** @return array{receipt_year: int, receipt_number: int, receipt_label: string} */
-    public static function numberingFor(SalesProject $project): array
+    public static function numberingFor(SalesProject $project, mixed $issuedAt = null): array
     {
-        $year = (int) ($project->reference_year ?: now()->year);
-        $number = static::nextNumber((int) $project->tenant_id, $year, $project);
-
-        return [
-            'receipt_year' => $year,
-            'receipt_number' => $number,
-            'receipt_label' => app(ProjectReceiptNumberingService::class)
-                ->format($project, $number, $year),
-        ];
+        return app(ProjectReceiptNumberingService::class)
+            ->numberingFor(static::class, $project, '', $issuedAt);
     }
 
     /**
@@ -152,11 +153,47 @@ class AssociateReceipt extends Model
      */
     public function getFormattedNumberAttribute(): string
     {
-        if (filled($this->receipt_label)) {
+        $project = $this->project;
+        if ($project && $this->project_receipt_number && $this->tenant_receipt_number) {
+            if (app(ProjectReceiptNumberingService::class)->usesProjectSequence($project)) {
+                return app(ProjectReceiptNumberingService::class)->format(
+                    $project,
+                    (int) $this->project_receipt_number,
+                    (int) $this->project_receipt_year,
+                );
+            }
+
+            return app(ProjectReceiptNumberingService::class)->format(
+                $project,
+                (int) $this->tenant_receipt_number,
+                (int) $this->tenant_receipt_year,
+            );
+        }
+
+        return filled($this->receipt_label)
+            ? (string) $this->receipt_label
+            : str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT).'/'.$this->receipt_year;
+    }
+
+    public function getTenantFormattedNumberAttribute(): string
+    {
+        return app(ProjectReceiptNumberingService::class)->formatTenant(
+            (int) ($this->tenant_receipt_number ?: $this->receipt_number),
+            (int) ($this->tenant_receipt_year ?: $this->receipt_year),
+        );
+    }
+
+    public function getProjectFormattedNumberAttribute(): string
+    {
+        if (! $this->project) {
             return (string) $this->receipt_label;
         }
 
-        return str_pad($this->receipt_number, 4, '0', STR_PAD_LEFT).'/'.$this->receipt_year;
+        return app(ProjectReceiptNumberingService::class)->format(
+            $this->project,
+            (int) ($this->project_receipt_number ?: $this->receipt_number),
+            (int) ($this->project_receipt_year ?: $this->receipt_year),
+        );
     }
 
     /**

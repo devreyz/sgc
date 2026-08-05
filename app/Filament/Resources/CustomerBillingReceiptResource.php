@@ -27,6 +27,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerBillingReceiptResource extends Resource
@@ -57,6 +59,8 @@ class CustomerBillingReceiptResource extends Resource
                 ->description('Selecione o projeto e em seguida o cliente OU a organização (não ambos).')
                 ->schema([
                     Forms\Components\Select::make('sales_project_id')
+                        ->disabled(fn ($record): bool => $record !== null)
+                        ->dehydrated()
                         ->label('Projeto de Venda')
                         ->options(fn () => SalesProject::where('tenant_id', session('tenant_id'))
                             ->orderBy('title')->pluck('title', 'id'))
@@ -140,6 +144,32 @@ class CustomerBillingReceiptResource extends Resource
                         ->label('Observações')->rows(2)->columnSpanFull(),
                 ])
                 ->columns(2),
+
+            Forms\Components\Section::make('Identificadores do Comprovante')
+                ->description('Os dois numeros ficam gravados. O projeto decide qual deles sera impresso.')
+                ->schema([
+                    Forms\Components\TextInput::make('tenant_receipt_number')
+                        ->label('Sequencia geral da organizacao')
+                        ->numeric()->integer()->minValue(1)->required(),
+                    Forms\Components\TextInput::make('tenant_receipt_year')
+                        ->label('Ano da sequencia geral')
+                        ->numeric()->integer()->minValue(2020)->maxValue(2099)->required(),
+                    Forms\Components\TextInput::make('project_receipt_number')
+                        ->label('Sequencia deste projeto')
+                        ->numeric()->integer()->minValue(1)->required(),
+                    Forms\Components\TextInput::make('project_receipt_year')
+                        ->label('Ano de referencia do projeto')
+                        ->numeric()->integer()->minValue(2020)->maxValue(2099)->required(),
+                    Forms\Components\Placeholder::make('numbering_preview')
+                        ->label('Numeros disponiveis')
+                        ->content(fn ($record): string => $record
+                            ? 'Geral: '.$record->tenant_formatted_number.' | Projeto: '.$record->project_formatted_number
+                            : 'As duas sequencias serao reservadas ao criar o comprovante.')
+                        ->columnSpanFull(),
+                ])
+                ->columns(2)
+                ->visible(fn ($record): bool => $record !== null)
+                ->collapsible(),
 
             // ── Distribuições ───────────────────────────────────────────────
             Forms\Components\Section::make('Distribuições a Cobrar')
@@ -252,7 +282,11 @@ class CustomerBillingReceiptResource extends Resource
         $receipts = CustomerBillingReceipt::where('tenant_id', session('tenant_id'))
             ->when($currentReceiptId, fn ($q) => $q->where('id', '!=', $currentReceiptId))
             ->whereNotNull('delivery_ids')
-            ->get(['id', 'delivery_ids', 'receipt_year', 'receipt_number']);
+            ->with('project')
+            ->get([
+                'id', 'sales_project_id', 'delivery_ids', 'receipt_year', 'receipt_number', 'receipt_label',
+                'tenant_receipt_year', 'tenant_receipt_number', 'project_receipt_year', 'project_receipt_number',
+            ]);
 
         $map = [];
         foreach ($receipts as $r) {
@@ -360,7 +394,8 @@ class CustomerBillingReceiptResource extends Resource
                 Tables\Columns\TextColumn::make('formatted_number')
                     ->label('Nº Cobrança')->weight('bold')
                     ->searchable(['receipt_year', 'receipt_number'])
-                    ->sortable(['receipt_year', 'receipt_number']),
+                    ->sortable(['receipt_year', 'receipt_number'])
+                    ->description(fn (CustomerBillingReceipt $record): string => 'Geral '.$record->tenant_formatted_number.' | Projeto '.$record->project_formatted_number),
 
                 Tables\Columns\TextColumn::make('project.title')
                     ->label('Projeto')->searchable()->sortable()->limit(35)->default('— Avulso —'),
@@ -515,7 +550,7 @@ class CustomerBillingReceiptResource extends Resource
                             ['paper' => 'a4', 'orientation' => 'portrait']);
 
                         $label = str_replace('/', '-', $record->formatted_number);
-                        $name = \Illuminate\Support\Str::slug(
+                        $name = Str::slug(
                             $isOrgReport ? ($organization->name ?? 'org') : ($customer?->name ?? 'cliente')
                         );
 
@@ -559,7 +594,7 @@ class CustomerBillingReceiptResource extends Resource
                             return null;
                         }
                         $label = str_replace('/', '-', $record->formatted_number);
-                        $name = \Illuminate\Support\Str::slug(
+                        $name = Str::slug(
                             $record->customer?->name ?? $record->organization?->name ?? 'cobranca'
                         );
 
@@ -888,7 +923,7 @@ class CustomerBillingReceiptResource extends Resource
     //  Modal de distribuições
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static function renderDistributionsModal(CustomerBillingReceipt $receipt): \Illuminate\View\View
+    private static function renderDistributionsModal(CustomerBillingReceipt $receipt): View
     {
         $rows = [];
         if (! empty($receipt->delivery_ids)) {

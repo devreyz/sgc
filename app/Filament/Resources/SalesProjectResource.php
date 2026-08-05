@@ -121,7 +121,7 @@ class SalesProjectResource extends Resource
                     ->columns(2),
 
                 Forms\Components\Section::make('Numeração dos comprovantes')
-                    ->description('Defina uma sequência fácil de identificar. O número gravado em comprovantes emitidos não muda depois.')
+                    ->description('Cada comprovante guarda a sequência geral e a sequência do projeto. Esta opção define qual será impressa.')
                     ->schema([
                         Forms\Components\Select::make('receipt_numbering_scope')
                             ->label('Sequência')

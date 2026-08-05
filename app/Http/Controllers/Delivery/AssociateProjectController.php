@@ -281,7 +281,6 @@ class AssociateProjectController extends Controller
             : null;
         $rows = $associates->map(function (Associate $associate) use (
             $project,
-            $product,
             $price,
             $limits,
             $delivered,
@@ -860,6 +859,7 @@ class AssociateProjectController extends Controller
 
         $page->setCollection(collect($page->items())->map(function (ProductionDelivery $delivery) use ($names) {
             $distributed = (float) $delivery->distributions->sum('quantity');
+
             return [
                 'id' => $delivery->id,
                 'date' => $delivery->delivery_date?->format('d/m/Y'),
@@ -927,6 +927,7 @@ class AssociateProjectController extends Controller
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
+            ->with('project')
             ->withSum('payments', 'amount')
             ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->orderByDesc('issued_at')
             ->paginate($this->perPage($request));

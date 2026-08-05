@@ -6,8 +6,9 @@ use App\Filament\Resources\AssociateReceiptResource;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Services\AssociateReceiptService;
-use Filament\Notifications\Notification;
+use App\Services\ProjectReceiptNumberingService;
 use Filament\Actions;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +49,7 @@ class EditAssociateReceipt extends EditRecord
                         return;
                     }
 
-                    \App\Models\ProductionDelivery::where('tenant_id', $this->record->tenant_id)
+                    ProductionDelivery::where('tenant_id', $this->record->tenant_id)
                         ->where('associate_receipt_id', $this->record->id)
                         ->update(['associate_receipt_id' => null]);
 
@@ -62,6 +63,7 @@ class EditAssociateReceipt extends EditRecord
     {
         try {
             return DB::transaction(function () use ($record, $data) {
+                $this->validateAndSynchronizeNumbers($record, $data);
                 $selectedIds = collect($data['delivery_ids'] ?? [])
                     ->map(fn ($id) => (int) $id)
                     ->filter()
@@ -99,5 +101,41 @@ class EditAssociateReceipt extends EditRecord
                 'delivery_ids' => $exception->getMessage(),
             ]);
         }
+    }
+
+    private function validateAndSynchronizeNumbers(Model $record, array &$data): void
+    {
+        $tenantDuplicate = $record->newQuery()
+            ->where('tenant_id', $record->tenant_id)
+            ->where('tenant_receipt_year', $data['tenant_receipt_year'])
+            ->where('tenant_receipt_number', $data['tenant_receipt_number'])
+            ->whereKeyNot($record->getKey())
+            ->exists();
+        $projectDuplicate = $record->newQuery()
+            ->where('tenant_id', $record->tenant_id)
+            ->where('sales_project_id', $record->sales_project_id)
+            ->where('project_receipt_year', $data['project_receipt_year'])
+            ->where('project_receipt_number', $data['project_receipt_number'])
+            ->whereKeyNot($record->getKey())
+            ->exists();
+
+        if ($tenantDuplicate || $projectDuplicate) {
+            throw ValidationException::withMessages([
+                $tenantDuplicate ? 'tenant_receipt_number' : 'project_receipt_number' => $tenantDuplicate
+                        ? 'Este numero geral ja esta em uso neste ano.'
+                        : 'Este numero ja esta em uso neste projeto e ano.',
+            ]);
+        }
+
+        $project = SalesProject::query()
+            ->where('tenant_id', $record->tenant_id)
+            ->findOrFail($record->sales_project_id);
+        $service = app(ProjectReceiptNumberingService::class);
+        $usesProject = $service->usesProjectSequence($project);
+        $data['receipt_number'] = (int) $data[$usesProject ? 'project_receipt_number' : 'tenant_receipt_number'];
+        $data['receipt_year'] = (int) $data[$usesProject ? 'project_receipt_year' : 'tenant_receipt_year'];
+        $data['receipt_label'] = $usesProject
+            ? $service->format($project, $data['receipt_number'], $data['receipt_year'])
+            : $service->format($project, $data['receipt_number'], $data['receipt_year']);
     }
 }

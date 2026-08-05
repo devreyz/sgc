@@ -22,7 +22,7 @@ class CreateCustomerBillingReceipt extends CreateRecord
 
         $data['tenant_id'] = $tenantId;
         $data['created_by'] = Auth::id();
-        $data = array_merge($data, CustomerBillingReceipt::numberingFor($project));
+        $data = array_merge($data, CustomerBillingReceipt::numberingFor($project, $data['issued_at'] ?? null));
 
         // status inicial = draft
         $data['status'] = CustomerReceiptStatus::DRAFT->value;
