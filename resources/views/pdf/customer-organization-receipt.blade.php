@@ -26,12 +26,14 @@ $primaryColor  = '#0a0a0a';
 $lineColor     = '#c0c8d4';
 $customerCount = $customers->count();
 $manyClients   = collect($priceGroups)->max(fn($g) => $g['customers']->count()) > 4;
+$pdfSections   = $visible_sections ?? ['document_info', 'organization_info', 'project_info', 'deliveries', 'financial', 'signature'];
+$showSection   = fn (string $section): bool => in_array($section, $pdfSections, true);
 
 /**
  * Formata quantidade sem zeros decimais desnecessários.
  * Ex: 10 → "10" | 10.5 → "10,5" | 10.123 → "10,123" | 10.1234 → "10,1234"
  */
-function fmtQtyOrg(float $n): string {
+$fmtQtyOrg = function (float $n): string {
     if ($n == floor($n)) {
         return number_format((int) $n, 0, ',', '.');
     }
@@ -45,7 +47,7 @@ function fmtQtyOrg(float $n): string {
     $str = rtrim($str, '0');
     $str = rtrim($str, ',');
     return $str;
-}
+};
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -150,38 +152,43 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
     <div class="hdr-right">
         <span class="doc-type">Relatório de Distribuição de Produtos</span>
-        <span class="doc-num">Nº {{ $receiptLabel }}</span>
+        @if($showSection('document_info'))
+        <span class="doc-num">Nº Documento: {{ $receiptLabel }}</span>
         @if($periodLabel)
         <span class="doc-date" style="margin-top:1px;">Período: {{ $periodLabel }}</span>
         @endif
+        @endif
+        @if($showSection('financial'))
         <div style="text-align:right; margin-top:6px;">
             <div style="font-size:8px; color:#666; text-transform:uppercase;">Valor a Receber</div>
             <div style="color:#059669; font-size:13px; margin-top:3px;">
                 R$ {{ number_format($totalNet, 2, ',', '.') }}
             </div>
         </div>
+        @endif
     </div>
 </div>
 
 {{-- ═══ ORGANIZAÇÃO / PROJETO ═══ --}}
+@if($showSection('organization_info') || ($project && $showSection('project_info')))
 <div class="strip">
+    @if($showSection('organization_info'))
     <div class="strip-cell" style="width:50%;">
         <span class="strip-label">Organização</span>
         <span class="strip-value">{{ $organization->name ?? '—' }}</span>
     </div>
-    @if($project)
+    @endif
+    @if($project && $showSection('project_info'))
     <div class="strip-cell" style="width:50%;">
         <span class="strip-label">Projeto / Referência</span>
         <span class="strip-value">{{ $project->title }}</span>
     </div>
     @endif
 </div>
-
-{{-- ═══ TABELA PRODUTO × CLIENTE (agrupada por tabela de preço) ═══ --}}
-@if(!$multiplePriceTables)
-<div class="sec-label">Entregas</div>
 @endif
 
+{{-- ═══ TABELA PRODUTO × CLIENTE (agrupada por tabela de preço) ═══ --}}
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
     'consentPosition' => 'before',
@@ -192,6 +199,12 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         'items_count' => collect($priceGroups ?? [])->sum(fn ($group) => count($group['table'] ?? [])),
     ],
 ])
+@endif
+
+@if($showSection('deliveries'))
+@if(!$multiplePriceTables)
+<div class="sec-label">Entregas</div>
+@endif
 
 @php
     $pdfColumns = $visibleColumns ?? ['unit_price', 'gross'];
@@ -232,8 +245,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @foreach($groupCustomers as $c)
             <th class="r">{{ $c->name }}</th>
             @endforeach
-            @if($showUnitPrice)<th class="r" style="white-space:nowrap;">Vlr. Unit.</th>@endif
             <th class="r" style="width:13%">Qtd. Total</th>
+            @if($showUnitPrice)<th class="r" style="white-space:nowrap;">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r">Total R$</th>@endif
             @foreach($selectedFeeColumns as $fee)<th class="r">{{ $fee['name'] }}</th>@endforeach
             @if($showNet)<th class="r">Líquido</th>@endif
@@ -246,13 +259,13 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @foreach($groupCustomers as $c)
                 @php $qty = $row['by_customer'][$c->id] ?? null; @endphp
                 @if($qty !== null)
-                <td class="r">{{ fmtQtyOrg((float) $qty) }}</td>
+                <td class="r">{{ $fmtQtyOrg((float) $qty) }}</td>
                 @else
                 <td class="c">—</td>
                 @endif
             @endforeach
+            <td class="r">{{ $fmtQtyOrg((float) $row['total_qty']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showUnitPrice)<td class="up">R$&nbsp;{{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
-            <td class="r">{{ fmtQtyOrg((float) $row['total_qty']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($row['total_gross'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
                 <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$&nbsp;{{ number_format($row['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
@@ -273,8 +286,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     <tfoot>
         <tr>
             <td colspan="{{ 1 + $groupCustomers->count() }}">{{ $multiplePriceTables ? 'Subtotal — '.$group['price_table_name'] : 'Total Geral' }}</td>
-            @if($showUnitPrice)<td></td>@endif
             <td></td>
+            @if($showUnitPrice)<td></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
                 <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$&nbsp;{{ number_format($group['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
@@ -288,28 +301,19 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 <div style="border-top:1px dashed #d1d5db; margin:6px 0 2px;"></div>
 @endif
 @endforeach
-
-@if($multiplePriceTables)
-<div style="display:table; width:100%; margin:4px 0 12px;">
-    <div style="display:table-cell;"></div>
-    <div style="display:table-cell; text-align:right; white-space:nowrap;">
-        <span style="background:#e2e8f0; padding:3px 10px; border-radius:4px; font-size:8.5pt;">
-            <strong>Total Geral: R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</strong>
-        </span>
-    </div>
-</div>
 @endif
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}
+@if($showSection('financial'))
+<div class="sec-label">Resumo financeiro</div>
 <div class="fin-summary">
+    @if($receipt->notes)
     <div class="fin-left">
-        <span class="fin-label">Comprovante</span>
-        <div style="font-size: 9pt;">{{ $receiptLabel }}</div>
-        @if($receipt->notes)
-        <div style="margin-top:6px; font-size:7.5pt; color:#555;">{{ $receipt->notes }}</div>
-        @endif
+        <span class="fin-label">Observações</span>
+        <div style="font-size:7.5pt; color:#555;">{{ $receipt->notes }}</div>
     </div>
-    <div class="fin-right">
+    @endif
+    <div class="fin-right" @unless($receipt->notes) style="width:100%;" @endunless>
         <div class="fin-row">
             <span class="fin-row-label">Valor Bruto Total</span>
             <span class="fin-row-val">R$&nbsp;{{ number_format($totalGross, 2, ',', '.') }}</span>
@@ -328,7 +332,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         </div>
     </div>
 </div>
+@endif
 
+@if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
     'consentPosition' => 'after',
@@ -339,6 +345,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         'items_count' => collect($priceGroups ?? [])->sum(fn ($group) => count($group['table'] ?? [])),
     ],
 ])
+@endif
 
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">

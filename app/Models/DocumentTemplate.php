@@ -385,6 +385,7 @@ class DocumentTemplate extends Model
                 'type' => 'receipt',
                 'description' => 'Comprovante consolidado das distribuicoes destinadas a uma organizacao',
                 'sections' => [
+                    'document_info' => 'Numero e periodo do documento',
                     'organization_info' => 'Dados da Organizacao',
                     'project_info' => 'Dados do Projeto',
                     'deliveries' => 'Distribuicoes',

@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
+use App\Models\Customer;
+use App\Models\CustomerBillingReceipt;
+use App\Models\Organization;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -85,6 +88,60 @@ class PdfRenderingCompatibilityTest extends TestCase
         ])->render();
 
         $this->assertStringNotContainsString('<th style="width:11%;">Data</th>', $html);
+    }
+
+    public function test_organization_receipt_respects_sections_and_places_total_quantity_before_price(): void
+    {
+        $tenant = new Tenant(['name' => 'Cooperativa Teste']);
+        $project = new SalesProject(['title' => 'PAA 2026']);
+        $organization = new Organization(['name' => 'Prefeitura Municipal']);
+        $customer = new Customer(['name' => 'Escola Central']);
+        $customer->id = 10;
+        $receipt = new CustomerBillingReceipt([
+            'receipt_year' => 2026,
+            'receipt_number' => 12,
+            'issued_at' => '2026-08-05',
+        ]);
+        $priceGroups = [[
+            'price_table_name' => 'Tabela 2026',
+            'customers' => collect([$customer]),
+            'table' => [[
+                'product' => 'Banana',
+                'unit' => 'kg',
+                'unit_price' => 5.5,
+                'by_customer' => [10 => 20],
+                'total_qty' => 20,
+                'total_gross' => 110,
+                'fee_values' => [],
+            ]],
+            'subtotal_gross' => 110,
+            'subtotal_net' => 110,
+            'fee_totals' => [],
+        ]];
+
+        $html = view('pdf.customer-organization-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'organization' => $organization,
+            'receipt' => $receipt,
+            'customers' => collect([$customer]),
+            'priceGroups' => $priceGroups,
+            'multiplePriceTables' => false,
+            'totalGross' => 110,
+            'totalFees' => 0,
+            'totalNet' => 110,
+            'periodLabel' => '05/08/2026',
+            'feeColumns' => [],
+            'visibleColumns' => ['unit_price', 'gross'],
+            'visible_sections' => ['document_info', 'organization_info', 'project_info', 'deliveries'],
+        ])->render();
+
+        $this->assertStringContainsString('Nº Documento:', $html);
+        $this->assertStringNotContainsString('<div class="sec-label">Resumo financeiro</div>', $html);
+        $this->assertStringNotContainsString('<div class="fin-summary">', $html);
+        $this->assertStringNotContainsString('Valor a Receber', $html);
+        $this->assertLessThan(strpos($html, 'Vlr. Unit.'), strpos($html, 'Qtd. Total'));
+        $this->assertSame(1, substr_count($html, 'Total Geral'));
     }
 
     private function associateReceiptFixtures(): array
