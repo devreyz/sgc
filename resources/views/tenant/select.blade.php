@@ -2,18 +2,38 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
+    >
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>Selecione uma organização - {{ config('app.name', 'SGC') }}</title>
+    <title>
+        Selecione uma organização -
+        {{ config('app.name', 'SGC') }}
+    </title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
+    <link
+        rel="stylesheet"
+        href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800"
+    >
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
+    >
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css"
+    >
 
     <meta name="theme-color" content="#16a34a">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta
+        name="apple-mobile-web-app-status-bar-style"
+        content="default"
+    >
 
     <style>
         :root {
@@ -22,15 +42,26 @@
             --tenant-primary-deep: #15803d;
             --tenant-surface: #ffffff;
             --tenant-soft: #f8faf9;
-            --tenant-muted: #f1f5f3;
-            --tenant-border: #dfe7e2;
-            --tenant-border-strong: #cbd8d0;
+            --tenant-muted: #eef4f0;
+            --tenant-border: #dce6df;
+            --tenant-border-strong: #c8d6cd;
             --tenant-text: #102018;
             --tenant-secondary: #52645a;
-            --tenant-faded: #839187;
+            --tenant-faded: #809087;
             --tenant-danger: #dc2626;
+            --tenant-danger-soft: #fef2f2;
             --tenant-warning: #d97706;
-            --tenant-shadow: 0 18px 48px rgba(15, 35, 24, .11);
+            --tenant-warning-soft: #fffbeb;
+            --tenant-info: #2563eb;
+            --tenant-info-soft: #eff6ff;
+            --tenant-violet: #7c3aed;
+            --tenant-violet-soft: #f5f3ff;
+            --tenant-shadow-sm:
+                0 6px 20px rgba(15, 35, 24, .055);
+            --tenant-shadow:
+                0 18px 48px rgba(15, 35, 24, .10);
+            --tenant-shadow-lg:
+                0 25px 70px rgba(8, 24, 15, .23);
         }
 
         *,
@@ -40,22 +71,48 @@
         }
 
         html {
+            width: 100%;
+            max-width: 100%;
+            min-width: 320px;
             min-height: 100%;
-            background: #eef7f2;
+            overflow-x: clip;
+            background: #eef5f1;
             -webkit-text-size-adjust: 100%;
         }
 
         body {
+            width: 100%;
+            max-width: 100%;
             min-width: 320px;
             min-height: 100dvh;
             margin: 0;
-            overflow-x: hidden;
+            overflow-x: clip;
             background:
-                radial-gradient(circle at 12% 0%, rgba(34, 197, 94, .12), transparent 25rem),
-                radial-gradient(circle at 90% 15%, rgba(14, 165, 233, .08), transparent 28rem),
-                linear-gradient(180deg, #f8fafc 0%, #eef7f2 100%);
+                radial-gradient(
+                    circle at 5% 2%,
+                    rgba(34, 197, 94, .09),
+                    transparent 25rem
+                ),
+                radial-gradient(
+                    circle at 97% 96%,
+                    rgba(37, 99, 235, .045),
+                    transparent 27rem
+                ),
+                linear-gradient(
+                    180deg,
+                    #f9fbfa 0%,
+                    #eef5f1 100%
+                );
             color: var(--tenant-text);
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
         }
 
@@ -63,27 +120,56 @@
             position: fixed;
             z-index: 0;
             inset: 0;
+            opacity: .6;
             background-image:
-                linear-gradient(rgba(15, 23, 42, .025) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(15, 23, 42, .025) 1px, transparent 1px);
-            background-size: 22px 22px;
-            mask-image: linear-gradient(to bottom, rgba(0,0,0,.8), transparent 82%);
+                linear-gradient(
+                    rgba(21, 128, 61, .023) 1px,
+                    transparent 1px
+                ),
+                linear-gradient(
+                    90deg,
+                    rgba(21, 128, 61, .023) 1px,
+                    transparent 1px
+                );
+            background-size: 27px 27px;
+            mask-image:
+                linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, .72),
+                    transparent 84%
+                );
             content: "";
             pointer-events: none;
         }
 
         button,
         input {
+            min-width: 0;
             font: inherit;
+        }
+
+        button:focus-visible,
+        a:focus-visible {
+            outline: 3px solid rgba(34, 197, 94, .2);
+            outline-offset: 2px;
+        }
+
+        img,
+        svg {
+            max-width: 100%;
+        }
+
+        [hidden] {
+            display: none !important;
         }
 
         .tenant-page {
             position: relative;
             z-index: 1;
-            display: flex;
+            display: grid;
+            width: 100%;
             min-height: 100dvh;
-            align-items: center;
-            justify-content: center;
+            place-items: center;
             padding:
                 max(1rem, env(safe-area-inset-top))
                 max(1rem, env(safe-area-inset-right))
@@ -92,299 +178,294 @@
         }
 
         .tenant-shell {
-            width: min(100%, 1080px);
-        }
-
-        .tenant-hero {
-            position: relative;
             display: grid;
-            min-height: 270px;
-            grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
-            gap: 1rem;
-            margin-bottom: 1rem;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, .24);
-            border-radius: 30px;
-            background:
-                radial-gradient(circle at 84% 10%, rgba(255, 255, 255, .18), transparent 15rem),
-                linear-gradient(135deg, var(--tenant-primary) 0%, var(--tenant-primary-dark) 55%, var(--tenant-primary-deep) 100%);
-            box-shadow: 0 24px 58px rgba(21, 128, 61, .20);
-            color: #fff;
-        }
-
-        .tenant-hero::before {
-            position: absolute;
-            inset: 0;
-            background:
-                linear-gradient(115deg, rgba(255,255,255,.10), transparent 42%),
-                radial-gradient(circle at 4% 125%, rgba(255,255,255,.14), transparent 20rem);
-            content: "";
-            pointer-events: none;
-        }
-
-        .tenant-hero-wave {
-            position: absolute;
-            right: 0;
-            bottom: -1px;
-            left: 0;
-            width: 100%;
-            height: 76px;
-            color: rgba(255, 255, 255, .10);
-            pointer-events: none;
-        }
-
-        .tenant-hero-copy,
-        .tenant-hero-summary {
-            position: relative;
-            z-index: 2;
-        }
-
-        .tenant-hero-copy {
-            display: flex;
+            width: min(100%, 960px);
             min-width: 0;
-            justify-content: center;
-            flex-direction: column;
-            padding: 1.6rem 1.7rem 3.2rem;
+            gap: .8rem;
         }
 
-        .tenant-brand {
-            display: inline-flex;
-            width: max-content;
-            align-items: center;
-            gap: .45rem;
-            margin-bottom: .7rem;
-            padding: .36rem .64rem;
-            border: 1px solid rgba(255,255,255,.16);
-            border-radius: 999px;
-            background: rgba(255,255,255,.11);
-            color: rgba(255,255,255,.9);
-            font-size: .66rem;
-            font-weight: 790;
-            backdrop-filter: blur(10px);
-        }
-
-        .tenant-brand svg {
-            width: 15px;
-            height: 15px;
-        }
-
-        .tenant-title {
-            max-width: 740px;
-            margin: 0;
-            font-size: clamp(1.6rem, 3.4vw, 2.6rem);
-            font-weight: 880;
-            letter-spacing: -.048em;
-            line-height: 1.04;
-        }
-
-        .tenant-description {
-            max-width: 690px;
-            margin: .78rem 0 0;
-            color: rgba(255,255,255,.77);
-            font-size: .78rem;
-            font-weight: 610;
-            line-height: 1.6;
-        }
-
-        .tenant-features {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .46rem .85rem;
-            margin-top: .85rem;
-            color: rgba(255,255,255,.79);
-            font-size: .68rem;
-            font-weight: 650;
-        }
-
-        .tenant-features span {
-            display: inline-flex;
-            align-items: center;
-            gap: .36rem;
-        }
-
-        .tenant-features svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        .tenant-hero-summary {
-            display: flex;
-            justify-content: center;
-            flex-direction: column;
-            margin: .9rem;
-            padding: 1rem;
-            border: 1px solid rgba(255,255,255,.16);
-            border-radius: 22px;
-            background: rgba(255,255,255,.11);
-            backdrop-filter: blur(16px);
-        }
-
-        .tenant-summary-icon {
+        .tenant-header {
             display: grid;
-            width: 46px;
-            height: 46px;
+            min-width: 0;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .68rem;
+            align-items: center;
+            padding: .78rem;
+            border: 1px solid var(--tenant-border);
+            border-left: 4px solid var(--tenant-primary-dark);
+            border-radius: 16px;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(236, 253, 245, .84),
+                    rgba(255, 255, 255, .985) 48%
+                );
+            box-shadow: var(--tenant-shadow-sm);
+        }
+
+        .tenant-header-icon {
+            display: grid;
+            width: 44px;
+            height: 44px;
             place-items: center;
-            margin-bottom: .8rem;
-            border: 1px solid rgba(255,255,255,.18);
-            border-radius: 15px;
-            background: rgba(255,255,255,.12);
-            color: #fff;
+            border-radius: 13px;
+            background: #ecfdf5;
+            color: var(--tenant-primary-deep);
         }
 
-        .tenant-summary-icon svg {
-            width: 22px;
-            height: 22px;
+        .tenant-header-icon i {
+            font-size: 1.28rem;
         }
 
-        .tenant-summary-label {
-            color: rgba(255,255,255,.68);
-            font-size: .62rem;
-            font-weight: 780;
-            letter-spacing: .08em;
+        .tenant-header-copy {
+            min-width: 0;
+        }
+
+        .tenant-app-name {
+            display: flex;
+            align-items: center;
+            gap: .3rem;
+            color: var(--tenant-primary-deep);
+            font-size: .65rem;
+            font-weight: 820;
+            letter-spacing: .06em;
             text-transform: uppercase;
         }
 
-        .tenant-summary-value {
-            display: block;
-            margin-top: .36rem;
-            font-size: 2rem;
-            font-weight: 900;
-            letter-spacing: -.045em;
+        .tenant-app-name i {
+            font-size: .83rem;
         }
 
-        .tenant-summary-text {
-            margin: .36rem 0 0;
-            color: rgba(255,255,255,.72);
+        .tenant-header-copy h1 {
+            margin: .12rem 0 0;
+            overflow: hidden;
+            color: var(--tenant-text);
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            font-weight: 870;
+            letter-spacing: -.035em;
+            line-height: 1.24;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tenant-header-copy p {
+            margin: .24rem 0 0;
+            color: var(--tenant-secondary);
+            font-size: .75rem;
+        }
+
+        .tenant-count {
+            display: inline-flex;
+            min-height: 34px;
+            align-items: center;
+            gap: .32rem;
+            padding: .34rem .5rem;
+            border-radius: 999px;
+            background: var(--tenant-muted);
+            color: var(--tenant-secondary);
             font-size: .68rem;
-            line-height: 1.5;
+            font-weight: 790;
+            white-space: nowrap;
+        }
+
+        .tenant-count i {
+            color: var(--tenant-primary-dark);
+            font-size: .9rem;
         }
 
         .tenant-content {
+            min-width: 0;
             overflow: hidden;
-            border: 1px solid rgba(223, 231, 226, .95);
-            border-radius: 24px;
-            background: rgba(255, 255, 255, .94);
+            border: 1px solid var(--tenant-border);
+            border-radius: 17px;
+            background: rgba(255, 255, 255, .97);
             box-shadow: var(--tenant-shadow);
-            backdrop-filter: blur(14px);
+            backdrop-filter: blur(15px);
         }
 
         .tenant-content-head {
             display: flex;
-            align-items: flex-end;
+            align-items: center;
             justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem 1rem .85rem;
+            gap: .72rem;
+            padding: .72rem .8rem;
             border-bottom: 1px solid var(--tenant-border);
-            background: linear-gradient(180deg, rgba(248,250,249,.98), rgba(255,255,255,.95));
+            background:
+                linear-gradient(
+                    180deg,
+                    var(--tenant-soft),
+                    var(--tenant-surface)
+                );
         }
 
-        .tenant-content-head h2 {
+        .tenant-content-title {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: .55rem;
+        }
+
+        .tenant-content-icon {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 11px;
+            background: var(--tenant-violet-soft);
+            color: var(--tenant-violet);
+        }
+
+        .tenant-content-icon i {
+            font-size: 1.08rem;
+        }
+
+        .tenant-content-copy {
+            min-width: 0;
+        }
+
+        .tenant-content-copy h2 {
             margin: 0;
             color: var(--tenant-text);
-            font-size: .96rem;
-            font-weight: 850;
-            letter-spacing: -.025em;
+            font-size: .9rem;
+            font-weight: 840;
+            letter-spacing: -.02em;
         }
 
-        .tenant-content-head p {
-            margin: .18rem 0 0;
+        .tenant-content-copy p {
+            margin: .1rem 0 0;
             color: var(--tenant-faded);
-            font-size: .64rem;
-            line-height: 1.45;
+            font-size: .7rem;
         }
 
-        .tenant-count-badge {
-            display: inline-flex;
+        .tenant-error {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .55rem;
             align-items: center;
-            gap: .35rem;
-            padding: .38rem .62rem;
-            border: 1px solid var(--tenant-border);
-            border-radius: 999px;
-            background: #fff;
-            color: var(--tenant-secondary);
-            font-size: .61rem;
-            font-weight: 760;
-            white-space: nowrap;
+            margin: .72rem .76rem 0;
+            padding: .62rem;
+            border: 1px solid rgba(220, 38, 38, .2);
+            border-radius: 11px;
+            background: var(--tenant-danger-soft);
+            color: #991b1b;
         }
 
-        .tenant-count-badge svg {
-            width: 13px;
-            height: 13px;
-            color: var(--tenant-primary-dark);
+        .tenant-error-icon {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 10px;
+            background: #fee2e2;
+            color: var(--tenant-danger);
+        }
+
+        .tenant-error-icon i {
+            font-size: 1rem;
+        }
+
+        .tenant-error p {
+            min-width: 0;
+            margin: 0;
+            overflow-wrap: anywhere;
+            font-size: .73rem;
+            font-weight: 680;
         }
 
         .tenant-list {
             display: grid;
-            gap: .7rem;
-            padding: .85rem;
+            min-width: 0;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            gap: .68rem;
+            padding: .76rem;
         }
 
         .tenant-form {
+            min-width: 0;
             margin: 0;
         }
 
         .tenant-card {
-            position: relative;
+            --card-tone: var(--tenant-primary-dark);
+            --card-soft: #ecfdf5;
+
             display: grid;
             width: 100%;
-            min-height: 92px;
+            min-width: 0;
+            min-height: 105px;
             grid-template-columns: auto minmax(0, 1fr) auto;
-            gap: .8rem;
+            gap: .62rem;
             align-items: center;
-            padding: .8rem;
+            padding: .7rem;
             overflow: hidden;
             border: 1px solid var(--tenant-border);
-            border-radius: 17px;
-            background: var(--tenant-surface);
+            border-left: 4px solid var(--card-tone);
+            border-radius: 13px;
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--card-soft),
+                    rgba(255, 255, 255, .985) 60%
+                );
             color: inherit;
             cursor: pointer;
             text-align: left;
-            box-shadow: 0 5px 18px rgba(15,35,24,.04);
+            box-shadow: var(--tenant-shadow-sm);
             transition:
-                transform 150ms ease,
                 border-color 150ms ease,
                 box-shadow 150ms ease,
-                background 150ms ease;
+                transform 150ms ease;
         }
 
-        .tenant-card::after {
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--tenant-primary), transparent);
-            opacity: 0;
-            content: "";
-            transition: opacity 150ms ease;
+        .tenant-form:nth-child(4n + 2) .tenant-card {
+            --card-tone: var(--tenant-info);
+            --card-soft: var(--tenant-info-soft);
+        }
+
+        .tenant-form:nth-child(4n + 3) .tenant-card {
+            --card-tone: var(--tenant-violet);
+            --card-soft: var(--tenant-violet-soft);
+        }
+
+        .tenant-form:nth-child(4n + 4) .tenant-card {
+            --card-tone: var(--tenant-warning);
+            --card-soft: var(--tenant-warning-soft);
         }
 
         .tenant-card:hover,
         .tenant-card:focus-visible {
-            border-color: rgba(34,197,94,.48);
+            border-color:
+                color-mix(
+                    in srgb,
+                    var(--card-tone) 34%,
+                    var(--tenant-border)
+                );
             outline: none;
-            background: #fff;
-            box-shadow: 0 13px 30px rgba(15,35,24,.095);
-            transform: translateY(-2px);
+            box-shadow:
+                0 14px 32px rgba(15, 35, 24, .10);
+            transform: translateY(-1px);
         }
 
-        .tenant-card:hover::after,
-        .tenant-card:focus-visible::after {
-            opacity: 1;
+        .tenant-card:disabled {
+            cursor: wait;
+            opacity: .68;
+            transform: none;
         }
 
         .tenant-logo-wrap {
             position: relative;
-            width: 54px;
-            height: 54px;
+            width: 52px;
+            height: 52px;
             flex: 0 0 auto;
         }
 
         .tenant-logo,
         .tenant-logo-fallback {
-            width: 54px;
-            height: 54px;
-            border-radius: 16px;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
         }
 
         .tenant-logo {
@@ -398,13 +479,21 @@
             display: grid;
             place-items: center;
             background:
-                radial-gradient(circle at 30% 20%, rgba(255,255,255,.24), transparent 2.8rem),
-                linear-gradient(135deg, var(--tenant-primary), var(--tenant-primary-dark));
+                linear-gradient(
+                    135deg,
+                    var(--card-tone),
+                    color-mix(
+                        in srgb,
+                        var(--card-tone) 75%,
+                        #102018
+                    )
+                );
             color: #fff;
-            font-size: .88rem;
+            font-size: .84rem;
             font-weight: 870;
             letter-spacing: -.03em;
-            box-shadow: 0 9px 20px rgba(22,163,74,.17);
+            box-shadow:
+                0 8px 18px rgba(15, 35, 24, .11);
         }
 
         .tenant-logo-fallback.is-hidden {
@@ -419,202 +508,170 @@
             margin: 0;
             overflow: hidden;
             color: var(--tenant-text);
-            font-size: .82rem;
-            font-weight: 830;
-            letter-spacing: -.015em;
+            font-size: .84rem;
+            font-weight: 840;
+            letter-spacing: -.02em;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        .tenant-card:hover .tenant-name,
-        .tenant-card:focus-visible .tenant-name {
-            color: var(--tenant-primary-dark);
-        }
-
-        .tenant-slug {
-            display: inline-flex;
-            align-items: center;
-            gap: .3rem;
-            margin-top: .24rem;
+        .tenant-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .25rem .5rem;
+            margin-top: .18rem;
             color: var(--tenant-secondary);
-            font-size: .6rem;
-            font-weight: 690;
+            font-size: .67rem;
         }
 
-        .tenant-slug svg {
-            width: 12px;
-            height: 12px;
+        .tenant-meta span {
+            display: inline-flex;
+            min-width: 0;
+            align-items: center;
+            gap: .24rem;
         }
 
-        .tenant-card-description {
+        .tenant-meta i {
+            color: var(--card-tone);
+            font-size: .8rem;
+        }
+
+        .tenant-meta-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .tenant-description {
             display: -webkit-box;
-            margin: .28rem 0 0;
+            margin: .24rem 0 0;
             overflow: hidden;
             color: var(--tenant-faded);
-            font-size: .6rem;
-            line-height: 1.45;
+            font-size: .69rem;
+            line-height: 1.43;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
         }
 
         .tenant-arrow {
             display: grid;
-            width: 36px;
-            height: 36px;
-            flex: 0 0 auto;
-            place-items: center;
-            border-radius: 12px;
-            background: var(--tenant-muted);
-            color: var(--tenant-faded);
-            transition: transform 150ms ease, background 150ms ease, color 150ms ease;
-        }
-
-        .tenant-arrow svg {
-            width: 17px;
-            height: 17px;
-        }
-
-        .tenant-card:hover .tenant-arrow,
-        .tenant-card:focus-visible .tenant-arrow {
-            background: var(--tenant-primary);
-            color: #fff;
-            transform: translateX(3px);
-        }
-
-        .tenant-error {
-            display: flex;
-            align-items: flex-start;
-            gap: .7rem;
-            margin: .85rem .85rem 0;
-            padding: .75rem;
-            border: 1px solid rgba(220,38,38,.22);
-            border-radius: 15px;
-            background: #fef2f2;
-            color: #991b1b;
-        }
-
-        .tenant-error-icon {
-            display: grid;
             width: 34px;
             height: 34px;
             flex: 0 0 auto;
             place-items: center;
-            border-radius: 11px;
-            background: #fee2e2;
-            color: var(--tenant-danger);
+            border-radius: 10px;
+            background: var(--tenant-surface);
+            color: var(--card-tone);
+            box-shadow: var(--tenant-shadow-sm);
+            transition:
+                background 150ms ease,
+                color 150ms ease,
+                transform 150ms ease;
         }
 
-        .tenant-error-icon svg {
-            width: 17px;
-            height: 17px;
+        .tenant-arrow i {
+            font-size: .94rem;
         }
 
-        .tenant-error p {
-            margin: .05rem 0 0;
-            font-size: .67rem;
-            font-weight: 650;
-            line-height: 1.5;
+        .tenant-card:hover .tenant-arrow,
+        .tenant-card:focus-visible .tenant-arrow {
+            background: var(--card-tone);
+            color: #fff;
+            transform: translateX(2px);
         }
 
         .tenant-empty {
-            display: flex;
+            display: grid;
             min-height: 250px;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            gap: .7rem;
-            padding: 2rem;
+            grid-column: 1 / -1;
+            place-items: center;
+            padding: 1.5rem;
             border: 1px dashed var(--tenant-border-strong);
-            border-radius: 18px;
+            border-radius: 13px;
             background: var(--tenant-soft);
-            color: var(--tenant-secondary);
             text-align: center;
         }
 
         .tenant-empty-icon {
             display: grid;
-            width: 58px;
-            height: 58px;
+            width: 56px;
+            height: 56px;
             place-items: center;
-            border-radius: 19px;
-            background: #fffbeb;
+            margin: 0 auto .6rem;
+            border-radius: 16px;
+            background: var(--tenant-warning-soft);
             color: var(--tenant-warning);
         }
 
-        .tenant-empty-icon svg {
-            width: 27px;
-            height: 27px;
+        .tenant-empty-icon i {
+            font-size: 1.45rem;
         }
 
         .tenant-empty strong {
+            display: block;
             color: var(--tenant-text);
-            font-size: .82rem;
+            font-size: .84rem;
             font-weight: 830;
         }
 
         .tenant-empty p {
-            max-width: 430px;
-            margin: 0;
+            max-width: 390px;
+            margin: .2rem auto 0;
             color: var(--tenant-secondary);
-            font-size: .67rem;
-            line-height: 1.55;
+            font-size: .73rem;
         }
 
         .tenant-footer {
             display: flex;
+            min-width: 0;
             align-items: center;
             justify-content: space-between;
-            gap: .8rem;
-            margin-top: 1rem;
-            padding: 0 .3rem;
+            gap: .7rem;
+            padding: .1rem .2rem;
         }
 
         .tenant-footer-note {
             display: inline-flex;
+            min-width: 0;
             align-items: center;
-            gap: .38rem;
+            gap: .34rem;
             color: var(--tenant-faded);
-            font-size: .61rem;
-            font-weight: 650;
+            font-size: .68rem;
         }
 
-        .tenant-footer-note svg {
-            width: 14px;
-            height: 14px;
+        .tenant-footer-note i {
+            flex: 0 0 auto;
             color: var(--tenant-primary-dark);
+            font-size: .88rem;
         }
 
         .logout-form {
+            flex: 0 0 auto;
             margin: 0;
         }
 
         .logout-button {
             display: inline-flex;
-            min-height: 39px;
+            min-height: 40px;
             align-items: center;
             justify-content: center;
-            gap: .4rem;
-            padding: .52rem .68rem;
+            gap: .35rem;
+            padding: .48rem .62rem;
             border: 1px solid var(--tenant-border);
-            border-radius: 12px;
-            background: rgba(255,255,255,.8);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, .84);
             color: var(--tenant-secondary);
             cursor: pointer;
-            font-size: .64rem;
-            font-weight: 760;
-            transition: .14s ease;
+            font-size: .72rem;
+            font-weight: 780;
         }
 
-        .logout-button:hover {
-            border-color: rgba(220,38,38,.25);
-            background: #fef2f2;
-            color: #b91c1c;
-            transform: translateY(-1px);
-        }
-
-        .logout-button svg {
-            width: 15px;
-            height: 15px;
+        .logout-button:hover,
+        .logout-button:focus-visible {
+            border-color: rgba(220, 38, 38, .24);
+            background: var(--tenant-danger-soft);
+            color: var(--tenant-danger);
+            outline: none;
         }
 
         .tenant-loader {
@@ -625,8 +682,8 @@
             align-items: center;
             justify-content: center;
             padding: 1rem;
-            background: rgba(15,23,42,.52);
-            backdrop-filter: blur(8px);
+            background: rgba(8, 24, 15, .55);
+            backdrop-filter: blur(6px);
         }
 
         .tenant-loader.active {
@@ -636,22 +693,23 @@
         .tenant-loader-card {
             display: flex;
             width: min(100%, 340px);
+            min-width: 0;
             align-items: center;
-            gap: .75rem;
-            padding: .85rem;
-            border: 1px solid rgba(255,255,255,.78);
-            border-radius: 17px;
-            background: rgba(255,255,255,.97);
-            box-shadow: 0 22px 54px rgba(15,23,42,.22);
+            gap: .66rem;
+            padding: .75rem;
+            border: 1px solid var(--tenant-border);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, .985);
+            box-shadow: var(--tenant-shadow-lg);
         }
 
         .tenant-loader-spinner {
-            width: 28px;
-            height: 28px;
+            width: 25px;
+            height: 25px;
             flex: 0 0 auto;
-            border: 3px solid rgba(34,197,94,.18);
+            border: 3px solid rgba(34, 197, 94, .18);
             border-top-color: var(--tenant-primary-dark);
-            border-radius: 999px;
+            border-radius: 50%;
             animation: tenant-spin .72s linear infinite;
         }
 
@@ -659,21 +717,24 @@
             min-width: 0;
         }
 
-        .tenant-loader-copy strong {
+        .tenant-loader-copy strong,
+        .tenant-loader-copy span {
             display: block;
             overflow: hidden;
-            color: var(--tenant-text);
-            font-size: .72rem;
-            font-weight: 820;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
+        .tenant-loader-copy strong {
+            color: var(--tenant-text);
+            font-size: .76rem;
+            font-weight: 820;
+        }
+
         .tenant-loader-copy span {
-            display: block;
-            margin-top: .15rem;
+            margin-top: .12rem;
             color: var(--tenant-faded);
-            font-size: .59rem;
+            font-size: .65rem;
         }
 
         @keyframes tenant-spin {
@@ -682,69 +743,62 @@
             }
         }
 
-        @media (max-width: 760px) {
+        @media (max-width: 720px) {
             .tenant-page {
-                align-items: flex-start;
-                padding-top: max(.75rem, env(safe-area-inset-top));
-            }
-
-            .tenant-hero {
-                min-height: 0;
-                grid-template-columns: 1fr;
-            }
-
-            .tenant-hero-copy {
-                padding-bottom: 2.45rem;
-            }
-
-            .tenant-hero-summary {
-                margin-top: 0;
-            }
-        }
-
-        @media (max-width: 560px) {
-            .tenant-page {
-                padding-right: .7rem;
-                padding-left: .7rem;
-            }
-
-            .tenant-hero {
-                border-radius: 24px;
-            }
-
-            .tenant-hero-copy {
-                padding: 1rem 1rem 2.25rem;
-            }
-
-            .tenant-title {
-                font-size: 1.5rem;
-            }
-
-            .tenant-hero-summary {
-                margin: 0 .7rem .7rem;
-                padding: .85rem;
-                border-radius: 18px;
-            }
-
-            .tenant-content {
-                border-radius: 20px;
-            }
-
-            .tenant-content-head {
-                align-items: flex-start;
-                flex-direction: column;
+                align-items: start;
+                padding-top:
+                    max(.7rem, env(safe-area-inset-top));
             }
 
             .tenant-list {
-                gap: .6rem;
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .tenant-page {
+                padding-right:
+                    max(.65rem, env(safe-area-inset-right));
+                padding-left:
+                    max(.65rem, env(safe-area-inset-left));
+            }
+
+            .tenant-shell {
+                gap: .7rem;
+            }
+
+            .tenant-header {
+                grid-template-columns: auto minmax(0, 1fr);
+                padding: .68rem;
+                border-radius: 14px;
+            }
+
+            .tenant-count {
+                grid-column: 1 / -1;
+                justify-self: start;
+                margin-left: 3.25rem;
+            }
+
+            .tenant-header-copy p,
+            .tenant-content-copy p {
+                display: none;
+            }
+
+            .tenant-content {
+                border-radius: 15px;
+            }
+
+            .tenant-content-head {
+                padding: .66rem;
+            }
+
+            .tenant-list {
                 padding: .65rem;
             }
 
             .tenant-card {
-                min-height: 88px;
-                gap: .65rem;
-                padding: .7rem;
-                border-radius: 15px;
+                min-height: 96px;
+                padding: .65rem;
             }
 
             .tenant-logo-wrap,
@@ -756,16 +810,7 @@
 
             .tenant-logo,
             .tenant-logo-fallback {
-                border-radius: 14px;
-            }
-
-            .tenant-card-description {
-                -webkit-line-clamp: 1;
-            }
-
-            .tenant-arrow {
-                width: 32px;
-                height: 32px;
+                border-radius: 13px;
             }
 
             .tenant-footer {
@@ -784,15 +829,27 @@
             }
         }
 
-        @media (prefers-reduced-motion: reduce) {
-            .tenant-card,
-            .tenant-arrow,
-            .logout-button {
-                transition: none;
+        @media (max-width: 370px) {
+            .tenant-card {
+                grid-template-columns: auto minmax(0, 1fr);
             }
 
-            .tenant-loader-spinner {
-                animation-duration: 1.2s;
+            .tenant-arrow {
+                grid-column: 2;
+                justify-self: start;
+                width: 30px;
+                height: 30px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+                transition-duration: .01ms !important;
             }
         }
     </style>
@@ -807,117 +864,50 @@
 <body>
     <main class="tenant-page">
         <div class="tenant-shell">
-            <section class="tenant-hero">
-                <svg
-                    class="tenant-hero-wave"
-                    viewBox="0 0 1440 120"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                >
-                    <path
-                        fill="currentColor"
-                        d="M0,64L60,69.3C120,75,240,85,360,80C480,75,600,53,720,53.3C840,53,960,75,1080,80C1200,85,1320,75,1380,69.3L1440,64L1440,120L1380,120C1320,120,1200,120,1080,120C960,120,840,120,720,120C600,120,480,120,360,120C240,120,120,120,60,120L0,120Z"
-                    ></path>
-                </svg>
+            <header class="tenant-header">
+                <span class="tenant-header-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-buildings"></i>
+                </span>
 
-                <div class="tenant-hero-copy">
-                    <div class="tenant-brand">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="3" y="3" width="18" height="18" rx="3"></rect>
-                            <path d="M8 8h8"></path>
-                            <path d="M8 12h5"></path>
-                            <path d="M8 16h3"></path>
-                        </svg>
+                <div class="tenant-header-copy">
+                    <div class="tenant-app-name">
+                        <i class="ph ph-shield-check"></i>
                         {{ config('app.name', 'SGC') }}
                     </div>
 
-                    <h1 class="tenant-title">
-                        Olá, {{ $userName }}. Selecione a organização que deseja acessar.
-                    </h1>
-
-                    <p class="tenant-description">
-                        Cada organização possui seus próprios dados, permissões, projetos e configurações.
-                        Escolha abaixo o ambiente em que deseja trabalhar agora.
-                    </p>
-
-                    <div class="tenant-features">
-                        <span>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <path d="M20 6 9 17l-5-5"></path>
-                            </svg>
-                            Ambiente seguro
-                        </span>
-
-                        <span>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
-                                <path d="M7 9h10"></path>
-                                <path d="M7 13h6"></path>
-                            </svg>
-                            Dados separados por organização
-                        </span>
-
-                        <span>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="7" y="2" width="10" height="20" rx="2"></rect>
-                                <path d="M11 18h2"></path>
-                            </svg>
-                            Compatível com celular
-                        </span>
-                    </div>
+                    <h1>Olá, {{ $userName }}</h1>
+                    <p>Selecione a organização que deseja acessar.</p>
                 </div>
 
-                <aside class="tenant-hero-summary">
-                    <div class="tenant-summary-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 21h18"></path>
-                            <path d="M6 21V7l6-4 6 4v14"></path>
-                            <path d="M9 9h.01"></path>
-                            <path d="M15 9h.01"></path>
-                            <path d="M9 13h.01"></path>
-                            <path d="M15 13h.01"></path>
-                            <path d="M9 17h6"></path>
-                        </svg>
-                    </div>
+                <span class="tenant-count">
+                    <i class="ph ph-buildings"></i>
 
-                    <span class="tenant-summary-label">Organizações disponíveis</span>
-                    <strong class="tenant-summary-value">{{ $tenantCount }}</strong>
-
-                    <p class="tenant-summary-text">
-                        {{ $tenantCount === 1
-                            ? 'Você possui uma organização disponível para acesso.'
-                            : 'Você pode alternar entre os ambientes vinculados à sua conta.' }}
-                    </p>
-                </aside>
-            </section>
+                    {{ $tenantCount }}
+                    {{ $tenantCount === 1
+                        ? 'organização'
+                        : 'organizações' }}
+                </span>
+            </header>
 
             <section class="tenant-content">
                 <header class="tenant-content-head">
-                    <div>
-                        <h2>Suas organizações</h2>
-                        <p>Toque ou clique em uma organização para abrir o respectivo ambiente.</p>
-                    </div>
+                    <div class="tenant-content-title">
+                        <span class="tenant-content-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-list-bullets"></i>
+                        </span>
 
-                    <span class="tenant-count-badge">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        {{ $tenantCount }} {{ $tenantCount === 1 ? 'organização' : 'organizações' }}
-                    </span>
+                        <div class="tenant-content-copy">
+                            <h2>Suas organizações</h2>
+                            <p>Escolha o ambiente que deseja abrir.</p>
+                        </div>
+                    </div>
                 </header>
 
                 @if(session('error'))
                     <div class="tenant-error" role="alert">
-                        <div class="tenant-error-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M12 8v4"></path>
-                                <path d="M12 16h.01"></path>
-                            </svg>
-                        </div>
+                        <span class="tenant-error-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-warning-circle"></i>
+                        </span>
 
                         <p>{{ session('error') }}</p>
                     </div>
@@ -933,75 +923,103 @@
                         >
                             @csrf
 
-                            <input type="hidden" name="tenant_id" value="{{ $tenant->id }}">
+                            <input
+                                type="hidden"
+                                name="tenant_id"
+                                value="{{ $tenant->id }}"
+                            >
 
                             <button type="submit" class="tenant-card">
-                                <div class="tenant-logo-wrap">
+                                <span class="tenant-logo-wrap">
                                     @if($tenant->logo)
                                         <img
+                                            class="tenant-logo"
                                             src="{{ asset('storage/' . $tenant->logo) }}"
                                             alt="Logo de {{ $tenant->name }}"
-                                            class="tenant-logo"
                                             loading="lazy"
-                                            onerror="this.hidden=true; this.nextElementSibling.classList.remove('is-hidden');"
+                                            onerror="
+                                                this.hidden = true;
+                                                this.nextElementSibling
+                                                    .classList
+                                                    .remove('is-hidden');
+                                            "
                                         >
 
-                                        <div class="tenant-logo-fallback is-hidden" aria-hidden="true">
-                                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($tenant->name, 0, 2)) }}
-                                        </div>
+                                        <span
+                                            class="tenant-logo-fallback is-hidden"
+                                            aria-hidden="true"
+                                        >
+                                            {{ \Illuminate\Support\Str::upper(
+                                                \Illuminate\Support\Str::substr(
+                                                    $tenant->name,
+                                                    0,
+                                                    2
+                                                )
+                                            ) }}
+                                        </span>
                                     @else
-                                        <div class="tenant-logo-fallback" aria-hidden="true">
-                                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($tenant->name, 0, 2)) }}
-                                        </div>
+                                        <span
+                                            class="tenant-logo-fallback"
+                                            aria-hidden="true"
+                                        >
+                                            {{ \Illuminate\Support\Str::upper(
+                                                \Illuminate\Support\Str::substr(
+                                                    $tenant->name,
+                                                    0,
+                                                    2
+                                                )
+                                            ) }}
+                                        </span>
                                     @endif
-                                </div>
+                                </span>
 
-                                <div class="tenant-info">
-                                    <h3 class="tenant-name">{{ $tenant->name }}</h3>
+                                <span class="tenant-info">
+                                    <strong class="tenant-name">
+                                        {{ $tenant->name }}
+                                    </strong>
 
                                     @if($tenant->slug)
-                                        <span class="tenant-slug">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                                <path d="M4 7h16"></path>
-                                                <path d="M4 12h16"></path>
-                                                <path d="M4 17h10"></path>
-                                            </svg>
-                                            {{ $tenant->slug }}
+                                        <span class="tenant-meta">
+                                            <span>
+                                                <i class="ph ph-hash"></i>
+
+                                                <span class="tenant-meta-text">
+                                                    {{ $tenant->slug }}
+                                                </span>
+                                            </span>
                                         </span>
                                     @endif
 
-                                    @if($tenant->description)
-                                        <p class="tenant-card-description">{{ $tenant->description }}</p>
-                                    @else
-                                        <p class="tenant-card-description">
-                                            Acesse os dados, projetos e ferramentas desta organização.
-                                        </p>
-                                    @endif
-                                </div>
+                                    <span class="tenant-description">
+                                        {{ $tenant->description
+                                            ?: 'Acesse os dados e ferramentas desta organização.' }}
+                                    </span>
+                                </span>
 
                                 <span class="tenant-arrow" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="m9 18 6-6-6-6"></path>
-                                    </svg>
+                                    <i class="ph ph-arrow-right"></i>
                                 </span>
                             </button>
                         </form>
                     @empty
                         <div class="tenant-empty">
-                            <div class="tenant-empty-icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M10.3 2.8 1.8 17a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 2.8a2 2 0 0 0-3.4 0Z"></path>
-                                    <path d="M12 9v4"></path>
-                                    <path d="M12 17h.01"></path>
-                                </svg>
+                            <div>
+                                <span
+                                    class="tenant-empty-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-buildings"></i>
+                                </span>
+
+                                <strong>
+                                    Nenhuma organização disponível
+                                </strong>
+
+                                <p>
+                                    Sua conta ainda não está vinculada a
+                                    uma organização.
+                                </p>
                             </div>
-
-                            <strong>Nenhuma organização disponível</strong>
-
-                            <p>
-                                Sua conta ainda não está vinculada a uma organização.
-                                Entre em contato com um administrador do sistema para solicitar acesso.
-                            </p>
                         </div>
                     @endforelse
                 </div>
@@ -1009,22 +1027,19 @@
 
             <footer class="tenant-footer">
                 <span class="tenant-footer-note">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
-                        <path d="m9 12 2 2 4-4"></path>
-                    </svg>
-                    Você poderá trocar de organização novamente pelo menu do usuário.
+                    <i class="ph ph-shield-check" aria-hidden="true"></i>
+                    Você poderá trocar de organização pelo menu da conta.
                 </span>
 
-                <form action="{{ route('logout') }}" method="POST" class="logout-form">
+                <form
+                    action="{{ route('logout') }}"
+                    method="POST"
+                    class="logout-form"
+                >
                     @csrf
 
                     <button type="submit" class="logout-button">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <path d="m16 17 5-5-5-5"></path>
-                            <path d="M21 12H9"></path>
-                        </svg>
+                        <i class="ph-duotone ph-sign-out"></i>
                         Sair da conta
                     </button>
                 </form>
@@ -1032,49 +1047,95 @@
         </div>
     </main>
 
-    <div class="tenant-loader" id="tenant-loader" aria-hidden="true">
-        <div class="tenant-loader-card" role="status" aria-live="polite">
-            <div class="tenant-loader-spinner" aria-hidden="true"></div>
+    <div
+        class="tenant-loader"
+        id="tenant-loader"
+        aria-hidden="true"
+    >
+        <div
+            class="tenant-loader-card"
+            role="status"
+            aria-live="polite"
+        >
+            <div
+                class="tenant-loader-spinner"
+                aria-hidden="true"
+            ></div>
 
             <div class="tenant-loader-copy">
-                <strong id="tenant-loader-title">Abrindo organização...</strong>
-                <span>Preparando seu ambiente com segurança.</span>
+                <strong id="tenant-loader-title">
+                    Abrindo organização...
+                </strong>
+
+                <span>Preparando seu ambiente.</span>
             </div>
         </div>
     </div>
 
     <script>
-        (function () {
-            const loader = document.getElementById('tenant-loader');
-            const loaderTitle = document.getElementById('tenant-loader-title');
-            const tenantForms = document.querySelectorAll('.tenant-form');
+        (() => {
+            const loader =
+                document.getElementById(
+                    'tenant-loader'
+                );
 
-            tenantForms.forEach(function (form) {
-                form.addEventListener('submit', function () {
-                    const tenantName = form.dataset.tenantName || 'organização';
-                    const submitButton = form.querySelector('button[type="submit"]');
+            const loaderTitle =
+                document.getElementById(
+                    'tenant-loader-title'
+                );
 
-                    tenantForms.forEach(function (currentForm) {
-                        const currentButton = currentForm.querySelector('button[type="submit"]');
+            const tenantForms =
+                document.querySelectorAll(
+                    '.tenant-form'
+                );
 
-                        if (currentButton) {
-                            currentButton.disabled = true;
+            tenantForms.forEach(form => {
+                form.addEventListener(
+                    'submit',
+                    () => {
+                        const tenantName =
+                            form.dataset.tenantName
+                            || 'organização';
+
+                        const submitButton =
+                            form.querySelector(
+                                'button[type="submit"]'
+                            );
+
+                        tenantForms.forEach(
+                            currentForm => {
+                                const currentButton =
+                                    currentForm.querySelector(
+                                        'button[type="submit"]'
+                                    );
+
+                                if (currentButton) {
+                                    currentButton.disabled = true;
+                                }
+                            }
+                        );
+
+                        if (submitButton) {
+                            submitButton.setAttribute(
+                                'aria-busy',
+                                'true'
+                            );
                         }
-                    });
 
-                    if (submitButton) {
-                        submitButton.setAttribute('aria-busy', 'true');
-                    }
+                        if (loaderTitle) {
+                            loaderTitle.textContent =
+                                `Abrindo ${tenantName}...`;
+                        }
 
-                    if (loaderTitle) {
-                        loaderTitle.textContent = 'Abrindo ' + tenantName + '...';
+                        if (loader) {
+                            loader.classList.add('active');
+                            loader.setAttribute(
+                                'aria-hidden',
+                                'false'
+                            );
+                        }
                     }
-
-                    if (loader) {
-                        loader.classList.add('active');
-                        loader.setAttribute('aria-hidden', 'false');
-                    }
-                });
+                );
             });
         })();
     </script>

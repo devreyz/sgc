@@ -88,7 +88,7 @@ class GoogleAuthController extends Controller
                 return redirect()->route('security.index')->with('success', 'Identidade confirmada.');
             }
 
-            return redirect()->to($redirector->pathFor($user));
+            return redirect()->to($redirector->pathAfterLogin($user));
         } catch (Throwable $exception) {
             report($exception);
             $request->session()->forget(['google_oidc_nonce', 'google_oauth_intent', 'google_oauth_user_id']);
@@ -101,8 +101,9 @@ class GoogleAuthController extends Controller
         }
     }
 
-    public function logout(Request $request): RedirectResponse
+    public function logout(Request $request, AuthenticationRedirector $redirector): RedirectResponse
     {
+        $redirector->clearTenantSelection();
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

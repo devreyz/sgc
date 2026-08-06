@@ -9,29 +9,38 @@ class AuthenticationRedirector
 {
     public function pathFor(User $user): string
     {
-        session()->forget(['tenant_id', 'tenant_slug']);
+        if ($user->isSuperAdmin()) {
+            return route('home');
+        }
+
+        $tenantId = (int) session('tenant_id');
+        if ($tenantId > 0 && TenantUser::query()
+            ->where('user_id', $user->id)
+            ->where('tenant_id', $tenantId)
+            ->where('status', true)
+            ->whereHas('tenant', fn ($query) => $query->where('active', true))
+            ->exists()) {
+            return route('home');
+        }
+
+        $this->clearTenantSelection();
+
+        return route('tenant.select');
+    }
+
+    public function pathAfterLogin(User $user): string
+    {
+        $this->clearTenantSelection();
 
         if ($user->isSuperAdmin()) {
             return route('home');
         }
 
-        $memberships = TenantUser::query()
-            ->where('user_id', $user->id)
-            ->where('status', true)
-            ->whereHas('tenant', fn ($query) => $query->where('active', true))
-            ->with('tenant:id,slug')
-            ->get();
+        return route('tenant.select');
+    }
 
-        if ($memberships->count() !== 1) {
-            return route('tenant.select');
-        }
-
-        $membership = $memberships->first();
-        session([
-            'tenant_id' => $membership->tenant_id,
-            'tenant_slug' => $membership->tenant?->slug,
-        ]);
-
-        return route('home');
+    public function clearTenantSelection(): void
+    {
+        session()->forget(['tenant_id', 'tenant_slug', 'url.intended']);
     }
 }

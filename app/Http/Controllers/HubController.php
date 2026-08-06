@@ -88,7 +88,7 @@ class HubController extends Controller
 
         if ($user->hasRoleInTenant('associado', $currentTenant->id)) {
             $roles[] = [
-                'name' => 'Associado',
+                'name' => 'Membro',
                 'description' => 'Projetos e entregas',
                 'icon' => 'users',
                 'url' => route('associate.dashboard', ['tenant' => $currentTenant->slug]),

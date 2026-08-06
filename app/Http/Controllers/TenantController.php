@@ -19,7 +19,7 @@ class TenantController extends Controller
      */
     public function select()
     {
-        $tenants = $this->tenantResolver->getAvailableTenants();
+        $tenants = $this->tenantResolver->getAvailableTenantModels();
 
         return view('tenant.select', [
             'tenants' => $tenants,
@@ -40,14 +40,17 @@ class TenantController extends Controller
 
             if ($request->ajax() || $request->wantsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
                 $tenant = $this->tenantResolver->current();
+
                 return response()->json([
                     'message' => 'Organização alterada com sucesso.',
                     'tenant' => $tenant ? ['id' => $tenant->id, 'name' => $tenant->name, 'slug' => $tenant->slug] : null,
                 ], 200);
             }
 
+            $request->session()->forget('url.intended');
+
             return redirect()
-                ->intended('/')
+                ->route('home')
                 ->with('success', 'Organização alterada com sucesso.');
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());

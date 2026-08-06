@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Models\Tenant;
 use App\Models\User;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class TenantResolver
 {
@@ -13,8 +14,7 @@ class TenantResolver
      * Resolve the current tenant ID.
      * Priority:
      * 1. Session (tenant_id)
-     * 2. User's first tenant
-     * 3. null (if no tenant available)
+     * 2. null when the user has not explicitly selected a tenant
      */
     public function resolve(): ?int
     {
@@ -25,20 +25,9 @@ class TenantResolver
 
         // Check session first
         $tenantId = session('tenant_id');
-        
+
         if ($tenantId && $this->validateTenant($tenantId)) {
             return $tenantId;
-        }
-
-        // Try to get from user's tenants
-        if (Auth::check()) {
-            $user = Auth::user();
-            $tenant = $user->tenants()->active()->first();
-            
-            if ($tenant) {
-                session(['tenant_id' => $tenant->id]);
-                return $tenant->id;
-            }
         }
 
         return null;
@@ -62,20 +51,24 @@ class TenantResolver
     public function setTenant(int $tenantId): void
     {
         // Validate tenant
-        if (!$this->validateTenant($tenantId)) {
+        if (! $this->validateTenant($tenantId)) {
             throw new \Exception('Tenant inválido ou inativo.');
         }
 
         // Validate user has access
-        if (Auth::check() && !Auth::user()->isSuperAdmin()) {
+        if (Auth::check() && ! Auth::user()->isSuperAdmin()) {
             $user = Auth::user();
-            
-            if (!$user->belongsToTenant($tenantId)) {
+
+            if (! $user->belongsToTenant($tenantId)) {
                 throw new \Exception('Você não tem acesso a esta organização.');
             }
         }
 
-        session(['tenant_id' => $tenantId]);
+        $tenant = Tenant::query()->findOrFail($tenantId);
+        session([
+            'tenant_id' => $tenantId,
+            'tenant_slug' => $tenant->slug,
+        ]);
     }
 
     /**
@@ -83,7 +76,7 @@ class TenantResolver
      */
     public function clearTenant(): void
     {
-        session()->forget('tenant_id');
+        session()->forget(['tenant_id', 'tenant_slug']);
     }
 
     /**
@@ -92,8 +85,8 @@ class TenantResolver
     public function current(): ?Tenant
     {
         $tenantId = $this->resolve();
-        
-        if (!$tenantId) {
+
+        if (! $tenantId) {
             return null;
         }
 
@@ -120,8 +113,20 @@ class TenantResolver
      */
     public function getAvailableTenants(): array
     {
-        if (!Auth::check()) {
-            return [];
+        return $this->getAvailableTenantModels()
+            ->map(fn (Tenant $tenant) => [
+                'id' => $tenant->id,
+                'name' => $tenant->name,
+                'slug' => $tenant->slug,
+            ])
+            ->all();
+    }
+
+    /** @return Collection<int, Tenant> */
+    public function getAvailableTenantModels(): Collection
+    {
+        if (! Auth::check()) {
+            return collect();
         }
 
         $user = Auth::user();
@@ -130,35 +135,22 @@ class TenantResolver
         if ($user->isSuperAdmin()) {
             return Tenant::active()
                 ->orderBy('name')
-                ->get()
-                ->map(fn($tenant) => [
-                    'id' => $tenant->id,
-                    'name' => $tenant->name,
-                    'slug' => $tenant->slug,
-                ])
-                ->toArray();
+                ->get();
         }
 
         // Regular users see only their tenants
         return $user->tenants()
             ->where('active', true)
             ->orderBy('name')
-            ->get()
-            ->map(fn($tenant) => [
-                'id' => $tenant->id,
-                'name' => $tenant->name,
-                'slug' => $tenant->slug,
-            ])
-            ->toArray();
+            ->get();
     }
 
     /**
-     * Auto-select tenant for user.
-     * If user has only one tenant, select it automatically.
+     * Return only an explicitly selected and still authorized tenant.
      */
     public function autoSelectTenant(): ?int
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return null;
         }
 
@@ -175,17 +167,8 @@ class TenantResolver
             return $currentTenantId;
         }
 
-        // Get user's tenants
-        $tenants = $user->tenants()->active()->get();
+        $this->clearTenant();
 
-        // If only one tenant, select it automatically
-        if ($tenants->count() === 1) {
-            $tenantId = $tenants->first()->id;
-            session(['tenant_id' => $tenantId]);
-            return $tenantId;
-        }
-
-        // If multiple tenants, user needs to select
         return null;
     }
 }

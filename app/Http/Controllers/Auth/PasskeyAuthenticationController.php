@@ -59,7 +59,7 @@ class PasskeyAuthenticationController extends Controller
                 'context' => ['passkey_id' => $passkey->id],
             ], $request);
 
-            return response()->json(['redirect' => $redirector->pathFor($user)]);
+            return response()->json(['redirect' => $redirector->pathAfterLogin($user)]);
         } catch (CounterException $exception) {
             report($exception);
             $audit->record('webauthn_sign_count_anomaly', 'denied', [

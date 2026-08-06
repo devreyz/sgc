@@ -3,13 +3,75 @@
 @section('title', 'Selecione seu painel')
 
 @php
-    $displayName = session('tenant_id') && method_exists($user, 'getTenantName')
-        ? ($user->getTenantName(session('tenant_id')) ?: 'Membro')
-        : ($user->name ?: 'Membro');
+    $displayName = session('tenant_id')
+        && method_exists($user, 'getTenantName')
+            ? (
+                $user->getTenantName(session('tenant_id'))
+                ?: 'Membro'
+            )
+            : ($user->name ?: 'Membro');
 
     $rolesCollection = collect($roles ?? []);
     $hasSuperAdmin = $user->hasRole('super_admin');
-    $availablePanelsCount = $rolesCollection->count() + ($hasSuperAdmin ? 1 : 0);
+    $availablePanelsCount = $rolesCollection->count()
+        + ($hasSuperAdmin ? 1 : 0);
+
+    $phosphorIcons = [
+        'settings' => 'ph-gear-six',
+        'settings-2' => 'ph-gear-six',
+        'layout-dashboard' => 'ph-squares-four',
+        'panels-top-left' => 'ph-squares-four',
+        'shield' => 'ph-shield-check',
+        'shield-check' => 'ph-shield-check',
+        'users' => 'ph-users-three',
+        'user-round' => 'ph-user-circle',
+        'user-cog' => 'ph-user-gear',
+        'landmark' => 'ph-bank',
+        'building-2' => 'ph-buildings',
+        'wallet' => 'ph-wallet',
+        'wallet-cards' => 'ph-wallet',
+        'receipt' => 'ph-receipt',
+        'package' => 'ph-package',
+        'truck' => 'ph-truck',
+        'clipboard-list' => 'ph-clipboard-text',
+        'file-text' => 'ph-file-text',
+        'chart-bar' => 'ph-chart-bar',
+        'bar-chart-3' => 'ph-chart-bar',
+        'calculator' => 'ph-calculator',
+        'hand-coins' => 'ph-hand-coins',
+        'sprout' => 'ph-plant',
+        'store' => 'ph-storefront',
+        'briefcase' => 'ph-briefcase',
+        'database' => 'ph-database',
+    ];
+
+    $resolvePhosphorIcon = static fn ($icon): string =>
+        $phosphorIcons[$icon ?? '']
+        ?? 'ph-squares-four';
+
+    $resolveTone = static function ($color): string {
+        return match ($color) {
+            'info',
+            'blue',
+            'cyan' => 'blue',
+
+            'warning',
+            'orange' => 'warning',
+
+            'danger',
+            'red' => 'danger',
+
+            'secondary',
+            'indigo',
+            'violet',
+            'purple' => 'violet',
+
+            'slate',
+            'gray' => 'slate',
+
+            default => 'green',
+        };
+    };
 @endphp
 
 @section('page-title')
@@ -21,492 +83,290 @@ Bem-vindo, {{ $displayName }}!
 
 @section('content')
 <style>
-    .hub-shell {
-        --hub-green: var(--color-primary, #22c55e);
-        --hub-green-dark: var(--color-primary-dark, #16a34a);
-        --hub-green-deep: var(--color-primary-deep, #15803d);
-        --hub-surface: var(--color-surface, #ffffff);
-        --hub-soft: var(--color-surface-soft, #f8faf9);
-        --hub-muted: var(--color-surface-muted, #eef4f0);
-        --hub-border: var(--color-border, #dce6df);
-        --hub-border-strong: var(--color-border-strong, #c8d6cd);
-        --hub-text: var(--color-text, #102018);
-        --hub-secondary: var(--color-text-secondary, #52645a);
-        --hub-faded: var(--color-text-muted, #809087);
-        --hub-shadow-sm: 0 5px 18px rgba(15, 35, 24, .055);
-        --hub-shadow: 0 12px 34px rgba(15, 35, 24, .075);
-
+    .hub-page {
         display: grid;
-        width: min(100%, 1280px);
+        width: min(100%, 1040px);
         min-width: 0;
         grid-column: 1 / -1;
-        gap: .85rem;
+        gap: .8rem;
         margin: 0 auto;
-        padding-bottom: 1.25rem;
-        color: var(--hub-text);
     }
 
-    .hub-shell *,
-    .hub-shell *::before,
-    .hub-shell *::after {
+    .hub-page *,
+    .hub-page *::before,
+    .hub-page *::after {
         box-sizing: border-box;
     }
 
-    .hub-header {
-        position: relative;
-        display: grid;
+    .hub-panel {
         min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .8rem;
-        align-items: center;
-        padding: .78rem .85rem;
-        border: 1px solid var(--hub-border);
-        border-left: 4px solid var(--hub-green-dark);
-        border-radius: 14px;
-        background:
-            linear-gradient(
-                90deg,
-                rgba(236, 253, 245, .76),
-                rgba(255, 255, 255, .97) 38%
-            ),
-            var(--hub-surface);
-        box-shadow: var(--hub-shadow-sm);
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: 16px;
+        background: var(--color-surface);
+        box-shadow: var(--shadow-md);
     }
 
-    .hub-header-icon {
-        display: grid;
-        width: 44px;
-        height: 44px;
-        place-items: center;
-        border-radius: 12px;
-        background: linear-gradient(145deg, #dcfce7, #ecfdf5);
-        color: var(--hub-green-dark);
-        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .12);
-    }
-
-    .hub-header-icon svg {
-        width: 21px;
-        height: 21px;
-    }
-
-    .hub-header-copy {
+    .hub-panel-head {
+        display: flex;
         min-width: 0;
-    }
-
-    .hub-kicker {
-        display: flex;
-        align-items: center;
-        gap: .38rem;
-        color: var(--hub-green-dark);
-        font-size: .62rem;
-        font-weight: 820;
-        letter-spacing: .065em;
-        text-transform: uppercase;
-    }
-
-    .hub-kicker svg {
-        width: 13px;
-        height: 13px;
-    }
-
-    .hub-title {
-        margin: .14rem 0 0;
-        overflow: hidden;
-        color: var(--hub-text);
-        font-size: clamp(1.02rem, 2vw, 1.35rem);
-        font-weight: 860;
-        letter-spacing: -.03em;
-        line-height: 1.2;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .hub-meta {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: .35rem .7rem;
-        margin-top: .34rem;
-        color: var(--hub-secondary);
-        font-size: .68rem;
-        font-weight: 650;
-    }
-
-    .hub-meta > span {
-        display: inline-flex;
-        align-items: center;
-        gap: .3rem;
-    }
-
-    .hub-meta svg {
-        width: 13px;
-        height: 13px;
-        color: var(--hub-faded);
-    }
-
-    .hub-count {
-        display: inline-flex;
-        min-height: 40px;
-        align-items: center;
-        gap: .48rem;
-        padding: .45rem .62rem;
-        border: 1px solid var(--hub-border);
-        border-radius: 10px;
-        background: var(--hub-surface);
-        color: var(--hub-secondary);
-        font-size: .62rem;
-        font-weight: 720;
-        white-space: nowrap;
-    }
-
-    .hub-count svg {
-        width: 16px;
-        height: 16px;
-        color: var(--hub-green-dark);
-    }
-
-    .hub-count strong {
-        color: var(--hub-text);
-        font-size: .82rem;
-        font-weight: 870;
-    }
-
-    .hub-workspace {
-        overflow: hidden;
-        border: 1px solid var(--hub-border);
-        border-radius: 15px;
-        background: rgba(255, 255, 255, .96);
-        box-shadow: var(--hub-shadow);
-    }
-
-    .hub-workspace-head {
-        display: flex;
-        min-height: 66px;
         align-items: center;
         justify-content: space-between;
-        gap: .8rem;
-        padding: .72rem .82rem;
-        border-bottom: 1px solid var(--hub-border);
-        background: linear-gradient(180deg, var(--hub-soft), var(--hub-surface));
+        gap: .72rem;
+        padding: .74rem .8rem;
+        border-bottom: 1px solid var(--color-border);
+        background:
+            linear-gradient(
+                180deg,
+                var(--color-surface-soft),
+                var(--color-surface)
+            );
     }
 
-    .hub-workspace-title {
+    .hub-heading {
         display: flex;
         min-width: 0;
         align-items: center;
-        gap: .62rem;
+        gap: .58rem;
     }
 
-    .hub-workspace-icon {
+    .hub-heading-icon {
         display: grid;
-        width: 38px;
-        height: 38px;
+        width: 40px;
+        height: 40px;
         flex: 0 0 auto;
         place-items: center;
         border-radius: 11px;
         background: #ecfdf5;
-        color: var(--hub-green-dark);
+        color: #15803d;
     }
 
-    .hub-workspace-icon svg {
-        width: 18px;
-        height: 18px;
+    .hub-heading-icon i {
+        font-size: 1.15rem;
     }
 
-    .hub-workspace-head h2 {
+    .hub-heading-copy {
+        min-width: 0;
+    }
+
+    .hub-heading-copy h1 {
         margin: 0;
-        color: var(--hub-text);
-        font-size: .94rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
+        color: var(--color-text);
+        font-size: .96rem;
+        font-weight: 850;
+        letter-spacing: -.025em;
     }
 
-    .hub-workspace-head p {
-        margin: .16rem 0 0;
-        color: var(--hub-faded);
-        font-size: .62rem;
-        line-height: 1.35;
-    }
-
-    .hub-access-hint {
-        display: inline-flex;
-        min-height: 34px;
-        align-items: center;
-        gap: .35rem;
-        padding: .35rem .5rem;
-        border: 1px solid var(--hub-border);
-        border-radius: 9px;
-        background: var(--hub-surface);
-        color: var(--hub-secondary);
-        font-size: .59rem;
-        font-weight: 740;
+    .hub-heading-copy p {
+        margin: .12rem 0 0;
+        overflow: hidden;
+        color: var(--color-text-muted);
+        font-size: .72rem;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .hub-access-hint svg {
-        width: 14px;
-        height: 14px;
-        color: var(--hub-green-dark);
+    .hub-count {
+        display: inline-flex;
+        min-height: 30px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: .3rem;
+        padding: .3rem .46rem;
+        border-radius: 999px;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: .67rem;
+        font-weight: 780;
+        white-space: nowrap;
+    }
+
+    .hub-count i {
+        color: #15803d;
+        font-size: .86rem;
     }
 
     .hub-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .72rem;
-        padding: .78rem;
-    }
-
-    .hub-card {
         min-width: 0;
-        color: inherit;
-        text-decoration: none;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: .68rem;
+        padding: .76rem;
     }
 
-    .hub-card:hover,
-    .hub-card:focus-visible {
-        color: inherit;
-        text-decoration: none;
-        outline: none;
-    }
+    .hub-link {
+        --hub-tone: #15803d;
+        --hub-soft: #ecfdf5;
 
-    .hub-panel {
-        --role-color: var(--hub-green-dark);
-        --role-soft: #ecfdf5;
-
-        position: relative;
-        display: flex;
-        min-height: 172px;
-        height: 100%;
-        flex-direction: column;
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .62rem;
+        align-items: center;
+        min-height: 106px;
+        padding: .72rem;
         overflow: hidden;
-        padding: .85rem;
-        border: 1px solid var(--hub-border);
-        border-radius: 14px;
-        background: var(--hub-surface);
-        box-shadow: var(--hub-shadow-sm);
+        border: 1px solid var(--color-border);
+        border-left: 4px solid var(--hub-tone);
+        border-radius: 13px;
+        background:
+            linear-gradient(
+                135deg,
+                var(--hub-soft),
+                rgba(255, 255, 255, .98) 56%
+            );
+        color: inherit;
+        text-decoration: none;
+        box-shadow: var(--shadow-sm);
         transition:
             border-color 150ms ease,
             box-shadow 150ms ease,
             transform 150ms ease;
     }
 
-    .hub-panel::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 3px;
-        background: var(--role-color);
-        content: "";
-        opacity: .72;
-    }
-
-    .hub-card:hover .hub-panel,
-    .hub-card:focus-visible .hub-panel {
-        border-color: color-mix(
-            in srgb,
-            var(--role-color) 38%,
-            var(--hub-border)
-        );
-        box-shadow: 0 12px 28px rgba(15, 35, 24, .09);
+    .hub-link:hover,
+    .hub-link:focus-visible {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--hub-tone) 30%,
+                var(--color-border)
+            );
+        color: inherit;
+        outline: none;
+        box-shadow: var(--shadow-md);
         transform: translateY(-1px);
     }
 
-    .hub-panel-top {
-        display: flex;
-        min-width: 0;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: .65rem;
+    .hub-link.blue {
+        --hub-tone: #2563eb;
+        --hub-soft: #eff6ff;
+    }
+
+    .hub-link.warning {
+        --hub-tone: #d97706;
+        --hub-soft: #fffbeb;
+    }
+
+    .hub-link.danger {
+        --hub-tone: #dc2626;
+        --hub-soft: #fef2f2;
+    }
+
+    .hub-link.violet {
+        --hub-tone: #7c3aed;
+        --hub-soft: #f5f3ff;
+    }
+
+    .hub-link.slate {
+        --hub-tone: #475569;
+        --hub-soft: #f1f5f9;
     }
 
     .hub-role-icon {
         display: grid;
-        width: 42px;
-        height: 42px;
+        width: 45px;
+        height: 45px;
         flex: 0 0 auto;
         place-items: center;
-        border-radius: 11px;
-        background: var(--role-soft);
-        color: var(--role-color);
-        transition: background 150ms ease, color 150ms ease;
-    }
-
-    .hub-role-icon svg {
-        width: 20px;
-        height: 20px;
-    }
-
-    .hub-card:hover .hub-role-icon,
-    .hub-card:focus-visible .hub-role-icon {
-        background: var(--role-color);
-        color: #fff;
-    }
-
-    .hub-role-status {
-        display: inline-flex;
-        min-height: 25px;
-        align-items: center;
-        gap: .3rem;
-        padding: .22rem .45rem;
-        border: 1px solid var(--hub-border);
-        border-radius: 999px;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--hub-tone) 14%,
+                transparent
+            );
+        border-radius: 13px;
         background: var(--hub-soft);
-        color: var(--hub-secondary);
-        font-size: .56rem;
-        font-weight: 800;
-        white-space: nowrap;
+        color: var(--hub-tone);
     }
 
-    .hub-role-status::before {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--role-color);
-        content: "";
+    .hub-role-icon i {
+        font-size: 1.3rem;
     }
 
     .hub-role-copy {
         min-width: 0;
-        margin-top: .72rem;
+    }
+
+    .hub-role-title-line {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: .34rem;
     }
 
     .hub-role-title {
-        margin: 0;
         overflow: hidden;
-        color: var(--hub-text);
+        color: var(--color-text);
         font-size: .88rem;
         font-weight: 840;
         letter-spacing: -.02em;
-        line-height: 1.32;
         text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .hub-role-status {
+        display: inline-flex;
+        min-height: 22px;
+        align-items: center;
+        padding: .18rem .34rem;
+        border-radius: 999px;
+        background: var(--hub-soft);
+        color: var(--hub-tone);
+        font-size: .59rem;
+        font-weight: 800;
         white-space: nowrap;
     }
 
     .hub-role-description {
         display: -webkit-box;
-        margin: .28rem 0 0;
+        margin: .2rem 0 0;
         overflow: hidden;
-        color: var(--hub-faded);
-        font-size: .63rem;
+        color: var(--color-text-secondary);
+        font-size: .72rem;
         line-height: 1.48;
         -webkit-box-orient: vertical;
         -webkit-line-clamp: 2;
     }
 
-    .hub-panel-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .65rem;
-        margin-top: auto;
-        padding-top: .72rem;
-        border-top: 1px solid var(--hub-border);
-    }
-
-    .hub-access-label {
-        display: inline-flex;
-        min-width: 0;
-        align-items: center;
-        gap: .32rem;
-        color: var(--hub-secondary);
-        font-size: .6rem;
-        font-weight: 730;
-    }
-
-    .hub-access-label svg {
-        width: 13px;
-        height: 13px;
-        color: var(--role-color);
-    }
-
     .hub-arrow {
         display: grid;
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         flex: 0 0 auto;
         place-items: center;
-        border-radius: 9px;
-        background: var(--hub-muted);
-        color: var(--hub-faded);
+        border-radius: 10px;
+        background: var(--color-surface);
+        color: var(--hub-tone);
+        box-shadow: var(--shadow-sm);
         transition:
             background 150ms ease,
             color 150ms ease,
             transform 150ms ease;
     }
 
-    .hub-arrow svg {
-        width: 15px;
-        height: 15px;
+    .hub-arrow i {
+        font-size: .95rem;
     }
 
-    .hub-card:hover .hub-arrow,
-    .hub-card:focus-visible .hub-arrow {
-        background: var(--role-color);
+    .hub-link:hover .hub-arrow,
+    .hub-link:focus-visible .hub-arrow {
+        background: var(--hub-tone);
         color: #fff;
         transform: translateX(2px);
     }
 
-    .hub-card.primary .hub-panel,
-    .hub-card.success .hub-panel {
-        --role-color: #16a34a;
-        --role-soft: #ecfdf5;
-    }
-
-    .hub-card.info .hub-panel,
-    .hub-card.blue .hub-panel {
-        --role-color: #0284c7;
-        --role-soft: #eff6ff;
-    }
-
-    .hub-card.warning .hub-panel,
-    .hub-card.orange .hub-panel {
-        --role-color: #d97706;
-        --role-soft: #fffbeb;
-    }
-
-    .hub-card.danger .hub-panel,
-    .hub-card.red .hub-panel {
-        --role-color: #dc2626;
-        --role-soft: #fef2f2;
-    }
-
-    .hub-card.secondary .hub-panel,
-    .hub-card.indigo .hub-panel,
-    .hub-card.violet .hub-panel {
-        --role-color: #6366f1;
-        --role-soft: #eef2ff;
-    }
-
-    .hub-card.purple .hub-panel {
-        --role-color: #9333ea;
-        --role-soft: #faf5ff;
-    }
-
-    .hub-card.cyan .hub-panel {
-        --role-color: #0891b2;
-        --role-soft: #ecfeff;
-    }
-
-    .hub-card.slate .hub-panel,
-    .hub-card.gray .hub-panel {
-        --role-color: #475569;
-        --role-soft: #f1f5f9;
-    }
-
     .hub-empty {
-        display: flex;
-        min-height: 260px;
+        display: grid;
+        min-height: 250px;
         grid-column: 1 / -1;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: .65rem;
-        padding: 2rem;
-        border: 1px dashed var(--hub-border-strong);
+        place-items: center;
+        padding: 1.5rem;
+        border: 1px dashed var(--color-border-strong);
         border-radius: 13px;
-        background: var(--hub-soft);
-        color: var(--hub-secondary);
+        background: var(--color-surface-soft);
         text-align: center;
     }
 
@@ -515,286 +375,207 @@ Bem-vindo, {{ $displayName }}!
         width: 56px;
         height: 56px;
         place-items: center;
+        margin: 0 auto .6rem;
         border-radius: 16px;
-        background: var(--hub-muted);
-        color: var(--hub-faded);
+        background: #fffbeb;
+        color: #d97706;
     }
 
-    .hub-empty-icon svg {
-        width: 26px;
-        height: 26px;
+    .hub-empty-icon i {
+        font-size: 1.45rem;
     }
 
     .hub-empty strong {
-        color: var(--hub-text);
+        display: block;
+        color: var(--color-text);
         font-size: .84rem;
         font-weight: 830;
     }
 
     .hub-empty p {
-        max-width: 410px;
-        margin: 0;
-        color: var(--hub-secondary);
-        font-size: .68rem;
-        line-height: 1.52;
+        max-width: 390px;
+        margin: .2rem auto 0;
+        color: var(--color-text-secondary);
+        font-size: .73rem;
+        line-height: 1.5;
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 700px) {
         .hub-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
         }
     }
 
-    @media (max-width: 720px) {
-        .hub-header {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .hub-count {
-            position: absolute;
-            top: .72rem;
-            right: .72rem;
-            width: 38px;
-            min-width: 38px;
-            height: 38px;
-            justify-content: center;
-            padding: 0;
-        }
-
-        .hub-count span,
-        .hub-count svg {
-            display: none;
-        }
-
-        .hub-header-copy {
-            padding-right: 2.8rem;
-        }
-    }
-
-    @media (max-width: 620px) {
-        .hub-shell {
+    @media (max-width: 520px) {
+        .hub-page {
             gap: .7rem;
         }
 
-        .hub-header {
+        .hub-panel-head {
             padding: .68rem;
-            border-radius: 12px;
         }
 
-        .hub-header-icon {
-            width: 39px;
-            height: 39px;
-            border-radius: 10px;
-        }
-
-        .hub-title {
-            font-size: 1rem;
-        }
-
-        .hub-meta {
-            gap: .28rem .5rem;
-            font-size: .62rem;
-        }
-
-        .hub-workspace {
-            border-radius: 13px;
-        }
-
-        .hub-workspace-head {
-            min-height: 0;
-            align-items: flex-start;
-            flex-direction: column;
-            padding: .65rem;
-        }
-
-        .hub-access-hint {
-            width: 100%;
-            justify-content: center;
+        .hub-heading-copy p {
+            display: none;
         }
 
         .hub-grid {
-            grid-template-columns: 1fr;
-            gap: .6rem;
             padding: .65rem;
         }
 
-        .hub-panel {
-            min-height: 158px;
-            padding: .72rem;
-            border-radius: 12px;
+        .hub-link {
+            min-height: 96px;
+            padding: .65rem;
+        }
+
+        .hub-role-icon {
+            width: 41px;
+            height: 41px;
+            border-radius: 11px;
+        }
+
+        .hub-role-icon i {
+            font-size: 1.18rem;
         }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
+    @media (max-width: 380px) {
+        .hub-link {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .hub-arrow {
+            grid-column: 2;
+            justify-self: start;
+            width: 30px;
+            height: 30px;
         }
     }
 </style>
 
-<main class="hub-shell">
-    <header class="hub-header">
-        <span class="hub-header-icon">
-            <i data-lucide="panels-top-left"></i>
-        </span>
-
-        <div class="hub-header-copy">
-            <div class="hub-kicker">
-                <i data-lucide="shield-check"></i>
-                Central de acesso
-            </div>
-
-            <h1 class="hub-title">
-                Olá, {{ $displayName }}
-            </h1>
-
-            <div class="hub-meta">
-                <span>
-                    <i data-lucide="building-2"></i>
-                    {{ $currentTenant->name ?? 'Sua organização' }}
+<main class="hub-page">
+    <section class="hub-panel">
+        <header class="hub-panel-head">
+            <div class="hub-heading">
+                <span class="hub-heading-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-squares-four"></i>
                 </span>
 
-                <span>
-                    <i data-lucide="layout-dashboard"></i>
-                    Escolha seu ambiente
-                </span>
-            </div>
-        </div>
+                <div class="hub-heading-copy">
+                    <h1>Painéis disponíveis</h1>
 
-        <div
-            class="hub-count"
-            aria-label="{{ $availablePanelsCount }} painel ou painéis disponíveis"
-        >
-            <i data-lucide="layers-3"></i>
-            <span>Painéis</span>
-            <strong>{{ $availablePanelsCount }}</strong>
-        </div>
-    </header>
-
-    <section class="hub-workspace">
-        <header class="hub-workspace-head">
-            <div class="hub-workspace-title">
-                <span class="hub-workspace-icon">
-                    <i data-lucide="layout-grid"></i>
-                </span>
-
-                <div>
-                    <h2>Seus painéis</h2>
-                    <p>Acesse a área correspondente à atividade que deseja realizar.</p>
+                    <p>
+                        {{ $currentTenant->name
+                            ?? 'Sua organização' }}
+                    </p>
                 </div>
             </div>
 
-            @if($availablePanelsCount > 0)
-                <span class="hub-access-hint">
-                    <i data-lucide="mouse-pointer-click"></i>
-                    Toque ou clique para acessar
-                </span>
-            @endif
+            <span class="hub-count">
+                <i class="ph ph-layers"></i>
+
+                {{ $availablePanelsCount }}
+                {{ $availablePanelsCount === 1
+                    ? 'painel'
+                    : 'painéis' }}
+            </span>
         </header>
 
-        <section class="hub-grid" aria-label="Painéis disponíveis">
+        <div class="hub-grid" aria-label="Painéis disponíveis">
             @if($hasSuperAdmin)
                 <a
+                    class="hub-link green"
                     href="{{ url('super-admin') }}"
-                    class="hub-card primary"
-                    aria-label="Acessar o painel Super Admin"
+                    aria-label="Acessar Super Admin"
                 >
-                    <article class="hub-panel">
-                        <div class="hub-panel-top">
-                            <span class="hub-role-icon">
-                                <i data-lucide="settings"></i>
-                            </span>
+                    <span class="hub-role-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-gear-six"></i>
+                    </span>
+
+                    <div class="hub-role-copy">
+                        <div class="hub-role-title-line">
+                            <strong class="hub-role-title">
+                                Super Admin
+                            </strong>
 
                             <span class="hub-role-status">
                                 Disponível
                             </span>
                         </div>
 
-                        <div class="hub-role-copy">
-                            <h3 class="hub-role-title">
-                                Super Admin
-                            </h3>
+                        <p class="hub-role-description">
+                            Administração geral do sistema e das organizações.
+                        </p>
+                    </div>
 
-                            <p class="hub-role-description">
-                                Administração geral do sistema e das organizações.
-                            </p>
-                        </div>
-
-                        <div class="hub-panel-footer">
-                            <span class="hub-access-label">
-                                <i data-lucide="log-in"></i>
-                                Entrar no painel
-                            </span>
-
-                            <span class="hub-arrow" aria-hidden="true">
-                                <i data-lucide="arrow-right"></i>
-                            </span>
-                        </div>
-                    </article>
+                    <span class="hub-arrow" aria-hidden="true">
+                        <i class="ph ph-arrow-right"></i>
+                    </span>
                 </a>
             @endif
 
             @foreach($rolesCollection as $role)
+                @php
+                    $roleTone = $resolveTone(
+                        $role['color']
+                        ?? 'primary'
+                    );
+
+                    $roleIcon = $resolvePhosphorIcon(
+                        $role['icon']
+                        ?? 'layout-dashboard'
+                    );
+                @endphp
+
                 <a
+                    class="hub-link {{ $roleTone }}"
                     href="{{ $role['url'] }}"
-                    class="hub-card {{ $role['color'] ?? 'primary' }}"
                     aria-label="Acessar {{ $role['name'] }}"
                 >
-                    <article class="hub-panel">
-                        <div class="hub-panel-top">
-                            <span class="hub-role-icon">
-                                <i data-lucide="{{ $role['icon'] ?? 'layout-dashboard' }}"></i>
-                            </span>
+                    <span class="hub-role-icon" aria-hidden="true">
+                        <i class="ph-duotone {{ $roleIcon }}"></i>
+                    </span>
+
+                    <div class="hub-role-copy">
+                        <div class="hub-role-title-line">
+                            <strong class="hub-role-title">
+                                {{ $role['name'] }}
+                            </strong>
 
                             <span class="hub-role-status">
                                 Disponível
                             </span>
                         </div>
 
-                        <div class="hub-role-copy">
-                            <h3 class="hub-role-title">
-                                {{ $role['name'] }}
-                            </h3>
+                        <p class="hub-role-description">
+                            {{ $role['description']
+                                ?? 'Acesse as ferramentas disponíveis para esta função.' }}
+                        </p>
+                    </div>
 
-                            <p class="hub-role-description">
-                                {{ $role['description'] ?? 'Acesse as ferramentas disponíveis para esta função.' }}
-                            </p>
-                        </div>
-
-                        <div class="hub-panel-footer">
-                            <span class="hub-access-label">
-                                <i data-lucide="log-in"></i>
-                                Entrar no painel
-                            </span>
-
-                            <span class="hub-arrow" aria-hidden="true">
-                                <i data-lucide="arrow-right"></i>
-                            </span>
-                        </div>
-                    </article>
+                    <span class="hub-arrow" aria-hidden="true">
+                        <i class="ph ph-arrow-right"></i>
+                    </span>
                 </a>
             @endforeach
 
             @if($availablePanelsCount === 0)
                 <div class="hub-empty">
-                    <span class="hub-empty-icon">
-                        <i data-lucide="shield-alert"></i>
-                    </span>
+                    <div>
+                        <span class="hub-empty-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-shield-warning"></i>
+                        </span>
 
-                    <strong>Nenhum painel disponível</strong>
+                        <strong>Nenhum painel disponível</strong>
 
-                    <p>
-                        Sua conta ainda não possui um ambiente liberado.
-                        Entre em contato com um administrador da organização.
-                    </p>
+                        <p>
+                            Sua conta ainda não possui um ambiente liberado.
+                            Entre em contato com um administrador.
+                        </p>
+                    </div>
                 </div>
             @endif
-        </section>
+        </div>
     </section>
 </main>
 @endsection

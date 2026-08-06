@@ -252,7 +252,7 @@ class InvitationPasskeyController extends Controller
                 'context' => ['source' => 'invitation', 'passkey_id' => $passkey->id],
             ], $request);
 
-            return response()->json(['redirect' => $redirector->pathFor($user)]);
+            return response()->json(['redirect' => $redirector->pathAfterLogin($user)]);
         } catch (Throwable $exception) {
             report($exception);
             $audit->record('webauthn_failed', 'denied', [
