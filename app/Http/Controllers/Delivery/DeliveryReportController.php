@@ -28,6 +28,24 @@ class DeliveryReportController extends Controller
             ->header('Cache-Control', 'no-store, private');
     }
 
+    public function updatePreferences(Request $request): JsonResponse
+    {
+        $project = $this->project($request);
+        $validated = $request->validate([
+            'type' => ['required', Rule::in(DeliveryReportService::TYPES)],
+            'columns' => ['required', 'array', 'min:1', 'max:20'],
+            'columns.*' => ['string', Rule::in(array_keys(DeliveryReportService::COLUMNS))],
+            'grouping' => ['nullable', Rule::in(['delivery', 'product', 'associate', 'none'])],
+            'orientation' => ['required', Rule::in(['portrait', 'landscape'])],
+            'table_scale' => ['required', Rule::in([75, 85, 90, 100])],
+        ]);
+
+        return response()->json([
+            'message' => 'Configuração do relatório salva.',
+            'preferences' => $this->reports->updatePreferences($project, $validated['type'], $validated),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     public function export(Request $request, TemplatedPdfService $pdfService)
     {
         $project = $this->project($request)->load('tenant');
@@ -78,7 +96,7 @@ class DeliveryReportController extends Controller
             'generated_at' => now()->format('d/m/Y H:i'),
         ], array_merge(
             $pdfService->systemPdfOptions($templateView, $title, $project->type, (int) $project->tenant_id),
-            ['paper' => 'a4', 'orientation' => 'landscape', 'configuration_view' => $templateView],
+            ['paper' => 'a4', 'orientation' => $report['preferences']['orientation'], 'configuration_view' => $templateView],
         ));
 
         return response()->streamDownload(

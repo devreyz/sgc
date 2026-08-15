@@ -277,6 +277,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
 
         // Relatórios operacionais (filtros e dados resolvidos no backend do projeto)
         Route::get('/projects/{project}/reports/options', [DeliveryReportController::class, 'options'])->name('projects.reports.options');
+        Route::put('/projects/{project}/reports/preferences', [DeliveryReportController::class, 'updatePreferences'])->name('projects.reports.preferences');
         Route::get('/projects/{project}/reports/export', [DeliveryReportController::class, 'export'])->name('projects.reports.export');
 
         // Lista pública (autenticada) de produtores por projeto

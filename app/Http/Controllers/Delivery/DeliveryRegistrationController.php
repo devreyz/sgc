@@ -3587,9 +3587,18 @@ class DeliveryRegistrationController extends Controller
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
+        $filename = "comprovante-{$receiptLabel}-{$safeName}.pdf";
+        if ($request->boolean('preview')) {
+            return response($pdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Cache-Control' => 'no-store, private',
+            ]);
+        }
+
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+        }, $filename, ['Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, private']);
     }
 
     /**

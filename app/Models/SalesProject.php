@@ -52,6 +52,7 @@ class SalesProject extends Model
         'completion_notes',
         'associate_receipt_columns',
         'associate_receipt_table_scale',
+        'delivery_report_preferences',
         'completed_at',
     ];
 
@@ -74,6 +75,7 @@ class SalesProject extends Model
             'max_total_value_per_associate' => 'decimal:2',
             'associate_receipt_columns' => 'array',
             'associate_receipt_table_scale' => 'integer',
+            'delivery_report_preferences' => 'array',
             'completed_at' => 'datetime',
         ];
     }

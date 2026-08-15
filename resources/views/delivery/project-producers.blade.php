@@ -88,6 +88,8 @@
     .pr-receipt { padding:.72rem; border:1px solid var(--color-border); border-radius:8px; background:var(--color-surface); }
     .pr-receipt-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; }
     .pr-receipt h4 { margin:0; font-size:.92rem; }
+    .pr-receipt-link { padding:0; border:0; background:transparent; color:var(--color-primary); font:inherit; font-weight:800; cursor:pointer; text-align:left; }
+    .pr-receipt-link:hover { text-decoration:underline; }
     .pr-receipt-meta { display:flex; gap:.55rem; flex-wrap:wrap; margin-top:.24rem; color:var(--color-text-secondary); font-size:.74rem; }
     .pr-receipt-note { margin-top:.45rem; padding:.48rem .55rem; border-radius:6px; background:#fff7f7; color:#991b1b; font-size:.67rem; line-height:1.4; }
     .pr-receipt-actions { margin-top:.62rem; }
@@ -457,7 +459,7 @@
             <article class="pr-receipt">
                 <div class="pr-receipt-top">
                     <div>
-                        <h4>Comprovante ${esc(receipt.number)}</h4>
+                        <h4><button class="pr-receipt-link" type="button" data-preview-url="${esc(receipt.reprint_url)}?preview=1">Comprovante ${esc(receipt.number)}</button></h4>
                         <div class="pr-receipt-meta">
                             <span>${esc(receipt.issued_at)}</span>
                             <span>${receipt.distribution_count} distribuição(ões)</span>
@@ -823,6 +825,17 @@
         }
     });
     $('pr-receipts').addEventListener('click', event => {
+        const preview = event.target.closest('[data-preview-url]');
+        if (preview) {
+            const popup = window.open('about:blank', '_blank');
+            if (popup) popup.opener = null;
+            preview.disabled = true;
+            savePrintPreferences(false)
+                .then(() => { if (popup) popup.location.replace(preview.dataset.previewUrl); else window.location.href = preview.dataset.previewUrl; })
+                .catch(error => { popup?.close(); toast(error.message, 'error'); })
+                .finally(() => { preview.disabled = false; });
+            return;
+        }
         const edit = event.target.closest('[data-edit-receipt]');
         if (edit) { openSelection(edit.dataset.editReceipt); return; }
         const refresh = event.target.closest('[data-regenerate]');

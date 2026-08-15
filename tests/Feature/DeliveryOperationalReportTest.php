@@ -36,6 +36,7 @@ class DeliveryOperationalReportTest extends TestCase
             $table->string('type')->nullable();
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
+            $table->json('delivery_report_preferences')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -177,15 +178,17 @@ class DeliveryOperationalReportTest extends TestCase
         $this->assertStringNotContainsString('Produto externo', json_encode($options));
     }
 
-    public function test_excel_contains_distribution_formulas_and_pdf_renders(): void
+    public function test_excel_keeps_one_delivery_row_with_destinations_and_pdf_renders(): void
     {
         session(['tenant_id' => 1]);
         $project = SalesProject::query()->with('tenant')->findOrFail(10);
         $report = app(DeliveryReportService::class)->build($project, ['type' => 'associate']);
         $sheet = (new DeliveryOperationalReportExport($report))->array();
 
-        $this->assertSame('=SUM(G7:G8)', $sheet[5][6]);
-        $this->assertSame('=SUM(J7:J8)', $sheet[5][9]);
+        $this->assertSame("Escola A: 40,000 kg\nEscola B: 20,000 kg", $sheet[6][2]);
+        $this->assertSame('=SUM(E7:E7)', $sheet[7][4]);
+        $this->assertSame('=SUM(F7:F7)', $sheet[7][5]);
+        $this->assertSame('=E8', $sheet[8][4]);
 
         $contents = Pdf::loadView('pdf.delivery-operational-report', $report + [
             'tenant' => $project->tenant,
@@ -194,5 +197,34 @@ class DeliveryOperationalReportTest extends TestCase
         ])->setPaper('a4', 'landscape')->output();
 
         $this->assertStringStartsWith('%PDF-', $contents);
+    }
+
+    public function test_customer_report_aggregates_by_date_and_product_by_default(): void
+    {
+        session(['tenant_id' => 1]);
+        $project = SalesProject::query()->with('tenant')->findOrFail(10);
+        $report = app(DeliveryReportService::class)->build($project, ['type' => 'customer']);
+
+        $this->assertSame('product', $report['preferences']['grouping']);
+        $this->assertSame(2, $report['groups']->count());
+        $this->assertSame(40.0, $report['groups']->first()['sections']->first()['totals']['distributed_quantity']);
+        $this->assertSame('01/08/2026', $report['groups']->first()['sections']->first()['title']);
+    }
+
+    public function test_report_preferences_are_persisted_per_type(): void
+    {
+        $project = SalesProject::query()->findOrFail(10);
+        $service = app(DeliveryReportService::class);
+        $saved = $service->updatePreferences($project, 'customer', [
+            'columns' => ['date', 'associate', 'product', 'net_value'],
+            'grouping' => 'associate',
+            'orientation' => 'landscape',
+            'table_scale' => 85,
+        ]);
+
+        $this->assertSame('associate', $saved['grouping']);
+        $this->assertSame('landscape', $saved['orientation']);
+        $this->assertSame($saved, $service->preferences($project->fresh(), 'customer'));
+        $this->assertSame('delivery', $service->preferences($project->fresh(), 'associate')['grouping']);
     }
 }
