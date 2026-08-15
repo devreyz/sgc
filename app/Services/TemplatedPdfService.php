@@ -377,8 +377,9 @@ HTML;
         $tenant = $options['tenant'] ?? $viewData['tenant'] ?? null;
         $tenantId = (int) ($tenant?->id ?? session('tenant_id'));
         $projectType = $options['project_type'] ?? data_get($viewData, 'project.type');
+        $configurationView = (string) ($options['configuration_view'] ?? $view);
         $configured = $tenantId > 0
-            ? $this->systemPdfConfiguration->resolve($view, $tenantId, $projectType)
+            ? $this->systemPdfConfiguration->resolve($configurationView, $tenantId, $projectType)
             : [];
 
         // The active system template is authoritative. Call-site options may

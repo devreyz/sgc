@@ -92,7 +92,7 @@ class DocumentTemplatesSeeder extends Seeder
             ],
             [
                 'name' => 'Ata de Reunião',
-                'type' => 'report',
+                'type' => 'minutes',
                 'description' => 'Modelo de ata para reuniões da cooperativa',
                 'content' => $this->getMinutesTemplate(),
                 'available_variables' => [

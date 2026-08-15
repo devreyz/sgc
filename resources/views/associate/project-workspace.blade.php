@@ -2624,6 +2624,27 @@
                                     ${awMoney(data.paid)}
                                 </span>
                             </div>
+
+                            ${data.project?.payment_forecast
+                                ? `
+                                    <div class="summary-fact">
+                                        <span class="summary-fact-icon paid">
+                                            <i class="ph-duotone ph-calendar-check"></i>
+                                        </span>
+
+                                        <div class="summary-fact-copy">
+                                            <span>Previsão de pagamento</span>
+                                            <strong>
+                                                ${awEsc(data.project.payment_forecast_note || 'Data estimada pelo projeto')}
+                                            </strong>
+                                        </div>
+
+                                        <span class="summary-fact-value">
+                                            ${awEsc(data.project.payment_forecast)}
+                                        </span>
+                                    </div>
+                                `
+                                : ''}
                         </div>
                     </div>
 

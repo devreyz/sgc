@@ -41,6 +41,10 @@ class PortalNavigation
                 ['key' => 'management', 'label' => 'Cadastros', 'route' => 'finance.management.index', 'parameters' => ['module' => 'accounts']],
                 ['key' => 'new-receipt', 'label' => 'Novo recibo', 'route' => 'finance.receipts.create'],
             ],
+            'secretary' => [
+                ['key' => 'documents', 'label' => 'Documentos', 'route' => 'secretary.index'],
+                ['key' => 'home', 'label' => 'Painéis', 'route' => 'home'],
+            ],
             'buyer' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'buyer.dashboard'],
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'buyer.projects'],

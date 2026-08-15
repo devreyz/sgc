@@ -142,6 +142,8 @@ class AssociateProjectPortalController extends Controller
                 'status' => $project->status?->value,
                 'status_label' => $project->status?->getLabel(),
                 'period' => trim(($project->start_date?->format('d/m/Y') ?? '').' - '.($project->end_date?->format('d/m/Y') ?? ''), ' -'),
+                'payment_forecast' => $project->member_payment_forecast_date?->format('d/m/Y'),
+                'payment_forecast_note' => $project->member_payment_forecast_note,
             ],
             'total_gross' => $financial['total_gross'],
             'total_net' => $financial['total_net'],

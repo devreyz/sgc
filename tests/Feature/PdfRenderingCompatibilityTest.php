@@ -90,6 +90,31 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringNotContainsString('<th style="width:11%;">Data</th>', $html);
     }
 
+    public function test_two_copy_receipt_reuses_the_same_layout_on_two_pages(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $data = [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'copyLabels' => ['1ª VIA — MEMBRO', '2ª VIA — ORGANIZAÇÃO'],
+        ];
+
+        $html = view('pdf.project-associate-receipt', $data)->render();
+        $this->assertStringContainsString('1ª VIA — MEMBRO', $html);
+        $this->assertStringContainsString('2ª VIA — ORGANIZAÇÃO', $html);
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+        $pdf->render();
+
+        $this->assertSame(2, $pdf->getDomPDF()->get_canvas()->get_page_count());
+    }
+
     public function test_organization_receipt_respects_sections_and_places_total_quantity_before_price(): void
     {
         $tenant = new Tenant(['name' => 'Cooperativa Teste']);

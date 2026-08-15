@@ -12,7 +12,6 @@ class SystemPdfCatalogTest extends TestCase
         foreach ([
             'pdf.delivery-sheet',
             'pdf.distributions-by-customer',
-            'pdf.distributions-by-customer-compact',
             'pdf.customer-delivery-statement',
             'pdf.project-associate-receipt',
             'pdf.associate-portal-receipt',
@@ -36,6 +35,7 @@ class SystemPdfCatalogTest extends TestCase
 
         $this->assertNotContains('pdf.deliveries-report', $views);
         $this->assertNotContains('pdf.project-final-report', $views);
+        $this->assertNotContains('pdf.distributions-by-customer-compact', $views);
     }
 
     public function test_every_operational_pdf_uses_the_shared_design_system(): void

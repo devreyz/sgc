@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\OrganizationAuthorizedEmail;
 use Illuminate\Support\Facades\Auth;
 
 class HubController extends Controller
@@ -76,6 +77,16 @@ class HubController extends Controller
             ];
         }
 
+        if ($hasAdministration || $user->hasRoleInTenant('secretario', $currentTenant->id)) {
+            $roles[] = [
+                'name' => 'Secretaria',
+                'description' => 'Atas, modelos e documentos da organização',
+                'icon' => 'file-text',
+                'url' => route('secretary.index', ['tenant' => $currentTenant->slug]),
+                'color' => 'info',
+            ];
+        }
+
         if ($user->hasRoleInTenant(['service_provider', 'tratorista', 'motorista', 'diarista', 'tecnico'], $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Prestador de Serviço',
@@ -126,7 +137,7 @@ class HubController extends Controller
             ];
         }
 
-        $buyerAccess = \App\Models\OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
+        $buyerAccess = OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
             ->where('tenant_id', $currentTenant->id)
             ->whereRaw('LOWER(email) = ?', [mb_strtolower($user->email)])
             ->where('active', true)

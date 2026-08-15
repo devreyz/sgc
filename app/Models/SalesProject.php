@@ -26,6 +26,8 @@ class SalesProject extends Model
         'customer_id',
         'start_date',
         'end_date',
+        'member_payment_forecast_date',
+        'member_payment_forecast_note',
         'reference_year',
         'receipt_numbering_scope',
         'receipt_project_reference',
@@ -59,6 +61,7 @@ class SalesProject extends Model
             'status' => ProjectStatus::class,
             'start_date' => 'date',
             'end_date' => 'date',
+            'member_payment_forecast_date' => 'date',
             'total_value' => 'decimal:2',
             'admin_fee_percentage' => 'decimal:2',
             'delivered_date' => 'date',
@@ -78,7 +81,16 @@ class SalesProject extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['title', 'code', 'type', 'status', 'total_value', 'admin_fee_percentage'])
+            ->logOnly([
+                'title',
+                'code',
+                'type',
+                'status',
+                'total_value',
+                'admin_fee_percentage',
+                'member_payment_forecast_date',
+                'member_payment_forecast_note',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

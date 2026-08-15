@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\TenantUserResource\Pages;
+use App\Models\Tenant;
 use App\Models\TenantUser;
 use App\Models\User;
 use App\Services\EmailSwapService;
@@ -13,8 +14,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 /**
  * TenantUserResource — Gerencia vínculos de membros da organização.
@@ -133,13 +134,14 @@ class TenantUserResource extends Resource
                             ->label('Funções (Roles)')
                             ->multiple()
                             ->options(function () {
-                                return \Spatie\Permission\Models\Role::query()
+                                return Role::query()
                                     ->where('name', '!=', 'super_admin')
                                     ->pluck('name')
                                     ->mapWithKeys(fn (string $name) => [
                                         $name => match ($name) {
                                             'visualizador_entregas' => 'Visualizador de Entregas',
                                             'registrador_entregas' => 'Registrador de Entregas',
+                                            'secretario' => 'Secretário',
                                             'operador_caixa' => 'Operador de Caixa',
                                             'service_provider' => 'Prestador de Servicos',
                                             default => Str::headline($name),
@@ -194,7 +196,7 @@ class TenantUserResource extends Resource
                 Tables\Columns\ImageColumn::make('user.avatar')
                     ->label('')
                     ->circular()
-                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name=' . urlencode($record->display_name)),
+                    ->defaultImageUrl(fn ($record) => 'https://ui-avatars.com/api/?name='.urlencode($record->display_name)),
 
                 Tables\Columns\TextColumn::make('display_name')
                     ->label('Nome')
@@ -216,7 +218,7 @@ class TenantUserResource extends Resource
                     ->label('Histórico de Emails')
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->formatStateUsing(function ($state) {
-                        if (empty($state) || !is_array($state)) {
+                        if (empty($state) || ! is_array($state)) {
                             return 'Sem alterações';
                         }
                         $lines = [];
@@ -225,10 +227,13 @@ class TenantUserResource extends Resource
                             $email = $entry['email'] ?? 'N/A';
                             $lines[] = "{$email} (até {$date})";
                         }
+
                         return implode("\n", $lines);
                     })
                     ->tooltip(function ($state) {
-                        if (empty($state) || !is_array($state)) return null;
+                        if (empty($state) || ! is_array($state)) {
+                            return null;
+                        }
                         $lines = [];
                         foreach ($state as $entry) {
                             $date = date('d/m/Y H:i', strtotime($entry['changed_at'] ?? ''));
@@ -236,6 +241,7 @@ class TenantUserResource extends Resource
                             $newEmail = $entry['new_email'] ?? 'N/A';
                             $lines[] = "{$email} → {$newEmail} em {$date}";
                         }
+
                         return implode("\n", $lines);
                     }),
 
@@ -244,11 +250,15 @@ class TenantUserResource extends Resource
                     ->badge()
                     ->color('info')
                     ->formatStateUsing(function ($state) {
-                        if (is_array($state)) return implode(', ', $state);
+                        if (is_array($state)) {
+                            return implode(', ', $state);
+                        }
                         if (is_string($state)) {
                             $decoded = json_decode($state, true);
+
                             return is_array($decoded) ? implode(', ', $decoded) : $state;
                         }
+
                         return '';
                     }),
 
@@ -294,7 +304,7 @@ class TenantUserResource extends Resource
                     ->icon('heroicon-o-key')
                     ->color('info')
                     ->url(fn (TenantUser $record): string => route('security.members.access.index', [
-                        'tenant' => \App\Models\Tenant::query()->whereKey($record->tenant_id)->value('slug'),
+                        'tenant' => Tenant::query()->whereKey($record->tenant_id)->value('slug'),
                         'membership' => $record->id,
                     ])),
                 Tables\Actions\EditAction::make(),
@@ -338,7 +348,7 @@ class TenantUserResource extends Resource
                     ->modalHeading('Trocar Email do Membro')
                     ->modalDescription('ATENÇÃO: O email anterior perderá acesso a esta organização. O novo email receberá o acesso com todas as permissões atuais. Todo o histórico será preservado.')
                     ->action(function (TenantUser $record, array $data) {
-                        $service = new EmailSwapService();
+                        $service = new EmailSwapService;
                         $result = $service->swap($record, $data['new_email'], auth()->id());
 
                         if ($result['success']) {
@@ -377,6 +387,7 @@ class TenantUserResource extends Resource
     public static function mutateFormDataBeforeCreate(array $data): array
     {
         $data['tenant_id'] = session('tenant_id');
+
         return $data;
     }
 }

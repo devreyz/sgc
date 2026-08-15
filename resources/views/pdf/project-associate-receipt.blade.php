@@ -47,6 +47,7 @@
     $textColor    = '#333';
 
     $isSecondCopy = $isSecondCopy ?? false;
+    $copyLabels = $copyLabels ?? [$isSecondCopy ? '2ª VIA' : null];
     $isStandalone = empty($project);
 
     $hasContract = !$isStandalone && !empty($project->contract_number);
@@ -129,6 +130,8 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 </style>
 </head>
 <body>
+@foreach($copyLabels as $copyIndex => $copyLabel)
+<div class="receipt-copy">
 
 {{-- ═══ CABEÇALHO ═══ --}}
 <div class="hdr">
@@ -152,7 +155,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </div>
     </div>
     <div class="hdr-right">
-        <span class="doc-type">{{ $isStandalone ? 'Comprovante de Entrega' : 'Comprovante de Entrega' }}{{ $isSecondCopy ? ' — 2ª VIA' : '' }}</span>
+        <span class="doc-type">Comprovante de Entrega{{ $copyLabel ? ' — '.$copyLabel : '' }}</span>
         <span class="doc-num">Nº {{ $receiptLabel }}</span>
     
         @if($showSection('financial'))
@@ -452,7 +455,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 @endif
 
 {{-- ═══ SEGUNDA VIA ═══ --}}
-    @if($isSecondCopy)
+    @if($copyLabel && str_starts_with($copyLabel, '2ª VIA'))
         <div style="position: fixed; top: 50%; left: 0; width: 100%; text-align: center; transform: translateY(-50%) rotate(-35deg); color: rgba(180,0,0,0.12); font-size: 72px; font-weight: bold; letter-spacing: 6px; font-family: 'DejaVu Sans', Arial, sans-serif; pointer-events: none; z-index: 100;">
             2ª VIA
         </div>
@@ -461,10 +464,16 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
-    @if($isSecondCopy)
-        &nbsp;&nbsp;|&nbsp;&nbsp; <strong>2ª VIA</strong>
+    @if($copyLabel)
+        &nbsp;&nbsp;|&nbsp;&nbsp; <strong>{{ $copyLabel }}</strong>
     @endif
 </div>
+
+</div>
+@if(!$loop->last)
+    <div style="page-break-after: always;"></div>
+@endif
+@endforeach
 
 </body>
 </html>

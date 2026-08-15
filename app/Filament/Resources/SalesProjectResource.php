@@ -12,6 +12,7 @@ use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\SalesProject;
 use App\Models\SalesProjectType;
+use App\Models\Tenant;
 use App\Services\ProjectReceiptNumberingService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -93,6 +94,18 @@ class SalesProjectResource extends Resource
                             ->label('Data Fim')
                             ->required()
                             ->afterOrEqual('start_date'),
+
+                        Forms\Components\DatePicker::make('member_payment_forecast_date')
+                            ->label(fn (): string => 'Previsão de pagamento aos '.mb_strtolower(Tenant::find(session('tenant_id'))?->associateTerm(plural: true) ?? 'membros'))
+                            ->displayFormat('d/m/Y')
+                            ->nullable()
+                            ->helperText('Data estimada. O pagamento real continua sendo confirmado pelos comprovantes e registros financeiros.'),
+
+                        Forms\Components\TextInput::make('member_payment_forecast_note')
+                            ->label('Observação da previsão')
+                            ->maxLength(255)
+                            ->nullable()
+                            ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('reference_year')
                             ->label('Ano de Referência')
@@ -360,6 +373,13 @@ class SalesProjectResource extends Resource
                     ->date('d/m/Y')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('member_payment_forecast_date')
+                    ->label('Previsão de pagamento')
+                    ->date('d/m/Y')
+                    ->placeholder('Não informada')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('total_value')
                     ->label('Valor')
                     ->money('BRL')
@@ -533,6 +553,7 @@ class SalesProjectResource extends Resource
             'contract_number' => 'Nº Contrato',
             'start_date' => 'Data Início',
             'end_date' => 'Data Fim',
+            'member_payment_forecast_date' => 'Previsão de Pagamento',
             'reference_year' => 'Ano Referência',
             'total_value' => 'Valor Total',
             'admin_fee_percentage' => 'Taxa Adm (%)',

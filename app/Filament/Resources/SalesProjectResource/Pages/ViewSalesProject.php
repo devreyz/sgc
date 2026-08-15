@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\StockMovementReason;
 use App\Exports\DeliveriesExport;
+use App\Exports\DeliveryOperationalReportExport;
 use App\Filament\Resources\SalesProjectResource;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
@@ -16,13 +17,12 @@ use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateReceiptService;
+use App\Services\DeliveryReportService;
 use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\StockService;
 use App\Services\SystemPdfConfigurationResolver;
 use App\Services\TemplatedPdfService;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Carbon\Carbon;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Infolists;
@@ -374,7 +374,7 @@ class ViewSalesProject extends ViewRecord
                     }),
 
                 Actions\Action::make('reportByAssociate')
-                    ->label('PDF por Associado')
+                    ->label(fn (SalesProject $record): string => 'Relatório por '.$record->tenant->associateTerm())
                     ->icon('heroicon-o-user-group')
                     ->form([
                         Forms\Components\DatePicker::make('date_from')
@@ -385,21 +385,24 @@ class ViewSalesProject extends ViewRecord
                             ->label('Data final')
                             ->displayFormat('d/m/Y')
                             ->placeholder('Sem filtro'),
-                        Forms\Components\Select::make('associate_id')
-                            ->label('Associado (opcional)')
-                            ->options(fn (SalesProject $record) => Associate::where('tenant_id', session('tenant_id'))
-                                ->whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
-                                ->with('user')
-                                ->get()
-                                ->mapWithKeys(fn (Associate $associate) => [$associate->id => $associate->display_name])
-                            )
+                        Forms\Components\Select::make('associate_ids')
+                            ->label(fn (SalesProject $record): string => $record->tenant->associateTerm(plural: true).' (opcional)')
+                            ->options(fn (SalesProject $record): array => collect(app(DeliveryReportService::class)->options($record)['members'])
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->multiple()
                             ->searchable()
                             ->placeholder('Todos'),
+                        Forms\Components\Select::make('format')
+                            ->label('Formato')
+                            ->options(['pdf' => 'PDF', 'xlsx' => 'Excel (XLSX)'])
+                            ->default('pdf')
+                            ->required(),
                     ])
                     ->action(fn (SalesProject $record, array $data) => $this->generateProjectReportByAssociate($record, $data)),
 
                 Actions\Action::make('reportByProduct')
-                    ->label('PDF por Produto')
+                    ->label('Relatório por Produto')
                     ->icon('heroicon-o-shopping-bag')
                     ->form([
                         Forms\Components\DatePicker::make('date_from')
@@ -410,18 +413,52 @@ class ViewSalesProject extends ViewRecord
                             ->label('Data final')
                             ->displayFormat('d/m/Y')
                             ->placeholder('Sem filtro'),
-                        Forms\Components\Select::make('product_id')
-                            ->label('Produto (opcional)')
-                            ->options(fn (SalesProject $record) => Product::whereHas('productionDeliveries', fn ($q) => $q->where('sales_project_id', $record->id))
+                        Forms\Components\Select::make('product_ids')
+                            ->label('Produtos (opcional)')
+                            ->options(fn (SalesProject $record): array => collect(app(DeliveryReportService::class)->options($record)['products'])
                                 ->pluck('name', 'id')
-                            )
+                                ->all())
+                            ->multiple()
                             ->searchable()
                             ->placeholder('Todos'),
+                        Forms\Components\Select::make('format')
+                            ->label('Formato')
+                            ->options(['pdf' => 'PDF', 'xlsx' => 'Excel (XLSX)'])
+                            ->default('pdf')
+                            ->required(),
                     ])
                     ->action(fn (SalesProject $record, array $data) => $this->generateProjectReportByProduct($record, $data)),
 
+                Actions\Action::make('reportByCustomer')
+                    ->label('Relatório por Cliente')
+                    ->icon('heroicon-o-building-office')
+                    ->form([
+                        Forms\Components\DatePicker::make('date_from')
+                            ->label('Data inicial')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\DatePicker::make('date_to')
+                            ->label('Data final')
+                            ->displayFormat('d/m/Y')
+                            ->placeholder('Sem filtro'),
+                        Forms\Components\Select::make('customer_ids')
+                            ->label('Clientes (opcional)')
+                            ->options(fn (SalesProject $record): array => collect(app(DeliveryReportService::class)->options($record)['customers'])
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->multiple()
+                            ->searchable()
+                            ->placeholder('Todos'),
+                        Forms\Components\Select::make('format')
+                            ->label('Formato')
+                            ->options(['pdf' => 'PDF', 'xlsx' => 'Excel (XLSX)'])
+                            ->default('pdf')
+                            ->required(),
+                    ])
+                    ->action(fn (SalesProject $record, array $data) => $this->generateOperationalReport($record, 'customer', $data)),
+
                 Actions\Action::make('receiptByAssociate')
-                    ->label('Comprovante Associado')
+                    ->label(fn (SalesProject $record): string => 'Comprovante '.$record->tenant->associateTerm())
                     ->icon('heroicon-o-document-check')
                     ->color('warning')
                     ->modalWidth('xl')
@@ -438,7 +475,7 @@ class ViewSalesProject extends ViewRecord
 
                         return [
                             Forms\Components\Select::make('associate_id')
-                                ->label('Associado')
+                                ->label($record->tenant->associateTerm())
                                 ->options($associates)
                                 ->required()
                                 ->searchable()
@@ -508,7 +545,7 @@ class ViewSalesProject extends ViewRecord
 
                         return [
                             Forms\Components\Select::make('associate_id')
-                                ->label('Associado')
+                                ->label($record->tenant->associateTerm())
                                 ->options($associates)
                                 ->required()
                                 ->searchable()
@@ -529,10 +566,13 @@ class ViewSalesProject extends ViewRecord
                         ];
                     })
                     ->action(function (SalesProject $record, array $data) {
-                        return $this->generateAssociatePaymentStatement($record, (int) $data['associate_id'], $data);
+                        return $this->generateProjectAssociateReceipt($record, (int) $data['associate_id'], [
+                            ...$data,
+                            'two_copies' => true,
+                        ]);
                     }),
             ])
-                ->label('Relatórios PDF')
+                ->label('Relatórios e planilhas')
                 ->icon('heroicon-o-document-chart-bar')
                 ->color('info')
                 ->button(),
@@ -594,199 +634,68 @@ class ViewSalesProject extends ViewRecord
 
     protected function generateProjectReportByAssociate(SalesProject $record, array $filters = []): mixed
     {
-        $tenantId = session('tenant_id');
-        $tenant = $tenantId ? Tenant::find($tenantId) : null;
-
-        $query = $record->deliveries()
-            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-            ->with(['associate.user', 'product'])
-            ->orderBy('delivery_date');
-
-        if (! empty($filters['date_from'])) {
-            $query->where('delivery_date', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->where('delivery_date', '<=', $filters['date_to']);
-        }
-        if (! empty($filters['associate_id'])) {
-            $query->where('associate_id', $filters['associate_id']);
-        }
-
-        $deliveries = $query->get();
-
-        $grouped = $deliveries->groupBy('associate_id');
-        $groups = [];
-        foreach ($grouped as $associateId => $items) {
-            $assoc = $items->first()->associate;
-            $rows = $items->map(fn ($d) => [
-                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                'project' => $record->title,
-                'associate' => $assoc?->display_name ?? '—',
-                'product' => $d->product?->name ?? '—',
-                'unit' => $d->product?->unit ?? 'un',
-                'quantity' => (float) $d->quantity,
-                'unit_price' => (float) $d->unit_price,
-                'gross_value' => (float) $d->gross_value,
-                'admin_fee' => (float) ($d->admin_fee_amount ?? 0),
-                'net_value' => (float) ($d->net_value ?? 0),
-                'status' => $d->status->getLabel(),
-                'status_value' => $d->status->value,
-                'quality_grade' => $d->quality_grade,
-            ])->values()->all();
-
-            $groups[] = [
-                'associate_name' => $assoc?->display_name ?? 'Desconhecido',
-                'cpf' => $assoc?->cpf_cnpj ?? '',
-                'deliveries_count' => $items->count(),
-                'total_quantity' => $items->sum('quantity'),
-                'gross_value' => $items->sum('gross_value'),
-                'admin_fee' => $items->sum('admin_fee_amount'),
-                'net_value' => $items->sum('net_value'),
-                'deliveries' => $rows,
-            ];
-        }
-        usort($groups, fn ($a, $b) => strcasecmp($a['associate_name'], $b['associate_name']));
-
-        $totals = [
-            'associates_count' => count($groups),
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity' => $deliveries->sum('quantity'),
-            'total_gross' => $deliveries->sum('gross_value'),
-            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
-            'total_net' => $deliveries->sum('net_value'),
-        ];
-
-        $tmplCfg = $this->getTemplateConfig('deliveries_associate', ['paper_orientation' => 'landscape']);
-
-        $svc = app(TemplatedPdfService::class);
-        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-associate', [
-            'tenant' => $tenant,
-            'title' => 'Relatório de Entregas por Associado',
-            'subtitle' => $record->title,
-            'generated_at' => now()->format('d/m/Y H:i'),
-            'filters' => [
-                'project' => $record->title,
-                'date_from' => ! empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => ! empty($filters['date_to']) ? Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
-            ],
-            'groups' => $groups,
-            'totals' => $totals,
-            'visible_sections' => $tmplCfg['visible_sections'],
-            'visible_columns' => $tmplCfg['visible_columns'],
-            'primaryColor' => $tmplCfg['primary_color'],
-            'accentColor' => $tmplCfg['accent_color'],
-        ], [
-            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
-            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
-            'paper' => $tmplCfg['paper_size'],
-            'orientation' => $tmplCfg['paper_orientation'],
-            'title' => 'Relatório de Entregas por Associado',
-            'primary_color' => $tmplCfg['primary_color'],
-            'accent_color' => $tmplCfg['accent_color'],
-        ]);
-
-        return Response::streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, 'entregas-associados-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
+        return $this->generateOperationalReport($record, 'associate', $filters);
     }
 
     protected function generateProjectReportByProduct(SalesProject $record, array $filters = []): mixed
     {
-        $tenantId = session('tenant_id');
-        $tenant = $tenantId ? Tenant::find($tenantId) : null;
+        return $this->generateOperationalReport($record, 'product', $filters);
+    }
 
-        $query = $record->deliveries()
-            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
-            ->whereNotNull('parent_delivery_id')
-            ->with(['associate.user', 'product', 'customer'])
-            ->orderBy('delivery_date');
-
-        if (! empty($filters['date_from'])) {
-            $query->where('delivery_date', '>=', $filters['date_from']);
-        }
-        if (! empty($filters['date_to'])) {
-            $query->where('delivery_date', '<=', $filters['date_to']);
-        }
-        if (! empty($filters['product_id'])) {
-            $query->where('product_id', $filters['product_id']);
-        }
-
-        $deliveries = $query->get();
-
-        $grouped = $deliveries->groupBy('product_id');
-        $groups = [];
-        foreach ($grouped as $productId => $items) {
-            $product = $items->first()->product;
-            $rows = $items->map(fn ($d) => [
-                'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                'project' => $record->title,
-                'associate' => $d->associate?->display_name ?? '—',
-                'product' => $product?->name ?? '—',
-                'unit' => $product?->unit ?? 'un',
-                'quantity' => (float) $d->quantity,
-                'unit_price' => (float) $d->unit_price,
-                'gross_value' => (float) $d->gross_value,
-                'admin_fee' => (float) ($d->admin_fee_amount ?? 0),
-                'net_value' => (float) ($d->net_value ?? 0),
-                'status' => $d->status->getLabel(),
-                'status_value' => $d->status->value,
-                'quality_grade' => $d->quality_grade,
-            ])->values()->all();
-
-            $groups[] = [
-                'product_name' => $product?->name ?? 'Desconhecido',
-                'unit' => $product?->unit ?? 'un',
-                'deliveries_count' => $items->count(),
-                'total_quantity' => $items->sum('quantity'),
-                'gross_value' => $items->sum('gross_value'),
-                'admin_fee' => $items->sum('admin_fee_amount'),
-                'net_value' => $items->sum('net_value'),
-                'deliveries' => $rows,
-            ];
-        }
-        usort($groups, fn ($a, $b) => strcasecmp($a['product_name'], $b['product_name']));
-
-        $totals = [
-            'products_count' => count($groups),
-            'deliveries_count' => $deliveries->count(),
-            'total_quantity' => $deliveries->sum('quantity'),
-            'total_gross' => $deliveries->sum('gross_value'),
-            'total_admin_fee' => $deliveries->sum('admin_fee_amount'),
-            'total_net' => $deliveries->sum('net_value'),
-        ];
-
-        $tmplCfg = $this->getTemplateConfig('deliveries_product', ['paper_orientation' => 'landscape']);
-
-        $svc = app(TemplatedPdfService::class);
-        $pdf = $svc->generateSystemPdf('pdf.deliveries-by-product', [
-            'tenant' => $tenant,
-            'title' => 'Relatório de Entregas por Produto',
-            'subtitle' => $record->title,
-            'generated_at' => now()->format('d/m/Y H:i'),
-            'filters' => [
-                'project' => $record->title,
-                'date_from' => ! empty($filters['date_from']) ? Carbon::parse($filters['date_from'])->format('d/m/Y') : null,
-                'date_to' => ! empty($filters['date_to']) ? Carbon::parse($filters['date_to'])->format('d/m/Y') : null,
-            ],
-            'groups' => $groups,
-            'totals' => $totals,
-            'visible_sections' => $tmplCfg['visible_sections'],
-            'visible_columns' => $tmplCfg['visible_columns'],
-            'primaryColor' => $tmplCfg['primary_color'],
-            'accentColor' => $tmplCfg['accent_color'],
-        ], [
-            'header_layout_id' => $tmplCfg['header_layout_id'] ?? null,
-            'footer_layout_id' => $tmplCfg['footer_layout_id'] ?? null,
-            'paper' => $tmplCfg['paper_size'],
-            'orientation' => $tmplCfg['paper_orientation'],
-            'title' => 'Relatório de Entregas por Produto',
-            'primary_color' => $tmplCfg['primary_color'],
-            'accent_color' => $tmplCfg['accent_color'],
+    private function generateOperationalReport(SalesProject $record, string $type, array $filters): mixed
+    {
+        abort_unless((int) $record->tenant_id === (int) session('tenant_id'), 403);
+        $record->loadMissing('tenant');
+        $report = app(DeliveryReportService::class)->build($record, [
+            'type' => $type,
+            'date_from' => $filters['date_from'] ?? null,
+            'date_to' => $filters['date_to'] ?? null,
+            'associate_ids' => $filters['associate_ids'] ?? (! empty($filters['associate_id']) ? [(int) $filters['associate_id']] : []),
+            'product_ids' => $filters['product_ids'] ?? (! empty($filters['product_id']) ? [(int) $filters['product_id']] : []),
+            'customer_ids' => $filters['customer_ids'] ?? (! empty($filters['customer_id']) ? [(int) $filters['customer_id']] : []),
         ]);
 
-        return Response::streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, 'entregas-produtos-projeto-'.$record->id.'.pdf', ['Content-Type' => 'application/pdf']);
+        if (($filters['format'] ?? 'pdf') === 'xlsx') {
+            return Excel::download(
+                new DeliveryOperationalReportExport($report),
+                match ($type) {
+                    'product' => 'entregas-produtos-',
+                    'customer' => 'distribuicoes-clientes-',
+                    default => 'entregas-membros-',
+                }.$record->id.'.xlsx',
+            );
+        }
+
+        $title = match ($type) {
+            'product' => 'Entregas por Produto',
+            'customer' => 'Distribuições por Cliente',
+            default => 'Entregas por '.$record->tenant->associateTerm(),
+        };
+        $templateView = match ($type) {
+            'product' => 'pdf.deliveries-by-product',
+            'customer' => 'pdf.distributions-by-customer',
+            default => 'pdf.deliveries-by-associate',
+        };
+        $pdfService = app(TemplatedPdfService::class);
+        $pdf = $pdfService->generateSystemPdf('pdf.delivery-operational-report', $report + [
+            'tenant' => $record->tenant,
+            'title' => $title,
+            'subtitle' => $record->title,
+            'generated_at' => now()->format('d/m/Y H:i'),
+        ], array_merge(
+            $pdfService->systemPdfOptions($templateView, $title, $record->type, (int) $record->tenant_id),
+            ['paper' => 'a4', 'orientation' => 'landscape', 'configuration_view' => $templateView],
+        ));
+
+        return Response::streamDownload(
+            fn () => print $pdf->output(),
+            match ($type) {
+                'product' => 'entregas-produtos-',
+                'customer' => 'distribuicoes-clientes-',
+                default => 'entregas-membros-',
+            }.$record->id.'.pdf',
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 
     protected function generateProjectAssociateReceipt(SalesProject $record, int $associateId, array $formData = []): mixed
@@ -876,6 +785,9 @@ class ViewSalesProject extends ViewRecord
             'visible_columns' => $visibleColumns,
             'table_scale' => $tableScale,
             'isSecondCopy' => false,
+            'copyLabels' => ! empty($formData['two_copies'])
+                ? ['1ª VIA — '.mb_strtoupper($tenant?->associateTerm() ?? 'MEMBRO'), '2ª VIA — ORGANIZAÇÃO']
+                : [null],
         ], [
             'paper' => 'a4',
             'orientation' => 'portrait',
@@ -887,84 +799,7 @@ class ViewSalesProject extends ViewRecord
 
         return Response::streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
-    }
-
-    protected function generateAssociatePaymentStatement(SalesProject $record, int $associateId, array $formData = []): mixed
-    {
-        $tenantId = session('tenant_id');
-        $tenant = $tenantId ? Tenant::find($tenantId) : null;
-
-        $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
-
-        $query = $record->deliveries()
-            ->where('associate_id', $associateId)
-            ->where('status', DeliveryStatus::APPROVED)
-            ->whereNotNull('parent_delivery_id')
-            ->whereNull('associate_receipt_id')
-            ->with(['product', 'customer'])
-            ->orderBy('delivery_date');
-
-        if (! empty($formData['date_from'])) {
-            $query->where('delivery_date', '>=', $formData['date_from']);
-        }
-        if (! empty($formData['date_to'])) {
-            $query->where('delivery_date', '<=', $formData['date_to']);
-        }
-
-        $distributions = $query->get();
-
-        if ($distributions->isEmpty()) {
-            Notification::make()
-                ->warning()
-                ->title('Sem distribuições aprovadas')
-                ->body('Nenhuma distribuição aprovada encontrada para este associado neste projeto no período informado.')
-                ->send();
-
-            return null;
-        }
-
-        $issuedAt = ! empty($formData['issued_at']) ? $formData['issued_at'] : today();
-
-        // Sempre cria um novo recibo com número incrementado a cada geração
-        $receipt = AssociateReceipt::create([
-            'tenant_id' => $tenantId,
-            'sales_project_id' => $record->id,
-            'associate_id' => $associateId,
-            ...AssociateReceipt::numberingFor($record, $issuedAt),
-            'issued_at' => $issuedAt,
-            'delivery_ids' => $distributions->pluck('id')->all(),
-        ]);
-
-        // Congelar snapshot financeiro e vincular distribuições ao comprovante
-        app(AssociateReceiptService::class)
-            ->freezeReceipt($receipt, $distributions, $record);
-
-        $totalNet = $distributions->sum('net_value');
-
-        $svc = app(TemplatedPdfService::class);
-        $pdf = $svc->generateSystemPdf('pdf.associate-payment-statement', [
-            'tenant' => $tenant,
-            'project' => $record,
-            'payment' => null,
-            'distributions' => $distributions,
-            'associate_name' => $associate->display_name ?? '—',
-            'cpf' => $associate->cpf_cnpj ?? '—',
-            'generated_at' => now()->format('d/m/Y H:i'),
-            'amount_paid' => $totalNet,
-            'balance' => 0,
-        ], [
-            'paper' => 'a4',
-            'orientation' => 'portrait',
-            'title' => 'Comprovante de Distribuições — 2 Vias',
-        ]);
-
-        $safeName = Str::slug($associate->display_name ?? 'associado');
-        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
-
-        return Response::streamDownload(function () use ($pdf) {
-            echo $pdf->output();
-        }, "comprovante-2vias-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+        }, (! empty($formData['two_copies']) ? 'comprovante-2vias-' : 'comprovante-')."{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
     }
 
     protected function generateFinalReport(SalesProject $record, array $filters = [])

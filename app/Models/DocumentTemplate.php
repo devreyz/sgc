@@ -106,6 +106,7 @@ class DocumentTemplate extends Model
         'declaration' => 'Declaração',
         'receipt' => 'Recibo',
         'authorization' => 'Autorização',
+        'minutes' => 'Ata',
         'report' => 'Relatório',
         'other' => 'Outro',
     ];
@@ -170,10 +171,10 @@ class DocumentTemplate extends Model
     {
         return [
             'deliveries_associate' => [
-                'label' => 'Entregas por Associado',
+                'label' => 'Entregas por Membro',
                 'blade_view' => 'pdf.deliveries-by-associate',
                 'type' => 'report',
-                'description' => 'Relatório de entregas agrupadas por associado',
+                'description' => 'Relatório de entregas agrupadas por membro da organização',
                 'sections' => [
                     'filters' => 'Filtros Aplicados',
                     'summary_cards' => 'Cards de Resumo',
@@ -207,7 +208,7 @@ class DocumentTemplate extends Model
                 ],
                 'columns' => [
                     'date' => 'Data',
-                    'associate' => 'Associado',
+                    'associate' => 'Membro',
                     'quantity' => 'Quantidade',
                     'unit_value' => 'Valor Unitário',
                     'gross_value' => 'Valor Bruto',
@@ -260,15 +261,6 @@ class DocumentTemplate extends Model
                 'sections' => ['filters' => 'Filtros', 'summary' => 'Resumo', 'distributions' => 'Distribuicoes'],
                 'columns' => ['date' => 'Data', 'customer' => 'Cliente', 'product' => 'Produto', 'quantity' => 'Quantidade', 'unit_value' => 'Valor Unitario', 'gross_value' => 'Valor Total'],
                 'paper_orientation' => 'landscape',
-            ],
-            'distributions_by_customer_compact' => [
-                'label' => 'Relatorio Compacto de Distribuicoes',
-                'blade_view' => 'pdf.distributions-by-customer-compact',
-                'type' => 'report',
-                'description' => 'Relatorio resumido das distribuicoes por cliente',
-                'sections' => ['filters' => 'Filtros', 'summary' => 'Resumo', 'distributions' => 'Distribuicoes'],
-                'columns' => ['customer' => 'Cliente', 'product' => 'Produto', 'quantity' => 'Quantidade', 'gross_value' => 'Valor Total'],
-                'paper_orientation' => 'portrait',
             ],
             'customer_delivery_statement' => [
                 'label' => 'Extrato de Distribuicoes do Cliente',
@@ -342,20 +334,20 @@ class DocumentTemplate extends Model
                 'paper_orientation' => 'portrait',
             ],
             'associate_payment_statement' => [
-                'label' => 'Extrato de Pagamentos do Associado',
+                'label' => 'Extrato de Pagamentos do Membro',
                 'blade_view' => 'pdf.associate-payment-statement',
                 'type' => 'report',
-                'description' => 'Extrato de pagamentos vinculados aos comprovantes do associado',
-                'sections' => ['associate_info' => 'Dados do Associado', 'payments' => 'Pagamentos', 'summary' => 'Resumo'],
+                'description' => 'Extrato de pagamentos vinculados aos comprovantes do membro',
+                'sections' => ['associate_info' => 'Dados do Membro', 'payments' => 'Pagamentos', 'summary' => 'Resumo'],
                 'columns' => ['date' => 'Data', 'receipt' => 'Comprovante', 'value' => 'Valor', 'status' => 'Status'],
                 'paper_orientation' => 'portrait',
             ],
             'associate_receipt_payments' => [
-                'label' => 'Comprovante de Pagamentos do Associado',
+                'label' => 'Comprovante de Pagamentos do Membro',
                 'blade_view' => 'pdf.associate-receipt-payments',
                 'type' => 'receipt',
-                'description' => 'Comprovante dos pagamentos realizados para um associado',
-                'sections' => ['associate_info' => 'Dados do Associado', 'payments' => 'Pagamentos', 'signature' => 'Assinatura'],
+                'description' => 'Comprovante dos pagamentos realizados para um membro',
+                'sections' => ['associate_info' => 'Dados do Membro', 'payments' => 'Pagamentos', 'signature' => 'Assinatura'],
                 'columns' => ['date' => 'Data', 'value' => 'Valor', 'method' => 'Forma de Pagamento'],
                 'paper_orientation' => 'portrait',
             ],

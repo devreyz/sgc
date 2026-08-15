@@ -514,23 +514,11 @@ $totalNet      = $deliveries->sum('net_value');
 <div class="reports-bar">
     <div class="reports-bar-title">
         <i data-lucide="file-text" style="width:14px;height:14px;color:var(--color-primary)"></i>
-        Relatórios PDF
+        Relatórios e planilhas
     </div>
     <div class="reports-row">
-        <a href="{{ route('delivery.reports.by-associate', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank">
-            <i data-lucide="users" style="width:13px;height:13px"></i> Por Associado
-        </a>
-        <a href="{{ route('delivery.reports.by-product', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank">
-            <i data-lucide="box" style="width:13px;height:13px"></i> Por Produto
-        </a>
-        <a href="{{ route('delivery.reports.distributions-by-customer', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank">
-            <i data-lucide="building-2" style="width:13px;height:13px"></i> Distribuições por Cliente
-        </a>
-        <a href="{{ route('delivery.reports.distributions-by-customer-compact', ['tenant' => $currentTenant->slug, 'project_id' => $project->id]) }}" class="report-btn" target="_blank" style="border-color:#059669;color:#059669;">
-            <i data-lucide="file-check" style="width:13px;height:13px"></i> Resumo p/ Cobrança
-        </a>
-        <button type="button" class="report-btn" onclick="openCustomerReportModal()" style="border-color:#1d4ed8;color:#1d4ed8;background:#eff6ff;">
-            <i data-lucide="file-badge" style="width:13px;height:13px"></i> Relatório Individual por Cliente
+        <button type="button" class="report-btn" onclick="DeliveryReports.open()">
+            <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Gerar relatório
         </button>
         <a href="{{ route('delivery.projects.producers', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="report-btn">
             <i data-lucide="clipboard-list" style="width:13px;height:13px"></i> Comprovantes Produtores
@@ -539,10 +527,10 @@ $totalNet      = $deliveries->sum('net_value');
 </div>
 @endif
 
-{{-- MODAL: RELATÓRIO POR CLIENTE (mantido) --}}
-<div class="modal-overlay hidden" id="customerReportModal">
-    <!-- Conteúdo idêntico ao original, omitido para brevidade -->
-</div>
+@include('delivery.partials.report-export-modal', [
+    'reportProjects' => collect([$project->id => $project->title]),
+    'selectedReportProject' => $project->id,
+])
 
 {{-- DELIVERIES: BARRA DE FILTROS + TABELA DESKTOP + MOBILE CARDS --}}
 <div class="pd-card">

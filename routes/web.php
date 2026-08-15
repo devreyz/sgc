@@ -14,6 +14,7 @@ use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
+use App\Http\Controllers\Delivery\DeliveryReportController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\Delivery\DeliveryViewerController;
 use App\Http\Controllers\DocumentVerificationController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\Secretary\SecretaryPortalController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use App\Services\AuthenticationRedirector;
@@ -203,6 +205,11 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::delete('/management/{module}/data/{record}', [FinanceManagementController::class, 'destroy'])->middleware('throttle:20,1')->name('management.destroy');
     });
 
+    Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {
+        Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');
+        Route::get('/data', [SecretaryPortalController::class, 'data'])->name('data');
+    });
+
     // Report Routes (Authenticated — relying on session tenant_id)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/associate-deliveries/{associate}', [ReportController::class, 'associateDeliveries'])
@@ -268,14 +275,9 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/finalize', [DeliveryRegistrationController::class, 'finalizeProject'])->name('projects.finalize');
         Route::post('/projects/{project}/deliver-to-client', [DeliveryRegistrationController::class, 'deliverToClient'])->name('projects.deliver-to-client');
 
-        // Relatórios PDF
-        Route::get('/reports/by-associate', [DeliveryRegistrationController::class, 'reportByAssociate'])->name('reports.by-associate');
-        Route::get('/reports/by-product', [DeliveryRegistrationController::class, 'reportByProduct'])->name('reports.by-product');
-        Route::get('/reports/project-associate', [DeliveryRegistrationController::class, 'reportProjectAssociate'])->name('reports.project-associate');
-        Route::get('/reports/distributions-by-customer', [DeliveryRegistrationController::class, 'reportDistributionsByCustomer'])->name('reports.distributions-by-customer');
-        Route::get('/reports/distributions-by-customer-compact', [DeliveryRegistrationController::class, 'reportDistributionsByCustomerCompact'])->name('reports.distributions-by-customer-compact');
-        Route::get('/reports/customer-delivery-options', [DeliveryRegistrationController::class, 'customerDeliveryOptions'])->name('reports.customer-delivery-options');
-        Route::get('/reports/customer-delivery-statement', [DeliveryRegistrationController::class, 'reportCustomerDeliveryStatement'])->name('reports.customer-delivery-statement');
+        // Relatórios operacionais (filtros e dados resolvidos no backend do projeto)
+        Route::get('/projects/{project}/reports/options', [DeliveryReportController::class, 'options'])->name('projects.reports.options');
+        Route::get('/projects/{project}/reports/export', [DeliveryReportController::class, 'export'])->name('projects.reports.export');
 
         // Lista pública (autenticada) de produtores por projeto
         Route::get('/projects', [DeliveryRegistrationController::class, 'projectsList'])->name('projects-list');
