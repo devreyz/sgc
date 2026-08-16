@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Associate\AssociateDashboardController;
+use App\Http\Controllers\Associate\AssociatePortalDataController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Auth\AccessInvitationAdminController;
 use App\Http\Controllers\Auth\AccessInvitationController;
@@ -208,6 +209,24 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {
         Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');
         Route::get('/data', [SecretaryPortalController::class, 'data'])->name('data');
+        Route::get('/templates/create', [SecretaryPortalController::class, 'createTemplate'])->name('templates.create');
+        Route::post('/templates', [SecretaryPortalController::class, 'storeTemplate'])->middleware('throttle:30,1')->name('templates.store');
+        Route::get('/templates/{template}/edit', [SecretaryPortalController::class, 'editTemplate'])->name('templates.edit');
+        Route::put('/templates/{template}', [SecretaryPortalController::class, 'updateTemplate'])->middleware('throttle:30,1')->name('templates.update');
+        Route::delete('/templates/{template}', [SecretaryPortalController::class, 'destroyTemplate'])->middleware('throttle:12,1')->name('templates.destroy');
+        Route::get('/templates/{template}/preview', [SecretaryPortalController::class, 'previewTemplate'])->name('templates.preview');
+        Route::get('/layouts/create', [SecretaryPortalController::class, 'createLayout'])->name('layouts.create');
+        Route::post('/layouts', [SecretaryPortalController::class, 'storeLayout'])->middleware('throttle:30,1')->name('layouts.store');
+        Route::get('/layouts/{layout}/edit', [SecretaryPortalController::class, 'editLayout'])->name('layouts.edit');
+        Route::put('/layouts/{layout}', [SecretaryPortalController::class, 'updateLayout'])->middleware('throttle:30,1')->name('layouts.update');
+        Route::delete('/layouts/{layout}', [SecretaryPortalController::class, 'destroyLayout'])->middleware('throttle:12,1')->name('layouts.destroy');
+        Route::get('/documents/create', [SecretaryPortalController::class, 'createDocument'])->name('documents.create');
+        Route::post('/documents', [SecretaryPortalController::class, 'storeDocument'])->middleware('throttle:30,1')->name('documents.store');
+        Route::get('/documents/{document}/edit', [SecretaryPortalController::class, 'editDocument'])->name('documents.edit');
+        Route::put('/documents/{document}', [SecretaryPortalController::class, 'updateDocument'])->middleware('throttle:30,1')->name('documents.update');
+        Route::delete('/documents/{document}', [SecretaryPortalController::class, 'destroyDocument'])->middleware('throttle:12,1')->name('documents.destroy');
+        Route::get('/documents/{document}/preview', [SecretaryPortalController::class, 'previewDocument'])->name('documents.preview');
+        Route::post('/images', [SecretaryPortalController::class, 'uploadImage'])->middleware('throttle:20,1')->name('images.store');
     });
 
     // Report Routes (Authenticated — relying on session tenant_id)
@@ -239,6 +258,12 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     // Associate Portal Routes
     Route::prefix('associate')->name('associate.')->middleware(['role:associado'])->group(function () {
         Route::get('/dashboard', [AssociateDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/data/dashboard', [AssociatePortalDataController::class, 'dashboard'])->name('data.dashboard');
+        Route::get('/data/projects', [AssociatePortalDataController::class, 'projects'])->name('data.projects');
+        Route::get('/data/deliveries', [AssociatePortalDataController::class, 'deliveries'])->name('data.deliveries');
+        Route::get('/data/ledger/{section}', [AssociatePortalDataController::class, 'ledger'])
+            ->whereIn('section', ['summary', 'receipts', 'payments', 'transactions'])
+            ->name('data.ledger');
         Route::get('/projects', [AssociateDashboardController::class, 'projects'])->name('projects');
         Route::get('/projects/{project}', [AssociateProjectPortalController::class, 'show'])->name('projects.show');
         Route::get('/projects/{project}/data/{section}', [AssociateProjectPortalController::class, 'data'])->name('projects.data');

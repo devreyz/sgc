@@ -43,6 +43,9 @@ class PortalNavigation
             ],
             'secretary' => [
                 ['key' => 'documents', 'label' => 'Documentos', 'route' => 'secretary.index'],
+                ['key' => 'new-document', 'label' => 'Novo documento', 'route' => 'secretary.documents.create'],
+                ['key' => 'new-template', 'label' => 'Novo modelo', 'route' => 'secretary.templates.create'],
+                ['key' => 'new-layout', 'label' => 'Cabeçalho ou rodapé', 'route' => 'secretary.layouts.create'],
                 ['key' => 'home', 'label' => 'Painéis', 'route' => 'home'],
             ],
             'buyer' => [

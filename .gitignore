@@ -1,5 +1,6 @@
 *.log
 .DS_Store
+.rnd
 .env
 .env.backup
 .env.production

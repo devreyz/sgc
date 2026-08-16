@@ -1,15 +1,19 @@
 @extends('layouts.bento')
 
-@section('title', 'Comprovantes dos produtores')
-@section('page-title', 'Comprovantes dos produtores')
+@php
+    $tenantSlug = $tenant->slug ?? request()->route('tenant');
+    $memberTerm = $tenant->associateTerm() ?: 'Membro';
+    $memberTermPlural = $tenant->associateTerm(plural: true) ?: 'Membros';
+    $memberTermLower = mb_strtolower($memberTerm);
+    $memberTermPluralLower = mb_strtolower($memberTermPlural);
+    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $tenantSlug);
+@endphp
+
+@section('title', 'Comprovantes de '.$memberTermPluralLower)
+@section('page-title', 'Comprovantes de '.$memberTermPluralLower)
 @section('user-role', 'Registrador')
 
 <x-delivery.notes-modal />
-
-@php
-    $tenantSlug = $tenant->slug ?? request()->route('tenant');
-    $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'projects', $tenantSlug);
-@endphp
 
 @section('content')
 <style>
@@ -168,9 +172,9 @@
     <section class="pr-summary" id="pr-summary" aria-label="Resumo dos comprovantes"></section>
 
     <section class="pr-tools">
-        <input class="pr-control" id="pr-search" type="search" placeholder="Buscar produtor ou matrícula" autocomplete="off">
-        <select class="pr-control" id="pr-filter" aria-label="Filtrar produtores">
-            <option value="all">Todos os produtores</option>
+        <input class="pr-control" id="pr-search" type="search" placeholder="Buscar {{ $memberTermLower }} ou matrícula" autocomplete="off">
+        <select class="pr-control" id="pr-filter" aria-label="Filtrar {{ $memberTermPluralLower }}">
+            <option value="all">Todos os {{ $memberTermPluralLower }}</option>
             <option value="pending">Com distribuições pendentes</option>
             <option value="complement">Precisam de complemento</option>
             <option value="obsolete">Com comprovante obsoleto</option>
@@ -180,7 +184,7 @@
     </section>
 
     <section class="pr-grid" id="pr-grid">
-        <div class="pr-loading"><div><div class="pr-loading-ring"></div>Carregando produtores...</div></div>
+        <div class="pr-loading"><div><div class="pr-loading-ring"></div>Carregando {{ $memberTermPluralLower }}...</div></div>
     </section>
 
     <footer class="pr-footer">
@@ -197,7 +201,7 @@
         <header class="pr-sheet-head">
             <div>
                 <h2 id="pr-modal-title">Comprovantes</h2>
-                <p id="pr-modal-person">Produtor</p>
+                <p id="pr-modal-person">{{ $memberTerm }}</p>
             </div>
             <button class="pr-btn icon" id="pr-modal-close" type="button" aria-label="Fechar"><i data-lucide="x"></i></button>
         </header>
@@ -279,6 +283,10 @@
 
     const tenant = root.dataset.tenant;
     const project = Number(root.dataset.project);
+    const memberTerm = @js($memberTerm);
+    const memberTermLower = @js($memberTermLower);
+    const memberTermPlural = @js($memberTermPlural);
+    const memberTermPluralLower = @js($memberTermPluralLower);
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
     const state = {
         page: 1, lastPage: 1, filter: 'all', timer: null, busy: false,
@@ -323,7 +331,7 @@
 
     function renderSummary(summary) {
         const items = [
-            ['all', 'Produtores', summary.producers || 0],
+            ['all', memberTermPlural, summary.producers || 0],
             ['pending', 'Distribuições pendentes', summary.pending_distributions || 0],
             ['complement', 'Precisam de complemento', summary.needs_complement || 0],
             ['obsolete', 'Comprovantes obsoletos', summary.obsolete_receipts || 0],
@@ -364,7 +372,7 @@
             </div>
             <div class="pr-card-actions">
                 <a class="pr-btn" href="/${encodeURIComponent(tenant)}/delivery/projects/${project}/associates/${row.associate_id}">
-                    <i data-lucide="user-round"></i> Ver produtor
+                    <i data-lucide="user-round"></i> Ver ${esc(memberTermLower)}
                 </a>
                 <button class="pr-btn primary" type="button" data-open-receipts="${row.associate_id}" data-associate-name="${esc(row.name)}">
                     <i data-lucide="file-check-2"></i> ${esc(actionLabel)}
@@ -375,7 +383,7 @@
 
     async function loadProducers(reset = false) {
         if (reset) state.page = 1;
-        $('pr-grid').innerHTML = '<div class="pr-loading"><div><div class="pr-loading-ring"></div>Carregando produtores...</div></div>';
+        $('pr-grid').innerHTML = `<div class="pr-loading"><div><div class="pr-loading-ring"></div>Carregando ${esc(memberTermPluralLower)}...</div></div>`;
         const params = new URLSearchParams({
             page: state.page,
             filter: state.filter,
@@ -387,10 +395,10 @@
             renderSummary(data.summary || {});
             $('pr-grid').innerHTML = data.rows?.length
                 ? data.rows.map(producerCard).join('')
-                : '<div class="pr-empty">Nenhum produtor encontrado neste filtro.</div>';
+                : `<div class="pr-empty">Nenhum ${esc(memberTermLower)} encontrado neste filtro.</div>`;
             state.page = data.pagination?.current_page || 1;
             state.lastPage = data.pagination?.last_page || 1;
-            $('pr-page-info').textContent = `${data.pagination?.total || 0} produtor(es) · página ${state.page} de ${state.lastPage}`;
+            $('pr-page-info').textContent = `${data.pagination?.total || 0} ${memberTermPluralLower} · página ${state.page} de ${state.lastPage}`;
             $('pr-prev').disabled = state.page <= 1;
             $('pr-next').disabled = state.page >= state.lastPage;
             icons();
@@ -404,7 +412,7 @@
         $('pr-overview').hidden = view !== 'overview';
         $('pr-selection').hidden = view !== 'selection';
         $('pr-modal-primary').hidden = view !== 'selection';
-        $('pr-footer-label').textContent = view === 'selection' ? 'Distribuições selecionadas' : 'Situação do produtor';
+        $('pr-footer-label').textContent = view === 'selection' ? 'Distribuições selecionadas' : `Situação do ${memberTermLower}`;
         if (view !== 'selection') $('pr-footer-value').textContent = state.check?.uncovered_count ? `${state.check.uncovered_count} pendente(s)` : 'Sem distribuições pendentes';
         $('pr-modal-back').textContent = view === 'selection' && state.check?.has_receipts ? 'Voltar' : 'Fechar';
     }
@@ -434,7 +442,7 @@
         const target = $(targetId);
         const issues = actionableIssues();
         if (!issues.length) {
-            target.innerHTML = '<div class="pr-ready"><i data-lucide="check-circle-2"></i> Nenhuma pendência deste produtor bloqueia o comprovante.</div>';
+            target.innerHTML = `<div class="pr-ready"><i data-lucide="check-circle-2"></i> Nenhuma pendência deste ${esc(memberTermLower)} bloqueia o comprovante.</div>`;
             return;
         }
         const critical = issues.filter(issue => issue.severity === 'critical').length;
@@ -472,9 +480,9 @@
                 <div class="pr-receipt-actions">
                     ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i data-lucide="list-checks"></i> Alterar distribuições</button>` : ''}
                     ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i data-lucide="refresh-cw"></i> Regenerar</button>` : ''}
-                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}"><i data-lucide="printer"></i> Reimprimir</button>` : ''}
+                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i data-lucide="eye"></i> Visualizar e imprimir</button>` : ''}
                 </div>
-            </article>`).join('') : '<div class="pr-empty">Nenhum comprovante gerado para este produtor.</div>';
+            </article>`).join('') : `<div class="pr-empty">Nenhum comprovante gerado para este ${esc(memberTermLower)}.</div>`;
         $('pr-modal-primary').hidden = false;
         $('pr-modal-primary').innerHTML = '<i data-lucide="plus"></i> Novo comprovante';
         $('pr-modal-primary').dataset.action = 'new';
@@ -842,10 +850,12 @@
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
+            const popup = window.open('about:blank', '_blank');
+            if (popup) popup.opener = null;
             reprint.disabled = true;
             savePrintPreferences(false)
-                .then(() => { window.location.href = reprint.dataset.reprintUrl; })
-                .catch(error => toast(error.message, 'error'))
+                .then(() => { if (popup) popup.location.replace(reprint.dataset.reprintUrl); else window.location.href = reprint.dataset.reprintUrl; })
+                .catch(error => { popup?.close(); toast(error.message, 'error'); })
                 .finally(() => { reprint.disabled = false; });
         }
     });
@@ -861,7 +871,7 @@
     loadProducers(true);
     const auto = Number(new URLSearchParams(location.search).get('associate') || 0);
     if (auto) {
-        openModal(auto, new URLSearchParams(location.search).get('name') || 'Produtor');
+        openModal(auto, new URLSearchParams(location.search).get('name') || memberTerm);
         history.replaceState(null, '', location.pathname);
     }
 })();

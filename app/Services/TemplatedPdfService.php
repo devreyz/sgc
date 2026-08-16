@@ -387,8 +387,13 @@ HTML;
         $tenant = $configured['tenant'] ?? $tenant;
         $primaryColor = $configured['primary_color'] ?? '#374151';
         $accentColor = $configured['accent_color'] ?? '#64786f';
-        $paper = $configured['paper'] ?? ($options['paper'] ?? 'a4');
-        $orientation = $configured['orientation'] ?? ($options['orientation'] ?? 'portrait');
+        $preferRuntimeLayout = (bool) ($options['prefer_runtime_layout'] ?? false);
+        $paper = $preferRuntimeLayout
+            ? ($options['paper'] ?? ($configured['paper'] ?? 'a4'))
+            : ($configured['paper'] ?? ($options['paper'] ?? 'a4'));
+        $orientation = $preferRuntimeLayout
+            ? ($options['orientation'] ?? ($configured['orientation'] ?? 'portrait'))
+            : ($configured['orientation'] ?? ($options['orientation'] ?? 'portrait'));
         $title = $options['title'] ?? '';
         $headerLayoutId = $configured['header_layout_id'] ?? null;
         $footerLayoutId = $configured['footer_layout_id'] ?? null;

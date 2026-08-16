@@ -31,6 +31,8 @@
     $labels['associate'] = $memberTerm;
     $numericColumns = ['received_quantity', 'distributed_quantity', 'unit_value', 'gross_value', 'admin_fee', 'net_value'];
     $moneyColumns = ['unit_value', 'gross_value', 'admin_fee', 'net_value'];
+    $summableColumns = ['received_quantity', 'distributed_quantity', 'gross_value', 'admin_fee', 'net_value'];
+    $subtotalLabelIndex = collect($reportColumns)->search(fn (string $column): bool => !in_array($column, $summableColumns, true) && $column !== 'unit_value');
     $columnValue = function (array $row, string $column) {
         return match ($column) {
             'date' => $row['date'],
@@ -92,7 +94,7 @@
         @endforeach
         <tr class="section-total">
             @foreach($reportColumns as $index => $column)
-                <td class="{{ in_array($column, $numericColumns, true) ? 'text-right' : '' }}">{{ $index === 0 ? 'Subtotal' : $totalValue($section['totals'], $column) }}</td>
+                <td class="{{ in_array($column, $numericColumns, true) ? 'text-right' : '' }}">{{ in_array($column, $summableColumns, true) ? $totalValue($section['totals'], $column) : ($index === $subtotalLabelIndex ? 'Subtotal' : '') }}</td>
             @endforeach
         </tr>
     </tbody>

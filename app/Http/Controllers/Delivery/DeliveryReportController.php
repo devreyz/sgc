@@ -96,7 +96,12 @@ class DeliveryReportController extends Controller
             'generated_at' => now()->format('d/m/Y H:i'),
         ], array_merge(
             $pdfService->systemPdfOptions($templateView, $title, $project->type, (int) $project->tenant_id),
-            ['paper' => 'a4', 'orientation' => $report['preferences']['orientation'], 'configuration_view' => $templateView],
+            [
+                'paper' => 'a4',
+                'orientation' => $report['preferences']['orientation'],
+                'prefer_runtime_layout' => true,
+                'configuration_view' => $templateView,
+            ],
         ));
 
         return response()->streamDownload(

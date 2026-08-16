@@ -184,6 +184,28 @@ class ReceiptConsentCustomizationTest extends TestCase
         $this->assertSame($document, $result);
     }
 
+    public function test_runtime_report_orientation_can_override_saved_template_orientation(): void
+    {
+        $tenant = $this->tenant('Cooperativa', 'runtime-report-orientation');
+        $template = $this->template($tenant, 'paa', '');
+        $template->update(['paper_orientation' => 'landscape']);
+        $project = new SalesProject(['title' => 'PAA 2026', 'type' => 'paa']);
+        $project->id = 91;
+        $project->tenant_id = $tenant->id;
+
+        $document = Mockery::mock(DomPdfDocument::class);
+        $document->shouldReceive('setPaper')->once()->with('a4', 'portrait')->andReturnSelf();
+        Pdf::shouldReceive('loadView')->once()->with('pdf.project-associate-receipt', Mockery::type('array'))->andReturn($document);
+
+        $result = app(TemplatedPdfService::class)->generateSystemPdf('pdf.project-associate-receipt', [
+            'tenant' => $tenant, 'project' => $project,
+        ], [
+            'paper' => 'a4', 'orientation' => 'portrait', 'prefer_runtime_layout' => true,
+        ]);
+
+        $this->assertSame($document, $result);
+    }
+
     public function test_generic_template_is_fallback_and_specific_template_can_hide_section(): void
     {
         $tenant = $this->tenant('Cooperativa', 'coop');

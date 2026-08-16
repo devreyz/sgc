@@ -123,9 +123,8 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => Blade::render('
                     @php
                         $tenantSlug = session("tenant_slug");
-                        $hubUrl = $tenantSlug ? "/" . $tenantSlug . "/delivery" : "/";
                     @endphp
-                    <a href="{{ $hubUrl }}"
+                    <a href="/"
                        title="Voltar ao Hub"
                        style="display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .7rem;border-radius:.5rem;background:rgba(16,185,129,.1);font-size:.8rem;font-weight:600;text-decoration:none;border:1px solid rgba(16,185,129,.25);transition:background .15s,border-color .15s;white-space:nowrap"
                        onmouseover="this.style.background=\'rgba(16,185,129,.18)\';this.style.borderColor=\'rgba(16,185,129,.5)\'"

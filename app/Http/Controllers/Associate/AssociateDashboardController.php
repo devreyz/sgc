@@ -2,13 +2,9 @@
 
 namespace App\Http\Controllers\Associate;
 
-use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
-use App\Enums\ProjectStatus;
-use App\Enums\ReceiptStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
-use App\Models\AssociateLedger;
 use App\Models\AssociateReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectAssociate;
@@ -16,8 +12,9 @@ use App\Models\ProjectAssociateProductLimit;
 use App\Models\SalesProject;
 use App\Services\AssociateFinancialSummaryService;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class AssociateDashboardController extends Controller
 {
@@ -49,26 +46,26 @@ class AssociateDashboardController extends Controller
             ->where('associate_id', $associateId)
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
-            ->selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->selectRaw('COALESCE(SUM(gross_value), 0) as total')
             ->value('total');
 
-        $remaining  = $maxValue !== null ? max(0.0, $maxValue - $accumulated) : null;
-        $percent    = ($maxValue && $maxValue > 0) ? min(100.0, ($accumulated / $maxValue) * 100) : null;
+        $remaining = $maxValue !== null ? max(0.0, $maxValue - $accumulated) : null;
+        $percent = ($maxValue && $maxValue > 0) ? min(100.0, ($accumulated / $maxValue) * 100) : null;
 
         return [
             'accumulated' => $accumulated,
-            'max'         => $maxValue,
-            'remaining'   => $remaining,
-            'percent'     => $percent,
-            'is_near'     => $percent !== null && $percent >= 80 && $percent < 100,
-            'is_full'     => $percent !== null && $percent >= 100,
+            'max' => $maxValue,
+            'remaining' => $remaining,
+            'percent' => $percent,
+            'is_near' => $percent !== null && $percent >= 80 && $percent < 100,
+            'is_full' => $percent !== null && $percent >= 100,
         ];
     }
 
     /**
      * Compute product limits for a project/associate pair.
      */
-    private function computeProductLimits(int $tenantId, int $projectId, int $associateId): \Illuminate\Support\Collection
+    private function computeProductLimits(int $tenantId, int $projectId, int $associateId): Collection
     {
         return ProjectAssociateProductLimit::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -84,14 +81,15 @@ class AssociateDashboardController extends Controller
                     ->whereNotIn('status', ['cancelled', 'rejected'])
                     ->sum('quantity');
 
-                $max     = (float) $limit->max_quantity;
+                $max = (float) $limit->max_quantity;
                 $percent = $max > 0 ? min(100.0, ($deliveredQty / $max) * 100) : 0.0;
 
                 $limit->delivered_qty = $deliveredQty;
                 $limit->remaining_qty = max(0.0, $max - $deliveredQty);
-                $limit->percent_used  = $percent;
-                $limit->is_near       = $percent >= 80 && $percent < 100;
-                $limit->is_full       = $percent >= 100;
+                $limit->percent_used = $percent;
+                $limit->is_near = $percent >= 80 && $percent < 100;
+                $limit->is_full = $percent >= 100;
+
                 return $limit;
             });
     }
@@ -104,9 +102,9 @@ class AssociateDashboardController extends Controller
         return SalesProject::where('tenant_id', $tenantId)
             ->where(function ($q) use ($associateId) {
                 $q->where('restrict_participants', false)
-                  ->orWhereHas('projectAssociates', fn ($pa) => $pa
-                      ->where('associate_id', $associateId)
-                      ->where('status', 'active'));
+                    ->orWhereHas('projectAssociates', fn ($pa) => $pa
+                        ->where('associate_id', $associateId)
+                        ->where('status', 'active'));
             });
     }
 
@@ -115,74 +113,30 @@ class AssociateDashboardController extends Controller
      */
     public function index()
     {
-        $user     = Auth::user();
-        $tenantId = session('tenant_id');
-
-        if (! $tenantId) {
-            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
-        }
-
-        $associate = Associate::where('user_id', $user->id)
-            ->where('tenant_id', $tenantId)
-            ->first();
+        $associate = $this->currentAssociate();
 
         if (! $associate) {
-            return view('associate.no-profile', ['user' => $user]);
+            return view('associate.no-profile', ['user' => Auth::user()]);
         }
-
-        // ─── Stats ───────────────────────────────────────────────────────────
-        $baseDeliveries = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id)
-            ->whereNull('parent_delivery_id');
-
-        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
 
         $stats = [
-            'active_projects'     => $this->allowedProjectsQuery($tenantId, $associate->id)
-                ->where('status', ProjectStatus::ACTIVE->value)
-                ->count(),
-            'pending_deliveries'  => (clone $baseDeliveries)->where('status', DeliveryStatus::PENDING->value)->count(),
-            'earnings_this_month' => $financialSummary['issued_this_month'],
-            'unpaid_value'        => $financialSummary['receivable'],
-            'paid_this_month'     => $financialSummary['paid_this_month'],
-            'distributed_net'     => $financialSummary['total_net'],
-            'current_balance'     => $this->financial()->ledgerBalance($associate),
+            'active_projects' => 0,
+            'pending_deliveries' => 0,
+            'earnings_this_month' => 0,
+            'unpaid_value' => 0,
+            'paid_this_month' => 0,
+            'distributed_net' => 0,
+            'current_balance' => 0,
         ];
-
-        // ─── Active projects with limit data ─────────────────────────────────
-        $recentProjects = $this->allowedProjectsQuery($tenantId, $associate->id)
-            ->whereIn('status', [ProjectStatus::ACTIVE->value])
-            ->with(['customer', 'demands.product'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-
+        $recentProjects = collect();
         $projectLimitData = [];
-        foreach ($recentProjects as $project) {
-            $maxValue = $project->max_total_value_per_associate
-                ? (float) $project->max_total_value_per_associate
-                : null;
-            $projectLimitData[$project->id] = $this->computeFinancialLimit(
-                $tenantId, $project->id, $associate->id, $maxValue
-            );
-        }
-
-        // ─── Alerts: projects near/at limit ──────────────────────────────────
-        $limitAlerts = collect($projectLimitData)
-            ->filter(fn ($d) => $d['is_near'] || $d['is_full']);
-
-        // ─── Recent deliveries (card style) ──────────────────────────────────
-        $recentDeliveries = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id)
-            ->whereNull('parent_delivery_id')
-            ->with(['salesProject', 'product'])
-            ->orderBy('delivery_date', 'desc')
-            ->limit(6)
-            ->get();
+        $limitAlerts = collect();
+        $recentDeliveries = collect();
+        $asyncPortal = true;
 
         return view('associate.dashboard', compact(
             'associate', 'stats', 'recentProjects', 'projectLimitData',
-            'limitAlerts', 'recentDeliveries'
+            'limitAlerts', 'recentDeliveries', 'asyncPortal'
         ));
     }
 
@@ -191,52 +145,19 @@ class AssociateDashboardController extends Controller
      */
     public function projects(Request $request)
     {
-        $user     = Auth::user();
-        $tenantId = session('tenant_id');
-
-        if (! $tenantId) {
-            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
-        }
-
-        $associate = Associate::where('user_id', $user->id)
-            ->where('tenant_id', $tenantId)
-            ->first();
+        $associate = $this->currentAssociate();
 
         if (! $associate) {
             return redirect()->route('associate.dashboard', ['tenant' => request()->route('tenant')->slug]);
         }
-
-        $query = $this->allowedProjectsQuery($tenantId, $associate->id)
-            ->with(['customer', 'demands.product']);
-
-        if ($request->status) {
-            $query->where('status', $request->status);
-        } else {
-            $query->whereIn('status', [ProjectStatus::ACTIVE->value, ProjectStatus::DRAFT->value]);
-        }
-
-        $projects = $query->orderBy('created_at', 'desc')->paginate(18);
-
-        // Limit data for each project
+        $projects = $this->emptyPaginator($request, 8);
         $projectLimitData = [];
         $productLimitData = [];
-        foreach ($projects as $project) {
-            $maxValue = $project->max_total_value_per_associate
-                ? (float) $project->max_total_value_per_associate
-                : null;
-            $projectLimitData[$project->id] = $this->computeFinancialLimit(
-                $tenantId, $project->id, $associate->id, $maxValue
-            );
-            $productLimitData[$project->id] = $this->computeProductLimits(
-                $tenantId, $project->id, $associate->id
-            );
-            $financialStateData[$project->id] = $this->computeFinancialStates(
-                $tenantId, $project->id, $associate->id
-            );
-        }
+        $financialStateData = [];
+        $asyncPortal = true;
 
         return view('associate.projects', compact(
-            'associate', 'projects', 'projectLimitData', 'productLimitData', 'financialStateData'
+            'associate', 'projects', 'projectLimitData', 'productLimitData', 'financialStateData', 'asyncPortal'
         ));
     }
 
@@ -246,8 +167,8 @@ class AssociateDashboardController extends Controller
     public function showProject(Request $request)
     {
         $projectId = (int) request()->route('project');
-        $user      = Auth::user();
-        $tenantId  = session('tenant_id');
+        $user = Auth::user();
+        $tenantId = session('tenant_id');
 
         if (! $tenantId) {
             return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
@@ -282,7 +203,7 @@ class AssociateDashboardController extends Controller
         $maxValue = $project->max_total_value_per_associate
             ? (float) $project->max_total_value_per_associate
             : null;
-        $financialLimit  = $this->computeFinancialLimit($tenantId, $project->id, $associate->id, $maxValue);
+        $financialLimit = $this->computeFinancialLimit($tenantId, $project->id, $associate->id, $maxValue);
         $financialStates = $this->computeFinancialStates($tenantId, $project->id, $associate->id);
 
         // Product limits
@@ -293,7 +214,13 @@ class AssociateDashboardController extends Controller
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
             ->whereNull('parent_delivery_id')
-            ->with(['product', 'projectDemand.product']);
+            ->with([
+                'product',
+                'projectDemand.product',
+                'distributions' => fn ($query) => $query
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED->value),
+            ]);
 
         if ($request->product_id) {
             $deliveryQuery->where('product_id', $request->product_id);
@@ -309,9 +236,10 @@ class AssociateDashboardController extends Controller
         }
 
         $myDeliveries = $deliveryQuery->orderBy('delivery_date', 'desc')->paginate(15);
+        $this->attachDistributionFinancials($myDeliveries->getCollection());
 
         // My delivery summary
-        $myTotalQty   = ProductionDelivery::where('tenant_id', $tenantId)
+        $myTotalQty = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
             ->whereNull('parent_delivery_id')
@@ -319,7 +247,7 @@ class AssociateDashboardController extends Controller
             ->sum('quantity');
 
         // Recibos de pagamento deste associado neste projeto
-        $receipts = \App\Models\AssociateReceipt::where('tenant_id', $tenantId)
+        $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
             ->orderByDesc('issued_at')
@@ -336,19 +264,20 @@ class AssociateDashboardController extends Controller
             ->groupBy(fn ($d) => $d->customer?->organization_id ?? 0)
             ->map(function ($items, $orgId) {
                 $org = $items->first()?->customer?->organization;
+
                 return [
                     'organization_name' => $org?->name ?? 'Sem organização',
-                    'organization_id'   => $orgId,
-                    'total_gross'       => $items->sum('gross_value'),
-                    'total_net'         => $items->sum('net_value'),
-                    'count'             => $items->count(),
-                    'customers'         => $items->groupBy('customer_id')
+                    'organization_id' => $orgId,
+                    'total_gross' => $items->sum('gross_value'),
+                    'total_net' => $items->sum('net_value'),
+                    'count' => $items->count(),
+                    'customers' => $items->groupBy('customer_id')
                         ->map(fn ($cItems) => [
                             'customer_name' => $cItems->first()?->customer?->trade_name
                                 ?? $cItems->first()?->customer?->name ?? '?',
-                            'total_gross'   => $cItems->sum('gross_value'),
-                            'total_net'     => $cItems->sum('net_value'),
-                            'count'         => $cItems->count(),
+                            'total_gross' => $cItems->sum('gross_value'),
+                            'total_net' => $cItems->sum('net_value'),
+                            'count' => $cItems->count(),
                         ])->values()->all(),
                 ];
             })
@@ -366,67 +295,22 @@ class AssociateDashboardController extends Controller
      */
     public function deliveries(Request $request)
     {
-        $user     = Auth::user();
-        $tenantId = session('tenant_id');
-
-        if (! $tenantId) {
-            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
-        }
-
-        $associate = Associate::where('user_id', $user->id)
-            ->where('tenant_id', $tenantId)
-            ->first();
+        $associate = $this->currentAssociate();
 
         if (! $associate) {
             abort(403);
         }
-
-        $query = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id)
-            ->whereNull('parent_delivery_id')
-            ->with(['salesProject.customer', 'product']);
-
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
-        if ($request->project_id) {
-            $query->where('sales_project_id', $request->project_id);
-        }
-        if ($request->start_date) {
-            $query->where('delivery_date', '>=', $request->start_date);
-        }
-        if ($request->end_date) {
-            $query->where('delivery_date', '<=', $request->end_date);
-        }
-
-        $deliveries = $query->orderBy('delivery_date', 'desc')->paginate(20);
-
-        // Stats for the filtered set
-        $allFiltered = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id)
-            ->whereNull('parent_delivery_id')
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->project_id, fn ($q) => $q->where('sales_project_id', $request->project_id))
-            ->when($request->start_date, fn ($q) => $q->where('delivery_date', '>=', $request->start_date))
-            ->when($request->end_date, fn ($q) => $q->where('delivery_date', '<=', $request->end_date));
-
-        $deliveryStats = [
-            'total'        => (clone $allFiltered)->count(),
-            'approved'     => (clone $allFiltered)->where('status', 'approved')->count(),
-            'pending'      => (clone $allFiltered)->where('status', 'pending')->count(),
-            'total_value'  => (clone $allFiltered)->whereNotIn('status', ['cancelled', 'rejected'])->selectRaw('SUM(quantity * unit_price) as t')->value('t') ?? 0,
+        $deliveries = $this->emptyPaginator($request, 12);
+        $deliveryStats = ['total' => 0, 'approved' => 0, 'pending' => 0, 'total_value' => 0];
+        $financialSummary = [
+            'distribution_count' => 0, 'total_net' => 0, 'total_fees' => 0,
+            'receivable' => 0, 'paid' => 0,
         ];
-
-        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
-
-        // Projects for filter dropdown
-        $myProjects = $this->allowedProjectsQuery($tenantId, $associate->id)
-            ->whereIn('status', [ProjectStatus::ACTIVE->value, ProjectStatus::DRAFT->value])
-            ->orderBy('title')
-            ->get(['id', 'title']);
+        $myProjects = collect();
+        $asyncPortal = true;
 
         return view('associate.deliveries', compact(
-            'associate', 'deliveries', 'deliveryStats', 'myProjects', 'financialSummary'
+            'associate', 'deliveries', 'deliveryStats', 'myProjects', 'financialSummary', 'asyncPortal'
         ));
     }
 
@@ -435,36 +319,17 @@ class AssociateDashboardController extends Controller
      */
     public function ledger(Request $request)
     {
-        $user     = Auth::user();
-        $tenantId = session('tenant_id');
-
-        if (! $tenantId) {
-            return redirect()->route('home')->with('error', 'Selecione uma organização primeiro.');
-        }
-
-        $associate = Associate::where('user_id', $user->id)
-            ->where('tenant_id', $tenantId)
-            ->first();
+        $associate = $this->currentAssociate();
 
         if (! $associate) {
             abort(403);
         }
-
-        $query = AssociateLedger::where('tenant_id', $tenantId)
-            ->where('associate_id', $associate->id);
-
-        if ($request->start_date) {
-            $query->where('transaction_date', '>=', $request->start_date);
-        }
-        if ($request->end_date) {
-            $query->where('transaction_date', '<=', $request->end_date);
-        }
-
-        $transactions   = $query->orderBy('transaction_date', 'desc')->paginate(20);
-        $currentBalance = $this->financial()->ledgerBalance($associate);
-        $financialSummary = $this->financial()->summary($tenantId, $associate->id);
-        $receipts = $this->financial()->receipts($tenantId, $associate->id, null, 8);
-        $receiptPayments = $this->financial()->payments($tenantId, $associate->id, null, 10);
+        $transactions = $this->emptyPaginator($request, 12);
+        $currentBalance = 0.0;
+        $financialSummary = ['total_net' => 0, 'receivable' => 0, 'paid' => 0, 'total_fees' => 0];
+        $receipts = collect();
+        $receiptPayments = collect();
+        $asyncPortal = true;
 
         return view('associate.ledger', compact(
             'associate',
@@ -472,9 +337,48 @@ class AssociateDashboardController extends Controller
             'currentBalance',
             'financialSummary',
             'receipts',
-            'receiptPayments'
+            'receiptPayments',
+            'asyncPortal'
         ));
     }
+
+    private function currentAssociate(): ?Associate
+    {
+        $tenantId = (int) session('tenant_id');
+        if ($tenantId <= 0) {
+            return null;
+        }
+
+        return Associate::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', Auth::id())
+            ->first();
+    }
+
+    private function emptyPaginator(Request $request, int $perPage): LengthAwarePaginator
+    {
+        return new LengthAwarePaginator([], 0, $perPage, 1, ['path' => $request->url()]);
+    }
+
+    private function attachDistributionFinancials($deliveries): void
+    {
+        foreach ($deliveries as $delivery) {
+            $distributions = $delivery->distributions;
+            $gross = (float) $distributions->sum(fn (ProductionDelivery $item) => (float) $item->gross_value);
+            $fees = (float) $distributions->sum(fn (ProductionDelivery $item) => (float) ($item->admin_fee_amount ?? 0));
+            $net = (float) $distributions->sum(function (ProductionDelivery $item): float {
+                if ($item->net_value !== null) {
+                    return (float) $item->net_value;
+                }
+
+                return max(0.0, (float) $item->gross_value - (float) ($item->admin_fee_amount ?? 0));
+            });
+
+            $delivery->setAttribute('portal_distribution_count', $distributions->count());
+            $delivery->setAttribute('portal_distributed_quantity', (float) $distributions->sum('quantity'));
+            $delivery->setAttribute('portal_gross_value', $gross);
+            $delivery->setAttribute('portal_fee_value', $fees);
+            $delivery->setAttribute('portal_net_value', $net);
+        }
+    }
 }
-
-

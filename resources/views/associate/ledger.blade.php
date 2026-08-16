@@ -2,6 +2,7 @@
 
 @section('title', 'Extrato Financeiro')
 @section('page-title', 'Extrato Financeiro')
+@section('page-subtitle', 'Comprovantes, pagamentos e histórico completo das suas movimentações.')
 @section('user-role', 'Associado')
 
 @php
@@ -95,10 +96,11 @@
 @endphp
 
 @section('content')
+<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}">
 <style>
     .ledger-page {
         display: grid;
-        width: min(100%, 1120px);
+        width: min(100%, 1240px);
         min-width: 0;
         grid-column: 1 / -1;
         gap: .82rem;
@@ -285,11 +287,9 @@
         min-width: 0;
         grid-template-columns:
             auto
-            minmax(180px, 1.3fr)
-            minmax(105px, .62fr)
-            minmax(105px, .62fr)
-            minmax(105px, .62fr);
-        gap: .62rem;
+            minmax(0, 1fr)
+            minmax(250px, .82fr);
+        gap: .68rem;
         align-items: center;
         padding: .72rem 0;
         border-top: 1px solid var(--color-border);
@@ -297,6 +297,27 @@
 
     .ledger-row:first-child {
         border-top: 0;
+    }
+
+    .ledger-row-values {
+        display: grid;
+        min-width: 0;
+        grid-template-columns:
+            repeat(var(--ledger-value-columns, 3), minmax(0, 1fr));
+        gap: .5rem;
+        align-items: center;
+    }
+
+    .ledger-row-values.cols-1 {
+        --ledger-value-columns: 1;
+    }
+
+    .ledger-row-values.cols-2 {
+        --ledger-value-columns: 2;
+    }
+
+    .ledger-row-values.cols-3 {
+        --ledger-value-columns: 3;
     }
 
     .ledger-row-icon {
@@ -341,12 +362,23 @@
     }
 
     .ledger-row-title {
-        overflow: hidden;
         color: var(--color-text);
         font-size: .83rem;
         font-weight: 820;
+        line-height: 1.35;
+    }
+
+    .ledger-row:not(.ledger-row-history) .ledger-row-title {
+        overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .ledger-row-history .ledger-row-title {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     .ledger-row-meta {
@@ -366,9 +398,38 @@
         gap: .23rem;
     }
 
+    .ledger-row-history .ledger-row-meta span {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
     .ledger-row-meta i {
         flex: 0 0 auto;
         font-size: .8rem;
+    }
+
+    .ledger-receipt-link {
+        display: inline-flex;
+        width: max-content;
+        max-width: 100%;
+        min-height: 32px;
+        align-items: center;
+        gap: .3rem;
+        margin-top: .42rem;
+        padding: .34rem .52rem;
+        border: 1px solid color-mix(in srgb, #2563eb 28%, var(--color-border));
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: .69rem;
+        font-weight: 790;
+        text-decoration: none;
+    }
+
+    .ledger-receipt-link:hover,
+    .ledger-receipt-link:focus-visible {
+        border-color: #2563eb;
+        outline: none;
     }
 
     .ledger-data {
@@ -378,9 +439,10 @@
     .ledger-data span,
     .ledger-data strong {
         display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    }
+
+    .ledger-data strong {
+        overflow-wrap: anywhere;
     }
 
     .ledger-data span {
@@ -435,7 +497,8 @@
     }
 
     .ledger-status.issued,
-    .ledger-status.pending {
+    .ledger-status.pending,
+    .ledger-status.pending_payment {
         background: #fffbeb;
         color: #92400e;
     }
@@ -517,10 +580,78 @@
     }
 
     .ledger-pagination {
-        display: flex;
-        justify-content: center;
-        padding: .78rem;
+        display: grid;
+        place-items: center;
+        padding: .72rem;
         border-top: 1px solid var(--color-border);
+        background:
+            linear-gradient(
+                180deg,
+                var(--color-surface),
+                var(--color-surface-soft)
+            );
+    }
+
+    .ledger-pagination nav {
+        width: 100%;
+        max-width: 760px;
+    }
+
+    /*
+     * O partial vendor.pagination.bento continua sendo usado.
+     * Estes seletores refinam tanto links numéricos quanto
+     * anterior/próxima sem alterar a lógica da paginação.
+     */
+    .ledger-pagination nav a,
+    .ledger-pagination nav [aria-current="page"] > span,
+    .ledger-pagination nav [aria-disabled="true"] > span {
+        min-width: 38px;
+        min-height: 38px;
+        border: 1px solid var(--color-border) !important;
+        border-radius: 10px !important;
+        background: #fff !important;
+        color: var(--color-text-secondary) !important;
+        font-size: .75rem !important;
+        font-weight: 780 !important;
+        line-height: 1 !important;
+        text-decoration: none !important;
+        box-shadow: none !important;
+    }
+
+    .ledger-pagination nav a:hover,
+    .ledger-pagination nav a:focus-visible {
+        border-color: rgba(34, 197, 94, .3) !important;
+        background: var(--color-primary-50) !important;
+        color: var(--color-primary-deep) !important;
+        outline: none;
+    }
+
+    .ledger-pagination nav [aria-current="page"] > span {
+        border-color: var(--color-primary-dark) !important;
+        background:
+            linear-gradient(
+                135deg,
+                var(--color-primary),
+                var(--color-primary-dark)
+            ) !important;
+        color: #fff !important;
+        box-shadow:
+            0 5px 13px rgba(22, 163, 74, .14) !important;
+    }
+
+    .ledger-pagination nav [aria-disabled="true"] > span {
+        background: var(--color-surface-muted) !important;
+        color: var(--color-text-muted) !important;
+        opacity: .62;
+    }
+
+    .ledger-pagination nav svg {
+        width: 16px !important;
+        height: 16px !important;
+    }
+
+    .ledger-pagination nav > div {
+        gap: .35rem;
     }
 
     .ledger-empty {
@@ -563,18 +694,11 @@
             grid-template-columns:
                 auto
                 minmax(0, 1fr)
-                minmax(110px, auto);
+                minmax(220px, .72fr);
         }
 
-        .ledger-row .ledger-data:nth-last-child(2),
-        .ledger-row .ledger-data:nth-last-child(1) {
-            grid-column: 2;
-        }
-
-        .ledger-row .ledger-data:first-of-type {
-            grid-column: 3;
-            grid-row: 1;
-            text-align: right;
+        .ledger-row-values {
+            gap: .4rem;
         }
     }
 
@@ -622,39 +746,137 @@
         }
 
         .ledger-list {
-            padding: 0 .68rem;
+            padding: 0 .62rem;
         }
 
         .ledger-row {
             grid-template-columns:
-                auto
+                36px
                 minmax(0, 1fr);
+            gap: .52rem;
             align-items: start;
+            padding: .64rem 0;
         }
 
-        .ledger-row .ledger-data,
-        .ledger-row .ledger-data:first-of-type,
-        .ledger-row .ledger-data:nth-last-child(2),
-        .ledger-row .ledger-data:nth-last-child(1) {
+        .ledger-row-icon {
+            width: 36px;
+            height: 36px;
+        }
+
+        .ledger-row-copy {
+            padding-top: .02rem;
+        }
+
+        .ledger-row-values {
             grid-column: 2;
-            grid-row: auto;
-            text-align: left;
+            width: 100%;
+            gap: .42rem;
+            margin-top: -.08rem;
+            padding: .42rem .5rem;
+            border-radius: 10px;
+            background: var(--color-surface-soft);
+        }
+
+        .ledger-row-values.cols-3 {
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+        }
+
+        .ledger-row-values.cols-2 {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+        .ledger-row-values.cols-1 {
+            grid-template-columns: minmax(0, 1fr);
         }
 
         .ledger-data {
-            display: flex;
-            align-items: baseline;
-            gap: .35rem;
+            min-width: 0;
         }
 
-        .ledger-data span,
-        .ledger-data strong {
-            display: inline;
+        .ledger-data span {
+            font-size: .64rem;
         }
+
+        .ledger-data strong {
+            margin-top: .06rem;
+            font-size: .73rem;
+            line-height: 1.25;
+        }
+
+        .ledger-row-meta {
+            gap: .18rem .42rem;
+            margin-top: .12rem;
+            line-height: 1.35;
+        }
+
+        .ledger-status {
+            min-height: 22px;
+            padding: .18rem .34rem;
+        }
+
+        .ledger-pagination {
+            padding: .58rem .45rem;
+        }
+
+        .ledger-pagination nav a,
+        .ledger-pagination nav [aria-current="page"] > span,
+        .ledger-pagination nav [aria-disabled="true"] > span {
+            min-width: 36px;
+            min-height: 36px;
+            border-radius: 9px !important;
+            font-size: .72rem !important;
+        }
+
+    @media (max-width: 390px) {
+        .ledger-row {
+            grid-template-columns:
+                32px
+                minmax(0, 1fr);
+            gap: .45rem;
+        }
+
+        .ledger-row-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+        }
+
+        .ledger-row-icon i {
+            font-size: 1rem;
+        }
+
+        .ledger-row-values {
+            gap: .32rem;
+            padding: .4rem .44rem;
+        }
+
+        .ledger-row-values.cols-3 {
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+        }
+
+        .ledger-data span {
+            font-size: .61rem;
+        }
+
+        .ledger-data strong {
+            font-size: .69rem;
+        }
+
+        .ledger-row-title {
+            font-size: .79rem;
+        }
+
+        .ledger-row-meta {
+            font-size: .65rem;
+        }
+    }
     }
 </style>
 
-<main class="ledger-page">
+<main class="ledger-page" data-associate-page="ledger">
     <section class="ledger-panel">
         <header class="ledger-panel-head">
             <div class="ledger-panel-title">
@@ -775,18 +997,12 @@
                             ?? null
                         );
 
-                        $receiptPaid = (
-                            $receiptStatus === 'paid'
-                            && (float) $receipt->amount_paid <= 0
-                        )
-                            ? (float) $receipt->total_net
-                            : (float) $receipt->amount_paid;
-
-                        $receiptRemaining = max(
-                            0,
-                            (float) $receipt->total_net
-                            - $receiptPaid
-                        );
+                        $receiptNet = (float) ($receipt->portal_net ?? 0);
+                        $receiptPaid = (float) ($receipt->portal_paid ?? 0);
+                        $receiptRemaining = (float) ($receipt->portal_remaining ?? 0);
+                        $canPreviewReceipt = $tenantSlug
+                            && $receiptStatus !== 'obsolete'
+                            && $receipt->project?->id;
                     @endphp
 
                     <article class="ledger-row">
@@ -829,34 +1045,52 @@
                                         ?? 'Data não informada' }}
                                 </span>
                             </div>
+
+                            @if($canPreviewReceipt)
+                                <a
+                                    class="ledger-receipt-link"
+                                    href="{{ route('associate.projects.receipts.download', [
+                                        'tenant' => $tenantSlug,
+                                        'project' => $receipt->project->id,
+                                        'receipt' => $receipt->id,
+                                    ]) }}"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    <i class="ph ph-eye"></i>
+                                    Visualizar comprovante
+                                </a>
+                            @endif
                         </div>
 
-                        <div class="ledger-data">
-                            <span>Líquido</span>
+                        <div class="ledger-row-values cols-3">
+                            <div class="ledger-data">
+                                <span>Líquido</span>
 
-                            <strong>
-                                {{ $formatMoney(
-                                    $receipt->total_net
-                                ) }}
-                            </strong>
-                        </div>
+                                <strong>
+                                    {{ $formatMoney(
+                                        $receiptNet
+                                    ) }}
+                                </strong>
+                            </div>
 
-                        <div class="ledger-data positive">
-                            <span>Pago</span>
+                            <div class="ledger-data positive">
+                                <span>Pago</span>
 
-                            <strong>
-                                {{ $formatMoney($receiptPaid) }}
-                            </strong>
-                        </div>
+                                <strong>
+                                    {{ $formatMoney($receiptPaid) }}
+                                </strong>
+                            </div>
 
-                        <div class="ledger-data warning">
-                            <span>A receber</span>
+                            <div class="ledger-data warning">
+                                <span>A receber</span>
 
-                            <strong>
-                                {{ $formatMoney(
-                                    $receiptRemaining
-                                ) }}
-                            </strong>
+                                <strong>
+                                    {{ $formatMoney(
+                                        $receiptRemaining
+                                    ) }}
+                                </strong>
+                            </div>
                         </div>
                     </article>
                 @endforeach
@@ -925,18 +1159,17 @@
                             </div>
                         </div>
 
-                        <div class="ledger-data positive">
-                            <span>Valor recebido</span>
+                        <div class="ledger-row-values cols-1">
+                            <div class="ledger-data positive">
+                                <span>Valor recebido</span>
 
-                            <strong>
-                                {{ $formatMoney(
-                                    $payment->amount
-                                ) }}
-                            </strong>
+                                <strong>
+                                    {{ $formatMoney(
+                                        $payment->amount
+                                    ) }}
+                                </strong>
+                            </div>
                         </div>
-
-                        <div class="ledger-data"></div>
-                        <div class="ledger-data"></div>
                     </article>
                 @endforeach
             </div>
@@ -1060,7 +1293,7 @@
                             );
                     @endphp
 
-                    <article class="ledger-row">
+                    <article class="ledger-row ledger-row-history">
                         <span
                             class="ledger-row-icon {{ $isCredit
                                 ? 'credit'
@@ -1108,32 +1341,32 @@
                             </div>
                         </div>
 
-                        <div
-                            class="ledger-data {{ $isCredit
-                                ? 'positive'
-                                : 'negative' }}"
-                        >
-                            <span>Valor</span>
+                        <div class="ledger-row-values cols-2">
+                            <div
+                                class="ledger-data {{ $isCredit
+                                    ? 'positive'
+                                    : 'negative' }}"
+                            >
+                                <span>Valor</span>
 
-                            <strong>
-                                {{ $isCredit ? '+' : '-' }}
-                                {{ $formatMoney(
-                                    $transaction->amount
-                                ) }}
-                            </strong>
+                                <strong>
+                                    {{ $isCredit ? '+' : '-' }}
+                                    {{ $formatMoney(
+                                        $transaction->amount
+                                    ) }}
+                                </strong>
+                            </div>
+
+                            <div class="ledger-data">
+                                <span>Saldo após</span>
+
+                                <strong>
+                                    {{ $formatMoney(
+                                        $transaction->balance_after
+                                    ) }}
+                                </strong>
+                            </div>
                         </div>
-
-                        <div class="ledger-data">
-                            <span>Saldo após</span>
-
-                            <strong>
-                                {{ $formatMoney(
-                                    $transaction->balance_after
-                                ) }}
-                            </strong>
-                        </div>
-
-                        <div class="ledger-data"></div>
                     </article>
                 @endforeach
             </div>
@@ -1148,4 +1381,18 @@
         @endif
     </section>
 </main>
+@php
+    $ledgerDataUrl = route('associate.data.ledger', [
+        'tenant' => $tenantSlug,
+        'section' => 'SECTION_TOKEN',
+    ]);
+    $associatePortalConfig = [
+        'page' => 'ledger',
+        'urls' => [
+            'ledger' => str_replace('SECTION_TOKEN', '__SECTION__', $ledgerDataUrl),
+        ],
+    ];
+@endphp
+<script>window.AssociatePortalConfig = @json($associatePortalConfig);</script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}"></script>
 @endsection

@@ -227,4 +227,25 @@ class DeliveryOperationalReportTest extends TestCase
         $this->assertSame($saved, $service->preferences($project->fresh(), 'customer'));
         $this->assertSame('delivery', $service->preferences($project->fresh(), 'associate')['grouping']);
     }
+
+    public function test_excel_preserves_formulas_when_first_visible_column_is_numeric(): void
+    {
+        session(['tenant_id' => 1]);
+        $project = SalesProject::query()->with('tenant')->findOrFail(10);
+        app(DeliveryReportService::class)->updatePreferences($project, 'associate', [
+            'columns' => ['received_quantity', 'distributed_quantity', 'gross_value', 'admin_fee', 'net_value'],
+            'grouping' => 'delivery', 'orientation' => 'portrait', 'table_scale' => 90,
+        ]);
+
+        $report = app(DeliveryReportService::class)->build($project->fresh()->load('tenant'), ['type' => 'associate']);
+        $sheet = (new DeliveryOperationalReportExport($report))->array();
+
+        $this->assertSame('=SUM(A7:A7)', $sheet[7][0]);
+        $this->assertSame('=SUM(B7:B7)', $sheet[7][1]);
+        $this->assertSame('=SUM(C7:C7)', $sheet[7][2]);
+        $this->assertSame('=SUM(D7:D7)', $sheet[7][3]);
+        $this->assertSame('=SUM(E7:E7)', $sheet[7][4]);
+        $this->assertSame('=A8', $sheet[8][0]);
+        $this->assertSame('=E8', $sheet[8][4]);
+    }
 }

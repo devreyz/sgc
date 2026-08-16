@@ -684,7 +684,12 @@ class ViewSalesProject extends ViewRecord
             'generated_at' => now()->format('d/m/Y H:i'),
         ], array_merge(
             $pdfService->systemPdfOptions($templateView, $title, $record->type, (int) $record->tenant_id),
-            ['paper' => 'a4', 'orientation' => $report['preferences']['orientation'], 'configuration_view' => $templateView],
+            [
+                'paper' => 'a4',
+                'orientation' => $report['preferences']['orientation'],
+                'prefer_runtime_layout' => true,
+                'configuration_view' => $templateView,
+            ],
         ));
 
         return Response::streamDownload(

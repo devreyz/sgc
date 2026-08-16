@@ -2,6 +2,7 @@
 
 @section('title', 'Meu Painel')
 @section('page-title', 'Meu Painel')
+@section('page-subtitle', 'Acompanhe sua participação, projetos e entregas.')
 @section('user-role', 'Associado')
 
 @php
@@ -130,16 +131,62 @@
             ),
             ','
         );
+
+    $activeProjectsCount = $activeRecentProjects->count();
+    $recentDeliveriesCount = $visibleRecentDeliveries->count();
+    $alertProjectsCount = $projectsWithLimitAlerts->count();
+
+    $receivableValue = (float) (
+        $stats['unpaid_value']
+        ?? 0
+    );
+
+    $billedValue = (float) (
+        $stats['earnings_this_month']
+        ?? 0
+    );
+
+    $paidValue = (float) (
+        $stats['paid_this_month']
+        ?? 0
+    );
+
+    $distributedValue = (float) (
+        $stats['distributed_net']
+        ?? 0
+    );
 @endphp
 
 @section('content')
+<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}">
 <style>
     .associate-dashboard {
+        --dash-green: #168a4d;
+        --dash-green-soft: #eaf8ef;
+
+        --dash-blue: #2563eb;
+        --dash-blue-soft: #eef4ff;
+
+        --dash-sky: #0284c7;
+        --dash-sky-soft: #edf8fe;
+
+        --dash-violet: #7c3aed;
+        --dash-violet-soft: #f4f0ff;
+
+        --dash-amber: #c87408;
+        --dash-amber-soft: #fff7e8;
+
+        --dash-red: #cf3f3f;
+        --dash-red-soft: #fff0f0;
+
+        --dash-slate: #64748b;
+        --dash-slate-soft: #f1f5f9;
+
         display: grid;
-        width: min(100%, 1120px);
+        width: min(100%, 1280px);
         min-width: 0;
         grid-column: 1 / -1;
-        gap: .82rem;
+        gap: .85rem;
         margin: 0 auto;
     }
 
@@ -149,22 +196,27 @@
         box-sizing: border-box;
     }
 
-    .dash-panel {
+    /* =========================================================
+       SUPERFÍCIES E CABEÇALHOS
+       ========================================================= */
+
+    .dashboard-section {
         min-width: 0;
         overflow: hidden;
         border: 1px solid var(--color-border);
-        border-radius: 16px;
+        border-radius: 15px;
         background: var(--color-surface);
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-sm);
     }
 
-    .dash-section-head {
-        display: flex;
+    .dashboard-section-head {
+        display: grid;
         min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .65rem;
         align-items: center;
-        justify-content: space-between;
-        gap: .75rem;
-        padding: .75rem .82rem;
+        min-height: 66px;
+        padding: .7rem .78rem;
         border-bottom: 1px solid var(--color-border);
         background:
             linear-gradient(
@@ -174,886 +226,1306 @@
             );
     }
 
-    .dash-section-title {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: .58rem;
-    }
-
-    .dash-section-icon,
-    .dash-metric-icon,
-    .dash-row-icon,
-    .dash-action-icon {
+    .dashboard-section-icon {
         display: grid;
-        flex: 0 0 auto;
+        width: 40px;
+        height: 40px;
         place-items: center;
         border-radius: 11px;
     }
 
-    .dash-section-icon {
-        width: 39px;
-        height: 39px;
+    .dashboard-section-head
+    .dashboard-section-icon > i {
+        display: block;
+        font-size: 1.1rem;
+        line-height: 1;
     }
 
-    .dash-section-icon i {
-        font-size: 1.12rem;
+    .dashboard-section-icon.finance {
+        background: var(--dash-green-soft);
+        color: var(--dash-green);
     }
 
-    .dash-section-icon.finance {
-        background: #ecfdf5;
-        color: #15803d;
+    .dashboard-section-icon.projects {
+        background: var(--dash-violet-soft);
+        color: var(--dash-violet);
     }
 
-    .dash-section-icon.warning {
-        background: #fffbeb;
-        color: #d97706;
+    .dashboard-section-icon.deliveries {
+        background: var(--dash-blue-soft);
+        color: var(--dash-blue);
     }
 
-    .dash-section-icon.projects {
-        background: #f5f3ff;
-        color: #7c3aed;
-    }
-
-    .dash-section-icon.deliveries {
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .dash-section-copy {
+    .dashboard-section-copy {
         min-width: 0;
     }
 
-    .dash-section-copy h2 {
+    .dashboard-section-copy h2,
+    .dashboard-section-copy p {
         margin: 0;
+    }
+
+    .dashboard-section-copy h2 {
         color: var(--color-text);
-        font-size: .92rem;
+        font-size: .95rem;
         font-weight: 840;
         letter-spacing: -.02em;
     }
 
-    .dash-section-copy p {
-        margin: .12rem 0 0;
+    .dashboard-section-copy p {
+        margin-top: .1rem;
         color: var(--color-text-muted);
-        font-size: .72rem;
+        font-size: .76rem;
+        line-height: 1.42;
     }
 
-    .dash-section-link {
-        display: inline-flex;
-        min-height: 34px;
-        flex: 0 0 auto;
+    .dashboard-section-action {
+        display: grid;
+        min-height: 36px;
+        grid-template-columns: auto auto;
+        gap: .3rem;
         align-items: center;
-        gap: .28rem;
-        padding: .35rem .48rem;
+        padding: .38rem .52rem;
         border: 1px solid var(--color-border);
         border-radius: 9px;
         background: var(--color-surface);
-        color: var(--color-primary-deep);
-        font-size: .72rem;
-        font-weight: 780;
+        color: var(--color-text-secondary);
+        font-size: .74rem;
+        font-weight: 770;
         text-decoration: none;
         white-space: nowrap;
+        transition:
+            border-color 150ms ease,
+            background 150ms ease,
+            color 150ms ease;
     }
 
-    .dash-section-link:hover,
-    .dash-section-link:focus-visible {
-        border-color: rgba(34, 197, 94, .35);
-        background: var(--color-primary-50);
+    .dashboard-section-action > i {
+        display: block;
+        font-size: .86rem;
+        line-height: 1;
+    }
+
+    .dashboard-section-action:hover,
+    .dashboard-section-action:focus-visible {
+        border-color: rgba(37, 99, 235, .25);
+        background: var(--dash-blue-soft);
+        color: var(--dash-blue);
         outline: none;
     }
 
-    .dash-section-link i {
-        font-size: .88rem;
-    }
+    /* =========================================================
+       FINANCEIRO — HIERARQUIA
+       ========================================================= */
 
-    .dash-financial-grid {
+    .financial-overview {
         display: grid;
         min-width: 0;
         grid-template-columns:
-            repeat(4, minmax(0, 1fr));
+            minmax(250px, .9fr)
+            minmax(0, 1.6fr);
+        gap: 0;
     }
 
-    .dash-metric {
+    .financial-primary {
+        display: grid;
+        align-content: center;
+        min-height: 160px;
+        padding: 1rem;
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                rgba(34, 197, 94, .10),
+                transparent 15rem
+            ),
+            linear-gradient(
+                135deg,
+                #ffffff,
+                var(--dash-green-soft)
+            );
+    }
+
+    .financial-primary-label {
+        display: grid;
+        width: max-content;
+        grid-template-columns: auto auto;
+        gap: .35rem;
+        align-items: center;
+        color: var(--dash-green);
+        font-size: .75rem;
+        font-weight: 790;
+    }
+
+    .financial-primary-label > i {
+        display: block;
+        font-size: .95rem;
+        line-height: 1;
+    }
+
+    .financial-primary strong {
+        display: block;
+        margin-top: .38rem;
+        color: var(--color-text);
+        font-size: clamp(1.65rem, 4vw, 2.35rem);
+        font-weight: 870;
+        letter-spacing: -.045em;
+        line-height: 1;
+    }
+
+    .financial-primary p {
+        max-width: 390px;
+        margin: .45rem 0 0;
+        color: var(--color-text-secondary);
+        font-size: .78rem;
+        line-height: 1.5;
+    }
+
+    .financial-secondary {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        align-items: stretch;
+        padding: .3rem;
+    }
+
+    .financial-metric {
         display: grid;
         min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .6rem;
-        align-items: center;
-        padding: .78rem;
-        border-left: 1px solid var(--color-border);
+        align-content: center;
+        gap: .32rem;
+        padding: .72rem;
     }
 
-    .dash-metric:first-child {
-        border-left: 0;
+    .financial-metric .financial-metric-icon {
+        display: grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border-radius: 10px;
     }
 
-    .dash-metric-icon {
-        width: 38px;
-        height: 38px;
+    .financial-metric
+    .financial-metric-icon > i {
+        display: block;
+        font-size: 1rem;
+        line-height: 1;
     }
 
-    .dash-metric-icon i {
-        font-size: 1.08rem;
+    .financial-metric-icon.billed {
+        background: var(--dash-blue-soft);
+        color: var(--dash-blue);
     }
 
-    .dash-metric-icon.billed {
-        background: #eff6ff;
-        color: #2563eb;
+    .financial-metric-icon.paid {
+        background: var(--dash-green-soft);
+        color: var(--dash-green);
     }
 
-    .dash-metric-icon.receivable {
-        background: #fffbeb;
-        color: #d97706;
+    .financial-metric-icon.distributed {
+        background: var(--dash-violet-soft);
+        color: var(--dash-violet);
     }
 
-    .dash-metric-icon.paid {
-        background: #ecfdf5;
-        color: #059669;
-    }
-
-    .dash-metric-icon.distributed {
-        background: #f5f3ff;
-        color: #7c3aed;
-    }
-
-    .dash-metric-copy {
-        min-width: 0;
-    }
-
-    .dash-metric-copy span,
-    .dash-metric-copy strong {
+    .financial-metric span,
+    .financial-metric strong {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .dash-metric-copy span {
+    .financial-metric span {
         color: var(--color-text-muted);
-        font-size: .7rem;
-        font-weight: 690;
+        font-size: .73rem;
+        font-weight: 680;
     }
 
-    .dash-metric-copy strong {
-        margin-top: .12rem;
+    .financial-metric strong {
         color: var(--color-text);
-        font-size: clamp(.92rem, 2vw, 1.12rem);
+        font-size: 1rem;
         font-weight: 850;
-        letter-spacing: -.025em;
+        letter-spacing: -.02em;
     }
 
-    .dash-list {
+    /* =========================================================
+       ÁREA PRINCIPAL
+       ========================================================= */
+
+    .dashboard-workspace {
+        display: grid;
         min-width: 0;
-        padding: 0 .8rem;
+        grid-template-columns:
+            minmax(0, 1.35fr)
+            minmax(330px, .65fr);
+        gap: .85rem;
+        align-items: start;
     }
 
-    .dash-row {
+    .section-count {
+        display: grid;
+        min-height: 30px;
+        grid-template-columns: auto auto;
+        gap: .28rem;
+        align-items: center;
+        padding: .28rem .44rem;
+        border-radius: 999px;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: .7rem;
+        font-weight: 770;
+        white-space: nowrap;
+    }
+
+    .section-count > i {
+        display: block;
+        font-size: .8rem;
+        line-height: 1;
+    }
+
+    /* =========================================================
+       PROJETOS
+       ========================================================= */
+
+    .projects-attention {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .55rem;
+        align-items: center;
+        margin: .7rem .72rem 0;
+        padding: .62rem .68rem;
+        border: 1px solid rgba(200, 116, 8, .18);
+        border-radius: 11px;
+        background: var(--dash-amber-soft);
+        color: #92400e;
+    }
+
+    .projects-attention-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: #fef3c7;
+        color: var(--dash-amber);
+    }
+
+    .projects-attention
+    .projects-attention-icon > i {
+        display: block;
+        font-size: .98rem;
+        line-height: 1;
+    }
+
+    .projects-attention strong,
+    .projects-attention span {
+        display: block;
+    }
+
+    .projects-attention strong {
+        color: #78350f;
+        font-size: .77rem;
+        font-weight: 810;
+    }
+
+    .projects-attention span {
+        margin-top: .05rem;
+        font-size: .74rem;
+        line-height: 1.42;
+    }
+
+    .project-list {
+        display: grid;
+        min-width: 0;
+        padding: .35rem .72rem .7rem;
+    }
+
+    .project-item {
+        --project-tone: var(--dash-violet);
+        --project-soft: var(--dash-violet-soft);
+
+        display: grid;
+        min-width: 0;
+        gap: .65rem;
+        padding: .78rem .2rem;
+        color: inherit;
+        text-decoration: none;
+        transition:
+            background 150ms ease,
+            box-shadow 150ms ease;
+    }
+
+    .project-item + .project-item {
+        border-top: 1px solid var(--color-border);
+    }
+
+    .project-item:hover,
+    .project-item:focus-visible {
+        margin-right: -.45rem;
+        margin-left: -.45rem;
+        padding-right: .65rem;
+        padding-left: .65rem;
+        border-radius: 12px;
+        background: var(--project-soft);
+        color: inherit;
+        outline: none;
+        box-shadow:
+            inset 0 0 0 1px
+            color-mix(
+                in srgb,
+                var(--project-tone) 11%,
+                transparent
+            );
+    }
+
+    .project-main {
         display: grid;
         min-width: 0;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .62rem;
+        gap: .65rem;
         align-items: center;
-        padding: .72rem 0;
-        border-top: 1px solid var(--color-border);
-        color: var(--color-text);
-        text-decoration: none;
     }
 
-    .dash-row:first-child {
-        border-top: 0;
+    .project-icon {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        border-radius: 12px;
+        background: var(--project-soft);
+        color: var(--project-tone);
     }
 
-    a.dash-row {
-        transition:
-            background 150ms ease,
-            transform 150ms ease;
+    .project-item
+    .project-icon > i {
+        display: block;
+        font-size: 1.18rem;
+        line-height: 1;
     }
 
-    a.dash-row:hover,
-    a.dash-row:focus-visible {
-        margin-right: -.45rem;
-        margin-left: -.45rem;
-        padding-right: .45rem;
-        padding-left: .45rem;
-        border-radius: 11px;
-        background: var(--color-surface-soft);
-        outline: none;
-        transform: translateX(1px);
-    }
-
-    .dash-row-icon {
-        width: 38px;
-        height: 38px;
-    }
-
-    .dash-row-icon.project {
-        background: #f5f3ff;
-        color: #7c3aed;
-    }
-
-    .dash-row-icon.delivery {
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .dash-row-icon i {
-        font-size: 1.08rem;
-    }
-
-    .dash-row-copy {
+    .project-info {
         min-width: 0;
     }
 
-    .dash-row-title-line {
-        display: flex;
-        min-width: 0;
-        flex-wrap: wrap;
+    .project-title-line {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .38rem;
         align-items: center;
-        gap: .35rem;
     }
 
-    .dash-row-title {
+    .project-title {
+        display: block;
+        max-width: min(100%, 470px);
         overflow: hidden;
         color: var(--color-text);
-        font-size: .84rem;
-        font-weight: 820;
+        font-size: .9rem;
+        font-weight: 840;
+        letter-spacing: -.02em;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .dash-row-meta {
-        display: flex;
-        min-width: 0;
-        flex-wrap: wrap;
-        gap: .25rem .58rem;
-        margin-top: .17rem;
-        color: var(--color-text-muted);
-        font-size: .7rem;
-        line-height: 1.42;
-    }
-
-    .dash-row-meta span {
-        display: inline-flex;
-        min-width: 0;
-        align-items: center;
-        gap: .24rem;
-    }
-
-    .dash-row-meta i {
-        flex: 0 0 auto;
-        font-size: .82rem;
-    }
-
-    .dash-row-value {
-        flex: 0 0 auto;
-        color: var(--color-text);
-        font-size: .8rem;
-        font-weight: 840;
-        text-align: right;
-        white-space: nowrap;
-    }
-
-    .dash-status {
-        display: inline-flex;
-        min-height: 23px;
-        align-items: center;
+    .project-status {
+        display: grid;
+        min-height: 25px;
+        grid-template-columns: auto auto;
         gap: .22rem;
-        padding: .2rem .37rem;
-        border-radius: 999px;
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-        font-size: .62rem;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .dash-status.active,
-    .dash-status.approved,
-    .dash-status.paid {
-        background: #ecfdf5;
-        color: #047857;
-    }
-
-    .dash-status.pending {
-        background: #fffbeb;
-        color: #92400e;
-    }
-
-    .dash-status.rejected,
-    .dash-status.cancelled {
-        background: #fef2f2;
-        color: #991b1b;
-    }
-
-    .dash-limit {
-        margin-top: .5rem;
-    }
-
-    .dash-limit-line {
-        display: flex;
-        min-width: 0;
         align-items: center;
-        justify-content: space-between;
-        gap: .6rem;
-        color: var(--color-text-secondary);
-        font-size: .69rem;
-    }
-
-    .dash-limit-line strong {
-        color: var(--color-text);
-        font-weight: 800;
+        padding: .22rem .38rem;
+        border-radius: 999px;
+        background: var(--dash-green-soft);
+        color: var(--dash-green);
+        font-size: .66rem;
+        font-weight: 790;
         white-space: nowrap;
     }
 
-    .dash-progress {
+    .project-status > i {
+        display: block;
+        font-size: .72rem;
+        line-height: 1;
+    }
+
+    .project-customer {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto minmax(0, auto);
+        gap: .28rem;
+        align-items: center;
+        margin-top: .14rem;
+        color: var(--color-text-muted);
+        font-size: .75rem;
+    }
+
+    .project-customer > i {
+        display: block;
+        color: var(--dash-blue);
+        font-size: .82rem;
+        line-height: 1;
+    }
+
+    .project-customer span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .project-open {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--project-soft);
+        color: var(--project-tone);
+        transition:
+            background 150ms ease,
+            color 150ms ease,
+            transform 150ms ease;
+    }
+
+    .project-item
+    .project-open > i {
+        display: block;
+        font-size: .9rem;
+        line-height: 1;
+    }
+
+    .project-item:hover
+    .project-open,
+    .project-item:focus-visible
+    .project-open {
+        background: var(--project-tone);
+        color: #fff;
+        transform: translateX(2px);
+    }
+
+    .project-limit-area {
+        display: grid;
+        gap: .52rem;
+        padding: .62rem .68rem;
+        border-radius: 11px;
+        background: var(--color-surface-soft);
+    }
+
+    .project-limit-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .7rem;
+        align-items: center;
+    }
+
+    .project-limit-copy strong,
+    .project-limit-copy span {
+        display: block;
+    }
+
+    .project-limit-copy strong {
+        color: var(--color-text);
+        font-size: .75rem;
+        font-weight: 800;
+    }
+
+    .project-limit-copy span {
+        margin-top: .05rem;
+        color: var(--color-text-muted);
+        font-size: .72rem;
+    }
+
+    .project-limit-percent {
+        color: var(--project-tone);
+        font-size: .8rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .project-progress {
         height: 7px;
-        margin-top: .36rem;
         overflow: hidden;
         border-radius: 999px;
-        background: #e7ede9;
+        background: #e5ebe7;
     }
 
-    .dash-progress span {
+    .project-progress > span {
         display: block;
         height: 100%;
         border-radius: inherit;
         background:
             linear-gradient(
                 90deg,
-                #4ade80,
-                #16a34a
+                #a78bfa,
+                var(--dash-violet)
             );
     }
 
-    .dash-progress.warning span {
+    .project-progress.warning > span {
         background:
             linear-gradient(
                 90deg,
                 #fbbf24,
-                #d97706
+                var(--dash-amber)
             );
     }
 
-    .dash-progress.danger span {
+    .project-progress.danger > span {
         background:
             linear-gradient(
                 90deg,
                 #fb7185,
-                #dc2626
+                var(--dash-red)
             );
     }
 
-    .dash-alert-list {
+    .project-limit-values {
         display: grid;
-        gap: .48rem;
-        padding: .72rem .8rem .8rem;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        gap: .6rem;
     }
 
-    .dash-alert {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .58rem;
-        align-items: center;
-        padding: .62rem;
-        border: 1px solid;
-        border-radius: 11px;
-    }
-
-    .dash-alert.warning {
-        border-color: rgba(217, 119, 6, .2);
-        background: #fffbeb;
-    }
-
-    .dash-alert.danger {
-        border-color: rgba(220, 38, 38, .18);
-        background: #fef2f2;
-    }
-
-    .dash-alert-icon {
-        display: grid;
-        width: 35px;
-        height: 35px;
-        place-items: center;
-        border-radius: 10px;
-    }
-
-    .dash-alert.warning .dash-alert-icon {
-        background: #fef3c7;
-        color: #b45309;
-    }
-
-    .dash-alert.danger .dash-alert-icon {
-        background: #fee2e2;
-        color: #dc2626;
-    }
-
-    .dash-alert-icon i {
-        font-size: 1rem;
-    }
-
-    .dash-alert-copy {
+    .project-limit-value {
         min-width: 0;
     }
 
-    .dash-alert-copy strong,
-    .dash-alert-copy span {
+    .project-limit-value span,
+    .project-limit-value strong {
         display: block;
+    }
+
+    .project-limit-value span {
+        color: var(--color-text-muted);
+        font-size: .7rem;
+        font-weight: 680;
+    }
+
+    .project-limit-value strong {
+        margin-top: .08rem;
+        overflow: hidden;
+        color: var(--color-text);
+        font-size: .78rem;
+        font-weight: 820;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .project-limit-value.remaining strong {
+        color: var(--dash-green);
+    }
+
+    .project-limit-value.alert strong {
+        color: var(--dash-amber);
+    }
+
+    .project-no-limit {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .42rem;
+        align-items: center;
+        padding: .5rem .6rem;
+        border-radius: 10px;
+        background: var(--dash-slate-soft);
+        color: var(--color-text-muted);
+        font-size: .73rem;
+        line-height: 1.4;
+    }
+
+    .project-no-limit > i {
+        display: block;
+        color: var(--dash-slate);
+        font-size: .9rem;
+        line-height: 1;
+    }
+
+    /* =========================================================
+       ENTREGAS
+       ========================================================= */
+
+    .delivery-list {
+        display: grid;
+        min-width: 0;
+        padding: .35rem .7rem .7rem;
+    }
+
+    .delivery-item {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .58rem;
+        padding: .72rem .12rem;
+    }
+
+    .delivery-item + .delivery-item {
+        border-top: 1px solid var(--color-border);
+    }
+
+    .delivery-date {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        align-content: center;
+        border-radius: 12px;
+        background: var(--dash-blue-soft);
+        color: var(--dash-blue);
+        text-align: center;
+    }
+
+    .delivery-date strong,
+    .delivery-date span {
+        display: block;
+    }
+
+    .delivery-date strong {
+        font-size: .84rem;
+        font-weight: 850;
+        line-height: 1;
+    }
+
+    .delivery-date span {
+        margin-top: .15rem;
+        font-size: .62rem;
+        font-weight: 760;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .delivery-content {
+        min-width: 0;
+    }
+
+    .delivery-title-line {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .45rem;
+        align-items: center;
+    }
+
+    .delivery-title {
+        overflow: hidden;
+        color: var(--color-text);
+        font-size: .82rem;
+        font-weight: 820;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .delivery-status {
+        display: grid;
+        width: max-content;
+        min-height: 24px;
+        place-items: center;
+        padding: .2rem .36rem;
+        border-radius: 999px;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: .64rem;
+        font-weight: 790;
+        white-space: nowrap;
+    }
+
+    .delivery-status.approved,
+    .delivery-status.paid,
+    .delivery-status.active {
+        background: var(--dash-green-soft);
+        color: var(--dash-green);
+    }
+
+    .delivery-status.pending {
+        background: var(--dash-amber-soft);
+        color: #92400e;
+    }
+
+    .delivery-status.rejected,
+    .delivery-status.cancelled {
+        background: var(--dash-red-soft);
+        color: #991b1b;
+    }
+
+    .delivery-project {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto minmax(0, auto);
+        gap: .26rem;
+        align-items: center;
+        margin-top: .12rem;
+        color: var(--color-text-muted);
+        font-size: .73rem;
+    }
+
+    .delivery-project > i {
+        display: block;
+        color: var(--dash-violet);
+        font-size: .8rem;
+        line-height: 1;
+    }
+
+    .delivery-project span {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .dash-alert-copy strong {
+    .delivery-values {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            minmax(0, 1fr);
+        gap: .45rem;
+        margin-top: .52rem;
+        padding-top: .5rem;
+        border-top: 1px solid rgba(220, 230, 223, .72);
+    }
+
+    .delivery-value {
+        min-width: 0;
+    }
+
+    .delivery-value span,
+    .delivery-value strong {
+        display: block;
+    }
+
+    .delivery-value span {
+        color: var(--color-text-muted);
+        font-size: .68rem;
+        font-weight: 680;
+    }
+
+    .delivery-value strong {
+        margin-top: .06rem;
+        overflow: hidden;
         color: var(--color-text);
         font-size: .78rem;
         font-weight: 820;
-    }
-
-    .dash-alert-copy span {
-        margin-top: .09rem;
-        color: var(--color-text-secondary);
-        font-size: .68rem;
-    }
-
-    .dash-alert-value {
-        color: var(--color-text);
-        font-size: .73rem;
-        font-weight: 820;
-        text-align: right;
+        text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .dash-empty {
+    .delivery-value.money strong {
+        color: var(--dash-green);
+    }
+
+    /* =========================================================
+       ESTADO VAZIO
+       ========================================================= */
+
+    .dashboard-empty {
         display: grid;
-        min-height: 150px;
+        min-height: 200px;
         place-items: center;
-        padding: 1.2rem;
+        padding: 1.4rem;
         text-align: center;
     }
 
-    .dash-empty i {
-        color: var(--color-text-muted);
-        font-size: 1.55rem;
+    .dashboard-empty-content {
+        width: min(100%, 380px);
     }
 
-    .dash-empty strong {
+    .dashboard-empty-icon {
+        display: grid;
+        width: 56px;
+        height: 56px;
+        place-items: center;
+        margin: 0 auto .65rem;
+        border-radius: 16px;
+        background: var(--color-surface-muted);
+        color: var(--color-text-muted);
+    }
+
+    .dashboard-empty
+    .dashboard-empty-icon > i {
         display: block;
-        margin-top: .42rem;
+        font-size: 1.42rem;
+        line-height: 1;
+    }
+
+    .dashboard-empty strong,
+    .dashboard-empty span {
+        display: block;
+    }
+
+    .dashboard-empty strong {
         color: var(--color-text);
-        font-size: .82rem;
+        font-size: .86rem;
         font-weight: 820;
     }
 
-    @media (max-width: 840px) {
-        .dash-financial-grid {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+    .dashboard-empty span {
+        margin-top: .2rem;
+        color: var(--color-text-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+    }
+
+    /* =========================================================
+       RESPONSIVO
+       ========================================================= */
+
+    @media (max-width: 980px) {
+        .financial-overview {
+            grid-template-columns: 1fr;
         }
 
-        .dash-metric:nth-child(3) {
-            border-left: 0;
+        .financial-secondary {
             border-top: 1px solid var(--color-border);
         }
 
-        .dash-metric:nth-child(4) {
-            border-top: 1px solid var(--color-border);
+        .dashboard-workspace {
+            grid-template-columns: 1fr;
         }
     }
 
-    @media (max-width: 520px) {
+    @media (max-width: 640px) {
         .associate-dashboard {
             gap: .7rem;
         }
 
-        .dash-section-head {
-            padding: .68rem;
+        .dashboard-section-head {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            padding: .64rem;
         }
 
-        .dash-section-copy p {
+        .dashboard-section-copy p {
             display: none;
         }
 
-        .dash-financial-grid {
+        .financial-primary {
+            min-height: 145px;
+            padding: .85rem;
+        }
+
+        .financial-secondary {
             grid-template-columns: 1fr;
+            padding: .15rem .7rem .6rem;
         }
 
-        .dash-metric,
-        .dash-metric:nth-child(2),
-        .dash-metric:nth-child(3),
-        .dash-metric:nth-child(4) {
+        .financial-metric {
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            align-items: center;
+            padding: .58rem .05rem;
+        }
+
+        .financial-metric + .financial-metric {
             border-top: 1px solid var(--color-border);
-            border-left: 0;
         }
 
-        .dash-metric:first-child {
-            border-top: 0;
+        .financial-metric strong {
+            grid-column: 3;
+            grid-row: 1 / span 2;
+            align-self: center;
+            text-align: right;
         }
 
-        .dash-list {
-            padding: 0 .68rem;
+        .project-list,
+        .delivery-list {
+            padding-right: .58rem;
+            padding-left: .58rem;
         }
 
-        .dash-row {
-            align-items: start;
+        .project-item {
+            padding-top: .7rem;
+            padding-bottom: .7rem;
         }
 
-        .dash-row-value {
-            font-size: .75rem;
+        .project-limit-values {
+            grid-template-columns: 1fr 1fr;
         }
 
-        .dash-alert {
-            grid-template-columns: auto minmax(0, 1fr);
+        .project-limit-value:last-child {
+            grid-column: 1 / -1;
         }
 
-        .dash-alert-value {
-            grid-column: 2;
-            text-align: left;
+        .project-title-line {
+            grid-auto-flow: row;
+            grid-auto-columns: 1fr;
+            width: 100%;
+            gap: .22rem;
+        }
+
+        .project-status {
+            justify-self: start;
+        }
+
+        .delivery-values {
+            grid-template-columns: 1fr 1fr;
         }
     }
 
-    @media (max-width: 390px) {
-        .dash-row {
-            grid-template-columns: auto minmax(0, 1fr);
+    @media (max-width: 420px) {
+        .dashboard-section-action {
+            width: 36px;
+            min-width: 36px;
+            padding: 0;
+            place-items: center;
         }
 
-        .dash-row-value {
-            grid-column: 2;
-            justify-self: start;
-            text-align: left;
-        }
-
-        .dash-section-link span {
+        .dashboard-section-action span {
             display: none;
         }
 
-        .dash-section-link {
-            width: 34px;
-            padding: 0;
-            justify-content: center;
+        .section-count {
+            display: none;
+        }
+
+        .project-main {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .project-open {
+            grid-column: 2;
+            justify-self: start;
+            width: 31px;
+            height: 31px;
+            margin-top: -.15rem;
+        }
+
+        .project-limit-head {
+            grid-template-columns: 1fr;
+        }
+
+        .project-limit-percent {
+            justify-self: start;
+        }
+
+        .project-limit-values {
+            grid-template-columns: 1fr;
+        }
+
+        .project-limit-value:last-child {
+            grid-column: auto;
+        }
+
+        .delivery-title-line {
+            grid-template-columns: 1fr;
+        }
+
+        .delivery-status {
+            justify-self: start;
+        }
+
+        .delivery-values {
+            grid-template-columns: 1fr;
         }
     }
 </style>
 
-<main class="associate-dashboard">
-    <section class="dash-panel">
-        <header class="dash-section-head">
-            <div class="dash-section-title">
-                <span
-                    class="dash-section-icon finance"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-wallet"></i>
-                </span>
+<main class="associate-dashboard" data-associate-page="dashboard">
 
-                <div class="dash-section-copy">
-                    <h2>Resumo financeiro</h2>
-                    <p>Valores principais da sua participação.</p>
-                </div>
+    {{-- =========================================================
+         FINANCEIRO
+         ========================================================= --}}
+    <section class="dashboard-section">
+        <header class="dashboard-section-head">
+            <span
+                class="dashboard-section-icon finance"
+                aria-hidden="true"
+            >
+                <i class="ph-duotone ph-wallet"></i>
+            </span>
+
+            <div class="dashboard-section-copy">
+                <h2>Resumo financeiro</h2>
+
+                <p>
+                    Valores relacionados à sua participação.
+                </p>
             </div>
+
+            <span class="section-count">
+                <i class="ph ph-calendar-blank"></i>
+                mês atual
+            </span>
         </header>
 
-        <div class="dash-financial-grid">
-            <div class="dash-metric">
-                <span
-                    class="dash-metric-icon billed"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-receipt"></i>
-                </span>
-
-                <div class="dash-metric-copy">
-                    <span>Faturado no mês</span>
-                    <strong>
-                        {{ $formatMoney(
-                            $stats['earnings_this_month']
-                            ?? 0
-                        ) }}
-                    </strong>
-                </div>
-            </div>
-
-            <div class="dash-metric">
-                <span
-                    class="dash-metric-icon receivable"
-                    aria-hidden="true"
-                >
+        <div class="financial-overview">
+            <div class="financial-primary">
+                <span class="financial-primary-label">
                     <i class="ph-duotone ph-clock-countdown"></i>
+                    Ainda a receber
                 </span>
 
-                <div class="dash-metric-copy">
-                    <span>A receber</span>
-                    <strong>
-                        {{ $formatMoney(
-                            $stats['unpaid_value']
-                            ?? 0
-                        ) }}
-                    </strong>
-                </div>
+                <strong>
+                    {{ $formatMoney($receivableValue) }}
+                </strong>
+
+                <p>
+                    Valor que ainda está pendente de pagamento
+                    dentro das suas operações registradas.
+                </p>
             </div>
 
-            <div class="dash-metric">
-                <span
-                    class="dash-metric-icon paid"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-check-circle"></i>
-                </span>
+            <div class="financial-secondary">
+                <div class="financial-metric">
+                    <span
+                        class="financial-metric-icon billed"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-receipt"></i>
+                    </span>
 
-                <div class="dash-metric-copy">
+                    <span>Faturado no mês</span>
+
+                    <strong>
+                        {{ $formatMoney($billedValue) }}
+                    </strong>
+                </div>
+
+                <div class="financial-metric">
+                    <span
+                        class="financial-metric-icon paid"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-check-circle"></i>
+                    </span>
+
                     <span>Pago no mês</span>
+
                     <strong>
-                        {{ $formatMoney(
-                            $stats['paid_this_month']
-                            ?? 0
-                        ) }}
+                        {{ $formatMoney($paidValue) }}
                     </strong>
                 </div>
-            </div>
 
-            <div class="dash-metric">
-                <span
-                    class="dash-metric-icon distributed"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-arrows-left-right"></i>
-                </span>
+                <div class="financial-metric">
+                    <span
+                        class="financial-metric-icon distributed"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-arrows-left-right"></i>
+                    </span>
 
-                <div class="dash-metric-copy">
                     <span>Líquido distribuído</span>
+
                     <strong>
-                        {{ $formatMoney(
-                            $stats['distributed_net']
-                            ?? 0
-                        ) }}
+                        {{ $formatMoney($distributedValue) }}
                     </strong>
                 </div>
             </div>
         </div>
     </section>
 
-    @if($projectsWithLimitAlerts->isNotEmpty())
-        <section class="dash-panel">
-            <header class="dash-section-head">
-                <div class="dash-section-title">
-                    <span
-                        class="dash-section-icon warning"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-duotone ph-warning"></i>
-                    </span>
+    <div class="dashboard-workspace">
 
-                    <div class="dash-section-copy">
-                        <h2>Limites financeiros</h2>
-                    </div>
-                </div>
-            </header>
-
-            <div class="dash-alert-list">
-                @foreach($projectsWithLimitAlerts as $project)
-                    @php
-                        $limit = $projectLimitData[
-                            $project->id
-                        ];
-
-                        $isFull = (bool) (
-                            $limit['is_full']
-                            ?? false
-                        );
-                    @endphp
-
-                    <div
-                        class="dash-alert {{ $isFull
-                            ? 'danger'
-                            : 'warning' }}"
-                    >
-                        <span
-                            class="dash-alert-icon"
-                            aria-hidden="true"
-                        >
-                            <i
-                                class="ph-duotone {{ $isFull
-                                    ? 'ph-x-circle'
-                                    : 'ph-warning-circle' }}"
-                            ></i>
-                        </span>
-
-                        <div class="dash-alert-copy">
-                            <strong>
-                                {{ $project->title }}
-                            </strong>
-
-                            <span>
-                                {{ $isFull
-                                    ? 'Limite atingido'
-                                    : 'Limite próximo' }}
-                            </span>
-                        </div>
-
-                        <span class="dash-alert-value">
-                            @if($isFull)
-                                {{ $formatMoney(
-                                    $limit['max']
-                                    ?? 0
-                                ) }}
-                            @else
-                                Restam
-                                {{ $formatMoney(
-                                    $limit['remaining']
-                                    ?? 0
-                                ) }}
-                            @endif
-                        </span>
-                    </div>
-                @endforeach
-            </div>
-        </section>
-    @endif
-
-    <section class="dash-panel">
-        <header class="dash-section-head">
-            <div class="dash-section-title">
+        {{-- =====================================================
+             PROJETOS
+             ===================================================== --}}
+        <section class="dashboard-section">
+            <header class="dashboard-section-head">
                 <span
-                    class="dash-section-icon projects"
+                    class="dashboard-section-icon projects"
                     aria-hidden="true"
                 >
                     <i class="ph-duotone ph-folder-open"></i>
                 </span>
 
-                <div class="dash-section-copy">
+                <div class="dashboard-section-copy">
                     <h2>Projetos em execução</h2>
+
+                    <p>
+                        Sua participação e os limites de cada projeto.
+                    </p>
                 </div>
-            </div>
 
-            <a
-                class="dash-section-link"
-                href="{{ $tenantSlug
-                    ? route('associate.projects', [
-                        'tenant' => $tenantSlug,
-                    ])
-                    : url('/') }}"
-            >
-                <span>Ver projetos</span>
-                <i class="ph ph-arrow-right"></i>
-            </a>
-        </header>
+                <a
+                    class="dashboard-section-action"
+                    href="{{ $tenantSlug
+                        ? route('associate.projects', [
+                            'tenant' => $tenantSlug,
+                        ])
+                        : url('/') }}"
+                >
+                    <span>Todos</span>
+                    <i class="ph ph-arrow-right"></i>
+                </a>
+            </header>
 
-        @if($activeRecentProjects->isEmpty())
-            <div class="dash-empty">
-                <div>
-                    <i
-                        class="ph-duotone ph-folder-open"
+            @if($alertProjectsCount > 0)
+                <div class="projects-attention">
+                    <span
+                        class="projects-attention-icon"
                         aria-hidden="true"
-                    ></i>
-
-                    <strong>
-                        Nenhum projeto em execução
-                    </strong>
-                </div>
-            </div>
-        @else
-            <div class="dash-list">
-                @foreach($activeRecentProjects as $project)
-                    @php
-                        $limit = $projectLimitData[
-                            $project->id
-                        ] ?? [
-                            'max' => null,
-                            'accumulated' => 0,
-                            'remaining' => null,
-                            'percent' => null,
-                            'is_near' => false,
-                            'is_full' => false,
-                        ];
-
-                        $percent = is_numeric(
-                            $limit['percent']
-                            ?? null
-                        )
-                            ? max(
-                                0,
-                                (float) $limit['percent']
-                            )
-                            : null;
-
-                        $progressClass = $percent === null
-                            ? ''
-                            : (
-                                $percent >= 100
-                                    ? 'danger'
-                                    : (
-                                        $percent >= 80
-                                            ? 'warning'
-                                            : ''
-                                    )
-                            );
-                    @endphp
-
-                    <a
-                        class="dash-row"
-                        href="{{ $tenantSlug
-                            ? route(
-                                'associate.projects.show',
-                                [
-                                    'tenant' => $tenantSlug,
-                                    'project' => $project->id,
-                                ]
-                            )
-                            : url('/') }}"
                     >
+                        <i class="ph-duotone ph-warning-circle"></i>
+                    </span>
+
+                    <div>
+                        <strong>
+                            {{ $alertProjectsCount }}
+                            {{ $alertProjectsCount === 1
+                                ? 'projeto precisa'
+                                : 'projetos precisam' }}
+                            de atenção
+                        </strong>
+
+                        <span>
+                            O limite financeiro está próximo
+                            ou já foi atingido.
+                        </span>
+                    </div>
+                </div>
+            @endif
+
+            @if($activeRecentProjects->isEmpty())
+                <div class="dashboard-empty">
+                    <div class="dashboard-empty-content">
                         <span
-                            class="dash-row-icon project"
+                            class="dashboard-empty-icon"
                             aria-hidden="true"
                         >
-                            <i class="ph-duotone ph-folder"></i>
+                            <i class="ph-duotone ph-folder-open"></i>
                         </span>
 
-                        <div class="dash-row-copy">
-                            <div class="dash-row-title-line">
-                                <strong class="dash-row-title">
-                                    {{ $project->title }}
-                                </strong>
+                        <strong>
+                            Nenhum projeto em execução
+                        </strong>
 
-                                <span class="dash-status active">
-                                    Em execução
+                        <span>
+                            Quando houver um projeto ativo,
+                            sua participação aparecerá aqui.
+                        </span>
+                    </div>
+                </div>
+            @else
+                <div class="project-list">
+                    @foreach($activeRecentProjects as $project)
+                        @php
+                            $limit = $projectLimitData[
+                                $project->id
+                            ] ?? [
+                                'max' => null,
+                                'accumulated' => 0,
+                                'remaining' => null,
+                                'percent' => null,
+                                'is_near' => false,
+                                'is_full' => false,
+                            ];
+
+                            $percent = is_numeric(
+                                $limit['percent']
+                                ?? null
+                            )
+                                ? max(
+                                    0,
+                                    (float) $limit['percent']
+                                )
+                                : null;
+
+                            $isFull = (bool) (
+                                $limit['is_full']
+                                ?? false
+                            );
+
+                            $isNear = (bool) (
+                                $limit['is_near']
+                                ?? false
+                            );
+
+                            $progressClass =
+                                $percent === null
+                                    ? ''
+                                    : (
+                                        $percent >= 100
+                                            ? 'danger'
+                                            : (
+                                                $percent >= 80
+                                                    ? 'warning'
+                                                    : ''
+                                            )
+                                    );
+
+                            $remainingClass =
+                                $isFull
+                                    ? 'alert'
+                                    : 'remaining';
+                        @endphp
+
+                        <a
+                            class="project-item"
+                            href="{{ $tenantSlug
+                                ? route(
+                                    'associate.projects.show',
+                                    [
+                                        'tenant' => $tenantSlug,
+                                        'project' => $project->id,
+                                    ]
+                                )
+                                : url('/') }}"
+                        >
+                            <div class="project-main">
+                                <span
+                                    class="project-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-folder"></i>
+                                </span>
+
+                                <div class="project-info">
+                                    <div class="project-title-line">
+                                        <strong class="project-title">
+                                            {{ $project->title }}
+                                        </strong>
+
+                                        <span class="project-status">
+                                            <i class="ph ph-circle-fill"></i>
+                                            Em execução
+                                        </span>
+                                    </div>
+
+                                    @if($project->customer)
+                                        <span class="project-customer">
+                                            <i class="ph ph-buildings"></i>
+
+                                            <span>
+                                                {{ $project->customer->name }}
+                                            </span>
+                                        </span>
+                                    @endif
+                                </div>
+
+                                <span
+                                    class="project-open"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph ph-arrow-right"></i>
                                 </span>
                             </div>
 
-                            @if($project->customer)
-                                <div class="dash-row-meta">
-                                    <span>
-                                        <i class="ph ph-buildings"></i>
-
-                                        {{ $project->customer->name }}
-                                    </span>
-                                </div>
-                            @endif
-
                             @if(($limit['max'] ?? null) !== null)
-                                <div class="dash-limit">
-                                    <div class="dash-limit-line">
-                                        <span>
-                                            Utilizado
+                                <div class="project-limit-area">
+                                    <div class="project-limit-head">
+                                        <div class="project-limit-copy">
                                             <strong>
-                                                {{ $formatMoney(
-                                                    $limit['accumulated']
-                                                    ?? 0
-                                                ) }}
+                                                Limite financeiro
                                             </strong>
-                                        </span>
 
-                                        <strong>
+                                            <span>
+                                                @if($isFull)
+                                                    Limite atingido
+                                                @elseif($isNear)
+                                                    Próximo do limite
+                                                @else
+                                                    Dentro do limite
+                                                @endif
+                                            </span>
+                                        </div>
+
+                                        <span class="project-limit-percent">
                                             {{ number_format(
                                                 $percent ?? 0,
                                                 0,
                                                 ',',
                                                 '.'
                                             ) }}%
-                                        </strong>
+                                        </span>
                                     </div>
 
                                     <div
-                                        class="dash-progress {{ $progressClass }}"
+                                        class="project-progress {{ $progressClass }}"
+                                        aria-hidden="true"
                                     >
                                         <span
                                             style="width: {{ min(
@@ -1062,144 +1534,234 @@
                                             ) }}%"
                                         ></span>
                                     </div>
+
+                                    <div class="project-limit-values">
+                                        <div class="project-limit-value">
+                                            <span>Utilizado</span>
+
+                                            <strong>
+                                                {{ $formatMoney(
+                                                    $limit['accumulated']
+                                                    ?? 0
+                                                ) }}
+                                            </strong>
+                                        </div>
+
+                                        <div
+                                            class="
+                                                project-limit-value
+                                                {{ $remainingClass }}
+                                            "
+                                        >
+                                            <span>
+                                                {{ $isFull
+                                                    ? 'Situação'
+                                                    : 'Disponível' }}
+                                            </span>
+
+                                            <strong>
+                                                @if($isFull)
+                                                    Limite atingido
+                                                @else
+                                                    {{ $formatMoney(
+                                                        $limit['remaining']
+                                                        ?? 0
+                                                    ) }}
+                                                @endif
+                                            </strong>
+                                        </div>
+
+                                        <div class="project-limit-value">
+                                            <span>Limite total</span>
+
+                                            <strong>
+                                                {{ $formatMoney(
+                                                    $limit['max']
+                                                    ?? 0
+                                                ) }}
+                                            </strong>
+                                        </div>
+                                    </div>
                                 </div>
+                            @else
+                                <span class="project-no-limit">
+                                    <i class="ph-duotone ph-info"></i>
+
+                                    <span>
+                                        Este projeto não possui
+                                        limite financeiro informado.
+                                    </span>
+                                </span>
                             @endif
-                        </div>
+                        </a>
+                    @endforeach
+                </div>
+            @endif
+        </section>
 
-                        <i
-                            class="ph ph-caret-right dash-row-value"
-                            aria-hidden="true"
-                        ></i>
-                    </a>
-                @endforeach
-            </div>
-        @endif
-    </section>
-
-    <section class="dash-panel">
-        <header class="dash-section-head">
-            <div class="dash-section-title">
+        {{-- =====================================================
+             ENTREGAS
+             ===================================================== --}}
+        <section class="dashboard-section">
+            <header class="dashboard-section-head">
                 <span
-                    class="dash-section-icon deliveries"
+                    class="dashboard-section-icon deliveries"
                     aria-hidden="true"
                 >
                     <i class="ph-duotone ph-package"></i>
                 </span>
 
-                <div class="dash-section-copy">
+                <div class="dashboard-section-copy">
                     <h2>Entregas recentes</h2>
+
+                    <p>
+                        Últimos registros da sua participação.
+                    </p>
                 </div>
-            </div>
 
-            <a
-                class="dash-section-link"
-                href="{{ $tenantSlug
-                    ? route('associate.deliveries', [
-                        'tenant' => $tenantSlug,
-                    ])
-                    : url('/') }}"
-            >
-                <span>Ver entregas</span>
-                <i class="ph ph-arrow-right"></i>
-            </a>
-        </header>
+                <a
+                    class="dashboard-section-action"
+                    href="{{ $tenantSlug
+                        ? route('associate.deliveries', [
+                            'tenant' => $tenantSlug,
+                        ])
+                        : url('/') }}"
+                >
+                    <span>Todos</span>
+                    <i class="ph ph-arrow-right"></i>
+                </a>
+            </header>
 
-        @if($visibleRecentDeliveries->isEmpty())
-            <div class="dash-empty">
-                <div>
-                    <i
-                        class="ph-duotone ph-package"
-                        aria-hidden="true"
-                    ></i>
-
-                    <strong>
-                        Nenhuma entrega registrada
-                    </strong>
-                </div>
-            </div>
-        @else
-            <div class="dash-list">
-                @foreach($visibleRecentDeliveries as $delivery)
-                    @php
-                        $deliveryStatus = $statusValue(
-                            $delivery->status
-                            ?? null
-                        );
-
-                        $deliveryUnit = $unitLabel(
-                            $delivery->unit
-                            ?? $delivery->product?->unit
-                            ?? null
-                        );
-
-                        $deliveryValue =
-                            (float) $delivery->quantity
-                            * (float) $delivery->unit_price;
-                    @endphp
-
-                    <div class="dash-row">
+            @if($visibleRecentDeliveries->isEmpty())
+                <div class="dashboard-empty">
+                    <div class="dashboard-empty-content">
                         <span
-                            class="dash-row-icon delivery"
+                            class="dashboard-empty-icon"
                             aria-hidden="true"
                         >
                             <i class="ph-duotone ph-package"></i>
                         </span>
 
-                        <div class="dash-row-copy">
-                            <div class="dash-row-title-line">
-                                <strong class="dash-row-title">
-                                    {{ $delivery->product?->name
-                                        ?? 'Produto' }}
+                        <strong>
+                            Nenhuma entrega registrada
+                        </strong>
+
+                        <span>
+                            Suas entregas mais recentes
+                            aparecerão nesta área.
+                        </span>
+                    </div>
+                </div>
+            @else
+                <div class="delivery-list">
+                    @foreach($visibleRecentDeliveries as $delivery)
+                        @php
+                            $deliveryStatus = $statusValue(
+                                $delivery->status
+                                ?? null
+                            );
+
+                            $deliveryUnit = $unitLabel(
+                                $delivery->unit
+                                ?? $delivery->product?->unit
+                                ?? null
+                            );
+
+                            $deliveryDate =
+                                $delivery->delivery_date;
+
+                            $deliveryDay =
+                                $deliveryDate
+                                    ?->format('d')
+                                ?? '--';
+
+                            $deliveryMonth =
+                                $deliveryDate
+                                    ? strtoupper(
+                                        $deliveryDate->locale('pt_BR')
+                                            ->translatedFormat('M')
+                                    )
+                                    : '---';
+                        @endphp
+
+                        <article class="delivery-item">
+                            <span
+                                class="delivery-date"
+                                aria-label="{{ $deliveryDate
+                                    ?->format('d/m/Y')
+                                    ?? 'Data não informada' }}"
+                            >
+                                <strong>
+                                    {{ $deliveryDay }}
                                 </strong>
 
-                                <span
-                                    class="dash-status {{ $deliveryStatus }}"
-                                >
-                                    {{ $statusLabel(
-                                        $delivery->status
-                                        ?? null
+                                <span>
+                                    {{ \Illuminate\Support\Str::limit(
+                                        $deliveryMonth,
+                                        3,
+                                        ''
                                     ) }}
                                 </span>
-                            </div>
+                            </span>
 
-                            <div class="dash-row-meta">
-                                <span>
-                                    <i class="ph ph-calendar-blank"></i>
+                            <div class="delivery-content">
+                                <div class="delivery-title-line">
+                                    <strong class="delivery-title">
+                                        {{ $delivery->product?->name
+                                            ?? 'Produto' }}
+                                    </strong>
 
-                                    {{ $delivery->delivery_date
-                                        ?->format('d/m/Y')
-                                        ?? 'Data não informada' }}
-                                </span>
+                                    <div>
+                                        <strong>
+                                            {{ $formatQuantity(
+                                                $delivery->quantity
+                                            ) }}
+                                            {{ $deliveryUnit }}
+                                        </strong>
 
-                                <span>
+                                        <span
+                                        class="
+                                        delivery-status
+                                        {{ $deliveryStatus }}
+                                        "
+                                        >
+
+                                        {{ $statusLabel(
+                                            $delivery->status
+                                            ?? null
+                                            ) }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <span class="delivery-project">
                                     <i class="ph ph-folder"></i>
 
-                                    {{ \Illuminate\Support\Str::limit(
-                                        $delivery->salesProject?->title
-                                        ?? 'Projeto',
-                                        38
-                                    ) }}
+                                    <span>
+                                        {{ \Illuminate\Support\Str::limit(
+                                            $delivery->salesProject?->title
+                                            ?? 'Projeto',
+                                            42
+                                        ) }}
+                                    </span>
                                 </span>
 
-                                <span>
-                                    <i class="ph ph-scales"></i>
-
-                                    {{ $formatQuantity(
-                                        $delivery->quantity
-                                    ) }}
-
-                                    {{ $deliveryUnit }}
-                                </span>
                             </div>
-                        </div>
-
-                        <strong class="dash-row-value">
-                            {{ $formatMoney($deliveryValue) }}
-                        </strong>
-                    </div>
-                @endforeach
-            </div>
-        @endif
-    </section>
+                        </article>
+                    @endforeach
+                </div>
+            @endif
+        </section>
+    </div>
 </main>
+@php
+    $associatePortalConfig = [
+        'page' => 'dashboard',
+        'urls' => [
+            'dashboard' => route('associate.data.dashboard', ['tenant' => $tenantSlug]),
+        ],
+    ];
+@endphp
+<script>window.AssociatePortalConfig = @json($associatePortalConfig);</script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}"></script>
 @endsection

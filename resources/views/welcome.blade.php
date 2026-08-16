@@ -1,2446 +1,3308 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="pt-BR">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-
-    <title>ZeCoop SGC — Gestão completa para associações e cooperativas</title>
 
     <meta
-        name="description"
-        content="Gerencie associados, projetos, entregas, financeiro, documentos, estoque e serviços. Contrate somente os módulos necessários para sua organização."
+        name="viewport"
+        content="width=device-width, initial-scale=1, viewport-fit=cover"
     >
-    <meta name="theme-color" content="#16803d">
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#f3f6f4">
+    <meta
+        name="description"
+        content="SGC — gestão de projetos, associados, entregas, financeiro e prestação de contas."
+    >
+
+    <title>SGC — Sistema de Gestão Cooperativa</title>
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+    <script>
+        (() => {
+            const inAppMode =
+                window.matchMedia?.('(display-mode: standalone)').matches
+                || window.matchMedia?.('(display-mode: fullscreen)').matches
+                || window.navigator.standalone === true;
+
+            if (inAppMode) {
+                window.location.replace(@json(route('login')));
+            }
+        })();
+    </script>
+
+    @vite([
+        'resources/css/app.css',
+        'resources/js/app.js'
+    ])
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css"
+    >
 
     <style>
         :root {
-            --green: #20a957;
-            --green-dark: #16803d;
-            --green-deep: #116a35;
+            --brand: var(--color-primary, #22c55e);
+            --brand-600: var(--color-primary-dark, #16a34a);
+            --brand-700: var(--color-primary-deep, #15803d);
+
+            --bg: #f3f6f4;
+            --surface: #ffffff;
+            --surface-soft: #f8faf9;
+            --surface-muted: #edf2ef;
+
+            --border: #dce5df;
+            --border-strong: #cad6cf;
+
+            --text: #122018;
+            --text-2: #516158;
+            --text-3: #77847c;
+
+            --green: #168a4d;
             --green-soft: #eaf8ef;
-            --green-light: #f4fbf6;
 
             --blue: #2563eb;
             --blue-soft: #eef4ff;
-            --amber: #d97706;
-            --amber-soft: #fff8e9;
+
+            --sky: #0284c7;
+            --sky-soft: #edf8fe;
+
             --violet: #7c3aed;
-            --violet-soft: #f5f0ff;
-            --rose: #e11d48;
-            --rose-soft: #fff0f4;
-            --slate: #475569;
-            --slate-soft: #f1f5f9;
+            --violet-soft: #f4f0ff;
 
-            --surface: #fff;
-            --surface-soft: #f7faf8;
-            --surface-muted: #eef4f0;
-            --text: #102018;
-            --text-2: #4f6257;
-            --text-3: #75877c;
-            --border: #dce7e0;
-            --border-strong: #c8d7ce;
+            --amber: #c87408;
+            --amber-soft: #fff7e8;
 
-            --shadow-sm: 0 8px 24px rgba(18, 48, 30, .06);
-            --shadow-md: 0 18px 44px rgba(18, 48, 30, .10);
-            --shadow-lg: 0 28px 70px rgba(18, 48, 30, .15);
+            --red: #cf3f3f;
+            --red-soft: #fff0f0;
 
-            --radius: 20px;
-            --radius-lg: 30px;
-            --container: 1200px;
+            --slate: #596b61;
+            --slate-soft: #eef2ef;
+
+            --shadow-xs: 0 2px 8px rgba(15, 35, 24, .04);
+            --shadow-sm: 0 8px 24px rgba(15, 35, 24, .06);
+            --shadow-md: 0 18px 50px rgba(15, 35, 24, .09);
+            --shadow-lg: 0 30px 90px rgba(8, 24, 15, .24);
+
+            --max: 1140px;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --ease: cubic-bezier(.2, .8, .2, 1);
         }
 
-        *,
-        *::before,
-        *::after {
+        * {
             box-sizing: border-box;
         }
 
         html {
+            min-width: 320px;
+            min-height: 100%;
+            overflow-x: clip;
             scroll-behavior: smooth;
-            scroll-padding-top: 88px;
-            background: #f7faf8;
+            scroll-padding-top: 92px;
+            background: var(--bg);
+            color: var(--text);
             -webkit-text-size-adjust: 100%;
         }
 
         body {
-            min-width: 320px;
-            min-height: 100dvh;
             margin: 0;
-            overflow-x: hidden;
+            min-width: 320px;
+            min-height: 100vh;
+            min-height: 100dvh;
+            overflow-x: clip;
             background:
-                radial-gradient(circle at 8% 0%, rgba(32, 169, 87, .10), transparent 26rem),
-                radial-gradient(circle at 96% 10%, rgba(37, 99, 235, .06), transparent 30rem),
-                linear-gradient(180deg, #fbfdfc 0%, #f5faf7 55%, #fff 100%);
+                radial-gradient(
+                    circle at 9% 0,
+                    rgba(34, 197, 94, .07),
+                    transparent 24rem
+                ),
+                radial-gradient(
+                    circle at 96% 74%,
+                    rgba(37, 99, 235, .045),
+                    transparent 28rem
+                ),
+                linear-gradient(
+                    180deg,
+                    #fbfdfc 0%,
+                    var(--bg) 46%,
+                    #eef3f0 100%
+                );
             color: var(--text);
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            line-height: 1.6;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            font-size: 16px;
+            line-height: 1.55;
             -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
         }
 
         body::before {
             position: fixed;
-            z-index: 0;
+            z-index: -2;
             inset: 0;
+            opacity: .45;
             background-image:
-                linear-gradient(rgba(16, 32, 24, .024) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(16, 32, 24, .024) 1px, transparent 1px);
-            background-size: 24px 24px;
-            mask-image: linear-gradient(to bottom, rgba(0,0,0,.72), transparent 78%);
+                linear-gradient(
+                    rgba(21, 128, 61, .018) 1px,
+                    transparent 1px
+                ),
+                linear-gradient(
+                    90deg,
+                    rgba(21, 128, 61, .018) 1px,
+                    transparent 1px
+                );
+            background-size: 30px 30px;
+            mask-image:
+                linear-gradient(
+                    to bottom,
+                    rgba(0, 0, 0, .7),
+                    transparent 82%
+                );
             content: "";
             pointer-events: none;
         }
 
-        a {
-            color: inherit;
-        }
-
         button,
-        input,
-        textarea {
+        input {
             font: inherit;
         }
 
-        [data-lucide] {
-            width: 1em;
-            height: 1em;
+        button,
+        a {
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .site {
-            position: relative;
-            z-index: 1;
-        }
-
-        .container {
-            width: min(calc(100% - 2rem), var(--container));
-            margin: 0 auto;
-        }
-
-        .section {
-            padding: 5.2rem 0;
-        }
-
-        .section-soft {
-            border-top: 1px solid rgba(220, 231, 224, .8);
-            border-bottom: 1px solid rgba(220, 231, 224, .8);
-            background: rgba(247, 250, 248, .78);
-        }
-
-        .heading {
-            max-width: 780px;
-            margin-bottom: 2rem;
-        }
-
-        .heading.center {
-            margin-right: auto;
-            margin-left: auto;
-            text-align: center;
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: .48rem;
-            margin-bottom: .8rem;
-            padding: .44rem .72rem;
-            border: 1px solid rgba(32, 169, 87, .18);
-            border-radius: 999px;
-            background: var(--green-soft);
-            color: var(--green-dark);
-            font-size: .82rem;
-            font-weight: 750;
-        }
-
-        .eyebrow [data-lucide] {
-            font-size: 1.05rem;
-        }
-
-        .title {
-            margin: 0;
-            color: var(--text);
-            font-size: clamp(2rem, 4.2vw, 3.3rem);
-            font-weight: 800;
-            letter-spacing: -.045em;
-            line-height: 1.08;
-        }
-
-        .description {
-            margin: 1rem 0 0;
-            color: var(--text-2);
-            font-size: 1.05rem;
-            line-height: 1.74;
-        }
-
-        .site-header {
-            position: sticky;
-            z-index: 100;
-            top: 0;
-            border-bottom: 1px solid rgba(220, 231, 224, .85);
-            background: rgba(255, 255, 255, .89);
-            box-shadow: 0 4px 18px rgba(18, 48, 30, .04);
-            backdrop-filter: blur(18px) saturate(1.15);
-        }
-
-        .header-inner {
-            display: flex;
-            min-height: 76px;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-        }
-
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: .72rem;
+        a {
+            color: inherit;
             text-decoration: none;
         }
 
-        .brand-mark {
-            display: grid;
-            width: 44px;
-            height: 44px;
-            flex: 0 0 auto;
-            place-items: center;
-            border-radius: 14px;
-            background:
-                radial-gradient(circle at 28% 20%, rgba(255,255,255,.28), transparent 2.5rem),
-                linear-gradient(135deg, var(--green), var(--green-dark));
-            color: #fff;
-            box-shadow: 0 10px 24px rgba(32, 169, 87, .20);
+        button:focus-visible,
+        a:focus-visible {
+            outline: 3px solid rgba(34, 197, 94, .18);
+            outline-offset: 3px;
         }
 
-        .brand-mark [data-lucide] {
-            font-size: 1.42rem;
+        [hidden] {
+            display: none !important;
+        }
+
+        .page {
+            width: min(calc(100% - 28px), var(--max));
+            margin: 0 auto;
+            padding:
+                max(14px, var(--safe-top))
+                0
+                max(34px, var(--safe-bottom));
+        }
+
+        /* =========================================================
+           HEADER
+           ========================================================= */
+
+        .site-header {
+            position: sticky;
+            z-index: 90;
+            top: max(8px, var(--safe-top));
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .75rem;
+            align-items: center;
+            min-height: 64px;
+            padding: .55rem .62rem;
+            border: 1px solid rgba(220, 229, 223, .95);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, .94);
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(16px);
+            transition:
+                box-shadow 150ms ease,
+                min-height 150ms ease;
+        }
+
+        .site-header.compact {
+            min-height: 58px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .brand {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: .62rem;
+        }
+
+        .brand-icon {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 12px;
+            background:
+                linear-gradient(
+                    145deg,
+                    var(--brand-700),
+                    var(--brand-600)
+                );
+            color: #fff;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, .18),
+                0 6px 16px rgba(21, 128, 61, .14);
+        }
+
+        .brand-icon i {
+            display: block;
+            font-size: 1.22rem;
+            line-height: 1;
+        }
+
+        .brand-copy {
+            min-width: 0;
         }
 
         .brand-copy strong,
         .brand-copy span {
             display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .brand-copy strong {
-            font-size: .98rem;
-            font-weight: 800;
+            font-size: .92rem;
+            font-weight: 850;
             letter-spacing: -.025em;
-            line-height: 1.1;
         }
 
         .brand-copy span {
-            margin-top: .18rem;
+            margin-top: .02rem;
             color: var(--text-3);
-            font-size: .72rem;
-            font-weight: 600;
-            line-height: 1.1;
+            font-size: .74rem;
+            font-weight: 570;
         }
 
-        .nav {
+        .desktop-nav {
+            justify-self: center;
             display: flex;
+            gap: .18rem;
+            padding: .22rem;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--surface-soft);
+        }
+
+        .desktop-nav a {
+            display: inline-flex;
+            min-height: 36px;
             align-items: center;
-            gap: .2rem;
-        }
-
-        .nav a,
-        .mobile-nav a {
+            gap: .34rem;
+            padding: .4rem .62rem;
+            border-radius: 8px;
             color: var(--text-2);
-            font-size: .86rem;
-            font-weight: 650;
-            text-decoration: none;
+            font-size: .78rem;
+            font-weight: 720;
+            white-space: nowrap;
+            transition:
+                background 150ms ease,
+                color 150ms ease,
+                box-shadow 150ms ease;
         }
 
-        .nav a {
-            padding: .62rem .68rem;
-            border-radius: 10px;
+        .desktop-nav a i {
+            display: block;
+            font-size: .95rem;
+            line-height: 1;
         }
 
-        .nav a:hover,
-        .mobile-nav a:hover {
-            background: var(--surface-muted);
-            color: var(--green-dark);
+        .desktop-nav a:hover,
+        .desktop-nav a.active {
+            background: #fff;
+            color: var(--brand-700);
+            box-shadow: var(--shadow-xs);
         }
 
         .header-actions {
             display: flex;
             align-items: center;
-            gap: .5rem;
+            gap: .35rem;
         }
 
-        .btn {
-            display: inline-flex;
-            min-height: 46px;
-            align-items: center;
-            justify-content: center;
-            gap: .5rem;
-            padding: .72rem 1rem;
-            border: 1px solid transparent;
-            border-radius: 13px;
-            cursor: pointer;
-            font-size: .9rem;
-            font-weight: 750;
-            text-decoration: none;
-            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+        .icon-button,
+        .login-button,
+        .button {
+            border-radius: 10px;
+            transition:
+                border-color 150ms ease,
+                background 150ms ease,
+                color 150ms ease,
+                box-shadow 150ms ease,
+                transform 150ms ease;
         }
 
-        .btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .btn [data-lucide] {
-            font-size: 1.1rem;
-        }
-
-        .btn-primary {
-            border-color: var(--green-dark);
-            background: linear-gradient(135deg, var(--green), var(--green-dark));
-            color: #fff;
-            box-shadow: 0 10px 22px rgba(32, 169, 87, .18);
-        }
-
-        .btn-primary:hover {
-            color: #fff;
-            box-shadow: 0 14px 28px rgba(32, 169, 87, .25);
-        }
-
-        .btn-secondary {
-            border-color: var(--border);
-            background: rgba(255,255,255,.93);
-            color: var(--text);
-        }
-
-        .btn-secondary:hover {
-            border-color: rgba(32,169,87,.35);
-            color: var(--green-dark);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .menu-btn {
-            display: none;
-            width: 44px;
-            height: 44px;
+        .icon-button {
+            display: grid;
+            width: 40px;
+            height: 40px;
             place-items: center;
             border: 1px solid var(--border);
-            border-radius: 13px;
             background: #fff;
-            color: var(--text);
+            color: var(--text-2);
             cursor: pointer;
         }
 
-        .mobile-nav {
-            display: none;
-            padding-bottom: .85rem;
+        .icon-button i {
+            display: block;
+            font-size: 1.08rem;
+            line-height: 1;
         }
 
-        .mobile-nav.open {
+        .icon-button:hover {
+            border-color: rgba(34, 197, 94, .28);
+            background: var(--green-soft);
+            color: var(--brand-700);
+        }
+
+        .login-button {
+            display: inline-flex;
+            min-height: 40px;
+            align-items: center;
+            justify-content: center;
+            gap: .4rem;
+            padding: .46rem .78rem;
+            border: 1px solid var(--brand-700);
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--brand),
+                    var(--brand-600)
+                );
+            color: #fff;
+            font-size: .78rem;
+            font-weight: 800;
+            box-shadow: 0 7px 16px rgba(22, 163, 74, .14);
+        }
+
+        .login-button i {
+            display: block;
+            font-size: .98rem;
+            line-height: 1;
+        }
+
+        .login-button:hover {
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 21px rgba(22, 163, 74, .18);
+        }
+
+        /* =========================================================
+           MAIN / HERO
+           ========================================================= */
+
+        .main {
             display: grid;
-        }
-
-        .mobile-nav a {
-            padding: .78rem .75rem;
-            border-radius: 11px;
+            gap: 1.05rem;
+            margin-top: 1rem;
         }
 
         .hero {
-            padding: 4.5rem 0 4rem;
-        }
-
-        .hero-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1.04fr) minmax(420px, .96fr);
-            gap: 3rem;
+            grid-template-columns:
+                minmax(0, 1.05fr)
+                minmax(350px, .95fr);
+            gap: 1rem;
+            align-items: stretch;
+        }
+
+        .hero-copy {
+            min-height: 360px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: clamp(1.15rem, 3vw, 2rem);
+        }
+
+        .eyebrow {
+            display: inline-flex;
             align-items: center;
+            gap: .42rem;
+            color: var(--brand-700);
+            font-size: .78rem;
+            font-weight: 790;
+            letter-spacing: .035em;
+            text-transform: uppercase;
         }
 
-        .hero-title {
+        .eyebrow i {
+            display: block;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .hero h1 {
+            max-width: 760px;
+            margin: .7rem 0 .7rem;
+            font-size: clamp(2rem, 4.7vw, 3.65rem);
+            font-weight: 880;
+            letter-spacing: -.055em;
+            line-height: 1.01;
+            text-wrap: balance;
+        }
+
+        .hero h1 span {
+            color: var(--brand-600);
+        }
+
+        .hero-lead {
+            max-width: 690px;
             margin: 0;
-            font-size: clamp(2.7rem, 6vw, 5rem);
-            font-weight: 800;
-            letter-spacing: -.06em;
-            line-height: .99;
-        }
-
-        .hero-title span {
-            color: var(--green-dark);
-        }
-
-        .hero-text {
-            max-width: 700px;
-            margin: 1.35rem 0 0;
             color: var(--text-2);
-            font-size: 1.14rem;
-            line-height: 1.78;
+            font-size: clamp(.96rem, 1.35vw, 1.08rem);
+            line-height: 1.68;
         }
 
         .hero-actions {
             display: flex;
             flex-wrap: wrap;
-            gap: .75rem;
-            margin-top: 1.7rem;
+            gap: .48rem;
+            margin-top: 1.25rem;
         }
 
-        .trust-row {
+        .button {
+            display: inline-flex;
+            min-height: 44px;
+            align-items: center;
+            justify-content: center;
+            gap: .42rem;
+            padding: .5rem .78rem;
+            font-size: .8rem;
+            font-weight: 790;
+            cursor: pointer;
+        }
+
+        .button i {
+            display: block;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .button.primary {
+            border: 1px solid var(--brand-700);
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--brand),
+                    var(--brand-600)
+                );
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(22, 163, 74, .14);
+        }
+
+        .button.primary:hover {
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 11px 24px rgba(22, 163, 74, .18);
+        }
+
+        .button.secondary {
+            border: 1px solid var(--border-strong);
+            background: #fff;
+            color: var(--text);
+        }
+
+        .button.secondary:hover {
+            border-color: rgba(34, 197, 94, .3);
+            background: var(--surface-soft);
+            color: var(--brand-700);
+        }
+
+        .hero-notes {
             display: flex;
             flex-wrap: wrap;
-            gap: .55rem .9rem;
-            margin-top: 1.35rem;
-            color: var(--text-2);
-            font-size: .88rem;
-            font-weight: 620;
+            gap: .5rem 1rem;
+            margin-top: 1rem;
+            color: var(--text-3);
+            font-size: .8rem;
         }
 
-        .trust-row span {
+        .hero-notes span {
             display: inline-flex;
             align-items: center;
-            gap: .4rem;
+            gap: .34rem;
         }
 
-        .trust-row [data-lucide] {
-            color: var(--green-dark);
+        .hero-notes i {
+            display: block;
+            color: var(--brand-600);
+            font-size: .95rem;
+            line-height: 1;
         }
 
-        .preview {
-            position: relative;
+        /* =========================================================
+           PREVIEW — UMA ÚNICA SUPERFÍCIE, NÃO UM MONTE DE CARDS
+           ========================================================= */
+
+        .product-preview {
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: var(--shadow-md);
+        }
+
+        .preview-header {
+            display: flex;
+            min-height: 68px;
+            align-items: center;
+            justify-content: space-between;
+            gap: .75rem;
+            padding: .75rem .8rem;
+            border-bottom: 1px solid var(--border);
+            background:
+                linear-gradient(
+                    180deg,
+                    var(--surface-soft),
+                    #fff
+                );
+        }
+
+        .preview-header-main {
+            display: flex;
+            min-width: 0;
+            align-items: center;
+            gap: .62rem;
+        }
+
+        .preview-main-icon {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--green-soft);
+            color: var(--brand-700);
+        }
+
+        .preview-main-icon i {
+            display: block;
+            font-size: 1.16rem;
+            line-height: 1;
+        }
+
+        .preview-header-copy {
             min-width: 0;
         }
 
-        .preview::before {
-            position: absolute;
-            z-index: -1;
-            top: 8%;
-            right: 0;
-            width: 78%;
-            height: 78%;
-            border-radius: 999px;
-            background: rgba(32,169,87,.14);
-            filter: blur(52px);
-            content: "";
-        }
-
-        .app-window {
+        .preview-header-copy strong,
+        .preview-header-copy span {
+            display: block;
             overflow: hidden;
-            border: 1px solid rgba(200, 215, 206, .95);
-            border-radius: 26px;
-            background: rgba(255,255,255,.96);
-            box-shadow: var(--shadow-lg);
-            transform: rotate(1deg);
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .app-top {
-            display: flex;
+        .preview-header-copy strong {
+            font-size: .86rem;
+            font-weight: 820;
+        }
+
+        .preview-header-copy span {
+            margin-top: .08rem;
+            color: var(--text-3);
+            font-size: .73rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            min-height: 30px;
             align-items: center;
-            justify-content: space-between;
-            padding: .85rem 1rem;
+            gap: .3rem;
+            padding: .3rem .48rem;
+            border-radius: 999px;
+            background: var(--green-soft);
+            color: var(--brand-700);
+            font-size: .68rem;
+            font-weight: 790;
+            white-space: nowrap;
+        }
+
+        .status-pill i {
+            display: block;
+            font-size: .8rem;
+            line-height: 1;
+        }
+
+        .preview-tabs {
+            display: flex;
+            gap: .25rem;
+            padding: .42rem;
+            overflow-x: auto;
             border-bottom: 1px solid var(--border);
-            background: var(--surface-soft);
+            scrollbar-width: none;
         }
 
-        .dots {
-            display: flex;
-            gap: .35rem;
+        .preview-tabs::-webkit-scrollbar {
+            display: none;
         }
 
-        .dots span {
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: #d5dfd8;
-        }
-
-        .dots span:first-child {
-            background: #82d7a4;
-        }
-
-        .app-top small {
-            color: var(--text-3);
-            font-size: .74rem;
-            font-weight: 700;
-        }
-
-        .app-body {
-            display: grid;
-            grid-template-columns: 116px minmax(0,1fr);
-            min-height: 400px;
-        }
-
-        .app-side {
-            display: flex;
-            flex-direction: column;
-            gap: .38rem;
-            padding: .85rem;
-            border-right: 1px solid var(--border);
-            background: #fbfdfc;
-        }
-
-        .app-logo,
-        .app-nav-item,
-        .app-stat,
-        .app-chart,
-        .app-row {
-            border-radius: 12px;
-        }
-
-        .app-logo {
-            display: grid;
-            width: 36px;
-            height: 36px;
-            place-items: center;
-            margin-bottom: .55rem;
-            background: var(--green-soft);
-            color: var(--green-dark);
-        }
-
-        .app-nav-item {
-            display: flex;
+        .preview-tab {
+            display: inline-flex;
+            min-width: max-content;
+            min-height: 38px;
+            flex: 1 0 auto;
             align-items: center;
-            gap: .4rem;
-            padding: .48rem .5rem;
-            color: var(--text-3);
-            font-size: .64rem;
-            font-weight: 680;
-        }
-
-        .app-nav-item.active {
-            background: var(--green-soft);
-            color: var(--green-dark);
-        }
-
-        .app-main {
-            padding: 1rem;
-            background:
-                radial-gradient(circle at 85% 0%, rgba(32,169,87,.08), transparent 12rem),
-                var(--surface-soft);
-        }
-
-        .app-main-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: .85rem;
-        }
-
-        .app-main-head strong {
-            font-size: .82rem;
-        }
-
-        .fake-avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--green), var(--green-dark));
-        }
-
-        .app-stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0,1fr));
-            gap: .5rem;
-        }
-
-        .app-stat {
-            padding: .68rem;
-            border: 1px solid var(--border);
-            background: #fff;
-            box-shadow: 0 4px 12px rgba(18,48,30,.04);
-        }
-
-        .app-stat span,
-        .app-row small {
-            display: block;
-            color: var(--text-3);
-            font-size: .52rem;
-        }
-
-        .app-stat strong {
-            display: block;
-            margin-top: .2rem;
-            font-size: .76rem;
-        }
-
-        .app-chart {
-            margin-top: .65rem;
-            padding: .75rem;
-            border: 1px solid var(--border);
-            background: #fff;
-        }
-
-        .chart-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .chart-head strong {
-            font-size: .66rem;
-        }
-
-        .chart-head span {
-            padding: .22rem .38rem;
-            border-radius: 999px;
-            background: var(--green-soft);
-            color: var(--green-dark);
-            font-size: .48rem;
+            justify-content: center;
+            gap: .34rem;
+            padding: .42rem .54rem;
+            border: 1px solid transparent;
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-2);
+            cursor: pointer;
+            font-size: .72rem;
             font-weight: 740;
         }
 
-        .bars {
-            display: flex;
-            height: 88px;
-            align-items: flex-end;
-            gap: .35rem;
-            margin-top: .65rem;
+        .preview-tab i {
+            display: block;
+            font-size: .92rem;
+            line-height: 1;
         }
 
-        .bars span {
-            flex: 1;
-            border-radius: 6px 6px 2px 2px;
-            background: linear-gradient(180deg, #62d58a, var(--green-dark));
+        .preview-tab:hover {
+            background: var(--surface-soft);
         }
 
-        .app-list {
+        .preview-tab.active {
+            border-color: rgba(34, 197, 94, .16);
+            background: var(--green-soft);
+            color: var(--brand-700);
+        }
+
+        .preview-content {
+            min-height: 258px;
+            padding: .68rem .78rem .78rem;
+        }
+
+        .preview-metrics {
             display: grid;
-            gap: .42rem;
-            margin-top: .65rem;
-        }
-
-        .app-row {
-            display: grid;
-            grid-template-columns: 30px minmax(0,1fr) auto;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: .5rem;
-            align-items: center;
-            padding: .52rem;
-            border: 1px solid var(--border);
-            background: #fff;
+            padding-bottom: .65rem;
+            border-bottom: 1px solid var(--border);
         }
 
-        .app-row-icon {
-            display: grid;
-            width: 29px;
-            height: 29px;
+        .metric {
+            min-width: 0;
+        }
+
+        .metric-top {
+            display: flex;
+            align-items: center;
+            gap: .38rem;
+        }
+        .metric span,
+        .metric strong {
+            display: block;
+        }
+
+        .metric .metric-icon {
+            display: flex;
+            width: 32px;
+            height: 32px;
+            justify-content: center;
+            align-items: center;
             place-items: center;
             border-radius: 9px;
-            background: var(--surface-muted);
-            color: var(--green-dark);
         }
 
-        .app-row strong {
+        .metric-icon i {
             display: block;
-            font-size: .6rem;
+            font-size: .92rem;
+            line-height: 1;
         }
 
-        .status {
-            padding: .22rem .35rem;
-            border-radius: 999px;
+        .tone-green {
             background: var(--green-soft);
-            color: var(--green-dark);
-            font-size: .46rem;
-            font-weight: 750;
-        }
-
-        .audience-grid,
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0,1fr));
-            gap: .85rem;
-        }
-
-        .card {
-            padding: 1.22rem;
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            background: rgba(255,255,255,.95);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .card-icon {
-            display: grid;
-            width: 48px;
-            height: 48px;
-            place-items: center;
-            margin-bottom: .95rem;
-            border-radius: 15px;
-            background: var(--icon-soft, var(--green-soft));
-            color: var(--icon-color, var(--green-dark));
-        }
-
-        .card-icon [data-lucide] {
-            font-size: 1.45rem;
+            color: var(--green);
         }
 
         .tone-blue {
-            --icon-color: var(--blue);
-            --icon-soft: var(--blue-soft);
-        }
-
-        .tone-amber {
-            --icon-color: var(--amber);
-            --icon-soft: var(--amber-soft);
+            background: var(--blue-soft);
+            color: var(--blue);
         }
 
         .tone-violet {
-            --icon-color: var(--violet);
-            --icon-soft: var(--violet-soft);
+            background: var(--violet-soft);
+            color: var(--violet);
         }
 
-        .card h3,
-        .step h3,
-        .module h3 {
-            margin: 0;
-            font-size: 1.06rem;
-            font-weight: 780;
-            letter-spacing: -.02em;
+        .tone-amber {
+            background: var(--amber-soft);
+            color: var(--amber);
         }
 
-        .card p,
-        .step p,
-        .module > p {
-            margin: .6rem 0 0;
-            color: var(--text-2);
-            font-size: .9rem;
-            line-height: 1.65;
+        .tone-sky {
+            background: var(--sky-soft);
+            color: var(--sky);
         }
 
-        .overview-grid {
+        .tone-red {
+            background: var(--red-soft);
+            color: var(--red);
+        }
+
+        
+
+        .metric span {
+            color: var(--text-3);
+            font-size: .7rem;
+        }
+
+        .metric strong {
+            margin-top: .1rem;
+            color: var(--text);
+            font-size: .92rem;
+            font-weight: 830;
+        }
+
+        .preview-list {
             display: grid;
-            grid-template-columns: minmax(0,.92fr) minmax(0,1.08fr);
-            gap: 2rem;
+            margin-top: .35rem;
+        }
+
+        .preview-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .58rem;
             align-items: center;
+            min-height: 58px;
+            padding: .45rem .15rem;
         }
 
-        .benefits {
+        .preview-row + .preview-row {
+            border-top: 1px solid rgba(220, 229, 223, .8);
+        }
+
+        .row-icon {
             display: grid;
-            gap: .72rem;
-            margin-top: 1.45rem;
-        }
-
-        .benefit {
-            display: flex;
-            gap: .7rem;
-            padding: .82rem;
-            border: 1px solid var(--border);
-            border-radius: 15px;
-            background: rgba(255,255,255,.86);
-        }
-
-        .check {
-            display: grid;
-            width: 30px;
-            height: 30px;
+            width: 36px;
+            height: 36px;
             flex: 0 0 auto;
             place-items: center;
             border-radius: 10px;
-            background: var(--green-soft);
-            color: var(--green-dark);
         }
 
-        .benefit strong,
-        .benefit span {
+        .row-icon i {
             display: block;
-        }
-
-        .benefit strong {
-            font-size: .94rem;
-        }
-
-        .benefit span {
-            margin-top: .18rem;
-            color: var(--text-2);
-            font-size: .84rem;
-            line-height: 1.5;
-        }
-
-        .flow-panel {
-            padding: 1.1rem;
-            border: 1px solid var(--border);
-            border-radius: 25px;
-            background: #fff;
-            box-shadow: var(--shadow-md);
-        }
-
-        .flow-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: .85rem;
-        }
-
-        .flow-head strong {
             font-size: 1rem;
+            line-height: 1;
         }
 
-        .pill {
-            padding: .34rem .56rem;
-            border-radius: 999px;
-            background: var(--green-soft);
-            color: var(--green-dark);
-            font-size: .7rem;
-            font-weight: 730;
+        .row-copy {
+            min-width: 0;
         }
 
-        .flow-list {
-            display: grid;
-            gap: .58rem;
-        }
-
-        .flow {
-            display: grid;
-            grid-template-columns: 44px minmax(0,1fr) 28px;
-            gap: .7rem;
-            align-items: center;
-            padding: .78rem;
-            border: 1px solid var(--border);
-            border-radius: 15px;
-            background: var(--surface-soft);
-        }
-
-        .flow-icon {
-            display: grid;
-            width: 44px;
-            height: 44px;
-            place-items: center;
-            border-radius: 13px;
-            background: #fff;
-            color: var(--green-dark);
-            box-shadow: 0 5px 14px rgba(18,48,30,.05);
-        }
-
-        .flow strong,
-        .flow span {
+        .row-copy strong,
+        .row-copy span {
             display: block;
         }
 
-        .flow strong {
-            font-size: .9rem;
+        .row-copy strong {
+            color: var(--text);
+            font-size: .78rem;
+            font-weight: 790;
         }
 
-        .flow span {
-            margin-top: .14rem;
+        .row-copy span {
+            margin-top: .08rem;
             color: var(--text-3);
-            font-size: .77rem;
-        }
-
-        .flow-number,
-        .step-number {
-            display: grid;
-            place-items: center;
-            font-weight: 800;
-        }
-
-        .flow-number {
-            width: 28px;
-            height: 28px;
-            border-radius: 999px;
-            background: var(--green-soft);
-            color: var(--green-dark);
             font-size: .7rem;
+            line-height: 1.4;
         }
 
-        .step {
-            position: relative;
-        }
-
-        .step-number {
-            width: 38px;
-            height: 38px;
-            margin-bottom: .95rem;
-            border-radius: 12px;
-            background: linear-gradient(135deg, var(--green), var(--green-dark));
-            color: #fff;
-            font-size: .87rem;
-            box-shadow: 0 8px 18px rgba(32,169,87,.18);
-        }
-
-        .modules-head {
-            display: grid;
-            grid-template-columns: minmax(0,1fr) 320px;
-            gap: 1rem;
-            align-items: end;
-            margin-bottom: 1.5rem;
-        }
-
-        .modules-head .heading {
-            margin-bottom: 0;
-        }
-
-        .pay-only {
-            padding: .9rem 1rem;
-            border: 1px solid rgba(32,169,87,.20);
-            border-radius: 16px;
-            background: var(--green-soft);
-            color: var(--green-dark);
-            font-size: .88rem;
-            font-weight: 700;
-            line-height: 1.5;
-        }
-
-        .modules {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0,1fr));
-            gap: .85rem;
-        }
-
-        .module {
-            position: relative;
-            display: flex;
-            min-height: 260px;
-            flex-direction: column;
-            overflow: hidden;
-            transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-        }
-
-        .module:hover {
-            border-color: rgba(32,169,87,.35);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }
-
-        .module::after {
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--module-color, var(--green)), transparent);
-            content: "";
-        }
-
-        .module-top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: .7rem;
-        }
-
-        .module-icon {
-            display: grid;
-            width: 48px;
-            height: 48px;
-            place-items: center;
-            border-radius: 15px;
-            background: var(--module-soft, var(--green-soft));
-            color: var(--module-color, var(--green-dark));
-        }
-
-        .module-icon [data-lucide] {
-            font-size: 1.45rem;
-        }
-
-        .module-badge {
-            padding: .32rem .48rem;
+        .row-state {
+            display: inline-flex;
+            min-height: 26px;
+            align-items: center;
+            padding: .22rem .4rem;
             border-radius: 999px;
             background: var(--surface-muted);
             color: var(--text-2);
-            font-size: .67rem;
-            font-weight: 720;
+            font-size: .64rem;
+            font-weight: 760;
+            white-space: nowrap;
         }
 
-        .module h3 {
-            margin-top: .95rem;
+        .row-state.ok {
+            background: var(--green-soft);
+            color: var(--green);
         }
 
-        .module ul {
-            display: grid;
-            gap: .38rem;
-            margin: .8rem 0 0;
-            padding: 0;
-            list-style: none;
+        .row-state.warn {
+            background: var(--amber-soft);
+            color: var(--amber);
         }
 
-        .module li {
-            display: flex;
-            align-items: flex-start;
-            gap: .38rem;
-            color: var(--text-2);
-            font-size: .81rem;
-            line-height: 1.42;
-        }
+        /* =========================================================
+           SEÇÕES
+           ========================================================= */
 
-        .module li [data-lucide] {
-            flex: 0 0 auto;
-            margin-top: .12rem;
-            color: var(--module-color, var(--green-dark));
-        }
-
-        .mod-green {
-            --module-color: var(--green-dark);
-            --module-soft: var(--green-soft);
-        }
-
-        .mod-blue {
-            --module-color: var(--blue);
-            --module-soft: var(--blue-soft);
-        }
-
-        .mod-amber {
-            --module-color: var(--amber);
-            --module-soft: var(--amber-soft);
-        }
-
-        .mod-violet {
-            --module-color: var(--violet);
-            --module-soft: var(--violet-soft);
-        }
-
-        .mod-rose {
-            --module-color: var(--rose);
-            --module-soft: var(--rose-soft);
-        }
-
-        .mod-slate {
-            --module-color: var(--slate);
-            --module-soft: var(--slate-soft);
-        }
-
-        .builder {
-            display: grid;
-            grid-template-columns: minmax(0,1fr) 360px;
-            gap: 1rem;
-            align-items: start;
-        }
-
-        .builder-options {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0,1fr));
-            gap: .7rem;
-        }
-
-        .builder-option {
-            position: relative;
-        }
-
-        .builder-option input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .builder-option label {
-            display: flex;
-            min-height: 88px;
-            align-items: center;
-            gap: .72rem;
-            padding: .82rem;
+        .section {
+            overflow: hidden;
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 17px;
             background: #fff;
-            cursor: pointer;
-            transition: .15s ease;
-        }
-
-        .builder-option label:hover {
-            border-color: rgba(32,169,87,.32);
             box-shadow: var(--shadow-sm);
         }
 
-        .builder-option input:checked + label {
-            border-color: var(--green);
-            background: var(--green-light);
-            box-shadow: 0 0 0 3px rgba(32,169,87,.10);
-        }
-
-        .builder-check {
-            display: grid;
-            width: 38px;
-            height: 38px;
-            flex: 0 0 auto;
-            place-items: center;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            background: var(--surface-soft);
-            color: var(--text-3);
-        }
-
-        .builder-option input:checked + label .builder-check {
-            border-color: var(--green);
-            background: var(--green);
-            color: #fff;
-        }
-
-        .builder-option strong,
-        .builder-option span {
-            display: block;
-        }
-
-        .builder-option strong {
-            font-size: .92rem;
-        }
-
-        .builder-option span {
-            margin-top: .15rem;
-            color: var(--text-3);
-            font-size: .77rem;
-            line-height: 1.38;
-        }
-
-        .builder-summary {
-            position: sticky;
-            top: 95px;
-            padding: 1.1rem;
-            border: 1px solid var(--border);
-            border-radius: 21px;
-            background: #fff;
-            box-shadow: var(--shadow-md);
-        }
-
-        .builder-summary h3 {
-            margin: 0;
-            font-size: 1.08rem;
-        }
-
-        .builder-summary > p {
-            margin: .42rem 0 0;
-            color: var(--text-2);
-            font-size: .86rem;
-            line-height: 1.52;
-        }
-
-        .builder-count {
+        .section-header {
             display: flex;
+            min-height: 74px;
             align-items: center;
             justify-content: space-between;
-            gap: .6rem;
-            margin-top: .9rem;
-            padding: .72rem;
-            border-radius: 14px;
-            background: var(--green-soft);
-            color: var(--green-dark);
+            gap: .75rem;
+            padding: .78rem .88rem;
+            border-bottom: 1px solid var(--border);
+            background:
+                linear-gradient(
+                    180deg,
+                    var(--surface-soft),
+                    #fff
+                );
         }
 
-        .builder-count span {
-            font-size: .8rem;
-            font-weight: 680;
-        }
-
-        .builder-count strong {
-            font-size: 1.22rem;
-        }
-
-        .selected-modules {
+        .section-heading {
             display: flex;
-            flex-wrap: wrap;
-            gap: .4rem;
-            min-height: 42px;
-            margin-top: .78rem;
+            min-width: 0;
+            align-items: center;
+            gap: .68rem;
         }
 
-        .selected-module {
-            padding: .32rem .48rem;
-            border-radius: 999px;
-            background: var(--surface-muted);
-            color: var(--text-2);
-            font-size: .71rem;
-            font-weight: 680;
+        .section-icon {
+            display: grid;
+            width: 44px;
+            height: 44px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 12px;
         }
 
-        .builder-empty {
+        .section-icon i {
+            display: block;
+            font-size: 1.18rem;
+            line-height: 1;
+        }
+
+        .section-copy {
+            min-width: 0;
+        }
+
+        .section-copy h2 {
+            margin: 0;
+            color: var(--text);
+            font-size: 1rem;
+            font-weight: 840;
+            letter-spacing: -.02em;
+        }
+
+        .section-copy p {
+            max-width: 720px;
+            margin: .14rem 0 0;
             color: var(--text-3);
-            font-size: .8rem;
+            font-size: .78rem;
+            line-height: 1.45;
         }
 
-        .builder-summary .btn {
-            width: 100%;
-            margin-top: .82rem;
+        .section-body {
+            padding: .82rem;
         }
 
-        .price-note {
-            display: flex;
-            gap: .62rem;
-            margin-top: .75rem;
-            padding: .72rem;
-            border: 1px solid rgba(217,119,6,.22);
-            border-radius: 14px;
-            background: var(--amber-soft);
-            color: #8a4b08;
+        /* =========================================================
+           "O QUE RESOLVE" — LINHAS FLUIDAS, NÃO CARDS
+           ========================================================= */
+
+        .work-list {
+            display: grid;
         }
 
-        .price-note span {
+        .work-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .75rem;
+            align-items: center;
+            min-height: 82px;
+            padding: .7rem .15rem;
+        }
+
+        .work-row + .work-row {
+            border-top: 1px solid var(--border);
+        }
+
+        .work-icon {
+            display: grid;
+            width: 46px;
+            height: 46px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 13px;
+        }
+
+        .work-icon i {
+            display: block;
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        .work-copy {
+            min-width: 0;
+        }
+
+        .work-copy strong {
+            display: block;
+            color: var(--text);
+            font-size: .9rem;
+            font-weight: 810;
+        }
+
+        .work-copy span {
+            display: block;
+            max-width: 760px;
+            margin-top: .12rem;
+            color: var(--text-2);
             font-size: .78rem;
             line-height: 1.5;
         }
 
-        .contact-section {
-            padding: 5.2rem 0;
+        .work-tag {
+            display: inline-flex;
+            min-height: 28px;
+            align-items: center;
+            gap: .28rem;
+            padding: .26rem .45rem;
+            border-radius: 999px;
+            font-size: .66rem;
+            font-weight: 760;
+            white-space: nowrap;
         }
 
-        .contact-card {
-            position: relative;
+        .work-tag i {
+            display: block;
+            font-size: .74rem;
+            line-height: 1;
+        }
+
+        /* =========================================================
+           FLUXO — UMA LINHA GUIADA
+           ========================================================= */
+
+        .flow-toolbar {
+            display: flex;
+            gap: .35rem;
+            padding: .55rem .82rem;
+            overflow-x: auto;
+            border-bottom: 1px solid var(--border);
+            scrollbar-width: none;
+        }
+
+        .flow-toolbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .flow-button {
+            display: inline-flex;
+            min-width: max-content;
+            min-height: 40px;
+            align-items: center;
+            gap: .36rem;
+            padding: .42rem .62rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text-2);
+            cursor: pointer;
+            font-size: .74rem;
+            font-weight: 760;
+        }
+
+        .flow-button i {
+            display: block;
+            font-size: .92rem;
+            line-height: 1;
+        }
+
+        .flow-button.active {
+            border-color: rgba(37, 99, 235, .18);
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+
+        .flow-stage {
+            padding: .9rem;
+        }
+
+        .flow-intro {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: .8rem;
+            margin-bottom: .85rem;
+        }
+
+        .flow-intro small {
+            display: block;
+            color: var(--text-3);
+            font-size: .7rem;
+            font-weight: 730;
+            text-transform: uppercase;
+            letter-spacing: .045em;
+        }
+
+        .flow-intro h3 {
+            margin: .18rem 0 0;
+            color: var(--text);
+            font-size: 1.08rem;
+            font-weight: 840;
+            letter-spacing: -.025em;
+        }
+
+        .flow-hint {
+            display: inline-flex;
+            min-height: 30px;
+            align-items: center;
+            gap: .3rem;
+            padding: .28rem .45rem;
+            border-radius: 999px;
+            background: var(--surface-muted);
+            color: var(--text-3);
+            font-size: .67rem;
+            white-space: nowrap;
+        }
+
+        .flow-hint i {
+            display: block;
+            color: var(--blue);
+            font-size: .78rem;
+            line-height: 1;
+        }
+
+        .flow-line {
             display: grid;
-            grid-template-columns: minmax(0,1.15fr) minmax(340px,.85fr);
-            gap: 1.1rem;
-            overflow: hidden;
-            padding: 1.2rem;
-            border-radius: 30px;
-            background:
-                radial-gradient(circle at 82% 0%, rgba(255,255,255,.17), transparent 18rem),
-                linear-gradient(135deg, var(--green) 0%, var(--green-dark) 56%, var(--green-deep) 100%);
-            box-shadow: 0 28px 70px rgba(22,128,61,.22);
-            color: #fff;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0;
         }
 
-        .contact-copy,
-        .lead-card {
+        .flow-step {
+            position: relative;
+            min-width: 0;
+            padding: 0 .7rem 0 0;
+        }
+
+        .flow-step:not(:last-child)::after {
+            position: absolute;
+            top: 20px;
+            right: 8px;
+            left: 48px;
+            height: 2px;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(37, 99, 235, .22),
+                    rgba(124, 58, 237, .16)
+                );
+            content: "";
+        }
+
+        .flow-step-head {
             position: relative;
             z-index: 2;
-        }
-
-        .contact-copy {
-            padding: 1.45rem 1.2rem 2.4rem;
-        }
-
-        .contact-copy .eyebrow {
-            border-color: rgba(255,255,255,.20);
-            background: rgba(255,255,255,.12);
-            color: #fff;
-        }
-
-        .contact-copy h2 {
-            margin: 0;
-            font-size: clamp(2rem,4vw,3.2rem);
-            font-weight: 800;
-            letter-spacing: -.045em;
-            line-height: 1.08;
-        }
-
-        .contact-copy > p {
-            margin: .95rem 0 0;
-            color: rgba(255,255,255,.80);
-            font-size: 1.01rem;
-            line-height: 1.7;
-        }
-
-        .contact-details {
-            display: grid;
-            gap: .52rem;
-            margin-top: 1.15rem;
-        }
-
-        .contact-detail {
             display: flex;
             align-items: center;
-            gap: .62rem;
-            color: rgba(255,255,255,.90);
-            font-size: .9rem;
-            font-weight: 620;
+            gap: .55rem;
         }
 
-        .contact-detail-icon {
+        .flow-node {
             display: grid;
-            width: 36px;
-            height: 36px;
+            width: 40px;
+            height: 40px;
+            flex: 0 0 auto;
             place-items: center;
-            border: 1px solid rgba(255,255,255,.18);
             border-radius: 12px;
-            background: rgba(255,255,255,.10);
         }
 
-        .lead-card {
-            padding: 1rem;
-            border: 1px solid rgba(255,255,255,.55);
-            border-radius: 22px;
-            background: rgba(255,255,255,.97);
-            box-shadow: 0 18px 46px rgba(15,52,28,.18);
+        .flow-node i {
+            display: block;
+            font-size: 1.05rem;
+            line-height: 1;
+        }
+
+        .flow-step-number {
+            color: var(--text-3);
+            font-size: .65rem;
+            font-weight: 800;
+        }
+
+        .flow-step strong {
+            display: block;
+            margin-top: .52rem;
             color: var(--text);
+            font-size: .78rem;
+            font-weight: 810;
         }
 
-        .lead-card h3 {
-            margin: 0;
-            font-size: 1.08rem;
+        .flow-step p {
+            margin: .14rem 0 0;
+            color: var(--text-3);
+            font-size: .72rem;
+            line-height: 1.45;
         }
 
-        .lead-card > p {
-            margin: .4rem 0 .85rem;
+        /* =========================================================
+           PERFIS — UMA SUPERFÍCIE, CONTEÚDO MUDANDO
+           ========================================================= */
+
+        .roles-layout {
+            display: grid;
+            grid-template-columns:
+                minmax(210px, .34fr)
+                minmax(0, .66fr);
+            gap: .8rem;
+        }
+
+        .roles-list {
+            display: grid;
+            align-content: start;
+            gap: .25rem;
+        }
+
+        .role-button {
+            display: grid;
+            width: 100%;
+            min-height: 58px;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .52rem;
+            align-items: center;
+            padding: .46rem .5rem;
+            border: 1px solid transparent;
+            border-radius: 11px;
+            background: transparent;
             color: var(--text-2);
-            font-size: .84rem;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .role-button:hover {
+            background: var(--surface-soft);
+        }
+
+        .role-button.active {
+            border-color: rgba(124, 58, 237, .15);
+            background: var(--violet-soft);
+            color: var(--violet);
+        }
+
+        .role-button .role-button-icon {
+            display: flex;
+            width: 38px;
+            height: 38px;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+            background: var(--surface-muted);
+            color: var(--text-2);
+        }
+
+        .role-button.active .role-button-icon {
+            background: #fff;
+            color: var(--violet);
+        }
+
+        .role-button-icon i {
+            display: block;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .role-button strong,
+        .role-button span {
+            display: block;
+        }
+
+        .role-button strong {
+            color: var(--text);
+            font-size: .76rem;
+            font-weight: 800;
+        }
+
+        .role-button span {
+            margin-top: .04rem;
+            color: var(--text-3);
+            font-size: .68rem;
+        }
+
+        .role-button > i {
+            display: block;
+            color: var(--text-3);
+            font-size: .78rem;
+            line-height: 1;
+        }
+
+        .role-stage {
+            min-height: 300px;
+            padding: .9rem;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background:
+                linear-gradient(
+                    145deg,
+                    #fff,
+                    var(--surface-soft)
+                );
+        }
+
+        .role-stage-head {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+            padding-bottom: .75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .role-stage-icon {
+            display: grid;
+            width: 46px;
+            height: 46px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 13px;
+            background: var(--violet-soft);
+            color: var(--violet);
+        }
+
+        .role-stage-icon i {
+            display: block;
+            font-size: 1.24rem;
+            line-height: 1;
+        }
+
+        .role-stage h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 830;
+        }
+
+        .role-stage-head p {
+            margin: .12rem 0 0;
+            color: var(--text-3);
+            font-size: .76rem;
+            line-height: 1.45;
+        }
+
+        .role-points {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .6rem 1rem;
+            margin-top: .85rem;
+        }
+
+        .role-point {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .5rem;
+            align-items: start;
+        }
+
+        .role-point i {
+            display: block;
+            margin-top: .1rem;
+            color: var(--violet);
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .role-point strong,
+        .role-point span {
+            display: block;
+        }
+
+        .role-point strong {
+            font-size: .77rem;
+            font-weight: 790;
+        }
+
+        .role-point span {
+            margin-top: .05rem;
+            color: var(--text-3);
+            font-size: .7rem;
+            line-height: 1.42;
+        }
+
+        /* =========================================================
+           ACESSO
+           ========================================================= */
+
+        .access-band {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1fr)
+                auto;
+            gap: 1rem;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 17px;
+            background:
+                linear-gradient(
+                    120deg,
+                    #ffffff 0%,
+                    #f8fbf9 55%,
+                    var(--blue-soft) 100%
+                );
+            box-shadow: var(--shadow-sm);
+        }
+
+        .access-copy {
+            display: flex;
+            align-items: flex-start;
+            gap: .7rem;
+        }
+
+        .access-icon {
+            display: grid;
+            width: 46px;
+            height: 46px;
+            flex: 0 0 auto;
+            place-items: center;
+            border-radius: 13px;
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+
+        .access-icon i {
+            display: block;
+            font-size: 1.22rem;
+            line-height: 1;
+        }
+
+        .access-copy h2 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 830;
+        }
+
+        .access-copy p {
+            max-width: 760px;
+            margin: .18rem 0 0;
+            color: var(--text-2);
+            font-size: .78rem;
             line-height: 1.5;
         }
 
-        .field {
-            display: grid;
-            gap: .3rem;
-            margin-bottom: .62rem;
+        .access-actions {
+            display: flex;
+            align-items: center;
+            gap: .42rem;
         }
 
-        .field label {
-            font-size: .77rem;
-            font-weight: 700;
-        }
+        /* =========================================================
+           FOOTER
+           ========================================================= */
 
-        .field input,
-        .field textarea {
-            width: 100%;
-            min-height: 44px;
-            padding: .66rem .72rem;
-            border: 1px solid var(--border-strong);
-            border-radius: 12px;
-            background: #fff;
-            color: var(--text);
-            outline: none;
-        }
-
-        .field textarea {
-            min-height: 84px;
-            resize: vertical;
-        }
-
-        .field input:focus,
-        .field textarea:focus {
-            border-color: var(--green);
-            box-shadow: 0 0 0 3px rgba(32,169,87,.12);
-        }
-
-        .lead-card .btn {
-            width: 100%;
-        }
-
-        .lead-helper {
-            margin: .62rem 0 0;
-            color: var(--text-3);
-            font-size: .71rem;
-            line-height: 1.42;
-            text-align: center;
-        }
-
-        .faq-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0,1fr));
-            gap: .72rem;
-        }
-
-        .faq {
-            overflow: hidden;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: #fff;
-        }
-
-        .faq summary {
+        .footer {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: .8rem;
-            padding: 1rem;
-            cursor: pointer;
-            font-size: .94rem;
-            font-weight: 730;
-            list-style: none;
-        }
-
-        .faq summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .faq summary::after {
-            width: 24px;
-            height: 24px;
-            flex: 0 0 auto;
-            border-radius: 8px;
-            background: var(--surface-muted);
-            color: var(--green-dark);
-            content: "+";
-            font-size: 1.05rem;
-            font-weight: 700;
-            line-height: 24px;
-            text-align: center;
-        }
-
-        .faq[open] summary::after {
-            content: "−";
-        }
-
-        .faq p {
-            margin: 0;
-            padding: 0 1rem 1rem;
-            color: var(--text-2);
-            font-size: .87rem;
-            line-height: 1.62;
-        }
-
-        .site-footer {
+            margin-top: 1rem;
+            padding: 1rem .1rem .2rem;
             border-top: 1px solid var(--border);
-            background: #fff;
+            color: var(--text-3);
+            font-size: .72rem;
         }
 
-        .footer-grid {
-            display: grid;
-            grid-template-columns: 1.2fr .8fr .8fr;
-            gap: 2rem;
-            padding: 2.4rem 0;
-        }
-
-        .footer-brand p {
-            max-width: 440px;
-            margin: .82rem 0 0;
+        .footer-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: .34rem;
             color: var(--text-2);
-            font-size: .85rem;
-            line-height: 1.58;
+            font-weight: 720;
         }
 
-        .footer-col h3 {
-            margin: 0 0 .72rem;
-            font-size: .87rem;
+        .footer-brand i {
+            display: block;
+            color: var(--brand-600);
+            font-size: .9rem;
+            line-height: 1;
         }
 
         .footer-links {
-            display: grid;
-            gap: .42rem;
-        }
-
-        .footer-links a,
-        .footer-links span {
-            color: var(--text-2);
-            font-size: .81rem;
-            text-decoration: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .8rem;
         }
 
         .footer-links a:hover {
-            color: var(--green-dark);
+            color: var(--brand-700);
         }
 
-        .footer-bottom {
-            display: flex;
+        .mobile-nav {
+            display: none;
+        }
+
+        /* =========================================================
+           MODAL — CENTRALIZAÇÃO ESTRUTURAL
+           ========================================================= */
+
+        .center-dialog {
+            position: fixed;
+            z-index: 1500;
+            inset: 0;
+            width: 100%;
+            max-width: none;
+            height: 100%;
+            max-height: none;
+            margin: 0;
+            padding:
+                max(18px, var(--safe-top))
+                14px
+                max(18px, var(--safe-bottom));
+            overflow: auto;
+            border: 0;
+            background: transparent;
+        }
+
+        .center-dialog:not([open]) {
+            display: none;
+        }
+
+        .center-dialog[open] {
+            display: grid;
+            place-items: center;
+        }
+
+        .center-dialog::backdrop {
+            background: rgba(15, 26, 19, .55);
+            backdrop-filter: blur(4px);
+        }
+
+        .dialog-panel {
+            width: min(100%, 440px);
+            max-height: min(86dvh, 620px);
+            overflow: auto;
+            border: 1px solid rgba(220, 229, 223, .96);
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: var(--shadow-lg);
+            animation:
+                dialog-in
+                180ms
+                var(--ease)
+                both;
+        }
+
+        @keyframes dialog-in {
+            from {
+                opacity: 0;
+                transform: translateY(8px) scale(.985);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .dialog-header {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .65rem;
             align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem 0 1.25rem;
-            border-top: 1px solid var(--border);
+            padding: .85rem;
+            border-bottom: 1px solid var(--border);
+            background:
+                linear-gradient(
+                    180deg,
+                    var(--surface-soft),
+                    #fff
+                );
+        }
+
+        .dialog-icon {
+            display: grid;
+            width: 42px;
+            height: 42px;
+            place-items: center;
+            border-radius: 12px;
+            background: var(--blue-soft);
+            color: var(--blue);
+        }
+
+        .dialog-icon i {
+            display: block;
+            font-size: 1.18rem;
+            line-height: 1;
+        }
+
+        .dialog-heading h2 {
+            margin: 0;
+            font-size: .92rem;
+            font-weight: 830;
+        }
+
+        .dialog-heading p {
+            margin: .12rem 0 0;
             color: var(--text-3);
-            font-size: .75rem;
+            font-size: .73rem;
+            line-height: 1.4;
         }
 
-        .footer-bottom a {
-            text-decoration: none;
+        .dialog-close {
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--text-2);
+            cursor: pointer;
         }
 
-        @media (max-width: 1020px) {
-            .nav {
+        .dialog-close i {
+            display: block;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .dialog-body {
+            display: grid;
+            gap: .7rem;
+            padding: .9rem;
+        }
+
+        .dialog-row {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .6rem;
+            align-items: start;
+        }
+
+        .dialog-row-icon {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border-radius: 11px;
+        }
+
+        .dialog-row-icon i {
+            display: block;
+            font-size: 1.03rem;
+            line-height: 1;
+        }
+
+        .dialog-row strong,
+        .dialog-row span {
+            display: block;
+        }
+
+        .dialog-row strong {
+            font-size: .8rem;
+            font-weight: 800;
+        }
+
+        .dialog-row span {
+            margin-top: .08rem;
+            color: var(--text-3);
+            font-size: .73rem;
+            line-height: 1.45;
+        }
+
+        /* =========================================================
+           ANIMAÇÕES LEVES
+           ========================================================= */
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(7px);
+            transition:
+                opacity 340ms ease,
+                transform 340ms ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: none;
+        }
+
+        .swap {
+            animation:
+                swap-in
+                180ms
+                var(--ease)
+                both;
+        }
+
+        @keyframes swap-in {
+            from {
+                opacity: .3;
+                transform: translateY(3px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        /* =========================================================
+           RESPONSIVO
+           ========================================================= */
+
+        @media (max-width: 980px) {
+            .desktop-nav {
                 display: none;
             }
 
-            .menu-btn {
-                display: grid;
+            .site-header {
+                grid-template-columns: 1fr auto;
             }
 
-            .hero-grid,
-            .overview-grid,
-            .contact-card {
+            .hero {
                 grid-template-columns: 1fr;
             }
 
-            .preview {
-                max-width: 700px;
-                margin: 0 auto;
+            .hero-copy {
+                min-height: auto;
+                padding-bottom: .4rem;
             }
 
-            .audience-grid,
-            .steps-grid {
-                grid-template-columns: repeat(2, minmax(0,1fr));
+            .product-preview {
+                width: min(100%, 720px);
             }
 
-            .modules {
-                grid-template-columns: repeat(2, minmax(0,1fr));
-            }
-
-            .builder {
+            .roles-layout {
                 grid-template-columns: 1fr;
             }
 
-            .builder-summary {
-                position: static;
+            .roles-list {
+                display: flex;
+                gap: .3rem;
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+
+            .roles-list::-webkit-scrollbar {
+                display: none;
+            }
+
+            .role-button {
+                min-width: 195px;
             }
         }
 
-        @media (max-width: 760px) {
-            .container {
-                width: min(calc(100% - 1.2rem), var(--container));
+        @media (max-width: 720px) {
+            html {
+                scroll-padding-top: 78px;
             }
 
-            .section,
-            .contact-section {
-                padding: 4rem 0;
+            body {
+                font-size: 16px;
             }
 
-            .header-inner {
-                min-height: 68px;
+            .page {
+                width: min(calc(100% - 18px), var(--max));
+                padding-top: max(8px, var(--safe-top));
+                padding-bottom:
+                    calc(5.6rem + var(--safe-bottom));
+            }
+
+            .site-header {
+                top: max(6px, var(--safe-top));
+                min-height: 57px;
+                gap: .36rem;
+                padding: .42rem;
+                border-radius: 14px;
+            }
+
+            .brand-icon {
+                width: 38px;
+                height: 38px;
+                border-radius: 10px;
+            }
+
+            .brand-copy strong {
+                font-size: .86rem;
             }
 
             .brand-copy span {
                 display: none;
             }
 
-            .header-actions .btn-secondary {
+            .header-actions .icon-button {
                 display: none;
             }
 
+            .login-button {
+                width: 40px;
+                min-height: 40px;
+                padding: 0;
+            }
+
+            .login-button span {
+                display: none;
+            }
+
+            .main {
+                gap: .75rem;
+                margin-top: .72rem;
+            }
+
             .hero {
-                padding: 3.4rem 0 3rem;
+                gap: .7rem;
             }
 
-            .hero-title {
-                font-size: clamp(2.35rem,11vw,3.8rem);
+            .hero-copy {
+                padding: .75rem .15rem .35rem;
             }
 
-            .hero-text {
-                font-size: 1.02rem;
+            .eyebrow {
+                font-size: .72rem;
+            }
+
+            .hero h1 {
+                margin-top: .55rem;
+                font-size: clamp(2rem, 10vw, 2.9rem);
+            }
+
+            .hero-lead {
+                font-size: .95rem;
+                line-height: 1.62;
             }
 
             .hero-actions {
                 display: grid;
-            }
-
-            .hero-actions .btn {
-                width: 100%;
-            }
-
-            .app-body {
-                grid-template-columns: 76px minmax(0,1fr);
-                min-height: 350px;
-            }
-
-            .app-side {
-                padding: .6rem;
-            }
-
-            .app-nav-item {
-                justify-content: center;
-                font-size: 0;
-            }
-
-            .app-stats {
                 grid-template-columns: 1fr;
             }
 
-            .app-stat:nth-child(n+3) {
+            .button {
+                width: 100%;
+                min-height: 46px;
+                font-size: .84rem;
+            }
+
+            .hero-notes {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: .42rem;
+                font-size: .76rem;
+            }
+
+            .product-preview,
+            .section,
+            .access-band {
+                border-radius: 15px;
+            }
+
+            .preview-header {
+                min-height: 64px;
+                padding: .65rem;
+            }
+
+            .status-pill {
+                width: 30px;
+                min-width: 30px;
+                height: 30px;
+                justify-content: center;
+                padding: 0;
+                border-radius: 9px;
+            }
+
+            .status-pill span {
                 display: none;
             }
 
-            .audience-grid,
-            .steps-grid,
-            .modules,
-            .builder-options,
-            .faq-grid,
-            .footer-grid {
-                grid-template-columns: 1fr;
+            .preview-content {
+                min-height: 0;
+                padding: .58rem .65rem .7rem;
             }
 
-            .modules-head {
+            .preview-metrics {
                 grid-template-columns: 1fr;
-                align-items: start;
+                gap: .46rem;
             }
 
-            .contact-card {
+            .metric {
+                display: grid;
+                grid-template-columns: auto minmax(0, 1fr);
+                gap: .5rem;
+                align-items: center;
+            }
+
+            .metric-top {
+                grid-row: 1 / span 2;
+            }
+
+            .metric span {
+                margin-top: 0;
+                font-size: .73rem;
+            }
+
+            .metric strong {
+                font-size: .88rem;
+            }
+
+            .preview-row {
+                grid-template-columns: auto minmax(0, 1fr);
+                min-height: 64px;
+            }
+
+            .row-state {
+                grid-column: 2;
+                justify-self: start;
+                margin-top: -.18rem;
+            }
+
+            .section-header {
+                min-height: 68px;
                 padding: .7rem;
-                border-radius: 24px;
             }
 
-            .contact-copy {
-                padding: 1rem 1rem 1.35rem;
+            .section-icon {
+                width: 42px;
+                height: 42px;
             }
 
-            .footer-grid {
-                gap: 1.3rem;
+            .section-copy h2 {
+                font-size: .94rem;
             }
 
-            .footer-bottom {
-                align-items: flex-start;
+            .section-copy p {
+                font-size: .75rem;
+            }
+
+            .section-body {
+                padding: .68rem;
+            }
+
+            .work-row {
+                grid-template-columns: auto minmax(0, 1fr);
+                min-height: 88px;
+                padding: .72rem .05rem;
+            }
+
+            .work-icon {
+                width: 44px;
+                height: 44px;
+            }
+
+            .work-copy strong {
+                font-size: .86rem;
+            }
+
+            .work-copy span {
+                font-size: .76rem;
+            }
+
+            .work-tag {
+                grid-column: 2;
+                justify-self: start;
+            }
+
+            .flow-stage {
+                padding: .75rem .7rem .85rem;
+            }
+
+            .flow-intro {
                 flex-direction: column;
             }
-        }
 
-        @media (max-width: 480px) {
-            .header-actions .btn-primary {
-                min-height: 42px;
-                padding: .66rem .72rem;
+            .flow-line {
+                grid-template-columns: 1fr;
+                gap: .7rem;
+            }
+
+            .flow-step {
+                display: grid;
+                grid-template-columns: auto minmax(0, 1fr);
+                gap: .58rem;
+                padding: 0;
+            }
+
+            .flow-step:not(:last-child)::after {
+                top: 42px;
+                bottom: -12px;
+                left: 19px;
+                width: 2px;
+                height: auto;
+                background:
+                    linear-gradient(
+                        180deg,
+                        rgba(37, 99, 235, .22),
+                        rgba(124, 58, 237, .16)
+                    );
+            }
+
+            .flow-step-head {
+                display: block;
+            }
+
+            .flow-node {
+                width: 40px;
+                height: 40px;
+            }
+
+            .flow-step-number {
+                display: none;
+            }
+
+            .flow-step strong {
+                margin-top: .05rem;
                 font-size: .8rem;
             }
 
-            .app-window {
-                border-radius: 20px;
+            .flow-step p {
+                font-size: .74rem;
             }
 
-            .app-body {
-                grid-template-columns: 62px minmax(0,1fr);
+            .role-stage {
+                min-height: 0;
+                padding: .75rem;
             }
 
-            .app-row {
-                grid-template-columns: 28px minmax(0,1fr);
+            .role-points {
+                grid-template-columns: 1fr;
+                gap: .65rem;
             }
 
-            .status {
-                display: none;
+            .access-band {
+                grid-template-columns: 1fr;
+                padding: .85rem;
+            }
+
+            .access-actions {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+
+            .footer {
+                align-items: flex-start;
+                flex-direction: column;
+                font-size: .7rem;
+            }
+
+            .mobile-nav {
+                position: fixed;
+                z-index: 120;
+                right: .5rem;
+                bottom: max(.5rem, var(--safe-bottom));
+                left: .5rem;
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: .18rem;
+                padding: .32rem;
+                border: 1px solid rgba(220, 229, 223, .98);
+                border-radius: 15px;
+                background: rgba(255, 255, 255, .95);
+                box-shadow: var(--shadow-md);
+                backdrop-filter: blur(16px);
+            }
+
+            .mobile-nav a {
+                display: grid;
+                min-height: 51px;
+                place-items: center;
+                align-content: center;
+                gap: .08rem;
+                border-radius: 10px;
+                color: var(--text-3);
+                font-size: .58rem;
+                font-weight: 780;
+            }
+
+            .mobile-nav a i {
+                display: block;
+                font-size: 1.08rem;
+                line-height: 1;
+            }
+
+            .mobile-nav a.active {
+                background: var(--green-soft);
+                color: var(--brand-700);
+            }
+
+            .mobile-nav a.login-mobile {
+                background:
+                    linear-gradient(
+                        135deg,
+                        var(--brand),
+                        var(--brand-600)
+                    );
+                color: #fff;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .page {
+                width: min(calc(100% - 14px), var(--max));
+            }
+
+            .hero-notes {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-tab {
+                flex: 0 0 auto;
             }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            html {
-                scroll-behavior: auto;
-            }
-
             *,
             *::before,
             *::after {
-                transition-duration: .01ms !important;
+                scroll-behavior: auto !important;
                 animation-duration: .01ms !important;
                 animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
             }
         }
     </style>
 </head>
 
-@php
-    $loginUrl = \Illuminate\Support\Facades\Route::has('login')
-        ? route('login')
-        : url('/login');
-
-    $salesWhatsapp = preg_replace('/\D+/', '', (string) config('app.sales_whatsapp', ''));
-    $salesPhone = (string) config('app.sales_phone', '');
-    $salesEmail = (string) config('app.sales_email', config('mail.from.address', ''));
-    $salesHours = (string) config('app.sales_hours', 'Atendimento em horário comercial');
-
-    $audiences = [
-        [
-            'icon' => 'building-2',
-            'tone' => '',
-            'title' => 'Associações comunitárias',
-            'text' => 'Organize membros, contribuições, reuniões, documentos, demandas, projetos e prestação de contas.',
-        ],
-        [
-            'icon' => 'users-round',
-            'tone' => 'tone-blue',
-            'title' => 'Cooperativas e grupos produtivos',
-            'text' => 'Controle produção, entregas, distribuição por cliente, comprovantes, repasses e limites.',
-        ],
-        [
-            'icon' => 'folder-kanban',
-            'tone' => 'tone-amber',
-            'title' => 'Organizações com projetos',
-            'text' => 'Centralize metas, beneficiários, entregas, relatórios, documentos e movimentações.',
-        ],
-        [
-            'icon' => 'clipboard-check',
-            'tone' => 'tone-violet',
-            'title' => 'Entidades prestadoras de serviços',
-            'text' => 'Acompanhe solicitações, prestadores, ordens de serviço, execução, comprovação e pagamentos.',
-        ],
-    ];
-
-    $steps = [
-        ['title' => 'Entendemos a operação', 'text' => 'Mapeamos a organização, os processos atuais, os usuários e os principais problemas.'],
-        ['title' => 'Escolhemos os módulos', 'text' => 'Você contrata somente as áreas necessárias e pode adicionar novos recursos depois.'],
-        ['title' => 'Configuramos o ambiente', 'text' => 'Estruturamos organização, acessos, cadastros, regras e parâmetros iniciais.'],
-        ['title' => 'A equipe começa a usar', 'text' => 'Os responsáveis recebem orientação para operar, acompanhar e consultar as informações.'],
-    ];
-
-    $modules = [
-        [
-            'class' => 'mod-green',
-            'icon' => 'users-round',
-            'badge' => 'Base organizacional',
-            'name' => 'Associados e secretaria',
-            'description' => 'Centralize a vida cadastral e administrativa dos membros.',
-            'features' => ['Cadastro completo', 'Vínculos e documentos', 'Carteirinha e portal'],
-        ],
-        [
-            'class' => 'mod-blue',
-            'icon' => 'folder-kanban',
-            'badge' => 'Projetos',
-            'name' => 'Projetos, produção e entregas',
-            'description' => 'Gerencie projetos de venda, produção e distribuição.',
-            'features' => ['Produtos e clientes', 'Entregas e limites', 'Distribuição e comprovantes'],
-        ],
-        [
-            'class' => 'mod-amber',
-            'icon' => 'wallet-cards',
-            'badge' => 'Financeiro',
-            'name' => 'Financeiro e contribuições',
-            'description' => 'Acompanhe entradas, saídas, cobranças e repasses.',
-            'features' => ['Caixa e despesas', 'Contribuições', 'Extratos e relatórios'],
-        ],
-        [
-            'class' => 'mod-violet',
-            'icon' => 'files',
-            'badge' => 'Governança',
-            'name' => 'Documentos, atas e reuniões',
-            'description' => 'Organize documentos oficiais e registros institucionais.',
-            'features' => ['Arquivos internos', 'Atas e assembleias', 'Emissão de documentos'],
-        ],
-        [
-            'class' => 'mod-rose',
-            'icon' => 'package-search',
-            'badge' => 'Patrimônio',
-            'name' => 'Estoque, insumos e patrimônio',
-            'description' => 'Controle materiais, equipamentos, entradas e saídas.',
-            'features' => ['Itens e categorias', 'Movimentações e saldos', 'Equipamentos e ativos'],
-        ],
-        [
-            'class' => 'mod-slate',
-            'icon' => 'clipboard-list',
-            'badge' => 'Operação',
-            'name' => 'Serviços e ordens de trabalho',
-            'description' => 'Controle solicitações, prestadores, execução e pagamento.',
-            'features' => ['Ordens e etapas', 'Prestadores', 'Comprovação financeira'],
-        ],
-        [
-            'class' => 'mod-blue',
-            'icon' => 'badge-dollar-sign',
-            'badge' => 'Comercial',
-            'name' => 'PDV e vendas',
-            'description' => 'Registre vendas, produtos, recebimentos e histórico.',
-            'features' => ['Caixa e venda', 'Comprovantes', 'Integração com estoque'],
-        ],
-        [
-            'class' => 'mod-green',
-            'icon' => 'chart-no-axes-combined',
-            'badge' => 'Gestão',
-            'name' => 'Demandas, relatórios e indicadores',
-            'description' => 'Transforme registros operacionais em acompanhamento gerencial.',
-            'features' => ['Demandas', 'Indicadores', 'Relatórios financeiros'],
-        ],
-        [
-            'class' => 'mod-violet',
-            'icon' => 'smartphone',
-            'badge' => 'Autoatendimento',
-            'name' => 'Portais e acesso externo',
-            'description' => 'Disponibilize informações para associados, clientes e prestadores.',
-            'features' => ['Portal do associado', 'Consulta de pagamentos', 'Acesso por função'],
-        ],
-    ];
-
-    $selectableModules = collect($modules)
-        ->map(fn ($module) => [
-            'name' => $module['name'],
-            'description' => $module['description'],
-        ])
-        ->values();
-@endphp
-
 <body>
-<div class="site">
-    <header class="site-header">
-        <div class="container">
-            <div class="header-inner">
-                <a href="#inicio" class="brand" aria-label="ZeCoop SGC">
-                    <span class="brand-mark">
-                        <i data-lucide="building-2"></i>
-                    </span>
+    <div class="page">
+        <header
+            class="site-header"
+            id="siteHeader"
+        >
+            <a
+                class="brand"
+                href="#inicio"
+                aria-label="SGC — início"
+            >
+                <span
+                    class="brand-icon"
+                    aria-hidden="true"
+                >
+                    <i class="ph-duotone ph-leaf"></i>
+                </span>
 
-                    <span class="brand-copy">
-                        <strong>ZeCoop SGC</strong>
-                        <span>Gestão para organizações</span>
-                    </span>
+                <span class="brand-copy">
+                    <strong>SGC</strong>
+                    <span>Sistema de Gestão Cooperativa</span>
+                </span>
+            </a>
+
+            <nav
+                class="desktop-nav"
+                aria-label="Navegação principal"
+            >
+                <a
+                    class="active"
+                    href="#inicio"
+                >
+                    <i class="ph ph-house"></i>
+                    Início
                 </a>
 
-                <nav class="nav" aria-label="Navegação principal">
-                    <a href="#para-quem">Para quem</a>
-                    <a href="#como-funciona">Como funciona</a>
-                    <a href="#modulos">Módulos</a>
-                    <a href="#contratacao">Contratação</a>
-                    <a href="#contato">Contato</a>
-                </nav>
+                <a href="#trabalho">
+                    <i class="ph ph-check-square"></i>
+                    O que organiza
+                </a>
 
-                <div class="header-actions">
-                    <a href="{{ $loginUrl }}" class="btn btn-secondary">Entrar</a>
-                    <a href="#contato" class="btn btn-primary">Solicitar demonstração</a>
+                <a href="#fluxo">
+                    <i class="ph ph-path"></i>
+                    Como funciona
+                </a>
 
-                    <button
-                        class="menu-btn"
-                        id="menu-btn"
-                        type="button"
-                        aria-label="Abrir menu"
-                        aria-expanded="false"
-                    >
-                        <i data-lucide="menu" id="menu-open"></i>
-                        <i data-lucide="x" id="menu-close" hidden></i>
-                    </button>
-                </div>
-            </div>
-
-            <nav class="mobile-nav" id="mobile-nav" aria-label="Navegação para celular">
-                <a href="#para-quem">Para quem é</a>
-                <a href="#como-funciona">Como funciona</a>
-                <a href="#modulos">Módulos disponíveis</a>
-                <a href="#contratacao">Monte sua solução</a>
-                <a href="#contato">Falar com a equipe</a>
-                <a href="{{ $loginUrl }}">Já sou cliente</a>
+                <a href="#perfis">
+                    <i class="ph ph-users-three"></i>
+                    Perfis
+                </a>
             </nav>
-        </div>
-    </header>
 
-    <main>
-        <section class="hero" id="inicio">
-            <div class="container">
-                <div class="hero-grid">
-                    <div>
-                        <span class="eyebrow">
-                            <i data-lucide="sliders-horizontal"></i>
-                            Gestão modular, simples e conectada
-                        </span>
+            <div class="header-actions">
+                <button
+                    class="icon-button"
+                    id="installHeader"
+                    type="button"
+                    aria-label="Instalar SGC"
+                    title="Instalar aplicativo"
+                    hidden
+                >
+                    <i class="ph ph-download-simple"></i>
+                </button>
 
-                        <h1 class="hero-title">
-                            Toda a sua organização em um só lugar, <span>sem pagar pelo que não usa.</span>
-                        </h1>
-
-                        <p class="hero-text">
-                            O ZeCoop SGC reúne associados, projetos, entregas, financeiro,
-                            documentos, estoque, serviços e atendimento em uma plataforma
-                            preparada para a rotina de associações, cooperativas e organizações.
-                        </p>
-
-                        <div class="hero-actions">
-                            <a href="#contato" class="btn btn-primary">
-                                <i data-lucide="calendar-check-2"></i>
-                                Agendar uma demonstração
-                            </a>
-
-                            <a href="#modulos" class="btn btn-secondary">
-                                Conhecer os módulos
-                                <i data-lucide="chevron-right"></i>
-                            </a>
-                        </div>
-
-                        <div class="trust-row">
-                            <span><i data-lucide="circle-check"></i> Implantação orientada</span>
-                            <span><i data-lucide="circle-check"></i> Celular e computador</span>
-                            <span><i data-lucide="circle-check"></i> Módulos separados</span>
-                        </div>
-                    </div>
-
-                    <div class="preview" aria-label="Prévia ilustrativa do sistema">
-                        <div class="app-window">
-                            <div class="app-top">
-                                <div class="dots"><span></span><span></span><span></span></div>
-                                <small>Visão geral da organização</small>
-                            </div>
-
-                            <div class="app-body">
-                                <aside class="app-side">
-                                    <div class="app-logo"><i data-lucide="panels-top-left"></i></div>
-                                    <div class="app-nav-item active"><i data-lucide="layout-dashboard"></i> Visão geral</div>
-                                    <div class="app-nav-item"><i data-lucide="users-round"></i> Associados</div>
-                                    <div class="app-nav-item"><i data-lucide="folder-kanban"></i> Projetos</div>
-                                    <div class="app-nav-item"><i data-lucide="wallet-cards"></i> Financeiro</div>
-                                </aside>
-
-                                <div class="app-main">
-                                    <div class="app-main-head">
-                                        <strong>Painel da organização</strong>
-                                        <span class="fake-avatar"></span>
-                                    </div>
-
-                                    <div class="app-stats">
-                                        <div class="app-stat"><span>Associados ativos</span><strong>248</strong></div>
-                                        <div class="app-stat"><span>Projetos em andamento</span><strong>12</strong></div>
-                                        <div class="app-stat"><span>Valor movimentado</span><strong>R$ 186 mil</strong></div>
-                                    </div>
-
-                                    <div class="app-chart">
-                                        <div class="chart-head">
-                                            <strong>Movimentação dos últimos meses</strong>
-                                            <span>Atualizado</span>
-                                        </div>
-
-                                        <div class="bars">
-                                            <span style="height:36%"></span>
-                                            <span style="height:52%"></span>
-                                            <span style="height:44%"></span>
-                                            <span style="height:68%"></span>
-                                            <span style="height:61%"></span>
-                                            <span style="height:84%"></span>
-                                            <span style="height:76%"></span>
-                                            <span style="height:94%"></span>
-                                        </div>
-                                    </div>
-
-                                    <div class="app-list">
-                                        <div class="app-row">
-                                            <span class="app-row-icon"><i data-lucide="package-check"></i></span>
-                                            <span><strong>Entrega registrada</strong><small>Projeto Alimentação Escolar</small></span>
-                                            <span class="status">Concluída</span>
-                                        </div>
-
-                                        <div class="app-row">
-                                            <span class="app-row-icon"><i data-lucide="receipt-text"></i></span>
-                                            <span><strong>Comprovante emitido</strong><small>Pagamento disponível para consulta</small></span>
-                                            <span class="status">Emitido</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <a
+                    class="login-button"
+                    href="{{ route('login') }}"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                >
+                    <i class="ph ph-sign-in"></i>
+                    <span>Entrar</span>
+                </a>
             </div>
-        </section>
+        </header>
 
-        <section class="section section-soft" id="para-quem">
-            <div class="container">
-                <div class="heading center">
-                    <span class="eyebrow"><i data-lucide="users-round"></i> Para quem é o ZeCoop</span>
+        <main class="main">
+            <section
+                class="hero"
+                id="inicio"
+            >
+                <div class="hero-copy">
+                    <span class="eyebrow">
+                        <i class="ph-duotone ph-buildings"></i>
+                        Gestão para organizações
+                    </span>
 
-                    <h2 class="title">
-                        Criado para organizações que precisam de controle sem complicação.
-                    </h2>
+                    <h1>
+                        Menos controles separados.
+                        <span>Mais clareza no trabalho.</span>
+                    </h1>
 
-                    <p class="description">
-                        A plataforma se adapta a diferentes estruturas e tamanhos.
-                        Você começa com o necessário e adiciona novos módulos conforme a operação evolui.
+                    <p class="hero-lead">
+                        O SGC reúne projetos, associados, entregas,
+                        distribuição, tesouraria e documentos em um fluxo
+                        único. Assim, a equipe registra o que aconteceu
+                        e consegue acompanhar o restante sem reconstruir
+                        a informação toda vez.
                     </p>
-                </div>
 
-                <div class="audience-grid">
-                    @foreach($audiences as $audience)
-                        <article class="card">
-                            <div class="card-icon {{ $audience['tone'] }}">
-                                <i data-lucide="{{ $audience['icon'] }}"></i>
-                            </div>
-
-                            <h3>{{ $audience['title'] }}</h3>
-                            <p>{{ $audience['text'] }}</p>
-                        </article>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-
-        <section class="section" id="visao-geral">
-            <div class="container">
-                <div class="overview-grid">
-                    <div>
-                        <span class="eyebrow"><i data-lucide="layout-dashboard"></i> Visão geral da aplicação</span>
-
-                        <h2 class="title">
-                            Menos planilhas espalhadas. Mais informação para decidir.
-                        </h2>
-
-                        <p class="description">
-                            O ZeCoop conecta cadastros, movimentações e documentos.
-                            Cada informação pode alimentar relatórios, comprovantes,
-                            históricos e portais de consulta.
-                        </p>
-
-                        <div class="benefits">
-                            <div class="benefit">
-                                <span class="check"><i data-lucide="check"></i></span>
-                                <span><strong>Informações centralizadas</strong><span>Cadastros e movimentações ficam vinculados à organização correta.</span></span>
-                            </div>
-
-                            <div class="benefit">
-                                <span class="check"><i data-lucide="check"></i></span>
-                                <span><strong>Acessos por função</strong><span>Cada usuário visualiza somente os recursos permitidos para sua atividade.</span></span>
-                            </div>
-
-                            <div class="benefit">
-                                <span class="check"><i data-lucide="check"></i></span>
-                                <span><strong>Histórico e rastreabilidade</strong><span>Alterações, aprovações e registros importantes podem ser acompanhados.</span></span>
-                            </div>
-
-                            <div class="benefit">
-                                <span class="check"><i data-lucide="check"></i></span>
-                                <span><strong>Uso no campo e no escritório</strong><span>A interface funciona em celular, tablet e computador.</span></span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flow-panel">
-                        <div class="flow-head">
-                            <strong>Uma operação conectada</strong>
-                            <span class="pill">Fluxo integrado</span>
-                        </div>
-
-                        <div class="flow-list">
-                            <div class="flow">
-                                <span class="flow-icon"><i data-lucide="users-round"></i></span>
-                                <span><strong>Cadastre pessoas e organizações</strong><span>Associados, clientes, prestadores e usuários.</span></span>
-                                <span class="flow-number">1</span>
-                            </div>
-
-                            <div class="flow">
-                                <span class="flow-icon"><i data-lucide="folder-kanban"></i></span>
-                                <span><strong>Configure projetos e regras</strong><span>Produtos, limites, períodos e responsáveis.</span></span>
-                                <span class="flow-number">2</span>
-                            </div>
-
-                            <div class="flow">
-                                <span class="flow-icon"><i data-lucide="package-check"></i></span>
-                                <span><strong>Registre a operação</strong><span>Entregas, serviços, estoque e documentos.</span></span>
-                                <span class="flow-number">3</span>
-                            </div>
-
-                            <div class="flow">
-                                <span class="flow-icon"><i data-lucide="chart-no-axes-combined"></i></span>
-                                <span><strong>Acompanhe resultados</strong><span>Relatórios, saldos, históricos e portais.</span></span>
-                                <span class="flow-number">4</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section class="section section-soft" id="como-funciona">
-            <div class="container">
-                <div class="heading center">
-                    <span class="eyebrow"><i data-lucide="route"></i> Como começar</span>
-
-                    <h2 class="title">
-                        Da escolha dos módulos ao uso diário, com acompanhamento.
-                    </h2>
-
-                    <p class="description">
-                        A implantação é organizada para que sua equipe entre no sistema
-                        com uma estrutura coerente e pronta para a rotina.
-                    </p>
-                </div>
-
-                <div class="steps-grid">
-                    @foreach($steps as $index => $step)
-                        <article class="card step">
-                            <span class="step-number">{{ $index + 1 }}</span>
-                            <h3>{{ $step['title'] }}</h3>
-                            <p>{{ $step['text'] }}</p>
-                        </article>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-
-        <section class="section" id="modulos">
-            <div class="container">
-                <div class="modules-head">
-                    <div class="heading">
-                        <span class="eyebrow"><i data-lucide="blocks"></i> Módulos disponíveis</span>
-
-                        <h2 class="title">
-                            Monte uma solução do tamanho da sua necessidade.
-                        </h2>
-
-                        <p class="description">
-                            Os módulos trabalham de forma integrada, mas podem ser contratados
-                            separadamente. Sua organização investe apenas no que realmente utiliza.
-                        </p>
-                    </div>
-
-                    <div class="pay-only">
-                        Comece com poucos módulos e amplie depois, sem precisar trocar de sistema.
-                    </div>
-                </div>
-
-                <div class="modules">
-                    @foreach($modules as $module)
-                        <article class="card module {{ $module['class'] }}">
-                            <div class="module-top">
-                                <span class="module-icon">
-                                    <i data-lucide="{{ $module['icon'] }}"></i>
-                                </span>
-
-                                <span class="module-badge">{{ $module['badge'] }}</span>
-                            </div>
-
-                            <h3>{{ $module['name'] }}</h3>
-                            <p>{{ $module['description'] }}</p>
-
-                            <ul>
-                                @foreach($module['features'] as $feature)
-                                    <li>
-                                        <i data-lucide="check"></i>
-                                        {{ $feature }}
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </article>
-                    @endforeach
-                </div>
-            </div>
-        </section>
-
-        <section class="section section-soft" id="contratacao">
-            <div class="container">
-                <div class="heading">
-                    <span class="eyebrow"><i data-lucide="badge-dollar-sign"></i> Contratação modular</span>
-
-                    <h2 class="title">
-                        Selecione o que sua organização precisa agora.
-                    </h2>
-
-                    <p class="description">
-                        Marque os módulos de interesse. A equipe prepara uma proposta
-                        adequada ao tamanho e à rotina da organização.
-                    </p>
-                </div>
-
-                <div class="builder">
-                    <div class="builder-options">
-                        @foreach($selectableModules as $index => $module)
-                            <div class="builder-option">
-                                <input
-                                    type="checkbox"
-                                    id="module-{{ $index }}"
-                                    value="{{ $module['name'] }}"
-                                    class="module-checkbox"
-                                >
-
-                                <label for="module-{{ $index }}">
-                                    <span class="builder-check"><i data-lucide="check"></i></span>
-
-                                    <span>
-                                        <strong>{{ $module['name'] }}</strong>
-                                        <span>{{ $module['description'] }}</span>
-                                    </span>
-                                </label>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <aside class="builder-summary">
-                        <h3>Sua solução personalizada</h3>
-
-                        <p>
-                            Selecione os módulos para informar à equipe comercial
-                            quais áreas deseja avaliar.
-                        </p>
-
-                        <div class="builder-count">
-                            <span>Módulos selecionados</span>
-                            <strong id="selected-count">0</strong>
-                        </div>
-
-                        <div class="selected-modules" id="selected-modules">
-                            <span class="builder-empty">Nenhum módulo selecionado.</span>
-                        </div>
-
-                        <a href="#contato" class="btn btn-primary" id="builder-contact">
-                            Solicitar proposta personalizada
+                    <div class="hero-actions">
+                        <a
+                            class="button primary"
+                            href="{{ route('login') }}"
+                        >
+                            <i class="ph ph-sign-in"></i>
+                            Entrar no SGC
+                            <i class="ph ph-arrow-right"></i>
                         </a>
 
-                        <div class="price-note">
-                            <i data-lucide="info"></i>
-                            <span>
-                                O valor depende dos módulos, usuários,
-                                volume de operação e necessidades de implantação.
-                            </span>
-                        </div>
-                    </aside>
-                </div>
-            </div>
-        </section>
-
-        <section class="contact-section" id="contato">
-            <div class="container">
-                <div class="contact-card">
-                    <div class="contact-copy">
-                        <span class="eyebrow"><i data-lucide="messages-square"></i> Fale com a equipe</span>
-
-                        <h2>
-                            Veja como o ZeCoop pode funcionar na sua organização.
-                        </h2>
-
-                        <p>
-                            Conte brevemente sua necessidade. A equipe pode apresentar os módulos,
-                            esclarecer o funcionamento e preparar uma proposta sem recursos desnecessários.
-                        </p>
-
-                        <div class="contact-details">
-                            @if($salesPhone)
-                                <div class="contact-detail">
-                                    <span class="contact-detail-icon"><i data-lucide="phone"></i></span>
-                                    <span>{{ $salesPhone }}</span>
-                                </div>
-                            @endif
-
-                            @if($salesEmail)
-                                <div class="contact-detail">
-                                    <span class="contact-detail-icon"><i data-lucide="mail"></i></span>
-                                    <span>{{ $salesEmail }}</span>
-                                </div>
-                            @endif
-
-                            <div class="contact-detail">
-                                <span class="contact-detail-icon"><i data-lucide="clock-3"></i></span>
-                                <span>{{ $salesHours }}</span>
-                            </div>
-                        </div>
+                        <a
+                            class="button secondary"
+                            href="#trabalho"
+                        >
+                            <i class="ph ph-arrow-down"></i>
+                            Conhecer o sistema
+                        </a>
                     </div>
 
-                    <form class="lead-card" id="lead-form">
-                        <h3>Solicite uma apresentação</h3>
-                        <p>Preencha os dados para gerar uma mensagem com os módulos escolhidos.</p>
+                    <div class="hero-notes">
+                        <span>
+                            <i class="ph ph-device-mobile"></i>
+                            Feito para celular
+                        </span>
 
-                        <div class="field">
-                            <label for="lead-name">Seu nome</label>
-                            <input id="lead-name" type="text" autocomplete="name" placeholder="Como podemos chamar você?" required>
+                        <span>
+                            <i class="ph ph-users-three"></i>
+                            Acesso por função
+                        </span>
+
+                        <span>
+                            <i class="ph ph-file-check"></i>
+                            Informação rastreável
+                        </span>
+                    </div>
+                </div>
+
+                <aside
+                    class="product-preview reveal"
+                    aria-label="Exemplo interativo do SGC"
+                >
+                    <header class="preview-header">
+                        <div class="preview-header-main">
+                            <span
+                                class="preview-main-icon"
+                                aria-hidden="true"
+                            >
+                                <i
+                                    class="ph-duotone ph-folders"
+                                    id="previewHeaderIcon"
+                                ></i>
+                            </span>
+
+                            <div class="preview-header-copy">
+                                <strong id="previewHeaderTitle">
+                                    Projeto em execução
+                                </strong>
+
+                                <span id="previewHeaderSubtitle">
+                                    PNAE · visão resumida
+                                </span>
+                            </div>
                         </div>
 
-                        <div class="field">
-                            <label for="lead-organization">Organização</label>
-                            <input id="lead-organization" type="text" autocomplete="organization" placeholder="Nome da associação ou cooperativa" required>
-                        </div>
+                        <span class="status-pill">
+                            <i class="ph ph-check-circle"></i>
+                            <span>Atualizado</span>
+                        </span>
+                    </header>
 
-                        <div class="field">
-                            <label for="lead-contact">Telefone ou e-mail</label>
-                            <input id="lead-contact" type="text" placeholder="Informe um meio de contato" required>
-                        </div>
-
-                        <div class="field">
-                            <label for="lead-message">O que você precisa organizar?</label>
-                            <textarea id="lead-message" placeholder="Exemplo: associados, entregas, financeiro e documentos"></textarea>
-                        </div>
-
-                        <button class="btn btn-primary" type="submit">
-                            <i data-lucide="send"></i>
-                            Enviar interesse
+                    <div
+                        class="preview-tabs"
+                        role="tablist"
+                        aria-label="Áreas do exemplo"
+                    >
+                        <button
+                            class="preview-tab active"
+                            type="button"
+                            data-preview="project"
+                            role="tab"
+                        >
+                            <i class="ph ph-folders"></i>
+                            Projeto
                         </button>
 
-                        <p class="lead-helper">
-                            Será aberta uma mensagem no canal comercial configurado.
-                        </p>
-                    </form>
-                </div>
-            </div>
-        </section>
+                        <button
+                            class="preview-tab"
+                            type="button"
+                            data-preview="delivery"
+                            role="tab"
+                        >
+                            <i class="ph ph-package"></i>
+                            Entregas
+                        </button>
 
-        <section class="section section-soft" id="duvidas">
-            <div class="container">
-                <div class="heading center">
-                    <span class="eyebrow"><i data-lucide="circle-help"></i> Dúvidas frequentes</span>
-                    <h2 class="title">Informações importantes antes de contratar.</h2>
-                </div>
+                        <button
+                            class="preview-tab"
+                            type="button"
+                            data-preview="finance"
+                            role="tab"
+                        >
+                            <i class="ph ph-wallet"></i>
+                            Financeiro
+                        </button>
 
-                <div class="faq-grid">
-                    <details class="faq">
-                        <summary>Preciso contratar todos os módulos?</summary>
-                        <p>Não. A contratação pode ser feita por módulo e novos recursos podem ser ativados posteriormente.</p>
-                    </details>
+                        <button
+                            class="preview-tab"
+                            type="button"
+                            data-preview="reports"
+                            role="tab"
+                        >
+                            <i class="ph ph-files"></i>
+                            Relatórios
+                        </button>
+                    </div>
 
-                    <details class="faq">
-                        <summary>O sistema funciona no celular?</summary>
-                        <p>Sim. Os painéis e portais são responsivos e funcionam em celular, tablet e computador.</p>
-                    </details>
+                    <div
+                        class="preview-content"
+                        id="previewContent"
+                    ></div>
+                </aside>
+            </section>
 
-                    <details class="faq">
-                        <summary>É possível ter vários tipos de usuário?</summary>
-                        <p>Sim. Administradores, gestores, financeiros, secretários, associados e outros perfis podem ter acessos diferentes.</p>
-                    </details>
-
-                    <details class="faq">
-                        <summary>Os dados de organizações diferentes ficam separados?</summary>
-                        <p>Sim. Cada organização possui ambiente, usuários vinculados, cadastros, configurações e registros próprios.</p>
-                    </details>
-
-                    <details class="faq">
-                        <summary>A implantação considera a rotina atual?</summary>
-                        <p>Sim. Regras, cadastros, acessos e módulos são configurados conforme a operação contratada.</p>
-                    </details>
-
-                    <details class="faq">
-                        <summary>Como o valor é definido?</summary>
-                        <p>A proposta considera módulos, usuários, volume de uso, implantação e necessidades específicas.</p>
-                    </details>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-brand">
-                    <a href="#inicio" class="brand">
-                        <span class="brand-mark"><i data-lucide="building-2"></i></span>
-
-                        <span class="brand-copy">
-                            <strong>ZeCoop SGC</strong>
-                            <span>Sistema de Gestão Cooperativa</span>
+            <section
+                class="section reveal"
+                id="trabalho"
+            >
+                <header class="section-header">
+                    <div class="section-heading">
+                        <span
+                            class="section-icon tone-blue"
+                            aria-hidden="true"
+                        >
+                            <i class="ph-duotone ph-check-square"></i>
                         </span>
+
+                        <div class="section-copy">
+                            <h2>O que o SGC ajuda a organizar</h2>
+                            <p>
+                                Quatro tarefas centrais, apresentadas do jeito
+                                que a equipe encontra no dia a dia.
+                            </p>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="section-body">
+                    <div class="work-list">
+                        <article class="work-row">
+                            <span
+                                class="work-icon tone-green"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone ph-basket"></i>
+                            </span>
+
+                            <div class="work-copy">
+                                <strong>Entregas e distribuição</strong>
+                                <span>
+                                    Registre produto e quantidade, acompanhe
+                                    o recebido e veja para onde cada parte foi
+                                    destinada.
+                                </span>
+                            </div>
+
+                            <span class="work-tag tone-green">
+                                <i class="ph ph-package"></i>
+                                Operação
+                            </span>
+                        </article>
+
+                        <article class="work-row">
+                            <span
+                                class="work-icon tone-violet"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone ph-chart-donut"></i>
+                            </span>
+
+                            <div class="work-copy">
+                                <strong>Projetos e participação</strong>
+                                <span>
+                                    Associe pessoas, produtos, limites e
+                                    histórico ao projeto correto sem depender
+                                    de listas paralelas.
+                                </span>
+                            </div>
+
+                            <span class="work-tag tone-violet">
+                                <i class="ph ph-folders"></i>
+                                Projetos
+                            </span>
+                        </article>
+
+                        <article class="work-row">
+                            <span
+                                class="work-icon tone-blue"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone ph-wallet"></i>
+                            </span>
+
+                            <div class="work-copy">
+                                <strong>Tesouraria e despesas</strong>
+                                <span>
+                                    Entradas, saídas, documentos e pendências
+                                    permanecem visíveis para conferência e
+                                    fechamento.
+                                </span>
+                            </div>
+
+                            <span class="work-tag tone-blue">
+                                <i class="ph ph-bank"></i>
+                                Financeiro
+                            </span>
+                        </article>
+
+                        <article class="work-row">
+                            <span
+                                class="work-icon tone-amber"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone ph-files"></i>
+                            </span>
+
+                            <div class="work-copy">
+                                <strong>Relatórios e prestação de contas</strong>
+                                <span>
+                                    O sistema reaproveita registros e documentos
+                                    já vinculados, reduzindo conferências
+                                    repetidas.
+                                </span>
+                            </div>
+
+                            <span class="work-tag tone-amber">
+                                <i class="ph ph-file-check"></i>
+                                Conferência
+                            </span>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                class="section reveal"
+                id="fluxo"
+            >
+                <header class="section-header">
+                    <div class="section-heading">
+                        <span
+                            class="section-icon tone-sky"
+                            aria-hidden="true"
+                        >
+                            <i class="ph-duotone ph-path"></i>
+                        </span>
+
+                        <div class="section-copy">
+                            <h2>Veja como uma informação continua no sistema</h2>
+                            <p>
+                                Escolha um fluxo. O objetivo é entender o caminho,
+                                não decorar telas.
+                            </p>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="flow-toolbar">
+                    <button
+                        class="flow-button active"
+                        type="button"
+                        data-flow="delivery"
+                    >
+                        <i class="ph ph-basket"></i>
+                        Entrega
+                    </button>
+
+                    <button
+                        class="flow-button"
+                        type="button"
+                        data-flow="finance"
+                    >
+                        <i class="ph ph-wallet"></i>
+                        Financeiro
+                    </button>
+
+                    <button
+                        class="flow-button"
+                        type="button"
+                        data-flow="accountability"
+                    >
+                        <i class="ph ph-files"></i>
+                        Prestação de contas
+                    </button>
+                </div>
+
+                <div
+                    class="flow-stage"
+                    id="flowStage"
+                ></div>
+            </section>
+
+            <section
+                class="section reveal"
+                id="perfis"
+            >
+                <header class="section-header">
+                    <div class="section-heading">
+                        <span
+                            class="section-icon tone-violet"
+                            aria-hidden="true"
+                        >
+                            <i class="ph-duotone ph-users-three"></i>
+                        </span>
+
+                        <div class="section-copy">
+                            <h2>Cada pessoa entra para fazer uma coisa diferente</h2>
+                            <p>
+                                O SGC adapta a prioridade da informação conforme
+                                a responsabilidade de quem está acessando.
+                            </p>
+                        </div>
+                    </div>
+                </header>
+
+                <div class="section-body">
+                    <div class="roles-layout">
+                        <div class="roles-list">
+                            <button
+                                class="role-button active"
+                                type="button"
+                                data-role="manager"
+                            >
+                                <span
+                                    class="role-button-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-chart-line-up"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Gestão</strong>
+                                    <span>Visão geral</span>
+                                </span>
+
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <button
+                                class="role-button"
+                                type="button"
+                                data-role="finance"
+                            >
+                                <span
+                                    class="role-button-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-wallet"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Tesouraria</strong>
+                                    <span>Valores e documentos</span>
+                                </span>
+
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <button
+                                class="role-button"
+                                type="button"
+                                data-role="operation"
+                            >
+                                <span
+                                    class="role-button-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-package"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Operação</strong>
+                                    <span>Campo e entregas</span>
+                                </span>
+
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+
+                            <button
+                                class="role-button"
+                                type="button"
+                                data-role="member"
+                            >
+                                <span
+                                    class="role-button-icon"
+                                    aria-hidden="true"
+                                >
+                                    <i class="ph-duotone ph-user-circle"></i>
+                                </span>
+
+                                <span>
+                                    <strong>Associado</strong>
+                                    <span>Participação própria</span>
+                                </span>
+
+                                <i class="ph ph-caret-right"></i>
+                            </button>
+                        </div>
+
+                        <div
+                            class="role-stage"
+                            id="roleStage"
+                        ></div>
+                    </div>
+                </div>
+            </section>
+
+            <section
+                class="access-band reveal"
+                id="acesso"
+            >
+                <div class="access-copy">
+                    <span
+                        class="access-icon"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-device-mobile"></i>
+                    </span>
+
+                    <div>
+                        <h2>Site para conhecer. PWA para trabalhar.</h2>
+
+                        <p>
+                            Pelo navegador, esta página funciona como entrada
+                            pública. Ao abrir o SGC já instalado como aplicativo,
+                            a home é ignorada e o usuário segue direto para o login.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="access-actions">
+                    <a
+                        class="button primary"
+                        href="{{ route('login') }}"
+                    >
+                        <i class="ph ph-sign-in"></i>
+                        Entrar
                     </a>
 
+                    <button
+                        class="button secondary"
+                        id="installAccess"
+                        type="button"
+                        hidden
+                    >
+                        <i class="ph ph-download-simple"></i>
+                        Instalar
+                    </button>
+
+                    <button
+                        class="button secondary"
+                        id="accessHelp"
+                        type="button"
+                    >
+                        <i class="ph ph-info"></i>
+                        Como funciona
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <span class="footer-brand">
+                <i class="ph-duotone ph-leaf"></i>
+                SGC · Sistema de Gestão Cooperativa
+            </span>
+
+            <nav
+                class="footer-links"
+                aria-label="Links do rodapé"
+            >
+                <a href="#inicio">Início</a>
+                <a href="#trabalho">O sistema</a>
+                <a href="{{ route('login') }}">Entrar</a>
+            </nav>
+        </footer>
+    </div>
+
+    <nav
+        class="mobile-nav"
+        aria-label="Navegação móvel"
+    >
+        <a
+            class="active"
+            href="#inicio"
+        >
+            <i class="ph ph-house"></i>
+            Início
+        </a>
+
+        <a href="#trabalho">
+            <i class="ph ph-check-square"></i>
+            Sistema
+        </a>
+
+        <a href="#fluxo">
+            <i class="ph ph-path"></i>
+            Fluxo
+        </a>
+
+        <a
+            class="login-mobile"
+            href="{{ route('login') }}"
+        >
+            <i class="ph ph-sign-in"></i>
+            Entrar
+        </a>
+    </nav>
+
+    <dialog
+        class="center-dialog"
+        id="accessDialog"
+    >
+        <div class="dialog-panel">
+            <header class="dialog-header">
+                <span
+                    class="dialog-icon"
+                    aria-hidden="true"
+                >
+                    <i class="ph-duotone ph-device-mobile"></i>
+                </span>
+
+                <div class="dialog-heading">
+                    <h2>Site e aplicativo</h2>
                     <p>
-                        Plataforma modular para organizar pessoas, projetos,
-                        operações, documentos e finanças com mais clareza.
+                        O acesso muda conforme a forma de abertura.
                     </p>
                 </div>
 
-                <div class="footer-col">
-                    <h3>Navegação</h3>
+                <button
+                    class="dialog-close"
+                    id="dialogClose"
+                    type="button"
+                    aria-label="Fechar"
+                >
+                    <i class="ph ph-x"></i>
+                </button>
+            </header>
 
-                    <div class="footer-links">
-                        <a href="#para-quem">Para quem é</a>
-                        <a href="#como-funciona">Como funciona</a>
-                        <a href="#modulos">Módulos</a>
-                        <a href="#contratacao">Contratação</a>
-                        <a href="#contato">Contato</a>
+            <div class="dialog-body">
+                <div class="dialog-row">
+                    <span
+                        class="dialog-row-icon tone-blue"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-browser"></i>
+                    </span>
+
+                    <div>
+                        <strong>Navegador</strong>
+                        <span>
+                            Acesse o sistema completo pelo navegador de qualquer dispositivo.
+                        </span>
                     </div>
                 </div>
 
-                <div class="footer-col">
-                    <h3>Atendimento</h3>
+                <div class="dialog-row">
+                    <span
+                        class="dialog-row-icon tone-violet"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-download-simple"></i>
+                    </span>
 
-                    <div class="footer-links">
-                        @if($salesPhone)
-                            <span>{{ $salesPhone }}</span>
-                        @endif
-
-                        @if($salesEmail)
-                            <a href="mailto:{{ $salesEmail }}">{{ $salesEmail }}</a>
-                        @endif
-
-                        <span>{{ $salesHours }}</span>
-                        <a href="{{ $loginUrl }}">Acessar o sistema</a>
+                    <div>
+                        <strong>Instalação</strong>
+                        <span>
+                            Quando o navegador permitir, o SGC pode ser instalado
+                            como um aplicativo no dispositivo.
+                        </span>
                     </div>
                 </div>
-            </div>
 
-            <div class="footer-bottom">
-                <span>© {{ date('Y') }} ZeCoop SGC. Todos os direitos reservados.</span>
-                <a href="{{ $loginUrl }}">Já sou cliente</a>
+                <div class="dialog-row">
+                    <span
+                        class="dialog-row-icon tone-green"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-duotone ph-sign-in"></i>
+                    </span>
+
+                    <div>
+                        <strong>PWA aberto</strong>
+                        <span>
+                            A home pública é pulada automaticamente e o usuário
+                            começa diretamente pela tela de login.
+                        </span>
+                    </div>
+                </div>
             </div>
         </div>
-    </footer>
-</div>
+    </dialog>
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script>
-    const SALES_WHATSAPP = @json($salesWhatsapp);
-    const SALES_EMAIL = @json($salesEmail);
+    <script>
+        (() => {
+            const previewData = {
+                project: {
+                    title: 'Projeto em execução',
+                    subtitle: 'PNAE · visão resumida',
+                    icon: 'ph-folders',
+                    metrics: [
+                        ['tone-green', 'ph-users-three', 'Participantes', '38 associados'],
+                        ['tone-violet', 'ph-basket', 'Produtos', '12 ativos'],
+                        ['tone-blue', 'ph-calendar-check', 'Período', 'Em execução']
+                    ],
+                    rows: [
+                        ['tone-violet', 'ph-chart-donut', 'Limites do projeto', 'Cotas e saldos por produto', 'Atualizado', 'ok'],
+                        ['tone-green', 'ph-user-check', 'Participação', 'Associados vinculados ao projeto', '38 vínculos', 'ok'],
+                        ['tone-amber', 'ph-warning-circle', 'Pendências', '2 itens aguardam conferência', 'Revisar', 'warn']
+                    ]
+                },
 
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
+                delivery: {
+                    title: 'Entregas e distribuição',
+                    subtitle: 'Operação do projeto',
+                    icon: 'ph-package',
+                    metrics: [
+                        ['tone-green', 'ph-truck', 'Recebido', '1.240 kg'],
+                        ['tone-blue', 'ph-arrows-split', 'Distribuído', '1.180 kg'],
+                        ['tone-amber', 'ph-hourglass-medium', 'Saldo físico', '60 kg']
+                    ],
+                    rows: [
+                        ['tone-green', 'ph-check-circle', 'Banana · 260 kg', 'Recebimento registrado', 'Aprovado', 'ok'],
+                        ['tone-blue', 'ph-arrows-split', 'Distribuição', '4 destinos vinculados', 'Completa', 'ok'],
+                        ['tone-amber', 'ph-warning', 'Hortaliças · 45 kg', 'Parte ainda sem destino', 'Revisar', 'warn']
+                    ]
+                },
 
-    const menuButton = document.getElementById('menu-btn');
-    const mobileNav = document.getElementById('mobile-nav');
-    const menuOpen = document.getElementById('menu-open');
-    const menuClose = document.getElementById('menu-close');
+                finance: {
+                    title: 'Tesouraria',
+                    subtitle: 'Movimentações e conferência',
+                    icon: 'ph-wallet',
+                    metrics: [
+                        ['tone-green', 'ph-arrow-down', 'Entradas', 'R$ 18.420'],
+                        ['tone-red', 'ph-arrow-up', 'Saídas', 'R$ 6.780'],
+                        ['tone-blue', 'ph-wallet', 'Resultado', 'R$ 11.640']
+                    ],
+                    rows: [
+                        ['tone-blue', 'ph-bank', 'Recebimento de projeto', 'Origem vinculada ao movimento', 'Conciliado', 'ok'],
+                        ['tone-violet', 'ph-receipt', 'Despesa operacional', 'Documento comprobatório anexado', 'Conferido', 'ok'],
+                        ['tone-amber', 'ph-warning-circle', 'Movimentação pendente', 'Aguardando classificação', 'Revisar', 'warn']
+                    ]
+                },
 
-    function setMenu(open) {
-        mobileNav.classList.toggle('open', open);
-        menuButton.setAttribute('aria-expanded', String(open));
-        menuOpen.hidden = open;
-        menuClose.hidden = !open;
-    }
+                reports: {
+                    title: 'Prestação de contas',
+                    subtitle: 'Documentos e relatórios',
+                    icon: 'ph-files',
+                    metrics: [
+                        ['tone-blue', 'ph-files', 'Documentos', '146 itens'],
+                        ['tone-green', 'ph-file-check', 'Conferidos', '139'],
+                        ['tone-amber', 'ph-clock', 'Pendentes', '7']
+                    ],
+                    rows: [
+                        ['tone-blue', 'ph-file-text', 'Relatório por projeto', 'Dados consolidados do período', 'Pronto', 'ok'],
+                        ['tone-violet', 'ph-file-pdf', 'Comprovantes', 'Documentos vinculados às operações', 'Organizado', 'ok'],
+                        ['tone-amber', 'ph-warning-circle', 'Pendências documentais', 'Itens antes do fechamento', '7 itens', 'warn']
+                    ]
+                }
+            };
 
-    menuButton.addEventListener('click', function () {
-        setMenu(!mobileNav.classList.contains('open'));
-    });
+            const flows = {
+                delivery: {
+                    kicker: 'Fluxo de entrega',
+                    title: 'Do recebimento ao destino final.',
+                    steps: [
+                        ['tone-green', 'ph-user-check', 'Contexto', 'Projeto e participante identificam a operação.'],
+                        ['tone-blue', 'ph-basket', 'Entrega', 'Produto, quantidade e data entram no histórico.'],
+                        ['tone-violet', 'ph-arrows-split', 'Distribuição', 'O recebido é destinado aos clientes corretos.'],
+                        ['tone-amber', 'ph-file-text', 'Consulta', 'O mesmo registro reaparece em relatórios e conferências.']
+                    ]
+                },
 
-    mobileNav.querySelectorAll('a').forEach(function (link) {
-        link.addEventListener('click', function () {
-            setMenu(false);
-        });
-    });
+                finance: {
+                    kicker: 'Fluxo financeiro',
+                    title: 'Do movimento à conferência.',
+                    steps: [
+                        ['tone-green', 'ph-plus-circle', 'Registro', 'A entrada ou saída entra no período financeiro.'],
+                        ['tone-blue', 'ph-tag', 'Classificação', 'Projeto, categoria e origem dão significado ao valor.'],
+                        ['tone-violet', 'ph-paperclip', 'Documento', 'Nota, recibo ou comprovante permanece relacionado.'],
+                        ['tone-amber', 'ph-check-circle', 'Conferência', 'Pendências ficam visíveis antes do fechamento.']
+                    ]
+                },
 
-    const moduleCheckboxes = Array.from(
-        document.querySelectorAll('.module-checkbox')
-    );
+                accountability: {
+                    kicker: 'Prestação de contas',
+                    title: 'Dos registros ao material final.',
+                    steps: [
+                        ['tone-blue', 'ph-funnel', 'Escopo', 'Projeto e competência definem o que será analisado.'],
+                        ['tone-amber', 'ph-magnifying-glass', 'Revisão', 'O sistema destaca o que ainda precisa de atenção.'],
+                        ['tone-violet', 'ph-files', 'Documentos', 'Comprovantes permanecem próximos das operações.'],
+                        ['tone-green', 'ph-export', 'Relatório', 'Os dados ficam prontos para conferência e arquivo.']
+                    ]
+                }
+            };
 
-    const selectedCount = document.getElementById('selected-count');
-    const selectedModules = document.getElementById('selected-modules');
-    const builderContact = document.getElementById('builder-contact');
+            const roles = {
+                manager: {
+                    title: 'Gestão',
+                    description: 'Uma visão clara do que está acontecendo na organização.',
+                    icon: 'ph-chart-line-up',
+                    points: [
+                        ['ph-folders', 'Projetos', 'Acompanhe situação, período e atividade.'],
+                        ['ph-users-three', 'Participação', 'Veja quem está envolvido em cada projeto.'],
+                        ['ph-warning-circle', 'Pendências', 'Localize rapidamente o que exige atenção.'],
+                        ['ph-file-text', 'Relatórios', 'Consulte informações consolidadas.']
+                    ]
+                },
 
-    function escapeHtml(value) {
-        return String(value).replace(/[&<>"']/g, function (character) {
-            return {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;',
-            }[character];
-        });
-    }
+                finance: {
+                    title: 'Tesouraria',
+                    description: 'Movimentações, despesas, documentos e fechamento em primeiro plano.',
+                    icon: 'ph-wallet',
+                    points: [
+                        ['ph-bank', 'Movimentações', 'Entradas e saídas com contexto.'],
+                        ['ph-receipt', 'Despesas', 'Registros acompanhados de documentação.'],
+                        ['ph-check-square', 'Conferência', 'Pendências visíveis antes do fechamento.'],
+                        ['ph-chart-bar', 'Resumo', 'Leitura simples dos valores importantes.']
+                    ]
+                },
 
-    function getSelectedModules() {
-        return moduleCheckboxes
-            .filter(function (checkbox) {
-                return checkbox.checked;
-            })
-            .map(function (checkbox) {
-                return checkbox.value;
-            });
-    }
+                operation: {
+                    title: 'Operação',
+                    description: 'Projetos, produtos, entregas e distribuição sem distrações.',
+                    icon: 'ph-package',
+                    points: [
+                        ['ph-basket', 'Recebimento', 'Registre produto e quantidade no campo.'],
+                        ['ph-arrows-split', 'Distribuição', 'Direcione as quantidades aos destinos.'],
+                        ['ph-clock', 'Histórico', 'Consulte entregas anteriores com contexto.'],
+                        ['ph-device-mobile', 'Celular', 'Fluxos preparados para uso móvel.']
+                    ]
+                },
 
-    function renderSelectedModules() {
-        const modules = getSelectedModules();
+                member: {
+                    title: 'Associado',
+                    description: 'Acesso simples às próprias informações e participações.',
+                    icon: 'ph-user-circle',
+                    points: [
+                        ['ph-identification-card', 'Cadastro', 'Dados e vínculo com a organização.'],
+                        ['ph-folders', 'Projetos', 'Projetos em que existe participação.'],
+                        ['ph-basket', 'Entregas', 'Quantidades e registros relacionados.'],
+                        ['ph-file-text', 'Comprovantes', 'Documentos disponíveis para consulta.']
+                    ]
+                }
+            };
 
-        selectedCount.textContent = String(modules.length);
+            const byId = id => document.getElementById(id);
 
-        selectedModules.innerHTML = modules.length
-            ? modules.map(function (module) {
-                return '<span class="selected-module">' + escapeHtml(module) + '</span>';
-            }).join('')
-            : '<span class="builder-empty">Nenhum módulo selecionado.</span>';
+            const escapeHtml = value =>
+                String(value ?? '').replace(
+                    /[&<>"']/g,
+                    char => ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#039;'
+                    }[char])
+                );
 
-        sessionStorage.setItem(
-            'zecoop_selected_modules',
-            JSON.stringify(modules)
-        );
-    }
+            function renderPreview(key) {
+                const data = previewData[key] || previewData.project;
 
-    moduleCheckboxes.forEach(function (checkbox) {
-        checkbox.addEventListener('change', renderSelectedModules);
-    });
+                byId('previewHeaderTitle').textContent = data.title;
+                byId('previewHeaderSubtitle').textContent = data.subtitle;
+                byId('previewHeaderIcon').className =
+                    `ph-duotone ${data.icon}`;
 
-    const storedModules = JSON.parse(
-        sessionStorage.getItem('zecoop_selected_modules') || '[]'
-    );
+                const metrics = data.metrics.map(item => `
+                    <div class="metric">
+                        <div class="metric-top">
+                            <span class="metric-icon ${escapeHtml(item[0])}">
+                                <i class="ph-duotone ${escapeHtml(item[1])}"></i>
+                            </span>
+                        </div>
 
-    if (Array.isArray(storedModules)) {
-        moduleCheckboxes.forEach(function (checkbox) {
-            checkbox.checked = storedModules.includes(checkbox.value);
-        });
-    }
+                        <span>${escapeHtml(item[2])}</span>
+                        <strong>${escapeHtml(item[3])}</strong>
+                    </div>
+                `).join('');
 
-    builderContact.addEventListener('click', function () {
-        const modules = getSelectedModules();
+                const rows = data.rows.map(item => `
+                    <div class="preview-row">
+                        <span class="row-icon ${escapeHtml(item[0])}">
+                            <i class="ph-duotone ${escapeHtml(item[1])}"></i>
+                        </span>
 
-        if (modules.length) {
-            document.getElementById('lead-message').value =
-                'Tenho interesse nos seguintes módulos: '
-                + modules.join(', ')
-                + '.';
-        }
-    });
+                        <span class="row-copy">
+                            <strong>${escapeHtml(item[2])}</strong>
+                            <span>${escapeHtml(item[3])}</span>
+                        </span>
 
-    renderSelectedModules();
+                        <span class="row-state ${escapeHtml(item[5])}">
+                            ${escapeHtml(item[4])}
+                        </span>
+                    </div>
+                `).join('');
 
-    document.getElementById('lead-form').addEventListener('submit', function (event) {
-        event.preventDefault();
+                byId('previewContent').innerHTML = `
+                    <div class="swap">
+                        <div class="preview-metrics">
+                            ${metrics}
+                        </div>
 
-        const name = document.getElementById('lead-name').value.trim();
-        const organization = document.getElementById('lead-organization').value.trim();
-        const contact = document.getElementById('lead-contact').value.trim();
-        const message = document.getElementById('lead-message').value.trim();
-        const modules = getSelectedModules();
+                        <div class="preview-list">
+                            ${rows}
+                        </div>
+                    </div>
+                `;
 
-        const text = [
-            'Olá! Gostaria de conhecer o ZeCoop SGC.',
-            '',
-            'Nome: ' + name,
-            'Organização: ' + organization,
-            'Contato: ' + contact,
-            modules.length
-                ? 'Módulos de interesse: ' + modules.join(', ')
-                : 'Módulos de interesse: desejo orientação para escolher.',
-            message ? 'Necessidade: ' + message : '',
-        ].filter(Boolean).join('\n');
+                document
+                    .querySelectorAll('[data-preview]')
+                    .forEach(button => {
+                        const active = button.dataset.preview === key;
 
-        if (SALES_WHATSAPP) {
-            window.open(
-                'https://wa.me/' + SALES_WHATSAPP + '?text=' + encodeURIComponent(text),
-                '_blank',
-                'noopener,noreferrer'
+                        button.classList.toggle('active', active);
+                        button.setAttribute(
+                            'aria-selected',
+                            active ? 'true' : 'false'
+                        );
+                    });
+            }
+
+            function renderFlow(key) {
+                const data = flows[key] || flows.delivery;
+
+                const steps = data.steps.map((item, index) => `
+                    <article class="flow-step">
+                        <div class="flow-step-head">
+                            <span class="flow-node ${escapeHtml(item[0])}">
+                                <i class="ph-duotone ${escapeHtml(item[1])}"></i>
+                            </span>
+
+                            <span class="flow-step-number">
+                                0${index + 1}
+                            </span>
+                        </div>
+
+                        <div>
+                            <strong>${escapeHtml(item[2])}</strong>
+                            <p>${escapeHtml(item[3])}</p>
+                        </div>
+                    </article>
+                `).join('');
+
+                byId('flowStage').innerHTML = `
+                    <div class="swap">
+                        <div class="flow-intro">
+                            <div>
+                                <small>${escapeHtml(data.kicker)}</small>
+                                <h3>${escapeHtml(data.title)}</h3>
+                            </div>
+
+                            <span class="flow-hint">
+                                <i class="ph ph-link"></i>
+                                informação reaproveitada
+                            </span>
+                        </div>
+
+                        <div class="flow-line">
+                            ${steps}
+                        </div>
+                    </div>
+                `;
+
+                document
+                    .querySelectorAll('[data-flow]')
+                    .forEach(button => {
+                        button.classList.toggle(
+                            'active',
+                            button.dataset.flow === key
+                        );
+                    });
+            }
+
+            function renderRole(key) {
+                const data = roles[key] || roles.manager;
+
+                const points = data.points.map(item => `
+                    <div class="role-point">
+                        <i class="ph-duotone ${escapeHtml(item[0])}"></i>
+
+                        <div>
+                            <strong>${escapeHtml(item[1])}</strong>
+                            <span>${escapeHtml(item[2])}</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                byId('roleStage').innerHTML = `
+                    <div class="swap">
+                        <div class="role-stage-head">
+                            <span class="role-stage-icon">
+                                <i class="ph-duotone ${escapeHtml(data.icon)}"></i>
+                            </span>
+
+                            <div>
+                                <h3>${escapeHtml(data.title)}</h3>
+                                <p>${escapeHtml(data.description)}</p>
+                            </div>
+                        </div>
+
+                        <div class="role-points">
+                            ${points}
+                        </div>
+                    </div>
+                `;
+
+                document
+                    .querySelectorAll('[data-role]')
+                    .forEach(button => {
+                        button.classList.toggle(
+                            'active',
+                            button.dataset.role === key
+                        );
+                    });
+            }
+
+            document
+                .querySelectorAll('[data-preview]')
+                .forEach(button => {
+                    button.addEventListener(
+                        'click',
+                        () => renderPreview(button.dataset.preview)
+                    );
+                });
+
+            document
+                .querySelectorAll('[data-flow]')
+                .forEach(button => {
+                    button.addEventListener(
+                        'click',
+                        () => renderFlow(button.dataset.flow)
+                    );
+                });
+
+            document
+                .querySelectorAll('[data-role]')
+                .forEach(button => {
+                    button.addEventListener(
+                        'click',
+                        () => renderRole(button.dataset.role)
+                    );
+                });
+
+            renderPreview('project');
+            renderFlow('delivery');
+            renderRole('manager');
+
+            addEventListener(
+                'scroll',
+                () => {
+                    byId('siteHeader').classList.toggle(
+                        'compact',
+                        scrollY > 12
+                    );
+                },
+                { passive: true }
             );
-            return;
-        }
 
-        if (SALES_EMAIL) {
-            window.location.href =
-                'mailto:' + SALES_EMAIL
-                + '?subject=' + encodeURIComponent('Interesse no ZeCoop SGC')
-                + '&body=' + encodeURIComponent(text);
-            return;
-        }
+            const navLinks = [
+                ...document.querySelectorAll(
+                    '.desktop-nav a[href^="#"], .mobile-nav a[href^="#"]'
+                )
+            ];
 
-        alert('Configure o WhatsApp ou o e-mail comercial para receber solicitações.');
-    });
-</script>
+            const sections = [
+                'inicio',
+                'trabalho',
+                'fluxo',
+                'perfis'
+            ]
+                .map(id => byId(id))
+                .filter(Boolean);
+
+            if ('IntersectionObserver' in window) {
+                const navObserver = new IntersectionObserver(
+                    entries => {
+                        const visible = entries
+                            .filter(entry => entry.isIntersecting)
+                            .sort(
+                                (a, b) =>
+                                    b.intersectionRatio
+                                    - a.intersectionRatio
+                            )[0];
+
+                        if (!visible) {
+                            return;
+                        }
+
+                        navLinks.forEach(link => {
+                            link.classList.toggle(
+                                'active',
+                                link.getAttribute('href')
+                                    === `#${visible.target.id}`
+                            );
+                        });
+                    },
+                    {
+                        rootMargin: '-24% 0px -60% 0px',
+                        threshold: [.05, .2, .4]
+                    }
+                );
+
+                sections.forEach(section => navObserver.observe(section));
+            }
+
+            const reducedMotion =
+                matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+            if (!reducedMotion && 'IntersectionObserver' in window) {
+                const revealObserver = new IntersectionObserver(
+                    entries => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                entry.target.classList.add('visible');
+                                revealObserver.unobserve(entry.target);
+                            }
+                        });
+                    },
+                    { threshold: .08 }
+                );
+
+                document
+                    .querySelectorAll('.reveal')
+                    .forEach(element => revealObserver.observe(element));
+            } else {
+                document
+                    .querySelectorAll('.reveal')
+                    .forEach(element => element.classList.add('visible'));
+            }
+
+            const dialog = byId('accessDialog');
+
+            byId('accessHelp').addEventListener(
+                'click',
+                () => dialog.showModal()
+            );
+
+            byId('dialogClose').addEventListener(
+                'click',
+                () => dialog.close()
+            );
+
+            dialog.addEventListener(
+                'click',
+                event => {
+                    if (event.target === dialog) {
+                        dialog.close();
+                    }
+                }
+            );
+
+            let installPrompt = null;
+
+            function toggleInstall(visible) {
+                byId('installHeader').hidden = !visible;
+                byId('installAccess').hidden = !visible;
+            }
+
+            async function requestInstall() {
+                if (!installPrompt) {
+                    dialog.showModal();
+                    return;
+                }
+
+                installPrompt.prompt();
+
+                try {
+                    await installPrompt.userChoice;
+                } finally {
+                    installPrompt = null;
+                    toggleInstall(false);
+                }
+            }
+
+            addEventListener(
+                'beforeinstallprompt',
+                event => {
+                    event.preventDefault();
+                    installPrompt = event;
+                    toggleInstall(true);
+                }
+            );
+
+            addEventListener(
+                'appinstalled',
+                () => {
+                    installPrompt = null;
+                    toggleInstall(false);
+                }
+            );
+
+            byId('installHeader').addEventListener(
+                'click',
+                requestInstall
+            );
+
+            byId('installAccess').addEventListener(
+                'click',
+                requestInstall
+            );
+        })();
+    </script>
 </body>
 </html>

@@ -22,10 +22,6 @@ class DeliveryOperationalReportExport implements FromArray, ShouldAutoSize, With
 
     private array $subtotalRows = [];
 
-    private array $groupTotalRows = [];
-
-    private array $dataRows = [];
-
     private array $columns;
 
     private array $headings;
@@ -125,22 +121,17 @@ class DeliveryOperationalReportExport implements FromArray, ShouldAutoSize, With
         foreach ($this->report['groups'] as $group) {
             $this->rows[] = [$group['title'].($group['subtitle'] ? ' - '.$group['subtitle'] : '').' | Líquido: R$ '.number_format($group['totals']['net'], 2, ',', '.')];
             $this->groupRows[] = count($this->rows);
-            $groupSubtotalRows = [];
-
             foreach ($group['sections'] as $section) {
                 $this->rows[] = [$section['title'].' | Distribuído: '.number_format($section['totals']['distributed_quantity'], 3, ',', '.').' | Bruto: R$ '.number_format($section['totals']['gross'], 2, ',', '.')];
                 $this->sectionRows[] = count($this->rows);
                 $firstDataRow = count($this->rows) + 1;
                 foreach ($section['rows'] as $row) {
                     $this->rows[] = array_map(fn (string $column) => $this->value($row, $column), $this->columns);
-                    $this->dataRows[] = count($this->rows);
                 }
                 $lastDataRow = count($this->rows);
                 $this->rows[] = $this->formulaRow('Subtotal', $firstDataRow, $lastDataRow);
                 $this->subtotalRows[] = count($this->rows);
-                $groupSubtotalRows[] = count($this->rows);
             }
-            $this->groupTotalRows[] = $groupSubtotalRows;
         }
 
         $this->rows[] = $this->referenceFormulaRow('TOTAL GERAL', $this->subtotalRows);
@@ -161,30 +152,45 @@ class DeliveryOperationalReportExport implements FromArray, ShouldAutoSize, With
     private function formulaRow(string $label, int $firstRow, int $lastRow): array
     {
         return array_map(function (string $column, int $index) use ($label, $firstRow, $lastRow): mixed {
-            if ($index === 0) {
-                return $label;
-            }
-            if (! in_array($column, ['received_quantity', 'distributed_quantity', 'gross_value', 'admin_fee', 'net_value'], true)) {
-                return null;
-            }
-            $letter = Coordinate::stringFromColumnIndex($index + 1);
+            if ($this->isSummable($column)) {
+                $letter = Coordinate::stringFromColumnIndex($index + 1);
 
-            return $lastRow >= $firstRow ? "=SUM({$letter}{$firstRow}:{$letter}{$lastRow})" : 0;
+                return $lastRow >= $firstRow ? "=SUM({$letter}{$firstRow}:{$letter}{$lastRow})" : 0;
+            }
+
+            return $index === $this->labelColumnIndex() ? $label : null;
         }, $this->columns, array_keys($this->columns));
     }
 
     private function referenceFormulaRow(string $label, array $rows): array
     {
         return array_map(function (string $column, int $index) use ($label, $rows): mixed {
-            if ($index === 0) {
-                return $label;
-            }
-            if ($rows === [] || ! in_array($column, ['received_quantity', 'distributed_quantity', 'gross_value', 'admin_fee', 'net_value'], true)) {
-                return null;
-            }
-            $letter = Coordinate::stringFromColumnIndex($index + 1);
+            if ($this->isSummable($column)) {
+                if ($rows === []) {
+                    return 0;
+                }
+                $letter = Coordinate::stringFromColumnIndex($index + 1);
 
-            return '='.$letter.implode("+{$letter}", $rows);
+                return '='.$letter.implode("+{$letter}", $rows);
+            }
+
+            return $index === $this->labelColumnIndex() ? $label : null;
         }, $this->columns, array_keys($this->columns));
+    }
+
+    private function isSummable(string $column): bool
+    {
+        return in_array($column, ['received_quantity', 'distributed_quantity', 'gross_value', 'admin_fee', 'net_value'], true);
+    }
+
+    private function labelColumnIndex(): ?int
+    {
+        foreach ($this->columns as $index => $column) {
+            if (! $this->isSummable($column) && $column !== 'unit_value') {
+                return $index;
+            }
+        }
+
+        return null;
     }
 }

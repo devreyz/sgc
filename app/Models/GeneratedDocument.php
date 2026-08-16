@@ -19,8 +19,11 @@ class GeneratedDocument extends Model
         'documentable_id',
         'title',
         'content',
+        'status',
         'variables_used',
+        'document_settings',
         'generated_by',
+        'last_edited_by',
         'signed_at',
         'signature_file',
     ];
@@ -29,6 +32,7 @@ class GeneratedDocument extends Model
     {
         return [
             'variables_used' => 'array',
+            'document_settings' => 'array',
             'signed_at' => 'datetime',
         ];
     }

@@ -101,16 +101,19 @@ class AssociateProjectPortalController extends Controller
             'feeColumns' => $data['feeColumns'],
         ], $pdfService->systemPdfOptions(
             'pdf.associate-portal-receipt',
-            'Comprovante do Associado',
+            'Comprovante do '.($tenant->associateTerm() ?: 'Membro'),
             $project->type,
             (int) $project->tenant_id,
         ));
 
-        return response()->streamDownload(
-            fn () => print $pdf->output(),
-            'comprovante-'.str_replace('/', '-', $receipt->formatted_number).'-'.Str::slug($associate->display_name).'.pdf',
-            ['Content-Type' => 'application/pdf'],
-        );
+        $filename = 'comprovante-'.str_replace('/', '-', $receipt->formatted_number).'-'.Str::slug($associate->display_name).'.pdf';
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function context(Request $request): array
@@ -160,11 +163,27 @@ class AssociateProjectPortalController extends Controller
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
             ->whereNull('parent_delivery_id')
-            ->with(['product:id,name,unit', 'distributions:id,parent_delivery_id,customer_id,quantity,unit_price,gross_value,associate_receipt_id', 'distributions.customer:id,name,trade_name']);
+            ->with([
+                'product:id,name,unit',
+                'distributions' => fn ($query) => $query
+                    ->where('status', DeliveryStatus::APPROVED->value)
+                    ->select([
+                        'id', 'parent_delivery_id', 'customer_id', 'quantity', 'unit_price',
+                        'gross_value', 'admin_fee_amount', 'net_value', 'associate_receipt_id',
+                    ]),
+                'distributions.customer:id,name,trade_name',
+            ]);
         $this->filters($query, $request);
         $page = $query->orderByDesc('delivery_date')->orderByDesc('id')->paginate($this->perPage($request));
         $page->setCollection(collect($page->items())->map(function (ProductionDelivery $item) {
             $distributed = (float) $item->distributions->sum('quantity');
+            $gross = (float) $item->distributions->sum(fn (ProductionDelivery $distribution) => (float) $distribution->gross_value);
+            $fees = (float) $item->distributions->sum(fn (ProductionDelivery $distribution) => (float) ($distribution->admin_fee_amount ?? 0));
+            $net = (float) $item->distributions->sum(function (ProductionDelivery $distribution): float {
+                return $distribution->net_value !== null
+                    ? (float) $distribution->net_value
+                    : max(0.0, (float) $distribution->gross_value - (float) ($distribution->admin_fee_amount ?? 0));
+            });
 
             return [
                 'id' => $item->id,
@@ -174,6 +193,10 @@ class AssociateProjectPortalController extends Controller
                 'quantity' => (float) $item->quantity,
                 'distributed' => $distributed,
                 'remaining' => max(0, (float) $item->quantity - $distributed),
+                'distribution_count' => $item->distributions->count(),
+                'gross' => $gross,
+                'fees' => $fees,
+                'net' => $net,
                 'status' => $item->status?->value,
                 'status_label' => $item->status?->getLabel(),
                 'quality' => $item->quality_grade,
@@ -223,7 +246,13 @@ class AssociateProjectPortalController extends Controller
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
             ->where('associate_id', $associate->id)
-            ->with('project');
+            ->with([
+                'project',
+                'payments',
+                'distributions' => fn ($query) => $query
+                    ->whereNotNull('parent_delivery_id')
+                    ->where('status', DeliveryStatus::APPROVED->value),
+            ]);
         $currentReceipt = (clone $baseQuery)
             ->where('status', '!=', ReceiptStatus::OBSOLETE->value)
             ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->first();
@@ -231,25 +260,30 @@ class AssociateProjectPortalController extends Controller
             ->withSum('payments', 'amount')
             ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->orderByDesc('issued_at')
             ->paginate($this->perPage($request));
-        $page->setCollection(collect($page->items())->map(fn (AssociateReceipt $receipt) => [
-            'id' => $receipt->id,
-            'number' => $receipt->formatted_number,
-            'date' => $receipt->issued_at?->format('d/m/Y'),
-            'gross' => (float) $receipt->total_gross,
-            'fees' => (float) $receipt->total_fees,
-            'net' => (float) $receipt->total_net,
-            'paid' => (float) ($receipt->payments_sum_amount ?? $receipt->amount_paid ?? 0),
-            'remaining' => $receipt->remaining_amount,
-            'status' => $receipt->status?->value,
-            'status_label' => $receipt->status?->getLabel(),
-            'obsolete_reason' => $receipt->obsolete_reason,
-            'current_receipt' => $receipt->status === ReceiptStatus::OBSOLETE ? $currentReceipt?->formatted_number : null,
-            'download_url' => $receipt->status === ReceiptStatus::OBSOLETE ? null : route('associate.projects.receipts.download', [
-                'tenant' => request()->route('tenant'),
-                'project' => $project->id,
-                'receipt' => $receipt->id,
-            ]),
-        ]));
+        $page->setCollection(collect($page->items())->map(function (AssociateReceipt $receipt) use ($currentReceipt, $project) {
+            $totals = $this->financial->receiptTotals($receipt);
+
+            return [
+                'id' => $receipt->id,
+                'number' => $receipt->formatted_number,
+                'date' => $receipt->issued_at?->format('d/m/Y'),
+                'gross' => $totals['gross'],
+                'fees' => $totals['fees'],
+                'net' => $totals['net'],
+                'paid' => $totals['paid'],
+                'remaining' => $totals['remaining'],
+                'distribution_count' => $totals['distribution_count'],
+                'status' => $receipt->status?->value,
+                'status_label' => $receipt->status?->getLabel(),
+                'obsolete_reason' => $receipt->obsolete_reason,
+                'current_receipt' => $receipt->status === ReceiptStatus::OBSOLETE ? $currentReceipt?->formatted_number : null,
+                'preview_url' => $receipt->status === ReceiptStatus::OBSOLETE ? null : route('associate.projects.receipts.download', [
+                    'tenant' => request()->route('tenant'),
+                    'project' => $project->id,
+                    'receipt' => $receipt->id,
+                ]),
+            ];
+        }));
 
         return $page->toArray();
     }

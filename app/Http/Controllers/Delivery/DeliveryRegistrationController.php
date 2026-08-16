@@ -60,6 +60,11 @@ class DeliveryRegistrationController extends Controller
         return $tenantId ? Tenant::find($tenantId) : null;
     }
 
+    private function memberTerm(bool $plural = false): string
+    {
+        return $this->currentTenant()?->associateTerm(plural: $plural) ?: ($plural ? 'Membros' : 'Membro');
+    }
+
     private function associateReceiptColumns(
         mixed $requested,
         SalesProject $project,
@@ -1658,7 +1663,7 @@ class DeliveryRegistrationController extends Controller
             ->exists();
 
         if (! $projectExists || ! $associateExists) {
-            return response()->json(['message' => 'Produtor ou projeto nao encontrado.'], 404);
+            return response()->json(['message' => $this->memberTerm().' ou projeto não encontrado.'], 404);
         }
 
         if ($receiptId > 0 && ! AssociateReceipt::query()
@@ -3338,7 +3343,7 @@ class DeliveryRegistrationController extends Controller
             ->whereKey($associateId)
             ->exists();
         if (! $project || ! $associateExists) {
-            return response()->json(['success' => false, 'message' => 'Produtor ou projeto nao encontrado.'], 404);
+            return response()->json(['success' => false, 'message' => $this->memberTerm().' ou projeto não encontrado.'], 404);
         }
 
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
@@ -3500,7 +3505,7 @@ class DeliveryRegistrationController extends Controller
     /**
      * Gera e faz download do comprovante PDF de um produtor em um projeto (portal externo).
      */
-    public function generateAssociateReceiptPdf()
+    public function generateAssociateReceiptPdf(Request $request)
     {
         $projectId = (int) request()->route('project');
         $associateId = (int) request()->route('associate');
@@ -3527,7 +3532,7 @@ class DeliveryRegistrationController extends Controller
             ->get();
 
         if ($distributions->isEmpty()) {
-            return redirect()->back()->with('error', 'Nenhuma distribuição aprovada encontrada para este produtor. Distribua as recepções antes de gerar o comprovante.');
+            return redirect()->back()->with('error', 'Nenhuma distribuição aprovada encontrada para este membro. Distribua as recepções antes de gerar o comprovante.');
         }
 
         if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, $associateId)) {
@@ -3643,7 +3648,7 @@ class DeliveryRegistrationController extends Controller
         // Verificar que todas as distribuições pertencem ao mesmo associado
         $associateIds = $distributions->pluck('associate_id')->unique();
         if ($associateIds->count() > 1) {
-            return response()->json(['success' => false, 'message' => 'Selecione distribuições de um mesmo produtor para gerar o comprovante.'], 422);
+            return response()->json(['success' => false, 'message' => 'Selecione distribuições de um mesmo '.mb_strtolower($this->memberTerm()).' para gerar o comprovante.'], 422);
         }
 
         if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $associateIds->first())) {
@@ -3806,7 +3811,7 @@ class DeliveryRegistrationController extends Controller
                     ->get();
 
                 if ($distributions->count() !== $selectedIds->count()) {
-                    throw new \RuntimeException('Uma ou mais distribuicoes nao pertencem a este produtor/projeto ou nao estao mais aprovadas.');
+                    throw new \RuntimeException('Uma ou mais distribuições não pertencem a este '.mb_strtolower($this->memberTerm()).'/projeto ou não estão mais aprovadas.');
                 }
 
                 $locked = $distributions->first(fn (ProductionDelivery $distribution) => $distribution->paid
@@ -4337,9 +4342,18 @@ class DeliveryRegistrationController extends Controller
         $safeName = Str::slug($associate->display_name ?? 'associado');
         $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
 
+        $filename = "comprovante-{$receiptLabel}-{$safeName}.pdf";
+        if ($request->boolean('preview')) {
+            return response($pdf->output(), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Cache-Control' => 'no-store, private',
+            ]);
+        }
+
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, "comprovante-{$receiptLabel}-{$safeName}.pdf", ['Content-Type' => 'application/pdf']);
+        }, $filename, ['Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, private']);
     }
 
     /**
@@ -4354,6 +4368,7 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false], 403);
         }
 
+        $memberTerm = $this->memberTerm();
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->with(['associate.user', 'project'])
@@ -4362,7 +4377,7 @@ class DeliveryRegistrationController extends Controller
             ->orderByDesc('issued_at')
             ->orderByDesc('id')
             ->get()
-            ->map(function ($r) use ($projectId) {
+            ->map(function ($r) use ($projectId, $memberTerm) {
                 $tenantSlug = request()->route('tenant') instanceof Tenant
                     ? request()->route('tenant')->slug
                     : (Tenant::find(session('tenant_id'))?->slug ?? '');
@@ -4370,7 +4385,7 @@ class DeliveryRegistrationController extends Controller
                 return [
                     'id' => $r->id,
                     'number' => $r->formatted_number,
-                    'associate_name' => $r->associate?->display_name ?? 'Associado nao identificado',
+                    'associate_name' => $r->associate?->display_name ?? $memberTerm.' não identificado',
                     'issued_at' => $r->issued_at?->format('d/m/Y') ?? '—',
                     'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
                     'status' => $r->status?->value ?? 'draft',

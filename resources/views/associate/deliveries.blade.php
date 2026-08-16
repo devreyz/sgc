@@ -173,11 +173,26 @@
     };
 @endphp
 
+
 @section('content')
+<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}">
 <style>
     .deliveries-page {
+        --delivery-green: #168a4d;
+        --delivery-green-soft: #eaf8ef;
+        --delivery-blue: #2563eb;
+        --delivery-blue-soft: #eef4ff;
+        --delivery-violet: #7c3aed;
+        --delivery-violet-soft: #f4f0ff;
+        --delivery-amber: #c87408;
+        --delivery-amber-soft: #fff7e8;
+        --delivery-red: #cf3f3f;
+        --delivery-red-soft: #fff0f0;
+        --delivery-slate: #64748b;
+        --delivery-slate-soft: #f1f5f9;
+
         display: grid;
-        width: min(100%, 1120px);
+        width: min(100%, 1280px);
         min-width: 0;
         grid-column: 1 / -1;
         gap: .82rem;
@@ -190,333 +205,417 @@
         box-sizing: border-box;
     }
 
-    .delivery-panel {
+    .delivery-section {
         min-width: 0;
         overflow: hidden;
         border: 1px solid var(--color-border);
-        border-radius: 16px;
+        border-radius: 15px;
         background: var(--color-surface);
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-sm);
     }
 
-    .delivery-panel-head {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: .72rem;
-        padding: .74rem .82rem;
-        border-bottom: 1px solid var(--color-border);
-        background:
-            linear-gradient(
-                180deg,
-                var(--color-surface-soft),
-                var(--color-surface)
-            );
-    }
-
-    .delivery-panel-title {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: .58rem;
-    }
-
-    .delivery-panel-icon,
-    .delivery-summary-icon,
-    .delivery-row-icon {
+    .delivery-section-head {
         display: grid;
-        flex: 0 0 auto;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .62rem;
+        align-items: center;
+        min-height: 64px;
+        padding: .68rem .76rem;
+        border-bottom: 1px solid var(--color-border);
+        background: linear-gradient(
+            180deg,
+            var(--color-surface-soft),
+            var(--color-surface)
+        );
+    }
+
+    .delivery-section-icon {
+        display: grid;
+        width: 40px;
+        height: 40px;
         place-items: center;
         border-radius: 11px;
     }
 
-    .delivery-panel-icon {
-        width: 39px;
-        height: 39px;
+    .delivery-section-head .delivery-section-icon > i {
+        display: block;
+        font-size: 1.1rem;
+        line-height: 1;
     }
 
-    .delivery-panel-icon i {
-        font-size: 1.12rem;
+    .delivery-section-icon.overview {
+        background: var(--delivery-blue-soft);
+        color: var(--delivery-blue);
     }
 
-    .delivery-panel-icon.overview {
-        background: #eff6ff;
-        color: #2563eb;
+    .delivery-section-icon.filters {
+        background: var(--delivery-violet-soft);
+        color: var(--delivery-violet);
     }
 
-    .delivery-panel-icon.financial {
-        background: #ecfdf5;
-        color: #059669;
+    .delivery-section-icon.list {
+        background: var(--delivery-amber-soft);
+        color: var(--delivery-amber);
     }
 
-    .delivery-panel-icon.filters {
-        background: #f5f3ff;
-        color: #7c3aed;
-    }
-
-    .delivery-panel-icon.list {
-        background: #fffbeb;
-        color: #d97706;
-    }
-
-    .delivery-panel-copy {
+    .delivery-section-copy {
         min-width: 0;
     }
 
-    .delivery-panel-copy h2 {
+    .delivery-section-copy h2,
+    .delivery-section-copy p {
         margin: 0;
+    }
+
+    .delivery-section-copy h2 {
         color: var(--color-text);
-        font-size: .92rem;
+        font-size: .95rem;
         font-weight: 840;
         letter-spacing: -.02em;
     }
 
-    .delivery-panel-copy p {
-        margin: .12rem 0 0;
+    .delivery-section-copy p {
+        margin-top: .08rem;
         color: var(--color-text-muted);
-        font-size: .72rem;
+        font-size: .75rem;
+        line-height: 1.42;
     }
 
-    .delivery-summary-grid {
+    .delivery-result-count {
+        display: grid;
+        min-height: 30px;
+        grid-template-columns: auto auto;
+        gap: .28rem;
+        align-items: center;
+        padding: .28rem .44rem;
+        border-radius: 999px;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: .7rem;
+        font-weight: 770;
+        white-space: nowrap;
+    }
+
+    .delivery-result-count > i {
+        display: block;
+        font-size: .82rem;
+        line-height: 1;
+    }
+
+    /* Resumo unificado */
+    .delivery-overview {
+        display: grid;
+        grid-template-columns: minmax(285px, .9fr) minmax(0, 1.1fr);
+        min-width: 0;
+    }
+
+    .delivery-overview-main {
+        display: grid;
+        align-content: center;
+        min-height: 205px;
+        padding: 1rem;
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                rgba(37, 99, 235, .10),
+                transparent 16rem
+            ),
+            linear-gradient(
+                135deg,
+                #fff,
+                var(--delivery-blue-soft)
+            );
+    }
+
+    .overview-label {
+        display: grid;
+        width: max-content;
+        grid-template-columns: auto auto;
+        gap: .34rem;
+        align-items: center;
+        color: var(--delivery-blue);
+        font-size: .74rem;
+        font-weight: 790;
+    }
+
+    .overview-label > i {
+        display: block;
+        font-size: .95rem;
+        line-height: 1;
+    }
+
+    .delivery-overview-main > strong {
+        display: block;
+        margin-top: .35rem;
+        color: var(--color-text);
+        font-size: clamp(1.8rem, 4vw, 2.45rem);
+        font-weight: 870;
+        letter-spacing: -.045em;
+        line-height: 1;
+    }
+
+    .delivery-overview-main > p {
+        max-width: 390px;
+        margin: .45rem 0 0;
+        color: var(--color-text-secondary);
+        font-size: .78rem;
+        line-height: 1.5;
+    }
+
+    .overview-counts {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .4rem;
+        margin-top: .9rem;
+    }
+
+    .overview-count {
+        min-width: 0;
+    }
+
+    .overview-count span,
+    .overview-count strong {
+        display: block;
+    }
+
+    .overview-count span {
+        color: var(--color-text-muted);
+        font-size: .68rem;
+        font-weight: 680;
+    }
+
+    .overview-count strong {
+        margin-top: .06rem;
+        color: var(--color-text);
+        font-size: .88rem;
+        font-weight: 830;
+    }
+
+    .overview-count.approved strong {
+        color: var(--delivery-green);
+    }
+
+    .overview-count.pending strong {
+        color: var(--delivery-amber);
+    }
+
+    .delivery-financial {
         display: grid;
         min-width: 0;
-        grid-template-columns:
-            repeat(4, minmax(0, 1fr));
+        align-content: center;
+        padding: .75rem;
+        border-top: 0;
+        background: #fff;
     }
 
-    .delivery-summary-item {
+    .financial-header {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .55rem;
+        align-items: center;
+        padding: .1rem .05rem .65rem;
+        border-bottom: 1px solid var(--color-border);
+    }
+
+    .financial-header .financial-header-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 11px;
+        background: var(--delivery-green-soft);
+        color: var(--delivery-green);
+    }
+
+    .delivery-financial .financial-header-icon > i {
+        display: block;
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+
+    .financial-header strong,
+    .financial-header span {
+        display: block;
+    }
+
+    .financial-header strong {
+        color: var(--color-text);
+        font-size: .84rem;
+        font-weight: 820;
+    }
+
+    .financial-header span {
+        margin-top: .05rem;
+        color: var(--color-text-muted);
+        font-size: .7rem;
+    }
+
+    .financial-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .45rem .8rem;
+        padding-top: .68rem;
+    }
+
+    .financial-item {
         display: grid;
         min-width: 0;
         grid-template-columns: auto minmax(0, 1fr);
-        gap: .58rem;
+        gap: .5rem;
         align-items: center;
-        padding: .76rem;
-        border-left: 1px solid var(--color-border);
+        min-height: 58px;
     }
 
-    .delivery-summary-item:first-child {
-        border-left: 0;
+    .financial-item-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
     }
 
-    .delivery-summary-icon {
-        width: 37px;
-        height: 37px;
+    .financial-item.net .financial-item-icon {
+        background: var(--delivery-green-soft);
+        color: var(--delivery-green);
     }
 
-    .delivery-summary-icon i {
-        font-size: 1.05rem;
+    .financial-item.receivable .financial-item-icon {
+        background: var(--delivery-amber-soft);
+        color: var(--delivery-amber);
     }
 
-    .delivery-summary-icon.total {
-        background: #f1f5f9;
-        color: #475569;
+    .financial-item.paid .financial-item-icon {
+        background: var(--delivery-blue-soft);
+        color: var(--delivery-blue);
     }
 
-    .delivery-summary-icon.approved {
-        background: #ecfdf5;
-        color: #059669;
+    .financial-item.fees .financial-item-icon {
+        background: var(--delivery-violet-soft);
+        color: var(--delivery-violet);
     }
 
-    .delivery-summary-icon.pending {
-        background: #fffbeb;
-        color: #d97706;
+    .delivery-financial .financial-item-icon > i {
+        display: block;
+        font-size: .94rem;
+        line-height: 1;
     }
 
-    .delivery-summary-icon.value {
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .delivery-summary-copy {
+    .financial-item-copy {
         min-width: 0;
     }
 
-    .delivery-summary-copy span,
-    .delivery-summary-copy strong {
+    .financial-item-copy span,
+    .financial-item-copy strong {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    .delivery-summary-copy span {
+    .financial-item-copy span {
         color: var(--color-text-muted);
         font-size: .69rem;
-        font-weight: 690;
+        font-weight: 680;
     }
 
-    .delivery-summary-copy strong {
-        margin-top: .12rem;
+    .financial-item-copy strong {
+        margin-top: .06rem;
         color: var(--color-text);
-        font-size: 1.02rem;
-        font-weight: 850;
-        letter-spacing: -.025em;
-    }
-
-    .distribution-summary {
-        display: grid;
-        min-width: 0;
-        grid-template-columns:
-            minmax(220px, .9fr)
-            minmax(0, 1.1fr);
-        gap: .78rem;
-        padding: .78rem;
-    }
-
-    .distribution-main {
-        padding: .78rem;
-        border: 1px solid rgba(34, 197, 94, .18);
-        border-left: 4px solid #16a34a;
-        border-radius: 13px;
-        background:
-            linear-gradient(
-                135deg,
-                #ecfdf5,
-                rgba(255, 255, 255, .98) 66%
-            );
-    }
-
-    .distribution-main span,
-    .distribution-main strong {
-        display: block;
-    }
-
-    .distribution-main span {
-        color: var(--color-text-secondary);
-        font-size: .73rem;
-        font-weight: 710;
-    }
-
-    .distribution-main strong {
-        margin-top: .28rem;
-        color: var(--color-text);
-        font-size: clamp(1.25rem, 3vw, 1.7rem);
-        font-weight: 870;
-        letter-spacing: -.04em;
-    }
-
-    .distribution-main small {
-        display: block;
-        margin-top: .24rem;
-        color: var(--color-text-muted);
-        font-size: .69rem;
-    }
-
-    .distribution-facts {
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--color-border);
-        border-radius: 13px;
-    }
-
-    .distribution-fact {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .56rem;
-        align-items: center;
-        padding: .61rem .66rem;
-        border-top: 1px solid var(--color-border);
-    }
-
-    .distribution-fact:first-child {
-        border-top: 0;
-    }
-
-    .distribution-fact i {
-        font-size: 1rem;
-    }
-
-    .distribution-fact.fees i {
-        color: #7c3aed;
-    }
-
-    .distribution-fact.receivable i {
-        color: #d97706;
-    }
-
-    .distribution-fact.paid i {
-        color: #059669;
-    }
-
-    .distribution-fact span {
-        min-width: 0;
-        color: var(--color-text-secondary);
-        font-size: .72rem;
-        font-weight: 700;
-    }
-
-    .distribution-fact strong {
-        color: var(--color-text);
-        font-size: .78rem;
+        font-size: .82rem;
         font-weight: 830;
-        text-align: right;
-        white-space: nowrap;
     }
 
-    .delivery-tabs {
-        display: flex;
-        min-width: 0;
-        gap: .34rem;
-        padding: .55rem;
+    /* Filtros */
+    .delivery-status-tabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .32rem;
+        padding: .55rem .65rem;
         overflow-x: auto;
         border-bottom: 1px solid var(--color-border);
         scrollbar-width: none;
         overscroll-behavior-inline: contain;
     }
 
-    .delivery-tabs::-webkit-scrollbar {
+    .delivery-status-tabs::-webkit-scrollbar {
         display: none;
     }
 
-    .delivery-tab {
-        display: inline-flex;
+    .delivery-status-tab {
+        --tab-tone: var(--delivery-slate);
+        --tab-soft: var(--delivery-slate-soft);
+
+        display: grid;
         min-width: max-content;
-        min-height: 39px;
+        min-height: 40px;
+        grid-template-columns: auto auto;
+        gap: .35rem;
         align-items: center;
-        justify-content: center;
-        gap: .34rem;
-        padding: .44rem .58rem;
+        padding: .42rem .6rem;
         border: 1px solid transparent;
         border-radius: 10px;
         background: transparent;
         color: var(--color-text-secondary);
-        font-size: .72rem;
+        font-size: .73rem;
         font-weight: 760;
         text-decoration: none;
         white-space: nowrap;
     }
 
-    .delivery-tab i {
-        font-size: .93rem;
+    .delivery-status-tab.tone-green {
+        --tab-tone: var(--delivery-green);
+        --tab-soft: var(--delivery-green-soft);
     }
 
-    .delivery-tab:hover,
-    .delivery-tab:focus-visible {
-        border-color: var(--color-border);
-        background: var(--color-surface-soft);
-        color: var(--color-primary-deep);
+    .delivery-status-tab.tone-amber {
+        --tab-tone: var(--delivery-amber);
+        --tab-soft: var(--delivery-amber-soft);
+    }
+
+    .delivery-status-tab.tone-red {
+        --tab-tone: var(--delivery-red);
+        --tab-soft: var(--delivery-red-soft);
+    }
+
+    .delivery-status-tab.tone-slate {
+        --tab-tone: var(--delivery-slate);
+        --tab-soft: var(--delivery-slate-soft);
+    }
+
+    .delivery-status-tab > i {
+        display: block;
+        color: var(--tab-tone);
+        font-size: .94rem;
+        line-height: 1;
+    }
+
+    .delivery-status-tab:hover,
+    .delivery-status-tab:focus-visible,
+    .delivery-status-tab.active {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--tab-tone) 16%,
+                var(--color-border)
+            );
+        background: var(--tab-soft);
+        color: var(--tab-tone);
         outline: none;
-    }
-
-    .delivery-tab.active {
-        border-color: rgba(34, 197, 94, .2);
-        background: var(--color-primary-50);
-        color: var(--color-primary-deep);
     }
 
     .delivery-filter-form {
         display: grid;
         min-width: 0;
         grid-template-columns:
-            minmax(180px, 1.2fr)
+            minmax(210px, 1.3fr)
             minmax(150px, .8fr)
             minmax(150px, .8fr)
             auto;
         gap: .58rem;
         align-items: end;
-        padding: .7rem .78rem .78rem;
+        padding: .68rem .72rem .75rem;
     }
 
     .delivery-field {
@@ -525,51 +624,58 @@
 
     .delivery-field label {
         display: block;
-        margin-bottom: .32rem;
+        margin-bottom: .3rem;
         color: var(--color-text-secondary);
-        font-size: .69rem;
-        font-weight: 750;
+        font-size: .71rem;
+        font-weight: 740;
     }
 
     .delivery-field select,
     .delivery-field input {
         width: 100%;
-        min-height: 42px;
-        padding: .52rem .65rem;
-        font-size: .75rem;
+        min-height: 44px;
+        padding: .55rem .66rem;
+        font-size: .78rem;
     }
 
     .delivery-filter-actions {
-        display: flex;
-        gap: .38rem;
+        display: grid;
+        grid-auto-flow: column;
+        gap: .36rem;
     }
 
     .delivery-filter-button {
-        display: inline-flex;
-        min-height: 42px;
+        display: grid;
+        min-height: 44px;
+        grid-template-columns: auto auto;
+        gap: .32rem;
         align-items: center;
         justify-content: center;
-        gap: .32rem;
         padding: .48rem .64rem;
         border: 1px solid var(--color-border-strong);
         border-radius: 10px;
         background: var(--color-surface);
         color: var(--color-text-secondary);
-        font-size: .73rem;
+        font-size: .74rem;
         font-weight: 780;
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
     }
 
+    .delivery-filter-button > i {
+        display: block;
+        font-size: .9rem;
+        line-height: 1;
+    }
+
     .delivery-filter-button.primary {
-        border-color: #16a34a;
-        background:
-            linear-gradient(
-                135deg,
-                #22c55e,
-                #16a34a
-            );
+        border-color: var(--color-primary-dark);
+        background: linear-gradient(
+            135deg,
+            var(--color-primary),
+            var(--color-primary-dark)
+        );
         color: #fff;
     }
 
@@ -579,266 +685,379 @@
         transform: translateY(-1px);
     }
 
-    .delivery-list {
-        min-width: 0;
-        padding: 0 .8rem;
+    .active-filter-note {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: .48rem;
+        align-items: center;
+        margin: 0 .72rem .68rem;
+        padding: .52rem .58rem;
+        border-radius: 10px;
+        background: var(--delivery-violet-soft);
+        color: var(--delivery-violet);
+        font-size: .72rem;
+        font-weight: 720;
     }
 
-    .delivery-row {
+    .active-filter-note > i {
+        display: block;
+        font-size: .9rem;
+        line-height: 1;
+    }
+
+    .active-filter-note a {
+        color: var(--delivery-violet);
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    /* Lista */
+    .delivery-list {
         display: grid;
         min-width: 0;
-        grid-template-columns:
-            auto
-            minmax(190px, 1.25fr)
-            minmax(100px, .6fr)
-            minmax(110px, .65fr)
-            minmax(90px, .5fr);
-        gap: .62rem;
-        align-items: center;
-        padding: .72rem 0;
+        padding: .32rem .72rem .72rem;
+    }
+
+    .delivery-entry {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .66rem;
+        padding: .8rem .08rem;
+    }
+
+    .delivery-entry + .delivery-entry {
         border-top: 1px solid var(--color-border);
     }
 
-    .delivery-row:first-child {
-        border-top: 0;
+    .delivery-date {
+        display: grid;
+        width: 52px;
+        height: 52px;
+        place-items: center;
+        align-content: center;
+        border-radius: 13px;
+        background: var(--delivery-blue-soft);
+        color: var(--delivery-blue);
+        text-align: center;
     }
 
-    .delivery-row-icon {
-        width: 38px;
-        height: 38px;
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .delivery-row-icon i {
-        font-size: 1.08rem;
-    }
-
-    .delivery-row-copy {
-        min-width: 0;
-    }
-
-    .delivery-row-title-line {
-        display: flex;
-        min-width: 0;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: .34rem;
-    }
-
-    .delivery-row-title {
-        overflow: hidden;
-        color: var(--color-text);
-        font-size: .83rem;
-        font-weight: 820;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .delivery-row-meta {
-        display: flex;
-        min-width: 0;
-        flex-wrap: wrap;
-        gap: .24rem .55rem;
-        margin-top: .16rem;
-        color: var(--color-text-muted);
-        font-size: .69rem;
-    }
-
-    .delivery-row-meta span {
-        display: inline-flex;
-        min-width: 0;
-        align-items: center;
-        gap: .23rem;
-    }
-
-    .delivery-row-meta i {
-        flex: 0 0 auto;
-        font-size: .8rem;
-    }
-
-    .delivery-data {
-        min-width: 0;
-    }
-
-    .delivery-data span,
-    .delivery-data strong {
+    .delivery-date strong,
+    .delivery-date span {
         display: block;
+    }
+
+    .delivery-date strong {
+        font-size: .88rem;
+        font-weight: 850;
+        line-height: 1;
+    }
+
+    .delivery-date span {
+        margin-top: .15rem;
+        font-size: .61rem;
+        font-weight: 790;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .delivery-entry-content {
+        min-width: 0;
+    }
+
+    .delivery-entry-head {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .65rem;
+        align-items: start;
+    }
+
+    .delivery-entry-title {
+        min-width: 0;
+    }
+
+    .delivery-entry-title-line {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .36rem;
+        align-items: center;
+    }
+
+    .delivery-product {
+        max-width: min(100%, 520px);
         overflow: hidden;
+        color: var(--color-text);
+        font-size: .91rem;
+        font-weight: 840;
+        letter-spacing: -.02em;
         text-overflow: ellipsis;
         white-space: nowrap;
-    }
-
-    .delivery-data span {
-        color: var(--color-text-muted);
-        font-size: .67rem;
-        font-weight: 680;
-    }
-
-    .delivery-data strong {
-        margin-top: .1rem;
-        color: var(--color-text);
-        font-size: .77rem;
-        font-weight: 820;
-    }
-
-    .delivery-data.value strong {
-        color: #15803d;
     }
 
     .delivery-status {
-        display: inline-flex;
-        min-height: 24px;
+        display: grid;
         width: max-content;
-        max-width: 100%;
-        align-items: center;
-        gap: .23rem;
+        min-height: 25px;
+        place-items: center;
         padding: .21rem .38rem;
         border-radius: 999px;
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
-        font-size: .62rem;
-        font-weight: 800;
+        font-size: .64rem;
+        font-weight: 790;
         white-space: nowrap;
     }
 
     .delivery-status.approved,
     .delivery-status.paid {
-        background: #ecfdf5;
-        color: #047857;
+        background: var(--delivery-green-soft);
+        color: var(--delivery-green);
     }
 
     .delivery-status.pending {
-        background: #fffbeb;
+        background: var(--delivery-amber-soft);
         color: #92400e;
     }
 
     .delivery-status.rejected,
     .delivery-status.cancelled {
-        background: #fef2f2;
+        background: var(--delivery-red-soft);
         color: #991b1b;
     }
 
     .delivery-status.billed {
-        background: #eff6ff;
-        color: #1d4ed8;
+        background: var(--delivery-blue-soft);
+        color: var(--delivery-blue);
+    }
+
+    .delivery-project {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto minmax(0, auto);
+        gap: .28rem;
+        align-items: center;
+        margin-top: .14rem;
+        color: var(--color-text-muted);
+        font-size: .74rem;
+    }
+
+    .delivery-project > i {
+        display: block;
+        color: var(--delivery-violet);
+        font-size: .82rem;
+        line-height: 1;
+    }
+
+    .delivery-project span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .delivery-entry-value {
+        min-width: 120px;
+        text-align: right;
+    }
+
+    .delivery-entry-value span,
+    .delivery-entry-value strong {
+        display: block;
+    }
+
+    .delivery-entry-value span {
+        color: var(--color-text-muted);
+        font-size: .68rem;
+        font-weight: 680;
+    }
+
+    .delivery-entry-value strong {
+        margin-top: .05rem;
+        color: var(--delivery-green);
+        font-size: .91rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .delivery-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: .55rem;
+        margin-top: .6rem;
+        padding: .58rem .65rem;
+        border-radius: 11px;
+        background: var(--color-surface-soft);
+    }
+
+    .delivery-detail {
+        min-width: 0;
+    }
+
+    .delivery-detail span,
+    .delivery-detail strong {
+        display: block;
+    }
+
+    .delivery-detail span {
+        color: var(--color-text-muted);
+        font-size: .68rem;
+        font-weight: 680;
+    }
+
+    .delivery-detail strong {
+        margin-top: .07rem;
+        overflow: hidden;
+        color: var(--color-text);
+        font-size: .77rem;
+        font-weight: 820;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .billing-value {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto auto;
+        gap: .28rem;
+        align-items: center;
+        margin-top: .07rem;
+    }
+
+    .billing-value > i {
+        display: block;
+        font-size: .8rem;
+        line-height: 1;
+    }
+
+    .billing-value.paid {
+        color: var(--delivery-green);
+    }
+
+    .billing-value.billed {
+        color: var(--delivery-blue);
+    }
+
+    .billing-value.unbilled {
+        color: var(--delivery-amber);
     }
 
     .delivery-empty {
         display: grid;
-        min-height: 220px;
+        min-height: 230px;
         place-items: center;
-        padding: 1.3rem;
+        padding: 1.4rem;
         text-align: center;
     }
 
-    .delivery-empty i {
-        color: var(--color-text-muted);
-        font-size: 1.6rem;
+    .delivery-empty-content {
+        width: min(100%, 390px);
+    }
+
+    .delivery-empty-icon {
+        display: grid;
+        width: 58px;
+        height: 58px;
+        place-items: center;
+        margin: 0 auto .65rem;
+        border-radius: 16px;
+        background: var(--delivery-blue-soft);
+        color: var(--delivery-blue);
+    }
+
+    .delivery-empty .delivery-empty-icon > i {
+        display: block;
+        font-size: 1.45rem;
+        line-height: 1;
+    }
+
+    .delivery-empty strong,
+    .delivery-empty span {
+        display: block;
     }
 
     .delivery-empty strong {
-        display: block;
-        margin-top: .42rem;
         color: var(--color-text);
-        font-size: .83rem;
+        font-size: .87rem;
         font-weight: 820;
     }
 
+    .delivery-empty span {
+        margin-top: .2rem;
+        color: var(--color-text-muted);
+        font-size: .76rem;
+        line-height: 1.45;
+    }
+
     .delivery-pagination {
-        display: flex;
-        justify-content: center;
-        padding: .78rem;
+        display: grid;
+        place-items: center;
+        padding: .75rem;
         border-top: 1px solid var(--color-border);
     }
 
-    @media (max-width: 900px) {
-        .delivery-summary-grid {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-        }
-
-        .delivery-summary-item:nth-child(3) {
-            border-top: 1px solid var(--color-border);
-            border-left: 0;
-        }
-
-        .delivery-summary-item:nth-child(4) {
-            border-top: 1px solid var(--color-border);
-        }
-
-        .distribution-summary {
+    @media (max-width: 940px) {
+        .delivery-overview {
             grid-template-columns: 1fr;
         }
 
+        .delivery-financial {
+            border-top: 1px solid var(--color-border);
+        }
+
         .delivery-filter-form {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .delivery-filter-actions {
             grid-column: 1 / -1;
-        }
-
-        .delivery-row {
-            grid-template-columns:
-                auto
-                minmax(0, 1fr)
-                minmax(105px, auto);
-        }
-
-        .delivery-row .delivery-data.quantity {
-            grid-column: 2;
-        }
-
-        .delivery-row .delivery-data.value {
-            grid-column: 3;
-            grid-row: 1;
-            text-align: right;
-        }
-
-        .delivery-row .delivery-data.billing {
-            grid-column: 3;
-            text-align: right;
+            justify-self: start;
         }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 620px) {
         .deliveries-page {
             gap: .7rem;
         }
 
-        .delivery-panel-head {
-            padding: .68rem;
+        .delivery-section-head {
+            padding: .63rem;
         }
 
-        .delivery-panel-copy p {
+        .delivery-section-copy p {
             display: none;
         }
 
-        .delivery-summary-grid {
+        .delivery-overview-main {
+            min-height: 185px;
+            padding: .85rem;
+        }
+
+        .financial-grid {
             grid-template-columns: 1fr;
+            gap: 0;
         }
 
-        .delivery-summary-item,
-        .delivery-summary-item:nth-child(2),
-        .delivery-summary-item:nth-child(3),
-        .delivery-summary-item:nth-child(4) {
+        .financial-item {
+            padding: .38rem 0;
+        }
+
+        .financial-item + .financial-item {
             border-top: 1px solid var(--color-border);
-            border-left: 0;
-        }
-
-        .delivery-summary-item:first-child {
-            border-top: 0;
         }
 
         .delivery-filter-form {
             grid-template-columns: 1fr;
-            padding: .66rem;
+            padding: .62rem;
         }
 
         .delivery-filter-actions {
-            display: grid;
+            grid-column: auto;
+            width: 100%;
             grid-template-columns: 1fr 1fr;
         }
 
@@ -846,276 +1065,279 @@
             width: 100%;
         }
 
+        .active-filter-note {
+            margin-right: .62rem;
+            margin-left: .62rem;
+        }
+
         .delivery-list {
-            padding: 0 .68rem;
+            padding-right: .58rem;
+            padding-left: .58rem;
         }
 
-        .delivery-row {
-            grid-template-columns:
-                auto
-                minmax(0, 1fr);
-            align-items: start;
+        .delivery-entry-head {
+            grid-template-columns: 1fr;
         }
 
-        .delivery-row .delivery-data.quantity,
-        .delivery-row .delivery-data.value,
-        .delivery-row .delivery-data.billing {
-            grid-column: 2;
-            grid-row: auto;
+        .delivery-entry-value {
+            min-width: 0;
             text-align: left;
         }
 
-        .delivery-data {
-            display: flex;
-            align-items: baseline;
-            gap: .35rem;
+        .delivery-entry-title-line {
+            grid-auto-flow: row;
+            grid-auto-columns: 1fr;
+            width: 100%;
+            gap: .22rem;
         }
 
-        .delivery-data span,
-        .delivery-data strong {
-            display: inline;
+        .delivery-status {
+            justify-self: start;
+        }
+
+        .delivery-details {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .delivery-detail:last-child {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .delivery-result-count {
+            display: none;
+        }
+
+        .overview-counts {
+            grid-template-columns: 1fr;
+            gap: .32rem;
+        }
+
+        .overview-count {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: .5rem;
+            align-items: center;
+        }
+
+        .overview-count strong {
+            margin-top: 0;
+            text-align: right;
+        }
+
+        .delivery-entry {
+            grid-template-columns: 1fr;
+        }
+
+        .delivery-date {
+            width: max-content;
+            height: auto;
+            min-height: 36px;
+            grid-template-columns: auto auto;
+            gap: .25rem;
+            justify-content: start;
+            padding: .38rem .52rem;
+        }
+
+        .delivery-date span {
+            margin-top: 0;
+        }
+
+        .delivery-details {
+            grid-template-columns: 1fr;
+        }
+
+        .delivery-detail:last-child {
+            grid-column: auto;
         }
     }
 </style>
 
-<main class="deliveries-page">
-    <section class="delivery-panel">
-        <header class="delivery-panel-head">
-            <div class="delivery-panel-title">
-                <span
-                    class="delivery-panel-icon overview"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-package"></i>
-                </span>
+@php
+    $totalDeliveries = (int) ($deliveryStats['total'] ?? 0);
+    $approvedDeliveries = (int) ($deliveryStats['approved'] ?? 0);
+    $pendingDeliveries = (int) ($deliveryStats['pending'] ?? 0);
+    $distributedGrossValue = (float) ($deliveryStats['total_value'] ?? 0);
 
-                <div class="delivery-panel-copy">
-                    <h2>Visão geral</h2>
-                </div>
+    $distributionNet = (float) ($financialSummary['total_net'] ?? 0);
+    $distributionFees = (float) ($financialSummary['total_fees'] ?? 0);
+    $receivableValue = (float) ($financialSummary['receivable'] ?? 0);
+    $paidValue = (float) ($financialSummary['paid'] ?? 0);
+    $distributionCount = (int) ($financialSummary['distribution_count'] ?? 0);
+
+    $hasActiveFilters = request()->hasAny([
+        'status',
+        'project_id',
+        'start_date',
+        'end_date',
+    ]);
+
+    $statusTones = [
+        '' => 'slate',
+        'pending' => 'amber',
+        'approved' => 'green',
+        'rejected' => 'red',
+        'cancelled' => 'slate',
+    ];
+@endphp
+
+<main class="deliveries-page" data-associate-page="deliveries">
+    <section class="delivery-section">
+        <header class="delivery-section-head">
+            <span class="delivery-section-icon overview" aria-hidden="true">
+                <i class="ph-duotone ph-package"></i>
+            </span>
+
+            <div class="delivery-section-copy">
+                <h2>Resumo das entregas</h2>
+                <p>Quantidades registradas e situação financeira das suas distribuições.</p>
             </div>
+
+            <span class="delivery-result-count">
+                <i class="ph ph-list-bullets"></i>
+                {{ $totalDeliveries }}
+                {{ $totalDeliveries === 1 ? 'entrega' : 'entregas' }}
+            </span>
         </header>
 
-        <div class="delivery-summary-grid">
-            <div class="delivery-summary-item">
-                <span
-                    class="delivery-summary-icon total"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-list-bullets"></i>
-                </span>
-
-                <div class="delivery-summary-copy">
-                    <span>Total de entregas</span>
-                    <strong>
-                        {{ $deliveryStats['total'] ?? 0 }}
-                    </strong>
-                </div>
-            </div>
-
-            <div class="delivery-summary-item">
-                <span
-                    class="delivery-summary-icon approved"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-check-circle"></i>
-                </span>
-
-                <div class="delivery-summary-copy">
-                    <span>Aprovadas</span>
-                    <strong>
-                        {{ $deliveryStats['approved'] ?? 0 }}
-                    </strong>
-                </div>
-            </div>
-
-            <div class="delivery-summary-item">
-                <span
-                    class="delivery-summary-icon pending"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-clock-countdown"></i>
-                </span>
-
-                <div class="delivery-summary-copy">
-                    <span>Pendentes</span>
-                    <strong>
-                        {{ $deliveryStats['pending'] ?? 0 }}
-                    </strong>
-                </div>
-            </div>
-
-            <div class="delivery-summary-item">
-                <span
-                    class="delivery-summary-icon value"
-                    aria-hidden="true"
-                >
+        <div class="delivery-overview">
+            <div class="delivery-overview-main">
+                <span class="overview-label">
                     <i class="ph-duotone ph-currency-circle-dollar"></i>
+                    Valor bruto distribuído
                 </span>
 
-                <div class="delivery-summary-copy">
-                    <span>Valor registrado</span>
-                    <strong>
-                        {{ $formatMoney(
-                            $deliveryStats['total_value']
-                            ?? 0
-                        ) }}
-                    </strong>
+                <strong>{{ $formatMoney($distributedGrossValue) }}</strong>
+
+                <p>Calculado somente pelas distribuições aprovadas vinculadas às entregas exibidas.</p>
+
+                <div class="overview-counts">
+                    <div class="overview-count">
+                        <span>Total</span>
+                        <strong>{{ $totalDeliveries }}</strong>
+                    </div>
+
+                    <div class="overview-count approved">
+                        <span>Aprovadas</span>
+                        <strong>{{ $approvedDeliveries }}</strong>
+                    </div>
+
+                    <div class="overview-count pending">
+                        <span>Pendentes</span>
+                        <strong>{{ $pendingDeliveries }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="delivery-financial">
+                <div class="financial-header">
+                    <span class="financial-header-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-wallet"></i>
+                    </span>
+
+                    <span>
+                        <strong>Financeiro das distribuições</strong>
+                        <span>
+                            {{ $distributionCount }}
+                            {{ $distributionCount === 1 ? 'distribuição' : 'distribuições' }}
+                        </span>
+                    </span>
+                </div>
+
+                <div class="financial-grid">
+                    <div class="financial-item net">
+                        <span class="financial-item-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-hand-coins"></i>
+                        </span>
+
+                        <span class="financial-item-copy">
+                            <span>Líquido distribuído</span>
+                            <strong>{{ $formatMoney($distributionNet) }}</strong>
+                        </span>
+                    </div>
+
+                    <div class="financial-item receivable">
+                        <span class="financial-item-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-clock-countdown"></i>
+                        </span>
+
+                        <span class="financial-item-copy">
+                            <span>A receber</span>
+                            <strong>{{ $formatMoney($receivableValue) }}</strong>
+                        </span>
+                    </div>
+
+                    <div class="financial-item paid">
+                        <span class="financial-item-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-check-circle"></i>
+                        </span>
+
+                        <span class="financial-item-copy">
+                            <span>Pago</span>
+                            <strong>{{ $formatMoney($paidValue) }}</strong>
+                        </span>
+                    </div>
+
+                    <div class="financial-item fees">
+                        <span class="financial-item-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-percent"></i>
+                        </span>
+
+                        <span class="financial-item-copy">
+                            <span>Taxas</span>
+                            <strong>{{ $formatMoney($distributionFees) }}</strong>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="delivery-panel">
-        <header class="delivery-panel-head">
-            <div class="delivery-panel-title">
-                <span
-                    class="delivery-panel-icon financial"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-wallet"></i>
-                </span>
+    <section class="delivery-section">
+        <header class="delivery-section-head">
+            <span class="delivery-section-icon filters" aria-hidden="true">
+                <i class="ph-duotone ph-funnel"></i>
+            </span>
 
-                <div class="delivery-panel-copy">
-                    <h2>Financeiro das distribuições</h2>
-                </div>
+            <div class="delivery-section-copy">
+                <h2>Encontrar entregas</h2>
+                <p>Filtre por situação, projeto ou período.</p>
             </div>
+
+            @if($hasActiveFilters)
+                <span class="delivery-result-count">
+                    <i class="ph ph-funnel-simple"></i>
+                    filtros ativos
+                </span>
+            @endif
         </header>
 
-        <div class="distribution-summary">
-            <div class="distribution-main">
-                <span>Líquido distribuído</span>
-
-                <strong>
-                    {{ $formatMoney(
-                        $financialSummary['total_net']
-                        ?? 0
-                    ) }}
-                </strong>
-
-                <small>
-                    {{ $financialSummary[
-                        'distribution_count'
-                    ] ?? 0 }}
-                    distribuições
-                </small>
-            </div>
-
-            <div class="distribution-facts">
-                <div class="distribution-fact fees">
-                    <i
-                        class="ph-duotone ph-percent"
-                        aria-hidden="true"
-                    ></i>
-
-                    <span>Taxas</span>
-
-                    <strong>
-                        {{ $formatMoney(
-                            $financialSummary['total_fees']
-                            ?? 0
-                        ) }}
-                    </strong>
-                </div>
-
-                <div class="distribution-fact receivable">
-                    <i
-                        class="ph-duotone ph-clock-countdown"
-                        aria-hidden="true"
-                    ></i>
-
-                    <span>A receber</span>
-
-                    <strong>
-                        {{ $formatMoney(
-                            $financialSummary['receivable']
-                            ?? 0
-                        ) }}
-                    </strong>
-                </div>
-
-                <div class="distribution-fact paid">
-                    <i
-                        class="ph-duotone ph-check-circle"
-                        aria-hidden="true"
-                    ></i>
-
-                    <span>Pago</span>
-
-                    <strong>
-                        {{ $formatMoney(
-                            $financialSummary['paid']
-                            ?? 0
-                        ) }}
-                    </strong>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="delivery-panel">
-        <header class="delivery-panel-head">
-            <div class="delivery-panel-title">
-                <span
-                    class="delivery-panel-icon filters"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-funnel"></i>
-                </span>
-
-                <div class="delivery-panel-copy">
-                    <h2>Filtros</h2>
-                </div>
-            </div>
-        </header>
-
-        <nav
-            class="delivery-tabs"
-            aria-label="Filtrar entregas por status"
-        >
+        <nav class="delivery-status-tabs" aria-label="Filtrar entregas por status">
             @foreach($statusTabs as $value => $tab)
                 <a
-                    class="delivery-tab {{ request('status', '') === $value
-                        ? 'active'
-                        : '' }}"
+                    class="delivery-status-tab tone-{{ $statusTones[$value] ?? 'slate' }} {{ request('status', '') === $value ? 'active' : '' }}"
                     href="{{ $statusUrl($value) }}"
                     @if(request('status', '') === $value)
                         aria-current="page"
                     @endif
                 >
-                    <i
-                        class="ph-duotone {{ $tab['icon'] }}"
-                        aria-hidden="true"
-                    ></i>
-
+                    <i class="ph-duotone {{ $tab['icon'] }}" aria-hidden="true"></i>
                     {{ $tab['label'] }}
                 </a>
             @endforeach
         </nav>
 
-        <form
-            class="delivery-filter-form"
-            method="GET"
-        >
+        <form class="delivery-filter-form" method="GET">
             @if(request('status'))
-                <input
-                    type="hidden"
-                    name="status"
-                    value="{{ request('status') }}"
-                >
+                <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
 
             <div class="delivery-field">
-                <label for="delivery-project">
-                    Projeto
-                </label>
+                <label for="delivery-project">Projeto</label>
 
-                <select
-                    id="delivery-project"
-                    name="project_id"
-                >
-                    <option value="">
-                        Todos os projetos ativos
-                    </option>
+                <select id="delivery-project" name="project_id">
+                    <option value="">Todos os projetos ativos</option>
 
                     @foreach($activeProjects as $project)
                         <option
@@ -1125,20 +1347,14 @@
                                 === (string) $project->id
                             )
                         >
-                            {{ \Illuminate\Support\Str::limit(
-                                $project->title,
-                                44
-                            ) }}
+                            {{ \Illuminate\Support\Str::limit($project->title, 48) }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
             <div class="delivery-field">
-                <label for="delivery-start">
-                    Data inicial
-                </label>
-
+                <label for="delivery-start">De</label>
                 <input
                     id="delivery-start"
                     type="date"
@@ -1148,10 +1364,7 @@
             </div>
 
             <div class="delivery-field">
-                <label for="delivery-end">
-                    Data final
-                </label>
-
+                <label for="delivery-end">Até</label>
                 <input
                     id="delivery-end"
                     type="date"
@@ -1161,31 +1374,16 @@
             </div>
 
             <div class="delivery-filter-actions">
-                <button
-                    type="submit"
-                    class="delivery-filter-button primary"
-                >
+                <button type="submit" class="delivery-filter-button primary">
                     <i class="ph ph-funnel"></i>
                     Filtrar
                 </button>
 
-                @if(
-                    request()->hasAny([
-                        'status',
-                        'project_id',
-                        'start_date',
-                        'end_date',
-                    ])
-                )
+                @if($hasActiveFilters)
                     <a
                         class="delivery-filter-button"
                         href="{{ $tenantSlug
-                            ? route(
-                                'associate.deliveries',
-                                [
-                                    'tenant' => $tenantSlug,
-                                ]
-                            )
+                            ? route('associate.deliveries', ['tenant' => $tenantSlug])
                             : url('/') }}"
                     >
                         <i class="ph ph-x"></i>
@@ -1194,39 +1392,56 @@
                 @endif
             </div>
         </form>
-    </section>
 
-    <section class="delivery-panel">
-        <header class="delivery-panel-head">
-            <div class="delivery-panel-title">
-                <span
-                    class="delivery-panel-icon list"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-list-dashes"></i>
+        @if($hasActiveFilters)
+            <div class="active-filter-note">
+                <i class="ph-duotone ph-info"></i>
+
+                <span>
+                    A lista abaixo mostra apenas os registros que correspondem aos filtros escolhidos.
                 </span>
 
-                <div class="delivery-panel-copy">
-                    <h2>Entregas</h2>
-                    <p>
-                        {{ $deliveries->total() }}
-                        registros encontrados
-                    </p>
-                </div>
+                <a
+                    href="{{ $tenantSlug
+                        ? route('associate.deliveries', ['tenant' => $tenantSlug])
+                        : url('/') }}"
+                >
+                    Ver todas
+                </a>
             </div>
+        @endif
+    </section>
+
+    <section class="delivery-section">
+        <header class="delivery-section-head">
+            <span class="delivery-section-icon list" aria-hidden="true">
+                <i class="ph-duotone ph-list-dashes"></i>
+            </span>
+
+            <div class="delivery-section-copy">
+                <h2>Entregas</h2>
+                <p>Produto, projeto, quantidade, valor e situação financeira no mesmo registro.</p>
+            </div>
+
+            <span class="delivery-result-count">
+                <i class="ph ph-magnifying-glass"></i>
+                {{ $deliveries->total() }}
+                {{ $deliveries->total() === 1 ? 'resultado' : 'resultados' }}
+            </span>
         </header>
 
         @if($visibleDeliveries->isEmpty())
             <div class="delivery-empty">
-                <div>
-                    <i
-                        class="ph-duotone ph-package"
-                        aria-hidden="true"
-                    ></i>
+                <div class="delivery-empty-content">
+                    <span class="delivery-empty-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-package"></i>
+                    </span>
 
-                    <strong>
-                        Nenhuma entrega encontrada
-                    </strong>
+                    <strong>Nenhuma entrega encontrada</strong>
+
+                    <span>
+                        Tente alterar os filtros ou aguarde o registro de uma nova entrega.
+                    </span>
                 </div>
             </div>
         @else
@@ -1234,33 +1449,31 @@
                 @foreach($visibleDeliveries as $delivery)
                     @php
                         $deliveryStatus = $statusValue(
-                            $delivery->status
-                            ?? null
+                            $delivery->status ?? null
                         );
 
-                        $billingStatus = $statusValue(
-                            $delivery->billing_status
-                            ?? null
+                        $distributionCount = (int) ($delivery->portal_distribution_count ?? 0);
+                        $distributedQuantity = (float) ($delivery->portal_distributed_quantity ?? 0);
+                        $deliveryGross = (float) ($delivery->portal_gross_value ?? 0);
+                        $deliveryNet = (float) ($delivery->portal_net_value ?? 0);
+                        $hasPaidDistribution = $delivery->distributions->contains(
+                            fn ($item) => $statusValue($item->billing_status ?? null) === 'paid' || (bool) ($item->paid ?? false)
                         );
-
-                        $billingLabel = (
-                            is_object(
-                                $delivery->billing_status
-                                ?? null
-                            )
-                            && method_exists(
-                                $delivery->billing_status,
-                                'getLabel'
-                            )
-                        )
-                            ? $delivery->billing_status
-                                ->getLabel()
-                            : match ($billingStatus) {
-                                'paid' => 'Pago',
-                                'billed' => 'Faturado',
-                                'unbilled' => 'A faturar',
-                                default => '',
-                            };
+                        $hasReceiptDistribution = $delivery->distributions->contains(
+                            fn ($item) => $statusValue($item->billing_status ?? null) === 'billed' || ! is_null($item->associate_receipt_id)
+                        );
+                        $allPaid = $distributionCount > 0 && $delivery->distributions->every(
+                            fn ($item) => $statusValue($item->billing_status ?? null) === 'paid' || (bool) ($item->paid ?? false)
+                        );
+                        $billingStatus = $distributionCount === 0
+                            ? 'waiting'
+                            : ($allPaid ? 'paid' : ($hasReceiptDistribution || $hasPaidDistribution ? 'billed' : 'unbilled'));
+                        $billingLabel = match ($billingStatus) {
+                            'paid' => 'Pago',
+                            'billed' => 'Em comprovante',
+                            'unbilled' => 'A faturar',
+                            default => 'Aguardando distribuição',
+                        };
 
                         $deliveryUnit = $unitLabel(
                             $delivery->unit
@@ -1268,94 +1481,123 @@
                             ?? null
                         );
 
-                        $deliveryValue =
-                            (float) $delivery->quantity
-                            * (float) $delivery->unit_price;
+                        $deliveryDate = $delivery->delivery_date;
+
+                        $deliveryDay =
+                            $deliveryDate?->format('d')
+                            ?? '--';
+
+                        $deliveryMonth =
+                            $deliveryDate
+                                ? strtoupper(
+                                    $deliveryDate
+                                        ->locale('pt_BR')
+                                        ->translatedFormat('M')
+                                )
+                                : '---';
+
+                        $billingTone =
+                            $billingStatus === 'paid'
+                                ? 'paid'
+                                : (
+                                    $billingStatus === 'billed'
+                                        ? 'billed'
+                                        : 'unbilled'
+                                );
                     @endphp
 
-                    <article class="delivery-row">
+                    <article class="delivery-entry">
                         <span
-                            class="delivery-row-icon"
-                            aria-hidden="true"
+                            class="delivery-date"
+                            aria-label="{{ $deliveryDate?->format('d/m/Y') ?? 'Data não informada' }}"
                         >
-                            <i class="ph-duotone ph-package"></i>
+                            <strong>{{ $deliveryDay }}</strong>
+
+                            <span>
+                                {{ \Illuminate\Support\Str::limit($deliveryMonth, 3, '') }}
+                            </span>
                         </span>
 
-                        <div class="delivery-row-copy">
-                            <div class="delivery-row-title-line">
-                                <strong class="delivery-row-title">
-                                    {{ $delivery->product?->name
-                                        ?? 'Produto' }}
-                                </strong>
+                        <div class="delivery-entry-content">
+                            <div class="delivery-entry-head">
+                                <div class="delivery-entry-title">
+                                    <div class="delivery-entry-title-line">
+                                        <strong class="delivery-product">
+                                            {{ $delivery->product?->name ?? 'Produto' }}
+                                        </strong>
 
-                                <span
-                                    class="delivery-status {{ $deliveryStatus }}"
-                                >
-                                    {{ $statusLabel(
-                                        $delivery->status
-                                        ?? null
-                                    ) }}
-                                </span>
-                            </div>
+                                        <span class="delivery-status {{ $deliveryStatus }}">
+                                            {{ $statusLabel($delivery->status ?? null) }}
+                                        </span>
+                                    </div>
 
-                            <div class="delivery-row-meta">
-                                <span>
-                                    <i class="ph ph-calendar-blank"></i>
+                                    <span class="delivery-project">
+                                        <i class="ph ph-folder"></i>
 
-                                    {{ $delivery->delivery_date
-                                        ?->format('d/m/Y')
-                                        ?? 'Data não informada' }}
-                                </span>
-
-                                <span>
-                                    <i class="ph ph-folder"></i>
-
-                                    {{ \Illuminate\Support\Str::limit(
-                                        $delivery->salesProject?->title
-                                        ?? 'Projeto',
-                                        44
-                                    ) }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <div class="delivery-data quantity">
-                            <span>Quantidade</span>
-
-                            <strong>
-                                {{ $formatQuantity(
-                                    $delivery->quantity
-                                ) }}
-
-                                {{ $deliveryUnit }}
-                            </strong>
-                        </div>
-
-                        <div class="delivery-data value">
-                            <span>Valor</span>
-
-                            <strong>
-                                {{ $formatMoney($deliveryValue) }}
-                            </strong>
-                        </div>
-
-                        <div class="delivery-data billing">
-                            <span>Faturamento</span>
-
-                            @if(
-                                $billingStatus
-                                && $billingStatus !== 'unbilled'
-                            )
-                                <strong>
-                                    <span
-                                        class="delivery-status {{ $billingStatus }}"
-                                    >
-                                        {{ $billingLabel }}
+                                        <span>
+                                            {{ \Illuminate\Support\Str::limit(
+                                                $delivery->salesProject?->title ?? 'Projeto',
+                                                58
+                                            ) }}
+                                        </span>
                                     </span>
-                                </strong>
-                            @else
-                                <strong>A faturar</strong>
-                            @endif
+                                </div>
+
+                                <div class="delivery-entry-value">
+                                    <span>Valor distribuído</span>
+                                    <strong>
+                                        {{ $distributionCount > 0
+                                            ? $formatMoney($deliveryGross)
+                                            : 'Aguardando distribuição' }}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <div class="delivery-details">
+                                <div class="delivery-detail">
+                                    <span>Quantidade</span>
+
+                                    <strong>
+                                        {{ $formatQuantity($delivery->quantity) }}
+                                        {{ $deliveryUnit }}
+                                    </strong>
+                                </div>
+
+                                <div class="delivery-detail">
+                                    <span>Distribuído</span>
+                                    <strong>
+                                        {{ $formatQuantity($distributedQuantity) }}
+                                        {{ $deliveryUnit }}
+                                    </strong>
+                                </div>
+
+                                <div class="delivery-detail">
+                                    <span>{{ $distributionCount > 0 ? 'Líquido' : 'Financeiro' }}</span>
+
+                                    <strong class="billing-value {{ $billingTone }}">
+                                        <i
+                                            class="ph-duotone {{ $billingTone === 'paid'
+                                                ? 'ph-check-circle'
+                                                : (
+                                                    $billingTone === 'billed'
+                                                        ? 'ph-receipt'
+                                                        : 'ph-clock-countdown'
+                                                ) }}"
+                                        ></i>
+
+                                        {{ $distributionCount > 0
+                                            ? $formatMoney($deliveryNet)
+                                            : $billingLabel }}
+                                    </strong>
+                                </div>
+
+                                @if($distributionCount > 0)
+                                    <div class="delivery-detail">
+                                        <span>Faturamento</span>
+                                        <strong class="billing-value {{ $billingTone }}">{{ $billingLabel }}</strong>
+                                    </div>
+                                @endif
+                            </div>
                         </div>
                     </article>
                 @endforeach
@@ -1371,4 +1613,14 @@
         @endif
     </section>
 </main>
+@php
+    $associatePortalConfig = [
+        'page' => 'deliveries',
+        'urls' => [
+            'deliveries' => route('associate.data.deliveries', ['tenant' => $tenantSlug]),
+        ],
+    ];
+@endphp
+<script>window.AssociatePortalConfig = @json($associatePortalConfig);</script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}"></script>
 @endsection
