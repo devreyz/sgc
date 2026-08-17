@@ -2,6 +2,7 @@
 
 @section('title', 'Entregas do Projeto')
 @section('page-title', 'Histórico de Entregas')
+@section('page-subtitle', $project->title)
 @section('user-role', 'Registrador')
 
 <x-delivery.dist-modal
@@ -25,636 +26,3022 @@
 
 @section('content')
 <style>
-    /* ========== BASE & UTILITY ========== */
-    .pd-header {
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        padding: 1.2rem 1.4rem;
-        margin-bottom: 1.25rem;
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
-        flex-wrap: wrap;
+    .pd-page,
+    .pd-modal-scope,
+    #pd-toasts,
+    .confirm-overlay,
+    .modal-overlay,
+    .pd-integrity-overlay,
+    .dist-summary-overlay {
+        --pd-green: #168a4d;
+        --pd-green-soft: #eaf8ef;
+        --pd-blue: #2563eb;
+        --pd-blue-soft: #eef4ff;
+        --pd-sky: #0284c7;
+        --pd-sky-soft: #edf8fe;
+        --pd-violet: #7c3aed;
+        --pd-violet-soft: #f4f0ff;
+        --pd-amber: #c87408;
+        --pd-amber-soft: #fff7e8;
+        --pd-red: #cf3f3f;
+        --pd-red-soft: #fff0f0;
+        --pd-slate: #64748b;
+        --pd-slate-soft: #f1f5f9;
+
+        --pd-surface: var(--color-surface, #fff);
+        --pd-soft: var(--color-surface-soft, #f8faf9);
+        --pd-muted: var(--color-surface-muted, #eef4f0);
+        --pd-border: var(--color-border, #dce7e0);
+        --pd-border-strong: var(--color-border-strong, #c8d6cd);
+        --pd-text: var(--color-text, #102018);
+        --pd-text-2: var(--color-text-secondary, #52645a);
+        --pd-text-3: var(--color-text-muted, #809087);
+        --pd-shadow-sm: 0 4px 14px rgba(15, 35, 24, .045);
+        --pd-shadow-md: 0 12px 30px rgba(15, 35, 24, .10);
+        --pd-shadow-lg: 0 24px 64px rgba(8, 24, 15, .22);
     }
-    .pd-title { font-size:1.2rem; font-weight:700; margin:0 0 .2rem; display:flex; align-items:center; gap:.45rem; }
-    .pd-sub { font-size:.82rem; color:var(--color-text-secondary); display:flex; align-items:center; gap:.3rem; }
-    .pd-header-actions { display:flex; gap:.5rem; flex-wrap:wrap; align-items:flex-start; }
 
-    .pd-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:.65rem; margin-bottom:1.25rem; }
-    .pd-stat  { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:.75rem 1rem; text-align:center; }
-    .pd-stat-lbl { font-size:.65rem; text-transform:uppercase; letter-spacing:.05em; color:var(--color-text-secondary); }
-    .pd-stat-val { font-size:1.35rem; font-weight:800; }
+    .pd-page {
+        display: grid;
+        width: min(100%, 1280px);
+        min-width: 0;
+        grid-column: 1 / -1;
+        gap: .76rem;
+        margin: 0 auto;
+        padding-bottom: 1rem;
+        color: var(--pd-text);
+    }
 
-    .pd-card { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:1.25rem; }
-    .pd-card-header { padding:.9rem 1.2rem; border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.5rem; }
-    .pd-card-title  { font-size:.95rem; font-weight:700; display:flex; align-items:center; gap:.4rem; }
+    .pd-page *,
+    .pd-page *::before,
+    .pd-page *::after,
+    .pd-modal-scope *,
+    .pd-modal-scope *::before,
+    .pd-modal-scope *::after,
+    .confirm-overlay *,
+    .confirm-overlay *::before,
+    .confirm-overlay *::after,
+    .modal-overlay *,
+    .modal-overlay *::before,
+    .modal-overlay *::after,
+    .pd-integrity-overlay *,
+    .pd-integrity-overlay *::before,
+    .pd-integrity-overlay *::after,
+    .dist-summary-overlay *,
+    .dist-summary-overlay *::before,
+    .dist-summary-overlay *::after {
+        box-sizing: border-box;
+    }
 
-    /* ========== FILTROS ========== */
-    .filters-bar {
-        padding: .75rem 1.2rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: .5rem;
+    /* ---------- Projeto ---------- */
+
+    .pd-context {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        gap: .6rem;
         align-items: center;
-        border-bottom: 1px solid var(--color-border);
+        min-height: 70px;
+        padding: .66rem .72rem;
+        overflow: hidden;
+        border: 1px solid var(--pd-border);
+        border-radius: 15px;
+        background:
+            radial-gradient(circle at 100% 0, rgba(200, 116, 8, .08), transparent 17rem),
+            linear-gradient(180deg, var(--pd-soft), var(--pd-surface));
+        box-shadow: var(--pd-shadow-sm);
     }
-    .filter-input, .filter-select {
-        padding: .4rem .65rem;
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-md);
-        font-size: .78rem;
-        background: var(--color-bg);
-        color: var(--color-text);
-        min-width: 120px;
+
+    .pd-back,
+    .pd-context-icon {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border-radius: 11px;
     }
-    .filter-input:focus, .filter-select:focus {
+
+    .pd-back {
+        border: 1px solid var(--pd-border);
+        background: #fff;
+        color: var(--pd-text-2);
+        text-decoration: none;
+        transition: .15s ease;
+    }
+
+    .pd-back:hover,
+    .pd-back:focus-visible {
+        border-color: rgba(37, 99, 235, .25);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
         outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 2px rgba(var(--color-primary-rgb, 59,130,246),.15);
+        transform: translateX(-1px);
     }
-    .filter-tag {
-        display: inline-flex;
-        align-items: center;
+
+    .pd-context-icon {
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .pd-back > i,
+    .pd-back > svg,
+    .pd-context-icon > i,
+    .pd-context-icon > svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .pd-context-copy {
+        min-width: 0;
+    }
+
+    .pd-context-kicker {
+        display: grid;
+        width: max-content;
+        grid-template-columns: auto auto;
         gap: .25rem;
-        padding: .25rem .6rem;
-        border-radius: 99px;
-        font-size: .72rem;
-        font-weight: 600;
-        background: var(--color-primary);
-        color: #fff;
+        align-items: center;
+        color: var(--pd-amber);
+        font-size: .68rem;
+        font-weight: 800;
+    }
+
+    .pd-context-kicker > i,
+    .pd-context-kicker > svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .pd-title {
+        margin: .06rem 0 0;
+        color: var(--pd-text);
+        font-size: clamp(1rem, 2vw, 1.18rem);
+        font-weight: 860;
+        letter-spacing: -.03em;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .pd-sub {
+        display: none;
+    }
+
+    .pd-header-actions {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .32rem;
+        align-items: center;
+    }
+
+    /* ---------- Botões ---------- */
+
+    .btn,
+    .report-btn,
+    .delivery-page-btn,
+    .pd-integrity-toggle,
+    .pd-integrity-close,
+    .dist-summary-close,
+    .btn-approve,
+    .btn-reject,
+    .btn-edit,
+    .btn-distribute,
+    .btn-delete-approved {
+        font-family: inherit;
+    }
+
+    .btn {
+        display: inline-grid;
+        min-height: 38px;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .28rem;
+        align-items: center;
+        justify-content: center;
+        padding: .42rem .58rem;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        cursor: pointer;
+        font-size: .7rem;
+        font-weight: 790;
+        line-height: 1;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: .15s ease;
+    }
+
+    .btn > i,
+    .btn > svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .btn:hover:not(:disabled),
+    .btn:focus-visible:not(:disabled) {
+        outline: none;
+        transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+        cursor: not-allowed;
+        opacity: .48;
+        transform: none;
+    }
+
+    .btn-sm {
+        min-height: 36px;
+        padding: .38rem .5rem;
+        font-size: .69rem;
+    }
+
+    .btn-xs {
+        min-height: 31px;
+        padding: .32rem .42rem;
+        font-size: .65rem;
+    }
+
+    .btn-primary {
+        border-color: rgba(37, 99, 235, .17);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .btn-success {
+        border-color: rgba(22, 138, 77, .17);
+        background: var(--pd-green-soft);
+        color: var(--pd-green);
+    }
+
+    .btn-danger {
+        border-color: rgba(207, 63, 63, .16);
+        background: var(--pd-red-soft);
+        color: var(--pd-red);
+    }
+
+    .btn-ghost {
+        border-color: var(--pd-border-strong);
+        background: #fff;
+        color: var(--pd-text-2);
+    }
+
+    .btn-ghost:hover:not(:disabled),
+    .btn-ghost:focus-visible:not(:disabled) {
+        border-color: rgba(37, 99, 235, .22);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .pd-action-delivery {
+        border-color: rgba(200, 116, 8, .18);
+        background: var(--pd-amber-soft);
+        color: #92400e;
+    }
+
+    .pd-action-limits {
+        border-color: rgba(124, 58, 237, .17);
+        background: var(--pd-violet-soft);
+        color: var(--pd-violet);
+    }
+
+    .pd-action-producers {
+        border-color: rgba(37, 99, 235, .15);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    /* ---------- Resumo ---------- */
+
+    .pd-summary {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid var(--pd-border);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: var(--pd-shadow-sm);
+    }
+
+    .pd-stat {
+        --stat-tone: var(--pd-blue);
+        --stat-soft: var(--pd-blue-soft);
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .42rem;
+        align-items: center;
+        min-height: 66px;
+        padding: .48rem .54rem;
+    }
+
+    .pd-stat:nth-child(2) {
+        --stat-tone: var(--pd-green);
+        --stat-soft: var(--pd-green-soft);
+    }
+
+    .pd-stat:nth-child(3) {
+        --stat-tone: var(--pd-amber);
+        --stat-soft: var(--pd-amber-soft);
+    }
+
+    .pd-stat:nth-child(4) {
+        --stat-tone: var(--pd-red);
+        --stat-soft: var(--pd-red-soft);
+    }
+
+    .pd-stat:nth-child(5) {
+        --stat-tone: var(--pd-violet);
+        --stat-soft: var(--pd-violet-soft);
+    }
+
+    .pd-stat + .pd-stat {
+        border-left: 1px solid var(--pd-border);
+    }
+
+    .pd-stat-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--stat-soft);
+        color: var(--stat-tone);
+    }
+
+    .pd-stat-icon > i,
+    .pd-stat-icon > svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .pd-stat-copy {
+        min-width: 0;
+    }
+
+    .pd-stat-lbl {
+        color: var(--pd-text-3);
+        font-size: .64rem;
+        font-weight: 700;
+        line-height: 1.25;
+    }
+
+    .pd-stat-val {
+        margin-top: .03rem;
+        color: var(--stat-tone);
+        font-size: .88rem;
+        font-weight: 860;
+        letter-spacing: -.02em;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+    }
+
+    /* ---------- Superfícies ---------- */
+
+    .pd-card,
+    .pd-integrity-panel,
+    .reports-bar {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--pd-border);
+        border-radius: 15px;
+        background: #fff;
+        box-shadow: var(--pd-shadow-sm);
+    }
+
+    .pd-card-header,
+    .pd-panel-head {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .55rem;
+        align-items: center;
+        min-height: 58px;
+        padding: .68rem .76rem;
+        border-bottom: 1px solid var(--pd-border);
+        background: linear-gradient(180deg, var(--pd-soft), #fff);
+    }
+
+    .pd-card-title,
+    .pd-panel-title-wrap {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .46rem;
+        align-items: center;
+    }
+
+    .pd-card-title > i,
+    .pd-card-title > svg,
+    .pd-panel-icon {
+        display: grid;
+        width: 38px !important;
+        height: 38px !important;
+        place-items: center;
+        padding: 10px;
+        border-radius: 10px;
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .pd-deliveries-card .pd-card-title > i,
+    .pd-deliveries-card .pd-card-title > svg {
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .pd-panel-icon.warning {
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .pd-panel-copy {
+        min-width: 0;
+    }
+
+    .pd-panel-title,
+    .pd-card-title {
+        color: var(--pd-text);
+        font-size: .88rem;
+        font-weight: 840;
+        letter-spacing: -.015em;
+        line-height: 1.3;
+    }
+
+    .pd-panel-sub {
+        margin-top: .04rem;
+        color: var(--pd-text-3);
+        font-size: .67rem;
+        line-height: 1.35;
+    }
+
+    .pd-card-head-actions {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .3rem;
+        align-items: center;
+    }
+
+    .pd-pending-chip {
+        display: grid;
+        min-height: 27px;
+        grid-template-columns: auto auto;
+        gap: .22rem;
+        align-items: center;
+        padding: .18rem .38rem;
+        border-radius: 999px;
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+        font-size: .64rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .pd-pending-chip > i,
+    .pd-pending-chip > svg {
+        width: 12px;
+        height: 12px;
+    }
+
+    /* ---------- Integridade ---------- */
+
+    .pd-integrity-summary {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .28rem;
+        align-items: center;
+    }
+
+    .pd-integrity-count {
+        display: grid;
+        min-height: 26px;
+        grid-template-columns: auto auto;
+        gap: .2rem;
+        align-items: center;
+        padding: .18rem .34rem;
+        border-radius: 999px;
+        font-size: .63rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .pd-integrity-count.critical {
+        background: var(--pd-red-soft);
+        color: var(--pd-red);
+    }
+
+    .pd-integrity-count.warning {
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .pd-integrity-count.info {
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .pd-integrity-toggle,
+    .pd-integrity-close,
+    .dist-summary-close {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid var(--pd-border);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--pd-text-2);
         cursor: pointer;
     }
-    .filter-tag i { cursor: pointer; }
+
+    .pd-integrity-toggle:hover,
+    .pd-integrity-toggle:focus-visible,
+    .pd-integrity-close:hover,
+    .pd-integrity-close:focus-visible,
+    .dist-summary-close:hover,
+    .dist-summary-close:focus-visible {
+        border-color: rgba(37, 99, 235, .22);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+        outline: none;
+    }
+
+    .pd-integrity-toggle > i,
+    .pd-integrity-toggle > svg,
+    .pd-integrity-close > i,
+    .pd-integrity-close > svg,
+    .dist-summary-close > i,
+    .dist-summary-close > svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .pd-integrity-content[hidden] {
+        display: none !important;
+    }
+
+    .pd-integrity-grid,
+    .pd-integrity-body {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0;
+        padding: .08rem .64rem .64rem;
+    }
+
+    .pd-integrity-column {
+        --severity-tone: var(--pd-blue);
+        --severity-soft: var(--pd-blue-soft);
+        min-width: 0;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .pd-integrity-column + .pd-integrity-column {
+        border-left: 1px solid var(--pd-border);
+    }
+
+    .pd-integrity-column.critical {
+        --severity-tone: var(--pd-red);
+        --severity-soft: var(--pd-red-soft);
+    }
+
+    .pd-integrity-column.warning {
+        --severity-tone: var(--pd-amber);
+        --severity-soft: var(--pd-amber-soft);
+    }
+
+    .pd-integrity-column-head {
+        display: grid;
+        min-height: 36px;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .28rem;
+        align-items: center;
+        padding: .4rem .5rem;
+        background: var(--severity-soft);
+        color: var(--severity-tone);
+        font-size: .66rem;
+        font-weight: 820;
+    }
+
+    .pd-integrity-column-head > i,
+    .pd-integrity-column-head > svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .pd-integrity-items {
+        display: grid;
+    }
+
+    .pd-integrity-item {
+        min-width: 0;
+        padding: .48rem .52rem;
+    }
+
+    .pd-integrity-item + .pd-integrity-item {
+        border-top: 1px solid var(--pd-border);
+    }
+
+    .pd-integrity-item-title {
+        color: var(--pd-text);
+        font-size: .73rem;
+        font-weight: 810;
+        line-height: 1.35;
+    }
+
+    .pd-integrity-item-message {
+        margin-top: .1rem;
+        color: var(--pd-text-2);
+        font-size: .68rem;
+        line-height: 1.4;
+    }
+
+    .pd-integrity-item-action {
+        margin-top: .16rem;
+        color: var(--severity-tone);
+        font-size: .65rem;
+        font-weight: 760;
+        line-height: 1.35;
+    }
+
+    .pd-integrity-actions {
+        display: flex;
+        gap: .28rem;
+        flex-wrap: wrap;
+        margin-top: .34rem;
+    }
+
+    .pd-integrity-empty {
+        padding: .55rem;
+        color: var(--pd-text-3);
+        font-size: .67rem;
+    }
+
+    .pd-issue-focus {
+        outline: 2px solid var(--pd-blue);
+        outline-offset: -2px;
+    }
+
+    /* ---------- Relatórios ---------- */
+
+    .reports-bar {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .5rem;
+        align-items: center;
+        padding: .5rem .62rem;
+        background: linear-gradient(135deg, #fff, var(--pd-violet-soft));
+    }
+
+    .reports-bar-title {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .4rem;
+        align-items: center;
+        margin: 0;
+        color: var(--pd-text);
+        font-size: .75rem;
+        font-weight: 810;
+    }
+
+    .reports-bar-title > i,
+    .reports-bar-title > svg {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 8px;
+        border-radius: 9px;
+        background: var(--pd-violet-soft);
+        color: var(--pd-violet);
+    }
+
+    .reports-row {
+        display: flex;
+        gap: .3rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .report-btn {
+        display: inline-grid;
+        min-height: 34px;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .25rem;
+        align-items: center;
+        justify-content: center;
+        padding: .36rem .48rem;
+        border: 1px solid var(--pd-border-strong);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--pd-text-2);
+        cursor: pointer;
+        font-size: .68rem;
+        font-weight: 780;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .report-btn > i,
+    .report-btn > svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .report-generate {
+        border-color: rgba(124, 58, 237, .18);
+        background: var(--pd-violet-soft);
+        color: var(--pd-violet);
+    }
+
+    .report-receipts {
+        border-color: rgba(100, 116, 139, .18);
+        background: var(--pd-slate-soft);
+        color: var(--pd-slate);
+    }
+
+    /* ---------- Filtros ---------- */
+
+    .filters-bar {
+        display: grid;
+        min-width: 0;
+        gap: 0;
+        border-bottom: 1px solid var(--pd-border);
+        background: var(--pd-soft);
+    }
+
+    .pd-filters-primary {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(230px, 1fr) minmax(150px, 205px) auto;
+        gap: .4rem;
+        align-items: end;
+        padding: .62rem .74rem;
+    }
+
+    .pd-filters-advanced {
+        display: grid;
+        min-width: 0;
+        grid-template-columns:
+            minmax(170px, 1fr)
+            minmax(170px, 1fr)
+            minmax(125px, .65fr)
+            minmax(125px, .65fr)
+            minmax(120px, .58fr);
+        gap: .4rem;
+        padding: .52rem .64rem;
+        border-top: 1px solid var(--pd-border);
+        background: linear-gradient(180deg, var(--pd-blue-soft), #fff);
+    }
+
+    .pd-filters-advanced[hidden] {
+        display: none !important;
+    }
+
+    .pd-filter-field {
+        display: grid;
+        min-width: 0;
+        gap: .18rem;
+    }
+
+    .pd-filter-label {
+        color: var(--pd-text-3);
+        font-size: .62rem;
+        font-weight: 720;
+        line-height: 1.2;
+    }
+
+    .pd-filter-control {
+        position: relative;
+        min-width: 0;
+    }
+
+    .pd-filter-control > i,
+    .pd-filter-control > svg {
+        position: absolute;
+        top: 50%;
+        left: .58rem;
+        width: 14px;
+        height: 14px;
+        color: var(--pd-text-3);
+        pointer-events: none;
+        transform: translateY(-50%);
+    }
+
+    .filter-input,
+    .filter-select,
+    .delivery-page-size {
+        width: 100%;
+        min-width: 0;
+        min-height: 39px;
+        padding: .46rem .54rem;
+        border: 1px solid var(--pd-border-strong);
+        border-radius: 9px;
+        outline: none;
+        background: #fff;
+        color: var(--pd-text);
+        font: inherit;
+        font-size: .71rem;
+    }
+
+    .pd-filter-control.has-icon .filter-input {
+        padding-left: 1.82rem;
+    }
+
+    .filter-input:focus,
+    .filter-select:focus,
+    .delivery-page-size:focus {
+        border-color: var(--pd-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+    }
+
+    .pd-filter-more {
+        display: grid;
+        min-height: 39px;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .24rem;
+        align-items: center;
+        justify-content: center;
+        padding: .43rem .5rem;
+        border: 1px solid rgba(37, 99, 235, .16);
+        border-radius: 9px;
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+        cursor: pointer;
+        font: inherit;
+        font-size: .68rem;
+        font-weight: 790;
+        white-space: nowrap;
+    }
+
+    .pd-filter-more:hover,
+    .pd-filter-more:focus-visible,
+    .pd-filter-more.open {
+        border-color: rgba(37, 99, 235, .28);
+        outline: none;
+    }
+
+    .pd-filter-more.has-active {
+        border-color: rgba(124, 58, 237, .18);
+        background: var(--pd-violet-soft);
+        color: var(--pd-violet);
+    }
+
+    .pd-filter-more > i,
+    .pd-filter-more > svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .pd-filter-more-count {
+        display: grid;
+        min-width: 19px;
+        height: 19px;
+        place-items: center;
+        padding: 0 .22rem;
+        border-radius: 999px;
+        background: #fff;
+        color: currentColor;
+        font-size: .61rem;
+        font-weight: 850;
+    }
+
+    .pd-filter-more-count[hidden] {
+        display: none;
+    }
+
+    /* ---------- Tabela desktop ---------- */
+
+    .table-scroll {
+        min-width: 0;
+        overflow-x: auto;
+        background: #fff;
+        scrollbar-width: thin;
+    }
+
+    .data-table {
+        width: 100%;
+        min-width: 1040px;
+        border-collapse: separate;
+        border-spacing: 0;
+        color: var(--pd-text);
+        font-size: .73rem;
+    }
+
+    .data-table thead {
+        position: sticky;
+        z-index: 4;
+        top: 0;
+    }
+
+    .data-table th {
+        padding: .58rem .64rem;
+        border-bottom: 1px solid var(--pd-border);
+        background: #f7f9f8;
+        color: var(--pd-text-3);
+        font-size: .63rem;
+        font-weight: 770;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .data-table td {
+        padding: .62rem .64rem;
+        border-bottom: 1px solid var(--pd-border);
+        background: #fff;
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+    .data-table tbody tr:hover td {
+        background: color-mix(in srgb, var(--pd-blue-soft) 30%, #fff);
+    }
+
+    /* Seleção para comprovante removida desta tela. */
+    .chk-cell,
+    .mc-chk {
+        display: none !important;
+    }
+
+
+    /* ---------- Status e ações ---------- */
+
+    .badge-status {
+        display: inline-grid;
+        min-height: 24px;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .2rem;
+        align-items: center;
+        padding: .17rem .34rem;
+        border-radius: 999px;
+        font-size: .62rem;
+        font-weight: 810;
+        white-space: nowrap;
+    }
+
+    .badge-status.pending {
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .badge-status.approved {
+        background: var(--pd-green-soft);
+        color: var(--pd-green);
+    }
+
+    .badge-status.rejected {
+        background: var(--pd-red-soft);
+        color: var(--pd-red);
+    }
+
+    .badge-status.cancelled {
+        background: var(--pd-slate-soft);
+        color: var(--pd-slate);
+    }
+
+    .action-btns,
+    .mc-actions {
+        display: flex;
+        gap: .24rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .btn-approve,
+    .btn-reject,
+    .btn-edit,
+    .btn-distribute,
+    .btn-delete-approved {
+        display: inline-grid;
+        min-height: 30px;
+        grid-auto-flow: column;
+        grid-auto-columns: max-content;
+        gap: .2rem;
+        align-items: center;
+        justify-content: center;
+        padding: .3rem .4rem;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: .64rem;
+        font-weight: 770;
+        line-height: 1;
+        white-space: nowrap;
+        transition: .14s ease;
+    }
+
+    .btn-approve:hover:not(:disabled),
+    .btn-reject:hover:not(:disabled),
+    .btn-edit:hover:not(:disabled),
+    .btn-distribute:hover:not(:disabled),
+    .btn-delete-approved:hover:not(:disabled) {
+        transform: translateY(-1px);
+    }
+
+    .btn-approve {
+        border-color: rgba(22, 138, 77, .15);
+        background: var(--pd-green-soft);
+        color: var(--pd-green);
+    }
+
+    .btn-reject {
+        border-color: rgba(207, 63, 63, .15);
+        background: var(--pd-red-soft);
+        color: var(--pd-red);
+    }
+
+    .btn-edit {
+        border-color: rgba(37, 99, 235, .15);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .btn-distribute {
+        border-color: rgba(124, 58, 237, .18);
+        background: var(--pd-violet-soft);
+        color: var(--pd-violet);
+    }
+
+    .btn-distribute:hover:not(:disabled),
+    .btn-distribute:focus-visible:not(:disabled) {
+        border-color: rgba(124, 58, 237, .30);
+        background: color-mix(in srgb, var(--pd-violet-soft) 78%, #fff);
+        color: var(--pd-violet);
+        outline: none;
+    }
+
+    .btn-delete-approved {
+        border-color: rgba(207, 63, 63, .12);
+        background: #fff;
+        color: var(--pd-red);
+    }
+
+    .btn-approve:disabled,
+    .btn-reject:disabled,
+    .btn-edit:disabled,
+    .btn-distribute:disabled,
+    .btn-delete-approved:disabled {
+        cursor: not-allowed;
+        opacity: .48;
+    }
+
+    .action-btns > button > svg,
+    .action-btns > button > i {
+        width: 13px;
+        height: 13px;
+        flex: 0 0 auto;
+    }
+
+    .action-btns .pd-action-label {
+        display: inline;
+    }
+
+
+    /* ---------- Distribuição ---------- */
+
+    .dist-indicator,
+    .mc-dist-indicator {
+        display: grid;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto auto;
+        gap: .28rem;
+        align-items: center;
+        padding: .13rem .2rem;
+        border-radius: 7px;
+        background: var(--pd-sky-soft);
+        cursor: pointer;
+    }
+
+    .dist-bar-bg,
+    .mc-dist-bar-bg {
+        width: 62px;
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--pd-sky-soft) 70%, var(--pd-border));
+    }
+
+    .dist-bar-fill,
+    .mc-dist-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        transition: width .3s ease;
+    }
+
+    .dist-bar-fill.full,
+    .mc-dist-bar-fill.full {
+        background: var(--pd-green);
+    }
+
+    .dist-bar-fill.partial,
+    .mc-dist-bar-fill.partial {
+        background: var(--pd-amber);
+    }
+
+    .dist-bar-fill.over,
+    .mc-dist-bar-fill.over {
+        background: var(--pd-red);
+    }
+
+    .dist-text,
+    .mc-dist-text {
+        min-width: 31px;
+        color: var(--pd-text-2);
+        font-size: .63rem;
+        font-weight: 760;
+        white-space: nowrap;
+    }
+
+    .dist-warning {
+        display: block;
+        margin-top: .07rem;
+        color: var(--pd-red);
+        font-size: .61rem;
+        font-weight: 730;
+        line-height: 1.3;
+    }
+
+    /* ---------- Mobile cards ---------- */
+
+    .mobile-cards {
+        display: none;
+        gap: .5rem;
+        padding: .62rem;
+        background: var(--pd-soft);
+    }
+
+    .mobile-card {
+        --delivery-state: var(--pd-slate);
+        --delivery-state-bg: var(--pd-slate-soft);
+        min-width: 0;
+        padding: .68rem;
+        border: 1px solid var(--pd-border);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(15, 35, 24, .035);
+        font-size: .72rem;
+    }
+
+    .mobile-card + .mobile-card {
+        margin-top: 0;
+    }
+
+    .mobile-card.status-pending {
+        --delivery-state: var(--pd-amber);
+        --delivery-state-bg: var(--pd-amber-soft);
+    }
+
+    .mobile-card.status-approved {
+        --delivery-state: var(--pd-green);
+        --delivery-state-bg: var(--pd-green-soft);
+    }
+
+    .mobile-card.status-distributed {
+        --delivery-state: var(--pd-sky);
+        --delivery-state-bg: var(--pd-sky-soft);
+    }
+
+    .mobile-card.status-rejected {
+        --delivery-state: var(--pd-red);
+        --delivery-state-bg: var(--pd-red-soft);
+    }
+
+    .mobile-card.status-cancelled {
+        --delivery-state: var(--pd-slate);
+        --delivery-state-bg: var(--pd-slate-soft);
+    }
+
+    .mc-head {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: .34rem;
+        align-items: center;
+        padding: 0 .02rem .38rem;
+    }
+
+    .mc-state-icon {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--delivery-state-bg);
+        color: var(--delivery-state);
+    }
+
+    .mc-state-icon > i,
+    .mc-state-icon > svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .mc-head-main {
+        display: flex;
+        min-width: 0;
+        gap: .22rem;
+        align-items: center;
+        overflow: hidden;
+    }
+
+    .mc-head-line {
+        display: contents;
+    }
+
+    .mc-date {
+        color: var(--pd-text-3);
+        font-size: .65rem;
+        font-weight: 720;
+        white-space: nowrap;
+    }
+
+    .mc-sep {
+        color: var(--pd-text-3);
+        opacity: .6;
+    }
+
+    .mc-head-product {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--pd-text);
+        font-size: .75rem;
+        font-weight: 830;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mc-head-qty {
+        color: var(--pd-text-2);
+        font-size: .66rem;
+        font-weight: 760;
+        white-space: nowrap;
+    }
+
+    .mc-body {
+        display: grid;
+        gap: .44rem;
+        padding: .52rem .56rem;
+        border-radius: 10px;
+        background: var(--pd-soft);
+    }
+
+    .mc-row {
+        display: flex;
+        min-width: 0;
+        gap: .34rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .mc-chk {
+        min-width: 18px;
+    }
+
+    .mc-status {
+        margin: 0;
+    }
+
+    .mc-assoc {
+        color: var(--pd-text-2);
+        font-size: .69rem;
+        line-height: 1.35;
+    }
+
+    .mc-product {
+        color: var(--pd-text);
+        font-size: .73rem;
+        font-weight: 770;
+    }
+
+    .mc-details {
+        display: flex;
+        gap: .5rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .mc-qty {
+        color: var(--pd-text);
+        font-weight: 800;
+    }
+
+    .mc-net {
+        color: var(--pd-green);
+        font-weight: 800;
+    }
+
+    .mc-actions {
+        gap: .34rem;
+        margin-top: .12rem;
+        padding-top: .42rem;
+        border-top: 1px solid var(--pd-border);
+    }
+
+    .mc-actions > .btn-approve,
+    .mc-actions > .btn-reject,
+    .mc-actions > .btn-edit,
+    .mc-actions > .btn-distribute,
+    .mc-actions > .btn-delete-approved {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        min-height: 36px;
+        padding: 0;
+        border-radius: 10px;
+        font-size: 0;
+    }
+
+    .mc-actions > button > svg,
+    .mc-actions > button > i {
+        width: 16px !important;
+        height: 16px !important;
+        margin: 0 !important;
+    }
+
+    .mc-actions .pd-action-label {
+        display: none !important;
+    }
+
+    /* ---------- Paginação ---------- */
 
     .delivery-pagination {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        gap:.75rem;
-        padding:.75rem 1.2rem;
-        border-top:1px solid var(--color-border);
-        flex-wrap:wrap;
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .5rem;
+        align-items: center;
+        padding: .62rem .74rem;
+        border-top: 1px solid var(--pd-border);
+        background: linear-gradient(180deg, #fff, var(--pd-soft));
     }
-    .delivery-pagination-info { font-size:.76rem; color:var(--color-text-secondary); font-weight:600; }
-    .delivery-pagination-actions { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
-    .delivery-page-size {
-        border:1px solid var(--color-border);
-        border-radius:var(--radius-md);
-        padding:.32rem .5rem;
-        background:var(--color-surface);
-        color:var(--color-text);
-        font:inherit;
-        font-size:.76rem;
+
+    .delivery-pagination-info {
+        color: var(--pd-text-3);
+        font-size: .67rem;
+        font-weight: 690;
     }
+
+    .delivery-pagination-actions {
+        display: flex;
+        gap: .28rem;
+    }
+
     .delivery-page-btn {
-        border:1px solid var(--color-border);
-        border-radius:var(--radius-md);
-        background:var(--color-surface);
-        color:var(--color-text);
-        padding:.32rem .55rem;
-        font-size:.76rem;
-        font-weight:700;
-        cursor:pointer;
+        min-height: 34px;
+        padding: .36rem .48rem;
+        border: 1px solid var(--pd-border-strong);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--pd-text-2);
+        cursor: pointer;
+        font-size: .67rem;
+        font-weight: 770;
     }
-    .delivery-page-btn:disabled { opacity:.42; cursor:not-allowed; }
 
-    /* ========== TABELA DESKTOP ========== */
-    .table-scroll { overflow-x:auto; }
-    .data-table { width:100%; border-collapse:collapse; font-size:.84rem; }
-    .data-table th { background:var(--color-bg); padding:.6rem .8rem; text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--color-text-secondary); font-weight:600; border-bottom:2px solid var(--color-border); white-space:nowrap; }
-    .data-table td { padding:.6rem .8rem; border-bottom:1px solid var(--color-border); vertical-align:middle; }
-    .data-table tr:hover td { background:rgba(0,0,0,.02); }
-    .data-table tr.approved-row td { opacity:.75; }
-    .chk-cell { width:32px; text-align:center; }
-    .chk-cell input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--color-primary); }
-
-    /* ========== BADGES & BUTTONS ========== */
-    .badge-status { display:inline-flex; align-items:center; gap:.2rem; padding:.18rem .5rem; border-radius:99px; font-size:.68rem; font-weight:600; text-transform:uppercase; white-space:nowrap; }
-    .badge-status.pending  { background:rgba(245,158,11,.14); color:#d97706; }
-    .badge-status.approved { background:rgba(16,185,129,.14); color:#059669; }
-    .badge-status.rejected { background:rgba(239,68,68,.14); color:#dc2626; }
-    .badge-status.cancelled { background:rgba(107,114,128,.14); color:#6b7280; }
-    .pd-issue-btn {
-        display:inline-flex;align-items:center;gap:.2rem;
-        margin-top:.18rem;border:1px solid transparent;border-radius:999px;
-        padding:.08rem .42rem;background:#fff7ed;color:#b45309;
-        font-size:.65rem;font-weight:800;cursor:pointer;white-space:nowrap;
+    .delivery-page-btn:hover:not(:disabled),
+    .delivery-page-btn:focus-visible:not(:disabled) {
+        border-color: rgba(37, 99, 235, .22);
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+        outline: none;
     }
-    .pd-issue-btn.critical { background:#fef2f2;color:#b91c1c;border-color:#fecaca; }
-    .pd-issue-btn.warning { background:#fff7ed;color:#b45309;border-color:#fed7aa; }
-    .pd-issue-btn:hover { filter:brightness(.97); }
-    .pd-integrity-overlay { position:fixed; inset:0; background:rgba(15,23,42,.46); display:none; align-items:center; justify-content:center; padding:1rem; z-index:320000; }
-    .pd-integrity-overlay.open { display:flex; }
-    .pd-integrity-box { width:min(860px,96vw); max-height:min(760px,90dvh); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:0 18px 48px rgba(15,23,42,.28); }
-    .pd-integrity-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; padding:.95rem 1.05rem; border-bottom:1px solid var(--color-border); }
-    .pd-integrity-title { font-size:.98rem; font-weight:800; display:flex; align-items:center; gap:.4rem; }
-    .pd-integrity-close { border:0; background:transparent; color:var(--color-text-secondary); font-size:1.1rem; cursor:pointer; width:30px; height:30px; border-radius:var(--radius-md); }
-    .pd-integrity-close:hover { background:var(--color-bg); color:var(--color-text); }
-    .pd-integrity-body { padding:.85rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.75rem; }
-    .pd-issue-focus { outline:2px solid var(--color-primary); outline-offset:-2px; }
-    .pd-integrity-toggle { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-text-secondary); border-radius:var(--radius-md); min-width:30px; height:30px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
-    .pd-integrity-toggle:hover { color:var(--color-text); background:var(--color-bg); }
-    .pd-integrity-content[hidden] { display:none !important; }
-    .pd-integrity-actions { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.5rem; }
 
-    .btn { display:inline-flex; align-items:center; gap:.3rem; padding:.4rem .8rem; border-radius:var(--radius-md); border:none; cursor:pointer; font-size:.78rem; font-weight:600; text-decoration:none; transition:.15s; white-space:nowrap; }
-    .btn:disabled { opacity:.45; cursor:not-allowed; }
-    .btn-success { background:var(--color-success); color:#fff; }
-    .btn-success:hover:not(:disabled) { opacity:.88; transform:translateY(-1px); }
-    .btn-danger  { background:var(--color-danger); color:#fff; }
-    .btn-danger:hover:not(:disabled)  { opacity:.88; transform:translateY(-1px); }
-    .btn-ghost   { background:transparent; color:var(--color-text-secondary); border:1px solid var(--color-border); }
-    .btn-ghost:hover { background:var(--color-bg); color:var(--color-text); }
-    .btn-sm { padding:.3rem .6rem; font-size:.73rem; }
-    .btn-xs { padding:.22rem .5rem; font-size:.7rem; }
-    .action-btns { display:flex; gap:.3rem; flex-wrap:wrap; }
-    .btn-approve, .btn-reject, .btn-edit, .btn-distribute, .btn-delete-approved {
-        display:inline-flex; align-items:center; gap:.2rem; font-size:.75rem; font-weight:600; border-radius:var(--radius-md); border:none; cursor:pointer; padding:.28rem .6rem; transition:.15s; white-space:nowrap;
+    .delivery-page-btn:disabled {
+        cursor: not-allowed;
+        opacity: .42;
     }
-    .btn-approve { background:rgba(16,185,129,.12); color:#059669; }
-    .btn-approve:hover:not(:disabled) { background:var(--color-success); color:#fff; }
-    .btn-reject  { background:rgba(239,68,68,.12); color:#dc2626; }
-    .btn-reject:hover:not(:disabled)  { background:var(--color-danger); color:#fff; }
-    .btn-edit    { background:rgba(59,130,246,.12); color:#2563eb; }
-    .btn-edit:hover:not(:disabled) { background:#2563eb; color:#fff; }
-    .btn-distribute { background:rgba(99,102,241,.12); color:#4f46e5; }
-    .btn-distribute:hover:not(:disabled) { background:#4f46e5; color:#fff; }
-    .btn-delete-approved { background:rgba(239,68,68,.08); color:#dc2626; }
-    .btn-delete-approved:hover:not(:disabled) { background:var(--color-danger); color:#fff; }
 
-    /* ========== DISTRIBUTION INDICATOR ========== */
-    .dist-indicator {
-        display:flex; align-items:center; gap:.35rem; font-size:.72rem; cursor:pointer; border-radius:6px;
+    /* ---------- Vazios ---------- */
+
+    .pd-empty {
+        display: grid;
+        min-height: 160px;
+        place-items: center;
+        padding: 1rem;
+        background: var(--pd-soft);
+        color: var(--pd-text-2);
+        text-align: center;
     }
-    .dist-bar-bg {
-        width:54px; height:7px; background:#e5e7eb; border-radius:99px; overflow:hidden;
+
+    .pd-empty-icon {
+        width: 42px;
+        height: 42px;
+        margin-bottom: .3rem;
+        padding: 10px;
+        border-radius: 12px;
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
     }
-    .dist-bar-fill {
-        height:100%; border-radius:99px; transition:width .3s;
+
+    .pd-empty p {
+        margin: 0;
+        color: var(--pd-text-2);
+        font-size: .72rem;
     }
-    .dist-bar-fill.full { background:#16a34a; }
-    .dist-bar-fill.partial { background:#f59e0b; }
-    .dist-bar-fill.over { background:#dc2626; }
-    .dist-text { white-space:nowrap; font-weight:600; min-width:38px; font-size:.68rem; }
-    .dist-warning { color:#dc2626; font-size:.65rem; font-weight:600; }
 
-    /* ========== MODALS ========== */
-    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100000; }
-    .modal-overlay.hidden { display:none; }
-    .modal-box { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:min(480px,95vw); box-shadow:0 8px 32px rgba(0,0,0,.22); }
-    .modal-title { font-size:1rem; font-weight:700; margin-bottom:1rem; display:flex; align-items:center; gap:.4rem; }
-    .form-group { margin-bottom:.85rem; }
-    .form-label { display:block; font-size:.75rem; font-weight:600; margin-bottom:.3rem; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.03em; }
-    .form-control { width:100%; padding:.45rem .7rem; border:1px solid var(--color-border); border-radius:var(--radius-md); font-size:.88rem; background:var(--color-bg); color:var(--color-text); }
-    .form-control:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 2px rgba(var(--color-primary-rgb),.15); }
-    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
-    .modal-footer { display:flex; gap:.5rem; justify-content:flex-end; margin-top:1.2rem; border-top:1px solid var(--color-border); padding-top:1rem; }
+    /* ---------- Modais ---------- */
 
-    /* Custom Confirm */
-    .confirm-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:100001; }
-    .confirm-overlay.hidden { display:none; }
-    .confirm-box { background:var(--color-surface); border-radius:var(--radius-lg); padding:1.5rem; width:min(360px,92vw); box-shadow:0 12px 32px rgba(0,0,0,.25); }
-    .confirm-message { font-size:.92rem; margin-bottom:1.2rem; line-height:1.4; }
-    .confirm-buttons { display:flex; gap:.5rem; justify-content:flex-end; }
+    .modal-overlay,
+    .confirm-overlay,
+    .pd-integrity-overlay,
+    .dist-summary-overlay {
+        position: fixed;
+        z-index: 100000;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding:
+            max(14px, env(safe-area-inset-top))
+            max(12px, env(safe-area-inset-right))
+            max(14px, env(safe-area-inset-bottom))
+            max(12px, env(safe-area-inset-left));
+        overflow: auto;
+        background: rgba(8, 24, 15, .52);
+        backdrop-filter: blur(2px);
+    }
 
-    /* ========== REPORTS BAR ========== */
-    .reports-bar { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); padding:.9rem 1.2rem; margin-bottom:1.25rem; }
-    .reports-bar-title { font-size:.78rem; font-weight:700; margin-bottom:.55rem; display:flex; align-items:center; gap:.4rem; }
-    .reports-row { display:flex; flex-wrap:wrap; gap:.45rem; }
-    .report-btn { display:inline-flex; align-items:center; gap:.3rem; padding:.38rem .8rem; border-radius:var(--radius-md); border:1px solid var(--color-border); cursor:pointer; font-size:.77rem; font-weight:600; text-decoration:none; background:var(--color-bg); color:var(--color-text); transition:.15s; }
-    .report-btn:hover { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+    .modal-overlay.hidden,
+    .confirm-overlay.hidden {
+        display: none;
+    }
 
-    /* ========== SELECTION BAR ========== */
-    .selection-bar { position:fixed; bottom:0; left:0; right:0; background:var(--color-surface); border-top:2px solid var(--color-primary); padding:.75rem 1.2rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; z-index:99998; box-shadow:0 -4px 18px rgba(0,0,0,.14); transform:translateY(100%); transition:transform .25s ease; }
-    .selection-bar.visible { transform:translateY(0); }
-    .selection-bar-info { font-size:.88rem; font-weight:600; display:flex; align-items:center; gap:.4rem; }
-    .selection-bar-actions { display:flex; gap:.5rem; align-items:center; }
-    .btn-primary { background:var(--color-primary); color:#fff; }
-    .btn-primary:hover:not(:disabled) { opacity:.88; transform:translateY(-1px); }
+    .pd-integrity-overlay,
+    .dist-summary-overlay {
+        display: none;
+    }
 
-    /* ========== TOASTS ========== */
-    #pd-toasts { position:fixed; bottom:1.5rem; right:1.5rem; z-index:99999; display:flex; flex-direction:column; gap:.5rem; }
-    .pd-toast { background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-md); padding:.7rem 1rem; display:flex; align-items:center; gap:.5rem; font-size:.85rem; box-shadow:0 4px 14px rgba(0,0,0,.14); min-width:240px; max-width:340px; animation:pd-fi .25s ease; }
-    .pd-toast.success { border-left:3px solid var(--color-success); }
-    .pd-toast.error   { border-left:3px solid var(--color-danger); }
-    @keyframes pd-fi { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
-
-    /* ========== MOBILE CARDS ========== */
-    .mobile-cards { display:none; padding: 1rem; }
-    @media (max-width: 767px) {
-        .desktop-only { display:none !important; }
-        .mobile-cards { display:block !important; }
-
-        .mobile-card {
-            --delivery-state:#94a3b8;
-            --delivery-state-bg:#f8fafc;
-            background:var(--color-surface);
-            border:1px solid var(--color-border);
-            border-radius:var(--radius-md);
-            margin-bottom:.45rem;
-            padding:0;
-            position:relative;
-            display:flex;
-            flex-direction:column;
-            font-size:.76rem;
-            border-left:2px solid var(--delivery-state);
-            overflow:hidden;
-        }
-        .mobile-card.status-pending  { --delivery-state:#d97706; --delivery-state-bg:#fff7ed; }
-        .mobile-card.status-approved { --delivery-state:#2563eb; --delivery-state-bg:#eff6ff; }
-        .mobile-card.status-distributed { --delivery-state:#059669; --delivery-state-bg:#ecfdf5; }
-        .mobile-card.status-rejected { --delivery-state:#dc2626; --delivery-state-bg:#fef2f2; }
-        .mobile-card.status-cancelled { --delivery-state:#6b7280; --delivery-state-bg:#f3f4f6; }
-
-        .mc-head {
-            display:grid;
-            grid-template-columns:minmax(0,1fr) auto auto;
-            align-items:center;
-            gap:.4rem;
-            padding:.42rem .55rem;
-            background:var(--delivery-state-bg);
-            border-bottom:1px solid color-mix(in srgb, var(--delivery-state) 16%, var(--color-border));
-        }
-        .mc-state-icon {
-            width:22px;
-            height:22px;
-            border-radius:999px;
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            color:var(--delivery-state);
-            background:color-mix(in srgb, var(--delivery-state) 10%, #fff);
-            border:1px solid color-mix(in srgb, var(--delivery-state) 18%, transparent);
-        }
-        .mc-state-icon svg { width:12px; height:12px; }
-        .mc-head-main { min-width:0; display:flex; align-items:center; gap:.28rem; white-space:nowrap; overflow:hidden; }
-        .mc-head-line { display:contents; align-items:center; gap:.35rem; min-width:0; font-size:.74rem; color:var(--color-text-secondary); }
-        .mc-date { font-weight:700; color:var(--color-text); white-space:nowrap; font-size:.74rem; }
-        .mc-sep { color:var(--color-text-muted); opacity:.55; font-size:.7rem; }
-        .mc-head-product { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-text); font-weight:700; font-size:.8rem; flex:1 1 auto; }
-        .mc-head-qty { color:var(--color-text-secondary); font-size:.72rem; font-weight:700; white-space:nowrap; }
-        .mc-body { padding:.48rem .55rem; display:flex; flex-direction:column; gap:.42rem; }
-        .mc-row {
-            display:flex;
-            align-items:center;
-            gap:.4rem;
-            flex-wrap:wrap;
-        }
-        .mc-chk { flex-shrink:0; }
-        .mc-status { margin-left:auto; }
-        .mc-assoc { font-size:.72rem; color:var(--color-text-secondary); }
-        .mc-product { font-size:.78rem; font-weight:600; }
-        .mc-details { display:flex; gap:.65rem; flex-wrap:wrap; align-items:center; }
-        .mc-qty { font-weight:700; }
-        .mc-net { font-weight:700; color:var(--color-success); }
-        .mc-actions { display:flex; gap:.3rem; margin-top:.2rem; flex-wrap:wrap; }
-        .mc-dist-indicator { display:flex; align-items:center; gap:.25rem; font-size:.7rem; cursor:pointer; border-radius:6px; }
-        .mc-dist-indicator:hover .mc-dist-bar-bg { background:#dbe3ea; }
-        .mc-dist-bar-bg { width:76px; height:7px; background:#e5e7eb; border-radius:99px; overflow:hidden; }
-        .mc-dist-bar-fill { height:100%; border-radius:99px; }
-        .mc-dist-bar-fill.full { background:#10b981; }
-        .mc-dist-bar-fill.partial { background:#93c5fd; }
-        .mc-dist-bar-fill.over { background:#fca5a5; }
-        .mc-dist-text { font-weight:600; min-width:34px; white-space:nowrap; font-size:.7rem; }
+    .pd-integrity-overlay {
+        z-index: 320000;
     }
 
     .dist-summary-overlay {
-        position:fixed; inset:0; z-index:310000; display:none; align-items:center; justify-content:center;
-        padding:1rem; background:rgba(15,23,42,.28);
+        z-index: 310000;
     }
-    .dist-summary-overlay.open { display:flex; }
-    .dist-summary-box { width:min(420px,94vw); max-height:min(520px,88dvh); overflow:auto; background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:0 18px 42px rgba(15,23,42,.24); }
-    .dist-summary-head { display:flex; justify-content:space-between; gap:1rem; padding:.9rem 1rem; border-bottom:1px solid var(--color-border); }
-    .dist-summary-title { font-weight:800; font-size:.92rem; color:var(--color-text); }
-    .dist-summary-sub { font-size:.76rem; color:var(--color-text-secondary); margin-top:.12rem; }
-    .dist-summary-close { border:0; background:transparent; color:var(--color-text-secondary); cursor:pointer; font-size:1.1rem; }
-    .dist-summary-body { padding:.85rem 1rem 1rem; display:grid; gap:.45rem; }
-    .dist-summary-row { display:flex; justify-content:space-between; gap:.75rem; padding:.55rem .65rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg); font-size:.82rem; }
-    .dist-summary-row strong { color:var(--color-text); }
-    .dist-summary-row span { color:var(--color-text-secondary); white-space:nowrap; }
+
+    .pd-integrity-overlay.open,
+    .dist-summary-overlay.open {
+        display: grid;
+    }
+
+    .modal-box,
+    .confirm-box,
+    .pd-integrity-box,
+    .dist-summary-box {
+        width: min(100%, 500px);
+        max-height: min(90dvh, 760px);
+        overflow: auto;
+        border: 1px solid var(--pd-border);
+        border-radius: 15px;
+        background: #fff;
+        box-shadow: var(--pd-shadow-lg);
+    }
+
+    .modal-box {
+        padding: .72rem;
+    }
+
+    .confirm-box {
+        display: grid;
+        width: min(100%, 420px);
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .14rem .5rem;
+        padding: .7rem;
+    }
+
+    .confirm-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        grid-column: 1;
+        grid-row: 1;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--pd-amber-soft);
+        color: var(--pd-amber);
+    }
+
+    .confirm-icon > i,
+    .confirm-icon > svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    .confirm-copy {
+        min-width: 0;
+    }
+
+    .confirm-title {
+        color: var(--pd-text);
+        font-size: .81rem;
+        font-weight: 830;
+    }
+
+    .confirm-message {
+        margin-top: .07rem;
+        color: var(--pd-text-2);
+        font-size: .71rem;
+        line-height: 1.45;
+    }
+
+    .confirm-buttons {
+        display: flex;
+        grid-column: 1 / -1;
+        gap: .34rem;
+        justify-content: flex-end;
+        margin-top: .54rem;
+        padding-top: .54rem;
+        border-top: 1px solid var(--pd-border);
+    }
+
+    .modal-title {
+        display: flex;
+        gap: .34rem;
+        align-items: center;
+        margin: 0 0 .65rem;
+        color: var(--pd-text);
+        font-size: .86rem;
+        font-weight: 830;
+    }
+
+    .form-group {
+        margin-bottom: .64rem;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: .22rem;
+        color: var(--pd-text-2);
+        font-size: .67rem;
+        font-weight: 730;
+    }
+
+    .form-control {
+        width: 100%;
+        min-height: 40px;
+        padding: .48rem .56rem;
+        border: 1px solid var(--pd-border-strong);
+        border-radius: 9px;
+        outline: none;
+        background: #fff;
+        color: var(--pd-text);
+        font: inherit;
+        font-size: .73rem;
+    }
+
+    .form-control:focus {
+        border-color: var(--pd-blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: .46rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: .34rem;
+        justify-content: flex-end;
+        margin-top: .68rem;
+        padding-top: .58rem;
+        border-top: 1px solid var(--pd-border);
+    }
+
+    .pd-integrity-box {
+        width: min(880px, 100%);
+    }
+
+    .pd-integrity-head,
+    .dist-summary-head {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .52rem;
+        align-items: center;
+        padding: .58rem .64rem;
+        border-bottom: 1px solid var(--pd-border);
+        background: linear-gradient(180deg, var(--pd-soft), #fff);
+    }
+
+    .pd-integrity-head-main,
+    .dist-summary-head-main {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .42rem;
+        align-items: center;
+    }
+
+    .pd-integrity-title,
+    .dist-summary-title {
+        color: var(--pd-text);
+        font-size: .84rem;
+        font-weight: 840;
+    }
+
+    .pd-integrity-sub,
+    .dist-summary-sub {
+        margin-top: .03rem;
+        color: var(--pd-text-3);
+        font-size: .66rem;
+        line-height: 1.35;
+    }
+
+    .dist-summary-box {
+        width: min(460px, 100%);
+    }
+
+    .dist-summary-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--pd-sky-soft);
+        color: var(--pd-sky);
+    }
+
+    .dist-summary-icon > i,
+    .dist-summary-icon > svg {
+        width: 17px;
+        height: 17px;
+    }
+
+    .dist-summary-body {
+        display: grid;
+        gap: .34rem;
+        padding: .54rem .58rem .62rem;
+    }
+
+    .dist-summary-row {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .55rem;
+        align-items: center;
+        padding: .44rem .48rem;
+        border-radius: 9px;
+        background: linear-gradient(135deg, #fff, var(--pd-sky-soft));
+        font-size: .7rem;
+    }
+
+    .dist-summary-row strong {
+        color: var(--pd-text);
+        font-weight: 780;
+        overflow-wrap: anywhere;
+    }
+
+    .dist-summary-row span {
+        color: var(--pd-text-2);
+        white-space: nowrap;
+    }
+
+    /* ---------- Toast ---------- */
+
+    #pd-toasts {
+        position: fixed;
+        z-index: 99999;
+        right: 1rem;
+        bottom: max(1rem, env(safe-area-inset-bottom));
+        display: grid;
+        width: min(350px, calc(100% - 2rem));
+        gap: .4rem;
+    }
+
+    .pd-toast {
+        display: grid;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: .46rem;
+        align-items: center;
+        padding: .56rem .6rem;
+        border: 1px solid var(--pd-border);
+        border-radius: 11px;
+        background: #fff;
+        box-shadow: var(--pd-shadow-md);
+        animation: pd-toast-in .2s ease;
+    }
+
+    .pd-toast-icon {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 9px;
+        background: var(--pd-green-soft);
+        color: var(--pd-green);
+    }
+
+    .pd-toast.error .pd-toast-icon {
+        background: var(--pd-red-soft);
+        color: var(--pd-red);
+    }
+
+    .pd-toast.info .pd-toast-icon {
+        background: var(--pd-blue-soft);
+        color: var(--pd-blue);
+    }
+
+    .pd-toast-icon > i,
+    .pd-toast-icon > svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .pd-toast-message {
+        color: var(--pd-text);
+        font-size: .7rem;
+        font-weight: 690;
+        line-height: 1.4;
+    }
+
+    @keyframes pd-toast-in {
+        from {
+            opacity: 0;
+            transform: translateY(5px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ---------- Responsivo ---------- */
+
+    @media (max-width: 1080px) {
+        .pd-summary {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .pd-stat:nth-child(4),
+        .pd-stat:nth-child(5) {
+            border-top: 1px solid var(--pd-border);
+        }
+
+        .pd-stat:nth-child(4) {
+            border-left: 0;
+        }
+
+        .pd-filters-advanced {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .pd-integrity-grid,
+        .pd-integrity-body {
+            grid-template-columns: 1fr;
+        }
+
+        .pd-integrity-column + .pd-integrity-column {
+            border-top: 1px solid var(--pd-border);
+            border-left: 0;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .pd-context {
+            grid-template-columns: auto auto minmax(0, 1fr);
+        }
+
+        .pd-header-actions {
+            grid-column: 3;
+            grid-row: 2;
+            justify-content: start;
+        }
+
+        .reports-bar {
+            grid-template-columns: 1fr;
+        }
+
+        .reports-row {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .desktop-only {
+            display: none !important;
+        }
+
+        .mobile-cards {
+            display: grid !important;
+        }
+
+        .pd-page {
+            gap: .66rem;
+        }
+
+        .pd-context {
+            grid-template-columns: 36px minmax(0, 1fr);
+            padding: .58rem;
+        }
+
+        .pd-back {
+            width: 36px;
+            height: 36px;
+        }
+
+        .pd-context-icon {
+            display: none;
+        }
+
+        .pd-context-kicker {
+            font-size: .64rem;
+        }
+
+        .pd-title {
+            font-size: .98rem;
+        }
+
+        .pd-header-actions {
+            grid-column: 1 / -1;
+            grid-row: auto;
+            width: 100%;
+            grid-template-columns: 1fr 1fr;
+            grid-auto-flow: row;
+        }
+
+        .pd-header-actions .btn {
+            width: 100%;
+        }
+
+        .pd-header-actions .pd-action-delivery {
+            grid-column: 1 / -1;
+            min-height: 41px;
+        }
+
+        .pd-summary {
+            display: flex;
+            gap: .38rem;
+            overflow-x: auto;
+            padding: .38rem;
+            border-radius: 13px;
+            scrollbar-width: none;
+            scroll-snap-type: x proximity;
+        }
+
+        .pd-summary::-webkit-scrollbar {
+            display: none;
+        }
+
+        .pd-stat {
+            min-width: 138px;
+            min-height: 62px;
+            padding: .44rem .48rem;
+            border: 0 !important;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--stat-soft) 65%, #fff);
+            scroll-snap-align: start;
+        }
+
+        .pd-stat-icon {
+            width: 31px;
+            height: 31px;
+        }
+
+        .pd-card-header,
+        .pd-panel-head {
+            padding: .64rem;
+        }
+
+        .pd-panel-sub {
+            display: none;
+        }
+
+        .pd-card-head-actions {
+            justify-content: start;
+        }
+
+        .pd-integrity-summary {
+            grid-template-columns: repeat(3, max-content) auto;
+            grid-auto-flow: row;
+        }
+
+        .reports-bar {
+            padding: .5rem .56rem;
+        }
+
+        .reports-row {
+            display: grid;
+            width: 100%;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .report-btn {
+            width: 100%;
+        }
+
+        .pd-filters-primary {
+            grid-template-columns: 1fr 1fr;
+            padding: .5rem .58rem;
+        }
+
+        .pd-filter-search {
+            grid-column: 1 / -1;
+        }
+
+        .pd-filter-more {
+            width: 100%;
+        }
+
+        .pd-filters-advanced {
+            grid-template-columns: 1fr 1fr;
+            padding: .5rem .58rem;
+        }
+
+        .mobile-cards {
+            gap: .5rem;
+            padding: .62rem;
+        }
+
+        .delivery-pagination {
+            grid-template-columns: 1fr;
+            padding: .52rem .58rem;
+        }
+
+        .delivery-pagination-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .delivery-page-btn {
+            width: 100%;
+        }
+
+        #pd-toasts {
+            right: .62rem;
+            bottom: calc(5rem + env(safe-area-inset-bottom));
+            width: calc(100% - 1.24rem);
+        }
+
+        .modal-overlay,
+        .confirm-overlay,
+        .pd-integrity-overlay,
+        .dist-summary-overlay {
+            align-items: end;
+            padding: 0;
+        }
+
+        .modal-box,
+        .confirm-box,
+        .pd-integrity-box,
+        .dist-summary-box {
+            width: 100%;
+            max-height: 92svh;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .confirm-box {
+            padding-bottom: calc(.7rem + env(safe-area-inset-bottom));
+        }
+
+        .pd-integrity-body {
+            padding-bottom: calc(.64rem + env(safe-area-inset-bottom));
+        }
+
+        .dist-summary-body {
+            padding-bottom: calc(.62rem + env(safe-area-inset-bottom));
+        }
+    }
+
+    @media (max-width: 520px) {
+        .pd-card-header {
+            grid-template-columns: 1fr;
+        }
+
+        .pd-card-head-actions {
+            width: 100%;
+        }
+
+        .pd-pending-chip {
+            width: max-content;
+        }
+
+        .pd-integrity-summary {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .pd-integrity-toggle {
+            justify-self: end;
+        }
+
+        .pd-filters-primary,
+        .pd-filters-advanced {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .pd-filter-search {
+            grid-column: 1 / -1;
+        }
+
+        .pd-filter-more {
+            grid-column: auto;
+        }
+
+        .pd-filter-page-size {
+            grid-column: 1 / -1;
+        }
+
+        .mc-head {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .mc-state-icon {
+            display: none;
+        }
+
+        .mc-details {
+            gap: .34rem .5rem;
+        }
+
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .confirm-buttons,
+        .modal-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .confirm-buttons .btn,
+        .modal-footer .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .pd-header-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .pd-header-actions .pd-action-delivery {
+            grid-column: auto;
+        }
+
+        .pd-filters-primary,
+        .pd-filters-advanced {
+            grid-template-columns: 1fr;
+        }
+
+        .pd-filter-search,
+        .pd-filter-page-size {
+            grid-column: auto;
+        }
+
+        .reports-row,
+        .confirm-buttons,
+        .modal-footer {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .pd-page *,
+        .pd-page *::before,
+        .pd-page *::after,
+        .pd-modal-scope *,
+        .pd-modal-scope *::before,
+        .pd-modal-scope *::after,
+        .confirm-overlay *,
+        .confirm-overlay *::before,
+        .confirm-overlay *::after {
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: .01ms !important;
+        }
+    }
 </style>
 
-<!-- Custom Confirm Modal -->
-<div id="customConfirmOverlay" class="confirm-overlay hidden">
-    <div class="confirm-box">
-        <div class="confirm-message" id="confirmMessage"></div>
-        <div class="confirm-buttons">
-            <button class="btn btn-ghost btn-sm" id="confirmCancel">Cancelar</button>
-            <button class="btn btn-sm btn-primary" id="confirmOk">Confirmar</button>
-        </div>
-    </div>
-</div>
+<div class="pd-modal-scope">
+    <!-- Custom Confirm Modal -->
+    <div
+        id="customConfirmOverlay"
+        class="confirm-overlay hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirmTitle"
+    >
+        <div class="confirm-box">
+            <span class="confirm-icon" aria-hidden="true">
+                <i data-lucide="triangle-alert"></i>
+            </span>
 
-<div id="pd-toasts"></div>
-
-
-
-{{-- PROJECT HEADER --}}
-<div class="pd-header">
-    <div class="pd-header-info">
-        <h1 class="pd-title">
-            <i data-lucide="folder-open" style="width:20px;height:20px;color:var(--color-primary)"></i>
-            {{ $project->title }}
-        </h1>
-        <div class="pd-sub">
-            <i data-lucide="building-2" style="width:13px;height:13px"></i>
-            {{ $project->customer->name ?? '—' }}
-        </div>
-    </div>
-    <div class="pd-header-actions">
-        <a href="{{ route('delivery.projects.associates.index', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-primary btn-sm">
-            <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Participacao e limites
-        </a>
-        @if($project->status->value === 'active')
-        <a href="{{ route('delivery.register', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-success btn-sm">
-            <i data-lucide="plus" style="width:13px;height:13px"></i> Nova Entrega
-        </a>
-        @endif
-        <a href="{{ route('delivery.projects.producers', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="btn btn-ghost btn-sm">
-            <i data-lucide="users" style="width:13px;height:13px"></i> Produtores
-        </a>
-        <a href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}" class="btn btn-ghost btn-sm">
-            <i data-lucide="arrow-left" style="width:13px;height:13px"></i> Voltar
-        </a>
-    </div>
-</div>
-
-{{-- STATS --}}
-@php
-$totalAll = $deliveries->count();
-$totalApproved = $deliveries->where('status_value','approved')->count();
-$totalPending  = $deliveries->where('status_value','pending')->count();
-$totalRejected = $deliveries->where('status_value','rejected')->count();
-$totalQty      = $deliveries->sum('quantity');
-$totalNet      = $deliveries->sum('net_value');
-@endphp
-<div class="pd-stats">
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Total</div>
-        <div class="pd-stat-val">{{ $deliveries->count() }}</div>
-    </div>
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Aprovadas</div>
-        <div class="pd-stat-val" style="color:var(--color-success)">{{ $totalApproved }}</div>
-    </div>
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Pendentes</div>
-        <div class="pd-stat-val" style="color:var(--color-warning)">{{ $totalPending }}</div>
-    </div>
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Rejeitadas</div>
-        <div class="pd-stat-val" style="color:var(--color-danger)">{{ $totalRejected }}</div>
-    </div>
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Qtd. Total</div>
-        <div class="pd-stat-val" style="font-size:1rem;padding-top:.2rem">{{ number_format($totalQty, 3, ',', '.') }}</div>
-    </div>
-    <div class="pd-stat">
-        <div class="pd-stat-lbl">Val. Líquido</div>
-        <div class="pd-stat-val" style="font-size:.95rem;padding-top:.25rem;color:var(--color-success)">R$ {{ number_format($totalNet, 2, ',', '.') }}</div>
-    </div>
-</div>
-
-{{-- PENDENCIAS E INCONSISTENCIAS --}}
-@if(!empty($integrity))
-<div class="pd-card" style="margin-bottom:1rem;">
-    <div class="pd-card-header">
-        <div class="pd-card-title">
-            <i data-lucide="shield-alert" style="width:16px;height:16px;color:var(--color-warning)"></i>
-            Pendencias e Inconsistencias
-        </div>
-        <div style="display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;font-size:.72rem;font-weight:700;">
-            <span id="pd-integrity-count-critical" style="color:#dc2626;">Critico: {{ $integrity['counts']['critical'] ?? 0 }}</span>
-            <span id="pd-integrity-count-warning" style="color:#d97706;">Atencao: {{ $integrity['counts']['warning'] ?? 0 }}</span>
-            <span id="pd-integrity-count-info" style="color:#2563eb;">Info: {{ $integrity['counts']['info'] ?? 0 }}</span>
-            <button type="button" class="pd-integrity-toggle" onclick="toggleIntegrityPanel()" title="Expandir ou recolher pendencias" aria-controls="pd-integrity-content" aria-expanded="false">
-                <i data-lucide="chevron-down" style="width:15px;height:15px"></i>
-            </button>
-        </div>
-    </div>
-    <div id="pd-integrity-content" class="pd-integrity-content" hidden>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;padding:.75rem;">
-        @foreach(['critical' => ['Critico', '#dc2626'], 'warning' => ['Atencao', '#d97706'], 'info' => ['Informativo', '#2563eb']] as $severity => [$label, $color])
-            <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg);">
-                <div style="padding:.55rem .7rem;border-bottom:1px solid var(--color-border);font-size:.72rem;font-weight:800;text-transform:uppercase;color:{{ $color }};">
-                    {{ $label }}
+            <div class="confirm-copy">
+                <div class="confirm-title" id="confirmTitle">
+                    Confirmar ação
                 </div>
-                <div style="display:flex;flex-direction:column;">
-                    @forelse(($integrity[$severity] ?? []) as $issue)
-                        <div data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
-                            <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
-                            <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
-                            <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
-                            <div class="pd-integrity-actions">
-                                @if(!empty($issue['actionKey']))
-                                    <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }}, {{ (int) ($issue['associateId'] ?? 0) }}, @js($issue['associateName'] ?? ''))">{{ match($issue['actionKey']) { 'open_distribution' => 'Distribuir', 'edit_distribution' => 'Corrigir distribuicao', 'open_producers' => 'Abrir produtor', 'detach_missing_associate_receipt' => 'Desvincular', 'delete_orphan_distribution' => 'Excluir orfa', default => 'Ver detalhes' } }}</button>
-                                @endif
-                                @if(!empty($issue['deliveryId']))
-                                    <button type="button" class="btn btn-ghost btn-sm" onclick="focusIntegrityDelivery({{ (int) $issue['deliveryId'] }})">Ver entrega</button>
-                                @endif
+
+                <div
+                    class="confirm-message"
+                    id="confirmMessage"
+                ></div>
+            </div>
+
+            <div class="confirm-buttons">
+                <button
+                    class="btn btn-ghost btn-sm"
+                    id="confirmCancel"
+                    type="button"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    class="btn btn-sm btn-primary"
+                    id="confirmOk"
+                    type="button"
+                >
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pd-toasts" aria-live="polite"></div>
+</div>
+
+@php
+    $totalAll = $deliveries->count();
+    $totalApproved = $deliveries->where('status_value', 'approved')->count();
+    $totalPending = $deliveries->where('status_value', 'pending')->count();
+    $totalRejected = $deliveries->where('status_value', 'rejected')->count();
+    $totalNet = $deliveries->sum('net_value');
+
+    $integrityCritical = $integrity['counts']['critical'] ?? 0;
+    $integrityWarning = $integrity['counts']['warning'] ?? 0;
+    $integrityInfo = $integrity['counts']['info'] ?? 0;
+@endphp
+
+<main class="pd-page">
+    {{-- CONTEXTO DO PROJETO --}}
+    <section class="pd-context">
+        <a
+            class="pd-back"
+            href="{{ route('delivery.dashboard', ['tenant' => $currentTenant->slug]) }}"
+            aria-label="Voltar ao painel de entregas"
+            title="Voltar ao painel de entregas"
+        >
+            <i data-lucide="arrow-left"></i>
+        </a>
+
+        <span
+            class="pd-context-icon"
+            aria-hidden="true"
+        >
+            <i data-lucide="package-check"></i>
+        </span>
+
+        <div class="pd-context-copy">
+            <span class="pd-context-kicker">
+                <i data-lucide="package-check"></i>
+                Entregas
+            </span>
+
+            <h1 class="pd-title">
+                {{ $project->title }}
+            </h1>
+
+        </div>
+
+        <div class="pd-header-actions">
+            @if($project->status->value === 'active')
+                <a
+                    href="{{ route('delivery.register', [
+                        'tenant' => $currentTenant->slug,
+                        'project' => $project->id,
+                    ]) }}"
+                    class="btn btn-success btn-sm pd-action-delivery"
+                >
+                    <i data-lucide="package-plus"></i>
+                    Nova entrega
+                </a>
+            @endif
+
+            <a
+                href="{{ route('delivery.projects.associates.index', [
+                    'tenant' => $currentTenant->slug,
+                    'project' => $project->id,
+                ]) }}"
+                class="btn btn-primary btn-sm pd-action-limits"
+            >
+                <i data-lucide="sliders-horizontal"></i>
+                Limites
+            </a>
+
+            <a
+                href="{{ route('delivery.projects.producers', [
+                    'tenant' => $currentTenant->slug,
+                    'project' => $project->id,
+                ]) }}"
+                class="btn btn-ghost btn-sm pd-action-producers"
+            >
+                <i data-lucide="users-round"></i>
+                Produtores
+            </a>
+        </div>
+    </section>
+
+    {{-- RESUMO --}}
+    <section
+        class="pd-summary"
+        aria-label="Resumo das entregas do projeto"
+    >
+        <article class="pd-stat">
+            <span class="pd-stat-icon" aria-hidden="true">
+                <i data-lucide="package"></i>
+            </span>
+
+            <div class="pd-stat-copy">
+                <div class="pd-stat-lbl">
+                    Registros
+                </div>
+
+                <div class="pd-stat-val">
+                    {{ $totalAll }}
+                </div>
+            </div>
+        </article>
+
+        <article class="pd-stat">
+            <span class="pd-stat-icon" aria-hidden="true">
+                <i data-lucide="circle-check-big"></i>
+            </span>
+
+            <div class="pd-stat-copy">
+                <div class="pd-stat-lbl">
+                    Aprovadas
+                </div>
+
+                <div class="pd-stat-val">
+                    {{ $totalApproved }}
+                </div>
+            </div>
+        </article>
+
+        <article class="pd-stat">
+            <span class="pd-stat-icon" aria-hidden="true">
+                <i data-lucide="clock-3"></i>
+            </span>
+
+            <div class="pd-stat-copy">
+                <div class="pd-stat-lbl">
+                    Pendentes
+                </div>
+
+                <div class="pd-stat-val">
+                    {{ $totalPending }}
+                </div>
+            </div>
+        </article>
+
+        <article class="pd-stat">
+            <span class="pd-stat-icon" aria-hidden="true">
+                <i data-lucide="circle-x"></i>
+            </span>
+
+            <div class="pd-stat-copy">
+                <div class="pd-stat-lbl">
+                    Rejeitadas
+                </div>
+
+                <div class="pd-stat-val">
+                    {{ $totalRejected }}
+                </div>
+            </div>
+        </article>
+
+        <article class="pd-stat">
+            <span class="pd-stat-icon" aria-hidden="true">
+                <i data-lucide="badge-dollar-sign"></i>
+            </span>
+
+            <div class="pd-stat-copy">
+                <div class="pd-stat-lbl">
+                    Líquido
+                </div>
+
+                <div class="pd-stat-val">
+                    R$ {{ number_format($totalNet, 2, ',', '.') }}
+                </div>
+            </div>
+        </article>
+    </section>
+
+    {{-- PENDÊNCIAS E INCONSISTÊNCIAS --}}
+    @if(!empty($integrity))
+        <section class="pd-integrity-panel">
+            <header class="pd-panel-head">
+                <div class="pd-panel-title-wrap">
+                    <span class="pd-panel-icon warning" aria-hidden="true">
+                        <i data-lucide="shield-alert"></i>
+                    </span>
+
+                    <div class="pd-panel-copy">
+                        <div class="pd-panel-title">
+                            Pendências
+                        </div>
+
+                        <div class="pd-panel-sub">
+                            Itens que precisam de atenção.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pd-integrity-summary">
+                    <span
+                        class="pd-integrity-count critical"
+                        id="pd-integrity-count-critical"
+                    >
+                        <i data-lucide="circle-alert"></i>
+                        Crítico {{ $integrityCritical }}
+                    </span>
+
+                    <span
+                        class="pd-integrity-count warning"
+                        id="pd-integrity-count-warning"
+                    >
+                        <i data-lucide="triangle-alert"></i>
+                        Atenção {{ $integrityWarning }}
+                    </span>
+
+                    <span
+                        class="pd-integrity-count info"
+                        id="pd-integrity-count-info"
+                    >
+                        <i data-lucide="info"></i>
+                        Info {{ $integrityInfo }}
+                    </span>
+
+                    <button
+                        type="button"
+                        class="pd-integrity-toggle"
+                        onclick="toggleIntegrityPanel()"
+                        title="Expandir ou recolher pendências"
+                        aria-label="Expandir ou recolher pendências"
+                        aria-controls="pd-integrity-content"
+                        aria-expanded="false"
+                    >
+                        <i data-lucide="chevron-down"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div
+                id="pd-integrity-content"
+                class="pd-integrity-content"
+                hidden
+            >
+                <div class="pd-integrity-grid">
+                    @foreach([
+                        'critical' => [
+                            'label' => 'Crítico',
+                            'icon' => 'circle-alert',
+                        ],
+                        'warning' => [
+                            'label' => 'Atenção',
+                            'icon' => 'triangle-alert',
+                        ],
+                        'info' => [
+                            'label' => 'Informativo',
+                            'icon' => 'info',
+                        ],
+                    ] as $severity => $severityMeta)
+                        <section class="pd-integrity-column {{ $severity }}">
+                            <header class="pd-integrity-column-head">
+                                <i data-lucide="{{ $severityMeta['icon'] }}"></i>
+                                {{ $severityMeta['label'] }}
+                            </header>
+
+                            <div class="pd-integrity-items">
+                                @forelse(($integrity[$severity] ?? []) as $issue)
+                                    <article
+                                        class="pd-integrity-item"
+                                        data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}"
+                                        data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}"
+                                    >
+                                        <div class="pd-integrity-item-title">
+                                            {{ $issue['title'] }}
+                                        </div>
+
+                                        <div class="pd-integrity-item-message">
+                                            {{ $issue['message'] }}
+                                        </div>
+
+                                        <div class="pd-integrity-item-action">
+                                            {{ $issue['action'] }}
+                                        </div>
+
+                                        <div class="pd-integrity-actions">
+                                            @if(!empty($issue['actionKey']))
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-primary btn-sm"
+                                                    onclick="handleIntegrityAction(
+                                                        '{{ $issue['actionKey'] }}',
+                                                        {{ (int) ($issue['deliveryId'] ?? 0) }},
+                                                        {{ (int) ($issue['distributionId'] ?? 0) }},
+                                                        {{ (int) ($issue['associateId'] ?? 0) }},
+                                                        @js($issue['associateName'] ?? '')
+                                                    )"
+                                                >
+                                                    {{
+                                                        match($issue['actionKey']) {
+                                                            'open_distribution' => 'Distribuir',
+                                                            'edit_distribution' => 'Corrigir distribuição',
+                                                            'open_producers' => 'Abrir produtor',
+                                                            'detach_missing_associate_receipt' => 'Desvincular',
+                                                            'delete_orphan_distribution' => 'Excluir órfã',
+                                                            default => 'Ver detalhes',
+                                                        }
+                                                    }}
+                                                </button>
+                                            @endif
+
+                                            @if(!empty($issue['deliveryId']))
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-ghost btn-sm"
+                                                    onclick="focusIntegrityDelivery(
+                                                        {{ (int) $issue['deliveryId'] }}
+                                                    )"
+                                                >
+                                                    Ver entrega
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </article>
+                                @empty
+                                    <div class="pd-integrity-empty">
+                                        Nenhum item nesta categoria.
+                                    </div>
+                                @endforelse
+                            </div>
+                        </section>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+
+        <div
+            class="pd-integrity-overlay"
+            id="pd-integrity-modal"
+            aria-hidden="true"
+        >
+            <div
+                class="pd-integrity-box"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="pd-integrity-title"
+            >
+                <header class="pd-integrity-head">
+                    <div class="pd-integrity-head-main">
+                        <span
+                            class="pd-panel-icon warning"
+                            aria-hidden="true"
+                        >
+                            <i data-lucide="shield-alert"></i>
+                        </span>
+
+                        <div>
+                            <div
+                                class="pd-integrity-title"
+                                id="pd-integrity-title"
+                            >
+                                Pendências e inconsistências
+                            </div>
+
+                            <div class="pd-integrity-sub">
+                                Crítico {{ $integrityCritical }}
+                                · Atenção {{ $integrityWarning }}
+                                · Info {{ $integrityInfo }}
                             </div>
                         </div>
-                    @empty
-                        <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
-                    @endforelse
-                </div>
-            </div>
-        @endforeach
-    </div>
-</div>
-    </div>
-
-<div class="pd-integrity-overlay" id="pd-integrity-modal" aria-hidden="true">
-    <div class="pd-integrity-box" role="dialog" aria-modal="true" aria-labelledby="pd-integrity-title">
-        <div class="pd-integrity-head">
-            <div>
-                <div class="pd-integrity-title" id="pd-integrity-title">
-                    <i data-lucide="shield-alert" style="width:16px;height:16px;color:var(--color-warning)"></i>
-                    Pendencias e Inconsistencias
-                </div>
-                <div style="font-size:.76rem;color:var(--color-text-secondary);margin-top:.16rem;">
-                    Critico: {{ $integrity['counts']['critical'] ?? 0 }} · Atencao: {{ $integrity['counts']['warning'] ?? 0 }} · Info: {{ $integrity['counts']['info'] ?? 0 }}
-                </div>
-            </div>
-            <button type="button" class="pd-integrity-close" onclick="closeIntegrityModal()" aria-label="Fechar">x</button>
-        </div>
-        <div class="pd-integrity-body">
-            @foreach(['critical' => ['Critico', '#dc2626'], 'warning' => ['Atencao', '#d97706'], 'info' => ['Informativo', '#2563eb']] as $severity => [$label, $color])
-                <div style="border:1px solid var(--color-border);border-radius:var(--radius-md);overflow:hidden;background:var(--color-bg);">
-                    <div style="padding:.55rem .7rem;border-bottom:1px solid var(--color-border);font-size:.72rem;font-weight:800;text-transform:uppercase;color:{{ $color }};">
-                        {{ $label }}
                     </div>
-                    <div style="display:flex;flex-direction:column;">
-                        @forelse(($integrity[$severity] ?? []) as $issue)
-                            <div data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}" data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}" style="padding:.65rem .7rem;border-bottom:1px solid var(--color-border);">
-                                <div style="font-size:.82rem;font-weight:700;color:var(--color-text);">{{ $issue['title'] }}</div>
-                                <div style="font-size:.76rem;color:var(--color-text-secondary);line-height:1.35;margin-top:.18rem;">{{ $issue['message'] }}</div>
-                                <div style="font-size:.72rem;color:{{ $color }};font-weight:600;margin-top:.35rem;">{{ $issue['action'] }}</div>
-                                @if(!empty($issue['actionKey']))
-                                    <div class="pd-integrity-actions">
-                                        <button type="button" class="btn btn-primary btn-sm" onclick="handleIntegrityAction('{{ $issue['actionKey'] }}', {{ (int) ($issue['deliveryId'] ?? 0) }}, {{ (int) ($issue['distributionId'] ?? 0) }}, {{ (int) ($issue['associateId'] ?? 0) }}, @js($issue['associateName'] ?? ''))">{{ match($issue['actionKey']) { 'open_distribution' => 'Distribuir', 'edit_distribution' => 'Corrigir distribuicao', 'open_producers' => 'Abrir produtor', 'detach_missing_associate_receipt' => 'Desvincular', 'delete_orphan_distribution' => 'Excluir orfa', default => 'Ver detalhes' } }}</button>
+
+                    <button
+                        type="button"
+                        class="pd-integrity-close"
+                        onclick="closeIntegrityModal()"
+                        aria-label="Fechar"
+                    >
+                        <i data-lucide="x"></i>
+                    </button>
+                </header>
+
+                <div class="pd-integrity-body">
+                    @foreach([
+                        'critical' => [
+                            'label' => 'Crítico',
+                            'icon' => 'circle-alert',
+                        ],
+                        'warning' => [
+                            'label' => 'Atenção',
+                            'icon' => 'triangle-alert',
+                        ],
+                        'info' => [
+                            'label' => 'Informativo',
+                            'icon' => 'info',
+                        ],
+                    ] as $severity => $severityMeta)
+                        <section class="pd-integrity-column {{ $severity }}">
+                            <header class="pd-integrity-column-head">
+                                <i data-lucide="{{ $severityMeta['icon'] }}"></i>
+                                {{ $severityMeta['label'] }}
+                            </header>
+
+                            <div class="pd-integrity-items">
+                                @forelse(($integrity[$severity] ?? []) as $issue)
+                                    <article
+                                        class="pd-integrity-item"
+                                        data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}"
+                                        data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}"
+                                    >
+                                        <div class="pd-integrity-item-title">
+                                            {{ $issue['title'] }}
+                                        </div>
+
+                                        <div class="pd-integrity-item-message">
+                                            {{ $issue['message'] }}
+                                        </div>
+
+                                        <div class="pd-integrity-item-action">
+                                            {{ $issue['action'] }}
+                                        </div>
+
+                                        @if(!empty($issue['actionKey']))
+                                            <div class="pd-integrity-actions">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-primary btn-sm"
+                                                    onclick="handleIntegrityAction(
+                                                        '{{ $issue['actionKey'] }}',
+                                                        {{ (int) ($issue['deliveryId'] ?? 0) }},
+                                                        {{ (int) ($issue['distributionId'] ?? 0) }},
+                                                        {{ (int) ($issue['associateId'] ?? 0) }},
+                                                        @js($issue['associateName'] ?? '')
+                                                    )"
+                                                >
+                                                    {{
+                                                        match($issue['actionKey']) {
+                                                            'open_distribution' => 'Distribuir',
+                                                            'edit_distribution' => 'Corrigir distribuição',
+                                                            'open_producers' => 'Abrir produtor',
+                                                            'detach_missing_associate_receipt' => 'Desvincular',
+                                                            'delete_orphan_distribution' => 'Excluir órfã',
+                                                            default => 'Ver detalhes',
+                                                        }
+                                                    }}
+                                                </button>
+                                            </div>
+                                        @endif
+                                    </article>
+                                @empty
+                                    <div class="pd-integrity-empty">
+                                        Nenhum item nesta categoria.
                                     </div>
-                                @endif
+                                @endforelse
                             </div>
-                        @empty
-                            <div style="padding:.75rem;font-size:.78rem;color:var(--color-text-secondary);">Nenhum item.</div>
-                        @endforelse
+                        </section>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- RELATÓRIOS --}}
+    @if($totalApproved > 0)
+        <section class="reports-bar">
+            <div class="reports-bar-title">
+                <i data-lucide="file-chart-column"></i>
+                <span>
+                    Relatórios
+                </span>
+            </div>
+
+            <div class="reports-row">
+                <button
+                    type="button"
+                    class="report-btn report-generate"
+                    onclick="DeliveryReports.open()"
+                >
+                    <i data-lucide="sliders-horizontal"></i>
+                    Gerar relatório
+                </button>
+
+                <a
+                    href="{{ route('delivery.projects.producers', [
+                        'tenant' => $currentTenant->slug,
+                        'project' => $project->id,
+                    ]) }}"
+                    class="report-btn report-receipts"
+                >
+                    <i data-lucide="clipboard-list"></i>
+                    Comprovantes
+                </a>
+            </div>
+        </section>
+    @endif
+
+    @include('delivery.partials.report-export-modal', [
+        'reportProjects' => collect([
+            $project->id => $project->title,
+        ]),
+        'selectedReportProject' => $project->id,
+    ])
+
+    {{-- LISTA DE ENTREGAS --}}
+    <section class="pd-card pd-deliveries-card">
+        <header class="pd-card-header">
+            <div class="pd-card-title">
+                <i data-lucide="list-checks"></i>
+
+                <div class="pd-panel-copy">
+                    <div class="pd-panel-title">
+                        Entregas
+                    </div>
+
+                    <div class="pd-panel-sub">
+                        <span id="filtered-count">{{ $totalAll }}</span>
+                        registros
                     </div>
                 </div>
-            @endforeach
-        </div>
-    </div>
-</div>
-@endif
-
-{{-- REPORTS BAR --}}
-@if($totalApproved > 0)
-<div class="reports-bar">
-    <div class="reports-bar-title">
-        <i data-lucide="file-text" style="width:14px;height:14px;color:var(--color-primary)"></i>
-        Relatórios e planilhas
-    </div>
-    <div class="reports-row">
-        <button type="button" class="report-btn" onclick="DeliveryReports.open()">
-            <i data-lucide="sliders-horizontal" style="width:13px;height:13px"></i> Gerar relatório
-        </button>
-        <a href="{{ route('delivery.projects.producers', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}" class="report-btn">
-            <i data-lucide="clipboard-list" style="width:13px;height:13px"></i> Comprovantes Produtores
-        </a>
-    </div>
-</div>
-@endif
-
-@include('delivery.partials.report-export-modal', [
-    'reportProjects' => collect([$project->id => $project->title]),
-    'selectedReportProject' => $project->id,
-])
-
-{{-- DELIVERIES: BARRA DE FILTROS + TABELA DESKTOP + MOBILE CARDS --}}
-<div class="pd-card">
-    <div class="pd-card-header">
-        <div class="pd-card-title">
-            <i data-lucide="package" style="width:16px;height:16px;color:var(--color-primary)"></i>
-            Entregas (<span id="filtered-count">{{ $totalAll }}</span>)
-        </div>
-        <div style="display:flex;gap:.5rem;align-items:center;">
-            @if($totalPending > 0)
-            <span style="font-size:.78rem;color:var(--color-warning);font-weight:600;">
-                <i data-lucide="clock" style="width:13px;height:13px"></i> {{ $totalPending }} aguardando
-            </span>
-            @endif
-            <button class="btn btn-ghost btn-sm" id="clear-filters-btn" style="display:none;" onclick="clearAllFilters()">
-                <i data-lucide="x" style="width:13px;height:13px"></i> Limpar filtros
-            </button>
-        </div>
-    </div>
-
-    <!-- FILTROS -->
-    <div class="filters-bar" id="filters-bar">
-        <input type="text" class="filter-input" id="filter-search" placeholder="🔍 Buscar..." style="flex:1; min-width:140px;">
-        <select class="filter-select" id="filter-status">
-            <option value="">Todos os status</option>
-            <option value="pending">Pendente</option>
-            <option value="approved">Aprovada</option>
-            <option value="rejected">Rejeitada</option>
-        </select>
-        <select class="filter-select" id="filter-associate">
-            <option value="">Todos os associados</option>
-            @foreach($deliveries->pluck('associate_name')->unique()->sort() as $assoc)
-            <option value="{{ $assoc }}">{{ $assoc }}</option>
-            @endforeach
-        </select>
-        <select class="filter-select" id="filter-product">
-            <option value="">Todos os produtos</option>
-            @foreach($deliveries->pluck('product_name')->unique()->sort() as $prod)
-            <option value="{{ $prod }}">{{ $prod }}</option>
-            @endforeach
-        </select>
-        <input type="date" class="filter-input" id="filter-date-from" placeholder="Data início" style="max-width:130px;">
-        <input type="date" class="filter-input" id="filter-date-to" placeholder="Data fim" style="max-width:130px;">
-        <select class="filter-select" id="delivery-page-size" style="max-width:150px;">
-            <option value="30">30 ultimos</option>
-            <option value="50">50 ultimos</option>
-            <option value="100">100 ultimos</option>
-            <option value="all">Todos</option>
-        </select>
-    </div>
-
-    @if($deliveries->isEmpty())
-        <div class="pd-empty">
-            <svg class="pd-empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-            <p>Nenhuma entrega registrada para este projeto.</p>
-        </div>
-    @else
-    <!-- TABELA DESKTOP -->
-    <div class="table-scroll desktop-only">
-        <table class="data-table" id="desktop-table">
-            <thead>
-                <tr>
-                    <th class="chk-cell"><input type="checkbox" id="select-all" title="Selecionar todas aprovadas"></th>
-                    <th>Data</th>
-                    <th>Associado</th>
-                    <th>Produto</th>
-                    <th>Qtd</th>
-                    <th>Val. Líq.</th>
-                    <th>Qual.</th>
-                    <th>Status</th>
-                    <th style="min-width:120px;">Limite associado</th>
-                    <th style="min-width:100px;">Distrib.</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="desktop-tbody">
-                @foreach($deliveries as $delivery)
-                    @include('delivery.partials.project-delivery-row', ['delivery' => $delivery, 'customers' => $customers])
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-
-    <!-- MOBILE CARDS -->
-    <div class="mobile-cards" id="mobile-cards">
-        @foreach($deliveries as $delivery)
-            @include('delivery.partials.project-delivery-mobile-card', ['delivery' => $delivery, 'customers' => $customers])
-        @endforeach
-    </div>
-    <div class="delivery-pagination" id="project-pagination">
-        <div class="delivery-pagination-info" id="project-page-info"></div>
-        <div class="delivery-pagination-actions">
-            <button type="button" class="delivery-page-btn" id="project-prev">Anterior</button>
-            <button type="button" class="delivery-page-btn" id="project-next">Proxima</button>
-        </div>
-    </div>
-    @endif
-</div>
-
-<div class="dist-summary-overlay" id="dist-summary-overlay">
-    <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
-        <div class="dist-summary-head">
-            <div>
-                <div class="dist-summary-title" id="dist-summary-title">Distribuicoes</div>
-                <div class="dist-summary-sub" id="dist-summary-sub"></div>
             </div>
-            <button type="button" class="dist-summary-close" onclick="closeDistSummary()" aria-label="Fechar">x</button>
+
+            <div class="pd-card-head-actions">
+                @if($totalPending > 0)
+                    <span class="pd-pending-chip">
+                        <i data-lucide="clock-3"></i>
+                        {{ $totalPending }} pendente(s)
+                    </span>
+                @endif
+
+                <button
+                    class="btn btn-ghost btn-sm"
+                    id="clear-filters-btn"
+                    type="button"
+                    style="display:none;"
+                    onclick="clearAllFilters()"
+                >
+                    <i data-lucide="x"></i>
+                    Limpar filtros
+                </button>
+            </div>
+        </header>
+
+        {{-- FILTROS --}}
+        <div class="filters-bar" id="filters-bar">
+            <div class="pd-filters-primary">
+                <label class="pd-filter-field pd-filter-search">
+                    <span class="pd-filter-label">
+                        Buscar
+                    </span>
+
+                    <span class="pd-filter-control has-icon">
+                        <i data-lucide="search"></i>
+
+                        <input
+                            type="search"
+                            class="filter-input"
+                            id="filter-search"
+                            placeholder="Associado, produto ou data"
+                            autocomplete="off"
+                        >
+                    </span>
+                </label>
+
+                <label class="pd-filter-field pd-filter-status">
+                    <span class="pd-filter-label">
+                        Status
+                    </span>
+
+                    <select
+                        class="filter-select"
+                        id="filter-status"
+                    >
+                        <option value="">
+                            Todos os status
+                        </option>
+
+                        <option value="pending">
+                            Pendente
+                        </option>
+
+                        <option value="approved">
+                            Aprovada
+                        </option>
+
+                        <option value="rejected">
+                            Rejeitada
+                        </option>
+
+                        <option value="cancelled">
+                            Cancelada
+                        </option>
+                    </select>
+                </label>
+
+                <button
+                    class="pd-filter-more"
+                    id="pd-filter-more"
+                    type="button"
+                    aria-controls="pd-advanced-filters"
+                    aria-expanded="false"
+                    onclick="toggleAdvancedFilters()"
+                >
+                    <i data-lucide="sliders-horizontal"></i>
+
+                    <span>Mais filtros</span>
+
+                    <span
+                        class="pd-filter-more-count"
+                        id="pd-filter-more-count"
+                        hidden
+                    >
+                        0
+                    </span>
+
+                    <i
+                        class="pd-filter-more-chevron"
+                        data-lucide="chevron-down"
+                    ></i>
+                </button>
+            </div>
+
+            <div
+                class="pd-filters-advanced"
+                id="pd-advanced-filters"
+                hidden
+            >
+                <label class="pd-filter-field">
+                    <span class="pd-filter-label">
+                        Associado
+                    </span>
+
+                    <select
+                        class="filter-select"
+                        id="filter-associate"
+                    >
+                        <option value="">
+                            Todos os associados
+                        </option>
+
+                        @foreach(
+                            $deliveries
+                                ->pluck('associate_name')
+                                ->unique()
+                                ->sort()
+                            as $assoc
+                        )
+                            <option value="{{ $assoc }}">
+                                {{ $assoc }}
+                            </option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label class="pd-filter-field">
+                    <span class="pd-filter-label">
+                        Produto
+                    </span>
+
+                    <select
+                        class="filter-select"
+                        id="filter-product"
+                    >
+                        <option value="">
+                            Todos os produtos
+                        </option>
+
+                        @foreach(
+                            $deliveries
+                                ->pluck('product_name')
+                                ->unique()
+                                ->sort()
+                            as $prod
+                        )
+                            <option value="{{ $prod }}">
+                                {{ $prod }}
+                            </option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label class="pd-filter-field pd-filter-date">
+                    <span class="pd-filter-label">
+                        De
+                    </span>
+
+                    <input
+                        type="date"
+                        class="filter-input"
+                        id="filter-date-from"
+                    >
+                </label>
+
+                <label class="pd-filter-field pd-filter-date">
+                    <span class="pd-filter-label">
+                        Até
+                    </span>
+
+                    <input
+                        type="date"
+                        class="filter-input"
+                        id="filter-date-to"
+                    >
+                </label>
+
+                <label class="pd-filter-field pd-filter-page-size">
+                    <span class="pd-filter-label">
+                        Por página
+                    </span>
+
+                    <select
+                        class="filter-select"
+                        id="delivery-page-size"
+                    >
+                        <option value="30">
+                            30 últimas
+                        </option>
+
+                        <option value="50">
+                            50 últimas
+                        </option>
+
+                        <option value="100">
+                            100 últimas
+                        </option>
+
+                        <option value="all">
+                            Todas
+                        </option>
+                    </select>
+                </label>
+            </div>
         </div>
-        <div class="dist-summary-body" id="dist-summary-body"></div>
-    </div>
-</div>
-{{-- SELECTION BAR --}}
-<div class="selection-bar" id="selection-bar">
-    <div class="selection-bar-info">
-        <i data-lucide="check-square" style="width:16px;height:16px;color:var(--color-primary)"></i>
-        <span id="sel-count">0</span> recepção(ões)
-        &nbsp;·&nbsp; Distribuído:
-        <span style="color:var(--color-success)">R$ <span id="sel-total">0,00</span></span>
-    </div>
-    <div class="selection-bar-actions">
-        <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Limpar</button>
-        <button class="btn btn-primary btn-sm" id="btn-gen-receipt" onclick="generateSelectedReceipt()">
-            <i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante
-        </button>
+
+        @if($deliveries->isEmpty())
+            <div class="pd-empty">
+                <svg
+                    class="pd-empty-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                    />
+                </svg>
+
+                <p>
+                    Nenhuma entrega foi registrada para este projeto.
+                </p>
+            </div>
+        @else
+            {{-- TABELA DESKTOP --}}
+            <div class="table-scroll desktop-only">
+                <table
+                    class="data-table"
+                    id="desktop-table"
+                >
+                    <thead>
+                        <tr>
+<th>Data</th>
+                            <th>Associado</th>
+                            <th>Produto</th>
+                            <th>Quantidade</th>
+                            <th>Valor líquido</th>
+                            <th>Qualidade</th>
+                            <th>Status</th>
+                            <th>Limite do associado</th>
+                            <th>Distribuição</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="desktop-tbody">
+                        @foreach($deliveries as $delivery)
+                            @include(
+                                'delivery.partials.project-delivery-row',
+                                [
+                                    'delivery' => $delivery,
+                                    'customers' => $customers,
+                                ]
+                            )
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- MOBILE --}}
+            <div
+                class="mobile-cards"
+                id="mobile-cards"
+            >
+                @foreach($deliveries as $delivery)
+                    @include(
+                        'delivery.partials.project-delivery-mobile-card',
+                        [
+                            'delivery' => $delivery,
+                            'customers' => $customers,
+                        ]
+                    )
+                @endforeach
+            </div>
+
+            <div
+                class="delivery-pagination"
+                id="project-pagination"
+            >
+                <div
+                    class="delivery-pagination-info"
+                    id="project-page-info"
+                ></div>
+
+                <div class="delivery-pagination-actions">
+                    <button
+                        type="button"
+                        class="delivery-page-btn"
+                        id="project-prev"
+                    >
+                        Anterior
+                    </button>
+
+                    <button
+                        type="button"
+                        class="delivery-page-btn"
+                        id="project-next"
+                    >
+                        Próxima
+                    </button>
+                </div>
+            </div>
+        @endif
+    </section>
+</main>
+
+{{-- RESUMO DE DISTRIBUIÇÕES --}}
+<div
+    class="dist-summary-overlay"
+    id="dist-summary-overlay"
+>
+    <div
+        class="dist-summary-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dist-summary-title"
+    >
+        <header class="dist-summary-head">
+            <div class="dist-summary-head-main">
+                <span
+                    class="dist-summary-icon"
+                    aria-hidden="true"
+                >
+                    <i data-lucide="git-branch"></i>
+                </span>
+
+                <div>
+                    <div
+                        class="dist-summary-title"
+                        id="dist-summary-title"
+                    >
+                        Distribuições
+                    </div>
+
+                    <div
+                        class="dist-summary-sub"
+                        id="dist-summary-sub"
+                    ></div>
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="dist-summary-close"
+                onclick="closeDistSummary()"
+                aria-label="Fechar"
+            >
+                <i data-lucide="x"></i>
+            </button>
+        </header>
+
+        <div
+            class="dist-summary-body"
+            id="dist-summary-body"
+        ></div>
     </div>
 </div>
 
@@ -712,7 +3099,7 @@ function openIntegrityDistribution(deliveryId, distributionId = 0, edit = false)
     const button = document.querySelector(`.btn-distribute[data-id="${deliveryId}"]`);
     if (!button) {
         focusIntegrityDelivery(deliveryId);
-        pdToast('Abra uma entrega aprovada para corrigir as distribuicoes.', 'info');
+        pdToast('Abra uma entrega aprovada para corrigir as distribuições.', 'info');
         return;
     }
 
@@ -749,8 +3136,8 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
     }
 
     const message = actionKey === 'detach_missing_associate_receipt'
-        ? 'Desvincular este comprovante inexistente? A distribuicao voltara a ficar disponivel para um novo comprovante.'
-        : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
+        ? 'Desvincular este comprovante inexistente? A distribuição voltará a ficar disponível para um novo comprovante.'
+        : 'Excluir esta distribuição órfã? Esta correção não pode ser desfeita.';
     const confirmed = await customConfirm(message);
     if (!confirmed) return;
 
@@ -762,7 +3149,7 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
         });
         const data = await res.json();
         if (!data.success) {
-            pdToast(data.message || 'Nao foi possivel aplicar esta correcao.', 'error');
+            pdToast(data.message || 'Não foi possível aplicar esta correção.', 'error');
             return;
         }
 
@@ -770,7 +3157,7 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
         if (deliveryId) refreshDeliveryItem(deliveryId).catch(() => {});
         pdToast(data.message);
     } catch (error) {
-        pdToast('Erro de comunicacao ao aplicar a correcao.', 'error');
+        pdToast('Erro de comunicação ao aplicar a correção.', 'error');
     }
 }
 
@@ -797,15 +3184,100 @@ function customConfirm(message) {
 
 /* ========== TOAST ========== */
 function pdToast(msg, type = 'success') {
-    const c = document.getElementById('pd-toasts');
-    const el = document.createElement('div');
-    el.className = `pd-toast ${type}`;
-    el.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${msg}</span>`;
-    c.appendChild(el);
-    setTimeout(() => { el.style.opacity = 0; setTimeout(() => el.remove(), 300); }, 4000);
+    const container = document.getElementById('pd-toasts');
+
+    if (!container) {
+        return;
+    }
+
+    const toast = document.createElement('div');
+    const icon = type === 'error'
+        ? 'circle-alert'
+        : type === 'info'
+            ? 'info'
+            : 'circle-check';
+
+    toast.className = `pd-toast ${type}`;
+
+    toast.innerHTML = `
+        <span class="pd-toast-icon" aria-hidden="true">
+            <i data-lucide="${icon}"></i>
+        </span>
+
+        <span class="pd-toast-message">
+            ${esc(msg)}
+        </span>
+    `;
+
+    container.appendChild(toast);
+
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+
+    window.setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(5px)';
+        toast.style.transition = 'opacity .18s ease, transform .18s ease';
+
+        window.setTimeout(() => {
+            toast.remove();
+        }, 190);
+    }, 4000);
 }
 
 /* ========== FILTROS ========== */
+function advancedFilterCount() {
+    return [
+        document.getElementById('filter-associate')?.value || '',
+        document.getElementById('filter-product')?.value || '',
+        document.getElementById('filter-date-from')?.value || '',
+        document.getElementById('filter-date-to')?.value || '',
+    ].filter(Boolean).length;
+}
+
+function setAdvancedFilters(open) {
+    const panel = document.getElementById('pd-advanced-filters');
+    const button = document.getElementById('pd-filter-more');
+    const chevron = button?.querySelector('.pd-filter-more-chevron');
+
+    if (!panel || !button) return;
+
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    button.classList.toggle('open', open);
+
+    if (chevron) {
+        chevron.setAttribute(
+            'data-lucide',
+            open ? 'chevron-up' : 'chevron-down'
+        );
+    }
+
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
+
+function toggleAdvancedFilters() {
+    const panel = document.getElementById('pd-advanced-filters');
+    if (!panel) return;
+    setAdvancedFilters(panel.hidden);
+}
+
+function updateAdvancedFilterState() {
+    const count = advancedFilterCount();
+    const badge = document.getElementById('pd-filter-more-count');
+    const button = document.getElementById('pd-filter-more');
+
+    if (badge) {
+        badge.textContent = count;
+        badge.hidden = count === 0;
+    }
+
+    button?.classList.toggle('has-active', count > 0);
+}
+
 function applyFilters() {
     const search   = normalizeFilterText(document.getElementById('filter-search')?.value || '');
     const status   = document.getElementById('filter-status')?.value || '';
@@ -816,6 +3288,8 @@ function applyFilters() {
 
     const hasFilter = search || status || assoc || prod || dateFrom || dateTo;
     document.getElementById('clear-filters-btn').style.display = hasFilter ? '' : 'none';
+
+    updateAdvancedFilterState();
 
     const isMobile = window.matchMedia('(max-width: 767px)').matches;
     const desktopRows = Array.from(document.querySelectorAll('#desktop-tbody tr'));
@@ -883,7 +3357,7 @@ function normalizeFilterText(value) {
 function updateProjectPagination(total, start, end, page, totalPages) {
     const wrap = document.getElementById('project-pagination');
     if (!wrap) return;
-    wrap.style.display = total > 0 ? 'flex' : 'none';
+    wrap.style.display = total > 0 ? 'grid' : 'none';
     document.getElementById('project-page-info').textContent = total > 0 ? `${start}-${end} de ${total}` : '';
     document.getElementById('project-prev').disabled = page <= 1;
     document.getElementById('project-next').disabled = page >= totalPages;
@@ -912,7 +3386,7 @@ function openDistSummaryFromCard(card) {
     const distQty = parseFloat(card?.dataset?.distributed || 0);
     const distributions = parseCardDistributions(card);
     document.getElementById('dist-summary-title').textContent = product;
-    document.getElementById('dist-summary-sub').textContent = `${fmtProjectQty(distQty, unit)} distribuidos de ${fmtProjectQty(totalQty, unit)}`;
+    document.getElementById('dist-summary-sub').textContent = `${fmtProjectQty(distQty, unit)} distribuídos de ${fmtProjectQty(totalQty, unit)}`;
     document.getElementById('dist-summary-body').innerHTML = distributions.length
         ? distributions.map(d => {
             const customer = d.customer || d.customer_name || d.customerName || 'Cliente';
@@ -920,7 +3394,7 @@ function openDistSummaryFromCard(card) {
             const net = parseFloat(d.net || d.net_value || 0);
             return `<div class="dist-summary-row"><strong>${esc(customer)}</strong><span>${fmtProjectQty(qty, unit)}${net > 0 ? ' - R$ ' + net.toFixed(2) : ''}</span></div>`;
         }).join('')
-        : '<div class="dist-summary-row"><strong>Nenhuma distribuicao</strong><span>0%</span></div>';
+        : '<div class="dist-summary-row"><strong>Nenhuma distribuição</strong><span>0%</span></div>';
     document.getElementById('dist-summary-overlay').classList.add('open');
 }
 
@@ -936,6 +3410,7 @@ function clearAllFilters() {
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
     projectListState.page = 1;
+    setAdvancedFilters(false);
     applyFilters();
 }
 
@@ -1003,73 +3478,6 @@ function updateDistIndicator(container, totalQty, distQty, unit) {
     }
 }
 
-/* ========== SELECTION BAR ========== */
-function updateSelectionBar() {
-    const checks = document.querySelectorAll('.delivery-chk:checked');
-    const bar    = document.getElementById('selection-bar');
-    const count  = checks.length;
-    let total = 0;
-    checks.forEach(c => total += parseFloat(c.dataset.net || 0));
-    document.getElementById('sel-count').textContent = count;
-    document.getElementById('sel-total').textContent = total.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-    bar.classList.toggle('visible', count > 0);
-}
-
-function clearSelection() {
-    document.querySelectorAll('.delivery-chk').forEach(c => c.checked = false);
-    document.getElementById('select-all')?.checked && (document.getElementById('select-all').checked = false);
-    updateSelectionBar();
-}
-
-document.getElementById('select-all')?.addEventListener('change', function() {
-    const val = this.checked;
-    document.querySelectorAll('.delivery-chk').forEach(c => c.checked = val);
-    updateSelectionBar();
-});
-
-document.addEventListener('change', function(e) {
-    if (e.target.classList.contains('delivery-chk')) updateSelectionBar();
-});
-
-async function generateSelectedReceipt() {
-    const checks = document.querySelectorAll('.delivery-chk:checked');
-    if (checks.length === 0) return pdToast('Selecione ao menos uma entrega.', 'error');
-
-    const ids = Array.from(checks).map(c => parseInt(c.value));
-    const btn = document.getElementById('btn-gen-receipt');
-    btn.disabled = true;
-    btn.innerHTML = '<i data-lucide="loader" style="width:13px;height:13px"></i> Gerando...';
-
-    try {
-        const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/receipt-selected`, {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ delivery_ids: ids })
-        });
-        const data = await res.json();
-        if (data.success) {
-            const byteChars = atob(data.pdf);
-            const byteArray = new Uint8Array(byteChars.length);
-            for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
-            const blob = new Blob([byteArray], { type: 'application/pdf' });
-            const url  = URL.createObjectURL(blob);
-            const a    = document.createElement('a');
-            a.href = url; a.download = data.filename; a.click();
-            URL.revokeObjectURL(url);
-            pdToast(`Comprovante nº ${data.receipt_number} gerado com ${ids.length} entrega(s)!`);
-            clearSelection();
-        } else {
-            pdToast(data.message || 'Erro ao gerar comprovante.', 'error');
-        }
-    } catch(err) {
-        pdToast('Erro de comunicação com o servidor.', 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="file-down" style="width:13px;height:13px"></i> Gerar Comprovante';
-        lucide.createIcons();
-    }
-}
-
 /* ========== ACTION HANDLERS ========== */
 document.addEventListener('click', async function(e) {
     const summary = e.target.closest('.mc-dist-indicator[data-summary], .dist-indicator[data-summary]');
@@ -1089,7 +3497,7 @@ document.addEventListener('click', async function(e) {
 
     if (deleteBtn) {
         const id = deleteBtn.dataset.id;
-        const confirmed = await customConfirm('Excluir esta entrega? Esta acao tambem removera as distribuicoes associadas quando existirem e nao pode ser desfeita.');
+        const confirmed = await customConfirm('Excluir esta entrega? Esta ação também removerá as distribuicoes associadas quando existirem e nao pode ser desfeita.');
         if (!confirmed) return;
         deleteBtn.disabled = true;
         try {
@@ -1150,10 +3558,6 @@ document.addEventListener('click', async function(e) {
                         if (actionCell) {
                             actionCell.innerHTML = buildApprovedActions(id, rowEl);
                         }
-                        const chkCell = rowEl.querySelector('.chk-cell');
-                        if (chkCell && !chkCell.querySelector('input')) {
-                            chkCell.innerHTML = `<input type="checkbox" class="delivery-chk" value="${id}" data-associate="" data-net="0">`;
-                        }
                         rowEl.classList.add('approved-row');
                     }
                     // Mobile: update actions
@@ -1162,10 +3566,6 @@ document.addEventListener('click', async function(e) {
                         const actions = cardEl.querySelector('.mc-actions');
                         if (actions) {
                             actions.innerHTML = buildApprovedActionsMobile(id, cardEl);
-                        }
-                        const chkDiv = cardEl.querySelector('.mc-chk');
-                        if (chkDiv && !chkDiv.querySelector('input')) {
-                            chkDiv.innerHTML = `<input type="checkbox" class="delivery-chk" value="${id}" data-associate="" data-net="0">`;
                         }
                         cardEl.classList.add('status-approved');
                     }
@@ -1176,10 +3576,6 @@ document.addEventListener('click', async function(e) {
                         if (actionCell) {
                             actionCell.innerHTML = buildRejectedActions(id);
                         }
-                        const chkCell = rowEl.querySelector('.chk-cell');
-                        if (chkCell) {
-                            chkCell.innerHTML = '';
-                        }
                         rowEl.classList.remove('approved-row');
                     }
 
@@ -1189,16 +3585,12 @@ document.addEventListener('click', async function(e) {
                         if (actions) {
                             actions.innerHTML = buildRejectedActionsMobile(id);
                         }
-                        const chkDiv = cardEl.querySelector('.mc-chk');
-                        if (chkDiv) {
-                            chkDiv.innerHTML = '';
-                        }
                         cardEl.classList.remove('status-approved');
                         cardEl.classList.add('status-rejected');
                     }
                 }
+                enhanceDeliveryActions();
                 refreshDeliveryItem(id).catch(() => applyFilters());
-                lucide.createIcons();
             } else {
                 pdToast(data.message || 'Erro ao processar.', 'error');
                 btns.forEach(b => b.disabled = false);
@@ -1217,14 +3609,14 @@ function buildApprovedActions(id, rowEl) {
     return `
         <button class="btn-distribute" data-id="${id}" data-product="${esc(prod)}" data-unit="${esc(unit)}"
             data-qty="${qty}" data-distributed="0" data-existing="[]"
-            data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" title="Distribuir">
-            <i data-lucide="git-branch" style="width:11px;height:11px"></i> Distribuir
+            data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" title="Distribuir" aria-label="Distribuir">
+            <i data-lucide="git-branch"></i><span class="pd-action-label">Distribuir</span>
         </button>
-        <button class="btn-edit" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]" title="Editar">
-            <i data-lucide="pencil" style="width:11px;height:11px"></i> Editar
+        <button class="btn-edit" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]" title="Editar" aria-label="Editar">
+            <i data-lucide="pencil"></i><span class="pd-action-label">Editar</span>
         </button>
-        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega">
-            <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega" aria-label="Excluir entrega">
+            <i data-lucide="trash-2"></i><span class="pd-action-label">Excluir</span>
         </button>
     `;
 }
@@ -1236,29 +3628,72 @@ function buildApprovedActionsMobile(id, cardEl) {
     return `
         <button class="btn-distribute btn-xs" data-id="${id}" data-product="${esc(prod)}" data-unit="${esc(unit)}"
             data-qty="${qty}" data-distributed="0" data-existing="[]"
-            data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}">Distribuir</button>
-        <button class="btn-edit btn-xs" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]">Editar</button>
-        <button class="btn-delete-approved btn-xs" data-id="${id}">Excluir</button>
+            data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}"
+            title="Distribuir" aria-label="Distribuir">
+            <i data-lucide="git-branch"></i>
+        </button>
+        <button class="btn-edit btn-xs" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]"
+            title="Editar" aria-label="Editar">
+            <i data-lucide="pencil"></i>
+        </button>
+        <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega" aria-label="Excluir entrega">
+            <i data-lucide="trash-2"></i>
+        </button>
     `;
 }
 
 function buildRejectedActions(id) {
     return `
-        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega rejeitada">
-            <i data-lucide="trash-2" style="width:11px;height:11px"></i> Excluir
+        <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada">
+            <i data-lucide="trash-2"></i><span class="pd-action-label">Excluir</span>
         </button>
     `;
 }
 
 function buildRejectedActionsMobile(id) {
     return `
-        <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega rejeitada">
-            Excluir
+        <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada">
+            <i data-lucide="trash-2"></i>
         </button>
     `;
 }
 
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function deliveryActionMeta(button) {
+    if (button.classList.contains('btn-distribute')) return { icon: 'git-branch', label: 'Distribuir' };
+    if (button.classList.contains('btn-edit')) return { icon: 'pencil', label: 'Editar' };
+    if (button.classList.contains('btn-approve')) return { icon: 'circle-check', label: 'Aprovar' };
+    if (button.classList.contains('btn-reject')) return { icon: 'circle-x', label: 'Rejeitar' };
+    if (button.classList.contains('btn-delete-approved')) return { icon: 'trash-2', label: 'Excluir' };
+    return null;
+}
+
+function enhanceDeliveryActions(root = document) {
+    root.querySelectorAll('.delivery-chk').forEach(input => input.remove());
+
+    root.querySelectorAll('#desktop-tbody .action-btns button').forEach(button => {
+        const meta = deliveryActionMeta(button);
+        if (!meta) return;
+
+        button.title = button.title || meta.label;
+        button.setAttribute('aria-label', button.getAttribute('aria-label') || meta.label);
+        button.innerHTML = `<i data-lucide="${meta.icon}"></i><span class="pd-action-label">${meta.label}</span>`;
+    });
+
+    root.querySelectorAll('#mobile-cards .mc-actions button').forEach(button => {
+        const meta = deliveryActionMeta(button);
+        if (!meta) return;
+
+        button.title = meta.label;
+        button.setAttribute('aria-label', meta.label);
+        button.innerHTML = `<i data-lucide="${meta.icon}"></i>`;
+    });
+
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+}
 
 const DM_PROJECT_PARTICIPANTS = @json($customers->pluck('id')->values()->all());
 
@@ -1298,8 +3733,7 @@ function replaceDeliveryFragments(payload) {
         document.getElementById('mobile-row-' + id)?.replaceWith(nextMobile);
     }
 
-    lucide.createIcons();
-    updateSelectionBar();
+    enhanceDeliveryActions();
     applyFilters();
     return true;
 }
@@ -1321,7 +3755,7 @@ window._DistModalReload = async function(data) {
     try {
         await refreshDeliveryItem(id);
     } catch (e) {
-        pdToast(e.message || 'Distribuicao salva, mas nao foi possivel atualizar o item.', 'error');
+        pdToast(e.message || 'Distribuição salva, mas não foi possível atualizar o item.', 'error');
     }
 };
 window._DistModalOnDelete = function(receptionId, data) {
@@ -1337,18 +3771,17 @@ window._DistModalOnDelete = function(receptionId, data) {
 };
 
 window._DistModalOnUpdate = function(receptionId, data) {
-    pdToast('Distribuicao atualizada.');
+    pdToast('Distribuição atualizada.');
     const id = receptionId || data?.parent_delivery_id;
     if (!id) return;
     refreshDeliveryItem(id).catch(() => {
-        pdToast('Distribuicao atualizada, mas nao foi possivel atualizar o item.', 'error');
+        pdToast('Distribuição atualizada, mas não foi possível atualizar o item.', 'error');
     });
 };
 
 /* ========== Inicialização ========== */
 document.addEventListener('DOMContentLoaded', () => {
-    lucide.createIcons();
-    updateSelectionBar();
+    enhanceDeliveryActions();
     applyFilters(); // initial count
 
     const params = new URLSearchParams(window.location.search);
@@ -1375,8 +3808,5 @@ document.addEventListener('DOMContentLoaded', () => {
     openRequestedDistribution();
 });
 
-/* ========== MODAL RELATÓRIO POR CLIENTE (mantido) ========== */
-// (Código do modal mantido exatamente como no original, omitido por brevidade)
 </script>
 @endsection
-

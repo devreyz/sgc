@@ -1313,6 +1313,524 @@
             justify-self: start;
         }
     }
+
+
+    /* =========================================================
+       REFINO — HIERARQUIA COMPACTA / ÍCONES CENTRALIZADOS
+       ========================================================= */
+
+    .limits-page {
+        gap: .72rem;
+    }
+
+    .limits-surface {
+        border-radius: 15px;
+        box-shadow: 0 4px 14px rgba(15, 35, 24, .04);
+    }
+
+    /* Lucide troca <i> por <svg>; flex mantém o desenho centralizado. */
+    .limits-back,
+    .limits-section-icon,
+    .limits-option-icon,
+    .limit-product-icon,
+    .limit-icon-button,
+    .limits-dialog-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        line-height: 0;
+    }
+
+    .limits-back > i,
+    .limits-back > svg,
+    .limits-section-icon > i,
+    .limits-section-icon > svg,
+    .limits-option-icon > i,
+    .limits-option-icon > svg,
+    .limit-product-icon > i,
+    .limit-product-icon > svg,
+    .limit-icon-button > i,
+    .limit-icon-button > svg,
+    .limits-dialog-icon > i,
+    .limits-dialog-icon > svg {
+        display: block;
+        flex: 0 0 auto;
+        margin: 0;
+    }
+
+    .limits-context {
+        min-height: 70px;
+        padding: .66rem .72rem;
+        background:
+            radial-gradient(circle at 100% 0, rgba(34, 197, 94, .075), transparent 16rem),
+            linear-gradient(180deg, var(--color-surface-soft), #fff);
+    }
+
+    .limits-context-label {
+        font-size: .65rem;
+    }
+
+    .limits-context-copy h1 {
+        margin-top: .03rem;
+        font-size: clamp(.98rem, 2vw, 1.15rem);
+    }
+
+    .limits-context-meta {
+        margin-top: .1rem;
+        font-size: .67rem;
+    }
+
+    .limits-secondary-action,
+    .limits-button {
+        min-height: 38px;
+        border-radius: 9px;
+    }
+
+    .limits-section-head {
+        min-height: 58px;
+        padding: .56rem .66rem;
+    }
+
+    .limits-section-copy h2 {
+        font-size: .88rem;
+    }
+
+    .limits-section-copy p,
+    .limits-field-helper {
+        display: none;
+    }
+
+    .limits-section-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+    }
+
+    .limits-section-icon > i,
+    .limits-section-icon > svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .limits-count {
+        min-height: 26px;
+        padding: .18rem .36rem;
+        font-size: .63rem;
+    }
+
+    .limits-summary-grid {
+        grid-template-columns: minmax(260px, .82fr) minmax(0, 1.18fr);
+    }
+
+    /* mantém o gradiente — é a principal identidade visual desta página */
+    .limits-budget {
+        min-height: 150px;
+        padding: .82rem .9rem;
+        background:
+            radial-gradient(circle at 100% 0, rgba(37, 99, 235, .10), transparent 16rem),
+            linear-gradient(135deg, #fff, var(--limit-blue-soft));
+    }
+
+    .limits-budget-label {
+        font-size: .67rem;
+    }
+
+    .limits-budget-value {
+        margin-top: .2rem;
+        font-size: clamp(1.45rem, 3vw, 1.95rem);
+    }
+
+    .limits-budget-helper {
+        margin-top: .22rem;
+        font-size: .66rem;
+        font-weight: 700;
+        color: var(--color-text-secondary);
+    }
+
+    .limits-budget-meter {
+        height: 6px;
+        margin-top: .48rem;
+    }
+
+    .limits-summary-side {
+        padding: .66rem;
+    }
+
+    .limits-financial-info {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .4rem;
+        margin-bottom: .48rem;
+    }
+
+    .limits-financial-stat {
+        padding: .48rem .52rem;
+        border: 1px solid var(--color-border);
+        background: #fff;
+    }
+
+    .limits-financial-stat span {
+        font-size: .62rem;
+    }
+
+    .limits-financial-stat strong {
+        font-size: .78rem;
+    }
+
+    .limits-ceiling {
+        grid-template-columns: minmax(150px, 1fr) auto;
+        gap: .4rem;
+        padding-top: .5rem;
+    }
+
+    .limits-field label {
+        margin-bottom: .2rem;
+        font-size: .65rem;
+    }
+
+    .limits-control {
+        min-height: 39px;
+        border-radius: 9px;
+        font-size: .72rem;
+    }
+
+    .limits-control:focus {
+        border-color: var(--limit-violet);
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, .08);
+    }
+
+    .limits-product-toolbar {
+        grid-template-columns: minmax(220px, 1fr) auto;
+        gap: .42rem;
+        padding: .5rem .62rem;
+        background: var(--color-surface-soft);
+    }
+
+    .limits-button.primary {
+        border-color: rgba(124, 58, 237, .18);
+        background: var(--limit-violet-soft);
+        color: var(--limit-violet);
+        box-shadow: none;
+    }
+
+    .limits-button > i,
+    .limits-button > svg,
+    .limits-secondary-action > i,
+    .limits-secondary-action > svg,
+    .limits-budget-label > i,
+    .limits-budget-label > svg {
+        display: block;
+        flex: 0 0 auto;
+        margin: 0;
+    }
+
+    .limits-button.primary:hover:not(:disabled),
+    .limits-button.primary:focus-visible:not(:disabled) {
+        border-color: rgba(124, 58, 237, .3);
+        color: var(--limit-violet);
+    }
+
+    .limits-picker {
+        max-height: 280px;
+        gap: .28rem;
+        padding: .48rem .62rem .58rem;
+    }
+
+    .limits-option {
+        min-height: 52px;
+        padding: .46rem .52rem;
+        border-radius: 9px;
+    }
+
+    .limits-grid {
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: .5rem;
+        padding: .58rem .62rem .64rem;
+        background: var(--color-surface-soft);
+    }
+
+    .limit-card {
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(15, 35, 24, .025);
+    }
+
+    .limit-card-head {
+        min-height: 58px;
+        padding: .52rem .56rem;
+        background: #fff;
+    }
+
+    .limit-product-icon {
+        width: 36px;
+        height: 36px;
+        background: var(--limit-violet-soft);
+        color: var(--limit-violet);
+    }
+
+    .limit-product-name {
+        font-size: .79rem;
+    }
+
+    .limit-product-price {
+        margin-top: .02rem;
+        font-size: .64rem;
+    }
+
+    .limit-card-body {
+        gap: .46rem;
+        padding: .52rem .56rem .56rem;
+    }
+
+    .limit-card-primary {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .limit-metric {
+        min-height: 56px;
+        padding: .4rem .44rem;
+        border-radius: 0;
+        background: #fff;
+    }
+
+    .limit-metric + .limit-metric {
+        border-left: 1px solid var(--color-border);
+    }
+
+    .limit-metric.delivered strong {
+        color: var(--limit-blue);
+    }
+
+    .limit-metric.quota strong {
+        color: var(--limit-violet);
+    }
+
+    .limit-metric.balance strong {
+        color: var(--limit-green);
+    }
+
+    .limit-metric.value strong {
+        color: var(--limit-amber);
+    }
+
+    .limit-metric span {
+        font-size: .59rem;
+    }
+
+    .limit-metric strong {
+        margin-top: .03rem;
+        font-size: .69rem;
+    }
+
+    .limit-usage-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .48rem;
+        align-items: center;
+    }
+
+    .limit-usage-row > strong {
+        color: var(--limit-violet);
+        font-size: .66rem;
+        font-weight: 820;
+    }
+
+    .limit-meter {
+        height: 6px;
+        background: #e8ece9;
+    }
+
+    .limit-meter > span {
+        background: linear-gradient(90deg, #a78bfa, var(--limit-violet));
+    }
+
+    .limit-editor {
+        gap: .44rem;
+        padding: .5rem;
+        background:
+            linear-gradient(135deg, #fff, var(--limit-violet-soft));
+    }
+
+    .limit-editor-head strong {
+        font-size: .68rem;
+    }
+
+    .limit-editor-head span,
+    .limit-editor-label {
+        font-size: .62rem;
+    }
+
+    .limit-editor-fields {
+        grid-template-columns: minmax(0, 1fr) 140px;
+        gap: .44rem;
+    }
+
+    .limit-slider {
+        accent-color: var(--limit-violet);
+    }
+
+    .limit-message {
+        min-height: auto;
+        padding: .28rem .38rem;
+        border: 0;
+        background: transparent;
+        color: var(--color-text-muted);
+        font-size: .62rem;
+    }
+
+    .limit-message::before {
+        width: 16px;
+        height: 16px;
+        background: var(--limit-violet-soft);
+        color: var(--limit-violet);
+        font-size: .56rem;
+    }
+
+    .limit-message.error {
+        padding: .34rem .42rem;
+        background: var(--limit-red-soft);
+    }
+
+    .limits-savebar {
+        gap: .48rem;
+        padding: .48rem .56rem;
+        border-radius: 11px;
+    }
+
+    .limits-feedback {
+        font-size: .67rem;
+    }
+
+    .limits-empty,
+    .limits-loading {
+        min-height: 130px;
+        font-size: .7rem;
+    }
+
+    @media (max-width: 920px) {
+        .limits-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .limits-budget {
+            min-height: 130px;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .limits-context {
+            grid-template-columns: 36px minmax(0, 1fr);
+        }
+
+        .limits-secondary-action {
+            grid-column: 2;
+            justify-self: start;
+        }
+
+        .limits-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .limits-page {
+            gap: .62rem;
+        }
+
+        .limits-context,
+        .limits-section-head {
+            padding: .55rem .58rem;
+        }
+
+        .limits-summary-side {
+            padding: .58rem;
+        }
+
+        .limits-financial-info {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .limits-ceiling {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .limits-ceiling .limits-button {
+            width: auto;
+        }
+
+        .limits-grid {
+            padding: .48rem .5rem .56rem;
+        }
+
+        .limit-card-primary {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .limit-metric:nth-child(3),
+        .limit-metric:nth-child(4) {
+            border-top: 1px solid var(--color-border);
+        }
+
+        .limit-metric:nth-child(3) {
+            border-left: 0;
+        }
+
+        .limit-editor-fields {
+            grid-template-columns: 1fr;
+        }
+
+        .limits-savebar {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .limits-savebar .limits-button {
+            width: auto;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .limits-context-meta {
+            display: block;
+        }
+
+        .limits-secondary-action {
+            grid-column: 1 / -1;
+            width: 100%;
+        }
+
+        .limits-financial-info {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .limits-ceiling {
+            grid-template-columns: 1fr;
+        }
+
+        .limits-ceiling .limits-button {
+            width: 100%;
+        }
+
+        .limits-product-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .limits-button.primary {
+            width: 100%;
+        }
+
+        .limits-savebar {
+            grid-template-columns: 1fr;
+        }
+
+        .limits-savebar .limits-button {
+            width: 100%;
+        }
+    }
+
 </style>
 
 <main
@@ -1376,19 +1894,8 @@
 
                 <div class="limits-context-meta">
                     <span>
-                        <i data-lucide="folder"></i>
-
-                        <span>
-                            {{ $project->title }}
-                        </span>
-                    </span>
-
-                    <span>
-                        <i data-lucide="package-check"></i>
-
-                        <span>
-                            Cotas de entrega por produto
-                        </span>
+                        <i data-lucide="folder-kanban"></i>
+                        <span>{{ $project->title }}</span>
                     </span>
                 </div>
             </div>
@@ -1404,70 +1911,22 @@
                 ) }}"
             >
                 <i data-lucide="boxes"></i>
-                Ver limites por produto
+                Limites do projeto
             </a>
         </div>
-
-        @if($canManageLimits)
-            <div class="limits-guide">
-                <div class="limits-guide-item">
-                    <span class="limits-guide-number">1</span>
-
-                    <span class="limits-guide-copy">
-                        <strong>Defina o teto financeiro</strong>
-
-                        <span>
-                            Ele limita o valor total das cotas
-                            deste associado.
-                        </span>
-                    </span>
-                </div>
-
-                <div class="limits-guide-item">
-                    <span class="limits-guide-number">2</span>
-
-                    <span class="limits-guide-copy">
-                        <strong>Escolha os produtos</strong>
-
-                        <span>
-                            Adicione somente o que este associado
-                            poderá entregar.
-                        </span>
-                    </span>
-                </div>
-
-                <div class="limits-guide-item">
-                    <span class="limits-guide-number">3</span>
-
-                    <span class="limits-guide-copy">
-                        <strong>Ajuste e salve as cotas</strong>
-
-                        <span>
-                            A cota nunca pode ficar abaixo
-                            do que já foi entregue.
-                        </span>
-                    </span>
-                </div>
-            </div>
-        @endif
     </section>
 
     {{-- =========================================================
          RESUMO FINANCEIRO
          ========================================================= --}}
-    <section class="limits-surface">
+    <section class="limits-surface limits-finance-surface">
         <header class="limits-section-head">
             <span class="limits-section-icon summary" aria-hidden="true">
                 <i data-lucide="wallet-cards"></i>
             </span>
 
             <div class="limits-section-copy">
-                <h2>Planejamento financeiro</h2>
-
-                <p>
-                    Compare o valor das cotas com o teto disponível
-                    para este associado.
-                </p>
+                <h2>Limite financeiro</h2>
             </div>
 
             <span class="limits-count" id="aql-budget-label">
@@ -1478,20 +1937,16 @@
         <div class="limits-summary-grid">
             <div class="limits-budget">
                 <span class="limits-budget-label">
-                    <i data-lucide="calculator"></i>
-                    Valor planejado nas cotas
+                    <i data-lucide="chart-no-axes-combined"></i>
+                    Planejado
                 </span>
 
-                <strong
-                    class="limits-budget-value"
-                    id="aql-planned"
-                >
+                <strong class="limits-budget-value" id="aql-planned">
                     R$ 0,00
                 </strong>
 
                 <div class="limits-budget-helper" id="aql-budget-helper">
-                    Soma da quantidade máxima de cada produto
-                    multiplicada pelo preço de referência.
+                    Calculando disponibilidade...
                 </div>
 
                 <div
@@ -1510,27 +1965,19 @@
             <div class="limits-summary-side">
                 <div class="limits-financial-info">
                     <div class="limits-financial-stat">
-                        <span>Teto financeiro</span>
-
-                        <strong id="aql-ceiling-display">
-                            —
-                        </strong>
+                        <span>Teto</span>
+                        <strong id="aql-ceiling-display">—</strong>
                     </div>
 
                     <div class="limits-financial-stat remaining">
-                        <span>Ainda disponível</span>
-
-                        <strong id="aql-remaining">
-                            —
-                        </strong>
+                        <span>Disponível</span>
+                        <strong id="aql-remaining">—</strong>
                     </div>
                 </div>
 
                 <div class="limits-ceiling">
                     <div class="limits-field">
-                        <label for="aql-financial-input">
-                            Teto financeiro do associado
-                        </label>
+                        <label for="aql-financial-input">Alterar teto</label>
 
                         <input
                             class="limits-control"
@@ -1538,19 +1985,14 @@
                             type="number"
                             min="0"
                             step="0.01"
-                            placeholder="Ex.: 5000,00"
+                            placeholder="R$ 0,00"
                             {{ $canManageLimits ? '' : 'disabled' }}
                         >
-
-                        <span class="limits-field-helper">
-                            Deixe vazio somente quando o projeto
-                            não utilizar limite financeiro.
-                        </span>
                     </div>
 
                     @if($canManageLimits)
                         <button
-                            class="limits-button"
+                            class="limits-button limits-button-icon-save"
                             id="aql-financial-save"
                             type="button"
                         >
@@ -1573,12 +2015,7 @@
             </span>
 
             <div class="limits-section-copy">
-                <h2>Produtos permitidos e cotas</h2>
-
-                <p>
-                    Veja o que já foi entregue e ajuste
-                    a quantidade máxima permitida.
-                </p>
+                <h2>Cotas por produto</h2>
             </div>
 
             <span class="limits-count" id="aql-products-count">
@@ -1595,7 +2032,7 @@
                         class="limits-control"
                         id="aql-search"
                         type="search"
-                        placeholder="Buscar produto para adicionar..."
+                        placeholder="Buscar produto"
                         autocomplete="off"
                     >
                 </div>
@@ -1619,7 +2056,7 @@
 
         <section class="limits-grid" id="aql-grid">
             <div class="limits-loading">
-                Carregando produtos e limites...
+                Carregando produtos...
             </div>
         </section>
     </section>
@@ -1630,7 +2067,7 @@
                 class="limits-feedback"
                 id="aql-feedback"
             >
-                Nenhuma alteração pendente.
+                Tudo salvo
             </span>
 
             <button
@@ -1910,7 +2347,7 @@
             !Number.isFinite(row.quantity)
             || row.quantity <= 0
         ) {
-            return 'Informe uma cota maior que zero.';
+            return 'Informe uma cota maior que zero';
         }
 
         if (
@@ -1918,9 +2355,7 @@
             < row.delivered - .000001
         ) {
             return (
-                `A cota não pode ser menor que `
-                + `${qty(row.delivered)} ${row.unit}, `
-                + `pois essa quantidade já foi entregue.`
+                `Mínimo: ${qty(row.delivered)} ${row.unit} (já entregue)`
             );
         }
 
@@ -1929,8 +2364,7 @@
             > allowedMaximum(row) + .000001
         ) {
             return (
-                `O máximo disponível neste momento é `
-                + `${qty(allowedMaximum(row))} ${row.unit}.`
+                `Máximo disponível: ${qty(allowedMaximum(row))} ${row.unit}`
             );
         }
 
@@ -2046,8 +2480,8 @@
                             </strong>
                             <br>
                             ${canManage
-                                ? 'Use “Adicionar produto” para definir o que este associado poderá entregar.'
-                                : 'Ainda não existem cotas de produto para este associado.'}
+                                ? 'Adicione um produto para começar.'
+                                : 'Nenhuma cota configurada.'}
                         </div>
                     </div>
                 `;
@@ -2080,23 +2514,15 @@
             row.quantity > 0
                 ? Math.min(
                     100,
-                    row.delivered
-                    / row.quantity
-                    * 100
+                    row.delivered / row.quantity * 100
                 )
                 : 0;
 
         const balance =
-            Math.max(
-                0,
-                row.quantity
-                - row.delivered
-            );
+            Math.max(0, row.quantity - row.delivered);
 
         const cardState =
-            editing
-                ? 'is-editing'
-                : '';
+            editing ? 'is-editing' : '';
 
         return `
             <article
@@ -2117,9 +2543,7 @@
                         </strong>
 
                         <span class="limit-product-price">
-                            ${money(row.price)}
-                            por
-                            ${esc(row.unit || 'unidade')}
+                            ${money(row.price)} / ${esc(row.unit || 'un.')}
                         </span>
                     </div>
 
@@ -2130,18 +2554,10 @@
                                     class="limit-icon-button edit"
                                     type="button"
                                     onclick="aqlEdit(${row.id})"
-                                    title="${editing
-                                        ? 'Fechar edição'
-                                        : 'Editar cota'}"
-                                    aria-label="${editing
-                                        ? 'Fechar edição'
-                                        : 'Editar cota'}"
+                                    title="${editing ? 'Concluir edição' : 'Editar cota'}"
+                                    aria-label="${editing ? 'Concluir edição' : 'Editar cota'}"
                                 >
-                                    <i
-                                        data-lucide="${editing
-                                            ? 'check'
-                                            : 'pencil'}"
-                                    ></i>
+                                    <i data-lucide="${editing ? 'check' : 'pencil'}"></i>
                                 </button>
 
                                 <button
@@ -2160,62 +2576,48 @@
 
                 <div class="limit-card-body">
                     <div class="limit-card-primary">
-                        <div class="limit-metric">
-                            <span>Já entregue</span>
-
-                            <strong>
-                                ${qty(row.delivered)}
-                                ${esc(row.unit)}
-                            </strong>
+                        <div class="limit-metric delivered">
+                            <span>Entregue</span>
+                            <strong>${qty(row.delivered)} ${esc(row.unit)}</strong>
                         </div>
 
-                        <div class="limit-metric">
-                            <span>Cota máxima</span>
-
+                        <div class="limit-metric quota">
+                            <span>Cota</span>
                             <strong id="aql-quota-${row.id}">
-                                ${qty(row.quantity)}
-                                ${esc(row.unit)}
+                                ${qty(row.quantity)} ${esc(row.unit)}
                             </strong>
                         </div>
 
                         <div class="limit-metric balance">
-                            <span>Ainda pode entregar</span>
-
+                            <span>Saldo</span>
                             <strong id="aql-balance-${row.id}">
-                                ${qty(balance)}
-                                ${esc(row.unit)}
+                                ${qty(balance)} ${esc(row.unit)}
+                            </strong>
+                        </div>
+
+                        <div class="limit-metric value">
+                            <span>Valor</span>
+                            <strong id="aql-value-${row.id}">
+                                ${money(row.quantity * row.price)}
                             </strong>
                         </div>
                     </div>
 
-                    <div class="limit-usage">
-                        <span>Uso da cota</span>
+                    <div class="limit-usage-row">
+                        <div
+                            class="limit-meter"
+                            id="aql-use-meter-${row.id}"
+                            role="progressbar"
+                            aria-label="Uso da cota de ${esc(row.name)}"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                            aria-valuenow="${Math.round(used)}"
+                        >
+                            <span style="width:${used}%"></span>
+                        </div>
 
                         <strong id="aql-use-${row.id}">
-                            ${Math.round(used)}% entregue
-                        </strong>
-                    </div>
-
-                    <div
-                        class="limit-meter"
-                        id="aql-use-meter-${row.id}"
-                        role="progressbar"
-                        aria-label="Uso da cota de ${esc(row.name)}"
-                        aria-valuemin="0"
-                        aria-valuemax="100"
-                        aria-valuenow="${Math.round(used)}"
-                    >
-                        <span style="width:${used}%"></span>
-                    </div>
-
-                    <div class="limit-metric">
-                        <span>Valor planejado desta cota</span>
-
-                        <strong id="aql-value-${row.id}">
-                            ${money(
-                                row.quantity
-                                * row.price
-                            )}
+                            ${Math.round(used)}%
                         </strong>
                     </div>
 
@@ -2223,20 +2625,13 @@
                         ? `
                             <div class="limit-editor">
                                 <div class="limit-editor-head">
-                                    <strong>
-                                        Editando cota máxima
-                                    </strong>
-
-                                    <span>
-                                        Mínimo:
-                                        ${qty(row.delivered)}
-                                        ${esc(row.unit)}
-                                    </span>
+                                    <strong>Ajustar cota</strong>
+                                    <span>mín. ${qty(row.delivered)} ${esc(row.unit)}</span>
                                 </div>
 
                                 <div class="limit-editor-fields">
                                     <label>
-                                        Ajuste rápido
+                                        <span class="limit-editor-label">Ajuste rápido</span>
                                         <input
                                             class="limit-slider"
                                             id="aql-slider-${row.id}"
@@ -2246,37 +2641,25 @@
                                             step=".001"
                                             value="${row.quantity}"
                                             ${editing ? '' : 'disabled'}
-                                            oninput="aqlQuantity(
-                                                ${row.id},
-                                                this.value,
-                                                'slider'
-                                            )"
+                                            oninput="aqlQuantity(${row.id}, this.value, 'slider')"
                                         >
                                     </label>
 
                                     <label>
-                                        Cota máxima (${esc(row.unit)})
+                                        <span class="limit-editor-label">Cota (${esc(row.unit)})</span>
                                         <input
                                             class="limits-control"
                                             id="aql-input-${row.id}"
                                             type="number"
                                             min="${row.delivered}"
-                                            ${Number.isFinite(
-                                                allowedMaximum(row)
-                                            )
+                                            ${Number.isFinite(allowedMaximum(row))
                                                 ? `max="${allowedMaximum(row)}"`
                                                 : ''}
                                             step=".001"
                                             value="${row.quantity}"
                                             ${editing ? '' : 'disabled'}
-                                            oninput="aqlQuantity(
-                                                ${row.id},
-                                                this.value,
-                                                'input'
-                                            )"
-                                            onblur="aqlCommitQuantity(
-                                                ${row.id}
-                                            )"
+                                            oninput="aqlQuantity(${row.id}, this.value, 'input')"
+                                            onblur="aqlCommitQuantity(${row.id})"
                                         >
                                     </label>
                                 </div>
@@ -2296,30 +2679,17 @@
     }
 
     const availability = row => {
-        const max =
-            allowedMaximum(row);
+        const max = allowedMaximum(row);
 
-        if (row.projectMaximum === null) {
-            return Number.isFinite(max)
-                ? (
-                    `Este produto não possui meta de quantidade no projeto. `
-                    + `Pelo teto financeiro atual, a cota pode chegar a `
-                    + `${qty(max)} ${row.unit}.`
-                )
-                : (
-                    'Este produto não possui meta de quantidade '
-                    + 'nem teto financeiro definido.'
-                );
+        if (!Number.isFinite(max)) {
+            return 'Sem limite adicional';
         }
 
-        return (
-            `Meta do projeto: `
-            + `${qty(row.projectMaximum)} ${row.unit}. `
-            + `Outros associados já utilizam `
-            + `${qty(row.allocatedOthers)} ${row.unit}. `
-            + `Máximo disponível agora: `
-            + `${qty(max)} ${row.unit}.`
-        );
+        if (row.projectMaximum === null) {
+            return `Máximo atual: ${qty(max)} ${row.unit}`;
+        }
+
+        return `Disponível: ${qty(max)} ${row.unit} · Meta: ${qty(row.projectMaximum)} ${row.unit}`;
     };
 
     function refresh(note = '') {
@@ -2551,19 +2921,16 @@
         if (budgetHelper) {
             if (limit === null) {
                 budgetHelper.textContent =
-                    'O valor planejado é apenas informativo, '
-                    + 'pois este associado não possui teto financeiro.';
+                    'Sem teto financeiro';
             } else if (total > limit + .005) {
                 budgetHelper.textContent =
-                    'As cotas ultrapassam o teto financeiro. '
-                    + 'Reduza uma ou mais cotas antes de salvar.';
+                    'Teto excedido — ajuste as cotas';
             } else if (percent >= 80) {
                 budgetHelper.textContent =
-                    'O planejamento está próximo do teto financeiro. '
-                    + 'Confira os valores antes de salvar.';
+                    'Próximo do teto financeiro';
             } else {
                 budgetHelper.textContent =
-                    'O planejamento está dentro do teto financeiro disponível.';
+                    'Dentro do teto disponível';
             }
         }
 
@@ -2615,7 +2982,7 @@
                 feedback.textContent = note;
             } else if (hasError) {
                 feedback.textContent =
-                    'Existem valores que precisam ser corrigidos antes de salvar.';
+                    'Corrija os valores destacados';
             } else if (changes > 0) {
                 feedback.textContent =
                     `${changes} `
@@ -2626,7 +2993,7 @@
                     );
             } else {
                 feedback.textContent =
-                    'Todas as alterações estão salvas.';
+                    'Tudo salvo';
             }
 
             feedback.classList.toggle(
@@ -2751,7 +3118,7 @@
                     .join('')
                 : `
                     <div class="limits-empty">
-                        Nenhum produto disponível para esta busca.
+                        Nenhum produto encontrado.
                     </div>
                 `;
 
@@ -2848,8 +3215,7 @@
         refresh(
             parsed > max + .000001
                 ? (
-                    'A cota foi limitada pelo saldo financeiro '
-                    + 'ou pela disponibilidade do produto.'
+                    'Ajustado ao máximo disponível'
                 )
                 : ''
         );
@@ -2985,9 +3351,7 @@
                 'aql-remove-message'
             )
             .textContent =
-                `O produto “${row.name}” deixará de possuir `
-                + `uma cota definida para este associado. `
-                + `Entregas já registradas serão preservadas.`;
+                `Remover “${row.name}” das cotas? Entregas já registradas serão mantidas.`;
 
         document
             .getElementById(
@@ -3053,7 +3417,7 @@
                     render();
 
                     refresh(
-                        'Produto removido com sucesso.'
+                        'Produto removido'
                     );
                 } catch (error) {
                     refresh(error.message);
@@ -3143,13 +3507,13 @@
                 }
 
                 let feedback =
-                    'Alterações salvas com sucesso.';
+                    'Alterações salvas';
 
                 try {
                     state.busy = true;
 
                     refresh(
-                        'Salvando alterações...'
+                        'Salvando...'
                     );
 
                     const response =
@@ -3185,7 +3549,7 @@
                     feedbackEl?.classList.toggle(
                         'error',
                         feedback
-                        !== 'Alterações salvas com sucesso.'
+                        !== 'Alterações salvas'
                     );
                 }
             }
@@ -3232,7 +3596,7 @@
                             : Number(value);
 
                     refresh(
-                        'Teto financeiro atualizado.'
+                        'Teto atualizado'
                     );
                 } catch (error) {
                     refresh(error.message);

@@ -21,1393 +21,344 @@
     ])->filter()->implode(' a ');
 @endphp
 
+
 <style>
     .pam-shell,
     .pam-modal,
     .pam-toast-root {
-        --pam-primary: var(--color-primary, #22c55e);
-        --pam-primary-dark: var(--color-primary-dark, #16a34a);
-        --pam-primary-deep: var(--color-primary-deep, #15803d);
-
-        --pam-green: #168a4d;
-        --pam-green-soft: #eaf8ef;
-
-        --pam-blue: #2563eb;
-        --pam-blue-soft: #eef4ff;
-
-        --pam-violet: #7c3aed;
-        --pam-violet-soft: #f4f0ff;
-
-        --pam-amber: #c87408;
-        --pam-amber-soft: #fff7e8;
-
-        --pam-red: #cf3f3f;
-        --pam-red-soft: #fff0f0;
-
-        --pam-slate: #64748b;
-        --pam-slate-soft: #f1f5f9;
-
-        --pam-surface: var(--color-surface, #fff);
-        --pam-soft: var(--color-surface-soft, #f8faf9);
-        --pam-muted: var(--color-surface-muted, #f1f5f3);
-        --pam-border: var(--color-border, #dfe7e2);
-        --pam-border-strong: var(--color-border-strong, #cbd8d0);
-        --pam-text: var(--color-text, #102018);
-        --pam-secondary: var(--color-text-secondary, #52645a);
-        --pam-faded: var(--color-text-muted, #839187);
-
-        --pam-danger: var(--color-danger, #ef4444);
-        --pam-warning: var(--color-warning, #f59e0b);
-        --pam-info: var(--color-info, #0284c7);
-
-        --pam-shadow-sm: 0 4px 14px rgba(15, 35, 24, .045);
-        --pam-shadow-md: 0 12px 30px rgba(15, 35, 24, .09);
+        --pam-green:#168a4d; --pam-green-soft:#eaf8ef;
+        --pam-blue:#2563eb; --pam-blue-soft:#eef4ff;
+        --pam-sky:#0284c7; --pam-sky-soft:#edf8fe;
+        --pam-violet:#7c3aed; --pam-violet-soft:#f4f0ff;
+        --pam-amber:#c87408; --pam-amber-soft:#fff7e8;
+        --pam-red:#cf3f3f; --pam-red-soft:#fff0f0;
+        --pam-slate:#64748b; --pam-slate-soft:#f1f5f9;
+        --pam-surface:var(--color-surface,#fff);
+        --pam-soft:var(--color-surface-soft,#f8faf9);
+        --pam-muted:var(--color-surface-muted,#eef4f0);
+        --pam-border:var(--color-border,#dce6df);
+        --pam-border-strong:var(--color-border-strong,#c8d6cd);
+        --pam-text:var(--color-text,#102018);
+        --pam-secondary:var(--color-text-secondary,#52645a);
+        --pam-faded:var(--color-text-muted,#809087);
+        --pam-shadow-sm:0 4px 14px rgba(15,35,24,.045);
+        --pam-shadow-md:0 18px 44px rgba(15,35,24,.13);
     }
 
     .pam-shell {
-        display: grid;
-        width: min(100%, 1280px);
-        min-width: 0;
-        grid-column: 1 / -1;
-        gap: .82rem;
-        margin: 0 auto;
-        padding-bottom: 1rem;
-        color: var(--pam-text);
+        display:grid;
+        width:min(100%,1280px);
+        min-width:0;
+        grid-column:1/-1;
+        gap:.74rem;
+        margin:0 auto;
+        padding-bottom:1rem;
+        color:var(--pam-text);
     }
 
-    .pam-shell *,
-    .pam-shell *::before,
-    .pam-shell *::after,
-    .pam-modal *,
-    .pam-modal *::before,
-    .pam-modal *::after {
-        box-sizing: border-box;
-    }
+    .pam-shell *, .pam-shell *::before, .pam-shell *::after,
+    .pam-modal *, .pam-modal *::before, .pam-modal *::after { box-sizing:border-box; }
 
-    /* =========================================================
-       CONTEXTO DO PROJETO
-       ========================================================= */
-
-    .pam-context {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .65rem;
-        align-items: center;
-        overflow: hidden;
-        padding: .72rem .76rem;
-        border: 1px solid var(--pam-border);
-        border-radius: 15px;
-        background:
-            radial-gradient(
-                circle at 100% 0,
-                rgba(34, 197, 94, .07),
-                transparent 17rem
-            ),
-            linear-gradient(
-                180deg,
-                var(--pam-soft),
-                #fff
-            );
-        box-shadow: var(--pam-shadow-sm);
-    }
-
-    .pam-back {
-        display: grid;
-        width: 40px;
-        height: 40px;
-        place-items: center;
-        border: 1px solid var(--pam-border);
-        border-radius: 11px;
-        background: #fff;
-        color: var(--pam-secondary);
-        text-decoration: none;
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            color 150ms ease,
-            transform 150ms ease;
-    }
-
-    .pam-back:hover,
-    .pam-back:focus-visible {
-        border-color: rgba(34, 197, 94, .28);
-        background: var(--color-primary-50);
-        color: var(--color-primary-deep);
-        outline: none;
-        transform: translateX(-1px);
-    }
-
-    .pam-back > i,
-    .pam-back > svg {
-        width: 17px;
-        height: 17px;
-    }
-
-    .pam-context-copy {
-        min-width: 0;
-    }
-
-    .pam-context-kicker {
-        display: grid;
-        width: max-content;
-        max-width: 100%;
-        grid-template-columns: auto auto;
-        gap: .28rem;
-        align-items: center;
-        color: var(--pam-green);
-        font-size: .7rem;
-        font-weight: 790;
-    }
-
-    .pam-context-kicker > i,
-    .pam-context-kicker > svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .pam-title {
-        margin: .08rem 0 0;
-        color: var(--pam-text);
-        font-size: clamp(1.03rem, 2vw, 1.2rem);
-        font-weight: 860;
-        letter-spacing: -.03em;
-        line-height: 1.28;
-        overflow-wrap: anywhere;
-    }
-
-    .pam-project-meta {
-        display: grid;
-        width: max-content;
-        max-width: 100%;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .42rem;
-        margin-top: .14rem;
-        color: var(--pam-faded);
-        font-size: .7rem;
-    }
-
-    .pam-project-meta > span {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, auto);
-        gap: .22rem;
-        align-items: center;
-    }
-
-    .pam-project-meta > span > i,
-    .pam-project-meta > span > svg {
-        width: 13px;
-        height: 13px;
-    }
-
-    .pam-context-actions {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .36rem;
-    }
-
-    .pam-top-action {
-        display: grid;
-        min-height: 40px;
-        grid-template-columns: auto auto;
-        gap: .3rem;
-        align-items: center;
-        justify-content: center;
-        padding: .45rem .6rem;
-        border: 1px solid var(--pam-border-strong);
-        border-radius: 10px;
-        background: #fff;
-        color: var(--pam-secondary);
-        font-size: .72rem;
-        font-weight: 780;
-        text-decoration: none;
-        white-space: nowrap;
-    }
-
-    .pam-top-action.primary {
-        border-color: var(--pam-primary-dark);
-        background:
-            linear-gradient(
-                135deg,
-                var(--pam-primary),
-                var(--pam-primary-dark)
-            );
-        color: #fff;
-        box-shadow: 0 6px 14px rgba(22, 163, 74, .12);
-    }
-
-    .pam-top-action.secondary {
-        border-color: rgba(124, 58, 237, .18);
-        background: var(--pam-violet-soft);
-        color: var(--pam-violet);
-    }
-
-    .pam-top-action:hover,
-    .pam-top-action:focus-visible {
-        outline: none;
-        transform: translateY(-1px);
-    }
-
-    .pam-top-action.primary:hover,
-    .pam-top-action.primary:focus-visible {
-        color: #fff;
-    }
-
-    .pam-top-action.secondary:hover,
-    .pam-top-action.secondary:focus-visible {
-        color: var(--pam-violet);
-    }
-
-    .pam-top-action > i,
-    .pam-top-action > svg {
-        width: 15px;
-        height: 15px;
-    }
-
-    /* =========================================================
-       RESUMO CONTÍNUO
-       ========================================================= */
-
-    .pam-summary {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        overflow: hidden;
-        border: 1px solid var(--pam-border);
-        border-radius: 15px;
-        background: #fff;
-        box-shadow: var(--pam-shadow-sm);
-    }
-
-    .pam-summary-card {
-        --summary-tone: var(--pam-blue);
-        --summary-soft: var(--pam-blue-soft);
-
-        min-width: 0;
-        background: #fff;
-    }
-
-    .pam-summary-card:nth-child(2) {
-        --summary-tone: var(--pam-violet);
-        --summary-soft: var(--pam-violet-soft);
-    }
-
-    .pam-summary-card:nth-child(3) {
-        --summary-tone: var(--pam-green);
-        --summary-soft: var(--pam-green-soft);
-    }
-
-    .pam-summary-card + .pam-summary-card {
-        border-top: 0;
-        box-shadow:
-            inset 1px 0 0 var(--pam-border);
-    }
-
-    .pam-summary-card-inner {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .5rem;
-        align-items: center;
-        min-height: 76px;
-        padding: .58rem .64rem;
-    }
-
-    .pam-summary-icon {
-        display: grid;
-        width: 36px;
-        height: 36px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--summary-soft);
-        color: var(--summary-tone);
-    }
-
-    .pam-summary-icon > i,
-    .pam-summary-icon > svg {
-        width: 16px;
-        height: 16px;
-    }
-
-    .pam-summary-copy {
-        min-width: 0;
-    }
-
-    .pam-summary-label {
-        color: var(--pam-faded);
-        font-size: .67rem;
-        font-weight: 690;
-    }
-
-    .pam-summary-value {
-        margin-top: .04rem;
-        color: var(--pam-text);
-        font-size: .82rem;
-        font-weight: 840;
-        line-height: 1.3;
-        overflow-wrap: anywhere;
-    }
-
-    .pam-summary-helper {
-        margin-top: .05rem;
-        color: var(--pam-faded);
-        font-size: .67rem;
-        line-height: 1.4;
-    }
-
-    /* =========================================================
-       WORKSPACE
-       ========================================================= */
-
-    .pam-workspace {
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--pam-border);
-        border-radius: 15px;
-        background: #fff;
-        box-shadow: var(--pam-shadow-sm);
-    }
-
-    .pam-workspace-head {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .58rem;
-        align-items: center;
-        min-height: 64px;
-        padding: .66rem .72rem;
-        border-bottom: 1px solid var(--pam-border);
-        background:
-            linear-gradient(
-                180deg,
-                var(--pam-soft),
-                #fff
-            );
-    }
-
-    .pam-workspace-icon {
-        display: grid;
-        width: 40px;
-        height: 40px;
-        place-items: center;
-        border-radius: 11px;
-        background: var(--pam-blue-soft);
-        color: var(--pam-blue);
-    }
-
-    .pam-workspace-icon > i,
-    .pam-workspace-icon > svg {
-        width: 18px;
-        height: 18px;
-    }
-
-    .pam-workspace-copy {
-        min-width: 0;
-    }
-
-    .pam-workspace-copy h2,
-    .pam-workspace-copy p {
-        margin: 0;
-    }
-
-    .pam-workspace-copy h2 {
-        color: var(--pam-text);
-        font-size: .94rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-    }
-
-    .pam-workspace-copy p {
-        margin-top: .08rem;
-        color: var(--pam-faded);
-        font-size: .73rem;
-        line-height: 1.42;
-    }
-
-    .pam-results-count {
-        display: grid;
-        min-height: 29px;
-        place-items: center;
-        padding: .24rem .42rem;
-        border-radius: 999px;
-        background: var(--pam-blue-soft);
-        color: var(--pam-blue);
-        font-size: .68rem;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .pam-toolbar {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(220px, 1fr) minmax(190px, 245px);
-        gap: .48rem;
-        align-items: center;
-        padding: .62rem .7rem;
-        border-bottom: 1px solid var(--pam-border);
-        background: var(--pam-soft);
-    }
-
-    .pam-search-wrap {
-        position: relative;
-        min-width: 0;
-    }
-
-    .pam-search-icon {
-        position: absolute;
-        top: 50%;
-        left: .68rem;
-        width: 15px;
-        height: 15px;
-        color: var(--pam-faded);
-        pointer-events: none;
-        transform: translateY(-50%);
-    }
-
-    .pam-input,
-    .pam-select {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid var(--pam-border-strong);
-        border-radius: 10px;
-        outline: none;
-        background: #fff;
-        color: var(--pam-text);
-        font: inherit;
-        font-size: .75rem;
-    }
-
-    .pam-input {
-        padding: .5rem 2.25rem .5rem 2rem;
-    }
-
-    .pam-select {
-        padding: .5rem .62rem;
-    }
-
-    .pam-input:focus,
-    .pam-select:focus {
-        border-color: var(--pam-primary);
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, .10);
-    }
-
+    /* Lucide: todos os contêineres de ícone usam flex para evitar desalinhamento após createIcons() */
+    .pam-back,.pam-project-icon,.pam-brief-icon,.pam-workspace-icon,.pam-avatar,
+    .pam-data-icon,.pam-state-icon,.pam-toast-icon,.pam-modal-close,.pam-modal-mark,
     .pam-clear-search {
-        position: absolute;
-        top: 50%;
-        right: .42rem;
-        display: none;
-        width: 29px;
-        height: 29px;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--pam-faded);
-        cursor: pointer;
-        transform: translateY(-50%);
-    }
-
-    .pam-clear-search.visible {
-        display: grid;
-    }
-
-    .pam-clear-search:hover,
-    .pam-clear-search:focus-visible {
-        background: var(--pam-muted);
-        color: var(--pam-text);
-        outline: none;
-    }
-
-    .pam-clear-search > i,
-    .pam-clear-search > svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .pam-toolbar-meta {
-        display: none;
-    }
-
-    /* =========================================================
-       LISTA DE ASSOCIADOS
-       ========================================================= */
-
-    .pam-list {
-        display: grid;
-        min-width: 0;
-        padding: .24rem .72rem .72rem;
-    }
-
-    .pam-item {
-        --participant-tone: var(--pam-slate);
-        --participant-soft: var(--pam-slate-soft);
-
-        display: grid;
-        min-width: 0;
-        padding: .74rem .02rem;
-    }
-
-    .pam-item.is-active {
-        --participant-tone: var(--pam-green);
-        --participant-soft: var(--pam-green-soft);
-    }
-
-    .pam-item.is-blocked {
-        --participant-tone: var(--pam-red);
-        --participant-soft: var(--pam-red-soft);
-    }
-
-    .pam-item + .pam-item {
-        border-top: 1px solid var(--pam-border);
-    }
-
-    .pam-item-head {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .55rem;
-        align-items: start;
-    }
-
-    .pam-person {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .52rem;
-        align-items: center;
-    }
-
-    .pam-avatar {
-        display: grid;
-        width: 40px;
-        height: 40px;
-        place-items: center;
-        border-radius: 11px;
-        background: var(--participant-soft);
-        color: var(--participant-tone);
-        font-size: .72rem;
-        font-weight: 860;
-    }
-
-    .pam-person-copy {
-        min-width: 0;
-    }
-
-    .pam-name {
-        color: var(--pam-text);
-        font-size: .83rem;
-        font-weight: 830;
-        line-height: 1.35;
-        overflow-wrap: anywhere;
-    }
-
-    .pam-meta {
-        display: grid;
-        width: max-content;
-        max-width: 100%;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .36rem;
-        margin-top: .1rem;
-        color: var(--pam-faded);
-        font-size: .68rem;
-        line-height: 1.4;
-    }
-
-    .pam-meta-part {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, auto);
-        gap: .2rem;
-        align-items: center;
-    }
-
-    .pam-meta-part > i,
-    .pam-meta-part > svg {
-        width: 12px;
-        height: 12px;
-    }
-
-    .pam-person-status {
-        display: grid;
-        align-content: start;
-        justify-items: end;
-    }
-
-    .pam-badge {
-        display: grid;
-        width: max-content;
-        min-height: 26px;
-        grid-template-columns: auto auto;
-        gap: .24rem;
-        align-items: center;
-        padding: .2rem .38rem;
-        border-radius: 999px;
-        background: var(--participant-soft);
-        color: var(--participant-tone);
-        font-size: .65rem;
-        font-weight: 800;
-        white-space: nowrap;
-    }
-
-    .pam-badge > i,
-    .pam-badge > svg {
-        width: 12px;
-        height: 12px;
-    }
-
-    .pam-item-data {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(250px, 1.25fr) minmax(210px, .75fr);
-        gap: .5rem;
-        margin-top: .52rem;
-    }
-
-    .pam-financial,
-    .pam-products {
-        min-width: 0;
-        padding: .52rem .56rem;
-        border-radius: 10px;
-        background: var(--pam-soft);
-    }
-
-    .pam-financial-head {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .5rem;
-        align-items: start;
-    }
-
-    .pam-metric-label {
-        color: var(--pam-faded);
-        font-size: .67rem;
-        font-weight: 680;
-    }
-
-    .pam-metric-value {
-        margin-top: .05rem;
-        color: var(--pam-text);
-        font-size: .8rem;
-        font-weight: 840;
-        line-height: 1.3;
-        overflow-wrap: anywhere;
-    }
-
-    .pam-metric-helper {
-        margin-top: .05rem;
-        color: var(--pam-faded);
-        font-size: .67rem;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
-    }
-
-    .pam-financial-percent {
-        color: var(--participant-tone);
-        font-size: .69rem;
-        font-weight: 820;
-        white-space: nowrap;
-    }
-
-    .pam-progress {
-        height: 8px;
-        margin-top: .42rem;
-        overflow: hidden;
-        border-radius: 999px;
-        background: #e5ece7;
-    }
-
-    .pam-progress > span {
-        display: block;
-        height: 100%;
-        border-radius: inherit;
-        background:
-            linear-gradient(
-                90deg,
-                #4ade80,
-                var(--pam-green)
-            );
-    }
-
-    .pam-progress.is-warning > span {
-        background:
-            linear-gradient(
-                90deg,
-                #fbbf24,
-                var(--pam-amber)
-            );
-    }
-
-    .pam-progress.is-danger > span {
-        background:
-            linear-gradient(
-                90deg,
-                #fb7185,
-                var(--pam-red)
-            );
-    }
-
-    .pam-products-value {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .46rem;
-        align-items: center;
-    }
-
-    .pam-products-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 9px;
-        background: var(--pam-violet-soft);
-        color: var(--pam-violet);
-    }
-
-    .pam-products-icon > i,
-    .pam-products-icon > svg {
-        width: 15px;
-        height: 15px;
-    }
-
-    .pam-products strong,
-    .pam-products span {
-        display: block;
-    }
-
-    .pam-products strong {
-        color: var(--pam-text);
-        font-size: .8rem;
-        font-weight: 840;
-    }
-
-    .pam-products span {
-        margin-top: .03rem;
-        color: var(--pam-faded);
-        font-size: .67rem;
-        line-height: 1.38;
-    }
-
-    /* =========================================================
-       AÇÕES DO ASSOCIADO
-       ========================================================= */
-
-    .pam-row-actions {
-        display: grid;
-        min-width: 0;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .3rem;
-        justify-content: end;
-        margin-top: .48rem;
-    }
-
-    .pam-btn {
-        display: grid;
-        min-height: 37px;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .28rem;
-        align-items: center;
-        justify-content: center;
-        padding: .42rem .54rem;
-        border: 1px solid var(--pam-border-strong);
-        border-radius: 9px;
-        background: #fff;
-        color: var(--pam-secondary);
-        cursor: pointer;
-        font: inherit;
-        font-size: .7rem;
-        font-weight: 780;
-        line-height: 1;
-        text-decoration: none;
-        white-space: nowrap;
-        transition:
-            transform 140ms ease,
-            border-color 140ms ease,
-            background 140ms ease,
-            color 140ms ease;
-    }
-
-    .pam-btn > i,
-    .pam-btn > svg {
-        width: 14px;
-        height: 14px;
-    }
-
-    .pam-btn:hover,
-    .pam-btn:focus-visible {
-        border-color: rgba(34, 197, 94, .28);
-        background: var(--color-primary-50);
-        color: var(--color-primary-deep);
-        outline: none;
-        transform: translateY(-1px);
-    }
-
-    .pam-btn.primary {
-        min-width: 96px;
-        border-color: var(--pam-primary-dark);
-        background:
-            linear-gradient(
-                135deg,
-                var(--pam-primary),
-                var(--pam-primary-dark)
-            );
-        color: #fff;
-        box-shadow: 0 6px 14px rgba(22, 163, 74, .12);
-    }
-
-    .pam-btn.primary:hover,
-    .pam-btn.primary:focus-visible {
-        color: #fff;
-    }
-
-    .pam-btn.warning {
-        border-color: rgba(200, 116, 8, .2);
-        background: var(--pam-amber-soft);
-        color: #92400e;
-    }
-
-    .pam-btn.danger {
-        border-color: rgba(207, 63, 63, .2);
-        background: var(--pam-red-soft);
-        color: var(--pam-red);
-    }
-
-    .pam-btn:disabled {
-        cursor: not-allowed;
-        opacity: .48;
-        transform: none;
-    }
-
-    /* =========================================================
-       PAGINAÇÃO / ESTADOS
-       ========================================================= */
-
-    .pam-pager {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .55rem;
-        align-items: center;
-        padding: .62rem .72rem;
-        border-top: 1px solid var(--pam-border);
-        background:
-            linear-gradient(
-                180deg,
-                #fff,
-                var(--pam-soft)
-            );
-    }
-
-    .pam-pager-info {
-        color: var(--pam-faded);
-        font-size: .69rem;
-        font-weight: 680;
-    }
-
-    .pam-pager-actions {
-        display: grid;
-        grid-auto-flow: column;
-        gap: .3rem;
-    }
-
-    .pam-state {
-        display: grid;
-        min-height: 180px;
-        grid-template-columns: auto minmax(0, 1fr);
-        grid-template-rows: auto auto;
-        gap: .1rem .55rem;
-        align-content: center;
-        align-items: center;
-        padding: 1rem;
-        color: var(--pam-secondary);
-        text-align: left;
-    }
-
-    .pam-state-icon {
-        display: grid;
-        width: 46px;
-        height: 46px;
-        grid-column: 1;
-        grid-row: 1 / 3;
-        place-items: center;
-        border-radius: 13px;
-        background: var(--pam-blue-soft);
-        color: var(--pam-blue);
-    }
-
-    .pam-state-icon > i,
-    .pam-state-icon > svg {
-        width: 21px;
-        height: 21px;
-    }
-
-    .pam-state strong {
-        grid-column: 2;
-        grid-row: 1;
-        align-self: end;
-        color: var(--pam-text);
-        font-size: .8rem;
-        font-weight: 820;
-    }
-
-    .pam-state p {
-        grid-column: 2;
-        grid-row: 2;
-        align-self: start;
-        max-width: 520px;
-        margin: 0;
-        color: var(--pam-faded);
-        font-size: .71rem;
-        line-height: 1.45;
-    }
-
-    .pam-skeleton-list {
-        display: grid;
-        gap: .48rem;
-        padding: .7rem;
-    }
-
-    .pam-skeleton {
-        height: 120px;
-        border-radius: 11px;
-        background:
-            linear-gradient(
-                90deg,
-                #eef3f0 25%,
-                #f8faf9 50%,
-                #eef3f0 75%
-            );
-        background-size: 200% 100%;
-        animation: pam-shimmer 1.2s infinite linear;
-    }
-
-    @keyframes pam-shimmer {
-        to {
-            background-position: -200% 0;
-        }
-    }
-
-    /* =========================================================
-       TOAST
-       ========================================================= */
-
-    .pam-toast-root {
-        position: fixed;
-        z-index: 1200;
-        top: 1rem;
-        right: 1rem;
-        display: grid;
-        width: min(380px, calc(100vw - 2rem));
-        gap: .42rem;
-        pointer-events: none;
-    }
-
-    .pam-toast {
-        display: grid;
-        grid-template-columns: 32px minmax(0, 1fr);
-        gap: .5rem;
-        align-items: center;
-        padding: .58rem .62rem;
-        border: 1px solid var(--pam-border);
-        border-radius: 11px;
-        background: rgba(255, 255, 255, .99);
-        box-shadow: var(--pam-shadow-md);
-        color: var(--pam-text);
-        font-size: .71rem;
-        font-weight: 700;
-        pointer-events: auto;
-        animation: pam-toast-in .18s ease both;
-    }
-
-    .pam-toast-icon {
-        display: grid;
-        width: 32px;
-        height: 32px;
-        place-items: center;
-        border-radius: 9px;
-        background: var(--pam-green-soft);
-        color: var(--pam-green);
-    }
-
-    .pam-toast.error .pam-toast-icon {
-        background: var(--pam-red-soft);
-        color: var(--pam-red);
-    }
-
-    .pam-toast-icon > i,
-    .pam-toast-icon > svg {
-        width: 15px;
-        height: 15px;
-    }
-
-    @keyframes pam-toast-in {
-        from {
-            opacity: 0;
-            transform: translateY(-5px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* =========================================================
-       CONFIRMAÇÃO
-       ========================================================= */
-
-    .pam-modal {
-        position: fixed;
-        z-index: 1150;
-        inset: 0;
-        display: none;
-        place-items: center;
-        padding:
-            max(14px, env(safe-area-inset-top))
-            max(12px, env(safe-area-inset-right))
-            max(14px, env(safe-area-inset-bottom))
-            max(12px, env(safe-area-inset-left));
-        overflow: auto;
-        background: rgba(15, 23, 42, .50);
-        backdrop-filter: blur(2px);
-    }
-
-    .pam-modal.active {
-        display: grid;
-    }
-
-    .pam-modal-card {
-        width: min(100%, 440px);
-        overflow: hidden;
-        border: 1px solid var(--pam-border);
-        border-radius: 15px;
-        background: #fff;
-        box-shadow: 0 24px 64px rgba(15, 23, 42, .22);
-        animation:
-            pam-modal-in
-            .18s
-            cubic-bezier(.2, .8, .2, 1);
-    }
-
-    @keyframes pam-modal-in {
-        from {
-            opacity: 0;
-            transform: translateY(8px) scale(.985);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    .pam-modal-head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .55rem;
-        align-items: center;
-        padding: .68rem .72rem;
-        border-bottom: 1px solid var(--pam-border);
-        background:
-            linear-gradient(
-                180deg,
-                var(--pam-soft),
-                #fff
-            );
-    }
-
-    .pam-modal-head strong {
-        color: var(--pam-text);
-        font-size: .84rem;
-        font-weight: 830;
-    }
-
-    .pam-modal-close {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border: 1px solid var(--pam-border);
-        border-radius: 9px;
-        background: #fff;
-        color: var(--pam-secondary);
-        cursor: pointer;
-    }
-
-    .pam-modal-close:hover,
-    .pam-modal-close:focus-visible {
-        border-color: rgba(37, 99, 235, .22);
-        background: var(--pam-blue-soft);
-        color: var(--pam-blue);
-        outline: none;
-    }
-
-    .pam-modal-close > i,
-    .pam-modal-close > svg {
-        width: 15px;
-        height: 15px;
-    }
-
-    .pam-modal-body {
-        padding: .72rem;
-    }
-
-    .pam-modal-warning {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .48rem;
-        align-items: start;
-        padding: .58rem;
-        border-radius: 10px;
-        background: var(--pam-amber-soft);
-        color: #92400e;
-    }
-
-    .pam-modal-warning > i,
-    .pam-modal-warning > svg {
-        width: 18px;
-        height: 18px;
-        margin-top: .02rem;
-    }
-
-    .pam-modal-warning p {
-        margin: 0;
-        font-size: .72rem;
-        line-height: 1.5;
-    }
-
-    .pam-modal-actions {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
-        gap: .38rem;
-        justify-content: end;
-        padding: .62rem .72rem .7rem;
-        border-top: 1px solid var(--pam-border);
-        background: var(--pam-soft);
-    }
-
-    /* =========================================================
-       RESPONSIVO
-       ========================================================= */
-
-    @media (max-width: 920px) {
-        .pam-context {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .pam-context-actions {
-            grid-column: 2;
-            justify-self: start;
-        }
-
-        .pam-summary {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-summary-card + .pam-summary-card {
-            box-shadow:
-                inset 0 1px 0 var(--pam-border);
-        }
-    }
-
-    @media (max-width: 720px) {
-        .pam-item-data {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-row-actions {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-            grid-auto-flow: row;
-            justify-content: stretch;
-        }
-
-        .pam-row-actions .pam-btn {
-            width: 100%;
-        }
-
-        .pam-row-actions .pam-btn.primary {
-            grid-column: 1 / -1;
-            min-height: 41px;
-        }
-
-        .pam-toolbar {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 560px) {
-        .pam-shell {
-            gap: .7rem;
-        }
-
-        .pam-context {
-            grid-template-columns: 36px minmax(0, 1fr);
-            padding: .62rem;
-        }
-
-        .pam-back {
-            width: 36px;
-            height: 36px;
-        }
-
-        .pam-project-meta {
-            grid-auto-flow: row;
-            grid-auto-columns: 1fr;
-            gap: .1rem;
-            width: 100%;
-        }
-
-        .pam-context-actions {
-            width: 100%;
-            grid-template-columns: 1fr 1fr;
-            grid-auto-flow: row;
-        }
-
-        .pam-top-action {
-            width: 100%;
-        }
-
-        .pam-workspace-head {
-            padding: .62rem;
-        }
-
-        .pam-workspace-copy p {
-            display: none;
-        }
-
-        .pam-toolbar,
-        .pam-list {
-            padding-right: .58rem;
-            padding-left: .58rem;
-        }
-
-        .pam-item-head {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-person-status {
-            justify-items: start;
-            margin-left: 2.88rem;
-        }
-
-        .pam-meta {
-            grid-auto-flow: row;
-            grid-auto-columns: 1fr;
-            gap: .08rem;
-            width: 100%;
-        }
-
-        .pam-pager {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-pager-actions {
-            grid-template-columns: 1fr 1fr;
-            grid-auto-flow: row;
-        }
-
-        .pam-pager-actions .pam-btn {
-            width: 100%;
-        }
-
-        .pam-toast-root {
-            top: auto;
-            right: .65rem;
-            bottom:
-                calc(
-                    5rem
-                    + env(safe-area-inset-bottom)
-                );
-            left: .65rem;
-            width: auto;
-        }
-
-        .pam-modal-actions {
-            grid-template-columns: 1fr 1fr;
-            grid-auto-flow: row;
-        }
-
-        .pam-modal-actions .pam-btn {
-            width: 100%;
-        }
-    }
-
-    @media (max-width: 390px) {
-        .pam-context-actions {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-row-actions {
-            grid-template-columns: 1fr;
-        }
-
-        .pam-row-actions .pam-btn.primary {
-            grid-column: auto;
-        }
-
-        .pam-modal-actions {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .pam-shell *,
-        .pam-shell *::before,
-        .pam-shell *::after,
-        .pam-modal *,
-        .pam-modal *::before,
-        .pam-modal *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
-        }
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        flex:0 0 auto;
+        line-height:0;
+    }
+
+    .pam-back > svg,.pam-project-icon > svg,.pam-brief-icon > svg,.pam-workspace-icon > svg,
+    .pam-data-icon > svg,.pam-state-icon > svg,.pam-toast-icon > svg,.pam-modal-close > svg,
+    .pam-modal-mark > svg,.pam-clear-search > svg,
+    .pam-top-action > svg,.pam-btn > svg,.pam-badge > svg,.pam-meta-part > svg {
+        display:block;
+        flex:0 0 auto;
+        margin:0;
+        vertical-align:middle;
+    }
+
+    /* CABEÇALHO */
+    .pam-context {
+        display:grid;
+        min-width:0;
+        grid-template-columns:auto auto minmax(0,1fr) auto;
+        gap:.6rem;
+        align-items:center;
+        min-height:70px;
+        padding:.66rem .72rem;
+        overflow:hidden;
+        border:1px solid var(--pam-border);
+        border-radius:15px;
+        background:radial-gradient(circle at 100% 0,rgba(124,58,237,.07),transparent 17rem),linear-gradient(180deg,var(--pam-soft),#fff);
+        box-shadow:var(--pam-shadow-sm);
+    }
+
+    .pam-back,.pam-project-icon { width:40px; height:40px; border-radius:11px; }
+    .pam-back { border:1px solid var(--pam-border); background:#fff; color:var(--pam-secondary); text-decoration:none; transition:.15s ease; }
+    .pam-back:hover,.pam-back:focus-visible { outline:none; border-color:rgba(37,99,235,.24); background:var(--pam-blue-soft); color:var(--pam-blue); transform:translateX(-1px); }
+    .pam-project-icon { background:var(--pam-violet-soft); color:var(--pam-violet); }
+    .pam-back > svg,.pam-project-icon > svg { width:17px; height:17px; }
+
+    .pam-context-copy { min-width:0; }
+    .pam-context-kicker { display:flex; align-items:center; gap:.24rem; color:var(--pam-violet); font-size:.66rem; font-weight:800; line-height:1.25; }
+    .pam-context-kicker > svg { width:12px; height:12px; }
+    .pam-title { margin:.04rem 0 0; color:var(--pam-text); font-size:clamp(1rem,2vw,1.16rem); font-weight:860; letter-spacing:-.03em; line-height:1.26; overflow-wrap:anywhere; }
+    .pam-project-meta { display:flex; gap:.42rem; align-items:center; flex-wrap:wrap; margin-top:.1rem; color:var(--pam-faded); font-size:.66rem; line-height:1.3; }
+    .pam-project-meta > span { display:inline-flex; align-items:center; gap:.18rem; min-width:0; }
+    .pam-project-meta svg { width:11px; height:11px; }
+
+    .pam-context-actions { display:flex; gap:.32rem; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
+    .pam-top-action,.pam-btn {
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:.28rem;
+        border:1px solid var(--pam-border-strong);
+        border-radius:9px;
+        background:#fff;
+        color:var(--pam-secondary);
+        font:inherit;
+        font-size:.69rem;
+        font-weight:780;
+        line-height:1;
+        text-decoration:none;
+        white-space:nowrap;
+        cursor:pointer;
+        transition:.15s ease;
+    }
+    .pam-top-action { min-height:38px; padding:.4rem .54rem; }
+    .pam-top-action > svg,.pam-btn > svg { width:13px; height:13px; }
+    .pam-top-action:hover,.pam-top-action:focus-visible,.pam-btn:hover,.pam-btn:focus-visible { outline:none; transform:translateY(-1px); }
+    .pam-top-action.secondary { border-color:rgba(124,58,237,.17); background:var(--pam-violet-soft); color:var(--pam-violet); }
+    .pam-top-action.primary { border-color:rgba(22,138,77,.17); background:var(--pam-green-soft); color:var(--pam-green); }
+
+    /* RESUMO COMPACTO */
+    .pam-brief {
+        display:grid;
+        min-width:0;
+        grid-template-columns:repeat(3,minmax(0,1fr));
+        overflow:hidden;
+        border:1px solid var(--pam-border);
+        border-radius:14px;
+        background:#fff;
+        box-shadow:var(--pam-shadow-sm);
+    }
+    .pam-brief-item { --tone:var(--pam-blue); --soft:var(--pam-blue-soft); display:grid; min-width:0; grid-template-columns:auto minmax(0,1fr); gap:.44rem; align-items:center; min-height:64px; padding:.48rem .56rem; }
+    .pam-brief-item + .pam-brief-item { border-left:1px solid var(--pam-border); }
+    .pam-brief-item.participation { --tone:var(--pam-sky); --soft:var(--pam-sky-soft); }
+    .pam-brief-item.products { --tone:var(--pam-violet); --soft:var(--pam-violet-soft); }
+    .pam-brief-icon { width:34px; height:34px; border-radius:10px; background:var(--soft); color:var(--tone); }
+    .pam-brief-icon > svg { width:15px; height:15px; }
+    .pam-brief-copy { min-width:0; }
+    .pam-brief-label { color:var(--pam-faded); font-size:.62rem; font-weight:700; line-height:1.2; }
+    .pam-brief-value { margin-top:.03rem; color:var(--tone); font-size:.78rem; font-weight:840; line-height:1.25; overflow-wrap:anywhere; }
+
+    /* WORKSPACE */
+    .pam-workspace { min-width:0; overflow:hidden; border:1px solid var(--pam-border); border-radius:15px; background:#fff; box-shadow:var(--pam-shadow-sm); }
+    .pam-workspace-head { display:grid; min-width:0; grid-template-columns:auto minmax(130px,.55fr) minmax(360px,1fr); gap:.56rem; align-items:center; padding:.58rem .66rem; border-bottom:1px solid var(--pam-border); background:linear-gradient(180deg,var(--pam-soft),#fff); }
+    .pam-workspace-icon { width:38px; height:38px; border-radius:10px; background:var(--pam-blue-soft); color:var(--pam-blue); }
+    .pam-workspace-icon > svg { width:17px; height:17px; }
+    .pam-workspace-title { display:flex; min-width:0; align-items:center; gap:.34rem; }
+    .pam-workspace-title h2 { margin:0; color:var(--pam-text); font-size:.9rem; font-weight:840; letter-spacing:-.02em; }
+    .pam-results-count { display:inline-flex; align-items:center; justify-content:center; min-width:24px; min-height:24px; padding:.15rem .32rem; border-radius:999px; background:var(--pam-blue-soft); color:var(--pam-blue); font-size:.62rem; font-weight:820; }
+
+    .pam-toolbar { display:grid; min-width:0; grid-template-columns:minmax(220px,1fr) minmax(165px,210px); gap:.4rem; }
+    .pam-search-wrap { position:relative; min-width:0; }
+    .pam-search-icon { position:absolute; top:50%; left:.62rem; width:14px; height:14px; color:var(--pam-faded); pointer-events:none; transform:translateY(-50%); }
+    .pam-input,.pam-select { width:100%; min-width:0; min-height:39px; border:1px solid var(--pam-border-strong); border-radius:9px; outline:none; background:#fff; color:var(--pam-text); font:inherit; font-size:.71rem; }
+    .pam-input { padding:.46rem 2.1rem .46rem 1.85rem; }
+    .pam-select { padding:.46rem 1.7rem .46rem .56rem; cursor:pointer; }
+    .pam-input:focus,.pam-select:focus { border-color:var(--pam-blue); box-shadow:0 0 0 3px rgba(37,99,235,.08); }
+    .pam-clear-search { position:absolute; top:50%; right:.35rem; display:none; width:28px; height:28px; border:0; border-radius:8px; background:transparent; color:var(--pam-faded); cursor:pointer; transform:translateY(-50%); }
+    .pam-clear-search.visible { display:inline-flex; }
+    .pam-clear-search:hover,.pam-clear-search:focus-visible { outline:none; background:var(--pam-slate-soft); color:var(--pam-text); }
+    .pam-clear-search > svg { width:13px; height:13px; }
+
+    /* LISTA */
+    .pam-list,.pam-skeleton-list { display:grid; min-width:0; gap:.48rem; padding:.58rem .62rem; background:var(--pam-soft); }
+    .pam-item { --participant-tone:var(--pam-slate); --participant-soft:var(--pam-slate-soft); display:grid; min-width:0; grid-template-columns:minmax(230px,.8fr) minmax(360px,1.2fr) auto; gap:.56rem; align-items:center; padding:.58rem; border:1px solid var(--pam-border); border-radius:12px; background:linear-gradient(90deg,var(--participant-soft) 0 3px,#fff 3px); box-shadow:0 3px 10px rgba(15,35,24,.025); transition:.15s ease; }
+    .pam-item.is-active { --participant-tone:var(--pam-green); --participant-soft:var(--pam-green-soft); }
+    .pam-item.is-blocked { --participant-tone:var(--pam-red); --participant-soft:var(--pam-red-soft); }
+    .pam-item:hover { border-color:color-mix(in srgb,var(--participant-tone) 18%,var(--pam-border)); box-shadow:0 6px 18px rgba(15,35,24,.05); }
+
+    .pam-item-head { min-width:0; }
+    .pam-person { display:grid; min-width:0; grid-template-columns:auto minmax(0,1fr); gap:.48rem; align-items:center; }
+    .pam-avatar { width:40px; height:40px; border-radius:11px; background:var(--participant-soft); color:var(--participant-tone); font-size:.69rem; font-weight:860; }
+    .pam-person-copy { min-width:0; }
+    .pam-name-line { display:flex; min-width:0; align-items:center; gap:.3rem; flex-wrap:wrap; }
+    .pam-name { min-width:0; color:var(--pam-text); font-size:.79rem; font-weight:830; line-height:1.3; overflow-wrap:anywhere; }
+    .pam-badge { display:inline-flex; align-items:center; gap:.18rem; min-height:22px; padding:.15rem .3rem; border-radius:999px; background:var(--participant-soft); color:var(--participant-tone); font-size:.59rem; font-weight:800; white-space:nowrap; line-height:1; }
+    .pam-badge > svg { width:10px; height:10px; }
+    .pam-meta { display:flex; min-width:0; gap:.3rem; align-items:center; flex-wrap:wrap; margin-top:.08rem; color:var(--pam-faded); font-size:.63rem; line-height:1.3; }
+    .pam-meta-part { display:inline-flex; min-width:0; align-items:center; gap:.15rem; }
+    .pam-meta-part > svg { width:10px; height:10px; }
+
+    .pam-item-data { display:grid; min-width:0; grid-template-columns:minmax(210px,1.12fr) minmax(155px,.88fr); gap:.4rem; }
+    .pam-data-box { min-width:0; min-height:72px; padding:.46rem .48rem; border:1px solid var(--pam-border); border-radius:10px; }
+    .pam-financial { background:linear-gradient(135deg,#fff,var(--pam-green-soft)); border-color:rgba(22,138,77,.10); }
+    .pam-financial.is-warning { background:linear-gradient(135deg,#fff,var(--pam-amber-soft)); border-color:rgba(200,116,8,.12); }
+    .pam-financial.is-danger { background:linear-gradient(135deg,#fff,var(--pam-red-soft)); border-color:rgba(207,63,63,.12); }
+    .pam-products { background:linear-gradient(135deg,#fff,var(--pam-violet-soft)); border-color:rgba(124,58,237,.10); }
+    .pam-data-main { display:grid; min-width:0; grid-template-columns:auto minmax(0,1fr) auto; gap:.4rem; align-items:center; }
+    .pam-data-icon { width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,.82); box-shadow:inset 0 0 0 1px rgba(100,116,139,.10); color:var(--pam-green); }
+    .pam-products .pam-data-icon { color:var(--pam-violet); }
+    .pam-financial.is-warning .pam-data-icon { color:var(--pam-amber); }
+    .pam-financial.is-danger .pam-data-icon { color:var(--pam-red); }
+    .pam-data-icon > svg { width:14px; height:14px; }
+    .pam-data-copy { min-width:0; }
+    .pam-metric-label { color:var(--pam-faded); font-size:.61rem; font-weight:700; line-height:1.2; }
+    .pam-metric-value { margin-top:.02rem; color:var(--pam-text); font-size:.77rem; font-weight:840; line-height:1.25; overflow-wrap:anywhere; }
+    .pam-metric-helper { margin-top:.03rem; color:var(--pam-secondary); font-size:.61rem; line-height:1.3; overflow-wrap:anywhere; }
+    .pam-financial-percent { min-height:21px; padding:.12rem .28rem; border-radius:999px; background:rgba(255,255,255,.8); color:var(--pam-green); font-size:.59rem; font-weight:820; white-space:nowrap; }
+    .pam-financial.is-warning .pam-financial-percent { color:var(--pam-amber); }
+    .pam-financial.is-danger .pam-financial-percent { color:var(--pam-red); }
+    .pam-progress { height:6px; margin-top:.32rem; overflow:hidden; border-radius:999px; background:rgba(148,163,184,.18); }
+    .pam-progress > span { display:block; height:100%; border-radius:inherit; background:var(--pam-green); }
+    .pam-progress.is-warning > span { background:var(--pam-amber); }
+    .pam-progress.is-danger > span { background:var(--pam-red); }
+
+    .pam-row-actions { display:grid; min-width:0; gap:.26rem; }
+    .pam-btn { min-height:34px; padding:.36rem .46rem; }
+    .pam-btn.primary { border-color:rgba(124,58,237,.18); background:var(--pam-violet-soft); color:var(--pam-violet); }
+    .pam-btn.warning { border-color:rgba(200,116,8,.18); background:var(--pam-amber-soft); color:#92400e; }
+    .pam-btn.danger { border-color:rgba(207,63,63,.18); background:var(--pam-red-soft); color:var(--pam-red); }
+    .pam-btn:hover,.pam-btn:focus-visible { border-color:rgba(37,99,235,.20); background:var(--pam-blue-soft); color:var(--pam-blue); }
+    .pam-btn.primary:hover,.pam-btn.primary:focus-visible { border-color:rgba(124,58,237,.28); background:var(--pam-violet-soft); color:var(--pam-violet); }
+    .pam-btn.warning:hover,.pam-btn.warning:focus-visible { border-color:rgba(200,116,8,.28); background:var(--pam-amber-soft); color:#92400e; }
+    .pam-btn:disabled { cursor:not-allowed; opacity:.46; transform:none; }
+
+    /* PAGINAÇÃO / ESTADOS */
+    .pam-pager { display:grid; min-width:0; grid-template-columns:minmax(0,1fr) auto; gap:.5rem; align-items:center; padding:.52rem .62rem; border-top:1px solid var(--pam-border); background:linear-gradient(180deg,#fff,var(--pam-soft)); }
+    .pam-pager-info { color:var(--pam-faded); font-size:.64rem; font-weight:680; }
+    .pam-pager-actions { display:flex; gap:.28rem; }
+    .pam-state { display:grid; min-height:160px; place-items:center; align-content:center; gap:.16rem; padding:1rem; text-align:center; }
+    .pam-state-icon { width:44px; height:44px; margin-bottom:.26rem; border-radius:12px; background:var(--pam-blue-soft); color:var(--pam-blue); }
+    .pam-state-icon > svg { width:19px; height:19px; }
+    .pam-state strong { color:var(--pam-text); font-size:.77rem; font-weight:830; }
+    .pam-state p { max-width:390px; margin:0; color:var(--pam-secondary); font-size:.67rem; line-height:1.4; }
+    .pam-skeleton { height:96px; border:1px solid var(--pam-border); border-radius:12px; background:linear-gradient(90deg,#edf2ef 25%,#fafcfb 50%,#edf2ef 75%); background-size:200% 100%; animation:pam-shimmer 1.15s infinite linear; }
+    @keyframes pam-shimmer { to { background-position:-200% 0; } }
+
+    /* TOAST */
+    .pam-toast-root { position:fixed; z-index:1200; top:1rem; right:1rem; display:grid; width:min(360px,calc(100vw - 2rem)); gap:.4rem; pointer-events:none; }
+    .pam-toast { display:grid; grid-template-columns:32px minmax(0,1fr); gap:.46rem; align-items:center; padding:.54rem .58rem; border:1px solid var(--pam-border); border-radius:11px; background:#fff; box-shadow:var(--pam-shadow-md); color:var(--pam-text); font-size:.69rem; font-weight:700; pointer-events:auto; }
+    .pam-toast-icon { width:32px; height:32px; border-radius:9px; background:var(--pam-green-soft); color:var(--pam-green); }
+    .pam-toast.error .pam-toast-icon { background:var(--pam-red-soft); color:var(--pam-red); }
+    .pam-toast-icon > svg { width:15px; height:15px; }
+
+    /* CONFIRMAÇÃO */
+    .pam-modal { position:fixed; z-index:1150; inset:0; display:none; place-items:center; padding:max(14px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); overflow:auto; background:rgba(8,24,15,.52); backdrop-filter:blur(2px); }
+    .pam-modal.active { display:grid; }
+    .pam-modal-card { width:min(100%,420px); overflow:hidden; border:1px solid var(--pam-border); border-radius:15px; background:#fff; box-shadow:0 24px 64px rgba(15,23,42,.22); }
+    .pam-modal-head { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.46rem; align-items:center; padding:.62rem .66rem; border-bottom:1px solid var(--pam-border); background:linear-gradient(180deg,var(--pam-soft),#fff); }
+    .pam-modal-mark { width:34px; height:34px; border-radius:9px; background:var(--pam-amber-soft); color:var(--pam-amber); }
+    .pam-modal-mark > svg { width:16px; height:16px; }
+    .pam-modal-head strong { color:var(--pam-text); font-size:.8rem; font-weight:830; }
+    .pam-modal-close { width:34px; height:34px; border:1px solid var(--pam-border); border-radius:9px; background:#fff; color:var(--pam-secondary); cursor:pointer; }
+    .pam-modal-close:hover,.pam-modal-close:focus-visible { outline:none; border-color:rgba(37,99,235,.22); background:var(--pam-blue-soft); color:var(--pam-blue); }
+    .pam-modal-close > svg { width:15px; height:15px; }
+    .pam-modal-body { padding:.66rem; }
+    .pam-modal-message { margin:0; color:var(--pam-secondary); font-size:.7rem; line-height:1.45; }
+    .pam-modal-actions { display:flex; gap:.32rem; justify-content:flex-end; padding:.56rem .66rem .62rem; border-top:1px solid var(--pam-border); background:var(--pam-soft); }
+
+    /* RESPONSIVO */
+    @media (max-width:1080px) {
+        .pam-workspace-head { grid-template-columns:auto minmax(120px,.4fr) minmax(300px,1fr); }
+        .pam-item { grid-template-columns:minmax(220px,.8fr) minmax(340px,1.2fr); }
+        .pam-row-actions { grid-column:1/-1; grid-template-columns:repeat(3,max-content); justify-content:end; }
+    }
+
+    @media (max-width:820px) {
+        .pam-context { grid-template-columns:auto auto minmax(0,1fr); }
+        .pam-context-actions { grid-column:3; justify-content:flex-start; }
+        .pam-workspace-head { grid-template-columns:auto minmax(0,1fr); }
+        .pam-toolbar { grid-column:1/-1; }
+        .pam-item { grid-template-columns:1fr; align-items:stretch; }
+        .pam-row-actions { grid-column:auto; grid-template-columns:repeat(3,minmax(0,1fr)); justify-content:stretch; }
+        .pam-row-actions .pam-btn { width:100%; }
+    }
+
+    @media (max-width:680px) {
+        .pam-brief { display:flex; gap:.36rem; overflow-x:auto; padding:.36rem; scrollbar-width:none; scroll-snap-type:x proximity; }
+        .pam-brief::-webkit-scrollbar { display:none; }
+        .pam-brief-item { min-width:190px; min-height:58px; padding:.42rem .46rem; border:0 !important; border-radius:10px; background:color-mix(in srgb,var(--soft) 64%,#fff); scroll-snap-align:start; }
+        .pam-toolbar { grid-template-columns:1fr; }
+        .pam-item-data { grid-template-columns:1fr; }
+    }
+
+    @media (max-width:560px) {
+        .pam-shell { gap:.64rem; }
+        .pam-context { grid-template-columns:36px minmax(0,1fr); padding:.58rem; }
+        .pam-back { width:36px; height:36px; }
+        .pam-project-icon { display:none; }
+        .pam-context-actions { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; width:100%; }
+        .pam-top-action { width:100%; }
+        .pam-project-meta { gap:.24rem; }
+        .pam-workspace-head { padding:.54rem .56rem; }
+        .pam-workspace-icon { width:36px; height:36px; }
+        .pam-toolbar { gap:.34rem; }
+        .pam-list,.pam-skeleton-list { padding:.5rem; }
+        .pam-item { padding:.54rem; gap:.48rem; }
+        .pam-name-line { align-items:flex-start; }
+        .pam-meta { gap:.22rem .3rem; }
+        .pam-row-actions { grid-template-columns:1fr 1fr 1fr; }
+        .pam-btn { min-width:0; padding:.36rem .35rem; }
+        .pam-pager { grid-template-columns:1fr; }
+        .pam-pager-actions { display:grid; grid-template-columns:1fr 1fr; }
+        .pam-pager-actions .pam-btn { width:100%; }
+        .pam-toast-root { top:auto; right:.65rem; bottom:calc(5rem + env(safe-area-inset-bottom)); left:.65rem; width:auto; }
+        .pam-modal { place-items:end center; padding:0; }
+        .pam-modal-card { width:100%; border-right:0; border-bottom:0; border-left:0; border-radius:16px 16px 0 0; }
+        .pam-modal-actions { display:grid; grid-template-columns:1fr 1fr; padding-bottom:calc(.62rem + env(safe-area-inset-bottom)); }
+        .pam-modal-actions .pam-btn { width:100%; min-height:40px; }
+    }
+
+    @media (max-width:390px) {
+        .pam-context-actions { grid-template-columns:1fr; }
+        .pam-row-actions { grid-template-columns:1fr; }
+        .pam-modal-actions { grid-template-columns:1fr; }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+        .pam-shell *, .pam-shell *::before, .pam-shell *::after,
+        .pam-modal *, .pam-modal *::before, .pam-modal *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; transition-duration:.01ms !important; }
     }
 </style>
 
 <main class="pam-shell" id="project-associates-manager">
-    <section class="pam-context">
+    <section class="pam-context" aria-labelledby="pam-page-title">
         <a
             class="pam-back"
             href="{{ route('delivery.projects.producers', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
-            aria-label="Voltar ao projeto"
-            title="Voltar ao projeto"
+            aria-label="Voltar"
+            title="Voltar"
         >
             <i data-lucide="arrow-left"></i>
         </a>
 
+        <span class="pam-project-icon" aria-hidden="true">
+            <i data-lucide="users-round"></i>
+        </span>
+
         <div class="pam-context-copy">
             <span class="pam-context-kicker">
-                <i data-lucide="users-round"></i>
-                Participação no projeto
+                <i data-lucide="sliders-horizontal"></i>
+                Participação e limites
             </span>
 
-            <h1 class="pam-title">
-                Associados e limites
-            </h1>
+            <h1 class="pam-title" id="pam-page-title">{{ $project->title }}</h1>
 
-            <div class="pam-project-meta">
-                <span>
-                    <i data-lucide="folder-kanban"></i>
-                    <span>{{ $project->title }}</span>
-                </span>
-
-                @if($projectPeriod)
+            @if($projectPeriod)
+                <div class="pam-project-meta">
                     <span>
                         <i data-lucide="calendar-days"></i>
                         <span>{{ $projectPeriod }}</span>
                     </span>
-                @endif
-            </div>
+                </div>
+            @endif
         </div>
 
         <div class="pam-context-actions">
@@ -1415,7 +366,7 @@
                 class="pam-top-action secondary"
                 href="{{ route('delivery.projects.product-limits.index', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
             >
-                <i data-lucide="sliders"></i>
+                <i data-lucide="package-check"></i>
                 Limites por produto
             </a>
 
@@ -1429,72 +380,37 @@
         </div>
     </section>
 
-    <section
-        class="pam-summary"
-        aria-label="Resumo da configuração do projeto"
-    >
-        <article class="pam-summary-card">
-            <div class="pam-summary-card-inner">
-                <span class="pam-summary-icon" aria-hidden="true">
-                    <i data-lucide="users-round"></i>
-                </span>
+    <section class="pam-brief" aria-label="Configuração do projeto">
+        <article class="pam-brief-item">
+            <span class="pam-brief-icon" aria-hidden="true">
+                <i data-lucide="users-round"></i>
+            </span>
+            <div class="pam-brief-copy">
+                <div class="pam-brief-label">Associados</div>
+                <div class="pam-brief-value" id="pam-total">—</div>
+            </div>
+        </article>
 
-                <div class="pam-summary-copy">
-                    <div class="pam-summary-label">
-                        Associados encontrados
-                    </div>
-
-                    <div class="pam-summary-value" id="pam-total">
-                        —
-                    </div>
-
-                    <div class="pam-summary-helper">
-                        Conforme a busca e o filtro atual.
-                    </div>
+        <article class="pam-brief-item participation">
+            <span class="pam-brief-icon" aria-hidden="true">
+                <i data-lucide="{{ $project->restrict_participants ? 'user-round-check' : 'users-round' }}"></i>
+            </span>
+            <div class="pam-brief-copy">
+                <div class="pam-brief-label">Participação</div>
+                <div class="pam-brief-value">
+                    {{ $project->restrict_participants ? 'Somente autorizados' : 'Aberta' }}
                 </div>
             </div>
         </article>
 
-        <article class="pam-summary-card">
-            <div class="pam-summary-card-inner">
-                <span class="pam-summary-icon" aria-hidden="true">
-                    <i data-lucide="{{ $project->restrict_participants ? 'user-round-check' : 'users-round' }}"></i>
-                </span>
-
-                <div class="pam-summary-copy">
-                    <div class="pam-summary-label">
-                        Regra de participação
-                    </div>
-
-                    <div class="pam-summary-value">
-                        {{ $project->restrict_participants ? 'Somente participantes autorizados' : 'Participação aberta' }}
-                    </div>
-
-                    <div class="pam-summary-helper">
-                        Define quem pode registrar novas entregas.
-                    </div>
-                </div>
-            </div>
-        </article>
-
-        <article class="pam-summary-card">
-            <div class="pam-summary-card-inner">
-                <span class="pam-summary-icon" aria-hidden="true">
-                    <i data-lucide="{{ $project->allow_any_product ? 'package-open' : 'package-check' }}"></i>
-                </span>
-
-                <div class="pam-summary-copy">
-                    <div class="pam-summary-label">
-                        Regra dos produtos
-                    </div>
-
-                    <div class="pam-summary-value">
-                        {{ $project->allow_any_product ? 'Catálogo livre' : 'Produtos conforme cotas' }}
-                    </div>
-
-                    <div class="pam-summary-helper">
-                        {{ $project->allow_any_product ? 'O projeto aceita qualquer produto permitido.' : 'Cada associado usa os produtos e quantidades configurados.' }}
-                    </div>
+        <article class="pam-brief-item products">
+            <span class="pam-brief-icon" aria-hidden="true">
+                <i data-lucide="{{ $project->allow_any_product ? 'package-open' : 'package-check' }}"></i>
+            </span>
+            <div class="pam-brief-copy">
+                <div class="pam-brief-label">Produtos</div>
+                <div class="pam-brief-value">
+                    {{ $project->allow_any_product ? 'Catálogo livre' : 'Por cotas' }}
                 </div>
             </div>
         </article>
@@ -1503,83 +419,45 @@
     <section class="pam-workspace">
         <header class="pam-workspace-head">
             <span class="pam-workspace-icon" aria-hidden="true">
-                <i data-lucide="user-round-cog"></i>
+                <i data-lucide="contact-round"></i>
             </span>
 
-            <div class="pam-workspace-copy">
-                <h2>Associados do projeto</h2>
-
-                <p>
-                    Consulte a participação, o saldo financeiro,
-                    as cotas e acesse as ações de cada associado.
-                </p>
+            <div class="pam-workspace-title">
+                <h2>Associados</h2>
             </div>
 
-            <span class="pam-results-count">
-                Lista atual
-            </span>
+            <div class="pam-toolbar">
+                <div class="pam-search-wrap">
+                    <i class="pam-search-icon" data-lucide="search"></i>
+                    <input
+                        class="pam-input"
+                        id="pam-search"
+                        type="search"
+                        autocomplete="off"
+                        placeholder="Nome, matrícula ou localidade"
+                        aria-label="Buscar associado"
+                    >
+                    <button
+                        class="pam-clear-search"
+                        id="pam-clear-search"
+                        type="button"
+                        aria-label="Limpar busca"
+                        title="Limpar busca"
+                    >
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+
+                <select class="pam-select" id="pam-status" aria-label="Filtrar participação">
+                    <option value="" @selected(! $project->restrict_participants)>Todos</option>
+                    <option value="active" @selected($project->restrict_participants)>Pode entregar</option>
+                    <option value="blocked">Bloqueados</option>
+                    <option value="unconfigured">Não configurados</option>
+                </select>
+            </div>
         </header>
 
-        <div class="pam-toolbar">
-            <div class="pam-search-wrap">
-                <i
-                    class="pam-search-icon"
-                    data-lucide="search"
-                ></i>
-
-                <input
-                    class="pam-input"
-                    id="pam-search"
-                    type="search"
-                    autocomplete="off"
-                    placeholder="Buscar por nome, matrícula ou localidade"
-                    aria-label="Buscar associado"
-                >
-
-                <button
-                    class="pam-clear-search"
-                    id="pam-clear-search"
-                    type="button"
-                    aria-label="Limpar busca"
-                    title="Limpar busca"
-                >
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-
-            <select
-                class="pam-select"
-                id="pam-status"
-                aria-label="Filtrar participação"
-            >
-                <option
-                    value=""
-                    @selected(! $project->restrict_participants)
-                >
-                    Todas as participações
-                </option>
-
-                <option
-                    value="active"
-                    @selected($project->restrict_participants)
-                >
-                    Pode entregar
-                </option>
-
-                <option value="blocked">
-                    Entregas bloqueadas
-                </option>
-
-                <option value="unconfigured">
-                    Ainda não configurados
-                </option>
-            </select>
-        </div>
-
-        <div
-            class="pam-skeleton-list"
-            id="pam-skeleton"
-        >
+        <div class="pam-skeleton-list" id="pam-skeleton" aria-hidden="true">
             @for($index = 0; $index < 5; $index++)
                 <div class="pam-skeleton"></div>
             @endfor
@@ -1589,42 +467,47 @@
             class="pam-list"
             id="pam-list"
             aria-live="polite"
+            aria-busy="true"
             hidden
         ></section>
 
-        <div
-            class="pam-pager"
-            id="pam-pager"
-            hidden
-        ></div>
+        <div class="pam-pager" id="pam-pager" hidden></div>
     </section>
 </main>
 
 <div class="pam-toast-root" id="pam-toast-root" aria-live="polite"></div>
 
-<div class="pam-modal" id="pam-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="pam-confirm-title">
+<div
+    class="pam-modal"
+    id="pam-confirm-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pam-confirm-title"
+    aria-hidden="true"
+>
     <div class="pam-modal-card">
         <div class="pam-modal-head">
+            <span class="pam-modal-mark" aria-hidden="true">
+                <i data-lucide="triangle-alert"></i>
+            </span>
+
             <strong id="pam-confirm-title">Confirmar alteração</strong>
+
             <button class="pam-modal-close" type="button" id="pam-confirm-close" aria-label="Fechar">
                 <i data-lucide="x"></i>
             </button>
         </div>
 
         <div class="pam-modal-body">
-            <div class="pam-modal-warning">
-                <i data-lucide="triangle-alert"></i>
-                <p id="pam-confirm-message"></p>
-            </div>
+            <p class="pam-modal-message" id="pam-confirm-message"></p>
         </div>
 
         <div class="pam-modal-actions">
             <button class="pam-btn" type="button" id="pam-confirm-cancel">Voltar</button>
-            <button class="pam-btn primary" type="button" id="pam-confirm-action">Confirmar</button>
+            <button class="pam-btn warning" type="button" id="pam-confirm-action">Confirmar</button>
         </div>
     </div>
 </div>
-
 <script>
     const PAM_BASE = @json(url('/'.$tenantSlug.'/delivery/projects/'.$project->id));
     const PAM_CSRF = @json(csrf_token());
@@ -1711,6 +594,10 @@
     function pamSetLoading(loading) {
         pamElements.skeleton.hidden = !loading;
         pamElements.list.hidden = loading;
+        pamElements.list.setAttribute(
+            'aria-busy',
+            loading ? 'true' : 'false'
+        );
         pamElements.pager.hidden = loading;
     }
 
@@ -1721,7 +608,7 @@
                     <i data-lucide="${icon}"></i>
                 </div>
                 <strong>${pamEsc(title)}</strong>
-                <p>${pamEsc(description)}</p>
+                ${description ? `<p>${pamEsc(description)}</p>` : ''}
             </div>
         `;
     }
@@ -1750,9 +637,11 @@
 
     async function pamApi(url, options = {}) {
         const response = await fetch(url, {
+            credentials: 'same-origin',
             ...options,
             headers: {
                 Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
                 ...(options.headers || {}),
             },
         });
@@ -1761,7 +650,7 @@
             message: 'A resposta do servidor não pôde ser interpretada.',
         }));
 
-        if (!response.ok) {
+        if (!response.ok || data.success === false) {
             throw new Error(
                 data.message
                 || Object.values(data.errors || {}).flat()[0]
@@ -1800,7 +689,7 @@
 
             pamElements.total.textContent = '—';
             pamElements.list.innerHTML = pamEmptyState(
-                'Não foi possível carregar os associados',
+                'Erro ao carregar associados',
                 error.message,
                 'wifi-off'
             );
@@ -1827,7 +716,7 @@
             ? items.map(pamAssociateCard).join('')
             : pamEmptyState(
                 'Nenhum associado encontrado',
-                'Altere a busca ou o filtro de participação para ampliar os resultados.',
+                'Altere a busca ou o filtro.',
                 'user-round-search'
             );
 
@@ -1838,84 +727,33 @@
     }
 
     function pamAssociateCard(item) {
-        const limit = item.financial_limit === null
-            ? null
-            : Number(item.financial_limit || 0);
-
+        const limit = item.financial_limit === null ? null : Number(item.financial_limit || 0);
         const consumed = Number(item.financial_consumed || 0);
-
-        const remaining = item.financial_remaining === null
-            ? null
-            : Number(item.financial_remaining || 0);
-
-        const percent = limit && limit > 0
-            ? Math.min(
-                100,
-                (consumed / limit) * 100
-            )
-            : 0;
-
-        const status =
-            item.participation_status
-            || 'unconfigured';
-
+        const remaining = item.financial_remaining === null ? null : Number(item.financial_remaining || 0);
+        const rawPercent = limit && limit > 0 ? (consumed / limit) * 100 : 0;
+        const percent = Math.max(0, Math.min(100, rawPercent));
+        const status = item.participation_status || 'unconfigured';
         const meta = pamStatusMeta(status);
-
-        const nextStatus =
-            status === 'active'
-                ? 'blocked'
-                : 'active';
-
-        const products =
-            Number(item.product_limits || 0);
-
-        const planned =
-            Number(item.simulated_limit_value || 0);
-
-        const participationHelper =
-            status === 'active'
-                ? 'Pode registrar novas entregas'
-                : status === 'blocked'
-                    ? 'Novas entregas estão bloqueadas'
-                    : 'Participação ainda não definida';
-
-        const location =
-            item.location
-                ? pamEsc(item.location)
-                : 'Localidade não informada';
-
-        const code =
-            item.code
-                ? `#${pamEsc(item.code)}`
-                : 'Sem matrícula';
+        const nextStatus = status === 'active' ? 'blocked' : 'active';
+        const products = Number(item.product_limits || 0);
+        const planned = Number(item.simulated_limit_value || 0);
+        const location = item.location ? pamEsc(item.location) : 'Sem localidade';
+        const code = item.code ? `#${pamEsc(item.code)}` : 'Sem matrícula';
+        const progressTone = pamProgressTone(rawPercent);
 
         return `
-            <article
-                class="pam-item ${
-                    status === 'active'
-                        ? 'is-active'
-                        : status === 'blocked'
-                            ? 'is-blocked'
-                            : ''
-                }"
-            >
+            <article class="pam-item ${status === 'active' ? 'is-active' : status === 'blocked' ? 'is-blocked' : ''}">
                 <div class="pam-item-head">
                     <div class="pam-person">
-                        <span
-                            class="pam-avatar"
-                            aria-hidden="true"
-                        >
-                            ${pamEsc(
-                                pamInitials(item.name)
-                            )}
-                        </span>
+                        <span class="pam-avatar" aria-hidden="true">${pamEsc(pamInitials(item.name))}</span>
 
                         <div class="pam-person-copy">
-                            <div
-                                class="pam-name"
-                                title="${pamEsc(item.name)}"
-                            >
-                                ${pamEsc(item.name)}
+                            <div class="pam-name-line">
+                                <div class="pam-name" title="${pamEsc(item.name)}">${pamEsc(item.name)}</div>
+                                <span class="pam-badge">
+                                    <i data-lucide="${meta.icon}"></i>
+                                    ${pamEsc(meta.label)}
+                                </span>
                             </div>
 
                             <div class="pam-meta">
@@ -1923,7 +761,6 @@
                                     <i data-lucide="hash"></i>
                                     <span>${code}</span>
                                 </span>
-
                                 <span class="pam-meta-part">
                                     <i data-lucide="map-pin"></i>
                                     <span>${location}</span>
@@ -1931,149 +768,71 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="pam-person-status">
-                        <span
-                            class="pam-badge ${pamEsc(status)}"
-                            title="${pamEsc(participationHelper)}"
-                        >
-                            <i data-lucide="${meta.icon}"></i>
-                            ${pamEsc(meta.label)}
-                        </span>
-                    </div>
                 </div>
 
                 <div class="pam-item-data">
-                    <div class="pam-financial">
-                        <div class="pam-financial-head">
-                            <div>
-                                <div class="pam-metric-label">
-                                    Saldo financeiro disponível
-                                </div>
+                    <div class="pam-data-box pam-financial ${progressTone}">
+                        <div class="pam-data-main">
+                            <span class="pam-data-icon" aria-hidden="true">
+                                <i data-lucide="wallet-cards"></i>
+                            </span>
 
-                                <div class="pam-metric-value">
-                                    ${pamMoney(remaining)}
+                            <div class="pam-data-copy">
+                                <div class="pam-metric-label">Saldo</div>
+                                <div class="pam-metric-value">${pamMoney(remaining)}</div>
+                                <div class="pam-metric-helper">
+                                    ${limit === null ? `${pamMoney(consumed)} usado · sem teto` : `${pamMoney(consumed)} / ${pamMoney(limit)}`}
                                 </div>
                             </div>
 
-                            ${limit !== null
-                                ? `
-                                    <span class="pam-financial-percent">
-                                        ${Math.round(percent)}%
-                                    </span>
-                                `
-                                : ''}
+                            ${limit !== null ? `<span class="pam-financial-percent">${Math.round(rawPercent)}%</span>` : ''}
                         </div>
 
-                        <div class="pam-metric-helper">
-                            ${pamMoney(consumed)}
-                            utilizado
-                            ${
-                                limit === null
-                                    ? ' · sem teto financeiro'
-                                    : ` de ${pamMoney(limit)}`
-                            }
-                        </div>
-
-                        ${limit !== null
-                            ? `
-                                <div
-                                    class="pam-progress ${pamProgressTone(percent)}"
-                                    title="${Math.round(percent)}% utilizado"
-                                    role="progressbar"
-                                    aria-label="Uso do limite financeiro"
-                                    aria-valuemin="0"
-                                    aria-valuemax="100"
-                                    aria-valuenow="${Math.round(percent)}"
-                                >
-                                    <span
-                                        style="width:${Math.min(100, percent)}%"
-                                    ></span>
-                                </div>
-                            `
-                            : ''}
+                        ${limit !== null ? `
+                            <div class="pam-progress ${progressTone}" role="progressbar" aria-label="Uso do limite financeiro" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
+                                <span style="width:${percent}%"></span>
+                            </div>
+                        ` : ''}
                     </div>
 
-                    <div class="pam-products">
-                        <div class="pam-products-value">
-                            <span
-                                class="pam-products-icon"
-                                aria-hidden="true"
-                            >
+                    <div class="pam-data-box pam-products">
+                        <div class="pam-data-main">
+                            <span class="pam-data-icon" aria-hidden="true">
                                 <i data-lucide="package-check"></i>
                             </span>
 
-                            <div>
-                                <strong>
-                                    ${pamNumber(products)}
-                                    ${
-                                        products === 1
-                                            ? ' produto'
-                                            : ' produtos'
-                                    }
-                                </strong>
-
-                                <span>
-                                    Com cota configurada
-                                </span>
-
-                                <span>
-                                    ${pamMoney(planned)}
-                                    planejado
-                                </span>
+                            <div class="pam-data-copy">
+                                <div class="pam-metric-label">Cotas</div>
+                                <div class="pam-metric-value">${pamNumber(products)} ${products === 1 ? 'produto' : 'produtos'}</div>
+                                <div class="pam-metric-helper">${pamMoney(planned)} previsto</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="pam-row-actions">
-                    <a
-                        class="pam-btn"
-                        href="${pamEsc(item.manage_url)}"
-                    >
+                    <a class="pam-btn" href="${pamEsc(item.manage_url)}">
                         <i data-lucide="user-round-search"></i>
-                        Ver detalhes
+                        Detalhes
                     </a>
 
-                    <a
-                        class="pam-btn primary"
-                        href="${pamEsc(item.limits_url)}"
-                    >
+                    <a class="pam-btn primary" href="${pamEsc(item.limits_url)}">
                         <i data-lucide="sliders-horizontal"></i>
-                        Configurar cotas
+                        Cotas
                     </a>
 
-                    ${PAM_CAN_MANAGE
-                        ? `
-                            <button
-                                class="pam-btn ${
-                                    nextStatus === 'blocked'
-                                        ? 'warning'
-                                        : ''
-                                }"
-                                type="button"
-                                onclick="pamRequestParticipation(
-                                    ${Number(item.id)},
-                                    '${nextStatus}',
-                                    '${pamEsc(item.name).replace(/'/g, "\\'")}'
-                                )"
-                            >
-                                <i
-                                    data-lucide="${
-                                        nextStatus === 'active'
-                                            ? 'user-round-check'
-                                            : 'user-round-x'
-                                    }"
-                                ></i>
-
-                                ${
-                                    nextStatus === 'active'
-                                        ? 'Permitir entregas'
-                                        : 'Bloquear entregas'
-                                }
-                            </button>
-                        `
-                        : ''}
+                    ${PAM_CAN_MANAGE ? `
+                        <button
+                            class="pam-btn ${nextStatus === 'blocked' ? 'warning' : ''}"
+                            type="button"
+                            data-participation-id="${Number(item.id)}"
+                            data-participation-status="${pamEsc(nextStatus)}"
+                            data-participation-name="${pamEsc(item.name)}"
+                        >
+                            <i data-lucide="${nextStatus === 'active' ? 'user-round-check' : 'user-round-x'}"></i>
+                            ${nextStatus === 'active' ? 'Permitir' : 'Bloquear'}
+                        </button>
+                    ` : ''}
                 </div>
             </article>
         `;
@@ -2172,20 +931,29 @@
             : 'Bloquear novas entregas';
 
         pamElements.confirmMessage.textContent = allowing
-            ? `${name} será incluído como participante ativo e poderá registrar novas entregas neste projeto.`
-            : `${name} deixará de poder registrar novas entregas. Os registros históricos não serão removidos.`;
+            ? `${name} poderá registrar novas entregas.`
+            : `${name} não poderá registrar novas entregas.`;
 
         pamElements.confirmAction.textContent = allowing
             ? 'Permitir entregas'
             : 'Bloquear entregas';
 
         pamElements.confirmModal.classList.add('active');
+        pamElements.confirmModal.setAttribute('aria-hidden', 'false');
+        pamElements.confirmAction.classList.toggle('warning', !allowing);
+        pamElements.confirmAction.classList.toggle('primary', allowing);
         pamIcons();
+
+        window.setTimeout(
+            () => pamElements.confirmAction.focus(),
+            30
+        );
     }
 
     function pamCloseConfirm() {
         pamPendingConfirmation = null;
         pamElements.confirmModal.classList.remove('active');
+        pamElements.confirmModal.setAttribute('aria-hidden', 'true');
     }
 
     function pamRunConfirmation() {
@@ -2220,6 +988,26 @@
             window.lucide.createIcons();
         }
     }
+
+    pamElements.list.addEventListener('click', event => {
+        const button = event.target.closest('[data-participation-id]');
+
+        if (!button) {
+            return;
+        }
+
+        pamRequestParticipation(
+            Number(button.dataset.participationId),
+            button.dataset.participationStatus,
+            button.dataset.participationName || 'Associado'
+        );
+    });
+
+    pamElements.confirmModal.addEventListener('click', event => {
+        if (event.target === pamElements.confirmModal) {
+            pamCloseConfirm();
+        }
+    });
 
     pamElements.search.addEventListener('input', pamScheduleSearch);
     pamElements.clearSearch.addEventListener('click', pamClearSearch);
