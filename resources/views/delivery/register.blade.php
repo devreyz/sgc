@@ -1021,6 +1021,721 @@
 </style>
 
 
+<style id="register-desktop-system-ui">
+/* =====================================================================
+   REGISTER — padronização desktop/mobile
+   Desktop: superfície operacional contínua, sem aparência de cards.
+   Mobile: cards confortáveis, com áreas de toque maiores.
+   ===================================================================== */
+
+.reg-page {
+    --rx-green:#168a4d;
+    --rx-green-soft:#eaf8ef;
+    --rx-blue:#2563eb;
+    --rx-blue-soft:#eef4ff;
+    --rx-violet:#7c3aed;
+    --rx-violet-soft:#f4f0ff;
+    --rx-amber:#c87408;
+    --rx-amber-soft:#fff7e8;
+    --rx-red:#cf3f3f;
+    --rx-red-soft:#fff0f0;
+    --rx-slate:#64748b;
+    --rx-slate-soft:#f1f5f9;
+    --rx-border:var(--color-border,#dce7e0);
+    --rx-border-2:var(--color-border-strong,#c8d6cd);
+    --rx-text:var(--color-text,#102018);
+    --rx-text-2:var(--color-text-secondary,#52645a);
+    --rx-text-3:var(--color-text-muted,#809087);
+    --rx-soft:var(--color-surface-soft,#f8faf9);
+    --rx-surface:var(--color-surface,#fff);
+}
+
+/* ícones sempre centralizados */
+.reg-page .project-bar-icon,
+.reg-page .sel-icon,
+.reg-page .sel-chevron,
+.reg-page .reg-integrity-toggle,
+.reg-page .mc-state-icon,
+.reg-page .mc-actions button,
+.reg-page .delivery-note-trigger,
+.reg-page .delivery-page-btn,
+.modal-overlay .modal-close,
+.modal-overlay .mi-quota-edit,
+.scroll-top-btn {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    line-height:0;
+}
+.reg-page svg,
+.modal-overlay svg,
+.scroll-top-btn svg {
+    display:block;
+    flex:0 0 auto;
+    margin:0;
+    vertical-align:middle;
+}
+
+/* ---------------------------------------------------------------------
+   DESKTOP / TABLET — sem cards
+   --------------------------------------------------------------------- */
+@media (min-width: 768px) {
+    .reg-page {
+        display:grid;
+        width:min(100%,1280px);
+        max-width:1280px;
+        grid-template-columns:minmax(0,1fr);
+        gap:0;
+        margin:0 auto;
+        padding:0 0 1rem;
+        overflow:hidden;
+        border:1px solid var(--rx-border);
+        border-radius:15px;
+        background:#fff;
+        box-shadow:0 4px 14px rgba(15,35,24,.04);
+    }
+
+    /* Os wrappers permanecem por compatibilidade, mas deixam de parecer cards. */
+    .reg-page .card,
+    .reg-page .entry-card,
+    .reg-page .history-card {
+        width:100%;
+        min-width:0;
+        margin:0;
+        overflow:visible;
+        border:0;
+        border-radius:0;
+        background:transparent;
+        box-shadow:none;
+    }
+
+    .reg-page .entry-card {
+        position:static !important;
+        top:auto !important;
+        border-bottom:1px solid var(--rx-border);
+    }
+
+    .reg-page .history-card {
+        min-height:0 !important;
+    }
+
+    /* Projeto = toolbar de contexto, não card. */
+    .project-bar {
+        min-height:58px;
+        gap:.56rem;
+        padding:.52rem .72rem;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        border-radius:0;
+        background:
+            radial-gradient(circle at 100% 0,rgba(37,99,235,.07),transparent 18rem),
+            linear-gradient(180deg,var(--rx-soft),#fff);
+        box-shadow:none;
+    }
+    .project-bar-icon {
+        width:34px;
+        height:34px;
+        border-radius:9px;
+        background:var(--rx-blue-soft);
+        color:var(--rx-blue);
+    }
+    .project-bar-title {font-size:.82rem;font-weight:820;color:var(--rx-text)}
+    .project-bar-sub {font-size:.65rem;color:var(--rx-text-3)}
+    .project-bar-btn {
+        min-height:34px;
+        padding:.34rem .52rem;
+        border:1px solid var(--rx-border-2);
+        border-radius:8px;
+        background:#fff;
+        color:var(--rx-blue);
+        font-size:.66rem;
+        font-weight:780;
+    }
+    #pb-badge {
+        min-height:23px !important;
+        padding:.12rem .36rem !important;
+        border:1px solid rgba(22,138,77,.13) !important;
+        background:var(--rx-green-soft) !important;
+        color:var(--rx-green) !important;
+        font-size:.57rem !important;
+    }
+
+    /* Cabeçalho de seção simples. */
+    .reg-page .card-header {
+        display:flex;
+        min-height:38px;
+        align-items:center;
+        padding:.42rem .72rem;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        border-radius:0;
+        background:#fff;
+        color:var(--rx-text-2);
+        font-size:.65rem;
+        font-weight:800;
+        letter-spacing:.025em;
+        text-transform:uppercase;
+    }
+
+    /* Formulário de entrada em fluxo horizontal. */
+    .entry-card .card-body {
+        display:grid !important;
+        grid-template-columns:minmax(190px,1fr) minmax(165px,.72fr) minmax(230px,1.18fr);
+        gap:0;
+        padding:0 !important;
+        background:#fff;
+    }
+
+    .selector-row {
+        min-height:62px;
+        gap:.48rem;
+        padding:.52rem .64rem;
+        border:0;
+        border-right:1px solid var(--rx-border);
+        border-radius:0;
+        background:#fff;
+        box-shadow:none;
+    }
+    .selector-row:nth-of-type(3) {border-right:0}
+    .selector-row:hover,
+    .selector-row.selected {
+        border-color:var(--rx-border);
+        background:linear-gradient(180deg,var(--rx-blue-soft),#fff);
+    }
+    .selector-row:focus-visible {
+        outline:2px solid rgba(37,99,235,.22);
+        outline-offset:-2px;
+    }
+    .sel-icon {
+        width:31px;
+        height:31px;
+        border-radius:8px;
+    }
+    .sel-label {font-size:.58rem;font-weight:760;letter-spacing:.025em}
+    .sel-value,.sel-date-display {font-size:.76rem;font-weight:790}
+    .sel-meta {font-size:.59rem;line-height:1.3}
+
+    #entry-fields {
+        grid-column:1/-1;
+        min-width:0;
+        padding:.56rem .64rem .64rem;
+        border-top:1px solid var(--rx-border);
+        background:var(--rx-soft);
+    }
+    #entry-fields .form-divider {display:none}
+    #entry-fields .form-grid {
+        display:grid;
+        grid-template-columns:minmax(150px,.75fr) minmax(180px,.9fr) minmax(260px,1.5fr);
+        gap:.48rem;
+        align-items:end;
+    }
+    #entry-fields .form-grid>div:nth-child(3) {grid-column:auto}
+    .field-label {
+        margin-bottom:.2rem;
+        font-size:.59rem;
+        font-weight:760;
+        letter-spacing:.02em;
+        text-transform:none;
+    }
+    .field-input {
+        min-height:39px;
+        padding:.42rem .52rem;
+        border:1px solid var(--rx-border-2);
+        border-radius:8px;
+        background:#fff;
+        font-size:.76rem;
+    }
+    .field-input:focus {
+        border-color:var(--rx-blue);
+        box-shadow:0 0 0 3px rgba(37,99,235,.06);
+    }
+    .quality-pills {gap:.28rem}
+    .q-pill {
+        min-height:39px;
+        padding:.34rem .25rem;
+        border-radius:8px;
+        background:#fff;
+        font-size:.72rem;
+    }
+    .btn-submit {
+        width:auto;
+        min-width:170px;
+        min-height:40px;
+        margin:.48rem 0 0 auto;
+        padding:.46rem .78rem;
+        border:1px solid rgba(22,138,77,.18);
+        border-radius:8px;
+        background:var(--rx-green-soft);
+        box-shadow:none;
+        color:var(--rx-green);
+        font-size:.72rem;
+        font-weight:820;
+    }
+    .btn-submit:hover:not(:disabled) {
+        background:color-mix(in srgb,var(--rx-green-soft) 80%,#fff);
+        color:var(--rx-green);
+    }
+
+    /* Histórico = seção contínua. */
+    .history-card>.card-header {
+        min-height:44px;
+        padding:.48rem .7rem !important;
+        background:linear-gradient(180deg,var(--rx-soft),#fff);
+        color:var(--rx-text);
+        font-size:.72rem;
+        letter-spacing:0;
+        text-transform:none;
+    }
+    #session-count {
+        min-height:22px;
+        padding:.1rem .34rem;
+        border-radius:999px;
+        background:var(--rx-blue-soft);
+        color:var(--rx-blue) !important;
+        font-size:.59rem !important;
+    }
+
+    /* Integridade só ocupa espaço quando o backend a exibe. */
+    .reg-integrity {
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        background:linear-gradient(90deg,var(--rx-amber-soft),#fff 48%);
+    }
+    .reg-integrity-head {min-height:44px;padding:.38rem .68rem}
+    .reg-integrity-counts {font-size:.6rem}
+    .reg-integrity-toggle {width:30px;height:30px;border-radius:8px}
+    .reg-integrity-list {padding:0 .68rem .56rem;gap:0}
+    .reg-integrity-item {
+        padding:.48rem .04rem;
+        border:0;
+        border-top:1px solid var(--rx-border);
+        border-radius:0;
+        background:transparent;
+    }
+    .reg-integrity-item:first-child {border-top:0}
+
+    /* Filtros = toolbar contínua. */
+    .history-filter {
+        display:grid;
+        grid-template-columns:minmax(220px,1.4fr) 130px minmax(150px,.8fr) minmax(150px,.8fr) 120px auto 120px auto;
+        gap:.32rem;
+        align-items:center;
+        padding:.48rem .64rem;
+        overflow:visible;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        background:var(--rx-soft);
+    }
+    .history-filter>label {display:none}
+    .history-filter input,
+    .history-filter select,
+    .history-filter input[type=date],
+    .history-filter input[type=search] {
+        width:100%;
+        min-width:0;
+        max-width:none;
+        min-height:36px;
+        padding:.36rem .46rem;
+        border:1px solid var(--rx-border-2);
+        border-radius:8px;
+        background:#fff;
+        font-size:.68rem;
+    }
+    .history-filter input:focus,
+    .history-filter select:focus {
+        border-color:var(--rx-blue);
+        box-shadow:0 0 0 3px rgba(37,99,235,.055);
+    }
+    .history-filter>span {font-size:.59rem!important;color:var(--rx-text-3)!important;text-align:center}
+    .history-filter .hf-clear {
+        min-height:34px;
+        padding:.3rem .42rem;
+        border:1px solid var(--rx-border);
+        border-radius:8px;
+        background:#fff;
+        color:var(--rx-slate);
+        font-size:.63rem;
+        font-weight:740;
+    }
+
+    /* Lista: sem grid de cards e sem caixas individuais. */
+    #session-list {
+        display:block;
+        min-height:0;
+        padding:0;
+        background:#fff;
+    }
+    .session-section-header {
+        margin:0;
+        padding:.42rem .68rem;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        background:var(--rx-soft);
+        color:var(--rx-text-2);
+        font-size:.61rem;
+        letter-spacing:.035em;
+    }
+    .session-collapsible {
+        margin:0;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        border-radius:0;
+        background:#fff;
+    }
+    .session-collapsible>summary {
+        min-height:39px;
+        padding:.4rem .68rem;
+        border:0;
+        background:var(--rx-soft);
+        font-size:.63rem;
+    }
+    .session-collapsible-list {display:block;padding:0}
+    .session-empty {padding:1.25rem .8rem;font-size:.76rem}
+
+    /*
+       O mesmo markup dos cards é reaproveitado por segurança, mas no desktop
+       ele vira uma linha operacional contínua. Cards visuais só no mobile.
+    */
+    #session-list .mobile-card {
+        display:grid;
+        grid-template-columns:minmax(300px,1.05fr) minmax(0,1.95fr);
+        min-width:0;
+        margin:0;
+        overflow:visible;
+        border:0;
+        border-bottom:1px solid var(--rx-border);
+        border-left:0;
+        border-radius:0;
+        background:#fff;
+        box-shadow:none;
+    }
+    #session-list>.mobile-card:last-child,
+    .session-collapsible-list>.mobile-card:last-child {border-bottom:0}
+    #session-list .mobile-card:hover {background:color-mix(in srgb,var(--rx-blue-soft) 24%,#fff)}
+
+    .mc-head {
+        display:grid;
+        min-width:0;
+        grid-template-columns:minmax(0,1fr) auto auto auto;
+        gap:.3rem;
+        align-items:center;
+        padding:.52rem .64rem;
+        border:0;
+        border-right:1px solid var(--rx-border);
+        border-radius:0;
+        background:transparent;
+    }
+    .mc-head-main {
+        display:grid;
+        min-width:0;
+        grid-template-columns:72px minmax(0,1fr) auto;
+        gap:.38rem;
+        align-items:center;
+        overflow:hidden;
+    }
+    .mc-head-main .mc-sep {display:none}
+    .mc-date {font-size:.64rem;font-weight:760;color:var(--rx-text-3)}
+    .mc-head-product {font-size:.72rem;font-weight:820}
+    .mc-head-qty {font-size:.65rem;font-weight:780}
+    .mc-state-icon {width:26px;height:26px;border-radius:8px}
+    .mc-billed,.mc-status-pill {font-size:.56rem}
+
+    .mc-body {
+        display:grid;
+        min-width:0;
+        grid-template-columns:minmax(150px,.78fr) minmax(150px,.9fr) minmax(265px,1.35fr);
+        gap:.55rem;
+        align-items:center;
+        padding:.44rem .62rem;
+        border-radius:0;
+        background:transparent;
+    }
+    .mc-info-grid {
+        display:grid;
+        min-width:0;
+        grid-template-columns:minmax(0,1fr);
+        gap:.1rem;
+        font-size:.66rem;
+    }
+    .mc-associate {font-size:.68rem;font-weight:790}
+    .mc-net {font-size:.63rem;color:var(--rx-green)}
+    .mc-body>div[style*="display:grid"] {
+        min-width:0;
+        padding:.18rem 0 !important;
+        font-size:.62rem !important;
+    }
+
+    .mc-footer {
+        display:flex;
+        min-width:0;
+        min-height:36px;
+        align-items:center;
+        gap:.34rem;
+        padding:0;
+        border:0;
+        border-radius:0;
+        background:transparent;
+    }
+    .mc-footer-label {display:none}
+    .mc-dist-indicator {min-width:92px;max-width:160px}
+    .mc-dist-bar-bg {width:auto;min-width:52px;max-width:none;flex:1;height:6px}
+    .mc-dist-text {font-size:.61rem}
+    .mc-actions {
+        display:flex;
+        gap:.22rem;
+        margin-left:auto;
+        flex-wrap:nowrap;
+        justify-content:flex-end;
+    }
+    .mc-actions .btn-approve,
+    .mc-actions .btn-reject,
+    .mc-actions .btn-edit,
+    .mc-actions .btn-distribute,
+    .mc-actions .btn-delete-approved,
+    .mc-actions .delivery-note-trigger {
+        min-height:31px;
+        padding:.28rem .38rem;
+        border:1px solid var(--rx-border);
+        border-radius:8px;
+        background:#fff;
+        font-size:.61rem;
+        font-weight:760;
+    }
+    .mc-actions .btn-approve {color:var(--rx-green);background:var(--rx-green-soft);border-color:rgba(22,138,77,.13)}
+    .mc-actions .btn-reject,
+    .mc-actions .btn-delete-approved {color:var(--rx-red);background:#fff;border-color:rgba(207,63,63,.13)}
+    .mc-actions .btn-edit {color:var(--rx-blue)}
+    .mc-actions .btn-distribute {color:var(--rx-violet);background:var(--rx-violet-soft);border-color:rgba(124,58,237,.14)}
+    .mc-actions svg,.delivery-note-trigger svg {width:13px;height:13px}
+
+    .delivery-pagination {
+        min-height:46px;
+        margin:0;
+        padding:.44rem .64rem;
+        border:0;
+        border-top:1px solid var(--rx-border);
+        background:var(--rx-soft);
+    }
+
+    /* No desktop, modais continuam caixas centralizadas; cards não se aplicam. */
+    .modal-overlay {align-items:center;padding:1rem}
+    .modal-box,.quota-modal-box {
+        width:min(620px,calc(100vw - 2rem));
+        max-width:620px;
+        max-height:82dvh;
+        border:1px solid var(--rx-border);
+        border-radius:14px;
+        box-shadow:0 22px 58px rgba(15,23,42,.18);
+    }
+}
+
+/* Notebook/tablet: linha continua em duas faixas, ainda sem cards. */
+@media (min-width:768px) and (max-width:1040px) {
+    .entry-card .card-body {
+        grid-template-columns:1fr 1fr;
+    }
+    .selector-row:nth-of-type(2) {border-right:0}
+    .selector-row:nth-of-type(3) {
+        grid-column:1/-1;
+        border-top:1px solid var(--rx-border);
+    }
+    #entry-fields .form-grid {grid-template-columns:1fr 1fr}
+    #entry-fields .form-grid>div:nth-child(3) {grid-column:1/-1}
+
+    .history-filter {
+        grid-template-columns:minmax(190px,1fr) 120px minmax(120px,.7fr) minmax(120px,.7fr) 110px auto 110px auto;
+        overflow-x:auto;
+        scrollbar-width:thin;
+    }
+
+    #session-list .mobile-card {
+        grid-template-columns:1fr;
+    }
+    .mc-head {
+        border-right:0;
+        border-bottom:1px solid color-mix(in srgb,var(--rx-border) 78%,transparent);
+        padding:.45rem .62rem;
+    }
+    .mc-body {
+        grid-template-columns:minmax(150px,.8fr) minmax(150px,.9fr) minmax(250px,1.3fr);
+        padding:.4rem .62rem .48rem;
+    }
+}
+
+/* ---------------------------------------------------------------------
+   MOBILE — cards de verdade, confortáveis e tocáveis
+   --------------------------------------------------------------------- */
+@media (max-width:767px) {
+    .reg-page {
+        display:grid;
+        width:100%;
+        gap:.58rem;
+        padding:0 0 .8rem;
+        border:0;
+        background:transparent;
+        box-shadow:none;
+    }
+
+    .reg-page .card {
+        overflow:hidden;
+        border:1px solid var(--rx-border);
+        border-radius:13px;
+        background:#fff;
+        box-shadow:0 3px 12px rgba(15,35,24,.04);
+    }
+
+    .project-bar {
+        min-height:60px;
+        padding:.5rem .56rem;
+        border-bottom:1px solid var(--rx-border);
+        background:
+            radial-gradient(circle at 100% 0,rgba(37,99,235,.07),transparent 12rem),
+            linear-gradient(180deg,var(--rx-blue-soft),#fff);
+    }
+    .project-bar-icon {width:36px;height:36px}
+    .project-bar-title {font-size:.79rem}
+    .project-bar-sub {font-size:.63rem}
+
+    .reg-page .card-header {min-height:43px;padding:.48rem .58rem}
+    .reg-page .card-body {padding:.54rem}
+    .entry-card .card-body {gap:.42rem!important}
+
+    .selector-row {
+        min-height:54px;
+        gap:.46rem;
+        padding:.46rem .52rem;
+        border:1px solid var(--rx-border);
+        border-radius:10px;
+        background:#fff;
+    }
+    .sel-icon {width:31px;height:31px}
+    .sel-label {font-size:.59rem}
+    .sel-value,.sel-date-display {font-size:.76rem}
+    .sel-meta {font-size:.6rem}
+
+    .form-grid {grid-template-columns:minmax(0,1fr) minmax(116px,.72fr);gap:.44rem}
+    .form-grid>div:nth-child(3) {grid-column:1/-1}
+    .field-input,.q-pill {min-height:41px}
+    .field-input {font-size:.78rem}
+    .q-pill {font-size:.74rem}
+    .btn-submit {min-height:45px;font-size:.76rem}
+
+    .history-filter {
+        grid-template-columns:minmax(0,1fr) 106px 38px 38px;
+        gap:.3rem;
+        padding:.42rem .48rem;
+    }
+    .history-filter #filter-history-search {grid-column:1;min-width:0}
+    .history-filter #filter-status {grid-column:2}
+    .history-filter .hf-more {display:inline-flex;width:38px;min-width:38px;min-height:38px;grid-column:3}
+    .history-filter .hf-clear {
+        width:38px;
+        min-width:38px;
+        min-height:38px;
+        grid-column:4;
+        padding:0;
+        border:1px solid var(--rx-border);
+        background:#fff;
+        font-size:0;
+    }
+    .history-filter .hf-clear::before {content:"×";font-size:1rem;line-height:1}
+
+    #session-list {display:grid;padding:.48rem;gap:.48rem}
+    .session-section-header {padding:.32rem .08rem .08rem;border:0;background:transparent}
+    .session-collapsible {border:1px solid var(--rx-border);border-radius:11px;background:var(--rx-soft)}
+    .session-collapsible>summary {min-height:42px;padding:.48rem .58rem}
+    .session-collapsible-list {display:grid;gap:.48rem;padding:0 .48rem .48rem}
+
+    #session-list .mobile-card {
+        display:block;
+        overflow:hidden;
+        border:1px solid var(--rx-border);
+        border-left:3px solid var(--delivery-state);
+        border-radius:11px;
+        background:#fff;
+        box-shadow:none;
+    }
+    .mc-head {
+        min-height:42px;
+        padding:.36rem .46rem;
+        background:linear-gradient(90deg,var(--delivery-state-bg),#fff 72%);
+    }
+    .mc-date {font-size:.62rem}
+    .mc-head-product {font-size:.72rem}
+    .mc-head-qty {font-size:.64rem}
+    .mc-state-icon {width:24px;height:24px}
+    .mc-body {gap:.38rem;padding:.45rem .48rem}
+    .mc-info-grid {grid-template-columns:minmax(0,1fr) auto;font-size:.68rem}
+    .mc-associate {font-size:.7rem}
+    .mc-net {font-size:.67rem}
+    .mc-footer {
+        min-height:42px;
+        gap:.34rem;
+        padding:.3rem .34rem;
+        border:1px solid var(--rx-border);
+        border-radius:9px;
+        background:var(--rx-soft);
+    }
+    .mc-footer-label {display:none}
+    .mc-dist-indicator {min-width:0;flex:1}
+    .mc-dist-bar-bg {max-width:none}
+    .mc-dist-text {font-size:.65rem}
+    .mc-actions {gap:.22rem;flex-wrap:nowrap}
+    .mc-actions .btn-approve,
+    .mc-actions .btn-reject,
+    .mc-actions .btn-edit,
+    .mc-actions .btn-distribute,
+    .mc-actions .btn-delete-approved,
+    .mc-actions .delivery-note-trigger {
+        width:38px;
+        min-width:38px;
+        height:38px;
+        min-height:38px;
+        padding:0;
+        border-radius:9px;
+        font-size:0;
+    }
+    .mc-actions svg,.delivery-note-trigger svg {width:15px;height:15px}
+    .mc-action-label {display:none}
+
+    .delivery-pagination {padding:.42rem .48rem}
+    .delivery-page-btn {width:38px;min-width:38px;min-height:38px;padding:0;font-size:0}
+    .delivery-page-size {min-height:38px}
+
+    .modal-overlay {align-items:flex-end;padding:0}
+    .modal-box,.quota-modal-box {
+        width:100%;
+        max-width:none;
+        max-height:90dvh;
+        border-right:0;
+        border-bottom:0;
+        border-left:0;
+        border-radius:16px 16px 0 0;
+    }
+}
+
+@media (max-width:390px) {
+    .form-grid {grid-template-columns:1fr}
+    .form-grid>div:nth-child(3) {grid-column:auto}
+    .history-filter {grid-template-columns:minmax(0,1fr) 96px 38px 38px}
+    .mc-footer {flex-wrap:wrap}
+    .mc-dist-indicator {flex:1 1 100%}
+    .mc-actions {width:100%;justify-content:flex-end}
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .reg-page *,
+    .reg-page *::before,
+    .reg-page *::after {
+        animation-duration:.01ms!important;
+        animation-iteration-count:1!important;
+        transition-duration:.01ms!important;
+        scroll-behavior:auto!important;
+    }
+}
+</style>
+
+
 <div class="reg-page">
 
    

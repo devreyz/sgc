@@ -2122,6 +2122,212 @@
     }
 </style>
 
+<style id="pd-standardized-ux">
+/* ================================================================
+   Project deliveries — padrão operacional SGC
+   Mantém a camada funcional existente e reduz informação passiva.
+   ================================================================ */
+.pd-page,
+.pd-modal-scope,
+.pd-integrity-overlay,
+.dist-summary-overlay {
+    --pdx-green:#168a4d;--pdx-green-soft:#eaf8ef;
+    --pdx-blue:#2563eb;--pdx-blue-soft:#eef4ff;
+    --pdx-violet:#7c3aed;--pdx-violet-soft:#f4f0ff;
+    --pdx-amber:#c87408;--pdx-amber-soft:#fff7e8;
+    --pdx-red:#cf3f3f;--pdx-red-soft:#fff0f0;
+    --pdx-slate:#64748b;--pdx-slate-soft:#f1f5f9;
+}
+
+.pd-page { gap:.62rem; }
+
+/* Cabeçalho mais operacional, sem virar uma faixa de botões coloridos. */
+.pd-context {
+    min-height:64px;
+    padding:.56rem .62rem;
+    background:
+        radial-gradient(circle at 100% 0,rgba(124,58,237,.07),transparent 16rem),
+        linear-gradient(180deg,var(--pd-soft),#fff);
+}
+.pd-context-icon { background:var(--pdx-violet-soft);color:var(--pdx-violet); }
+.pd-context-kicker { color:var(--pdx-violet);font-size:.63rem; }
+.pd-title { font-size:clamp(.98rem,1.8vw,1.12rem); }
+.pd-header-actions .btn { background:#fff;border-color:var(--pd-border);color:var(--pd-text-2); }
+.pd-header-actions .pd-action-delivery { background:var(--pdx-green-soft);border-color:rgba(22,138,77,.15);color:var(--pdx-green); }
+.pd-header-actions .pd-action-limits { color:var(--pdx-violet); }
+.pd-header-actions .pd-action-producers { color:var(--pdx-blue); }
+
+/* Uma única barra de ferramentas: relatório, comprovantes e pendências reais. */
+.pd-tools-bar {
+    display:flex;
+    min-width:0;
+    align-items:center;
+    justify-content:space-between;
+    gap:.55rem;
+    padding:.48rem .56rem;
+    border:1px solid var(--pd-border);
+    border-radius:12px;
+    background:linear-gradient(135deg,#fff,var(--pdx-violet-soft));
+    box-shadow:var(--pd-shadow-sm);
+}
+.pd-tools-copy { display:flex;min-width:0;align-items:center;gap:.42rem; }
+.pd-tools-icon {
+    display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;flex:0 0 auto;
+    border-radius:9px;background:#fff;color:var(--pdx-violet);border:1px solid rgba(124,58,237,.10);line-height:0;
+}
+.pd-tools-icon svg,.pd-tools-icon i { display:block;width:14px;height:14px;margin:0; }
+.pd-tools-title { font-size:.72rem;font-weight:820;color:var(--pd-text);line-height:1.2; }
+.pd-tools-sub { margin-top:.03rem;font-size:.61rem;color:var(--pd-text-3);line-height:1.3; }
+.pd-tools-actions { display:flex;gap:.28rem;align-items:center;justify-content:flex-end;flex-wrap:wrap; }
+.pd-tool-action {
+    display:inline-flex;min-height:34px;align-items:center;justify-content:center;gap:.26rem;
+    padding:.34rem .44rem;border:1px solid var(--pd-border);border-radius:8px;background:#fff;color:var(--pd-text-2);
+    font:inherit;font-size:.64rem;font-weight:780;text-decoration:none;cursor:pointer;white-space:nowrap;
+}
+.pd-tool-action:hover,.pd-tool-action:focus-visible { outline:none;background:var(--pd-soft);border-color:var(--pd-border-strong); }
+.pd-tool-action svg,.pd-tool-action i { display:block;width:13px;height:13px;margin:0; }
+.pd-tool-integrity { border-color:rgba(200,116,8,.18);background:var(--pdx-amber-soft);color:#92400e; }
+.pd-tool-count {
+    display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;padding:0 .24rem;
+    border-radius:999px;background:#fff;color:currentColor;font-size:.58rem;font-weight:860;
+}
+.pd-integrity-overlay .pd-integrity-body { grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
+.pd-integrity-overlay .pd-integrity-column[hidden] { display:none!important; }
+
+/* A antiga seção de métricas foi substituída por filtros que fazem algo. */
+.pd-deliveries-card .pd-card-header { min-height:54px;padding:.54rem .62rem; }
+.pd-card-head-actions { display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:.35rem; }
+.pd-status-shortcuts { display:flex;min-width:0;gap:.22rem;align-items:center;overflow-x:auto;scrollbar-width:none; }
+.pd-status-shortcuts::-webkit-scrollbar { display:none; }
+.pd-status-shortcut {
+    display:inline-flex;min-height:31px;align-items:center;justify-content:center;gap:.2rem;padding:.28rem .38rem;
+    border:1px solid var(--pd-border);border-radius:8px;background:#fff;color:var(--pd-text-2);
+    font:inherit;font-size:.61rem;font-weight:760;cursor:pointer;white-space:nowrap;
+}
+.pd-status-shortcut svg,.pd-status-shortcut i { display:block;width:12px;height:12px;margin:0; }
+.pd-status-shortcut strong { font-size:.6rem;font-weight:860;color:currentColor; }
+.pd-status-shortcut.active { border-color:rgba(37,99,235,.16);background:var(--pdx-blue-soft);color:var(--pdx-blue); }
+.pd-status-shortcut.pending:not(.active) { color:var(--pdx-amber); }
+.pd-status-shortcut.approved:not(.active) { color:var(--pdx-green); }
+.pd-status-shortcut.rejected:not(.active) { color:var(--pdx-red); }
+.pd-status-shortcut[hidden] { display:none!important; }
+.pd-clear-filters { flex:0 0 auto;min-width:34px; }
+
+/* Filtros menores, mantendo os avançados recolhíveis. */
+.pd-filters-primary { grid-template-columns:minmax(220px,1fr) minmax(140px,185px) auto;padding:.5rem .6rem; }
+.pd-filters-advanced { padding:.46rem .6rem; }
+.filter-input,.filter-select,.delivery-page-size { min-height:37px; }
+
+/* TABELA: qualidade/status saem; ações entram em distribuição. */
+.table-scroll { overflow-x:hidden; }
+.data-table { width:100%;min-width:0;table-layout:fixed;font-size:.7rem; }
+.data-table th,.data-table td { padding:.52rem .48rem; }
+.data-table th:nth-child(1) { width:82px; }
+.data-table th:nth-child(2) { width:19%; }
+.data-table th:nth-child(3) { width:17%; }
+.data-table th:nth-child(4) { width:104px; }
+.data-table th:nth-child(5) { width:112px; }
+.data-table th:nth-child(8) { width:165px; }
+.data-table th:nth-child(9) { width:242px; }
+.pd-col-suppressed,.pd-action-cell,.chk-cell { display:none!important; }
+#desktop-tbody tr[data-filter-status="pending"] .pd-date-cell { box-shadow:inset 3px 0 0 rgba(200,116,8,.52); }
+#desktop-tbody tr[data-filter-status="approved"] .pd-date-cell { box-shadow:inset 3px 0 0 rgba(22,138,77,.42); }
+#desktop-tbody tr[data-filter-status="rejected"] .pd-date-cell { box-shadow:inset 3px 0 0 rgba(207,63,63,.46); }
+#desktop-tbody td { overflow:hidden; }
+#desktop-tbody td:nth-child(3),#desktop-tbody td:nth-child(4) { text-overflow:ellipsis;white-space:nowrap; }
+.pd-limit-cell { min-width:0!important;overflow:visible!important; }
+.pd-limit-cell > div,.pd-limit-cell .pdr-limit { width:100%!important;min-width:0!important;max-width:none!important; }
+.pd-limit-cell .pdr-limit-head { gap:.2rem!important; }
+.pd-limit-cell .pdr-limit-used,.pd-limit-cell .pdr-limit-free { font-size:.61rem!important; }
+.pd-limit-cell .pdr-limit-track { width:100%!important;height:6px!important; }
+.pd-control-cell { overflow:visible!important; }
+.pd-table-control-row {
+    display:flex;min-width:0;align-items:center;justify-content:flex-start;gap:.3rem;flex-wrap:nowrap;
+}
+.pd-table-control-row .dist-indicator,.pd-table-control-row .pdr-dist { min-width:92px!important;max-width:122px!important;flex:1 1 100px; }
+.pd-table-control-row .action-btns { display:flex;gap:.18rem;align-items:center;flex:0 0 auto;flex-wrap:nowrap; }
+.pd-table-control-row .action-btns button,
+.pd-table-control-row > .delivery-note-trigger {
+    width:31px!important;min-width:31px!important;height:31px!important;min-height:31px!important;padding:0!important;
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:8px!important;font-size:0!important;line-height:0!important;
+}
+.pd-table-control-row .action-btns button svg,
+.pd-table-control-row .action-btns button i,
+.pd-table-control-row > .delivery-note-trigger svg,
+.pd-table-control-row > .delivery-note-trigger i { width:13px!important;height:13px!important;margin:0!important; }
+.pd-table-control-row .pd-action-label { display:none!important; }
+
+/* Cards: preserva a leitura confortável e põe progresso + ações juntos. */
+.mobile-cards { background:var(--pd-soft); }
+.mobile-card {
+    padding:0!important;overflow:hidden;border-radius:12px!important;border:1px solid var(--pd-border)!important;
+    border-left:3px solid var(--delivery-state)!important;background:#fff!important;
+}
+.mobile-card .mc-head { min-height:45px;padding:.5rem .58rem!important;background:linear-gradient(90deg,var(--delivery-state-bg),#fff 72%)!important;border-bottom:1px solid var(--pd-border); }
+.mobile-card .mc-head-product { font-size:.79rem!important; }
+.mobile-card .mc-date,.mobile-card .mc-head-qty { font-size:.67rem!important; }
+.mobile-card .mc-body { gap:.48rem!important;padding:.56rem .58rem .6rem!important;background:#fff!important; }
+.mobile-card .mc-assoc { font-size:.74rem!important;font-weight:790!important; }
+.mobile-card .mc-net { font-size:.7rem!important; }
+.pd-card-control-row {
+    display:flex;min-width:0;align-items:center;gap:.4rem;flex-wrap:wrap;margin-top:.08rem;padding:.42rem .46rem;
+    border:1px solid var(--pd-border);border-radius:9px;background:var(--pd-soft);
+}
+.pd-card-control-row .mc-dist-indicator { flex:1 1 118px;min-width:105px; }
+.pd-card-control-row .mc-dist-bar-bg { width:auto!important;max-width:none!important;min-width:52px;flex:1 1 auto; }
+.pd-card-control-row .mc-actions { display:flex;gap:.18rem;align-items:center;justify-content:flex-end;flex:0 0 auto;flex-wrap:nowrap;margin:0!important;padding:0!important;border:0!important; }
+.pd-card-control-row .mc-actions button,
+.pd-card-control-row .delivery-note-trigger {
+    width:38px!important;min-width:38px!important;height:38px!important;min-height:38px!important;padding:0!important;
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;border-radius:9px!important;font-size:0!important;line-height:0!important;
+}
+.pd-card-control-row .mc-actions button svg,
+.pd-card-control-row .mc-actions button i,
+.pd-card-control-row .delivery-note-trigger svg,
+.pd-card-control-row .delivery-note-trigger i { width:15px!important;height:15px!important;margin:0!important; }
+
+/* Em notebook/tablet, cards são mais úteis que uma tabela comprimida. */
+@media(max-width:1099px){
+    .desktop-only { display:none!important; }
+    .mobile-cards { display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:.52rem;padding:.56rem; }
+}
+@media(min-width:1100px){
+    .desktop-only { display:block!important; }
+    .mobile-cards { display:none!important; }
+}
+
+@media(max-width:767px){
+    .pd-page { gap:.55rem; }
+    .pd-context { min-height:58px;padding:.5rem; }
+    .pd-tools-bar { padding:.42rem .48rem; }
+    .pd-tools-sub { display:none; }
+    .pd-tool-action { width:36px;min-width:36px;height:36px;min-height:36px;padding:0;font-size:0; }
+    .pd-tool-integrity { width:auto;min-width:42px;padding:0 .35rem;font-size:.62rem; }
+    .pd-tool-integrity .pd-tool-label { display:none; }
+    .pd-tool-count { font-size:.58rem; }
+    .pd-deliveries-card .pd-card-header { grid-template-columns:1fr;gap:.36rem; }
+    .pd-card-head-actions { width:100%;justify-content:flex-start; }
+    .pd-status-shortcuts { flex:1 1 auto; }
+    .pd-clear-filters { width:34px;min-width:34px;padding:0;font-size:0; }
+    .pd-filters-primary { grid-template-columns:minmax(0,1fr) 112px 36px;gap:.3rem;padding:.44rem .5rem; }
+    .pd-filter-search { grid-column:auto; }
+    .pd-filter-more { width:36px;min-width:36px;padding:0;font-size:0; }
+    .pd-filter-more > span:not(.pd-filter-more-count) { display:none; }
+    .pd-filter-more-chevron { display:none; }
+    .pd-filters-advanced { grid-template-columns:1fr 1fr;padding:.44rem .5rem; }
+    .mobile-cards { grid-template-columns:1fr;gap:.45rem;padding:.48rem; }
+    .mobile-card .mc-head { min-height:47px;padding:.52rem!important; }
+    .mobile-card .mc-body { padding:.54rem!important; }
+    .pd-card-control-row { padding:.4rem; }
+}
+@media(max-width:390px){
+    .pd-card-control-row { align-items:stretch; }
+    .pd-card-control-row .mc-dist-indicator { flex-basis:100%; }
+    .pd-card-control-row .mc-actions { width:100%;justify-content:flex-end; }
+    .pd-status-shortcut { min-height:34px; }
+}
+</style>
+
 <div class="pd-modal-scope">
     <!-- Custom Confirm Modal -->
     <div
@@ -2180,6 +2386,7 @@
     $integrityCritical = $integrity['counts']['critical'] ?? 0;
     $integrityWarning = $integrity['counts']['warning'] ?? 0;
     $integrityInfo = $integrity['counts']['info'] ?? 0;
+    $integrityTotal = $integrityCritical + $integrityWarning + $integrityInfo;
 @endphp
 
 <main class="pd-page">
@@ -2251,247 +2458,71 @@
         </div>
     </section>
 
-    {{-- RESUMO --}}
-    <section
-        class="pd-summary"
-        aria-label="Resumo das entregas do projeto"
-    >
-        <article class="pd-stat">
-            <span class="pd-stat-icon" aria-hidden="true">
-                <i data-lucide="package"></i>
-            </span>
-
-            <div class="pd-stat-copy">
-                <div class="pd-stat-lbl">
-                    Registros
-                </div>
-
-                <div class="pd-stat-val">
-                    {{ $totalAll }}
-                </div>
-            </div>
-        </article>
-
-        <article class="pd-stat">
-            <span class="pd-stat-icon" aria-hidden="true">
-                <i data-lucide="circle-check-big"></i>
-            </span>
-
-            <div class="pd-stat-copy">
-                <div class="pd-stat-lbl">
-                    Aprovadas
-                </div>
-
-                <div class="pd-stat-val">
-                    {{ $totalApproved }}
-                </div>
-            </div>
-        </article>
-
-        <article class="pd-stat">
-            <span class="pd-stat-icon" aria-hidden="true">
-                <i data-lucide="clock-3"></i>
-            </span>
-
-            <div class="pd-stat-copy">
-                <div class="pd-stat-lbl">
-                    Pendentes
-                </div>
-
-                <div class="pd-stat-val">
-                    {{ $totalPending }}
-                </div>
-            </div>
-        </article>
-
-        <article class="pd-stat">
-            <span class="pd-stat-icon" aria-hidden="true">
-                <i data-lucide="circle-x"></i>
-            </span>
-
-            <div class="pd-stat-copy">
-                <div class="pd-stat-lbl">
-                    Rejeitadas
-                </div>
-
-                <div class="pd-stat-val">
-                    {{ $totalRejected }}
-                </div>
-            </div>
-        </article>
-
-        <article class="pd-stat">
-            <span class="pd-stat-icon" aria-hidden="true">
-                <i data-lucide="badge-dollar-sign"></i>
-            </span>
-
-            <div class="pd-stat-copy">
-                <div class="pd-stat-lbl">
-                    Líquido
-                </div>
-
-                <div class="pd-stat-val">
-                    R$ {{ number_format($totalNet, 2, ',', '.') }}
-                </div>
-            </div>
-        </article>
-    </section>
-
-    {{-- PENDÊNCIAS E INCONSISTÊNCIAS --}}
-    @if(!empty($integrity))
-        <section class="pd-integrity-panel">
-            <header class="pd-panel-head">
-                <div class="pd-panel-title-wrap">
-                    <span class="pd-panel-icon warning" aria-hidden="true">
-                        <i data-lucide="shield-alert"></i>
-                    </span>
-
-                    <div class="pd-panel-copy">
-                        <div class="pd-panel-title">
-                            Pendências
-                        </div>
-
-                        <div class="pd-panel-sub">
-                            Itens que precisam de atenção.
-                        </div>
+    {{-- FERRAMENTAS OPERACIONAIS: só aparece quando há algo útil para fazer --}}
+    @if($totalApproved > 0 || $integrityTotal > 0)
+        <section class="pd-tools-bar" aria-label="Ferramentas do projeto">
+            <div class="pd-tools-copy">
+                <span class="pd-tools-icon" aria-hidden="true">
+                    <i data-lucide="wrench"></i>
+                </span>
+                <div>
+                    <div class="pd-tools-title">Ferramentas</div>
+                    <div class="pd-tools-sub">
+                        {{ $totalAll }} entrega(s)
+                        @if($totalNet > 0)
+                            · R$ {{ number_format($totalNet, 2, ',', '.') }} líquido
+                        @endif
                     </div>
                 </div>
+            </div>
 
-                <div class="pd-integrity-summary">
-                    <span
-                        class="pd-integrity-count critical"
-                        id="pd-integrity-count-critical"
-                    >
-                        <i data-lucide="circle-alert"></i>
-                        Crítico {{ $integrityCritical }}
-                    </span>
-
-                    <span
-                        class="pd-integrity-count warning"
-                        id="pd-integrity-count-warning"
-                    >
-                        <i data-lucide="triangle-alert"></i>
-                        Atenção {{ $integrityWarning }}
-                    </span>
-
-                    <span
-                        class="pd-integrity-count info"
-                        id="pd-integrity-count-info"
-                    >
-                        <i data-lucide="info"></i>
-                        Info {{ $integrityInfo }}
-                    </span>
-
+            <div class="pd-tools-actions">
+                @if($integrityTotal > 0)
                     <button
                         type="button"
-                        class="pd-integrity-toggle"
-                        onclick="toggleIntegrityPanel()"
-                        title="Expandir ou recolher pendências"
-                        aria-label="Expandir ou recolher pendências"
-                        aria-controls="pd-integrity-content"
-                        aria-expanded="false"
+                        class="pd-tool-action pd-tool-integrity"
+                        id="pd-integrity-launch"
+                        onclick="openIntegrityModal()"
+                        title="Ver pendências e inconsistências"
+                        aria-label="Ver {{ $integrityTotal }} pendência(s) e inconsistência(s)"
                     >
-                        <i data-lucide="chevron-down"></i>
+                        <i data-lucide="shield-alert"></i>
+                        <span class="pd-tool-label">Pendências</span>
+                        <strong class="pd-tool-count" id="pd-integrity-total">{{ $integrityTotal }}</strong>
                     </button>
-                </div>
-            </header>
+                @endif
 
-            <div
-                id="pd-integrity-content"
-                class="pd-integrity-content"
-                hidden
-            >
-                <div class="pd-integrity-grid">
-                    @foreach([
-                        'critical' => [
-                            'label' => 'Crítico',
-                            'icon' => 'circle-alert',
-                        ],
-                        'warning' => [
-                            'label' => 'Atenção',
-                            'icon' => 'triangle-alert',
-                        ],
-                        'info' => [
-                            'label' => 'Informativo',
-                            'icon' => 'info',
-                        ],
-                    ] as $severity => $severityMeta)
-                        <section class="pd-integrity-column {{ $severity }}">
-                            <header class="pd-integrity-column-head">
-                                <i data-lucide="{{ $severityMeta['icon'] }}"></i>
-                                {{ $severityMeta['label'] }}
-                            </header>
+                @if($totalApproved > 0)
+                    <button
+                        type="button"
+                        class="pd-tool-action"
+                        onclick="DeliveryReports.open()"
+                        title="Gerar relatório"
+                        aria-label="Gerar relatório"
+                    >
+                        <i data-lucide="file-chart-column"></i>
+                        <span class="pd-tool-label">Relatório</span>
+                    </button>
 
-                            <div class="pd-integrity-items">
-                                @forelse(($integrity[$severity] ?? []) as $issue)
-                                    <article
-                                        class="pd-integrity-item"
-                                        data-issue-delivery="{{ $issue['deliveryId'] ?? '' }}"
-                                        data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}"
-                                    >
-                                        <div class="pd-integrity-item-title">
-                                            {{ $issue['title'] }}
-                                        </div>
-
-                                        <div class="pd-integrity-item-message">
-                                            {{ $issue['message'] }}
-                                        </div>
-
-                                        <div class="pd-integrity-item-action">
-                                            {{ $issue['action'] }}
-                                        </div>
-
-                                        <div class="pd-integrity-actions">
-                                            @if(!empty($issue['actionKey']))
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-primary btn-sm"
-                                                    onclick="handleIntegrityAction(
-                                                        '{{ $issue['actionKey'] }}',
-                                                        {{ (int) ($issue['deliveryId'] ?? 0) }},
-                                                        {{ (int) ($issue['distributionId'] ?? 0) }},
-                                                        {{ (int) ($issue['associateId'] ?? 0) }},
-                                                        @js($issue['associateName'] ?? '')
-                                                    )"
-                                                >
-                                                    {{
-                                                        match($issue['actionKey']) {
-                                                            'open_distribution' => 'Distribuir',
-                                                            'edit_distribution' => 'Corrigir distribuição',
-                                                            'open_producers' => 'Abrir produtor',
-                                                            'detach_missing_associate_receipt' => 'Desvincular',
-                                                            'delete_orphan_distribution' => 'Excluir órfã',
-                                                            default => 'Ver detalhes',
-                                                        }
-                                                    }}
-                                                </button>
-                                            @endif
-
-                                            @if(!empty($issue['deliveryId']))
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-ghost btn-sm"
-                                                    onclick="focusIntegrityDelivery(
-                                                        {{ (int) $issue['deliveryId'] }}
-                                                    )"
-                                                >
-                                                    Ver entrega
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </article>
-                                @empty
-                                    <div class="pd-integrity-empty">
-                                        Nenhum item nesta categoria.
-                                    </div>
-                                @endforelse
-                            </div>
-                        </section>
-                    @endforeach
-                </div>
+                    <a
+                        href="{{ route('delivery.projects.producers', [
+                            'tenant' => $currentTenant->slug,
+                            'project' => $project->id,
+                        ]) }}"
+                        class="pd-tool-action"
+                        title="Abrir comprovantes"
+                        aria-label="Abrir comprovantes"
+                    >
+                        <i data-lucide="clipboard-list"></i>
+                        <span class="pd-tool-label">Comprovantes</span>
+                    </a>
+                @endif
             </div>
         </section>
+    @endif
 
+    {{-- Pendências ficam em modal e só existem quando há algo a tratar --}}
+    @if($integrityTotal > 0)
         <div
             class="pd-integrity-overlay"
             id="pd-integrity-modal"
@@ -2618,40 +2649,6 @@
         </div>
     @endif
 
-    {{-- RELATÓRIOS --}}
-    @if($totalApproved > 0)
-        <section class="reports-bar">
-            <div class="reports-bar-title">
-                <i data-lucide="file-chart-column"></i>
-                <span>
-                    Relatórios
-                </span>
-            </div>
-
-            <div class="reports-row">
-                <button
-                    type="button"
-                    class="report-btn report-generate"
-                    onclick="DeliveryReports.open()"
-                >
-                    <i data-lucide="sliders-horizontal"></i>
-                    Gerar relatório
-                </button>
-
-                <a
-                    href="{{ route('delivery.projects.producers', [
-                        'tenant' => $currentTenant->slug,
-                        'project' => $project->id,
-                    ]) }}"
-                    class="report-btn report-receipts"
-                >
-                    <i data-lucide="clipboard-list"></i>
-                    Comprovantes
-                </a>
-            </div>
-        </section>
-    @endif
-
     @include('delivery.partials.report-export-modal', [
         'reportProjects' => collect([
             $project->id => $project->title,
@@ -2678,23 +2675,44 @@
             </div>
 
             <div class="pd-card-head-actions">
-                @if($totalPending > 0)
-                    <span class="pd-pending-chip">
+                <div class="pd-status-shortcuts" role="group" aria-label="Filtrar entregas por situação">
+                    <button type="button" class="pd-status-shortcut active" data-pd-status="" onclick="setQuickStatusFilter('')">
+                        <span>Todos</span>
+                        <strong id="pd-count-all">{{ $totalAll }}</strong>
+                    </button>
+
+                    <button type="button" class="pd-status-shortcut pending" id="pd-shortcut-pending" data-pd-status="pending" onclick="setQuickStatusFilter('pending')" @if($totalPending === 0) hidden @endif>
                         <i data-lucide="clock-3"></i>
-                        {{ $totalPending }} pendente(s)
-                    </span>
-                @endif
+                        <span>Pendentes</span>
+                        <strong id="pd-count-pending">{{ $totalPending }}</strong>
+                    </button>
+
+                    <button type="button" class="pd-status-shortcut approved" id="pd-shortcut-approved" data-pd-status="approved" onclick="setQuickStatusFilter('approved')" @if($totalApproved === 0) hidden @endif>
+                        <i data-lucide="circle-check-big"></i>
+                        <span>Aprovadas</span>
+                        <strong id="pd-count-approved">{{ $totalApproved }}</strong>
+                    </button>
+
+                    <button type="button" class="pd-status-shortcut rejected" id="pd-shortcut-rejected" data-pd-status="rejected" onclick="setQuickStatusFilter('rejected')" @if($totalRejected === 0) hidden @endif>
+                        <i data-lucide="circle-x"></i>
+                        <span>Rejeitadas</span>
+                        <strong id="pd-count-rejected">{{ $totalRejected }}</strong>
+                    </button>
+                </div>
 
                 <button
-                    class="btn btn-ghost btn-sm"
+                    class="btn btn-ghost btn-sm pd-clear-filters"
                     id="clear-filters-btn"
                     type="button"
                     style="display:none;"
                     onclick="clearAllFilters()"
+                    title="Limpar filtros"
+                    aria-label="Limpar filtros"
                 >
                     <i data-lucide="x"></i>
-                    Limpar filtros
+                    <span>Limpar</span>
                 </button>
+            </div>
             </div>
         </header>
 
@@ -2924,11 +2942,11 @@
                             <th>Produto</th>
                             <th>Quantidade</th>
                             <th>Valor líquido</th>
-                            <th>Qualidade</th>
-                            <th>Status</th>
-                            <th>Limite do associado</th>
-                            <th>Distribuição</th>
-                            <th>Ações</th>
+                            <th class="pd-col-suppressed">Qualidade</th>
+                            <th class="pd-col-suppressed">Status</th>
+                            <th>Limite</th>
+                            <th>Distribuição e ações</th>
+                            <th class="pd-col-suppressed">Ações</th>
                         </tr>
                     </thead>
 
@@ -3112,12 +3130,30 @@ function openIntegrityDistribution(deliveryId, distributionId = 0, edit = false)
 
 function applyResolvedIntegrity(integrity, actionKey, distributionId) {
     document.querySelectorAll(`[data-integrity-item="${actionKey}-${distributionId}"]`).forEach(el => el.remove());
-    ['critical', 'warning', 'info'].forEach(severity => {
-        const el = document.getElementById(`pd-integrity-count-${severity}`);
-        if (!el) return;
-        const label = severity === 'critical' ? 'Critico' : severity === 'warning' ? 'Atencao' : 'Info';
-        el.textContent = `${label}: ${integrity?.counts?.[severity] ?? 0}`;
+
+    const counts = integrity?.counts || {};
+    const critical = Number(counts.critical || 0);
+    const warning = Number(counts.warning || 0);
+    const info = Number(counts.info || 0);
+    const total = critical + warning + info;
+
+    const totalEl = document.getElementById('pd-integrity-total');
+    if (totalEl) totalEl.textContent = String(total);
+
+    const launch = document.getElementById('pd-integrity-launch');
+    if (launch) {
+        launch.hidden = total <= 0;
+        launch.setAttribute('aria-label', `Ver ${total} pendência(s) e inconsistência(s)`);
+    }
+
+    const sub = document.querySelector('#pd-integrity-modal .pd-integrity-sub');
+    if (sub) sub.textContent = `Crítico ${critical} · Atenção ${warning} · Info ${info}`;
+
+    document.querySelectorAll('#pd-integrity-modal .pd-integrity-column').forEach(column => {
+        column.hidden = column.querySelectorAll('.pd-integrity-item').length === 0;
     });
+
+    if (total <= 0) closeIntegrityModal();
 }
 
 async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0, associateId = 0, associateName = '') {
@@ -3317,6 +3353,7 @@ function applyFilters() {
 
     document.getElementById('filtered-count').textContent = matched.length;
     updateProjectPagination(matched.length, matched.length ? start + 1 : 0, Math.min(start + perPage, matched.length), projectListState.page, totalPages);
+    refreshOperationalUi();
 }
 
 function rowMatchesFilter(row, search, status, assoc, prod, dateFrom, dateTo) {
@@ -3660,6 +3697,111 @@ function buildRejectedActionsMobile(id) {
 
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+function setQuickStatusFilter(status) {
+    const select = document.getElementById('filter-status');
+    if (!select) return;
+    select.value = status || '';
+    projectListState.page = 1;
+    applyFilters();
+}
+
+function refreshOperationalUi() {
+    const rows = Array.from(document.querySelectorAll('#desktop-tbody tr[data-delivery-id]'));
+    const counts = { all: rows.length, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+
+    rows.forEach(row => {
+        const status = row.dataset.filterStatus || '';
+        if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
+    });
+
+    const write = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(value);
+    };
+    write('pd-count-all', counts.all);
+    write('pd-count-pending', counts.pending);
+    write('pd-count-approved', counts.approved);
+    write('pd-count-rejected', counts.rejected);
+
+    const pending = document.getElementById('pd-shortcut-pending');
+    const approved = document.getElementById('pd-shortcut-approved');
+    const rejected = document.getElementById('pd-shortcut-rejected');
+    if (pending) pending.hidden = counts.pending === 0;
+    if (approved) approved.hidden = counts.approved === 0;
+    if (rejected) rejected.hidden = counts.rejected === 0;
+
+    const activeStatus = document.getElementById('filter-status')?.value || '';
+    document.querySelectorAll('[data-pd-status]').forEach(button => {
+        button.classList.toggle('active', (button.dataset.pdStatus || '') === activeStatus);
+    });
+}
+
+function arrangeDeliveryControls(root = document) {
+    root.querySelectorAll('#desktop-tbody tr[data-delivery-id]').forEach(row => {
+        const cells = Array.from(row.children).filter(cell => cell.tagName === 'TD');
+        if (!cells.length) return;
+
+        const offset = cells[0]?.classList.contains('chk-cell') ? 1 : 0;
+        const qualityCell = cells[5 + offset];
+        const statusCell = cells[6 + offset];
+        const limitCell = cells[7 + offset];
+        const distributionCell = cells[8 + offset];
+        const actionCell = cells[9 + offset];
+
+        cells[offset]?.classList.add('pd-date-cell');
+        qualityCell?.classList.add('pd-col-suppressed');
+        statusCell?.classList.add('pd-col-suppressed');
+        limitCell?.classList.add('pd-limit-cell');
+        distributionCell?.classList.add('pd-control-cell');
+        actionCell?.classList.add('pd-action-cell');
+
+        if (cells[1 + offset]) cells[1 + offset].title ||= row.dataset.filterAssociate || '';
+        if (cells[2 + offset]) cells[2 + offset].title ||= row.dataset.filterProduct || '';
+
+        if (!distributionCell || !actionCell) return;
+
+        let control = distributionCell.querySelector(':scope > .pd-table-control-row');
+        if (!control) {
+            control = document.createElement('div');
+            control.className = 'pd-table-control-row';
+            distributionCell.prepend(control);
+        }
+
+        const indicator = distributionCell.querySelector('.dist-indicator, .pdr-dist');
+        const note = actionCell.querySelector('.delivery-note-trigger');
+        const actions = actionCell.querySelector('.action-btns');
+
+        if (indicator && indicator.parentElement !== control) control.appendChild(indicator);
+        if (note && note.parentElement !== control) control.appendChild(note);
+        if (actions && actions.parentElement !== control) control.appendChild(actions);
+    });
+
+    root.querySelectorAll('#mobile-cards .mobile-card').forEach(card => {
+        const indicator = card.querySelector('.mc-dist-indicator');
+        const actions = card.querySelector('.mc-actions');
+        if (!indicator || !actions) return;
+
+        let control = card.querySelector('.pd-card-control-row');
+        if (!control) {
+            const commonParent = indicator.parentElement === actions.parentElement ? indicator.parentElement : null;
+            if (commonParent && commonParent !== card) {
+                control = commonParent;
+                control.classList.add('pd-card-control-row');
+            } else {
+                control = document.createElement('div');
+                control.className = 'pd-card-control-row';
+                const body = card.querySelector('.mc-body') || card;
+                body.appendChild(control);
+                control.appendChild(indicator);
+                control.appendChild(actions);
+            }
+        } else {
+            if (indicator.parentElement !== control) control.appendChild(indicator);
+            if (actions.parentElement !== control) control.appendChild(actions);
+        }
+    });
+}
+
 function deliveryActionMeta(button) {
     if (button.classList.contains('btn-distribute')) return { icon: 'git-branch', label: 'Distribuir' };
     if (button.classList.contains('btn-edit')) return { icon: 'pencil', label: 'Editar' };
@@ -3670,6 +3812,7 @@ function deliveryActionMeta(button) {
 }
 
 function enhanceDeliveryActions(root = document) {
+    // Seleção de entregas não faz mais parte desta tela.
     root.querySelectorAll('.delivery-chk').forEach(input => input.remove());
 
     root.querySelectorAll('#desktop-tbody .action-btns button').forEach(button => {
@@ -3689,6 +3832,9 @@ function enhanceDeliveryActions(root = document) {
         button.setAttribute('aria-label', meta.label);
         button.innerHTML = `<i data-lucide="${meta.icon}"></i>`;
     });
+
+    arrangeDeliveryControls(root);
+    refreshOperationalUi();
 
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
