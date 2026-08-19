@@ -32,8 +32,7 @@ class ProjectFinancialCalculator
     /**
      * Calcula o breakdown financeiro completo para um valor bruto.
      *
-     * @param  SalesProject  $project
-     * @param  string        $gross   Valor bruto com precisão BCMath (string)
+     * @param  string  $gross  Valor bruto com precisão BCMath (string)
      * @return array{
      *   gross: string,
      *   fees: list<array{id: int|null, name: string, type: string, nature: string, rate: string, amount: string, label: string}>,
@@ -47,7 +46,7 @@ class ProjectFinancialCalculator
     public function calculate(SalesProject $project, string $gross): array
     {
         $projectFees = $this->loadFees($project);
-        $adminPct    = (string) ($project->admin_fee_percentage ?? '0');
+        $adminPct = (string) ($project->admin_fee_percentage ?? '0');
         $hasAdminFee = bccomp($adminPct, '0', 4) > 0;
 
         // Sem taxas de nenhum tipo → retorna zero
@@ -98,10 +97,10 @@ class ProjectFinancialCalculator
         $result = $this->calculate($project, $gross);
 
         return [
-            'fees'             => $result['fees'],
-            'total_discounts'  => $result['total_discounts'],
-            'total_accruals'   => $result['total_accruals'],
-            'total_fee'        => $result['total_fee'],
+            'fees' => $result['fees'],
+            'total_discounts' => $result['total_discounts'],
+            'total_accruals' => $result['total_accruals'],
+            'total_fee' => $result['total_fee'],
         ];
     }
 
@@ -131,6 +130,16 @@ class ProjectFinancialCalculator
 
     private function loadFees(SalesProject $project)
     {
+        if ($project->relationLoaded('fees')) {
+            return $project->fees
+                ->where('active', true)
+                ->sortBy([
+                    ['sort_order', 'asc'],
+                    ['id', 'asc'],
+                ])
+                ->values();
+        }
+
         return ProjectFee::where('sales_project_id', $project->id)
             ->where('active', true)
             ->orderBy('sort_order')
@@ -150,14 +159,14 @@ class ProjectFinancialCalculator
         $amount = bcmul($gross, bcdiv($pct, '100', self::SCALE), self::SCALE);
 
         $fees = [[
-            'id'     => null,
-            'name'   => 'Taxa Administrativa',
+            'id' => null,
+            'name' => 'Taxa Administrativa',
             'column_name' => 'Taxa Adm.',
-            'type'   => 'percentage',
+            'type' => 'percentage',
             'nature' => 'discount',
-            'rate'   => $pct,
+            'rate' => $pct,
             'amount' => $amount,
-            'label'  => number_format((float) $pct, 2, ',', '.') . '%',
+            'label' => number_format((float) $pct, 2, ',', '.').'%',
         ]];
 
         return $this->buildResult($gross, $fees, $amount, '0');
@@ -165,9 +174,9 @@ class ProjectFinancialCalculator
 
     private function applyFees(string $gross, $projectFees, ?SalesProject $project = null): array
     {
-        $fees           = [];
+        $fees = [];
         $totalDiscounts = '0';
-        $totalAccruals  = '0';
+        $totalAccruals = '0';
 
         // ── Taxa administrativa do projeto como desconto base (sempre primeiro) ──
         if ($project) {
@@ -175,14 +184,14 @@ class ProjectFinancialCalculator
             if (bccomp($pct, '0', 4) > 0) {
                 $amount = bcmul($gross, bcdiv($pct, '100', self::SCALE), self::SCALE);
                 $fees[] = [
-                    'id'     => null,
-                    'name'   => 'Taxa Administrativa',
+                    'id' => null,
+                    'name' => 'Taxa Administrativa',
                     'column_name' => 'Taxa Adm.',
-                    'type'   => 'percentage',
+                    'type' => 'percentage',
                     'nature' => 'discount',
-                    'rate'   => $pct,
+                    'rate' => $pct,
                     'amount' => $amount,
-                    'label'  => number_format((float) $pct, 2, ',', '.') . '%',
+                    'label' => number_format((float) $pct, 2, ',', '.').'%',
                 ];
                 $totalDiscounts = bcadd($totalDiscounts, $amount, self::SCALE);
             }
@@ -190,21 +199,21 @@ class ProjectFinancialCalculator
 
         // ── Taxas adicionais (frete, bônus, etc.) ───────────────────────────
         foreach ($projectFees as $fee) {
-            $amount  = $fee->calculate($gross);
-            $nature  = $fee->nature ?? 'discount';
+            $amount = $fee->calculate($gross);
+            $nature = $fee->nature ?? 'discount';
             $typeLabel = $fee->type === 'percentage'
-                ? number_format((float) $fee->value, 2, ',', '.') . '%'
-                : 'R$ ' . number_format((float) $fee->value, 2, ',', '.');
+                ? number_format((float) $fee->value, 2, ',', '.').'%'
+                : 'R$ '.number_format((float) $fee->value, 2, ',', '.');
 
             $fees[] = [
-                'id'     => $fee->id,
-                'name'   => $fee->name,
+                'id' => $fee->id,
+                'name' => $fee->name,
                 'column_name' => $fee->receipt_column_name ?: $fee->name,
-                'type'   => $fee->type,
+                'type' => $fee->type,
                 'nature' => $nature,
-                'rate'   => (string) $fee->value,
+                'rate' => (string) $fee->value,
                 'amount' => $amount,
-                'label'  => $typeLabel,
+                'label' => $typeLabel,
             ];
 
             if ($nature === 'discount') {
@@ -220,7 +229,7 @@ class ProjectFinancialCalculator
     private function buildResult(string $gross, array $fees, string $totalDiscounts, string $totalAccruals): array
     {
         // Líquido = Bruto - Descontos + Acréscimos
-        $net      = bcsub(bcadd($gross, $totalAccruals, self::SCALE), $totalDiscounts, self::SCALE);
+        $net = bcsub(bcadd($gross, $totalAccruals, self::SCALE), $totalDiscounts, self::SCALE);
         $totalFee = bcsub($totalDiscounts, $totalAccruals, self::SCALE); // redução líquida
 
         // Percentual efetivo para retrocompatibilidade
@@ -229,12 +238,12 @@ class ProjectFinancialCalculator
             : '0';
 
         return [
-            'gross'                    => $gross,
-            'fees'                     => $fees,
-            'total_discounts'          => $totalDiscounts,
-            'total_accruals'           => $totalAccruals,
-            'total_fee'                => $totalFee,
-            'net'                      => $net,
+            'gross' => $gross,
+            'fees' => $fees,
+            'total_discounts' => $totalDiscounts,
+            'total_accruals' => $totalAccruals,
+            'total_fee' => $totalFee,
+            'net' => $net,
             'admin_fee_percentage_eff' => $effPct,
         ];
     }

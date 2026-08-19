@@ -16,9 +16,40 @@ class AssociatePortalFinancialTruthTest extends TestCase
     {
         parent::setUp();
 
-        foreach (['associate_receipt_payments', 'production_deliveries', 'associate_receipts'] as $table) {
+        foreach (['associate_receipt_payments', 'production_deliveries', 'associate_receipts', 'project_fees', 'sales_projects'] as $table) {
             Schema::dropIfExists($table);
         }
+
+        Schema::create('sales_projects', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->decimal('admin_fee_percentage', 10, 4)->default(0);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        Schema::create('project_fees', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('sales_project_id');
+            $table->string('name');
+            $table->string('receipt_column_name')->nullable();
+            $table->string('type', 20)->default('percentage');
+            $table->string('nature', 20)->default('discount');
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->decimal('value', 10, 4);
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        DB::table('sales_projects')->insert([
+            'id' => 20,
+            'tenant_id' => 1,
+            'admin_fee_percentage' => 10,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         Schema::create('associate_receipts', function (Blueprint $table) {
             $table->id();
@@ -33,6 +64,7 @@ class AssociatePortalFinancialTruthTest extends TestCase
             $table->decimal('total_fees', 14, 4)->default(0);
             $table->decimal('total_net', 14, 4)->default(0);
             $table->decimal('amount_paid', 14, 2)->default(0);
+            $table->json('fee_snapshot')->nullable();
             $table->timestamps();
         });
 
@@ -49,6 +81,7 @@ class AssociatePortalFinancialTruthTest extends TestCase
             $table->decimal('net_value', 14, 4)->nullable();
             $table->string('status')->default('pending');
             $table->string('billing_status')->nullable();
+            $table->boolean('paid')->default(false);
             $table->unsignedBigInteger('associate_receipt_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
@@ -123,6 +156,30 @@ class AssociatePortalFinancialTruthTest extends TestCase
         $this->assertSame(0.0, $summary['unbilled']);
     }
 
+    public function test_portal_uses_all_project_fees_through_the_receipt_calculator(): void
+    {
+        DB::table('sales_projects')->where('id', 20)->update(['admin_fee_percentage' => 1.85]);
+        DB::table('project_fees')->insert([
+            [
+                'tenant_id' => 1, 'sales_project_id' => 20, 'name' => 'Taxa 1',
+                'type' => 'percentage', 'nature' => 'discount', 'sort_order' => 1,
+                'value' => 5, 'active' => true, 'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => 1, 'sales_project_id' => 20, 'name' => 'Taxa 2',
+                'type' => 'percentage', 'nature' => 'discount', 'sort_order' => 2,
+                'value' => 5, 'active' => true, 'created_at' => now(), 'updated_at' => now(),
+            ],
+        ]);
+        $this->insertDelivery(2, 1, 2314.50, 2301.68, 'approved', 12.82);
+
+        $summary = app(AssociateFinancialSummaryService::class)->summary(1, 30, 20);
+
+        $this->assertEqualsWithDelta(274.26825, $summary['total_fees'], 0.00001);
+        $this->assertEqualsWithDelta(2040.23175, $summary['total_net'], 0.00001);
+        $this->assertEqualsWithDelta(2040.23175, $summary['unbilled'], 0.00001);
+    }
+
     private function insertDelivery(
         int $id,
         ?int $parentId,
@@ -146,6 +203,7 @@ class AssociatePortalFinancialTruthTest extends TestCase
             'net_value' => $net,
             'status' => $status,
             'billing_status' => 'unbilled',
+            'paid' => false,
             'associate_receipt_id' => $receiptId,
             'created_at' => now(),
             'updated_at' => now(),

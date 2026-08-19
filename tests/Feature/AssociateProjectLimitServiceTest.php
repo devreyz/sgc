@@ -26,69 +26,179 @@ class AssociateProjectLimitServiceTest extends TestCase
         parent::setUp();
         activity()->disableLogging();
 
-        foreach (['production_deliveries', 'project_demands', 'project_associate_product_limits', 'project_associates', 'sales_project_organizations', 'sales_project_customers', 'price_table_items', 'price_tables', 'customers', 'organizations', 'products', 'associates', 'sales_projects', 'tenants'] as $table) {
+        foreach (['production_deliveries', 'project_demands', 'project_associate_product_limits', 'project_associates', 'project_fees', 'sales_project_organizations', 'sales_project_customers', 'price_table_items', 'price_tables', 'customers', 'organizations', 'products', 'associates', 'sales_projects', 'tenants'] as $table) {
             Schema::dropIfExists($table);
         }
 
         Schema::create('tenants', fn (Blueprint $t) => $this->base($t, ['name', 'slug']));
         Schema::create('sales_projects', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('title'); $t->unsignedBigInteger('customer_id')->nullable();
-            $t->boolean('restrict_participants')->default(false); $t->decimal('max_total_value_per_associate', 14, 2)->nullable();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('title');
+            $t->unsignedBigInteger('customer_id')->nullable();
+            $t->boolean('restrict_participants')->default(false);
+            $t->decimal('max_total_value_per_associate', 14, 2)->nullable();
             $t->decimal('total_value', 14, 2)->nullable();
-            $t->string('status')->default('active'); $t->boolean('allow_any_product')->default(true); $t->timestamps(); $t->softDeletes();
+            $t->decimal('admin_fee_percentage', 8, 4)->default(0);
+            $t->string('status')->default('active');
+            $t->boolean('allow_any_product')->default(true);
+            $t->timestamps();
+            $t->softDeletes();
+        });
+        Schema::create('project_fees', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('sales_project_id');
+            $t->string('name');
+            $t->string('receipt_column_name')->nullable();
+            $t->string('type')->default('percentage');
+            $t->string('nature')->default('discount');
+            $t->unsignedInteger('sort_order')->default(0);
+            $t->decimal('value', 14, 4);
+            $t->boolean('active')->default(true);
+            $t->text('notes')->nullable();
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('customers', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('name'); $t->string('trade_name')->nullable();
-            $t->unsignedBigInteger('price_table_id')->nullable(); $t->unsignedBigInteger('organization_id')->nullable(); $t->boolean('status')->default(true); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('name');
+            $t->string('trade_name')->nullable();
+            $t->unsignedBigInteger('price_table_id')->nullable();
+            $t->unsignedBigInteger('organization_id')->nullable();
+            $t->boolean('status')->default(true);
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('organizations', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('name'); $t->string('short_name')->nullable(); $t->boolean('active')->default(true); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('name');
+            $t->string('short_name')->nullable();
+            $t->boolean('active')->default(true);
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('sales_project_customers', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('customer_id'); $t->text('notes')->nullable(); $t->timestamps();
+            $t->id();
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('customer_id');
+            $t->text('notes')->nullable();
+            $t->timestamps();
         });
         Schema::create('sales_project_organizations', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('organization_id'); $t->text('notes')->nullable();
-            $t->boolean('enforce_request_limits')->default(false); $t->timestamps();
+            $t->id();
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('organization_id');
+            $t->text('notes')->nullable();
+            $t->boolean('enforce_request_limits')->default(false);
+            $t->timestamps();
         });
         Schema::create('associates', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('user_id')->nullable(); $t->string('cpf_cnpj')->nullable(); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('user_id')->nullable();
+            $t->string('cpf_cnpj')->nullable();
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('products', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('name'); $t->string('unit')->default('kg'); $t->boolean('status')->default(true); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('name');
+            $t->string('unit')->default('kg');
+            $t->boolean('status')->default(true);
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('price_tables', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->string('name'); $t->boolean('active')->default(true); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('name');
+            $t->boolean('active')->default(true);
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('price_table_items', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('price_table_id'); $t->unsignedBigInteger('product_id');
-            $t->decimal('sale_price', 14, 4); $t->decimal('cost_price', 14, 4)->nullable(); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('price_table_id');
+            $t->unsignedBigInteger('product_id');
+            $t->decimal('sale_price', 14, 4);
+            $t->decimal('cost_price', 14, 4)->nullable();
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('project_associates', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('associate_id');
-            $t->decimal('financial_limit', 14, 2)->nullable(); $t->string('status')->default('active'); $t->text('notes')->nullable();
-            $t->date('valid_from')->nullable(); $t->date('valid_until')->nullable(); $t->unsignedBigInteger('created_by')->nullable(); $t->unsignedBigInteger('updated_by')->nullable(); $t->timestamps();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('associate_id');
+            $t->decimal('financial_limit', 14, 2)->nullable();
+            $t->string('status')->default('active');
+            $t->text('notes')->nullable();
+            $t->date('valid_from')->nullable();
+            $t->date('valid_until')->nullable();
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->unsignedBigInteger('updated_by')->nullable();
+            $t->timestamps();
         });
         Schema::create('project_associate_product_limits', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('associate_id'); $t->unsignedBigInteger('product_id');
-            $t->decimal('max_quantity', 12, 4); $t->decimal('reference_unit_price', 14, 4)->nullable(); $t->string('status')->default('active');
-            $t->text('notes')->nullable(); $t->timestamp('archived_at')->nullable(); $t->unsignedBigInteger('archived_by')->nullable(); $t->string('archive_reason')->nullable();
-            $t->unsignedBigInteger('created_by')->nullable(); $t->unsignedBigInteger('updated_by')->nullable(); $t->timestamps();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('associate_id');
+            $t->unsignedBigInteger('product_id');
+            $t->decimal('max_quantity', 12, 4);
+            $t->decimal('reference_unit_price', 14, 4)->nullable();
+            $t->string('status')->default('active');
+            $t->text('notes')->nullable();
+            $t->timestamp('archived_at')->nullable();
+            $t->unsignedBigInteger('archived_by')->nullable();
+            $t->string('archive_reason')->nullable();
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->unsignedBigInteger('updated_by')->nullable();
+            $t->timestamps();
         });
         Schema::create('project_demands', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('product_id');
-            $t->unsignedBigInteger('customer_id')->nullable(); $t->decimal('target_quantity', 12, 3); $t->decimal('delivered_quantity', 12, 3)->default(0);
-            $t->decimal('unit_price', 14, 4)->default(0); $t->date('delivery_start')->nullable(); $t->date('delivery_end')->nullable();
-            $t->string('frequency')->nullable(); $t->text('notes')->nullable(); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('product_id');
+            $t->unsignedBigInteger('customer_id')->nullable();
+            $t->decimal('target_quantity', 12, 3);
+            $t->decimal('delivered_quantity', 12, 3)->default(0);
+            $t->decimal('unit_price', 14, 4)->default(0);
+            $t->date('delivery_start')->nullable();
+            $t->date('delivery_end')->nullable();
+            $t->string('frequency')->nullable();
+            $t->text('notes')->nullable();
+            $t->timestamps();
+            $t->softDeletes();
         });
         Schema::create('production_deliveries', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('tenant_id'); $t->unsignedBigInteger('sales_project_id'); $t->unsignedBigInteger('associate_id'); $t->unsignedBigInteger('product_id');
-            $t->unsignedBigInteger('project_demand_id')->nullable(); $t->unsignedBigInteger('customer_id')->nullable();
-            $t->unsignedBigInteger('parent_delivery_id')->nullable(); $t->date('delivery_date'); $t->decimal('quantity', 12, 3); $t->decimal('unit_price', 14, 4)->default(0);
-            $t->decimal('cost_price_used', 14, 4)->nullable(); $t->decimal('admin_fee_percentage', 8, 2)->nullable();
-            $t->decimal('gross_value', 14, 4)->default(0); $t->decimal('admin_fee_amount', 14, 4)->nullable(); $t->decimal('net_value', 14, 4)->nullable();
-            $t->unsignedBigInteger('price_table_id')->nullable(); $t->string('price_source')->nullable();
-            $t->string('status')->default('pending'); $t->timestamps(); $t->softDeletes();
+            $t->id();
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('sales_project_id');
+            $t->unsignedBigInteger('associate_id');
+            $t->unsignedBigInteger('product_id');
+            $t->unsignedBigInteger('project_demand_id')->nullable();
+            $t->unsignedBigInteger('customer_id')->nullable();
+            $t->unsignedBigInteger('parent_delivery_id')->nullable();
+            $t->date('delivery_date');
+            $t->decimal('quantity', 12, 3);
+            $t->decimal('unit_price', 14, 4)->default(0);
+            $t->decimal('cost_price_used', 14, 4)->nullable();
+            $t->decimal('admin_fee_percentage', 8, 2)->nullable();
+            $t->decimal('gross_value', 14, 4)->default(0);
+            $t->decimal('admin_fee_amount', 14, 4)->nullable();
+            $t->decimal('net_value', 14, 4)->nullable();
+            $t->unsignedBigInteger('price_table_id')->nullable();
+            $t->string('price_source')->nullable();
+            $t->string('status')->default('pending');
+            $t->timestamps();
+            $t->softDeletes();
         });
     }
 
@@ -141,6 +251,55 @@ class AssociateProjectLimitServiceTest extends TestCase
             'sales_project_id' => $project->id,
             'associate_id' => $associate->id,
         ]);
+    }
+
+    public function test_distribution_persists_all_project_fees_from_the_central_calculator(): void
+    {
+        [$project, $associate, $product] = $this->fixture(false);
+        $project->update(['admin_fee_percentage' => 1.85]);
+        DB::table('project_fees')->insert([
+            [
+                'tenant_id' => 1, 'sales_project_id' => $project->id, 'name' => 'Frete',
+                'type' => 'percentage', 'nature' => 'discount', 'sort_order' => 1,
+                'value' => 5, 'active' => true, 'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => 1, 'sales_project_id' => $project->id, 'name' => 'Fundo',
+                'type' => 'percentage', 'nature' => 'discount', 'sort_order' => 2,
+                'value' => 5, 'active' => true, 'created_at' => now(), 'updated_at' => now(),
+            ],
+        ]);
+        $parentId = DB::table('production_deliveries')->insertGetId([
+            'tenant_id' => 1, 'sales_project_id' => $project->id, 'associate_id' => $associate->id,
+            'product_id' => $product, 'delivery_date' => now(), 'quantity' => 100,
+            'unit_price' => 0, 'gross_value' => 0, 'status' => 'approved',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $distribution = new ProductionDelivery([
+            'parent_delivery_id' => $parentId,
+            'sales_project_id' => $project->id,
+            'associate_id' => $associate->id,
+            'customer_id' => 1,
+            'product_id' => $product,
+            'delivery_date' => now()->toDateString(),
+            'quantity' => 100,
+            'unit_price' => 23.145,
+            'status' => 'approved',
+        ]);
+        $distribution->tenant_id = $project->tenant_id;
+        $distribution->save();
+
+        $this->assertEqualsWithDelta(11.85, (float) $distribution->admin_fee_percentage, 0.001);
+        $this->assertEqualsWithDelta(274.26825, (float) $distribution->admin_fee_amount, 0.0001);
+        $this->assertEqualsWithDelta(2040.23175, (float) $distribution->net_value, 0.0001);
+
+        DB::table('project_fees')->where('name', 'Frete')->update(['value' => 20]);
+        $distribution->status = 'pending';
+        $distribution->save();
+
+        $this->assertEqualsWithDelta(274.26825, (float) $distribution->admin_fee_amount, 0.0001);
+        $this->assertEqualsWithDelta(2040.23175, (float) $distribution->net_value, 0.0001);
     }
 
     public function test_multiple_customers_disable_product_limits_and_financial_limit_uses_distributions(): void

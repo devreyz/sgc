@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
+use App\Services\AssociateProjectLimitService;
+use App\Services\ProjectFinancialCalculator;
+use App\Services\TenantResolver;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -303,7 +306,7 @@ class ProductionDelivery extends Model
             // The tenant trait fills this during `creating`, but Eloquent fires
             // `saving` first. Resolve it here before any tenant-scoped lookup.
             if (! $delivery->getAttribute('tenant_id')) {
-                $tenantId = app(\App\Services\TenantResolver::class)->resolve();
+                $tenantId = app(TenantResolver::class)->resolve();
                 if (! $tenantId) {
                     throw ValidationException::withMessages([
                         'tenant_id' => 'Selecione uma organizacao antes de registrar a entrega.',
@@ -328,8 +331,8 @@ class ProductionDelivery extends Model
                         ->where('tenant_id', $delivery->tenant_id)
                         ->findOrFail($delivery->associate_id);
 
-                    app(\App\Services\AssociateProjectLimitService::class)->assertContext($project, $associate);
-                    app(\App\Services\AssociateProjectLimitService::class)->validateDelivery(
+                    app(AssociateProjectLimitService::class)->assertContext($project, $associate);
+                    app(AssociateProjectLimitService::class)->validateDelivery(
                         $project,
                         $associate,
                         (int) $delivery->product_id,
@@ -344,36 +347,34 @@ class ProductionDelivery extends Model
                 $delivery->net_value = 0;
                 $delivery->price_table_id = null;
                 $delivery->price_source = null;
+
                 return;
             }
 
-            if ($delivery->unit_price && $delivery->quantity) {
+            $requiresFinancialRecalculation = ! $delivery->exists
+                || $delivery->isDirty(['quantity', 'unit_price', 'sales_project_id'])
+                || $delivery->admin_fee_amount === null
+                || $delivery->net_value === null;
+
+            if ($requiresFinancialRecalculation && $delivery->unit_price && $delivery->quantity) {
                 $qty = (string) $delivery->quantity;
                 $price = (string) $delivery->unit_price;
                 $grossValue = bcmul($qty, $price, 8);
-
-                // Resolve admin fee percentage: persiste na entrega para histórico
-                if ($delivery->sales_project_id && ! $delivery->isDirty('admin_fee_percentage')) {
-                    $project = $delivery->salesProject;
-                    $adminFeePercentage = (string) ($project->admin_fee_percentage ?? 10);
-                    $delivery->admin_fee_percentage = $adminFeePercentage;
-                } else {
-                    $adminFeePercentage = (string) ($delivery->admin_fee_percentage ?? 0);
-                }
-
-                $adminFee = bcmul($grossValue, bcdiv($adminFeePercentage, '100', 8), 8);
-                $delivery->admin_fee_amount = $adminFee;
-                $delivery->net_value = bcsub($grossValue, $adminFee, 8);
+                $project = SalesProject::query()
+                    ->where('tenant_id', $delivery->tenant_id)
+                    ->findOrFail($delivery->sales_project_id);
+                $financial = app(ProjectFinancialCalculator::class)
+                    ->calculate($project, $grossValue);
+                $adminFeePercentage = (string) $financial['admin_fee_percentage_eff'];
+                $delivery->admin_fee_percentage = $adminFeePercentage;
+                $delivery->admin_fee_amount = $financial['total_fee'];
+                $delivery->net_value = $financial['net'];
 
                 // Calcula e persiste o cost_price_used (valor de repasse por unidade)
-                if (! $delivery->cost_price_used) {
-                    if (bccomp($adminFeePercentage, '0', 8) > 0) {
-                        $taxPerUnit = bcmul($price, bcdiv($adminFeePercentage, '100', 8), 8);
-                        $delivery->cost_price_used = bcsub($price, $taxPerUnit, 8);
-                    } else {
-                        $product = $delivery->product;
-                        $delivery->cost_price_used = $product?->cost_price ?? $delivery->unit_price;
-                    }
+                if (! $delivery->cost_price_used || $delivery->isDirty(['quantity', 'unit_price', 'sales_project_id'])) {
+                    $delivery->cost_price_used = bccomp($qty, '0', 8) > 0
+                        ? bcdiv((string) $financial['net'], $qty, 8)
+                        : $price;
                 }
             }
         });

@@ -1153,6 +1153,7 @@
         }
     }
 </style>
+<link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 
 @php
     $totalDeliveries = (int) ($deliveryStats['total'] ?? 0);

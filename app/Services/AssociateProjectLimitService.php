@@ -7,9 +7,9 @@ use App\Models\Associate;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
-use App\Models\ProjectDemand;
 use App\Models\ProjectAssociate;
 use App\Models\ProjectAssociateProductLimit;
+use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -131,7 +131,8 @@ class AssociateProjectLimitService
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
             ->when($exceptDistributionId, fn ($query) => $query->whereKeyNot($exceptDistributionId))
-            ->sum('gross_value');
+            ->selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+            ->value('total');
     }
 
     public function deliveredQuantity(SalesProject $project, Associate $associate, int $productId, ?int $exceptDeliveryId = null): float

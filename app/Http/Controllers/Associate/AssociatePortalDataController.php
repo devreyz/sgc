@@ -87,23 +87,38 @@ class AssociatePortalDataController extends Controller
     {
         [$tenantId, $associate] = $this->context($request);
         $validated = $request->validate([
-            'status' => 'nullable|in:active,draft,deliveries_closed,completed,cancelled',
+            'status' => 'nullable|in:active,suspended,deliveries_closed,completed,cancelled,archived,history,all',
             'search' => 'nullable|string|max:80',
             'page' => 'nullable|integer|min:1',
         ]);
+        $status = $validated['status'] ?? 'active';
+        $historyStatuses = [
+            ProjectStatus::DELIVERIES_CLOSED->value,
+            ProjectStatus::COMPLETED->value,
+            ProjectStatus::CANCELLED->value,
+            ProjectStatus::ARCHIVED->value,
+        ];
         $query = $this->allowedProjectsQuery($tenantId, $associate->id)
+            ->where('status', '!=', ProjectStatus::DRAFT->value)
             ->with('customer:id,name')
             ->select([
                 'id', 'tenant_id', 'title', 'type', 'customer_id', 'status', 'start_date', 'end_date',
                 'max_total_value_per_associate', 'created_at',
             ])
-            ->when($validated['search'] ?? null, fn (Builder $builder, string $search) => $builder
-                ->where('title', 'like', '%'.$search.'%'));
+            ->when($validated['search'] ?? null, function (Builder $builder, string $search): void {
+                $builder->where(function (Builder $searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('title', 'like', '%'.$search.'%')
+                        ->orWhere('type', 'like', '%'.$search.'%')
+                        ->orWhereHas('customer', fn (Builder $customerQuery) => $customerQuery
+                            ->where('name', 'like', '%'.$search.'%'));
+                });
+            });
 
-        if (! empty($validated['status'])) {
-            $query->where('status', $validated['status']);
-        } else {
-            $query->where('status', ProjectStatus::ACTIVE->value);
+        if ($status === 'history') {
+            $query->whereIn('status', $historyStatuses);
+        } elseif ($status !== 'all') {
+            $query->where('status', $status);
         }
 
         $page = $query->latest('created_at')->latest('id')->paginate(8);
@@ -128,7 +143,20 @@ class AssociatePortalDataController extends Controller
             ];
         }));
 
-        return response()->json($this->page($page))->header('Cache-Control', 'no-store, private');
+        $statusCounts = $this->allowedProjectsQuery($tenantId, $associate->id)
+            ->where('status', '!=', ProjectStatus::DRAFT->value)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+        $response = $this->page($page);
+        $response['filter'] = $status;
+        $response['counts'] = [
+            'active' => (int) ($statusCounts[ProjectStatus::ACTIVE->value] ?? 0),
+            'history' => (int) $statusCounts->only($historyStatuses)->sum(),
+            'all' => (int) $statusCounts->sum(),
+        ];
+
+        return response()->json($response)->header('Cache-Control', 'no-store, private');
     }
 
     public function deliveries(Request $request): JsonResponse
@@ -150,13 +178,15 @@ class AssociatePortalDataController extends Controller
         $page = (clone $base)
             ->with([
                 'product:id,name,unit',
-                'salesProject:id,title',
+                'salesProject:id,tenant_id,title,admin_fee_percentage',
+                'salesProject.fees',
                 'distributions' => fn ($query) => $query
                     ->where('status', DeliveryStatus::APPROVED->value)
                     ->select([
-                        'id', 'parent_delivery_id', 'quantity', 'unit_price', 'gross_value', 'admin_fee_amount',
+                        'id', 'tenant_id', 'sales_project_id', 'associate_id', 'parent_delivery_id', 'quantity', 'unit_price', 'gross_value', 'admin_fee_amount',
                         'net_value', 'billing_status', 'paid', 'associate_receipt_id',
                     ]),
+                'distributions.associateReceipt',
             ])
             ->select(['id', 'tenant_id', 'sales_project_id', 'associate_id', 'product_id', 'delivery_date', 'quantity', 'status'])
             ->latest('delivery_date')
@@ -180,7 +210,8 @@ class AssociatePortalDataController extends Controller
                 ->whereNotNull('parent_delivery_id')
                 ->where('status', DeliveryStatus::APPROVED->value)
                 ->whereIn('parent_delivery_id', $parentIds)
-                ->sum('gross_value'),
+                ->selectRaw('COALESCE(SUM(quantity * unit_price), 0) as total')
+                ->value('total'),
         ];
         $financial = $this->financial->summary($tenantId, $associate->id);
         $projects = $this->allowedProjectsQuery($tenantId, $associate->id)
@@ -355,7 +386,7 @@ class AssociatePortalDataController extends Controller
             ->whereIn('sales_project_id', $projectIds)
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
-            ->selectRaw('sales_project_id, COALESCE(SUM(gross_value), 0) as used_total')
+            ->selectRaw('sales_project_id, COALESCE(SUM(quantity * unit_price), 0) as used_total')
             ->groupBy('sales_project_id')
             ->pluck('used_total', 'sales_project_id');
         $projectMaximums = SalesProject::query()->where('tenant_id', $tenantId)->whereIn('id', $projectIds)
@@ -390,31 +421,40 @@ class AssociatePortalDataController extends Controller
         if ($projectIds === []) {
             return [];
         }
-        $net = 'COALESCE(net_value, gross_value - COALESCE(admin_fee_amount, 0))';
-        $rows = ProductionDelivery::query()
+        $distributions = ProductionDelivery::query()
             ->where('tenant_id', $tenantId)
             ->where('associate_id', $associateId)
             ->whereIn('sales_project_id', $projectIds)
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
-            ->selectRaw("sales_project_id, COALESCE(SUM({$net}), 0) as total")
-            ->selectRaw("COALESCE(SUM(CASE WHEN billing_status = 'paid' OR paid = 1 THEN {$net} ELSE 0 END), 0) as paid_total")
-            ->selectRaw("COALESCE(SUM(CASE WHEN billing_status = 'billed' AND COALESCE(paid, 0) = 0 THEN {$net} ELSE 0 END), 0) as billed_total")
-            ->selectRaw("COALESCE(SUM(CASE WHEN (billing_status IS NULL OR billing_status = 'unbilled') AND associate_receipt_id IS NULL THEN {$net} ELSE 0 END), 0) as unbilled_total")
-            ->groupBy('sales_project_id')
-            ->get()
-            ->keyBy('sales_project_id');
+            ->with([
+                'salesProject:id,tenant_id,admin_fee_percentage',
+                'salesProject.fees',
+                'associateReceipt',
+            ])
+            ->get([
+                'id', 'tenant_id', 'sales_project_id', 'associate_id', 'parent_delivery_id',
+                'quantity', 'unit_price', 'gross_value', 'admin_fee_amount', 'net_value', 'billing_status', 'paid',
+                'associate_receipt_id',
+            ]);
+        $resolved = $this->financial->resolveDistributions($distributions);
+        $result = collect($projectIds)->mapWithKeys(fn (int $projectId) => [$projectId => $this->emptyFinancial()])->all();
 
-        return collect($projectIds)->mapWithKeys(function (int $projectId) use ($rows) {
-            $row = $rows[$projectId] ?? null;
+        foreach ($distributions as $distribution) {
+            $projectId = (int) $distribution->sales_project_id;
+            $net = (float) ($resolved['items'][$distribution->id]['net'] ?? 0);
+            $result[$projectId]['total'] += $net;
 
-            return [$projectId => [
-                'total' => (float) ($row?->total ?? 0),
-                'unbilled' => (float) ($row?->unbilled_total ?? 0),
-                'billed' => (float) ($row?->billed_total ?? 0),
-                'paid' => (float) ($row?->paid_total ?? 0),
-            ]];
-        })->all();
+            if ($distribution->paid || $distribution->billing_status?->value === 'paid') {
+                $result[$projectId]['paid'] += $net;
+            } elseif ($distribution->associate_receipt_id || $distribution->billing_status?->value === 'billed') {
+                $result[$projectId]['billed'] += $net;
+            } else {
+                $result[$projectId]['unbilled'] += $net;
+            }
+        }
+
+        return $result;
     }
 
     private function deliveryItem(ProductionDelivery $delivery, bool $withFinancial = false): array
@@ -435,20 +475,16 @@ class AssociatePortalDataController extends Controller
             return $item;
         }
         $distributions = $delivery->distributions;
-        $gross = (float) $distributions->sum(fn (ProductionDelivery $row) => (float) $row->gross_value);
-        $fees = (float) $distributions->sum(fn (ProductionDelivery $row) => (float) ($row->admin_fee_amount ?? 0));
-        $net = (float) $distributions->sum(fn (ProductionDelivery $row) => $row->net_value !== null
-            ? (float) $row->net_value
-            : max(0, (float) $row->gross_value - (float) ($row->admin_fee_amount ?? 0)));
+        $financial = $this->financial->resolveDistributions($distributions, $delivery->salesProject);
         $allPaid = $distributions->isNotEmpty() && $distributions->every(fn (ProductionDelivery $row) => $row->paid || $row->billing_status?->value === 'paid');
         $inReceipt = $distributions->contains(fn (ProductionDelivery $row) => $row->associate_receipt_id !== null || $row->billing_status?->value === 'billed');
 
         return $item + [
             'distribution_count' => $distributions->count(),
             'distributed_quantity' => (float) $distributions->sum('quantity'),
-            'gross' => $gross,
-            'fees' => $fees,
-            'net' => $net,
+            'gross' => $financial['gross'],
+            'fees' => $financial['fees'],
+            'net' => $financial['net'],
             'billing_status' => $distributions->isEmpty() ? 'waiting' : ($allPaid ? 'paid' : ($inReceipt ? 'billed' : 'unbilled')),
             'billing_label' => $distributions->isEmpty() ? 'Aguardando distribuição' : ($allPaid ? 'Pago' : ($inReceipt ? 'Em comprovante' : 'A faturar')),
         ];

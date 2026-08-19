@@ -752,6 +752,11 @@
         color: var(--ws-blue);
     }
 
+    .summary-fact-icon.fees {
+        background: var(--ws-amber-soft);
+        color: var(--ws-amber);
+    }
+
     .summary-fact-icon.net {
         background: var(--ws-violet-soft);
         color: var(--ws-violet);
@@ -2299,6 +2304,16 @@
         );
     }
 
+    function awPercent(value) {
+        return Number(value || 0).toLocaleString(
+            'pt-BR',
+            {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }
+        ) + '%';
+    }
+
     function awEsc(value) {
         return String(value ?? '').replace(
             /[&<>"']/g,
@@ -2775,6 +2790,23 @@
 
                                 <span class="summary-fact-value">
                                     ${awMoney(data.total_gross)}
+                                </span>
+                            </div>
+
+                            <div class="summary-fact">
+                                <span class="summary-fact-icon fees">
+                                    <i class="ph-duotone ph-percent"></i>
+                                </span>
+
+                                <div class="summary-fact-copy">
+                                    <span>Taxas e ajustes</span>
+                                    <strong>
+                                        ${awPercent(data.effective_fee_percentage)} efetivos
+                                    </strong>
+                                </div>
+
+                                <span class="summary-fact-value">
+                                    ${awMoney(data.total_fees)}
                                 </span>
                             </div>
 

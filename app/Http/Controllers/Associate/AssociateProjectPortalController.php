@@ -149,6 +149,10 @@ class AssociateProjectPortalController extends Controller
                 'payment_forecast_note' => $project->member_payment_forecast_note,
             ],
             'total_gross' => $financial['total_gross'],
+            'total_fees' => $financial['total_fees'],
+            'effective_fee_percentage' => $financial['total_gross'] > 0
+                ? ($financial['total_fees'] / $financial['total_gross']) * 100
+                : 0,
             'total_net' => $financial['total_net'],
             'paid' => $financial['paid'],
             'receivable' => $financial['receivable'],
@@ -168,22 +172,17 @@ class AssociateProjectPortalController extends Controller
                 'distributions' => fn ($query) => $query
                     ->where('status', DeliveryStatus::APPROVED->value)
                     ->select([
-                        'id', 'parent_delivery_id', 'customer_id', 'quantity', 'unit_price',
+                        'id', 'tenant_id', 'sales_project_id', 'associate_id', 'parent_delivery_id', 'customer_id', 'quantity', 'unit_price',
                         'gross_value', 'admin_fee_amount', 'net_value', 'associate_receipt_id',
                     ]),
+                'distributions.associateReceipt',
                 'distributions.customer:id,name,trade_name',
             ]);
         $this->filters($query, $request);
         $page = $query->orderByDesc('delivery_date')->orderByDesc('id')->paginate($this->perPage($request));
-        $page->setCollection(collect($page->items())->map(function (ProductionDelivery $item) {
+        $page->setCollection(collect($page->items())->map(function (ProductionDelivery $item) use ($project) {
             $distributed = (float) $item->distributions->sum('quantity');
-            $gross = (float) $item->distributions->sum(fn (ProductionDelivery $distribution) => (float) $distribution->gross_value);
-            $fees = (float) $item->distributions->sum(fn (ProductionDelivery $distribution) => (float) ($distribution->admin_fee_amount ?? 0));
-            $net = (float) $item->distributions->sum(function (ProductionDelivery $distribution): float {
-                return $distribution->net_value !== null
-                    ? (float) $distribution->net_value
-                    : max(0.0, (float) $distribution->gross_value - (float) ($distribution->admin_fee_amount ?? 0));
-            });
+            $financial = $this->financial->resolveDistributions($item->distributions, $project);
 
             return [
                 'id' => $item->id,
@@ -194,9 +193,9 @@ class AssociateProjectPortalController extends Controller
                 'distributed' => $distributed,
                 'remaining' => max(0, (float) $item->quantity - $distributed),
                 'distribution_count' => $item->distributions->count(),
-                'gross' => $gross,
-                'fees' => $fees,
-                'net' => $net,
+                'gross' => $financial['gross'],
+                'fees' => $financial['fees'],
+                'net' => $financial['net'],
                 'status' => $item->status?->value,
                 'status_label' => $item->status?->getLabel(),
                 'quality' => $item->quality_grade,

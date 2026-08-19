@@ -99,33 +99,123 @@
         projectState.page = page;
         const sections = root.querySelectorAll('.projects-section');
         const listSection = sections[1];
-        replaceSectionBody(listSection, skeleton(4));
+        const results = listSection?.querySelector('[data-project-results]');
+        if (!results) return;
+        results.innerHTML = skeleton(4);
         try {
             const data = await request('projects', config.urls.projects, projectState);
             const items = data.data || [];
             root.querySelectorAll('.projects-result-count').forEach(node => node.innerHTML = `<i class="ph ph-folder-simple"></i>${data.total} ${data.total === 1 ? 'projeto' : 'projetos'}`);
             const overviewNumber = sections[0]?.querySelector('.projects-overview-main > strong');
             if (overviewNumber) overviewNumber.textContent = data.total;
-            if (!items.length) return replaceSectionBody(listSection, '<div class="projects-empty"><div class="projects-empty-content"><span class="projects-empty-icon"><i class="ph-duotone ph-folder-open"></i></span><strong>Nenhum projeto encontrado</strong><span>Ajuste os filtros ou aguarde um novo projeto.</span></div></div>');
+            updateProjectFilterSummary(data);
+            history.replaceState({}, '', projectQueryUrl());
+            if (!items.length) {
+                results.innerHTML = '<div class="projects-empty"><div class="projects-empty-content"><span class="projects-empty-icon"><i class="ph-duotone ph-folder-open"></i></span><strong>Nenhum projeto encontrado</strong><span>Ajuste a busca ou selecione outra situação.</span></div></div>';
+                return;
+            }
             const cards = items.map(projectCard).join('');
-            replaceSectionBody(listSection, `<div class="projects-list">${cards}</div>${pages(data)}`);
-            bindPages(listSection, projects);
+            results.innerHTML = `<div class="projects-list">${cards}</div>${pages(data)}`;
+            bindPages(results, projects);
         } catch (error) {
             if (error.name === 'AbortError') return;
-            replaceSectionBody(listSection, errorHtml(error.message));
-            listSection.querySelector('.portal-retry')?.addEventListener('click', () => projects(projectState.page));
+            results.innerHTML = errorHtml(error.message);
+            results.querySelector('.portal-retry')?.addEventListener('click', () => projects(projectState.page));
         }
+    }
+
+    function projectFilterLabel(status) {
+        return ({
+            active: 'Projetos em execução',
+            history: 'Histórico encerrado',
+            all: 'Todos os projetos',
+            suspended: 'Projetos suspensos',
+            deliveries_closed: 'Entregas encerradas',
+            completed: 'Projetos concluídos',
+            cancelled: 'Projetos cancelados',
+            archived: 'Projetos arquivados',
+        })[status] || 'Seus projetos';
+    }
+
+    function updateProjectFilterSummary(data) {
+        const label = root.querySelector('[data-project-filter-label]');
+        const counts = root.querySelector('[data-project-counts]');
+        if (label) label.textContent = projectFilterLabel(data.filter || projectState.status);
+        if (counts) counts.textContent = `${Number(data.counts?.active || 0)} em execução · ${Number(data.counts?.history || 0)} no histórico · ${Number(data.counts?.all || 0)} no total`;
+        const activeCount = root.querySelector('[data-project-active-count]');
+        const historyCount = root.querySelector('[data-project-history-count]');
+        const allCount = root.querySelector('[data-project-all-count]');
+        if (activeCount) activeCount.textContent = `${Number(data.counts?.active || 0)} em execução`;
+        if (historyCount) historyCount.textContent = `${Number(data.counts?.history || 0)} no histórico`;
+        if (allCount) allCount.textContent = `${Number(data.counts?.all || 0)} participações`;
+
+        const overviewTitle = root.querySelector('.projects-section:first-child .projects-section-copy h2');
+        const overviewLabel = root.querySelector('.projects-overview-label');
+        if (overviewTitle) overviewTitle.textContent = projectFilterLabel(data.filter || projectState.status);
+        if (overviewLabel) overviewLabel.innerHTML = `<i class="ph-duotone ph-folder-open"></i>${projectFilterLabel(data.filter || projectState.status)}`;
+    }
+
+    function projectQueryUrl() {
+        const url = new URL(location.href);
+        ['page', 'status', 'search'].forEach(key => url.searchParams.delete(key));
+        if (projectState.status && projectState.status !== 'active') url.searchParams.set('status', projectState.status);
+        if (projectState.search) url.searchParams.set('search', projectState.search);
+        if (projectState.page > 1) url.searchParams.set('page', projectState.page);
+        return url.pathname + url.search;
+    }
+
+    function setupProjectFilters() {
+        const form = root.querySelector('[data-project-filters]');
+        if (!form) return;
+        const query = new URLSearchParams(location.search);
+        const allowed = ['active', 'history', 'all', 'suspended', 'deliveries_closed', 'completed', 'cancelled', 'archived'];
+        projectState.status = allowed.includes(query.get('status')) ? query.get('status') : 'active';
+        projectState.search = String(query.get('search') || '').slice(0, 80);
+        projectState.page = Math.max(1, Number(query.get('page') || 1));
+        form.status.value = projectState.status;
+        form.search.value = projectState.search;
+
+        form.addEventListener('submit', event => {
+            event.preventDefault();
+            projectState.status = form.status.value;
+            projectState.search = form.search.value.trim();
+            projects(1);
+        });
+        form.status.addEventListener('change', () => {
+            projectState.status = form.status.value;
+            projectState.search = form.search.value.trim();
+            projects(1);
+        });
+        let searchTimer;
+        form.search.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                projectState.search = form.search.value.trim();
+                projects(1);
+            }, 350);
+        });
+        form.querySelector('[data-project-clear]')?.addEventListener('click', () => {
+            form.reset();
+            form.status.value = 'active';
+            projectState.status = 'active';
+            projectState.search = '';
+            projects(1);
+        });
     }
 
     function projectCard(item) {
         const limit = item.limit || {};
         const financial = item.financial || {};
+        const status = ['active','suspended','deliveries_closed','completed','cancelled','archived'].includes(item.status) ? item.status : 'active';
+        const isCurrent = status === 'active';
+        const actionLabel = isCurrent ? 'Acompanhar projeto' : 'Consultar projeto';
+        const icon = isCurrent ? 'ph-folder-open' : 'ph-archive-box';
         const percent = Number(limit.percent || 0);
         const total = Number(financial.total || 0);
         const width = value => total > 0 ? Math.min(100, Number(value || 0) / total * 100) : 0;
         const limitHtml = limit.max === null ? '<section class="project-no-limit"><span class="project-no-limit-icon"><i class="ph-duotone ph-infinity"></i></span><span><strong>Sem limite financeiro informado</strong><span>Este projeto não possui teto financeiro definido.</span></span></section>' : `<section class="project-limit"><div class="project-subhead"><span class="project-subhead-icon"><i class="ph-duotone ph-gauge"></i></span><strong>Limite financeiro</strong><span class="project-limit-percent">${Math.round(percent)}%</span></div><div class="project-limit-highlight"><span>Disponível para utilizar</span><strong>${money(limit.remaining)}</strong></div><div class="project-limit-stats"><div class="project-limit-stat"><span>Utilizado</span><strong>${money(limit.accumulated)}</strong></div><div class="project-limit-stat"><span>Limite total</span><strong>${money(limit.max)}</strong></div></div><div class="project-progress"><span style="width:${Math.min(100,percent)}%"></span></div></section>`;
         const financialHtml = total > 0 ? `<div class="project-financial-total"><span>Total distribuído</span><strong>${money(total)}</strong></div><div class="project-financial-bar"><span class="unbilled" style="width:${width(financial.unbilled)}%"></span><span class="billed" style="width:${width(financial.billed)}%"></span><span class="paid" style="width:${width(financial.paid)}%"></span></div><div class="project-financial-values"><div class="project-financial-value unbilled"><span>A faturar</span><strong>${money(financial.unbilled)}</strong></div><div class="project-financial-value billed"><span>Em comprovante</span><strong>${money(financial.billed)}</strong></div><div class="project-financial-value paid"><span>Pago</span><strong>${money(financial.paid)}</strong></div></div>` : '<div class="project-financial-empty"><i class="ph-duotone ph-info"></i><span>Ainda não há distribuições financeiras.</span></div>';
-        return `<article class="project-entry ${limit.is_full ? 'has-danger' : (limit.is_near ? 'has-warning' : '')}"><header class="project-entry-head"><span class="project-entry-icon"><i class="ph-duotone ph-folder-open"></i></span><div class="project-entry-heading"><div class="project-entry-title-line"><strong class="project-entry-title">${esc(item.title)}</strong><span class="project-status"><i class="ph ph-circle-fill"></i>${esc(item.status_label || 'Em execução')}</span></div><div class="project-entry-meta">${item.customer ? `<span class="project-meta-item customer"><i class="ph ph-buildings"></i><span>${esc(item.customer)}</span></span>` : ''}${item.type ? `<span class="project-meta-item type"><i class="ph ph-tag"></i><span>${esc(String(item.type).toUpperCase())}</span></span>` : ''}${item.period ? `<span class="project-meta-item period"><i class="ph ph-calendar-dots"></i><span>${esc(item.period)}</span></span>` : ''}</div></div><a class="project-open-main" href="${esc(item.url)}">Acessar projeto<i class="ph ph-arrow-right"></i></a></header><div class="project-entry-body">${limitHtml}<section class="project-financial"><div class="project-subhead"><span class="project-subhead-icon"><i class="ph-duotone ph-wallet"></i></span><strong>Distribuições</strong></div>${financialHtml}</section></div><footer class="project-entry-footer"><a class="project-open-main" href="${esc(item.url)}">Acessar projeto<i class="ph ph-arrow-right"></i></a></footer></article>`;
+        return `<article class="project-entry status-${status} ${limit.is_full ? 'has-danger' : (limit.is_near ? 'has-warning' : '')}"><header class="project-entry-head"><span class="project-entry-icon"><i class="ph-duotone ${icon}"></i></span><div class="project-entry-heading"><div class="project-entry-title-line"><strong class="project-entry-title">${esc(item.title)}</strong><span class="project-status status-${status}"><i class="ph ph-circle-fill"></i>${esc(item.status_label || projectFilterLabel(status))}</span></div><div class="project-entry-meta">${item.customer ? `<span class="project-meta-item customer"><i class="ph ph-buildings"></i><span>${esc(item.customer)}</span></span>` : ''}${item.type ? `<span class="project-meta-item type"><i class="ph ph-tag"></i><span>${esc(String(item.type).toUpperCase())}</span></span>` : ''}${item.period ? `<span class="project-meta-item period"><i class="ph ph-calendar-dots"></i><span>${esc(item.period)}</span></span>` : ''}</div></div><a class="project-open-main" href="${esc(item.url)}">${actionLabel}<i class="ph ph-arrow-right"></i></a></header><div class="project-entry-body">${limitHtml}<section class="project-financial"><div class="project-subhead"><span class="project-subhead-icon"><i class="ph-duotone ph-wallet"></i></span><strong>Distribuições</strong></div>${financialHtml}</section></div><footer class="project-entry-footer"><a class="project-open-main" href="${esc(item.url)}">${actionLabel}<i class="ph ph-arrow-right"></i></a></footer></article>`;
     }
 
     const deliveryState = {page:1, status:'', project_id:'', start_date:'', end_date:''};
@@ -242,7 +332,7 @@
     }
 
     if (config.page === 'dashboard') dashboard();
-    if (config.page === 'projects') projects();
+    if (config.page === 'projects') { setupProjectFilters(); projects(projectState.page); }
     if (config.page === 'deliveries') { setupDeliveryFilters(); deliveries(); }
     if (config.page === 'ledger') ledger();
 })();

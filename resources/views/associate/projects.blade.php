@@ -1174,29 +1174,10 @@
         }
     }
 </style>
+<link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 
 @php
     $projectsOnPage = $activeProjectsCount;
-
-    $projectsNearLimit = $activeProjects
-        ->filter(function ($project) use ($projectLimitData) {
-            $limit = $projectLimitData[$project->id] ?? [];
-
-            return (bool) (
-                ($limit['is_near'] ?? false)
-                || ($limit['is_full'] ?? false)
-            );
-        })
-        ->count();
-
-    $projectsWithFinancialMovement = $activeProjects
-        ->filter(function ($project) use ($financialStateData) {
-            return (float) (
-                $financialStateData[$project->id]['total']
-                ?? 0
-            ) > 0;
-        })
-        ->count();
 @endphp
 
 <main class="projects-page" data-associate-page="projects">
@@ -1217,8 +1198,7 @@
                 <h2>Projetos em execução</h2>
 
                 <p>
-                    Acompanhe seus limites, distribuições
-                    e acesse os detalhes de cada projeto.
+                    Participações atuais e histórico de projetos.
                 </p>
             </div>
 
@@ -1244,8 +1224,7 @@
                 </strong>
 
                 <p>
-                    Projetos atualmente disponíveis
-                    para acompanhamento no seu portal.
+                    Projetos encontrados com o filtro selecionado.
                 </p>
             </div>
 
@@ -1259,84 +1238,35 @@
                     </span>
 
                     <span class="projects-info-copy">
-                        <strong>
-                            {{ $projectsOnPage }}
-                            {{ $projectsOnPage === 1
-                                ? 'projeto ativo'
-                                : 'projetos ativos' }}
-                        </strong>
-
-                        <span>
-                            Disponíveis para consulta nesta página.
-                        </span>
+                        <strong data-project-active-count>0 em execução</strong>
+                        <span>Participações abertas no momento.</span>
                     </span>
                 </div>
 
-                <div class="projects-info-row access">
+                <div class="projects-info-row history">
                     <span
                         class="projects-info-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-duotone ph-cursor-click"></i>
+                        <i class="ph-duotone ph-archive-box"></i>
                     </span>
 
                     <span class="projects-info-copy">
-                        <strong>Acesso direto aos detalhes</strong>
-
-                        <span>
-                            Cada projeto possui uma ação destacada
-                            para abrir entregas, limites e financeiro.
-                        </span>
+                        <strong data-project-history-count>0 no histórico</strong>
+                        <span>Projetos encerrados, cancelados ou arquivados.</span>
                     </span>
                 </div>
 
-                @if($projectsNearLimit > 0)
-                    <div class="projects-info-row finance">
-                        <span
-                            class="projects-info-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-warning-circle"></i>
-                        </span>
+                <div class="projects-info-row all">
+                    <span class="projects-info-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-folders"></i>
+                    </span>
 
-                        <span class="projects-info-copy">
-                            <strong>
-                                {{ $projectsNearLimit }}
-                                {{ $projectsNearLimit === 1
-                                    ? 'projeto exige atenção'
-                                    : 'projetos exigem atenção' }}
-                            </strong>
-
-                            <span>
-                                Limite financeiro próximo
-                                ou já atingido.
-                            </span>
-                        </span>
-                    </div>
-                @elseif($projectsWithFinancialMovement > 0)
-                    <div class="projects-info-row finance">
-                        <span
-                            class="projects-info-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-wallet"></i>
-                        </span>
-
-                        <span class="projects-info-copy">
-                            <strong>
-                                {{ $projectsWithFinancialMovement }}
-                                {{ $projectsWithFinancialMovement === 1
-                                    ? 'projeto com movimentação'
-                                    : 'projetos com movimentação' }}
-                            </strong>
-
-                            <span>
-                                Há distribuições financeiras
-                                registradas nestes projetos.
-                            </span>
-                        </span>
-                    </div>
-                @endif
+                    <span class="projects-info-copy">
+                        <strong data-project-all-count>0 participações</strong>
+                        <span>Total disponível para consulta.</span>
+                    </span>
+                </div>
             </div>
         </div>
     </section>
@@ -1372,6 +1302,50 @@
             </span>
         </header>
 
+        <form class="projects-filter-bar" data-project-filters role="search">
+            <label class="projects-search-field" for="project-search">
+                <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                <input
+                    id="project-search"
+                    type="search"
+                    name="search"
+                    maxlength="80"
+                    autocomplete="off"
+                    placeholder="Buscar projeto, tipo ou cliente"
+                >
+            </label>
+
+            <label class="projects-status-field" for="project-status">
+                <span>Situação</span>
+                <select id="project-status" name="status">
+                    <option value="active">Em execução</option>
+                    <option value="history">Histórico encerrado</option>
+                    <option value="all">Todos os projetos</option>
+                    <option value="suspended">Suspensos</option>
+                    <option value="deliveries_closed">Entregas encerradas</option>
+                    <option value="completed">Concluídos</option>
+                    <option value="cancelled">Cancelados</option>
+                    <option value="archived">Arquivados</option>
+                </select>
+            </label>
+
+            <button class="projects-filter-submit" type="submit">
+                <i class="ph ph-funnel" aria-hidden="true"></i>
+                <span>Filtrar</span>
+            </button>
+
+            <button class="projects-filter-clear" type="button" data-project-clear title="Limpar filtros">
+                <i class="ph ph-x" aria-hidden="true"></i>
+                <span>Limpar</span>
+            </button>
+        </form>
+
+        <div class="projects-filter-summary" aria-live="polite">
+            <span data-project-filter-label>Projetos em execução</span>
+            <span data-project-counts></span>
+        </div>
+
+        <div data-project-results>
         @if($activeProjects->isEmpty())
             <div class="projects-empty">
                 <div class="projects-empty-content">
@@ -1844,6 +1818,7 @@
                 </div>
             @endif
         @endif
+        </div>
     </section>
 </main>
 @php

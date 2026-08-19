@@ -1213,6 +1213,7 @@
         }
     }
 </style>
+<link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 
 <main class="associate-dashboard" data-associate-page="dashboard">
 

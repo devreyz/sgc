@@ -873,8 +873,8 @@
             font-size: .65rem;
         }
     }
-    }
 </style>
+<link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 
 <main class="ledger-page" data-associate-page="ledger">
     <section class="ledger-panel">
