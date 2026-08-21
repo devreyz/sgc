@@ -19,8 +19,9 @@ class RolesSeeder extends Seeder
             'admin',
             'tesoureiro',
             'presidente',
+            'contador',
             'comprador',
-            'financeiro'
+            'financeiro',
         ];
 
         foreach ($roles as $role) {

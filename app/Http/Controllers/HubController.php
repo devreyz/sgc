@@ -77,6 +77,16 @@ class HubController extends Controller
             ];
         }
 
+        if ($user->can('view_accounting_portal')) {
+            $roles[] = [
+                'name' => 'Contabilidade',
+                'description' => 'Fila de trabalho e dossiês financeiros dos projetos',
+                'icon' => 'calculator',
+                'url' => route('accounting.index', ['tenant' => $currentTenant->slug]),
+                'color' => 'info',
+            ];
+        }
+
         if ($hasAdministration || $user->hasRoleInTenant('secretario', $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Secretaria',

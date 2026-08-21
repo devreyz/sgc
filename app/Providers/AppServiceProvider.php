@@ -6,45 +6,49 @@ use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Actions\Passkeys\StoreSecurePasskey;
 use App\Actions\Passkeys\VerifySecurePasskey;
 use App\Models\AccessInvitation;
+use App\Models\Asset;
 use App\Models\AssociateLedger;
+use App\Models\AssociateReceipt;
+use App\Models\BillingAuthorization;
 use App\Models\CashMovement;
+use App\Models\CollectivePurchase;
+use App\Models\CustomerBillingReceipt;
+use App\Models\DirectPurchase;
 use App\Models\Expense;
+use App\Models\Passkey;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
-use App\Models\PurchaseOrder;
-use App\Models\ServiceOrder;
-use App\Models\ServiceProvider as ServiceProviderModel;
-use App\Models\ServiceProviderLedger;
-use App\Models\Passkey;
-use App\Models\AssociateReceipt;
-use App\Models\Asset;
-use App\Models\CollectivePurchase;
-use App\Models\DirectPurchase;
 use App\Models\ProviderPaymentRequest;
+use App\Models\PurchaseOrder;
 use App\Models\Revenue;
 use App\Models\SalesProject;
+use App\Models\ServiceOrder;
 use App\Models\ServiceOrderPayment;
-use App\Policies\AccessInvitationPolicy;
-use App\Policies\PasskeyPolicy;
+use App\Models\ServiceProvider as ServiceProviderModel;
+use App\Models\ServiceProviderLedger;
 use App\Observers\AssociateLedgerObserver;
+use App\Observers\AssociateReceiptObserver;
 use App\Observers\CashMovementObserver;
+use App\Observers\CustomerBillingReceiptObserver;
 use App\Observers\ExpenseObserver;
 use App\Observers\ProductionDeliveryObserver;
 use App\Observers\ProductObserver;
 use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
-use App\Observers\ServiceProviderObserver;
 use App\Observers\ServiceProviderLedgerObserver;
-use App\Observers\AssociateReceiptObserver;
+use App\Observers\ServiceProviderObserver;
 use App\Observers\TenantStoredFileObserver;
+use App\Policies\AccessInvitationPolicy;
+use App\Policies\BillingAuthorizationPolicy;
+use App\Policies\PasskeyPolicy;
 use App\Services\TenantIdentityService;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
 use Illuminate\Foundation\Vite;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\ServiceProvider;
 use Laravel\Passkeys\Actions\GenerateRegistrationOptions;
 use Laravel\Passkeys\Actions\StorePasskey;
 use Laravel\Passkeys\Actions\VerifyPasskey;
@@ -79,6 +83,7 @@ class AppServiceProvider extends ServiceProvider
         Schema::defaultStringLength(191);
         Gate::policy(AccessInvitation::class, AccessInvitationPolicy::class);
         Gate::policy(Passkey::class, PasskeyPolicy::class);
+        Gate::policy(BillingAuthorization::class, BillingAuthorizationPolicy::class);
 
         RateLimiter::for('passkey-options', fn (Request $request) => Limit::perMinute(
             (int) config('security.rates.webauthn_per_minute', 10)
@@ -133,16 +138,16 @@ class AppServiceProvider extends ServiceProvider
             if (request()->routeIs('security.index', 'security.passkeys.*', 'security.reauth.*')) {
                 return null;
             }
-            
+
             // For non-super-admin users, enforce tenant check
             // Block access if no tenant is set (except for tenant selection routes)
-            if (!request()->is('tenant/*') && !request()->is('super-admin/*')) {
+            if (! request()->is('tenant/*') && ! request()->is('super-admin/*')) {
                 $currentTenantId = session('tenant_id');
-                if (!$currentTenantId && !$user->isSuperAdmin()) {
+                if (! $currentTenantId && ! $user->isSuperAdmin()) {
                     return false;
                 }
             }
-            
+
             return null;
         });
 
@@ -157,6 +162,7 @@ class AppServiceProvider extends ServiceProvider
         ServiceProviderModel::observe(ServiceProviderObserver::class);
         ServiceProviderLedger::observe(ServiceProviderLedgerObserver::class);
         AssociateReceipt::observe(AssociateReceiptObserver::class);
+        CustomerBillingReceipt::observe(CustomerBillingReceiptObserver::class);
         Asset::observe(TenantStoredFileObserver::class);
         CollectivePurchase::observe(TenantStoredFileObserver::class);
         DirectPurchase::observe(TenantStoredFileObserver::class);

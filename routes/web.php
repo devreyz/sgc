@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Accounting\AccountingPortalController;
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Associate\AssociatePortalDataController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Auth\InvitationPasskeyController;
 use App\Http\Controllers\Auth\PasskeyAuthenticationController;
 use App\Http\Controllers\Auth\PasskeyManagementController;
 use App\Http\Controllers\Auth\SecurityController;
+use App\Http\Controllers\Buyer\BuyerBillingAuthorizationController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
@@ -28,8 +30,8 @@ use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PublicFormController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\PublicFormController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
@@ -234,6 +236,25 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::delete('/management/{module}/data/{record}', [FinanceManagementController::class, 'destroy'])->middleware('throttle:20,1')->name('management.destroy');
     });
 
+    Route::prefix('accounting')
+        ->name('accounting.')
+        ->group(function () {
+            Route::get('/', [AccountingPortalController::class, 'index'])->name('index');
+            Route::get('/data/queue', [AccountingPortalController::class, 'queue'])->name('data.queue');
+            Route::get('/processes', [AccountingPortalController::class, 'processes'])->name('processes.index');
+            Route::get('/data/processes', [AccountingPortalController::class, 'processesData'])->name('data.processes');
+            Route::get('/processes/{receipt}', [AccountingPortalController::class, 'show'])
+                ->whereNumber('receipt')
+                ->name('processes.show');
+            Route::get('/data/processes/{receipt}', [AccountingPortalController::class, 'processData'])
+                ->whereNumber('receipt')
+                ->name('data.processes.show');
+            Route::post('/data/processes/{receipt}/authorization/send', [AccountingPortalController::class, 'sendAuthorization'])
+                ->middleware('throttle:20,1')->whereNumber('receipt')->name('data.processes.authorization.send');
+            Route::post('/data/processes/{receipt}/authorizations/{billingAuthorization}/cancel', [AccountingPortalController::class, 'cancelAuthorization'])
+                ->middleware('throttle:10,1')->whereNumber('receipt')->whereNumber('billingAuthorization')->name('data.processes.authorization.cancel');
+        });
+
     Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {
         Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');
         Route::get('/data', [SecretaryPortalController::class, 'data'])->name('data');
@@ -402,6 +423,11 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/requests', [BuyerPortalController::class, 'storeRequest'])->name('requests.store');
         Route::get('/requests/{buyerRequest}', [BuyerPortalController::class, 'showRequest'])->name('requests.show');
         Route::get('/projects/{project}/reports/distribution', [BuyerPortalController::class, 'reports'])->name('reports.distribution');
+        Route::get('/authorizations', [BuyerBillingAuthorizationController::class, 'index'])->name('authorizations.index');
+        Route::get('/authorizations/{billingAuthorization}', [BuyerBillingAuthorizationController::class, 'show'])->whereNumber('billingAuthorization')->name('authorizations.show');
+        Route::get('/authorizations/{billingAuthorization}/attachments/{document}', [BuyerBillingAuthorizationController::class, 'downloadAttachment'])->whereNumber(['billingAuthorization', 'document'])->name('authorizations.attachments.download');
+        Route::post('/authorizations/{billingAuthorization}/authorize', [BuyerBillingAuthorizationController::class, 'authorizeBilling'])->middleware('throttle:20,1')->whereNumber('billingAuthorization')->name('authorizations.authorize');
+        Route::post('/authorizations/{billingAuthorization}/request-correction', [BuyerBillingAuthorizationController::class, 'requestCorrection'])->middleware('throttle:20,1')->whereNumber('billingAuthorization')->name('authorizations.request-correction');
     });
 
     // Delivery Sheet (Fichas de Entrega) Routes — accessible to registrador, financeiro and admin

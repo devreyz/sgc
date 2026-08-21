@@ -8,6 +8,8 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class CustomerBillingReceipt extends Model
 {
@@ -123,6 +125,35 @@ class CustomerBillingReceipt extends Model
     {
         return $this->hasMany(CustomerReceiptPayment::class, 'customer_billing_receipt_id')
             ->orderBy('payment_date');
+    }
+
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function authorizationRounds(): HasMany
+    {
+        return $this->hasMany(BillingAuthorization::class, 'customer_billing_receipt_id')
+            ->orderByDesc('sequence');
+    }
+
+    public function currentAuthorization(): HasMany
+    {
+        return $this->hasMany(BillingAuthorization::class, 'customer_billing_receipt_id')
+            ->where('active_marker', true)
+            ->orderByDesc('sequence');
+    }
+
+    public function latestAuthorizationRound(): HasOne
+    {
+        return $this->hasOne(BillingAuthorization::class, 'customer_billing_receipt_id')->ofMany('sequence', 'max');
+    }
+
+    public function activeAuthorization(): HasOne
+    {
+        return $this->hasOne(BillingAuthorization::class, 'customer_billing_receipt_id')
+            ->where('active_marker', true)->ofMany('sequence', 'max');
     }
 
     /**

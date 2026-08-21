@@ -11,9 +11,11 @@ use App\Models\CustomerProjectFee;
 use App\Models\CustomerReceiptPayment;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Services\Accounting\BillingAuthorizationValidityService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -252,6 +254,23 @@ class CustomerBillingReceiptService
                 }
             }
         }, 5);
+
+        try {
+            $freshReceipt = CustomerBillingReceipt::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->findOrFail($receipt->id);
+            app(BillingAuthorizationValidityService::class)->invalidateIfChanged(
+                $freshReceipt,
+                Auth::user(),
+                'A cobrança foi recomposta a partir de suas distribuições.'
+            );
+        } catch (\Throwable $exception) {
+            Log::error('Falha ao verificar autorização após recompor cobrança.', [
+                'tenant_id' => $receipt->tenant_id,
+                'receipt_id' => $receipt->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

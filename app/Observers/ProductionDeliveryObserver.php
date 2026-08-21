@@ -3,9 +3,12 @@
 namespace App\Observers;
 
 use App\Enums\DeliveryStatus;
+use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
+use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\NotificationService;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class ProductionDeliveryObserver
@@ -97,6 +100,13 @@ class ProductionDeliveryObserver
                 self::$processing = false;
             }
         }
+
+        if ($delivery->wasChanged([
+            'billing_receipt_id', 'parent_delivery_id', 'product_id', 'customer_id',
+            'quantity', 'unit_price', 'status', 'delivery_date',
+        ])) {
+            $this->invalidateBillingAuthorizations($delivery);
+        }
     }
 
     /**
@@ -105,10 +115,43 @@ class ProductionDeliveryObserver
     public function deleted(ProductionDelivery $delivery): void
     {
         $delivery->projectDemand?->updateDeliveredQuantity();
+        $this->invalidateBillingAuthorizations($delivery);
     }
 
     public function restored(ProductionDelivery $delivery): void
     {
         $delivery->projectDemand?->updateDeliveredQuantity();
+        $this->invalidateBillingAuthorizations($delivery);
+    }
+
+    private function invalidateBillingAuthorizations(ProductionDelivery $delivery): void
+    {
+        $receiptIds = collect([
+            $delivery->billing_receipt_id,
+            $delivery->getOriginal('billing_receipt_id'),
+        ])->filter()->map(fn ($id): int => (int) $id)->unique()->values();
+
+        foreach ($receiptIds as $receiptId) {
+            DB::afterCommit(function () use ($receiptId, $delivery): void {
+                try {
+                    $receipt = CustomerBillingReceipt::withoutGlobalScopes()
+                        ->where('tenant_id', $delivery->tenant_id)->find($receiptId);
+                    if ($receipt) {
+                        app(BillingAuthorizationValidityService::class)->invalidateIfChanged(
+                            $receipt,
+                            auth()->user(),
+                            'Uma distribuição vinculada à cobrança foi alterada.'
+                        );
+                    }
+                } catch (\Throwable $exception) {
+                    Log::error('Falha ao verificar autorização após alteração de distribuição.', [
+                        'tenant_id' => $delivery->tenant_id,
+                        'distribution_id' => $delivery->id,
+                        'receipt_id' => $receiptId,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
+        }
     }
 }

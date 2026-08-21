@@ -56,6 +56,7 @@ class EnsureBuyerOrganizationAccess
 
         $access?->forceFill(['last_login_at' => now()])->save();
         $request->attributes->set('buyer_access', $access);
+        $request->attributes->set('buyer_accesses', $authorizedAccesses);
         $request->attributes->set('buyer_organization', $organization);
 
         return $next($request);
@@ -84,6 +85,20 @@ class EnsureBuyerOrganizationAccess
             }
         }
 
+        $authorizationId = $request->route('billingAuthorization');
+        if ($authorizationId) {
+            $organizationId = DB::table('billing_authorizations')
+                ->where('tenant_id', $tenantId)
+                ->where('id', $this->routeId($authorizationId))
+                ->value('organization_id');
+            $matchedAccess = $authorizedAccesses->first(
+                fn (OrganizationAuthorizedEmail $access): bool => (int) $access->organization_id === (int) $organizationId
+            );
+            if ($matchedAccess) {
+                return $matchedAccess;
+            }
+        }
+
         $projectId = $request->route('project');
         if ($projectId) {
             $projectId = $this->routeId($projectId);
@@ -104,11 +119,32 @@ class EnsureBuyerOrganizationAccess
             }
         }
 
+        $requestedOrganizationId = (int) $request->query('organization', 0);
+        if ($requestedOrganizationId > 0) {
+            $requestedAccess = $authorizedAccesses->first(
+                fn (OrganizationAuthorizedEmail $access): bool => (int) $access->organization_id === $requestedOrganizationId
+            );
+            if ($requestedAccess) {
+                return $requestedAccess;
+            }
+        }
+
         return $authorizedAccesses->first();
     }
 
     private function selectPreviewOrganizationForRoute(Request $request, int $tenantId): ?Organization
     {
+        $authorizationId = $request->route('billingAuthorization');
+        if ($authorizationId) {
+            $organizationId = DB::table('billing_authorizations')
+                ->where('tenant_id', $tenantId)
+                ->where('id', $this->routeId($authorizationId))
+                ->value('organization_id');
+            if ($organizationId) {
+                return Organization::withoutGlobalScope('tenant')->where('tenant_id', $tenantId)
+                    ->where('active', true)->find($organizationId);
+            }
+        }
         $buyerRequestId = $request->route('buyerRequest');
         if ($buyerRequestId) {
             $organizationId = DB::table('buyer_requests')

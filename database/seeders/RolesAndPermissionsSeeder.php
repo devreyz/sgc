@@ -2,11 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Associate;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolesAndPermissionsSeeder extends Seeder
 {
@@ -19,7 +21,7 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Reset cached roles and permissions
-        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
         // Criar role super_admin (acesso global ao sistema)
         $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
@@ -28,6 +30,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $financeiro = Role::firstOrCreate(['name' => 'financeiro', 'guard_name' => 'web']);
         $tesoureiro = Role::firstOrCreate(['name' => 'tesoureiro', 'guard_name' => 'web']);
+        $presidente = Role::firstOrCreate(['name' => 'presidente', 'guard_name' => 'web']);
+        $contador = Role::firstOrCreate(['name' => 'contador', 'guard_name' => 'web']);
         $operadorCaixa = Role::firstOrCreate(['name' => 'operador_caixa', 'guard_name' => 'web']);
         $assistente = Role::firstOrCreate(['name' => 'assistente', 'guard_name' => 'web']);
         $associado = Role::firstOrCreate(['name' => 'associado', 'guard_name' => 'web']);
@@ -62,6 +66,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'passkeys.manage-own',
             'passkeys.manage-users',
             'security-events.view',
+            'view_accounting_portal',
+            'view_accounting_processes',
+            'review_accounting_processes',
+            'request_accounting_corrections',
+            'send_accounting_authorizations',
+            'cancel_accounting_authorizations',
         ])->map(fn (string $name) => Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']));
 
         $this->command->info('✓ Roles criadas: super_admin, admin, financeiro, operador_caixa, assistente, associado, prestadores');
@@ -71,6 +81,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         if ($allPermissions->isEmpty()) {
             $this->command->warn('⚠ Nenhuma permission encontrada. Execute: php artisan shield:generate --all');
+
             return;
         }
 
@@ -86,7 +97,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 return ! str_contains($permission->name, 'shield::');
             });
             $admin->syncPermissions($adminPermissions);
-            $this->command->info('✓ Admin: ' . $adminPermissions->count() . ' permissions atribuídas');
+            $this->command->info('✓ Admin: '.$adminPermissions->count().' permissions atribuídas');
         }
 
         // Atribuir permissions ao role 'financeiro'
@@ -121,7 +132,17 @@ class RolesAndPermissionsSeeder extends Seeder
             });
             $financeiro->syncPermissions($financeiroPermissions);
             $tesoureiro->syncPermissions($financeiroPermissions);
-            $this->command->info('✓ Financeiro: ' . $financeiroPermissions->count() . ' permissions atribuídas');
+            $accountingPermissions = $allPermissions->filter(
+                fn ($permission) => str_contains($permission->name, 'accounting')
+            );
+            $financeiro->givePermissionTo($accountingPermissions);
+            $tesoureiro->givePermissionTo($accountingPermissions);
+            $presidente->givePermissionTo($accountingPermissions->filter(
+                fn ($permission) => str_contains($permission->name, 'view_accounting')
+                    || in_array($permission->name, ['send_accounting_authorizations', 'cancel_accounting_authorizations'], true)
+            ));
+            $contador->givePermissionTo($accountingPermissions);
+            $this->command->info('✓ Financeiro: '.$financeiroPermissions->count().' permissions atribuídas');
         }
 
         // Atribuir permissions ao role 'operador_caixa'
@@ -140,7 +161,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 return false;
             });
             $operadorCaixa->syncPermissions($operadorPermissions);
-            $this->command->info('✓ Operador Caixa: ' . $operadorPermissions->count() . ' permissions atribuídas');
+            $this->command->info('✓ Operador Caixa: '.$operadorPermissions->count().' permissions atribuídas');
         }
 
         // Atribuir permissions ao role 'assistente'
@@ -150,7 +171,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 return str_contains($permission->name, 'view');
             });
             $assistente->syncPermissions($assistentePermissions);
-            $this->command->info('✓ Assistente: ' . $assistentePermissions->count() . ' permissions (somente visualização)');
+            $this->command->info('✓ Assistente: '.$assistentePermissions->count().' permissions (somente visualização)');
         }
 
         // Roles 'associado' e 'prestador' não têm permissions do painel admin
@@ -197,7 +218,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $associateUser->assignRole($associado);
 
         // Criar perfil de associado
-        \App\Models\Associate::firstOrCreate(
+        Associate::firstOrCreate(
             ['user_id' => $associateUser->id],
             [
                 'cpf_cnpj' => '123.456.789-00',
@@ -214,11 +235,10 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('═══════════════════════════════════════════════════════════');
         $this->command->info('✓ Seeder executado com sucesso!');
         $this->command->info('═══════════════════════════════════════════════════════════');
-        $this->command->info('Roles disponíveis: ' . Role::pluck('name')->implode(', '));
-        $this->command->info('Total de permissions: ' . Permission::count());
+        $this->command->info('Roles disponíveis: '.Role::pluck('name')->implode(', '));
+        $this->command->info('Total de permissions: '.Permission::count());
         $this->command->info('');
         $this->command->info('IMPORTANTE: Admin não pode criar/editar roles - apenas atribuir!');
         $this->command->info('Roles são atribuídas por tenant via campo "roles" na tabela tenant_user');
     }
 }
-

@@ -20,6 +20,11 @@ class NotificationEventCatalog
             'expense.overdue' => self::event('Despesa vencida', 'Financeiro', 'Despesa ultrapassou a data de vencimento.', ['financeiro', 'tesoureiro', 'admin'], true, 'high'),
             'associate.limit_updated' => self::event('Limite atualizado', 'Projetos', 'Limite de participacao ou produto do associado alterado.', ['associado', 'registrador_entregas'], true, 'normal'),
             'buyer_request.created' => self::event('Solicitacao recebida', 'Compradores', 'Nova solicitacao de uma organizacao compradora.', ['registrador_entregas', 'admin'], true, 'normal'),
+            'billing.authorization.requested' => self::event('Cobrança para autorização', 'Autorizações', 'Uma cobrança aguarda análise da organização compradora.', ['comprador'], true, 'high'),
+            'billing.authorization.resent' => self::event('Nova versão da cobrança', 'Autorizações', 'Uma cobrança corrigida foi reenviada para análise.', ['comprador'], true, 'high'),
+            'billing.authorization.authorized' => self::event('Faturamento autorizado', 'Autorizações', 'A organização compradora autorizou o faturamento.', ['contador', 'financeiro', 'tesoureiro', 'admin'], true, 'high'),
+            'billing.authorization.correction_requested' => self::event('Correção solicitada', 'Autorizações', 'A organização compradora solicitou correção da cobrança.', ['contador', 'financeiro', 'tesoureiro', 'admin'], true, 'high'),
+            'billing.authorization.invalidated' => self::event('Autorização invalidada', 'Autorizações', 'Uma alteração material exige nova autorização.', ['contador', 'financeiro', 'tesoureiro', 'admin'], true, 'critical'),
             'manual.message' => self::event('Mensagem administrativa', 'Administracao', 'Mensagem enviada diretamente por um administrador.', [], true, 'normal'),
         ];
     }
@@ -35,6 +40,7 @@ class NotificationEventCatalog
             'admin' => 'Administradores',
             'financeiro' => 'Financeiro',
             'tesoureiro' => 'Tesouraria',
+            'contador' => 'Contabilidade',
             'registrador_entregas' => 'Registradores de entregas',
             'associado' => 'Associados',
             'comprador' => 'Compradores',

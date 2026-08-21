@@ -2,14 +2,12 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-
     <meta
         name="viewport"
         content="width=device-width, initial-scale=1, viewport-fit=cover"
     >
-
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="theme-color" content="#16803d">
+    <meta name="theme-color" content="#168a4d">
 
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="/assets/favicon.ico" sizes="any">
@@ -24,12 +22,10 @@
         href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800"
         rel="stylesheet"
     >
-
     <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
     >
-
     <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css"
@@ -42,53 +38,40 @@
 
     <style>
         :root {
-            --login-primary: var(--ws-primary, #168a4d);
-            --login-primary-dark: var(--ws-primary-dark, #116c3a);
-            --login-primary-deep: var(--ws-primary-deep, #0e542e);
-            --login-primary-muted: #eaf8ef;
+            --login-green: #168a4d;
+            --login-green-dark: #116c3a;
+            --login-green-deep: #0e542e;
+            --login-green-soft: #eaf8ef;
 
-            --login-surface: var(--color-surface, #ffffff);
-            --login-soft: var(--color-surface-soft, #f8faf9);
-            --login-muted: var(--color-surface-muted, #eef4f0);
-
-            --login-border: var(--color-border, #dce6df);
-            --login-border-strong: var(--color-border-strong, #c8d6cd);
+            --login-blue: #2563eb;
+            --login-blue-soft: #eef4ff;
+            --login-violet: #7c3aed;
+            --login-violet-soft: #f4f0ff;
+            --login-amber: #c87408;
+            --login-amber-soft: #fff7e8;
+            --login-red: #cf3f3f;
+            --login-red-soft: #fff0f0;
 
             --login-text: var(--color-text, #102018);
             --login-secondary: var(--color-text-secondary, #52645a);
-            --login-faded: var(--color-text-muted, #809087);
-
-            --login-blue: #2563eb;
-            --login-blue-soft: #eff6ff;
-
-            --login-sky: #0284c7;
-            --login-sky-soft: #f0f9ff;
-
-            --login-violet: #7c3aed;
-            --login-violet-soft: #f5f3ff;
-
-            --login-amber: #d97706;
-            --login-amber-soft: #fffbeb;
-
-            --login-danger: #dc2626;
-            --login-danger-soft: #fef2f2;
-
-            --login-shadow-sm:
-                0 7px 24px rgba(15, 35, 24, .065);
-
-            --login-shadow:
-                0 18px 55px rgba(15, 35, 24, .11);
-
-            --login-shadow-lg:
-                0 30px 90px rgba(8, 24, 15, .24);
+            --login-muted-text: var(--color-text-muted, #809087);
+            --login-border: var(--color-border, #dce6df);
+            --login-border-strong: var(--color-border-strong, #c8d6cd);
+            --login-surface: var(--color-surface, #ffffff);
+            --login-soft: var(--color-surface-soft, #f8faf9);
+            --login-muted: var(--color-surface-muted, #eef4f0);
 
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-right: env(safe-area-inset-right, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --safe-left: env(safe-area-inset-left, 0px);
 
-            --ease:
-                cubic-bezier(.2, .8, .2, 1);
+            --login-shadow:
+                0 20px 65px rgba(15, 35, 24, .11),
+                0 2px 8px rgba(15, 35, 24, .04);
+            --login-shadow-sm:
+                0 8px 24px rgba(15, 35, 24, .08);
+            --ease: cubic-bezier(.2, .8, .2, 1);
         }
 
         *,
@@ -97,35 +80,40 @@
             box-sizing: border-box;
         }
 
-        html {
+        html,
+        body {
+            width: 100dvw;
             min-width: 320px;
-            min-height: 100%;
+            height: 100dvh;
+            min-height: 100dvh;
+        }
+
+        html {
+            overflow: hidden;
             background: #eef4f0;
             -webkit-text-size-adjust: 100%;
         }
 
         body {
             margin: 0;
-            min-width: 320px;
-            min-height: 100dvh;
-            overflow-x: hidden;
+            overflow: hidden;
             background:
                 radial-gradient(
-                    circle at 8% 4%,
-                    rgba(34, 197, 94, .085),
-                    transparent 24rem
+                    circle at 10% 4%,
+                    rgba(22, 138, 77, .10),
+                    transparent 25rem
                 ),
                 radial-gradient(
-                    circle at 96% 94%,
-                    rgba(37, 99, 235, .045),
-                    transparent 26rem
+                    circle at 92% 14%,
+                    rgba(124, 58, 237, .065),
+                    transparent 22rem
                 ),
-                linear-gradient(
-                    180deg,
-                    #f9fcfa 0%,
-                    #f2f6f3 48%,
-                    #edf3ef 100%
-                );
+                radial-gradient(
+                    circle at 86% 96%,
+                    rgba(200, 116, 8, .065),
+                    transparent 24rem
+                ),
+                linear-gradient(180deg, #fbfdfb 0%, #f1f6f3 100%);
             color: var(--login-text);
             font-family:
                 Inter,
@@ -139,30 +127,26 @@
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             text-rendering: optimizeLegibility;
+            overscroll-behavior: none;
         }
 
         body::before {
             position: fixed;
-            z-index: -2;
+            z-index: 0;
             inset: 0;
             opacity: .56;
             background-image:
                 linear-gradient(
-                    rgba(21, 128, 61, .022) 1px,
+                    rgba(22, 138, 77, .022) 1px,
                     transparent 1px
                 ),
                 linear-gradient(
                     90deg,
-                    rgba(21, 128, 61, .022) 1px,
+                    rgba(22, 138, 77, .022) 1px,
                     transparent 1px
                 );
             background-size: 28px 28px;
-            mask-image:
-                linear-gradient(
-                    to bottom,
-                    rgba(0, 0, 0, .72),
-                    transparent 84%
-                );
+            mask-image: linear-gradient(to bottom, #000 0%, transparent 88%);
             content: "";
             pointer-events: none;
         }
@@ -173,7 +157,8 @@
         }
 
         button,
-        a {
+        a,
+        summary {
             -webkit-tap-highlight-color: transparent;
         }
 
@@ -183,8 +168,9 @@
         }
 
         button:focus-visible,
-        a:focus-visible {
-            outline: 3px solid rgba(34, 197, 94, .18);
+        a:focus-visible,
+        summary:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, .18);
             outline-offset: 3px;
         }
 
@@ -192,441 +178,293 @@
             display: none !important;
         }
 
-        /* =========================================================
-           SHELL
-           ========================================================= */
-
         .login-page {
             position: relative;
             z-index: 1;
             display: grid;
+            width: 100dvw;
+            min-width: 320px;
+            height: 100dvh;
             min-height: 100dvh;
             place-items: center;
+            overflow: hidden;
             padding:
-                max(18px, var(--safe-top))
-                max(18px, var(--safe-right))
-                max(18px, var(--safe-bottom))
-                max(18px, var(--safe-left));
+                max(16px, var(--safe-top))
+                max(16px, var(--safe-right))
+                max(16px, var(--safe-bottom))
+                max(16px, var(--safe-left));
         }
 
         .login-shell {
+            position: relative;
             display: grid;
-            width: min(100%, 980px);
-            grid-template-columns:
-                minmax(0, .94fr)
-                minmax(400px, .72fr);
-            overflow: hidden;
+            width: min(calc(100dvw - 32px), 490px);
+            max-height: calc(100dvh - 32px);
+            overflow-x: hidden;
+            overflow-y: auto;
             border: 1px solid var(--login-border);
-            border-radius: 20px;
+            border-radius: 18px;
             background: var(--login-surface);
             box-shadow: var(--login-shadow);
+            scrollbar-color: var(--login-border-strong) transparent;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
         }
 
-        /* =========================================================
-           VISUAL DESKTOP
-           ========================================================= */
-
-        .login-visual {
-            position: relative;
-            display: grid;
-            min-height: 610px;
-            grid-template-rows: auto 1fr auto;
-            overflow: hidden;
-            padding: 1.6rem;
+        .login-shell::before {
+            position: sticky;
+            z-index: 5;
+            top: 0;
+            display: block;
+            width: 100%;
+            height: 4px;
             background:
-                radial-gradient(
-                    circle at 82% 8%,
-                    rgba(255, 255, 255, .18),
-                    transparent 14rem
-                ),
-                radial-gradient(
-                    circle at 6% 92%,
-                    rgba(255, 255, 255, .10),
-                    transparent 18rem
-                ),
-                linear-gradient(
-                    145deg,
-                    var(--login-primary) 0%,
-                    var(--login-primary-dark) 54%,
-                    var(--login-primary-deep) 100%
-                );
-            color: #fff;
-        }
-
-        .login-visual::before {
-            position: absolute;
-            inset: 0;
-            opacity: .18;
-            background-image:
-                linear-gradient(
-                    rgba(255, 255, 255, .13) 1px,
-                    transparent 1px
-                ),
                 linear-gradient(
                     90deg,
-                    rgba(255, 255, 255, .13) 1px,
-                    transparent 1px
-                );
-            background-size: 30px 30px;
-            mask-image:
-                linear-gradient(
-                    135deg,
-                    rgba(0, 0, 0, .85),
-                    transparent 78%
+                    var(--login-green) 0 52%,
+                    var(--login-violet) 52% 78%,
+                    var(--login-amber) 78% 100%
                 );
             content: "";
-            pointer-events: none;
         }
 
-        .visual-brand,
-        .visual-message,
-        .visual-points {
-            position: relative;
-            z-index: 2;
-        }
-
-        .visual-brand {
+        .login-content {
             display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .7rem;
+            min-width: 0;
+            gap: 1.1rem;
+            padding: 1.4rem 1.5rem 1.25rem;
+        }
+
+        .login-brand {
+            display: grid;
+            min-width: 0;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .65rem;
             align-items: center;
-            width: max-content;
         }
 
-        .visual-brand-icon {
+        .login-brand-icon,
+        .login-heading-icon,
+        .auth-option-icon,
+        .feedback-icon,
+        .help-icon,
+        .success-icon {
             display: grid;
+            flex: 0 0 auto;
+            place-items: center;
+        }
+
+        .login-brand-icon {
             width: 44px;
             height: 44px;
-            place-items: center;
-            border: 1px solid rgba(255, 255, 255, .22);
             border-radius: 13px;
-            background: rgba(255, 255, 255, .13);
-            color: #fff;
-            box-shadow:
-                inset 0 1px 0 rgba(255, 255, 255, .12);
-            backdrop-filter: blur(12px);
+            background: var(--login-green-soft);
+            color: var(--login-green-deep);
         }
 
-        .visual-brand .visual-brand-icon > i {
+        .login-brand-icon > img {
             display: block;
-            font-size: 1.28rem;
-            line-height: 1;
-        }
-
-        .visual-brand .visual-brand-icon > img,
-        .mobile-brand .mobile-brand-icon > img {
-            display: block;
-            width: 28px;
-            height: 28px;
+            width: 29px;
+            height: 29px;
             object-fit: contain;
         }
 
-        .visual-brand-copy strong,
-        .visual-brand-copy span {
+        .login-brand-copy,
+        .login-brand-copy strong,
+        .login-brand-copy span {
             display: block;
-        }
-
-        .visual-brand-copy strong {
-            font-size: .92rem;
-            font-weight: 830;
-        }
-
-        .visual-brand-copy span {
-            margin-top: .08rem;
-            color: rgba(255, 255, 255, .74);
-            font-size: .72rem;
-            font-weight: 590;
-        }
-
-        .visual-message {
-            align-self: center;
-            max-width: 540px;
-            padding: 2rem .3rem 1.5rem;
-        }
-
-        .visual-message-kicker {
-            display: inline-grid;
-            grid-template-columns: auto auto;
-            gap: .38rem;
-            align-items: center;
-            color: rgba(255, 255, 255, .82);
-            font-size: .72rem;
-            font-weight: 790;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-        }
-
-        .visual-message-kicker > i {
-            display: block;
-            font-size: .95rem;
-            line-height: 1;
-        }
-
-        .visual-message h1 {
-            margin: .7rem 0 .65rem;
-            font-size: clamp(2rem, 4vw, 3.3rem);
-            font-weight: 850;
-            letter-spacing: -.052em;
-            line-height: 1.03;
-            text-wrap: balance;
-        }
-
-        .visual-message p {
-            max-width: 500px;
-            margin: 0;
-            color: rgba(255, 255, 255, .79);
-            font-size: .98rem;
-            line-height: 1.65;
-        }
-
-        .visual-points {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: .55rem;
-        }
-
-        .visual-point {
-            display: grid;
             min-width: 0;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .5rem;
-            align-items: center;
-            min-height: 72px;
-            padding: .65rem;
-            border: 1px solid rgba(255, 255, 255, .15);
-            border-radius: 14px;
-            background: rgba(255, 255, 255, .09);
-            backdrop-filter: blur(10px);
         }
 
-        .visual-point-icon {
+        .login-brand-copy strong {
+            overflow: hidden;
+            color: var(--login-text);
+            font-size: .9rem;
+            font-weight: 820;
+            line-height: 1.3;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .login-brand-copy span {
+            margin-top: .04rem;
+            color: var(--login-muted-text);
+            font-size: .69rem;
+            font-weight: 600;
+        }
+
+        .home-button {
             display: grid;
-            width: 35px;
-            height: 35px;
+            width: 38px;
+            height: 38px;
             place-items: center;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, .12);
-            color: #fff;
+            border: 1px solid var(--login-border);
+            border-radius: 11px;
+            background: #fff;
+            color: var(--login-secondary);
+            transition:
+                border-color 150ms ease,
+                background 150ms ease,
+                color 150ms ease,
+                transform 150ms ease;
         }
 
-        .visual-point .visual-point-icon > i {
+        .home-button:hover,
+        .home-button:focus-visible {
+            border-color: rgba(22, 138, 77, .28);
+            background: var(--login-green-soft);
+            color: var(--login-green-deep);
+            outline: none;
+            transform: translateX(-1px);
+        }
+
+        .home-button > i {
             display: block;
             font-size: 1rem;
             line-height: 1;
-        }
-
-        .visual-point strong,
-        .visual-point span {
-            display: block;
-        }
-
-        .visual-point strong {
-            font-size: .72rem;
-            font-weight: 790;
-            line-height: 1.28;
-        }
-
-        .visual-point span {
-            margin-top: .06rem;
-            color: rgba(255, 255, 255, .67);
-            font-size: .62rem;
-            line-height: 1.28;
-        }
-
-        /* =========================================================
-           PAINEL DE LOGIN
-           ========================================================= */
-
-        .login-panel {
-            display: grid;
-            min-width: 0;
-            align-content: center;
-            padding: clamp(1.35rem, 4vw, 2.25rem);
-            background: #fff;
-        }
-
-        .mobile-brand {
-            display: none;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .62rem;
-            align-items: center;
-            margin-bottom: 1.35rem;
-        }
-
-        .mobile-brand-icon {
-            display: grid;
-            width: 42px;
-            height: 42px;
-            place-items: center;
-            border-radius: 12px;
-            background: var(--login-muted);
-            color: var(--login-primary-deep);
-        }
-
-        .mobile-brand .mobile-brand-icon > i {
-            display: block;
-            font-size: 1.2rem;
-            line-height: 1;
-        }
-
-        .mobile-brand-copy strong,
-        .mobile-brand-copy span {
-            display: block;
-        }
-
-        .mobile-brand-copy strong {
-            font-size: .9rem;
-            font-weight: 830;
-        }
-
-        .mobile-brand-copy span {
-            margin-top: .04rem;
-            color: var(--login-faded);
-            font-size: .7rem;
         }
 
         .login-heading {
-            margin-bottom: 1.15rem;
-        }
-
-        .login-heading-kicker {
-            display: inline-grid;
-            grid-template-columns: auto auto;
-            gap: .35rem;
+            display: grid;
+            min-width: 0;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .7rem;
             align-items: center;
-            color: var(--login-primary-deep);
-            font-size: .72rem;
-            font-weight: 790;
-            letter-spacing: .05em;
-            text-transform: uppercase;
+            padding: .78rem;
+            overflow: hidden;
+            border: 1px solid var(--login-border);
+            border-radius: 15px;
+            background:
+                radial-gradient(
+                    circle at 100% 0,
+                    rgba(124, 58, 237, .07),
+                    transparent 12rem
+                ),
+                linear-gradient(180deg, var(--login-soft), #fff);
         }
 
-        .login-heading-kicker > i {
+        .login-heading-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: var(--login-violet-soft);
+            color: var(--login-violet);
+        }
+
+        .login-heading-icon > i {
             display: block;
-            font-size: .9rem;
+            font-size: 1.18rem;
             line-height: 1;
         }
 
-        .login-heading h2 {
-            margin: .3rem 0 0;
+        .login-heading h1 {
+            margin: 0;
             color: var(--login-text);
-            font-size: clamp(1.65rem, 4vw, 2rem);
+            font-size: clamp(1.25rem, 4.5dvw, 1.55rem);
             font-weight: 850;
-            letter-spacing: -.04em;
-            line-height: 1.08;
+            letter-spacing: -.038em;
+            line-height: 1.16;
         }
 
         .login-heading p {
-            margin: .4rem 0 0;
+            margin: .14rem 0 0;
             color: var(--login-secondary);
-            font-size: .9rem;
-            line-height: 1.55;
-        }
-
-        .login-context {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .62rem;
-            align-items: center;
-            margin: 0 0 1rem;
-            padding: .7rem;
-            border: 1px solid var(--login-border);
-            border-radius: 13px;
-            background:
-                radial-gradient(circle at 100% 0, rgba(22, 138, 77, .08), transparent 9rem),
-                var(--login-soft);
-        }
-
-        .login-context-icon {
-            display: grid;
-            width: 36px;
-            height: 36px;
-            place-items: center;
-            border-radius: 11px;
-            background: var(--login-primary-muted, #eaf8ef);
-            color: var(--login-primary-deep);
-        }
-
-        .login-context-icon > i {
-            font-size: 1.05rem;
-        }
-
-        .login-context-copy strong,
-        .login-context-copy span {
-            display: block;
-        }
-
-        .login-context-copy strong {
-            color: var(--login-text);
             font-size: .78rem;
-            font-weight: 790;
-        }
-
-        .login-context-copy span {
-            margin-top: .1rem;
-            color: var(--login-secondary);
-            font-size: .72rem;
             line-height: 1.42;
         }
 
-        /* =========================================================
-           ERRO
-           ========================================================= */
-
-        .error-box {
+        .server-feedback {
             display: grid;
+            gap: .55rem;
+        }
+
+        .feedback {
+            --feedback-tone: var(--login-blue);
+            --feedback-soft: var(--login-blue-soft);
+
+            display: grid;
+            min-width: 0;
             grid-template-columns: auto minmax(0, 1fr);
             gap: .62rem;
             align-items: start;
-            margin-bottom: .8rem;
-            padding: .72rem;
-            border: 1px solid rgba(220, 38, 38, .20);
-            border-radius: 13px;
-            background: var(--login-danger-soft);
-            color: #991b1b;
+            padding: .7rem;
+            border: 1px solid color-mix(in srgb, var(--feedback-tone) 24%, transparent);
+            border-left: 3px solid var(--feedback-tone);
+            border-radius: 12px;
+            background: var(--feedback-soft);
+            color: var(--login-secondary);
         }
 
-        .error-box-icon {
-            display: grid;
+        .feedback.is-error {
+            --feedback-tone: var(--login-red);
+            --feedback-soft: var(--login-red-soft);
+        }
+
+        .feedback.is-success {
+            --feedback-tone: var(--login-green);
+            --feedback-soft: var(--login-green-soft);
+        }
+
+        .feedback-icon {
             width: 34px;
             height: 34px;
-            place-items: center;
             border-radius: 10px;
-            background: #fee2e2;
-            color: var(--login-danger);
+            background: color-mix(in srgb, var(--feedback-tone) 11%, #fff);
+            color: var(--feedback-tone);
         }
 
-        .error-box .error-box-icon > i {
+        .feedback-icon > i {
             display: block;
             font-size: 1rem;
             line-height: 1;
         }
 
-        .error-box p {
+        .feedback-copy,
+        .feedback-copy strong,
+        .feedback-copy span {
+            display: block;
+            min-width: 0;
+        }
+
+        .feedback-copy strong {
+            color: var(--login-text);
+            font-size: .77rem;
+            font-weight: 800;
+            line-height: 1.35;
+        }
+
+        .feedback-copy span,
+        .feedback-copy p,
+        .feedback-copy li {
+            color: var(--login-secondary);
+            font-size: .72rem;
+            line-height: 1.45;
+        }
+
+        .feedback-copy span,
+        .feedback-copy p {
             margin: .08rem 0 0;
-            font-size: .78rem;
-            font-weight: 620;
-            line-height: 1.5;
         }
 
-        /* =========================================================
-           PASSKEY: AÇÃO PRINCIPAL
-           ========================================================= */
+        .feedback-copy ul {
+            margin: .2rem 0 0;
+            padding-left: 1rem;
+        }
 
-        .login-actions {
+        .auth-options {
             display: grid;
-            gap: .65rem;
+            gap: .62rem;
         }
 
-        .login-button {
+        .auth-option {
             position: relative;
             display: grid;
             width: 100%;
-            min-height: 56px;
+            min-height: 58px;
             grid-template-columns: auto minmax(0, 1fr) auto;
-            gap: .7rem;
+            gap: .68rem;
             align-items: center;
-            padding: .66rem .78rem;
+            padding: .65rem .72rem;
             overflow: hidden;
             border: 1px solid var(--login-border);
             border-radius: 13px;
@@ -634,457 +472,320 @@
             color: var(--login-text);
             cursor: pointer;
             text-align: left;
-            text-decoration: none;
             transition:
-                transform 150ms ease,
                 border-color 150ms ease,
+                background 150ms ease,
                 box-shadow 150ms ease,
-                background 150ms ease;
+                transform 150ms ease;
         }
 
-        .login-button:hover,
-        .login-button:focus-visible {
-            border-color: rgba(34, 197, 94, .34);
+        .auth-option:hover,
+        .auth-option:focus-visible {
+            border-color: rgba(124, 58, 237, .26);
+            background: #fdfcff;
             outline: none;
             box-shadow: var(--login-shadow-sm);
             transform: translateY(-1px);
         }
 
-        .login-button:disabled {
+        .auth-option:disabled {
             cursor: not-allowed;
-            opacity: .56;
-            transform: none;
+            opacity: .58;
             box-shadow: none;
+            transform: none;
         }
 
-        .login-button.primary {
-            border-color: rgba(21, 128, 61, .88);
+        .auth-option.is-primary {
+            border-color: var(--login-green);
             background:
                 linear-gradient(
                     135deg,
-                    var(--login-primary),
-                    var(--login-primary-dark)
+                    var(--login-green),
+                    var(--login-green-dark)
                 );
             color: #fff;
-            box-shadow:
-                0 10px 24px rgba(22, 163, 74, .18);
+            box-shadow: 0 10px 24px rgba(22, 138, 77, .18);
         }
 
-        .login-button.primary:hover,
-        .login-button.primary:focus-visible {
-            border-color: var(--login-primary-deep);
+        .auth-option.is-primary:hover,
+        .auth-option.is-primary:focus-visible {
+            border-color: var(--login-green-deep);
             background:
                 linear-gradient(
                     135deg,
-                    #24c964,
-                    var(--login-primary-deep)
+                    #1a9654,
+                    var(--login-green-deep)
                 );
-            color: #fff;
-            box-shadow:
-                0 14px 30px rgba(22, 163, 74, .22);
+            box-shadow: 0 14px 30px rgba(22, 138, 77, .22);
         }
 
-        .login-button-icon {
-            display: grid;
-            width: 38px;
-            height: 38px;
-            place-items: center;
+        .auth-option-icon {
+            width: 40px;
+            height: 40px;
             border-radius: 11px;
-            background: var(--login-muted);
-            color: var(--login-secondary);
+            background: var(--login-violet-soft);
+            color: var(--login-violet);
         }
 
-        .login-button.primary .login-button-icon {
-            background: rgba(255, 255, 255, .16);
+        .auth-option.is-primary .auth-option-icon {
+            background: rgba(255, 255, 255, .15);
             color: #fff;
         }
 
-        .login-button .login-button-icon > i {
+        .auth-option-icon > i {
             display: block;
             font-size: 1.18rem;
             line-height: 1;
         }
 
-        .login-button .login-button-icon > svg {
+        .auth-option-icon > svg {
             display: block;
-            width: 22px;
-            height: 22px;
+            width: 21px;
+            height: 21px;
         }
 
-        .login-button-copy {
+        .auth-option-copy,
+        .auth-option-copy strong,
+        .auth-option-copy span {
+            display: block;
             min-width: 0;
         }
 
-        .login-button-copy strong,
-        .login-button-copy span {
-            display: block;
-        }
-
-        .login-button-copy strong {
-            font-size: .86rem;
+        .auth-option-copy strong {
+            font-size: .84rem;
             font-weight: 800;
             line-height: 1.3;
         }
 
-        .login-button-copy span {
-            margin-top: .08rem;
-            color: var(--login-faded);
-            font-size: .72rem;
-            line-height: 1.4;
+        .auth-option-copy span {
+            margin-top: .06rem;
+            color: var(--login-muted-text);
+            font-size: .7rem;
+            line-height: 1.38;
         }
 
-        .login-button.primary .login-button-copy span {
+        .auth-option.is-primary .auth-option-copy span {
             color: rgba(255, 255, 255, .78);
         }
 
-        .login-button-end {
+        .auth-option-end {
             display: grid;
             width: 28px;
             height: 28px;
             place-items: center;
-            color: var(--login-faded);
+            color: var(--login-muted-text);
         }
 
-        .login-button.primary .login-button-end {
-            color: rgba(255, 255, 255, .78);
+        .auth-option.is-primary .auth-option-end {
+            color: rgba(255, 255, 255, .8);
         }
 
-        .login-button .login-button-end > i {
+        .auth-option-end > i {
             display: block;
             font-size: .9rem;
             line-height: 1;
         }
 
-        /* Animação especial de leitura/validação */
-        .login-button.primary.is-authenticating::after {
+        .auth-option.is-authenticating::after {
             position: absolute;
             top: 0;
             bottom: 0;
-            left: -32%;
-            width: 28%;
+            left: -34%;
+            width: 30%;
             background:
                 linear-gradient(
                     90deg,
                     transparent,
-                    rgba(255, 255, 255, .22),
+                    rgba(255, 255, 255, .23),
                     transparent
                 );
             content: "";
             pointer-events: none;
-            animation:
-                credential-scan
-                1.15s
-                ease-in-out
-                infinite;
+            animation: credential-scan 1.1s ease-in-out infinite;
         }
 
-        .login-button.primary.is-authenticating
-        .login-button-icon {
-            animation:
-                biometric-pulse
-                1s
-                ease-in-out
-                infinite;
+        .auth-option.is-authenticating .auth-option-icon {
+            animation: biometric-pulse 1s ease-in-out infinite;
         }
 
         @keyframes credential-scan {
-            from {
-                left: -32%;
-            }
-
-            to {
-                left: 112%;
-            }
+            from { left: -34%; }
+            to { left: 112%; }
         }
 
         @keyframes biometric-pulse {
-            0%,
-            100% {
-                transform: scale(1);
-                box-shadow:
-                    0 0 0 0 rgba(255, 255, 255, .0);
-            }
-
-            50% {
-                transform: scale(1.06);
-                box-shadow:
-                    0 0 0 7px rgba(255, 255, 255, .09);
-            }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.07); }
         }
-
-        /* =========================================================
-           EXPLICAÇÃO PASSKEY
-           ========================================================= */
-
-        .passkey-explanation {
-            margin-top: .72rem;
-            overflow: hidden;
-            border: 1px solid var(--login-border);
-            border-radius: 13px;
-            background: var(--login-soft);
-        }
-
-        .passkey-explanation summary {
-            display: grid;
-            min-height: 48px;
-            grid-template-columns: auto minmax(0, 1fr) auto;
-            gap: .55rem;
-            align-items: center;
-            padding: .55rem .62rem;
-            color: var(--login-secondary);
-            cursor: pointer;
-            list-style: none;
-            font-size: .77rem;
-            font-weight: 720;
-        }
-
-        .passkey-explanation summary::-webkit-details-marker {
-            display: none;
-        }
-
-        .passkey-summary-icon {
-            display: grid;
-            width: 32px;
-            height: 32px;
-            place-items: center;
-            border-radius: 9px;
-            background: var(--login-blue-soft);
-            color: var(--login-blue);
-        }
-
-        .passkey-explanation
-        .passkey-summary-icon > i {
-            display: block;
-            font-size: .95rem;
-            line-height: 1;
-        }
-
-        .passkey-summary-caret {
-            display: grid;
-            width: 28px;
-            height: 28px;
-            place-items: center;
-            color: var(--login-faded);
-            transition:
-                transform 150ms ease;
-        }
-
-        .passkey-explanation[open]
-        .passkey-summary-caret {
-            transform: rotate(180deg);
-        }
-
-        .passkey-explanation
-        .passkey-summary-caret > i {
-            display: block;
-            font-size: .8rem;
-            line-height: 1;
-        }
-
-        .passkey-details {
-            display: grid;
-            gap: .48rem;
-            padding: .1rem .62rem .68rem;
-        }
-
-        .passkey-step {
-            display: grid;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .52rem;
-            align-items: start;
-        }
-
-        .passkey-step-icon {
-            display: grid;
-            width: 32px;
-            height: 32px;
-            place-items: center;
-            border-radius: 9px;
-        }
-
-        .passkey-step.is-blue
-        .passkey-step-icon {
-            background: var(--login-blue-soft);
-            color: var(--login-blue);
-        }
-
-        .passkey-step.is-violet
-        .passkey-step-icon {
-            background: var(--login-violet-soft);
-            color: var(--login-violet);
-        }
-
-        .passkey-step.is-amber
-        .passkey-step-icon {
-            background: var(--login-amber-soft);
-            color: var(--login-amber);
-        }
-
-        .passkey-step
-        .passkey-step-icon > i {
-            display: block;
-            font-size: .92rem;
-            line-height: 1;
-        }
-
-        .passkey-step strong,
-        .passkey-step span {
-            display: block;
-        }
-
-        .passkey-step strong {
-            color: var(--login-text);
-            font-size: .74rem;
-            font-weight: 790;
-        }
-
-        .passkey-step span {
-            margin-top: .06rem;
-            color: var(--login-faded);
-            font-size: .7rem;
-            line-height: 1.42;
-        }
-
-        /* =========================================================
-           STATUS DE AUTENTICAÇÃO
-           ========================================================= */
 
         .login-status {
             display: none;
-            grid-template-columns: auto minmax(0, 1fr);
-            gap: .58rem;
-            align-items: center;
-            margin-top: .7rem;
-            padding: .68rem;
-            border: 1px solid var(--login-border);
-            border-radius: 12px;
-            background: var(--login-soft);
-            color: var(--login-secondary);
+            margin-top: -.1rem;
         }
 
         .login-status.show {
             display: grid;
+            animation: feedback-in 180ms var(--ease) both;
         }
 
-        .login-status-icon {
-            display: grid;
-            width: 34px;
-            height: 34px;
-            place-items: center;
-            border-radius: 10px;
-            background: var(--login-blue-soft);
-            color: var(--login-blue);
+        .login-status.is-progress .feedback-icon > i {
+            animation: status-breathe 1s ease-in-out infinite;
         }
 
-        .login-status
-        .login-status-icon > i {
-            display: block;
-            font-size: 1rem;
-            line-height: 1;
-            animation:
-                status-breathe
-                1s
-                ease-in-out
-                infinite;
-        }
-
-        .login-status.success
-        .login-status-icon {
-            background: #ecfdf5;
-            color: #059669;
-        }
-
-        .login-status.error
-        .login-status-icon {
-            background: var(--login-danger-soft);
-            color: var(--login-danger);
-        }
-
-        .login-status.success
-        .login-status-icon > i,
-        .login-status.error
-        .login-status-icon > i {
-            animation: none;
-        }
-
-        .login-status-copy strong,
-        .login-status-copy span {
-            display: block;
-        }
-
-        .login-status-copy strong {
-            color: var(--login-text);
-            font-size: .76rem;
-            font-weight: 800;
-        }
-
-        .login-status-copy span {
-            margin-top: .04rem;
-            color: var(--login-faded);
-            font-size: .7rem;
-            line-height: 1.4;
+        @keyframes feedback-in {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: none;
+            }
         }
 
         @keyframes status-breathe {
-            0%,
-            100% {
+            0%, 100% {
                 opacity: .58;
                 transform: scale(.94);
             }
-
             50% {
                 opacity: 1;
                 transform: scale(1.04);
             }
         }
 
-        /* =========================================================
-           DIVISOR / FOOTER
-           ========================================================= */
-
-        .login-divider {
-            display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: .65rem;
-            align-items: center;
-            margin: 1rem 0;
-            color: var(--login-faded);
-            font-size: .7rem;
-            font-weight: 670;
+        .passkey-help {
+            overflow: hidden;
+            border: 1px solid var(--login-border);
+            border-radius: 12px;
+            background: var(--login-soft);
         }
 
-        .login-divider::before,
-        .login-divider::after {
-            height: 1px;
-            background: var(--login-border);
-            content: "";
+        .passkey-help summary {
+            display: grid;
+            min-height: 44px;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: .52rem;
+            align-items: center;
+            padding: .5rem .58rem;
+            color: var(--login-secondary);
+            cursor: pointer;
+            font-size: .74rem;
+            font-weight: 720;
+            list-style: none;
+        }
+
+        .passkey-help summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .help-icon {
+            width: 31px;
+            height: 31px;
+            border-radius: 9px;
+            background: var(--login-blue-soft);
+            color: var(--login-blue);
+        }
+
+        .help-icon > i {
+            display: block;
+            font-size: .92rem;
+            line-height: 1;
+        }
+
+        .help-caret {
+            display: grid;
+            width: 26px;
+            height: 26px;
+            place-items: center;
+            color: var(--login-muted-text);
+            transition: transform 150ms ease;
+        }
+
+        .passkey-help[open] .help-caret {
+            transform: rotate(180deg);
+        }
+
+        .help-caret > i {
+            display: block;
+            font-size: .78rem;
+            line-height: 1;
+        }
+
+        .help-copy {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .55rem;
+            align-items: start;
+            margin: 0 .58rem .58rem;
+            padding: .62rem;
+            border-radius: 10px;
+            background: #fff;
+            color: var(--login-secondary);
+        }
+
+        .help-copy > i {
+            display: block;
+            margin-top: .08rem;
+            color: var(--login-violet);
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .help-copy p {
+            margin: 0;
+            font-size: .71rem;
+            line-height: 1.48;
         }
 
         .login-footer {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: .8rem;
-            align-items: center;
-            margin-top: 1.25rem;
-            color: var(--login-faded);
-            font-size: .72rem;
+            gap: .65rem;
+            padding-top: .88rem;
+            border-top: 1px solid var(--login-border);
         }
 
-        .login-footer-actions {
+        .footer-main {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .48rem .75rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .footer-actions {
             display: inline-flex;
             flex-wrap: wrap;
-            gap: .6rem;
+            gap: .45rem;
             align-items: center;
         }
 
-        .login-footer a {
-            justify-self: start;
+        .footer-link,
+        .pwa-install-button {
             color: var(--login-secondary);
-            font-weight: 700;
+            font-size: .7rem;
+            font-weight: 720;
         }
 
-        .login-footer a:hover {
-            color: var(--login-primary-deep);
+        .footer-link:hover,
+        .footer-link:focus-visible {
+            color: var(--login-green-deep);
+        }
+
+        .pwa-install-button {
+            min-height: 30px;
+            padding: .28rem .56rem;
+            border: 1px solid var(--login-border);
+            border-radius: 999px;
+            background: var(--login-soft);
+            cursor: pointer;
+        }
+
+        .pwa-install-button:hover,
+        .pwa-install-button:focus-visible {
+            border-color: rgba(22, 138, 77, .25);
+            background: var(--login-green-soft);
+            color: var(--login-green-deep);
         }
 
         .safe-label {
@@ -1092,160 +793,120 @@
             grid-template-columns: auto auto;
             gap: .28rem;
             align-items: center;
+            color: var(--login-muted-text);
+            font-size: .68rem;
+            font-weight: 650;
             white-space: nowrap;
         }
 
         .safe-label > i {
             display: block;
-            color: var(--login-primary-dark);
+            color: var(--login-green);
             font-size: .82rem;
             line-height: 1;
         }
 
-        .pwa-install-button {
-            justify-self: center;
-            border: 1px solid var(--login-border-strong);
-            border-radius: 999px;
-            background: var(--login-soft);
-            padding: .42rem .72rem;
-            color: var(--login-primary-deep);
-            font: inherit;
-            font-size: .72rem;
-            font-weight: 760;
-            cursor: pointer;
-        }
-
-        .pwa-install-button:hover {
-            background: var(--login-muted);
-        }
-
         .legal-links {
             display: flex;
-            grid-column: 1 / -1;
             flex-wrap: wrap;
-            gap: .45rem .8rem;
-            margin-top: .15rem;
-            padding-top: .8rem;
-            border-top: 1px solid var(--login-border);
-            font-size: .68rem;
+            gap: .38rem .72rem;
         }
 
         .legal-links a {
-            color: var(--login-faded);
-            font-weight: 650;
+            color: var(--login-muted-text);
+            font-size: .65rem;
+            font-weight: 640;
         }
 
-        .legal-links a:hover {
-            color: var(--login-primary-deep);
+        .legal-links a:hover,
+        .legal-links a:focus-visible {
+            color: var(--login-green-deep);
         }
-
-        /* =========================================================
-           ANIMAÇÃO DE SAÍDA / SUCESSO
-           ========================================================= */
 
         .auth-success-layer {
             position: fixed;
             z-index: 3000;
             inset: 0;
             display: none;
+            width: 100dvw;
+            height: 100dvh;
             place-items: center;
             padding: 1rem;
-            background:
-                rgba(244, 250, 246, .92);
+            background: rgba(244, 250, 246, .92);
             backdrop-filter: blur(10px);
         }
 
         .auth-success-layer.show {
             display: grid;
-            animation:
-                success-layer-in
-                220ms
-                ease-out
-                both;
+            animation: success-layer-in 200ms ease-out both;
         }
 
         .auth-success-card {
             display: grid;
-            width: min(100%, 320px);
+            width: min(calc(100dvw - 32px), 310px);
             justify-items: center;
-            gap: .55rem;
-            padding: 1.15rem;
-            border: 1px solid rgba(34, 197, 94, .18);
-            border-radius: 18px;
+            gap: .28rem;
+            padding: 1.35rem;
+            border: 1px solid var(--login-border);
+            border-radius: 17px;
             background: #fff;
+            box-shadow: var(--login-shadow);
             text-align: center;
-            box-shadow: var(--login-shadow-lg);
         }
 
-        .auth-success-icon {
+        .success-icon {
             position: relative;
-            display: grid;
-            width: 64px;
-            height: 64px;
-            place-items: center;
-            border-radius: 20px;
+            width: 50px;
+            height: 50px;
+            margin-bottom: .28rem;
+            border-radius: 15px;
             background:
                 linear-gradient(
-                    145deg,
-                    var(--login-primary),
-                    var(--login-primary-deep)
+                    135deg,
+                    var(--login-green),
+                    var(--login-green-deep)
                 );
             color: #fff;
+            box-shadow: 0 12px 28px rgba(22, 138, 77, .22);
+            animation: success-icon-in 300ms var(--ease) both;
         }
 
-        .auth-success-card
-        .auth-success-icon > i {
-            display: block;
-            font-size: 1.8rem;
-            line-height: 1;
-            animation:
-                success-icon-in
-                380ms
-                var(--ease)
-                both;
-        }
-
-        .auth-success-icon::after {
+        .success-icon::after {
             position: absolute;
-            inset: -8px;
-            border: 2px solid rgba(34, 197, 94, .15);
-            border-radius: 25px;
+            inset: -5px;
+            border: 2px solid rgba(22, 138, 77, .18);
+            border-radius: 19px;
             content: "";
-            animation:
-                success-ring
-                650ms
-                ease-out
-                both;
+            animation: success-ring 900ms ease-out infinite;
+        }
+
+        .success-icon > i {
+            display: block;
+            font-size: 1.35rem;
+            line-height: 1;
         }
 
         .auth-success-card strong {
-            margin-top: .1rem;
             color: var(--login-text);
-            font-size: .95rem;
-            font-weight: 830;
+            font-size: .9rem;
+            font-weight: 820;
         }
 
-        .auth-success-card span {
-            color: var(--login-faded);
-            font-size: .76rem;
+        .auth-success-card > span:last-child {
+            color: var(--login-muted-text);
+            font-size: .72rem;
         }
 
         @keyframes success-layer-in {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         @keyframes success-icon-in {
             from {
                 opacity: 0;
-                transform: scale(.7) rotate(-8deg);
+                transform: scale(.72) rotate(-7deg);
             }
-
             to {
                 opacity: 1;
                 transform: none;
@@ -1254,115 +915,103 @@
 
         @keyframes success-ring {
             from {
-                opacity: .65;
-                transform: scale(.72);
+                opacity: .7;
+                transform: scale(.78);
             }
-
             to {
                 opacity: 0;
-                transform: scale(1.35);
-            }
-        }
-
-        /* =========================================================
-           RESPONSIVO
-           ========================================================= */
-
-        @media (max-width: 860px) {
-            .login-page {
-                place-items: center;
-            }
-
-            .login-shell {
-                width: min(100%, 500px);
-                grid-template-columns: 1fr;
-            }
-
-            .login-visual {
-                display: none;
-            }
-
-            .login-panel {
-                padding: 1.5rem;
-            }
-
-            .mobile-brand {
-                display: grid;
+                transform: scale(1.28);
             }
         }
 
         @media (max-width: 520px) {
             .login-page {
-                min-height: 100dvh;
-                place-items: start center;
-                padding:
-                    max(10px, var(--safe-top))
-                    max(10px, var(--safe-right))
-                    max(10px, var(--safe-bottom))
-                    max(10px, var(--safe-left));
+                padding: 0;
             }
 
             .login-shell {
-                border-radius: 16px;
+                width: 100dvw;
+                height: 100dvh;
+                max-height: 100dvh;
+                border: 0;
+                border-radius: 0;
+                box-shadow: none;
+                scrollbar-gutter: auto;
             }
 
-            .login-panel {
-                padding: 1.15rem;
-            }
-
-            .mobile-brand {
-                margin-bottom: 1.1rem;
+            .login-content {
+                min-height: calc(100dvh - 4px);
+                align-content: safe center;
+                gap: 1rem;
+                padding:
+                    max(1rem, var(--safe-top))
+                    max(1rem, var(--safe-right))
+                    max(1rem, var(--safe-bottom))
+                    max(1rem, var(--safe-left));
             }
 
             .login-heading {
-                margin-bottom: 1rem;
+                padding: .7rem;
             }
 
-            .login-heading h2 {
-                font-size: 1.65rem;
-            }
-
-            .login-heading p {
-                font-size: .86rem;
-            }
-
-            .login-button {
+            .auth-option {
                 min-height: 60px;
-                gap: .58rem;
-                padding: .68rem;
-            }
-
-            .login-button-icon {
-                width: 40px;
-                height: 40px;
-            }
-
-            .login-button-copy strong {
-                font-size: .84rem;
-            }
-
-            .login-button-copy span {
-                font-size: .72rem;
-            }
-
-            .login-footer {
-                grid-template-columns: 1fr;
-            }
-
-            .safe-label {
-                justify-self: start;
             }
         }
 
         @media (max-width: 360px) {
-            .login-button {
-                grid-template-columns:
-                    auto
-                    minmax(0, 1fr);
+            .login-content {
+                padding-right: .8rem;
+                padding-left: .8rem;
             }
 
-            .login-button-end {
+            .auth-option {
+                grid-template-columns: auto minmax(0, 1fr);
+            }
+
+            .auth-option-end {
                 display: none;
+            }
+
+            .footer-main {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+
+        @media (max-height: 680px) {
+            .login-content {
+                gap: .72rem;
+                padding-top: .85rem;
+                padding-bottom: .85rem;
+            }
+
+            .login-heading {
+                padding: .62rem;
+            }
+
+            .login-heading-icon {
+                width: 38px;
+                height: 38px;
+            }
+
+            .auth-option {
+                min-height: 54px;
+                padding-top: .5rem;
+                padding-bottom: .5rem;
+            }
+
+            .auth-option-copy span {
+                display: none;
+            }
+
+            .passkey-help summary {
+                min-height: 40px;
+            }
+
+            .login-footer {
+                gap: .48rem;
+                padding-top: .65rem;
             }
         }
 
@@ -1370,6 +1019,7 @@
             *,
             *::before,
             *::after {
+                scroll-behavior: auto !important;
                 transition-duration: .01ms !important;
                 animation-duration: .01ms !important;
                 animation-iteration-count: 1 !important;
@@ -1404,197 +1054,120 @@
             class="login-shell"
             aria-labelledby="login-title"
         >
-            <aside
-                class="login-visual"
-                aria-label="Apresentação do SGC"
-            >
-                <div class="visual-brand">
+            <div class="login-content">
+                <header class="login-brand">
                     <span
-                        class="visual-brand-icon"
+                        class="login-brand-icon"
                         aria-hidden="true"
                     >
-                        <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
+                        <img
+                            src="{{ asset('assets/sgc-symbol.png') }}"
+                            alt=""
+                        >
                     </span>
 
-                    <span class="visual-brand-copy">
-                        <strong>
-                            {{ config('app.name', 'ZeCoop SGC') }}
-                        </strong>
-
-                        <span>
-                            Gestão conectada
-                        </span>
-                    </span>
-                </div>
-
-                <div class="visual-message">
-                    <span class="visual-message-kicker">
-                        <i class="ph-duotone ph-shield-check"></i>
-                        Acesso ao sistema
+                    <span class="login-brand-copy">
+                        <strong>{{ config('app.name', 'ZeCoop SGC') }}</strong>
+                        <span>Acesso ao sistema</span>
                     </span>
 
-                    <h1>
-                        Entre de forma simples e segura.
-                    </h1>
-
-                    <p>
-                        Acesse sua organização para acompanhar projetos,
-                        operações, financeiro e documentos no mesmo ambiente.
-                    </p>
-                </div>
-
-                <div class="visual-points">
-                    <article class="visual-point">
-                        <span
-                            class="visual-point-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-fingerprint-simple"></i>
-                        </span>
-
-                        <span>
-                            <strong>Biometria ou PIN</strong>
-                            <span>Sem digitar senha</span>
-                        </span>
-                    </article>
-
-                    <article class="visual-point">
-                        <span
-                            class="visual-point-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-device-mobile"></i>
-                        </span>
-
-                        <span>
-                            <strong>Celular e computador</strong>
-                            <span>Mesmo acesso</span>
-                        </span>
-                    </article>
-
-                    <article class="visual-point">
-                        <span
-                            class="visual-point-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-users-three"></i>
-                        </span>
-
-                        <span>
-                            <strong>Por função</strong>
-                            <span>Cada perfil vê o necessário</span>
-                        </span>
-                    </article>
-                </div>
-            </aside>
-
-            <section class="login-panel">
-                <div class="mobile-brand">
-                    <span
-                        class="mobile-brand-icon"
-                        aria-hidden="true"
+                    <a
+                        class="home-button"
+                        href="{{ url('/') }}"
+                        aria-label="Voltar ao início"
+                        title="Voltar ao início"
                     >
-                        <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
-                    </span>
-
-                    <span class="mobile-brand-copy">
-                        <strong>
-                            {{ config('app.name', 'ZeCoop SGC') }}
-                        </strong>
-
-                        <span>
-                            Acesso seguro
-                        </span>
-                    </span>
-                </div>
-
-                <header class="login-heading">
-                    <span class="login-heading-kicker">
-                        <i class="ph-duotone ph-sign-in"></i>
-                        Identificação
-                    </span>
-
-                    <h2 id="login-title">
-                        Entrar
-                    </h2>
-
-                    <p>
-                        Escolha a forma de acesso mais fácil para você.
-                    </p>
+                        <i class="ph ph-arrow-left" aria-hidden="true"></i>
+                    </a>
                 </header>
 
-                <div class="login-context">
-                    <span class="login-context-icon" aria-hidden="true">
-                        <i class="ph-duotone ph-squares-four"></i>
+                <section class="login-heading">
+                    <span class="login-heading-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-sign-in"></i>
                     </span>
-                    <span class="login-context-copy">
-                        <strong>Um único acesso, todos os seus painéis</strong>
-                        <span>Projetos, entregas, financeiro e documentos no ambiente da sua organização.</span>
-                    </span>
-                </div>
 
-                @if(session('error'))
+                    <div>
+                        <h1 id="login-title">Entrar</h1>
+                        <p>Escolha como acessar sua conta.</p>
+                    </div>
+                </section>
+
+                @if(session('status') || session('error') || $errors->any())
                     <div
-                        class="error-box"
-                        role="alert"
+                        class="server-feedback"
+                        role="region"
+                        aria-label="Retorno do acesso"
                     >
-                        <span
-                            class="error-box-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-warning-circle"></i>
-                        </span>
+                        @if(session('status'))
+                            <div class="feedback is-success" role="status">
+                                <span class="feedback-icon" aria-hidden="true">
+                                    <i class="ph-duotone ph-check-circle"></i>
+                                </span>
 
-                        <p>
-                            {{ session('error') }}
-                        </p>
+                                <div class="feedback-copy">
+                                    <strong>Solicitação concluída</strong>
+                                    <span>{{ session('status') }}</span>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if(session('error') || $errors->any())
+                            <div class="feedback is-error" role="alert">
+                                <span class="feedback-icon" aria-hidden="true">
+                                    <i class="ph-duotone ph-warning-circle"></i>
+                                </span>
+
+                                <div class="feedback-copy">
+                                    <strong>Não foi possível entrar</strong>
+
+                                    @if(session('error'))
+                                        <p>{{ session('error') }}</p>
+                                    @endif
+
+                                    @if($errors->any())
+                                        <ul>
+                                            @foreach($errors->all() as $error)
+                                                <li>{{ $error }}</li>
+                                            @endforeach
+                                        </ul>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     </div>
                 @endif
 
-                <div class="login-actions">
+                <div
+                    class="auth-options"
+                    role="group"
+                    aria-label="Formas de acesso"
+                >
                     <button
-                        class="login-button primary"
+                        class="auth-option is-primary"
                         id="passkey-login"
                         type="button"
                     >
-                        <span
-                            class="login-button-icon"
-                            aria-hidden="true"
-                        >
+                        <span class="auth-option-icon" aria-hidden="true">
                             <i class="ph-duotone ph-fingerprint-simple"></i>
                         </span>
 
-                        <span class="login-button-copy">
-                            <strong>
-                                Entrar com biometria ou PIN
-                            </strong>
-
-                            <span>
-                                Impressão digital, rosto ou PIN deste aparelho
-                            </span>
+                        <span class="auth-option-copy">
+                            <strong>Entrar com biometria ou PIN</strong>
+                            <span>Use a confirmação deste aparelho</span>
                         </span>
 
-                        <span
-                            class="login-button-end"
-                            aria-hidden="true"
-                        >
+                        <span class="auth-option-end" aria-hidden="true">
                             <i class="ph ph-arrow-right"></i>
                         </span>
                     </button>
 
                     <a
                         href="{{ $googleLoginUrl }}"
-                        class="login-button"
+                        class="auth-option"
                         id="google-login"
                     >
-                        <span
-                            class="login-button-icon"
-                            aria-hidden="true"
-                        >
-                            <svg
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                            >
+                        <span class="auth-option-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <path
                                     fill="#4285F4"
                                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -1614,141 +1187,85 @@
                             </svg>
                         </span>
 
-                        <span class="login-button-copy">
-                            <strong>
-                                Continuar com Google
-                            </strong>
-
-                            <span>
-                                Use a conta Google já vinculada ao SGC
-                            </span>
+                        <span class="auth-option-copy">
+                            <strong>Continuar com Google</strong>
+                            <span>Use uma conta já vinculada</span>
                         </span>
 
-                        <span
-                            class="login-button-end"
-                            aria-hidden="true"
-                        >
+                        <span class="auth-option-end" aria-hidden="true">
                             <i class="ph ph-arrow-up-right"></i>
                         </span>
                     </a>
                 </div>
 
-                <details class="passkey-explanation">
-                    <summary>
-                        <span
-                            class="passkey-summary-icon"
-                            aria-hidden="true"
-                        >
-                            <i class="ph-duotone ph-question"></i>
-                        </span>
-
-                        <span>
-                            Como funciona o acesso com biometria?
-                        </span>
-
-                        <span
-                            class="passkey-summary-caret"
-                            aria-hidden="true"
-                        >
-                            <i class="ph ph-caret-down"></i>
-                        </span>
-                    </summary>
-
-                    <div class="passkey-details">
-                        <div class="passkey-step is-blue">
-                            <span
-                                class="passkey-step-icon"
-                                aria-hidden="true"
-                            >
-                                <i class="ph-duotone ph-hand-tap"></i>
-                            </span>
-
-                            <span>
-                                <strong>1. Toque no botão</strong>
-                                <span>
-                                    O próprio aparelho abrirá a confirmação de acesso.
-                                </span>
-                            </span>
-                        </div>
-
-                        <div class="passkey-step is-violet">
-                            <span
-                                class="passkey-step-icon"
-                                aria-hidden="true"
-                            >
-                                <i class="ph-duotone ph-fingerprint-simple"></i>
-                            </span>
-
-                            <span>
-                                <strong>2. Confirme sua identidade</strong>
-                                <span>
-                                    Pode ser impressão digital, reconhecimento facial
-                                    ou o PIN usado para desbloquear o dispositivo.
-                                </span>
-                            </span>
-                        </div>
-
-                        <div class="passkey-step is-amber">
-                            <span
-                                class="passkey-step-icon"
-                                aria-hidden="true"
-                            >
-                                <i class="ph-duotone ph-check-circle"></i>
-                            </span>
-
-                            <span>
-                                <strong>3. Pronto</strong>
-                                <span>
-                                    Após a confirmação, o SGC abre sua organização.
-                                    Essa tecnologia é chamada de passkey.
-                                </span>
-                            </span>
-                        </div>
-                    </div>
-                </details>
-
                 <div
-                    class="login-status"
+                    class="feedback login-status is-progress"
                     id="login-status"
                     role="status"
                     aria-live="polite"
+                    aria-atomic="true"
                 >
-                    <span
-                        class="login-status-icon"
-                        aria-hidden="true"
-                    >
+                    <span class="feedback-icon" aria-hidden="true">
                         <i
                             class="ph-duotone ph-fingerprint-simple"
                             id="login-status-icon"
                         ></i>
                     </span>
 
-                    <span class="login-status-copy">
+                    <span class="feedback-copy">
                         <strong id="login-status-title">
                             Confirme no seu aparelho
                         </strong>
-
                         <span id="login-status-text">
                             Aguardando sua confirmação...
                         </span>
                     </span>
                 </div>
 
+                <details class="passkey-help">
+                    <summary>
+                        <span class="help-icon" aria-hidden="true">
+                            <i class="ph-duotone ph-question"></i>
+                        </span>
+
+                        <span>Como funciona a biometria?</span>
+
+                        <span class="help-caret" aria-hidden="true">
+                            <i class="ph ph-caret-down"></i>
+                        </span>
+                    </summary>
+
+                    <div class="help-copy">
+                        <i class="ph-duotone ph-shield-check" aria-hidden="true"></i>
+                        <p>
+                            Seu aparelho confirma sua identidade por digital, rosto
+                            ou PIN. O SGC não recebe seus dados biométricos.
+                        </p>
+                    </div>
+                </details>
+
                 <footer class="login-footer">
-                    <span class="login-footer-actions">
-                        <a href="{{ url('/') }}">
-                            ← Voltar ao início
-                        </a>
+                    <div class="footer-main">
+                        <span class="footer-actions">
+                            <a class="footer-link" href="{{ url('/') }}">
+                                Voltar ao início
+                            </a>
 
-                        <button type="button" class="pwa-install-button" data-pwa-install hidden>
-                            Instalar aplicativo
-                        </button>
-                    </span>
+                            <button
+                                type="button"
+                                class="pwa-install-button"
+                                data-pwa-install
+                                hidden
+                            >
+                                Instalar aplicativo
+                            </button>
+                        </span>
 
-                    <span class="safe-label">
-                        <i class="ph-duotone ph-shield-check"></i>
-                        Ambiente seguro
-                    </span>
+                        <span class="safe-label">
+                            <i class="ph-duotone ph-shield-check"></i>
+                            Ambiente seguro
+                        </span>
+                    </div>
 
                     <nav class="legal-links" aria-label="Documentos legais">
                         <a href="{{ url('/legal/privacidade.html') }}">Privacidade</a>
@@ -1757,7 +1274,7 @@
                         <a href="{{ url('/legal/acessibilidade.html') }}">Acessibilidade</a>
                     </nav>
                 </footer>
-            </section>
+            </div>
         </section>
     </main>
 
@@ -1767,20 +1284,11 @@
         aria-hidden="true"
     >
         <div class="auth-success-card">
-            <span
-                class="auth-success-icon"
-                aria-hidden="true"
-            >
+            <span class="success-icon" aria-hidden="true">
                 <i class="ph ph-check"></i>
             </span>
-
-            <strong>
-                Acesso confirmado
-            </strong>
-
-            <span>
-                Abrindo sua organização...
-            </span>
+            <strong>Acesso confirmado</strong>
+            <span>Abrindo sua organização...</span>
         </div>
     </div>
 
@@ -1802,85 +1310,54 @@
 
                     const state = await response.json();
 
-                    if (
-                        state.authenticated
-                        && state.redirect
-                    ) {
-                        window.location.replace(
-                            state.redirect
-                        );
+                    if (state.authenticated && state.redirect) {
+                        window.location.replace(state.redirect);
                     }
                 } catch (_) {
-                    /* Estado não impede o login manual. */
+                    /* O estado remoto não impede o login manual. */
                 }
             }
         );
 
-        const PASSKEY_OPTIONS_URL =
-            @json($passkeyOptionsUrl);
+        const PASSKEY_OPTIONS_URL = @json($passkeyOptionsUrl);
+        const PASSKEY_VERIFY_URL = @json($passkeyVerifyUrl);
+        const passkeyButton = document.getElementById('passkey-login');
+        const statusBox = document.getElementById('login-status');
+        const statusTitle = document.getElementById('login-status-title');
+        const statusText = document.getElementById('login-status-text');
+        const statusIcon = document.getElementById('login-status-icon');
+        const successLayer = document.getElementById('auth-success-layer');
 
-        const PASSKEY_VERIFY_URL =
-            @json($passkeyVerifyUrl);
-
-        const CSRF_TOKEN =
-            document
-                .querySelector(
-                    'meta[name="csrf-token"]'
-                )
-                .content;
-
-        const passkeyButton =
-            document.getElementById(
-                'passkey-login'
-            );
-
-        const statusBox =
-            document.getElementById(
-                'login-status'
-            );
-
-        const statusTitle =
-            document.getElementById(
-                'login-status-title'
-            );
-
-        const statusText =
-            document.getElementById(
-                'login-status-text'
-            );
-
-        const statusIcon =
-            document.getElementById(
-                'login-status-icon'
-            );
-
-        const successLayer =
-            document.getElementById(
-                'auth-success-layer'
-            );
+        let statusTimer = null;
+        let passkeysInitialized = false;
 
         function setStatus({
             title,
             message,
             type = 'progress',
-            visible = true
+            visible = true,
+            dismissAfter = null
         }) {
+            window.clearTimeout(statusTimer);
+
             statusTitle.textContent = title;
             statusText.textContent = message;
 
-            statusBox.classList.toggle(
-                'show',
-                visible
+            statusBox.classList.remove(
+                'is-progress',
+                'is-success',
+                'is-error'
             );
+            statusBox.classList.add(`is-${type}`);
+            statusBox.classList.toggle('show', visible);
 
-            statusBox.classList.toggle(
-                'success',
-                type === 'success'
+            statusBox.setAttribute(
+                'role',
+                type === 'error' ? 'alert' : 'status'
             );
-
-            statusBox.classList.toggle(
-                'error',
-                type === 'error'
+            statusBox.setAttribute(
+                'aria-live',
+                type === 'error' ? 'assertive' : 'polite'
             );
 
             statusIcon.className =
@@ -1889,14 +1366,20 @@
                     : type === 'error'
                         ? 'ph-duotone ph-warning-circle'
                         : 'ph-duotone ph-fingerprint-simple';
+
+            if (visible && dismissAfter) {
+                statusTimer = window.setTimeout(
+                    function () {
+                        statusBox.classList.remove('show');
+                    },
+                    dismissAfter
+                );
+            }
         }
 
         function showSuccessAndRedirect(url) {
             successLayer.classList.add('show');
-            successLayer.setAttribute(
-                'aria-hidden',
-                'false'
-            );
+            successLayer.setAttribute('aria-hidden', 'false');
 
             window.setTimeout(
                 function () {
@@ -1908,32 +1391,25 @@
 
         async function loginWithPasskey() {
             passkeyButton.disabled = true;
-
-            passkeyButton.classList.add(
-                'is-authenticating'
-            );
+            passkeyButton.setAttribute('aria-busy', 'true');
+            passkeyButton.classList.add('is-authenticating');
 
             setStatus({
                 title: 'Confirme no seu aparelho',
-                message:
-                    'Use sua impressão digital, rosto ou PIN para continuar.'
+                message: 'Use sua digital, rosto ou PIN para continuar.'
             });
 
             try {
-                const result =
-                    await window.SgcPasskeys.verify({
-                        routes: {
-                            options:
-                                PASSKEY_OPTIONS_URL,
-                            submit:
-                                PASSKEY_VERIFY_URL
-                        }
-                    });
+                const result = await window.SgcPasskeys.verify({
+                    routes: {
+                        options: PASSKEY_OPTIONS_URL,
+                        submit: PASSKEY_VERIFY_URL
+                    }
+                });
 
                 setStatus({
                     title: 'Identidade confirmada',
-                    message:
-                        'Acesso autorizado. Abrindo o SGC...',
+                    message: 'Acesso autorizado. Abrindo o SGC...',
                     type: 'success'
                 });
 
@@ -1943,47 +1419,34 @@
                     || result.url
                     || '/';
 
-                showSuccessAndRedirect(
-                    redirect
-                );
+                showSuccessAndRedirect(redirect);
             } catch (error) {
-                const cancelled =
-                    error.name
-                    === 'UserCancelledError';
+                const cancelled = error.name === 'UserCancelledError';
 
                 setStatus({
-                    title:
-                        cancelled
-                            ? 'Acesso cancelado'
-                            : 'Não foi possível entrar',
-                    message:
-                        cancelled
-                            ? 'Nenhuma alteração foi feita. Toque novamente para tentar.'
-                            : (
-                                error.message
-                                || 'Tente novamente ou use sua conta Google.'
-                            ),
-                    type: 'error'
+                    title: cancelled
+                        ? 'Acesso cancelado'
+                        : 'Não foi possível entrar',
+                    message: cancelled
+                        ? 'Tente novamente quando quiser.'
+                        : (error.message || 'Tente novamente ou use o Google.'),
+                    type: 'error',
+                    dismissAfter: 5000
                 });
-
-                window.setTimeout(
-                    function () {
-                        statusBox.classList.remove(
-                            'show'
-                        );
-                    },
-                    5000
-                );
             } finally {
                 passkeyButton.disabled = false;
-
-                passkeyButton.classList.remove(
-                    'is-authenticating'
-                );
+                passkeyButton.removeAttribute('aria-busy');
+                passkeyButton.classList.remove('is-authenticating');
             }
         }
 
         function initializePasskeys() {
+            if (passkeysInitialized) {
+                return;
+            }
+
+            passkeysInitialized = true;
+
             const passkeySupported =
                 window.isSecureContext
                 && window.SgcPasskeys
@@ -1993,19 +1456,15 @@
                 passkeyButton.disabled = true;
 
                 setStatus({
-                    title: 'Biometria indisponível aqui',
-                    message:
-                        'Use o acesso com Google ou abra o SGC em um navegador compatível e conexão segura.',
+                    title: 'Biometria indisponível',
+                    message: 'Use o Google ou abra em um navegador compatível.',
                     type: 'error'
                 });
 
                 return;
             }
 
-            passkeyButton.addEventListener(
-                'click',
-                loginWithPasskey
-            );
+            passkeyButton.addEventListener('click', loginWithPasskey);
         }
 
         window.SgcPasskeys

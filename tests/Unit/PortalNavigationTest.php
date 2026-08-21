@@ -81,4 +81,30 @@ class PortalNavigationTest extends TestCase
         $view->assertSee('aria-current="page"', false);
         $view->assertSee('data-nav-event="open-filters"', false);
     }
+
+    public function test_accounting_navigation_keeps_reads_separate_from_protected_authorization_commands(): void
+    {
+        $navigation = PortalNavigation::make('accounting', 'processes', 'organizacao-principal');
+        $items = collect($navigation['items'])->keyBy('key');
+
+        $this->assertSame('processes', $navigation['active']);
+        $this->assertStringEndsWith('/organizacao-principal/accounting', $items['queue']['url']);
+        $this->assertStringEndsWith('/organizacao-principal/accounting/processes', $items['processes']['url']);
+        $this->assertArrayNotHasKey('finance', $items);
+
+        $routes = collect(Route::getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_starts_with((string) $route->getName(), 'accounting.'));
+
+        $readRoutes = $routes->filter(fn ($route) => in_array('GET', $route->methods(), true));
+        $writeRoutes = $routes->filter(fn ($route) => in_array('POST', $route->methods(), true));
+
+        $this->assertCount(6, $readRoutes);
+        $this->assertCount(2, $writeRoutes);
+        $this->assertEqualsCanonicalizing([
+            'accounting.data.processes.authorization.send',
+            'accounting.data.processes.authorization.cancel',
+        ], $writeRoutes->pluck('action.as')->all());
+        $this->assertTrue($writeRoutes->every(fn ($route) => collect($route->gatherMiddleware())
+            ->contains(fn (string $middleware) => str_starts_with($middleware, 'throttle:'))));
+    }
 }

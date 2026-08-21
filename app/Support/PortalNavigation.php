@@ -41,6 +41,11 @@ class PortalNavigation
                 ['key' => 'management', 'label' => 'Cadastros', 'route' => 'finance.management.index', 'parameters' => ['module' => 'accounts']],
                 ['key' => 'new-receipt', 'label' => 'Novo recibo', 'route' => 'finance.receipts.create'],
             ],
+            'accounting' => [
+                ['key' => 'queue', 'label' => 'Fila', 'route' => 'accounting.index'],
+                ['key' => 'processes', 'label' => 'Processos', 'route' => 'accounting.processes.index'],
+                ['key' => 'home', 'label' => 'Painéis', 'route' => 'home'],
+            ],
             'secretary' => [
                 ['key' => 'documents', 'label' => 'Documentos', 'route' => 'secretary.index'],
                 ['key' => 'new-document', 'label' => 'Novo documento', 'route' => 'secretary.documents.create'],
@@ -51,6 +56,7 @@ class PortalNavigation
             'buyer' => [
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'buyer.dashboard'],
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'buyer.projects'],
+                ['key' => 'authorizations', 'label' => 'Autorizações', 'route' => 'buyer.authorizations.index'],
             ],
             default => [],
         };

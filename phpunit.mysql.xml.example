@@ -6,6 +6,7 @@
     <testsuites>
         <testsuite name="MySQL Financial">
             <file>tests/Feature/MySqlFinancialConcurrencyTest.php</file>
+            <file>tests/Feature/MySqlBillingAuthorizationConcurrencyTest.php</file>
         </testsuite>
     </testsuites>
     <php>

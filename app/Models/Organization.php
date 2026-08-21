@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -11,7 +12,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Organization extends Model
 {
-    use BelongsToTenant, SoftDeletes, LogsActivity;
+    use BelongsToTenant, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'tenant_id',
@@ -56,7 +57,7 @@ class Organization extends Model
     /**
      * Projetos de venda que incluem esta organização.
      */
-    public function salesProjects(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function salesProjects(): BelongsToMany
     {
         return $this->belongsToMany(SalesProject::class, 'sales_project_organizations', 'organization_id', 'sales_project_id')
             ->withPivot('notes', 'enforce_request_limits')
@@ -73,6 +74,11 @@ class Organization extends Model
         return $this->hasMany(BuyerRequest::class);
     }
 
+    public function billingAuthorizations(): HasMany
+    {
+        return $this->hasMany(BillingAuthorization::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);
@@ -81,13 +87,13 @@ class Organization extends Model
     public static function typeOptions(): array
     {
         return [
-            'municipio'   => 'Município',
-            'estado'      => 'Estado',
-            'federal'     => 'Federal',
-            'conab'       => 'CONAB',
-            'hospital'    => 'Hospital / Saúde',
+            'municipio' => 'Município',
+            'estado' => 'Estado',
+            'federal' => 'Federal',
+            'conab' => 'CONAB',
+            'hospital' => 'Hospital / Saúde',
             'cooperativa' => 'Cooperativa',
-            'outro'       => 'Outro',
+            'outro' => 'Outro',
         ];
     }
 }
