@@ -49,7 +49,6 @@
     has: (category) => category === 'necessary' ? true : Boolean(readConsent()[category]),
     reset: () => {
       storage.remove();
-      showBanner();
       updateConsentUI(defaults);
     }
   };
@@ -91,8 +90,6 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
-    const stored = safeParse(storage.get());
-    if (!stored || stored.version !== VERSION) showBanner();
     updateConsentUI(readConsent());
 
     document.querySelectorAll('[data-open-cookie-preferences]').forEach((el) => {

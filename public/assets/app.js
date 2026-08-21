@@ -50,7 +50,31 @@
       return;
     }
 
-    toast?.classList.remove('hidden');
-    setTimeout(() => toast?.classList.add('hidden'), 4200);
+    const submit = form.querySelector('[type="submit"]');
+    const originalContent = submit?.innerHTML;
+    if (submit) {
+      submit.disabled = true;
+      submit.textContent = 'Enviando...';
+    }
+
+    fetch('/contato', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(form))),
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.message || 'Não foi possível enviar sua mensagem.');
+        form.reset();
+        toast?.classList.remove('hidden');
+        setTimeout(() => toast?.classList.add('hidden'), 4200);
+      })
+      .catch((error) => alert(error.message || 'Não foi possível enviar sua mensagem. Tente novamente.'))
+      .finally(() => {
+        if (submit) {
+          submit.disabled = false;
+          submit.innerHTML = originalContent;
+        }
+      });
   });
 })();

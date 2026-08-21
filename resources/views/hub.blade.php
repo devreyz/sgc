@@ -280,14 +280,20 @@ Bem-vindo, {{ $displayName }}!
         height: 44px;
         place-items: center;
         border-radius: 12px;
+        overflow: hidden;
         background: var(--hub-violet-soft);
         color: var(--hub-violet);
     }
 
-    .hub-intro .hub-intro-icon > i {
+    .hub-intro .hub-intro-icon > i,
+    .hub-intro .hub-intro-icon > img {
         display: block;
+        width: 36px;
+        height: 36px;
+        object-fit: cover;
         font-size: 1.2rem;
         line-height: 1;
+        border-radius: 8px;
     }
 
     .hub-intro-copy {
@@ -951,7 +957,10 @@ Bem-vindo, {{ $displayName }}!
             class="hub-intro-icon"
             aria-hidden="true"
         >
-            <i class="ph-duotone ph-door-open"></i>
+            <img
+                src="{{ !empty($currentTenant?->logo) ? asset('storage/' . $currentTenant->logo) : asset('assets/sgc-symbol.png') }}"
+                alt=""
+            >
         </span>
 
         <div class="hub-intro-copy">

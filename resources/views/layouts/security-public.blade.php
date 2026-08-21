@@ -11,6 +11,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="referrer" content="no-referrer">
     <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#22B573">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/assets/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
 
     <title>
         @yield('title', 'Acesso seguro') - {{ config('app.name', 'ZeCoop SGC') }}

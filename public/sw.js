@@ -28,8 +28,8 @@ self.addEventListener('push', (event) => {
 
     event.waitUntil(self.registration.showNotification(data.title || 'SGC', {
         body: data.body || '',
-        icon: data.icon || '/icons/icon-192.svg',
-        badge: data.badge || '/icons/icon-192.svg',
+        icon: data.icon || '/assets/favicon-192.png',
+        badge: data.badge || '/assets/favicon-192.png',
         tag: data.tag || undefined,
         renotify: ['high', 'critical'].includes(data.priority),
         requireInteraction: data.priority === 'critical',

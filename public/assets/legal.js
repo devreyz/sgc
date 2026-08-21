@@ -9,7 +9,7 @@
       el.textContent = value;
       if (isMissing(value)) {
         el.classList.add('legal-missing');
-        el.setAttribute('title', 'Preencha este dado em assets/legal-config.js antes de publicar.');
+        el.setAttribute('title', 'Informação indisponível.');
       }
     });
 
@@ -40,7 +40,7 @@
         <tr>
           <td colspan="4">
             <div class="legal-empty">
-              Nenhum fornecedor foi configurado ainda. Cadastre somente os subprocessadores efetivamente utilizados em <code>assets/legal-config.js</code>.
+              A relação de fornecedores está em validação. Antes de qualquer atualização relevante da infraestrutura, esta página será revisada para identificar os fornecedores efetivamente utilizados e sua finalidade.
             </div>
           </td>
         </tr>`;
@@ -65,54 +65,51 @@
 
   const setupRequestForms = () => {
     document.querySelectorAll('[data-legal-request-form]').forEach((form) => {
-      const output = form.querySelector('[data-request-output]');
-      const copy = form.querySelector('[data-copy-request]');
-      const emailButton = form.querySelector('[data-email-request]');
+      const button = form.querySelector('[type="submit"]');
+      const feedback = form.querySelector('[data-request-feedback]');
 
-      const build = () => {
-        const data = new FormData(form);
-        const kind = data.get('requestType') || 'Solicitação relacionada a dados pessoais';
-        const body = [
-          `Assunto: ${kind}`,
-          '',
-          `Nome: ${data.get('name') || ''}`,
-          `E-mail de cadastro/contato: ${data.get('email') || ''}`,
-          `Organização/tenant (se aplicável): ${data.get('organization') || ''}`,
-          '',
-          'Descrição da solicitação:',
-          `${data.get('details') || ''}`,
-          '',
-          'Declaro que as informações acima são suficientes para permitir a identificação segura da minha solicitação. Estou ciente de que poderão ser solicitadas informações adicionais para verificação de identidade.'
-        ].join('\n');
-
-        if (output) output.value = body;
-        return { body, kind };
-      };
-
-      form.addEventListener('input', build);
-      build();
-
-      copy?.addEventListener('click', async () => {
-        const { body } = build();
-        try {
-          await navigator.clipboard.writeText(body);
-          const old = copy.textContent;
-          copy.textContent = 'Copiado';
-          setTimeout(() => copy.textContent = old, 1800);
-        } catch {
-          output?.select();
-        }
-      });
-
-      emailButton?.addEventListener('click', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const email = cfg.privacyEmail || '';
-        if (isMissing(email)) {
-          alert('Configure privacyEmail em assets/legal-config.js antes de usar o envio por e-mail.');
-          return;
+        if (!form.reportValidity()) return;
+
+        const data = Object.fromEntries(new FormData(form));
+        data.request_type = data.request_type || 'Solicitação relacionada a dados pessoais';
+        data.message = data.message || data.details || '';
+        delete data.details;
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Enviando...';
         }
-        const { body, kind } = build();
-        location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(`[SGC] ${kind}`)}&body=${encodeURIComponent(body)}`;
+
+        try {
+          const response = await fetch('/solicitacoes-privacidade', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          const payload = await response.json();
+
+          if (!response.ok) {
+            throw new Error(payload.message || 'Não foi possível enviar sua solicitação.');
+          }
+
+          form.reset();
+          if (feedback) {
+            feedback.textContent = payload.message;
+            feedback.className = 'legal-note';
+          }
+        } catch (error) {
+          if (feedback) {
+            feedback.textContent = error.message || 'Não foi possível enviar sua solicitação. Tente novamente.';
+            feedback.className = 'legal-warning';
+          }
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Enviar solicitação';
+          }
+        }
       });
     });
   };

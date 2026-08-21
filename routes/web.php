@@ -28,6 +28,7 @@ use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicFormController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\ReportController;
@@ -54,7 +55,34 @@ Route::get('/storage/{path}', function (string $path) {
 })->where('path', '.*')->name('storage.public');
 
 // Home route - mostra welcome ou hub se logado
-Route::get('/', [HubController::class, 'index'])->name('home');
+Route::get('/', [HubController::class, 'index'])->middleware('public.headers')->name('home');
+Route::get('/sitemap.xml', function () {
+    $pages = [
+        '/',
+        '/legal/',
+        '/legal/privacidade.html',
+        '/legal/termos.html',
+        '/legal/cookies.html',
+        '/legal/direitos.html',
+        '/legal/exclusao.html',
+        '/legal/uso-aceitavel.html',
+        '/legal/seguranca.html',
+        '/legal/subprocessadores.html',
+        '/legal/acessibilidade.html',
+    ];
+
+    $urls = collect($pages)->map(fn (string $path) => '<url><loc>'.e(url($path)).'</loc></url>')->implode('');
+
+    return response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.$urls.'</urlset>', 200, [
+        'Content-Type' => 'application/xml; charset=UTF-8',
+    ]);
+})->middleware('public.headers')->name('sitemap');
+Route::post('/contato', [PublicFormController::class, 'contact'])
+    ->middleware('throttle:5,10')
+    ->name('public.contact');
+Route::post('/solicitacoes-privacidade', [PublicFormController::class, 'privacy'])
+    ->middleware('throttle:3,10')
+    ->name('public.privacy');
 
 // Login route (named) — used by authentication redirects
 Route::get('/login', function () {

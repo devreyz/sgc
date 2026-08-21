@@ -80,6 +80,80 @@
   --color-surface: #F7F9F8;
   --color-hero: #101923;
 }
+
+.pwa-launch-splash {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 50% 25%, rgba(34, 181, 115, .23), transparent 20rem),
+    #101923;
+  color: #fff;
+  opacity: 0;
+  transition: opacity .18s ease;
+}
+
+.pwa-launch-splash.is-visible {
+  opacity: 1;
+}
+
+.pwa-launch-splash__content {
+  display: grid;
+  justify-items: center;
+  gap: .7rem;
+  text-align: center;
+}
+
+.pwa-launch-splash__logo {
+  width: 76px;
+  height: 76px;
+  padding: .65rem;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 23px;
+  background: rgba(255, 255, 255, .1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .24);
+}
+
+.pwa-launch-splash__content strong {
+  font-size: 1.3rem;
+  letter-spacing: .11em;
+}
+
+.pwa-launch-splash__content span {
+  color: rgba(255, 255, 255, .72);
+  font-size: .85rem;
+}
+
+.pwa-launch-splash__progress {
+  width: 130px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .15);
+}
+
+.pwa-launch-splash__progress::after {
+  display: block;
+  width: 48%;
+  height: 100%;
+  border-radius: inherit;
+  background: #22b573;
+  content: "";
+  animation: pwa-splash-progress .65s ease-out both;
+}
+
+@keyframes pwa-splash-progress {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(230%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pwa-launch-splash,
+  .pwa-launch-splash__progress::after { transition: none; animation: none; }
+}
 *, ::after, ::before, ::backdrop, ::file-selector-button {
   box-sizing: border-box;
   margin: 0;

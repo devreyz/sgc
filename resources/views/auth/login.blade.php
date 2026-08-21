@@ -11,6 +11,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#16803d">
 
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/assets/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
+
     <title>Entrar - {{ config('app.name', 'ZeCoop SGC') }}</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net">
@@ -36,9 +42,10 @@
 
     <style>
         :root {
-            --login-primary: var(--color-primary, #22c55e);
-            --login-primary-dark: var(--color-primary-dark, #16a34a);
-            --login-primary-deep: var(--color-primary-deep, #15803d);
+            --login-primary: var(--ws-primary, #168a4d);
+            --login-primary-dark: var(--ws-primary-dark, #116c3a);
+            --login-primary-deep: var(--ws-primary-deep, #0e542e);
+            --login-primary-muted: #eaf8ef;
 
             --login-surface: var(--color-surface, #ffffff);
             --login-soft: var(--color-surface-soft, #f8faf9);
@@ -306,6 +313,14 @@
             line-height: 1;
         }
 
+        .visual-brand .visual-brand-icon > img,
+        .mobile-brand .mobile-brand-icon > img {
+            display: block;
+            width: 28px;
+            height: 28px;
+            object-fit: contain;
+        }
+
         .visual-brand-copy strong,
         .visual-brand-copy span {
             display: block;
@@ -506,6 +521,52 @@
             color: var(--login-secondary);
             font-size: .9rem;
             line-height: 1.55;
+        }
+
+        .login-context {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: .62rem;
+            align-items: center;
+            margin: 0 0 1rem;
+            padding: .7rem;
+            border: 1px solid var(--login-border);
+            border-radius: 13px;
+            background:
+                radial-gradient(circle at 100% 0, rgba(22, 138, 77, .08), transparent 9rem),
+                var(--login-soft);
+        }
+
+        .login-context-icon {
+            display: grid;
+            width: 36px;
+            height: 36px;
+            place-items: center;
+            border-radius: 11px;
+            background: var(--login-primary-muted, #eaf8ef);
+            color: var(--login-primary-deep);
+        }
+
+        .login-context-icon > i {
+            font-size: 1.05rem;
+        }
+
+        .login-context-copy strong,
+        .login-context-copy span {
+            display: block;
+        }
+
+        .login-context-copy strong {
+            color: var(--login-text);
+            font-size: .78rem;
+            font-weight: 790;
+        }
+
+        .login-context-copy span {
+            margin-top: .1rem;
+            color: var(--login-secondary);
+            font-size: .72rem;
+            line-height: 1.42;
         }
 
         /* =========================================================
@@ -1009,6 +1070,13 @@
             font-size: .72rem;
         }
 
+        .login-footer-actions {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: .6rem;
+            align-items: center;
+        }
+
         .login-footer a {
             justify-self: start;
             color: var(--login-secondary);
@@ -1032,6 +1100,43 @@
             color: var(--login-primary-dark);
             font-size: .82rem;
             line-height: 1;
+        }
+
+        .pwa-install-button {
+            justify-self: center;
+            border: 1px solid var(--login-border-strong);
+            border-radius: 999px;
+            background: var(--login-soft);
+            padding: .42rem .72rem;
+            color: var(--login-primary-deep);
+            font: inherit;
+            font-size: .72rem;
+            font-weight: 760;
+            cursor: pointer;
+        }
+
+        .pwa-install-button:hover {
+            background: var(--login-muted);
+        }
+
+        .legal-links {
+            display: flex;
+            grid-column: 1 / -1;
+            flex-wrap: wrap;
+            gap: .45rem .8rem;
+            margin-top: .15rem;
+            padding-top: .8rem;
+            border-top: 1px solid var(--login-border);
+            font-size: .68rem;
+        }
+
+        .legal-links a {
+            color: var(--login-faded);
+            font-weight: 650;
+        }
+
+        .legal-links a:hover {
+            color: var(--login-primary-deep);
         }
 
         /* =========================================================
@@ -1308,7 +1413,7 @@
                         class="visual-brand-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-duotone ph-buildings"></i>
+                        <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
                     </span>
 
                     <span class="visual-brand-copy">
@@ -1389,7 +1494,7 @@
                         class="mobile-brand-icon"
                         aria-hidden="true"
                     >
-                        <i class="ph-duotone ph-buildings"></i>
+                        <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
                     </span>
 
                     <span class="mobile-brand-copy">
@@ -1417,6 +1522,16 @@
                         Escolha a forma de acesso mais fácil para você.
                     </p>
                 </header>
+
+                <div class="login-context">
+                    <span class="login-context-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-squares-four"></i>
+                    </span>
+                    <span class="login-context-copy">
+                        <strong>Um único acesso, todos os seus painéis</strong>
+                        <span>Projetos, entregas, financeiro e documentos no ambiente da sua organização.</span>
+                    </span>
+                </div>
 
                 @if(session('error'))
                     <div
@@ -1620,14 +1735,27 @@
                 </div>
 
                 <footer class="login-footer">
-                    <a href="{{ url('/') }}">
-                        ← Voltar ao início
-                    </a>
+                    <span class="login-footer-actions">
+                        <a href="{{ url('/') }}">
+                            ← Voltar ao início
+                        </a>
+
+                        <button type="button" class="pwa-install-button" data-pwa-install hidden>
+                            Instalar aplicativo
+                        </button>
+                    </span>
 
                     <span class="safe-label">
                         <i class="ph-duotone ph-shield-check"></i>
                         Ambiente seguro
                     </span>
+
+                    <nav class="legal-links" aria-label="Documentos legais">
+                        <a href="{{ url('/legal/privacidade.html') }}">Privacidade</a>
+                        <a href="{{ url('/legal/termos.html') }}">Termos de uso</a>
+                        <a href="{{ url('/legal/seguranca.html') }}">Segurança</a>
+                        <a href="{{ url('/legal/acessibilidade.html') }}">Acessibilidade</a>
+                    </nav>
                 </footer>
             </section>
         </section>

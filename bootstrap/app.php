@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'contato',
+            'solicitacoes-privacidade',
+        ]);
+
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckUserRole::class,
             'any.role' => \App\Http\Middleware\CheckAnyRole::class,
@@ -25,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.recent' => \App\Http\Middleware\EnsureRecentAuthentication::class,
             'webauthn.config' => \App\Http\Middleware\EnsureWebAuthnConfiguration::class,
             'invitation.headers' => \App\Http\Middleware\InvitationSecurityHeaders::class,
+            'public.headers' => \App\Http\Middleware\PublicPageSecurityHeaders::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

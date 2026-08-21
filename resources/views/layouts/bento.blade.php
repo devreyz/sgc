@@ -14,7 +14,10 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+    <link rel="icon" href="/assets/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
@@ -402,6 +405,11 @@
                 box-shadow 150ms ease;
         }
 
+        .app-home-button{
+            background: rgba(255, 255, 255);
+
+        }
+
         .app-home-button:hover,
         .app-home-button:focus-visible,
         .app-header-action:hover,
@@ -423,6 +431,12 @@
             width: 20px;
             height: 20px;
             font-size: 1.25rem;
+        }
+
+        .app-home-button > img {
+            width: 25px;
+            height: 25px;
+            object-fit: contain;
         }
 
         .notification-header-link {
@@ -2374,8 +2388,8 @@
             display: none;
             place-items: center;
             padding: 1rem;
-            background: rgba(15, 28, 20, .24);
-            backdrop-filter: blur(1px);
+            background: rgba(10, 25, 18, .58);
+            backdrop-filter: blur(8px);
         }
 
         .global-request-loader.active {
@@ -2384,31 +2398,38 @@
 
         .global-request-loader-card {
             display: grid;
-            max-width: calc(100vw - 2rem);
-            grid-template-columns: auto minmax(0, 1fr);
+            width: min(100%, 310px);
+            justify-items: center;
             gap: .72rem;
-            align-items: center;
-            padding: .72rem .82rem;
-            border: 1px solid rgba(220, 230, 223, .98);
-            border-radius: 14px;
-            background: rgba(255, 255, 255, .995);
+            padding: 1.2rem;
+            border: 1px solid rgba(255, 255, 255, .18);
+            border-radius: 19px;
+            background: linear-gradient(145deg, #ffffff, var(--app-surface-soft));
             color: var(--app-text);
-            box-shadow: var(--app-shadow-md);
+            box-shadow: 0 28px 78px rgba(0, 0, 0, .28);
+            text-align: center;
         }
 
         .request-loader-mark {
             position: relative;
             display: grid;
-            width: 44px;
-            height: 44px;
+            width: 64px;
+            height: 64px;
             place-items: center;
-            border-radius: 13px;
+            border-radius: 19px;
             background:
                 linear-gradient(
                     145deg,
                     var(--app-primary-soft),
                     var(--app-blue-soft)
                 );
+        }
+
+        .request-loader-mark > img {
+            width: 39px;
+            height: 39px;
+            object-fit: contain;
+            animation: request-logo-pulse 1.15s ease-in-out infinite alternate;
         }
 
         .request-loader-triangle,
@@ -2508,6 +2529,34 @@
             color: var(--app-text-muted);
             font-size: .68rem;
             line-height: 1.35;
+        }
+
+        .request-loader-progress {
+            width: 148px;
+            height: 4px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: var(--app-surface-muted);
+        }
+
+        .request-loader-progress::after {
+            display: block;
+            width: 46%;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--app-primary), var(--app-blue));
+            content: "";
+            animation: request-progress 1s ease-in-out infinite;
+        }
+
+        @keyframes request-logo-pulse {
+            from { transform: translateY(1px) scale(.94); }
+            to { transform: translateY(-2px) scale(1.04); }
+        }
+
+        @keyframes request-progress {
+            from { transform: translateX(-115%); }
+            to { transform: translateX(245%); }
         }
 
         @keyframes request-triangle-mode {
@@ -2817,17 +2866,7 @@
                 class="request-loader-mark"
                 aria-hidden="true"
             >
-                <span class="request-loader-triangle">
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                </span>
-
-                <span class="request-loader-line">
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                </span>
+                <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
             </span>
 
             <span class="global-request-loader-copy">
@@ -2839,13 +2878,15 @@
                     Aguarde só um instante
                 </span>
             </span>
+
+            <span class="request-loader-progress" aria-hidden="true"></span>
         </div>
     </div>
     <header class="app-header">
         <div class="app-header__content">
             <div class="app-header__left">
                 <a href="{{ route('home') }}" class="app-home-button" aria-label="Ir para o início" title="Início">
-                    <i class="ph-duotone ph-house-line" aria-hidden="true"></i>
+                    <img src="{{ asset('assets/sgc-symbol.png') }}" alt="" aria-hidden="true">
                 </a>
 
                 <div class="app-header__titles">

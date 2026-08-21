@@ -10,6 +10,11 @@
 
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#f3f6f4">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/assets/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta
@@ -261,8 +266,12 @@
                 0 6px 16px rgba(21, 128, 61, .14);
         }
 
-        .select-topbar .brand-mark > i {
+        .select-topbar .brand-mark > i,
+        .select-topbar .brand-mark > img {
             display: block;
+            width: 27px;
+            height: 27px;
+            object-fit: contain;
             font-size: 1.2rem;
             line-height: 1;
         }
@@ -931,7 +940,7 @@
                 max(14px, var(--safe-right))
                 max(18px, var(--safe-bottom))
                 max(14px, var(--safe-left));
-            background: rgba(239, 246, 242, .91);
+            background: rgba(12, 31, 21, .62);
             backdrop-filter: blur(10px);
         }
 
@@ -952,7 +961,7 @@
             padding: 1.15rem;
             border: 1px solid var(--select-border);
             border-radius: 18px;
-            background: #fff;
+            background: linear-gradient(145deg, #ffffff, var(--select-soft));
             text-align: center;
             box-shadow: var(--select-shadow-lg);
         }
@@ -974,8 +983,13 @@
         }
 
         .organization-transition
-        .transition-symbol > i {
+        .transition-symbol > i,
+        .organization-transition
+        .transition-symbol > img {
             display: block;
+            width: 38px;
+            height: 38px;
+            object-fit: contain;
             font-size: 1.65rem;
             line-height: 1;
             animation:
@@ -1295,7 +1309,7 @@
                     class="brand-mark"
                     aria-hidden="true"
                 >
-                    <i class="ph-duotone ph-leaf"></i>
+                    <img src="{{ asset('assets/sgc-symbol.png') }}" alt="">
                 </span>
 
                 <div class="topbar-copy">
@@ -1461,7 +1475,8 @@
                             method="POST"
                             class="organization-form"
                             data-tenant-name="{{ $tenant->name }}"
-                            data-search="{{ $tenantSearchText }}"
+                                            data-search="{{ $tenantSearchText }}"
+                                            data-tenant-logo="{{ $tenant->logo ? asset('storage/' . $tenant->logo) : asset('assets/sgc-symbol.png') }}"
                         >
                             @csrf
 
@@ -1648,7 +1663,7 @@
                 class="transition-symbol"
                 aria-hidden="true"
             >
-                <i class="ph-duotone ph-buildings"></i>
+                <img id="transition-logo" src="{{ asset('assets/sgc-symbol.png') }}" alt="">
             </span>
 
             <strong id="transition-title">
@@ -1678,6 +1693,11 @@
             const transitionTitle =
                 document.getElementById(
                     'transition-title'
+                );
+
+            const transitionLogo =
+                document.getElementById(
+                    'transition-logo'
                 );
 
             const organizationForms = [
@@ -1719,6 +1739,10 @@
                 if (transitionTitle) {
                     transitionTitle.textContent =
                         `Abrindo ${organizationName}...`;
+                }
+
+                if (transitionLogo && form.dataset.tenantLogo) {
+                    transitionLogo.src = form.dataset.tenantLogo;
                 }
 
                 if (transition) {
