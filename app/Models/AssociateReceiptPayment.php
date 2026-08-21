@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssociateReceiptPayment extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'associate_receipt_id',
+        'operation_key',
         'amount',
         'payment_date',
         'payment_method',
@@ -21,7 +25,7 @@ class AssociateReceiptPayment extends Model
 
     protected $casts = [
         'payment_date' => 'date',
-        'amount'       => 'decimal:2',
+        'amount' => 'decimal:2',
     ];
 
     public function receipt(): BelongsTo
@@ -36,6 +40,6 @@ class AssociateReceiptPayment extends Model
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

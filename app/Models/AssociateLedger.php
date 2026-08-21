@@ -15,9 +15,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class AssociateLedger extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
         'associate_id',
         'type',
         'amount',

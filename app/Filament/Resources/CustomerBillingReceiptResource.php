@@ -676,6 +676,10 @@ class CustomerBillingReceiptResource extends Resource
                         $remaining = $record->remaining_amount;
 
                         return [
+                            Forms\Components\Hidden::make('operation_key')
+                                ->default(fn (): string => (string) Str::uuid())
+                                ->required(),
+
                             Forms\Components\TextInput::make('amount')
                                 ->label('Valor a Receber (R$)')
                                 ->default(number_format($remaining, 2, '.', ''))

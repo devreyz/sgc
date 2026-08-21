@@ -290,16 +290,16 @@ class AssociateProjectLimitServiceTest extends TestCase
         $distribution->tenant_id = $project->tenant_id;
         $distribution->save();
 
-        $this->assertEqualsWithDelta(11.85, (float) $distribution->admin_fee_percentage, 0.001);
-        $this->assertEqualsWithDelta(274.26825, (float) $distribution->admin_fee_amount, 0.0001);
-        $this->assertEqualsWithDelta(2040.23175, (float) $distribution->net_value, 0.0001);
+        $this->assertEqualsWithDelta(10.0, (float) $distribution->admin_fee_percentage, 0.001);
+        $this->assertEqualsWithDelta(231.45, (float) $distribution->admin_fee_amount, 0.0001);
+        $this->assertEqualsWithDelta(2083.05, (float) $distribution->net_value, 0.0001);
 
         DB::table('project_fees')->where('name', 'Frete')->update(['value' => 20]);
         $distribution->status = 'pending';
         $distribution->save();
 
-        $this->assertEqualsWithDelta(274.26825, (float) $distribution->admin_fee_amount, 0.0001);
-        $this->assertEqualsWithDelta(2040.23175, (float) $distribution->net_value, 0.0001);
+        $this->assertEqualsWithDelta(231.45, (float) $distribution->admin_fee_amount, 0.0001);
+        $this->assertEqualsWithDelta(2083.05, (float) $distribution->net_value, 0.0001);
     }
 
     public function test_multiple_customers_disable_product_limits_and_financial_limit_uses_distributions(): void

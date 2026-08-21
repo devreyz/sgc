@@ -6,6 +6,7 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+phpunit.mysql.xml
 /.fleet
 /.idea
 /.nova
@@ -27,6 +28,7 @@
 /storage/oauth-private.key
 /storage/oauth-public.key
 /storage/app/public
+/storage/examples
 /vendor
 Homestead.json
 Homestead.yaml

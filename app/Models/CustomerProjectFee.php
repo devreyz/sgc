@@ -10,9 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Taxas de faturamento ao CLIENTE por projeto.
  *
- * Independente de ProjectFee (taxas do associado).
- * Se não houver nenhuma taxa ativa aqui, CustomerBillingReceiptService
- * utiliza as project_fees como fallback.
+ * Independente de ProjectFee (taxas do associado). Quando nao houver taxa
+ * ativa de cliente, a cobranca permanece sem deducoes ou acrescimos.
  */
 class CustomerProjectFee extends Model
 {
@@ -37,8 +36,8 @@ class CustomerProjectFee extends Model
     protected function casts(): array
     {
         return [
-            'value'      => 'decimal:4',
-            'active'     => 'boolean',
+            'value' => 'decimal:4',
+            'active' => 'boolean',
             'sort_order' => 'integer',
         ];
     }
@@ -78,12 +77,12 @@ class CustomerProjectFee extends Model
     public function getTypeLabel(): string
     {
         return $this->type === 'percentage'
-            ? number_format((float) $this->value, 2, ',', '.') . '%'
-            : 'R$ ' . number_format((float) $this->value, 2, ',', '.');
+            ? number_format((float) $this->value, 2, ',', '.').'%'
+            : 'R$ '.number_format((float) $this->value, 2, ',', '.');
     }
 
     public function getFullLabel(): string
     {
-        return $this->name . ' (' . $this->getTypeLabel() . ')';
+        return $this->name.' ('.$this->getTypeLabel().')';
     }
 }

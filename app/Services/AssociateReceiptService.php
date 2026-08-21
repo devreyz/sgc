@@ -2,21 +2,22 @@
 
 namespace App\Services;
 
-use App\Enums\BillingStatus;
 use App\Enums\CashMovementType;
 use App\Enums\LedgerCategory;
 use App\Enums\LedgerType;
 use App\Enums\ReceiptStatus;
+use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Models\AssociateLedger;
 use App\Models\AssociateReceipt;
+use App\Models\AssociateReceiptPayment;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
-use App\Jobs\SyncAssociateReceiptToDrive;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Serviço central do fluxo financeiro de comprovantes.
@@ -30,9 +31,14 @@ use Illuminate\Support\Facades\DB;
  */
 class AssociateReceiptService
 {
+    private readonly FinancialDistributionInvariantService $integrity;
+
     public function __construct(
-        private readonly ProjectFinancialCalculator $calculator
-    ) {}
+        private readonly ProjectFinancialCalculator $calculator,
+        ?FinancialDistributionInvariantService $integrity = null,
+    ) {
+        $this->integrity = $integrity ?? new FinancialDistributionInvariantService;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Snapshot financeiro
@@ -51,8 +57,8 @@ class AssociateReceiptService
     public function computeSnapshot(Collection $distributions, SalesProject $project): array
     {
         $totalGross = '0';
-        $totalFees  = '0';
-        $totalNet   = '0';
+        $totalFees = '0';
+        $totalNet = '0';
         $totalDiscounts = '0';
         $totalAccruals = '0';
         $feeDetails = null;
@@ -69,8 +75,8 @@ class AssociateReceiptService
             $result = $this->calculator->calculate($project, $gross);
 
             $totalGross = bcadd($totalGross, $gross, 8);
-            $totalFees  = bcadd($totalFees, $result['total_fee'], 8);
-            $totalNet   = bcadd($totalNet, $result['net'], 8);
+            $totalFees = bcadd($totalFees, $result['total_fee'], 8);
+            $totalNet = bcadd($totalNet, $result['net'], 8);
             $netFee = (string) ($result['total_fee'] ?? '0');
             $discounts = (string) ($result['total_discounts'] ?? (bccomp($netFee, '0', 8) >= 0 ? $netFee : '0'));
             $accruals = (string) ($result['total_accruals'] ?? (bccomp($netFee, '0', 8) < 0 ? bcsub('0', $netFee, 8) : '0'));
@@ -85,17 +91,17 @@ class AssociateReceiptService
 
         // fee_snapshot escalonado para exibição (percentuais já congelados)
         $feeSnapshot = [
-            'fees'            => $feeDetails ?? [],
+            'fees' => $feeDetails ?? [],
             'total_discounts' => $totalDiscounts,
-            'total_accruals'  => $totalAccruals,
-            'total_fee'       => $totalFees,
+            'total_accruals' => $totalAccruals,
+            'total_fee' => $totalFees,
             'distribution_count' => $distributions->count(),
         ];
 
         return [
-            'total_gross'  => $totalGross,
-            'total_fees'   => $totalFees,
-            'total_net'    => $totalNet,
+            'total_gross' => $totalGross,
+            'total_fees' => $totalFees,
+            'total_net' => $totalNet,
             'fee_snapshot' => $feeSnapshot,
         ];
     }
@@ -124,17 +130,30 @@ class AssociateReceiptService
         Collection $distributions,
         SalesProject $project
     ): void {
-        $ids = $distributions->pluck('id')->filter()->values()->all();
+        $ids = $distributions->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
 
         if (empty($ids)) {
             throw new \RuntimeException('Nenhuma distribuição selecionada para o comprovante.');
         }
 
-        $snapshot = $this->computeSnapshot($distributions, $project);
+        DB::transaction(function () use ($receipt, $project, $ids) {
+            $lockedReceipt = AssociateReceipt::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->where('sales_project_id', $receipt->sales_project_id)
+                ->lockForUpdate()
+                ->findOrFail($receipt->id);
 
-        DB::transaction(function () use ($receipt, $snapshot, $ids) {
+            $this->integrity->assertProjectContext(
+                $project,
+                (int) $lockedReceipt->tenant_id,
+                (int) $lockedReceipt->sales_project_id,
+            );
+
             // ── 1. Pessimistic lock: bloqueia as linhas para escrita exclusiva ──
-            $locked = ProductionDelivery::whereIn('id', $ids)
+            $locked = ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->whereIn('id', $ids)
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->get([
                     'id',
@@ -143,12 +162,13 @@ class AssociateReceiptService
                     'sales_project_id',
                     'associate_id',
                     'customer_id',
+                    'product_id',
                     'quantity',
                     'unit_price',
+                    'gross_value',
+                    'status',
                     'paid',
-                    'billing_status',
                     'associate_receipt_id',
-                    'billing_receipt_id',
                 ]);
 
             // ── 2. Validação DENTRO da transação (após lock, antes do UPDATE) ──
@@ -156,19 +176,8 @@ class AssociateReceiptService
                 throw new \RuntimeException('Uma ou mais distribuicoes selecionadas nao existem mais. Atualize a pagina e tente novamente.');
             }
 
-            $invalid = $locked->first(function ($d) use ($receipt) {
-                return (int) $d->tenant_id !== (int) $receipt->tenant_id
-                    || (int) $d->sales_project_id !== (int) $receipt->sales_project_id
-                    || (int) $d->associate_id !== (int) $receipt->associate_id
-                    || is_null($d->parent_delivery_id)
-                    || is_null($d->customer_id)
-                    || (float) ($d->quantity ?? 0) <= 0
-                    || (float) ($d->unit_price ?? 0) <= 0;
-            });
-
-            if ($invalid) {
-                throw new \RuntimeException('A distribuicao #' . $invalid->id . ' nao e valida para comprovante financeiro.');
-            }
+            $this->integrity->assertCommon($locked, $project, (int) $receipt->tenant_id);
+            $this->integrity->assertAssociate($locked, (int) $lockedReceipt->associate_id);
 
             $alreadyInAnotherReceipt = $locked->filter(function ($d) use ($receipt) {
                 return ! is_null($d->associate_receipt_id)
@@ -178,19 +187,16 @@ class AssociateReceiptService
             if ($alreadyInAnotherReceipt->isNotEmpty()) {
                 throw new \RuntimeException(
                     'As distribuicoes a seguir ja estao em outro comprovante ativo: '
-                    . $alreadyInAnotherReceipt->pluck('id')->implode(', ')
+                    .$alreadyInAnotherReceipt->pluck('id')->implode(', ')
                 );
             }
 
-            $paidOrLocked = $locked->filter(fn ($d) => $d->paid
-                || $d->billing_status !== BillingStatus::UNBILLED
-                || ! is_null($d->billing_receipt_id)
-            );
+            $paidOrLocked = $locked->filter(fn ($d) => $d->paid);
 
             if ($paidOrLocked->isNotEmpty()) {
                 throw new \RuntimeException(
-                    'As distribuicoes a seguir estao faturadas, pagas ou vinculadas a cobranca: '
-                    . $paidOrLocked->pluck('id')->implode(', ')
+                    'As distribuicoes a seguir ja foram pagas ao membro: '
+                    .$paidOrLocked->pluck('id')->implode(', ')
                 );
             }
 
@@ -205,33 +211,22 @@ class AssociateReceiptService
             if ($blockedByPaidAssociate->isNotEmpty()) {
                 throw new \RuntimeException(
                     'As distribuições a seguir já estão em um comprovante de associado pago: '
-                    . $blockedByPaidAssociate->pluck('id')->implode(', ')
+                    .$blockedByPaidAssociate->pluck('id')->implode(', ')
                 );
             }
 
-            $blockedByPaidBilling = $locked->filter(function ($d) {
-                return ! is_null($d->billing_receipt_id)
-                    && \App\Models\CustomerBillingReceipt::where('id', $d->billing_receipt_id)
-                        ->where('status', \App\Enums\CustomerReceiptStatus::PAID->value)
-                        ->exists();
-            });
-
-            if ($blockedByPaidBilling->isNotEmpty()) {
-                throw new \RuntimeException(
-                    'As distribuições a seguir já foram recebidas pelo lado do cliente e não podem ser realocadas: '
-                    . $blockedByPaidBilling->pluck('id')->implode(', ')
-                );
-            }
+            $snapshot = $this->computeSnapshot($locked, $project);
 
             // ── 3. Snapshot no comprovante ─────────────────────────────────────
-            $receipt->updateQuietly([
-                'total_gross'  => $snapshot['total_gross'],
-                'total_fees'   => $snapshot['total_fees'],
-                'total_net'    => $snapshot['total_net'],
+            $lockedReceipt->updateQuietly([
+                'total_gross' => $snapshot['total_gross'],
+                'total_fees' => $snapshot['total_fees'],
+                'total_net' => $snapshot['total_net'],
                 'fee_snapshot' => $snapshot['fee_snapshot'],
-                'status'       => ReceiptStatus::PENDING_PAYMENT->value,
-                'obsolete_at'  => null,
-                'obsolete_by'  => null,
+                'delivery_ids' => $ids,
+                'status' => ReceiptStatus::PENDING_PAYMENT->value,
+                'obsolete_at' => null,
+                'obsolete_by' => null,
                 'obsolete_reason' => null,
             ]);
 
@@ -243,17 +238,17 @@ class AssociateReceiptService
 
             if (! empty($freeIds)) {
                 $affected = ProductionDelivery::whereIn('id', $freeIds)
-                    ->update(['associate_receipt_id' => $receipt->id]);
+                    ->update(['associate_receipt_id' => $lockedReceipt->id]);
 
                 // ── 5. Verificação de integridade: detecta race condition residual ──
                 if ($affected !== count($freeIds)) {
                     throw new \RuntimeException(
-                        'Race condition detectada: apenas ' . $affected . ' de ' . count($freeIds)
-                        . ' distribuições foram vinculadas. Tente novamente.'
+                        'Race condition detectada: apenas '.$affected.' de '.count($freeIds)
+                        .' distribuições foram vinculadas. Tente novamente.'
                     );
                 }
             }
-        });
+        }, 5);
 
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
     }
@@ -307,6 +302,7 @@ class AssociateReceiptService
             $currentIds = ProductionDelivery::query()
                 ->where('tenant_id', $lockedReceipt->tenant_id)
                 ->where('associate_receipt_id', $lockedReceipt->id)
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->pluck('id')
                 ->map(fn ($id) => (int) $id)
@@ -316,6 +312,7 @@ class AssociateReceiptService
             $lockedRows = ProductionDelivery::query()
                 ->where('tenant_id', $lockedReceipt->tenant_id)
                 ->whereIn('id', $allIds)
+                ->orderBy('id')
                 ->lockForUpdate()
                 ->get([
                     'id',
@@ -324,12 +321,13 @@ class AssociateReceiptService
                     'sales_project_id',
                     'associate_id',
                     'customer_id',
+                    'product_id',
                     'quantity',
                     'unit_price',
+                    'gross_value',
+                    'status',
                     'paid',
-                    'billing_status',
                     'associate_receipt_id',
-                    'billing_receipt_id',
                 ]);
 
             if ($lockedRows->count() !== $allIds->count()) {
@@ -342,19 +340,9 @@ class AssociateReceiptService
                 ->whereIn('id', $selectedIds->all())
                 ->values();
 
-            $invalid = $selectedRows->first(function (ProductionDelivery $distribution) use ($lockedReceipt) {
-                return (int) $distribution->tenant_id !== (int) $lockedReceipt->tenant_id
-                    || (int) $distribution->sales_project_id !== (int) $lockedReceipt->sales_project_id
-                    || (int) $distribution->associate_id !== (int) $lockedReceipt->associate_id
-                    || is_null($distribution->parent_delivery_id)
-                    || is_null($distribution->customer_id)
-                    || (float) $distribution->quantity <= 0
-                    || (float) $distribution->unit_price <= 0
-                    || (
-                        ! is_null($distribution->associate_receipt_id)
-                        && (int) $distribution->associate_receipt_id !== (int) $lockedReceipt->id
-                    );
-            });
+            $invalid = $selectedRows->first(fn (ProductionDelivery $distribution) => ! is_null($distribution->associate_receipt_id)
+                && (int) $distribution->associate_receipt_id !== (int) $lockedReceipt->id
+            );
 
             if ($selectedRows->count() !== $selectedIds->count() || $invalid) {
                 $id = $invalid?->id;
@@ -365,14 +353,19 @@ class AssociateReceiptService
                 );
             }
 
-            $financiallyLocked = $lockedRows->first(fn (ProductionDelivery $distribution) => $distribution->paid
-                || $distribution->billing_status !== BillingStatus::UNBILLED
-                || ! is_null($distribution->billing_receipt_id)
+            $this->integrity->assertProjectContext(
+                $project,
+                (int) $lockedReceipt->tenant_id,
+                (int) $lockedReceipt->sales_project_id,
             );
+            $this->integrity->assertCommon($selectedRows, $project, (int) $lockedReceipt->tenant_id);
+            $this->integrity->assertAssociate($selectedRows, (int) $lockedReceipt->associate_id);
+
+            $financiallyLocked = $lockedRows->first(fn (ProductionDelivery $distribution) => $distribution->paid);
 
             if ($financiallyLocked) {
                 throw new \RuntimeException(
-                    "A distribuicao #{$financiallyLocked->id} esta faturada, paga ou vinculada a cobranca."
+                    "A distribuicao #{$financiallyLocked->id} ja foi paga ao membro."
                 );
             }
 
@@ -407,7 +400,7 @@ class AssociateReceiptService
                 'removed' => $removedIds->all(),
                 'selected' => $selectedIds->all(),
             ];
-        });
+        }, 5);
 
         activity('associate_receipt')
             ->performedOn($receipt)
@@ -428,7 +421,7 @@ class AssociateReceiptService
      * O que acontece:
      *  1. Cria UM crédito no extrato financeiro do associado
      *  2. Marca o comprovante como PAID com os dados de pagamento
-     *  3. Marca as distribuições vinculadas com billing_status = PAID
+     *  3. Na quitacao, marca como pagas apenas as distribuicoes vinculadas pela FK do lado do membro
      *  4. Opcionalmente registra saída no Caixa (CashMovement)
      *
      * @param  array{
@@ -441,93 +434,15 @@ class AssociateReceiptService
      */
     public function payReceipt(AssociateReceipt $receipt, array $data): void
     {
-        if ($receipt->status === ReceiptStatus::PAID) {
-            throw new \RuntimeException('Este comprovante já foi pago.');
-        }
+        $existingAmount = AssociateReceiptPayment::withoutGlobalScopes()
+            ->where('tenant_id', $receipt->tenant_id)
+            ->where('operation_key', $data['operation_key'] ?? '')
+            ->where('associate_receipt_id', $receipt->id)
+            ->value('amount');
 
-        $netValue = (string) ($receipt->total_net ?? 0);
-        if (bccomp($netValue, '0', 8) <= 0) {
-            throw new \RuntimeException(
-                'O comprovante não possui valor líquido congelado. Regenere o PDF antes de pagar.'
-            );
-        }
-
-        $associate    = $receipt->associate;
-        $projectTitle = optional($receipt->project)->title ?? 'Projeto';
-        $paymentDate  = $data['payment_date'] ?? now()->toDateString();
-
-        DB::transaction(function () use ($receipt, $data, $netValue, $associate, $projectTitle, $paymentDate) {
-            // ── Saldo atual do associado ──────────────────────────────────
-            $lastEntry  = AssociateLedger::where('associate_id', $associate->id)
-                ->orderByDesc('id')
-                ->first();
-            $currentBal = (string) ($lastEntry?->balance_after ?? 0);
-            $newBalance = bcadd($currentBal, $netValue, 8);
-
-            // ── 1 ÚNICO lançamento de crédito ─────────────────────────────
-            AssociateLedger::create([
-                'tenant_id'        => $receipt->tenant_id,
-                'associate_id'     => $associate->id,
-                'type'             => LedgerType::CREDIT,
-                'amount'           => round((float) $netValue, 2),
-                'balance_after'    => round((float) $newBalance, 2),
-                'description'      => "Pagamento — {$projectTitle} — Comprovante {$receipt->formatted_number}",
-                'notes'            => $data['notes'] ?? null,
-                'reference_type'   => AssociateReceipt::class,
-                'reference_id'     => $receipt->id,
-                'category'         => LedgerCategory::PRODUCAO,
-                'created_by'       => Auth::id(),
-                'transaction_date' => $paymentDate,
-            ]);
-
-            // ── Marcar comprovante como pago ───────────────────────────────
-            $receipt->update([
-                'status'          => ReceiptStatus::PAID->value,
-                'amount_paid'     => round((float) $netValue, 2),
-                'paid_at'         => now(),
-                'paid_by'         => Auth::id(),
-                'payment_method'  => $data['payment_method'] ?? null,
-                'bank_account_id' => $data['bank_account_id'] ?? null,
-                'document_number' => $data['document_number'] ?? null,
-                'payment_notes'   => $data['notes'] ?? null,
-            ]);
-
-            // ── Marcar distribuições como pagas ────────────────────────────
-            $deliveryIds = $receipt->delivery_ids ?? [];
-            if (! empty($deliveryIds)) {
-                ProductionDelivery::whereIn('id', $deliveryIds)
-                    ->update(['billing_status' => BillingStatus::PAID->value]);
-            }
-
-            // ── Movimento de caixa (se banco informado) ────────────────────
-            if (! empty($data['bank_account_id'])) {
-                $bankAccount = BankAccount::find($data['bank_account_id']);
-                if ($bankAccount) {
-                    $currentBankBal = (string) ($bankAccount->current_balance ?? 0);
-                    $newBankBal     = bcsub($currentBankBal, $netValue, 8);
-
-                    CashMovement::create([
-                        'tenant_id'       => $receipt->tenant_id,
-                        'type'            => CashMovementType::EXPENSE,
-                        'amount'          => round((float) $netValue, 2),
-                        'balance_after'   => round((float) $newBankBal, 2),
-                        'description'     => "Pagamento associado — {$associate->name} — {$projectTitle}",
-                        'movement_date'   => $paymentDate,
-                        'bank_account_id' => $data['bank_account_id'],
-                        'reference_type'  => AssociateReceipt::class,
-                        'reference_id'    => $receipt->id,
-                        'payment_method'  => $data['payment_method'] ?? null,
-                        'document_number' => $data['document_number'] ?? null,
-                        'notes'           => $data['notes'] ?? null,
-                        'created_by'      => Auth::id(),
-                    ]);
-
-                    $bankAccount->update([
-                        'current_balance' => round((float) $newBankBal, 2),
-                    ]);
-                }
-            }
-        });
+        $this->addPayment($receipt, array_merge($data, [
+            'amount' => $existingAmount ?? $receipt->remaining_amount,
+        ]));
     }
 
     /**
@@ -535,6 +450,7 @@ class AssociateReceiptService
      *
      * @param  array{
      *   amount: float|string,
+     *   operation_key: string,
      *   payment_date: string,
      *   payment_method: string|null,
      *   bank_account_id: int|null,
@@ -544,140 +460,178 @@ class AssociateReceiptService
      */
     public function addPayment(AssociateReceipt $receipt, array $data): void
     {
-        if ($receipt->status === ReceiptStatus::PAID) {
-            throw new \RuntimeException('Este comprovante já foi integralmente pago.');
-        }
-        if (! in_array($receipt->status, [
-            ReceiptStatus::PENDING_PAYMENT,
-            ReceiptStatus::PARTIALLY_PAID,
-        ])) {
-            throw new \RuntimeException(
-                'O comprovante precisa estar em Aguardando Pagamento para registrar um pagamento.'
-            );
+        if (session()->has('tenant_id') && (int) session('tenant_id') !== (int) $receipt->tenant_id) {
+            throw new \RuntimeException('O comprovante nao pertence ao tenant atual.');
         }
 
-        $netValue = (string) ($receipt->total_net ?? 0);
-        if (bccomp($netValue, '0', 8) <= 0) {
-            throw new \RuntimeException(
-                'O comprovante não possui valor líquido congelado. Regenere o PDF antes de pagar.'
-            );
-        }
-
-        $amount    = bcadd((string) round((float) $data['amount'], 2), '0', 8);
-        $remaining = bcsub(
-            bcadd($netValue, '0', 8),
-            bcadd((string) round((float) ($receipt->amount_paid ?? 0), 2), '0', 8),
-            8
-        );
+        $amount = bcadd((string) round((float) ($data['amount'] ?? 0), 2), '0', 8);
         if (bccomp($amount, '0', 2) <= 0) {
             throw new \RuntimeException('O valor do pagamento deve ser maior que zero.');
         }
-        if (bccomp($amount, $remaining, 2) > 0) {
-            throw new \RuntimeException(
-                'O valor informado (R$ ' . number_format((float) $amount, 2, ',', '.') .
-                ') excede o saldo restante (R$ ' . number_format((float) $remaining, 2, ',', '.') . ').'
-            );
+        $operationKey = strtolower(trim((string) ($data['operation_key'] ?? '')));
+        if (! Str::isUuid($operationKey)) {
+            throw new \RuntimeException('A chave tecnica desta operacao e invalida. Reabra o formulario e tente novamente.');
         }
+        $paymentDate = $data['payment_date'] ?? now()->toDateString();
 
-        $associate    = $receipt->associate;
-        $projectTitle = optional($receipt->project)->title ?? 'Projeto';
-        $paymentDate  = $data['payment_date'] ?? now()->toDateString();
+        DB::transaction(function () use ($receipt, $data, $amount, $operationKey, $paymentDate) {
+            $lockedReceipt = AssociateReceipt::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->lockForUpdate()
+                ->findOrFail($receipt->id);
 
-        DB::transaction(function () use ($receipt, $data, $amount, $netValue, $associate, $projectTitle, $paymentDate) {
-            // ── Registrar parcela de pagamento ─────────────────────────────
-            \App\Models\AssociateReceiptPayment::create([
-                'tenant_id'             => $receipt->tenant_id,
-                'associate_receipt_id'  => $receipt->id,
-                'amount'                => round((float) $amount, 2),
-                'payment_date'          => $paymentDate,
-                'payment_method'        => $data['payment_method'] ?? null,
-                'bank_account_id'       => $data['bank_account_id'] ?? null,
-                'document_number'       => $data['document_number'] ?? null,
-                'notes'                 => $data['notes'] ?? null,
-                'created_by'            => Auth::id(),
+            $existingOperation = AssociateReceiptPayment::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('operation_key', $operationKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingOperation) {
+                if ((int) $existingOperation->associate_receipt_id === (int) $lockedReceipt->id
+                    && bccomp((string) $existingOperation->amount, $amount, 2) === 0) {
+                    return;
+                }
+
+                throw new \RuntimeException('Esta chave tecnica ja foi usada em outra operacao financeira.');
+            }
+
+            if (! in_array($lockedReceipt->status, [ReceiptStatus::PENDING_PAYMENT, ReceiptStatus::PARTIALLY_PAID], true)) {
+                throw new \RuntimeException('O comprovante nao esta disponivel para pagamento.');
+            }
+
+            $netValue = (string) ($lockedReceipt->total_net ?? 0);
+            if (bccomp($netValue, '0', 8) <= 0) {
+                throw new \RuntimeException('O comprovante nao possui valor liquido congelado.');
+            }
+
+            $paymentRows = AssociateReceiptPayment::query()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('associate_receipt_id', $lockedReceipt->id)
+                ->lockForUpdate()
+                ->get(['id', 'amount', 'document_number']);
+            $paid = (string) $paymentRows->sum(fn ($payment) => (float) $payment->amount);
+            $remaining = bcsub($netValue, $paid, 8);
+
+            if (bccomp($amount, $remaining, 2) > 0) {
+                throw new \RuntimeException(
+                    'O valor informado excede o saldo restante de R$ '.number_format((float) $remaining, 2, ',', '.').'.'
+                );
+            }
+
+            $documentNumber = trim((string) ($data['document_number'] ?? ''));
+            if ($documentNumber !== '' && $paymentRows->contains(
+                fn ($payment) => trim((string) $payment->document_number) === $documentNumber
+            )) {
+                throw new \RuntimeException('Este documento de pagamento ja foi registrado neste comprovante.');
+            }
+
+            $payment = AssociateReceiptPayment::create([
+                'tenant_id' => $lockedReceipt->tenant_id,
+                'associate_receipt_id' => $lockedReceipt->id,
+                'operation_key' => $operationKey,
+                'amount' => round((float) $amount, 2),
+                'payment_date' => $paymentDate,
+                'payment_method' => $data['payment_method'] ?? null,
+                'bank_account_id' => $data['bank_account_id'] ?? null,
+                'document_number' => $data['document_number'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'created_by' => Auth::id(),
             ]);
 
             // ── Atualizar amount_paid ──────────────────────────────────────
-            $newPaid = bcadd((string) ($receipt->amount_paid ?? 0), $amount, 8);
-            $isFull  = bccomp($newPaid, $netValue, 2) >= 0;
+            $newPaid = bcadd($paid, $amount, 8);
+            $isFull = bccomp($newPaid, $netValue, 2) >= 0;
 
             $updateData = [
                 'amount_paid' => round((float) $newPaid, 2),
-                'status'      => $isFull
+                'status' => $isFull
                     ? ReceiptStatus::PAID->value
                     : ReceiptStatus::PARTIALLY_PAID->value,
             ];
 
             if ($isFull) {
-                $updateData['paid_at']         = now();
-                $updateData['paid_by']         = Auth::id();
-                $updateData['payment_method']  = $data['payment_method'] ?? null;
+                $updateData['paid_at'] = now();
+                $updateData['paid_by'] = Auth::id();
+                $updateData['payment_method'] = $data['payment_method'] ?? null;
                 $updateData['bank_account_id'] = $data['bank_account_id'] ?? null;
                 $updateData['document_number'] = $data['document_number'] ?? null;
-                $updateData['payment_notes']   = $data['notes'] ?? null;
+                $updateData['payment_notes'] = $data['notes'] ?? null;
             }
-            $receipt->update($updateData);
+            $lockedReceipt->update($updateData);
+
+            $associate = $lockedReceipt->associate;
+            $projectTitle = optional($lockedReceipt->project)->title ?? 'Projeto';
 
             // ── Crédito no extrato do associado ────────────────────────────
-            $lastEntry  = AssociateLedger::where('associate_id', $associate->id)
-                ->orderByDesc('id')->first();
+            $lastEntry = AssociateLedger::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('associate_id', $associate->id)
+                ->orderByDesc('id')
+                ->lockForUpdate()
+                ->first();
             $currentBal = (string) ($lastEntry?->balance_after ?? 0);
             $newBalance = bcadd($currentBal, $amount, 8);
 
             AssociateLedger::create([
-                'tenant_id'        => $receipt->tenant_id,
-                'associate_id'     => $associate->id,
-                'type'             => LedgerType::CREDIT,
-                'amount'           => round((float) $amount, 2),
-                'balance_after'    => round((float) $newBalance, 2),
-                'description'      => ($isFull ? '' : '[Parcial] ') .
-                    "Pagamento — {$projectTitle} — Comprovante {$receipt->formatted_number}",
-                'notes'            => $data['notes'] ?? null,
-                'reference_type'   => AssociateReceipt::class,
-                'reference_id'     => $receipt->id,
-                'category'         => LedgerCategory::PRODUCAO,
-                'created_by'       => Auth::id(),
+                'tenant_id' => $lockedReceipt->tenant_id,
+                'associate_id' => $associate->id,
+                'type' => LedgerType::CREDIT,
+                'amount' => round((float) $amount, 2),
+                'balance_after' => round((float) $newBalance, 2),
+                'description' => ($isFull ? '' : '[Parcial] ').
+                    "Pagamento — {$projectTitle} — Comprovante {$lockedReceipt->formatted_number}",
+                'notes' => $data['notes'] ?? null,
+                'reference_type' => AssociateReceiptPayment::class,
+                'reference_id' => $payment->id,
+                'category' => LedgerCategory::PRODUCAO,
+                'created_by' => Auth::id(),
                 'transaction_date' => $paymentDate,
             ]);
 
-            // ── Marcar distribuições como pagas (somente se quitado) ───────
+            // ── Marcar distribuições como pagas no lado do membro (somente se quitado) ──
             if ($isFull) {
-                $deliveryIds = $receipt->delivery_ids ?? [];
-                if (! empty($deliveryIds)) {
-                    ProductionDelivery::whereIn('id', $deliveryIds)
-                        ->update(['billing_status' => BillingStatus::PAID->value]);
-                }
+                ProductionDelivery::withoutGlobalScopes()
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->where('associate_receipt_id', $lockedReceipt->id)
+                    ->update(['paid' => true, 'paid_date' => $paymentDate]);
             }
 
             // ── Movimento de caixa (saída proporcional) ────────────────────
             if (! empty($data['bank_account_id'])) {
-                $bankAccount = BankAccount::find($data['bank_account_id']);
-                if ($bankAccount) {
-                    $currentBankBal = (string) ($bankAccount->current_balance ?? 0);
-                    $newBankBal     = bcsub($currentBankBal, $amount, 8);
-
-                    CashMovement::create([
-                        'tenant_id'       => $receipt->tenant_id,
-                        'type'            => CashMovementType::EXPENSE,
-                        'amount'          => round((float) $amount, 2),
-                        'balance_after'   => round((float) $newBankBal, 2),
-                        'description'     => "Pagamento associado — {$associate->name} — {$projectTitle} — {$receipt->formatted_number}",
-                        'movement_date'   => $paymentDate,
-                        'bank_account_id' => $data['bank_account_id'],
-                        'reference_type'  => AssociateReceipt::class,
-                        'reference_id'    => $receipt->id,
-                        'payment_method'  => $data['payment_method'] ?? null,
-                        'document_number' => $data['document_number'] ?? null,
-                        'notes'           => $data['notes'] ?? null,
-                        'created_by'      => Auth::id(),
-                    ]);
-
-                    $bankAccount->update([
-                        'current_balance' => round((float) $newBankBal, 2),
-                    ]);
+                $bankAccount = BankAccount::withoutGlobalScopes()
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->lockForUpdate()
+                    ->find($data['bank_account_id']);
+                if (! $bankAccount) {
+                    throw new \RuntimeException('A conta informada nao pertence ao tenant deste comprovante.');
                 }
+
+                $currentBankBal = (string) ($bankAccount->current_balance ?? 0);
+                $newBankBal = bcsub($currentBankBal, $amount, 8);
+
+                CashMovement::create([
+                    'tenant_id' => $lockedReceipt->tenant_id,
+                    'type' => CashMovementType::EXPENSE,
+                    'amount' => round((float) $amount, 2),
+                    'balance_after' => round((float) $newBankBal, 2),
+                    'description' => "Pagamento de membro — {$associate->display_name} — {$projectTitle} — {$lockedReceipt->formatted_number}",
+                    'movement_date' => $paymentDate,
+                    'bank_account_id' => $data['bank_account_id'],
+                    'reference_type' => AssociateReceiptPayment::class,
+                    'reference_id' => $payment->id,
+                    'payment_method' => $data['payment_method'] ?? null,
+                    'document_number' => $data['document_number'] ?? null,
+                    'notes' => $data['notes'] ?? null,
+                    'created_by' => Auth::id(),
+                ]);
+
+                $bankAccount->update([
+                    'current_balance' => round((float) $newBankBal, 2),
+                ]);
             }
-        });
+        }, 5);
+
+        $receipt->refresh();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -700,8 +654,7 @@ class AssociateReceiptService
                     ->orWhereNull('unit_price')
                     ->orWhere('unit_price', '<=', 0)
                     ->orWhere('quantity', '<=', 0)
-                    ->orWhere('paid', true)
-                    ->orWhere('billing_status', BillingStatus::PAID->value);
+                    ->orWhere('paid', true);
             })
             ->pluck('id')
             ->values()
@@ -713,16 +666,8 @@ class AssociateReceiptService
             ->values()
             ->all();
 
-        // Bloqueadas pelo lado cliente (comprovante de cobrança PAGO)
-        $blockedBilling = ProductionDelivery::whereIn('id', $deliveryIds)
-            ->whereNotNull('billing_receipt_id')
-            ->whereHas('billingReceipt', fn ($q) => $q->where('status', \App\Enums\CustomerReceiptStatus::PAID->value))
-            ->pluck('id')
-            ->values()
-            ->all();
-
-        $blocked = array_values(array_unique(array_merge($blockedInvalid, $blockedAssociate, $blockedBilling)));
-        $valid   = array_values(array_diff($deliveryIds, $blocked));
+        $blocked = array_values(array_unique(array_merge($blockedInvalid, $blockedAssociate)));
+        $valid = array_values(array_diff($deliveryIds, $blocked));
 
         return compact('valid', 'blocked');
     }

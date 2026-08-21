@@ -7,6 +7,7 @@ use App\Enums\ReceiptStatus;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\BankAccount;
+use App\Models\ProductionDelivery;
 use App\Services\AssociateReceiptService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -17,6 +18,8 @@ use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 
 class AssociatePaymentsRelationManager extends RelationManager
 {
@@ -87,7 +90,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                     ->icon('heroicon-o-banknotes')
                     ->color('success')
                     ->form(function () {
-                        $project  = $this->ownerRecord;
+                        $project = $this->ownerRecord;
                         $tenantId = session('tenant_id');
 
                         // Associados que têm comprovantes pendentes neste projeto
@@ -153,6 +156,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
                                             if (! $state) {
                                                 $set('amount_paid', null);
+
                                                 return;
                                             }
                                             $receipt = AssociateReceipt::find($state);
@@ -174,9 +178,10 @@ class AssociatePaymentsRelationManager extends RelationManager
                                                 return '—';
                                             }
                                             $distCount = count($r->delivery_ids ?? []);
-                                            $gross     = $r->total_gross ? 'R$ '.number_format((float) $r->total_gross, 2, ',', '.') : '—';
-                                            $net       = $r->total_net   ? 'R$ '.number_format((float) $r->total_net, 2, ',', '.') : '—';
-                                            return new \Illuminate\Support\HtmlString(
+                                            $gross = $r->total_gross ? 'R$ '.number_format((float) $r->total_gross, 2, ',', '.') : '—';
+                                            $net = $r->total_net ? 'R$ '.number_format((float) $r->total_net, 2, ',', '.') : '—';
+
+                                            return new HtmlString(
                                                 "<div style='font-size:.85rem;line-height:1.6'>"
                                                 ."<strong>Distribuições:</strong> {$distCount} &nbsp;|&nbsp; "
                                                 ."<strong>Bruto:</strong> {$gross} &nbsp;|&nbsp; "
@@ -190,6 +195,10 @@ class AssociatePaymentsRelationManager extends RelationManager
 
                             Forms\Components\Section::make('Dados do Pagamento')
                                 ->schema([
+                                    Forms\Components\Hidden::make('operation_key')
+                                        ->default(fn (): string => (string) Str::uuid())
+                                        ->required(),
+
                                     Forms\Components\DatePicker::make('payment_date')
                                         ->label('Data do Pagamento')
                                         ->required()
@@ -237,24 +246,27 @@ class AssociatePaymentsRelationManager extends RelationManager
                         $receiptId = $data['receipt_id'] ?? null;
                         if (! $receiptId) {
                             Notification::make()->warning()->title('Selecione um comprovante.')->send();
+
                             return;
                         }
 
                         $receipt = AssociateReceipt::find($receiptId);
                         if (! $receipt || $receipt->isLocked()) {
                             Notification::make()->warning()->title('Comprovante inválido ou já pago.')->send();
+
                             return;
                         }
 
                         try {
                             app(AssociateReceiptService::class)->payReceipt($receipt, [
-                                'payment_date'   => $data['payment_date'],
+                                'payment_date' => $data['payment_date'],
                                 'payment_method' => $data['payment_method'],
-                                'bank_account_id'=> $data['bank_account_id'] ?? null,
-                                'amount_paid'    => $data['amount_paid'],
-                                'document_number'=> $data['document_number'] ?? null,
-                                'payment_notes'  => $data['payment_notes'] ?? null,
-                                'paid_by'        => Auth::id(),
+                                'bank_account_id' => $data['bank_account_id'] ?? null,
+                                'amount_paid' => $data['amount_paid'],
+                                'document_number' => $data['document_number'] ?? null,
+                                'notes' => $data['payment_notes'] ?? null,
+                                'operation_key' => $data['operation_key'],
+                                'paid_by' => Auth::id(),
                             ]);
 
                             Notification::make()
@@ -279,7 +291,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                     ->modalWidth('2xl')
                     ->modalHeading(fn (AssociateReceipt $record) => "Comprovante {$record->formatted_number}")
                     ->modalContent(function (AssociateReceipt $record) {
-                        $deliveries = \App\Models\ProductionDelivery::whereIn(
+                        $deliveries = ProductionDelivery::whereIn(
                             'id', array_map('intval', $record->delivery_ids ?? [])
                         )->with('product', 'customer')->orderBy('delivery_date')->get();
 
@@ -295,8 +307,8 @@ class AssociatePaymentsRelationManager extends RelationManager
                         ))->implode('');
 
                         $gross = $record->total_gross ? 'R$ '.number_format((float) $record->total_gross, 2, ',', '.') : '—';
-                        $net   = $record->total_net   ? 'R$ '.number_format((float) $record->total_net, 2, ',', '.') : '—';
-                        $paid  = $record->paid_at ? $record->paid_at->format('d/m/Y') : '—';
+                        $net = $record->total_net ? 'R$ '.number_format((float) $record->total_net, 2, ',', '.') : '—';
+                        $paid = $record->paid_at ? $record->paid_at->format('d/m/Y') : '—';
 
                         $html = '<div style="font-size:.85rem">'
                             .'<div style="margin-bottom:.75rem;padding:.5rem .75rem;background:#f3f4f6;border-radius:4px">'
@@ -314,7 +326,7 @@ class AssociatePaymentsRelationManager extends RelationManager
                             .'<th style="padding:.4rem;text-align:right">Líquido DB</th>'
                             .'</tr></thead><tbody>'.$rows.'</tbody></table></div>';
 
-                        return new \Illuminate\Support\HtmlString($html);
+                        return new HtmlString($html);
                     })
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),

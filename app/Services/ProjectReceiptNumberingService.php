@@ -134,7 +134,7 @@ class ProjectReceiptNumberingService
             ]);
 
             return $next;
-        });
+        }, 5);
     }
 
     private function currentMaximumForScope(
@@ -204,7 +204,7 @@ class ProjectReceiptNumberingService
             ]);
 
             return $next;
-        });
+        }, 5);
     }
 
     private function currentMaximum(

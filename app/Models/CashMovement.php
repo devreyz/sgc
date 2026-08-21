@@ -15,9 +15,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class CashMovement extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
+        'tenant_id',
         'type',
         'amount',
         'balance_after',

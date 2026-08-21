@@ -59,7 +59,10 @@ class ReceiptFeeColumnService
             ], $scope))
             ->values();
 
-        if ($scope === 'associate' && (float) $project->admin_fee_percentage > 0) {
+        if ($scope === 'associate'
+            && $definitions->isEmpty()
+            && (float) $project->admin_fee_percentage > 0
+        ) {
             $definitions->prepend($this->normalize([
                 'id' => null,
                 'name' => 'Taxa Administrativa',

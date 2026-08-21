@@ -54,14 +54,13 @@ class ProjectFinancialCalculator
             return $this->buildResult($gross, [], '0', '0');
         }
 
-        // admin_fee_percentage é SEMPRE aplicado (se > 0) como taxa base.
-        // ProjectFee são taxas ADICIONAIS sobre o bruto (frete, incentivo, etc.).
-        // Fallback puro: sem ProjectFee e com admin_fee configurado.
+        // A taxa administrativa antiga existe apenas como fallback de projetos
+        // que ainda nao possuem configuracao no motor moderno.
         if ($projectFees->isEmpty()) {
             return $this->fallbackCalculation($project, $gross);
         }
 
-        return $this->applyFees($gross, $projectFees, $project);
+        return $this->applyFees($gross, $projectFees);
     }
 
     /**
@@ -114,18 +113,18 @@ class ProjectFinancialCalculator
      * Usado pelo CustomerBillingReceiptService para aplicar customer_project_fees
      * em vez das project_fees padrão.
      *
-     * Se $customFees for vazia/null, cai de volta para o cálculo normal (project_fees + admin_fee).
+     * Uma colecao vazia representa deliberadamente ausencia de taxas nesse
+     * escopo. Taxas de cliente nunca usam project_fees nem a taxa legada.
      *
      * As taxas da coleção devem expor: name, type, nature, value, active (e o método calculate()).
      */
     public function calculateWithFees(SalesProject $project, string $gross, ?Collection $customFees = null): array
     {
         if ($customFees === null || $customFees->isEmpty()) {
-            // Sem taxas de cliente → fallback para as taxas de associado normais
-            return $this->calculate($project, $gross);
+            return $this->buildResult($gross, [], '0', '0');
         }
 
-        return $this->applyFees($gross, $customFees, $project);
+        return $this->applyFees($gross, $customFees);
     }
 
     private function loadFees(SalesProject $project)
@@ -172,32 +171,12 @@ class ProjectFinancialCalculator
         return $this->buildResult($gross, $fees, $amount, '0');
     }
 
-    private function applyFees(string $gross, $projectFees, ?SalesProject $project = null): array
+    private function applyFees(string $gross, $projectFees): array
     {
         $fees = [];
         $totalDiscounts = '0';
         $totalAccruals = '0';
 
-        // ── Taxa administrativa do projeto como desconto base (sempre primeiro) ──
-        if ($project) {
-            $pct = (string) ($project->admin_fee_percentage ?? '0');
-            if (bccomp($pct, '0', 4) > 0) {
-                $amount = bcmul($gross, bcdiv($pct, '100', self::SCALE), self::SCALE);
-                $fees[] = [
-                    'id' => null,
-                    'name' => 'Taxa Administrativa',
-                    'column_name' => 'Taxa Adm.',
-                    'type' => 'percentage',
-                    'nature' => 'discount',
-                    'rate' => $pct,
-                    'amount' => $amount,
-                    'label' => number_format((float) $pct, 2, ',', '.').'%',
-                ];
-                $totalDiscounts = bcadd($totalDiscounts, $amount, self::SCALE);
-            }
-        }
-
-        // ── Taxas adicionais (frete, bônus, etc.) ───────────────────────────
         foreach ($projectFees as $fee) {
             $amount = $fee->calculate($gross);
             $nature = $fee->nature ?? 'discount';

@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
-use App\Enums\BillingStatus;
 use App\Enums\ReceiptStatus;
 use App\Services\ProjectReceiptNumberingService;
+use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AssociateReceipt extends Model
 {
+    use BelongsToTenant;
+
     protected $fillable = [
         'tenant_id',
         'sales_project_id',
@@ -225,8 +227,8 @@ class AssociateReceipt extends Model
         return $this->distributions()
             ->where(function ($query) {
                 $query->where('paid', true)
-                    ->orWhere('billing_status', '!=', BillingStatus::UNBILLED->value)
-                    ->orWhereNotNull('billing_receipt_id');
+                    ->orWhereNotNull('distribution_billing_id')
+                    ->orWhereNotNull('project_payment_id');
             })
             ->exists();
     }

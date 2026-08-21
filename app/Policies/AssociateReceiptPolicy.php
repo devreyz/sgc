@@ -2,8 +2,9 @@
 
 namespace App\Policies;
 
-use App\Models\User;
+use App\Enums\ReceiptStatus;
 use App\Models\AssociateReceipt;
+use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class AssociateReceiptPolicy
@@ -15,7 +16,8 @@ class AssociateReceiptPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_associate::receipt');
+        return session('tenant_id') !== null
+            && $user->can('view_any_associate::receipt');
     }
 
     /**
@@ -23,7 +25,8 @@ class AssociateReceiptPolicy
      */
     public function view(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('view_associate::receipt');
+        return $this->sameTenant($associateReceipt)
+            && $user->can('view_associate::receipt');
     }
 
     /**
@@ -31,7 +34,8 @@ class AssociateReceiptPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_associate::receipt');
+        return session('tenant_id') !== null
+            && $user->can('create_associate::receipt');
     }
 
     /**
@@ -39,7 +43,9 @@ class AssociateReceiptPolicy
      */
     public function update(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('update_associate::receipt');
+        return $this->sameTenant($associateReceipt)
+            && $associateReceipt->canBeOperationallyUpdated()
+            && $user->can('update_associate::receipt');
     }
 
     /**
@@ -47,7 +53,10 @@ class AssociateReceiptPolicy
      */
     public function delete(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('delete_associate::receipt');
+        return $this->sameTenant($associateReceipt)
+            && $associateReceipt->status === ReceiptStatus::DRAFT
+            && ! $associateReceipt->distributions()->exists()
+            && $user->can('delete_associate::receipt');
     }
 
     /**
@@ -55,7 +64,7 @@ class AssociateReceiptPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_associate::receipt');
+        return false;
     }
 
     /**
@@ -63,7 +72,7 @@ class AssociateReceiptPolicy
      */
     public function forceDelete(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('force_delete_associate::receipt');
+        return false;
     }
 
     /**
@@ -71,7 +80,7 @@ class AssociateReceiptPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_associate::receipt');
+        return false;
     }
 
     /**
@@ -79,7 +88,7 @@ class AssociateReceiptPolicy
      */
     public function restore(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('restore_associate::receipt');
+        return false;
     }
 
     /**
@@ -87,7 +96,7 @@ class AssociateReceiptPolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_associate::receipt');
+        return false;
     }
 
     /**
@@ -95,7 +104,8 @@ class AssociateReceiptPolicy
      */
     public function replicate(User $user, AssociateReceipt $associateReceipt): bool
     {
-        return $user->can('replicate_associate::receipt');
+        return $this->sameTenant($associateReceipt)
+            && $user->can('replicate_associate::receipt');
     }
 
     /**
@@ -104,5 +114,11 @@ class AssociateReceiptPolicy
     public function reorder(User $user): bool
     {
         return $user->can('reorder_associate::receipt');
+    }
+
+    private function sameTenant(AssociateReceipt $receipt): bool
+    {
+        return session('tenant_id') !== null
+            && (int) session('tenant_id') === (int) $receipt->tenant_id;
     }
 }

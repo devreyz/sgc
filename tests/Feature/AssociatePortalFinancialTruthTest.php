@@ -175,9 +175,9 @@ class AssociatePortalFinancialTruthTest extends TestCase
 
         $summary = app(AssociateFinancialSummaryService::class)->summary(1, 30, 20);
 
-        $this->assertEqualsWithDelta(274.26825, $summary['total_fees'], 0.00001);
-        $this->assertEqualsWithDelta(2040.23175, $summary['total_net'], 0.00001);
-        $this->assertEqualsWithDelta(2040.23175, $summary['unbilled'], 0.00001);
+        $this->assertEqualsWithDelta(231.45, $summary['total_fees'], 0.00001);
+        $this->assertEqualsWithDelta(2083.05, $summary['total_net'], 0.00001);
+        $this->assertEqualsWithDelta(2083.05, $summary['unbilled'], 0.00001);
     }
 
     private function insertDelivery(

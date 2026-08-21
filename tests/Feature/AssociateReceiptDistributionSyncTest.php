@@ -53,13 +53,17 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             $table->unsignedBigInteger('associate_id');
             $table->unsignedBigInteger('parent_delivery_id')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
+            $table->unsignedBigInteger('product_id');
             $table->decimal('quantity', 12, 4);
             $table->decimal('unit_price', 12, 4);
             $table->decimal('gross_value', 14, 4)->nullable();
+            $table->string('status')->default('approved');
             $table->boolean('paid')->default(false);
             $table->string('billing_status')->default('unbilled');
             $table->unsignedBigInteger('associate_receipt_id')->nullable();
             $table->unsignedBigInteger('billing_receipt_id')->nullable();
+            $table->unsignedBigInteger('distribution_billing_id')->nullable();
+            $table->unsignedBigInteger('project_payment_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -72,6 +76,7 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             $table->unsignedBigInteger('subject_id')->nullable();
             $table->string('causer_type')->nullable();
             $table->unsignedBigInteger('causer_id')->nullable();
+            $table->unsignedBigInteger('tenant_id')->nullable();
             $table->string('event')->nullable();
             $table->json('properties')->nullable();
             $table->uuid('batch_uuid')->nullable();
@@ -99,12 +104,30 @@ class AssociateReceiptDistributionSyncTest extends TestCase
 
         foreach ([1, 2, 3] as $id) {
             DB::table('production_deliveries')->insert([
+                'id' => 100 + $id,
+                'tenant_id' => 1,
+                'sales_project_id' => 20,
+                'associate_id' => 30,
+                'parent_delivery_id' => null,
+                'customer_id' => null,
+                'product_id' => 40,
+                'quantity' => 10,
+                'unit_price' => 0,
+                'gross_value' => 0,
+                'status' => 'approved',
+                'paid' => false,
+                'billing_status' => 'unbilled',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            DB::table('production_deliveries')->insert([
                 'id' => $id,
                 'tenant_id' => 1,
                 'sales_project_id' => 20,
                 'associate_id' => 30,
                 'parent_delivery_id' => 100 + $id,
                 'customer_id' => 200,
+                'product_id' => 40,
                 'quantity' => 10,
                 'unit_price' => 5,
                 'gross_value' => 50,
@@ -123,7 +146,7 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             'net' => '50',
         ]);
 
-        $project = new SalesProject();
+        $project = new SalesProject;
         $project->setRawAttributes([
             'id' => 20,
             'tenant_id' => 1,
@@ -155,7 +178,7 @@ class AssociateReceiptDistributionSyncTest extends TestCase
         $this->assertSame('100.0000', $receipt->total_net);
     }
 
-    public function test_billed_distribution_cannot_be_frozen_into_producer_receipt(): void
+    public function test_customer_side_state_does_not_block_producer_receipt(): void
     {
         DB::table('associate_receipts')->insert([
             'id' => 11,
@@ -170,12 +193,30 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             'updated_at' => now(),
         ]);
         DB::table('production_deliveries')->insert([
+            'id' => 104,
+            'tenant_id' => 1,
+            'sales_project_id' => 20,
+            'associate_id' => 30,
+            'parent_delivery_id' => null,
+            'customer_id' => null,
+            'product_id' => 40,
+            'quantity' => 10,
+            'unit_price' => 0,
+            'gross_value' => 0,
+            'status' => 'approved',
+            'paid' => false,
+            'billing_status' => 'unbilled',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
             'id' => 4,
             'tenant_id' => 1,
             'sales_project_id' => 20,
             'associate_id' => 30,
             'parent_delivery_id' => 104,
             'customer_id' => 200,
+            'product_id' => 40,
             'quantity' => 10,
             'unit_price' => 5,
             'gross_value' => 50,
@@ -192,16 +233,13 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             'net' => '50',
         ]);
 
-        $project = new SalesProject();
+        $project = new SalesProject;
         $project->setRawAttributes([
             'id' => 20,
             'tenant_id' => 1,
             'admin_fee_percentage' => 0,
         ], true);
         $project->exists = true;
-
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('faturadas, pagas ou vinculadas a cobranca');
 
         AssociateReceipt::withoutEvents(
             fn () => (new AssociateReceiptService($calculator))->freezeReceipt(
@@ -210,5 +248,8 @@ class AssociateReceiptDistributionSyncTest extends TestCase
                 $project,
             )
         );
+
+        $this->assertSame(11, ProductionDelivery::query()->findOrFail(4)->associate_receipt_id);
+        $this->assertSame([4], AssociateReceipt::query()->findOrFail(11)->delivery_ids);
     }
 }
