@@ -3310,55 +3310,6 @@
         })();
     </script>
 
-    <script>
-        (() => {
-            if (window.__globalFetchLoaderInstalled || typeof window.fetch !== 'function') return;
-
-            window.__globalFetchLoaderInstalled = true;
-            let activeRequests = 0;
-            const mutatingMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
-
-            function elements() {
-                return {
-                    overlay: document.getElementById('global-request-loader'),
-                    label: document.getElementById('global-request-loader-label'),
-                };
-            }
-
-            window.showGlobalLoading = (label = 'Processando...') => {
-                activeRequests += 1;
-                const { overlay, label: labelElement } = elements();
-                if (! overlay) return;
-
-                if (labelElement) labelElement.textContent = label;
-                overlay.classList.add('active');
-                overlay.setAttribute('aria-hidden', 'false');
-            };
-
-            window.hideGlobalLoading = () => {
-                activeRequests = Math.max(0, activeRequests - 1);
-                if (activeRequests > 0) return;
-
-                const { overlay } = elements();
-                overlay?.classList.remove('active');
-                overlay?.setAttribute('aria-hidden', 'true');
-            };
-
-            const nativeFetch = window.fetch.bind(window);
-            window.fetch = (input, init = {}) => {
-                const requestMethod = input instanceof Request ? input.method : null;
-                const method = String(init.method || requestMethod || 'GET').toUpperCase();
-                const showLoader = mutatingMethods.has(method) && init.globalLoader !== false;
-
-                if (showLoader) window.showGlobalLoading();
-
-                return nativeFetch(input, init).finally(() => {
-                    if (showLoader) window.hideGlobalLoading();
-                });
-            };
-        })();
-    </script>
-
     <?php
         $sgcPwaConfig = $currentTenantSlug ? [
             'unreadCountUrl' => route('notifications.unread-count', ['tenant' => $currentTenantSlug]),

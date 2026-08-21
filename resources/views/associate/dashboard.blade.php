@@ -188,6 +188,7 @@
         grid-column: 1 / -1;
         gap: .85rem;
         margin: 0 auto;
+        padding-bottom: 1rem;
     }
 
     .associate-dashboard *,
@@ -312,6 +313,13 @@
         background: var(--dash-blue-soft);
         color: var(--dash-blue);
         outline: none;
+    }
+
+    .dashboard-section-actions {
+        display: grid;
+        grid-auto-flow: column;
+        gap: .38rem;
+        align-items: center;
     }
 
     /* =========================================================
@@ -486,6 +494,24 @@
        PROJETOS
        ========================================================= */
 
+    .projects-section {
+        background: var(--color-surface-soft);
+    }
+
+    .projects-section .dashboard-section-head {
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                rgba(124, 58, 237, .075),
+                transparent 15rem
+            ),
+            linear-gradient(
+                180deg,
+                var(--color-surface-soft),
+                var(--color-surface)
+            );
+    }
+
     .projects-attention {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -536,45 +562,88 @@
     .project-list {
         display: grid;
         min-width: 0;
-        padding: .35rem .72rem .7rem;
+        grid-template-columns:
+            repeat(auto-fit, minmax(min(100%, 350px), 1fr));
+        gap: .68rem;
+        padding: .72rem;
     }
 
     .project-item {
         --project-tone: var(--dash-violet);
         --project-soft: var(--dash-violet-soft);
 
+        position: relative;
         display: grid;
         min-width: 0;
-        gap: .65rem;
-        padding: .78rem .2rem;
+        align-content: start;
+        gap: .7rem;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: 14px;
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                color-mix(
+                    in srgb,
+                    var(--project-tone) 7%,
+                    transparent
+                ),
+                transparent 12rem
+            ),
+            var(--color-surface);
+        padding: .78rem;
         color: inherit;
         text-decoration: none;
+        box-shadow: 0 4px 14px rgba(15, 35, 24, .045);
         transition:
+            border-color 150ms ease,
             background 150ms ease,
-            box-shadow 150ms ease;
+            box-shadow 150ms ease,
+            transform 150ms ease;
     }
 
-    .project-item + .project-item {
-        border-top: 1px solid var(--color-border);
+    .project-item::before {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 3px;
+        background: var(--project-tone);
+        content: "";
+        opacity: .72;
+    }
+
+    .project-item.is-near {
+        --project-tone: var(--dash-amber);
+        --project-soft: var(--dash-amber-soft);
+    }
+
+    .project-item.is-full {
+        --project-tone: var(--dash-red);
+        --project-soft: var(--dash-red-soft);
     }
 
     .project-item:hover,
     .project-item:focus-visible {
-        margin-right: -.45rem;
-        margin-left: -.45rem;
-        padding-right: .65rem;
-        padding-left: .65rem;
-        border-radius: 12px;
-        background: var(--project-soft);
-        color: inherit;
-        outline: none;
-        box-shadow:
-            inset 0 0 0 1px
+        border-color:
             color-mix(
                 in srgb,
-                var(--project-tone) 11%,
-                transparent
+                var(--project-tone) 24%,
+                var(--color-border)
             );
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                color-mix(
+                    in srgb,
+                    var(--project-tone) 11%,
+                    transparent
+                ),
+                transparent 13rem
+            ),
+            var(--color-surface);
+        color: inherit;
+        outline: none;
+        box-shadow: 0 11px 26px rgba(15, 35, 24, .085);
+        transform: translateY(-2px);
     }
 
     .project-main {
@@ -607,18 +676,18 @@
     }
 
     .project-title-line {
-        display: grid;
-        width: max-content;
-        max-width: 100%;
-        grid-auto-flow: column;
-        grid-auto-columns: max-content;
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
         gap: .38rem;
         align-items: center;
     }
 
     .project-title {
         display: block;
-        max-width: min(100%, 470px);
+        min-width: 0;
+        max-width: 100%;
+        flex: 1 1 180px;
         overflow: hidden;
         color: var(--color-text);
         font-size: .9rem;
@@ -707,9 +776,20 @@
     .project-limit-area {
         display: grid;
         gap: .52rem;
-        padding: .62rem .68rem;
+        padding: .64rem .68rem;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--project-tone) 10%,
+                var(--color-border)
+            );
         border-radius: 11px;
-        background: var(--color-surface-soft);
+        background:
+            color-mix(
+                in srgb,
+                var(--project-soft) 42%,
+                var(--color-surface-soft)
+            );
     }
 
     .project-limit-head {
@@ -784,11 +864,27 @@
         display: grid;
         grid-template-columns:
             repeat(3, minmax(0, 1fr));
-        gap: .6rem;
+        gap: 0;
     }
 
     .project-limit-value {
         min-width: 0;
+        padding-right: .52rem;
+    }
+
+    .project-limit-value + .project-limit-value {
+        padding-right: .52rem;
+        padding-left: .52rem;
+        border-left: 1px solid
+            color-mix(
+                in srgb,
+                var(--project-tone) 9%,
+                var(--color-border)
+            );
+    }
+
+    .project-limit-value:last-child {
+        padding-right: 0;
     }
 
     .project-limit-value span,
@@ -816,8 +912,12 @@
         color: var(--dash-green);
     }
 
-    .project-limit-value.alert strong {
+    .project-limit-value.warning strong {
         color: var(--dash-amber);
+    }
+
+    .project-limit-value.danger strong {
+        color: var(--dash-red);
     }
 
     .project-no-limit {
@@ -827,6 +927,7 @@
         align-items: center;
         padding: .5rem .6rem;
         border-radius: 10px;
+        border: 1px solid var(--color-border);
         background: var(--dash-slate-soft);
         color: var(--color-text-muted);
         font-size: .73rem;
@@ -1128,8 +1229,7 @@
         }
 
         .project-item {
-            padding-top: .7rem;
-            padding-bottom: .7rem;
+            padding: .7rem;
         }
 
         .project-limit-values {
@@ -1138,13 +1238,23 @@
 
         .project-limit-value:last-child {
             grid-column: 1 / -1;
+            margin-top: .48rem;
+            padding-top: .48rem;
+            padding-left: 0;
+            border-top: 1px solid var(--color-border);
+            border-left: 0;
         }
 
         .project-title-line {
-            grid-auto-flow: row;
-            grid-auto-columns: 1fr;
+            display: grid;
+            grid-template-columns: 1fr;
             width: 100%;
             gap: .22rem;
+        }
+
+        .project-title {
+            width: 100%;
+            flex: none;
         }
 
         .project-status {
@@ -1194,6 +1304,19 @@
 
         .project-limit-values {
             grid-template-columns: 1fr;
+        }
+
+        .project-limit-value,
+        .project-limit-value + .project-limit-value,
+        .project-limit-value:last-child {
+            margin: 0;
+            padding: .38rem 0;
+            border-top: 0;
+            border-left: 0;
+        }
+
+        .project-limit-value + .project-limit-value {
+            border-top: 1px solid var(--color-border);
         }
 
         .project-limit-value:last-child {
@@ -1314,7 +1437,7 @@
         {{-- =====================================================
              PROJETOS
              ===================================================== --}}
-        <section class="dashboard-section">
+        <section class="dashboard-section projects-section">
             <header class="dashboard-section-head">
                 <span
                     class="dashboard-section-icon projects"
@@ -1331,17 +1454,24 @@
                     </p>
                 </div>
 
-                <a
-                    class="dashboard-section-action"
-                    href="{{ $tenantSlug
-                        ? route('associate.projects', [
-                            'tenant' => $tenantSlug,
-                        ])
-                        : url('/') }}"
-                >
-                    <span>Todos</span>
-                    <i class="ph ph-arrow-right"></i>
-                </a>
+                <div class="dashboard-section-actions">
+                    <span class="section-count">
+                        <i class="ph ph-folder"></i>
+                        {{ $activeProjectsCount }}
+                    </span>
+
+                    <a
+                        class="dashboard-section-action"
+                        href="{{ $tenantSlug
+                            ? route('associate.projects', [
+                                'tenant' => $tenantSlug,
+                            ])
+                            : url('/') }}"
+                    >
+                        <span>Todos</span>
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
+                </div>
             </header>
 
             @if($alertProjectsCount > 0)
@@ -1425,27 +1555,27 @@
                                 ?? false
                             );
 
-                            $progressClass =
-                                $percent === null
-                                    ? ''
-                                    : (
-                                        $percent >= 100
-                                            ? 'danger'
-                                            : (
-                                                $percent >= 80
-                                                    ? 'warning'
-                                                    : ''
-                                            )
-                                    );
+                            $progressClass = $isFull
+                                ? 'danger'
+                                : (
+                                    $isNear
+                                        ? 'warning'
+                                        : ''
+                                );
 
-                            $remainingClass =
-                                $isFull
-                                    ? 'alert'
-                                    : 'remaining';
+                            $remainingClass = $isFull
+                                ? 'danger'
+                                : (
+                                    $isNear
+                                        ? 'warning'
+                                        : 'remaining'
+                                );
                         @endphp
 
                         <a
-                            class="project-item"
+                            class="project-item {{ $isFull
+                                ? 'is-full'
+                                : ($isNear ? 'is-near' : '') }}"
                             href="{{ $tenantSlug
                                 ? route(
                                     'associate.projects.show',
@@ -1620,17 +1750,24 @@
                     </p>
                 </div>
 
-                <a
-                    class="dashboard-section-action"
-                    href="{{ $tenantSlug
-                        ? route('associate.deliveries', [
-                            'tenant' => $tenantSlug,
-                        ])
-                        : url('/') }}"
-                >
-                    <span>Todos</span>
-                    <i class="ph ph-arrow-right"></i>
-                </a>
+                <div class="dashboard-section-actions">
+                    <span class="section-count">
+                        <i class="ph ph-package"></i>
+                        {{ $recentDeliveriesCount }}
+                    </span>
+
+                    <a
+                        class="dashboard-section-action"
+                        href="{{ $tenantSlug
+                            ? route('associate.deliveries', [
+                                'tenant' => $tenantSlug,
+                            ])
+                            : url('/') }}"
+                    >
+                        <span>Todos</span>
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
+                </div>
             </header>
 
             @if($visibleRecentDeliveries->isEmpty())

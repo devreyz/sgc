@@ -572,6 +572,80 @@
         padding: .72rem;
     }
 
+    .section-guide {
+        --guide-tone: var(--ws-blue);
+        --guide-soft: var(--ws-blue-soft);
+
+        display: grid;
+        min-width: 0;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: .52rem;
+        align-items: center;
+        margin-bottom: .68rem;
+        padding: .54rem .62rem;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--guide-tone) 14%,
+                var(--ws-border)
+            );
+        border-radius: 11px;
+        background: var(--guide-soft);
+        color: var(--ws-secondary);
+    }
+
+    .section-guide.limits {
+        --guide-tone: var(--ws-violet);
+        --guide-soft: var(--ws-violet-soft);
+    }
+
+    .section-guide.deliveries {
+        --guide-tone: var(--ws-amber);
+        --guide-soft: var(--ws-amber-soft);
+    }
+
+    .section-guide.distributions {
+        --guide-tone: var(--ws-sky);
+        --guide-soft: var(--ws-sky-soft);
+    }
+
+    .section-guide.receipts {
+        --guide-tone: var(--ws-slate);
+        --guide-soft: var(--ws-slate-soft);
+    }
+
+    .section-guide.payments {
+        --guide-tone: var(--ws-green);
+        --guide-soft: var(--ws-green-soft);
+    }
+
+    .section-guide-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--guide-tone);
+    }
+
+    .section-guide-icon > i {
+        display: block;
+        font-size: .88rem;
+        line-height: 1;
+    }
+
+    .section-guide-copy {
+        min-width: 0;
+        font-size: .7rem;
+        line-height: 1.45;
+    }
+
+    .section-guide-copy strong {
+        color: var(--ws-text);
+        font-weight: 810;
+    }
+
     /* =========================================================
        RESUMO FINANCEIRO
        ========================================================= */
@@ -938,6 +1012,7 @@
     .products-table {
         display: grid;
         min-width: 0;
+        gap: .55rem;
     }
 
     .product-row {
@@ -946,12 +1021,26 @@
 
         display: grid;
         min-width: 0;
-        gap: .5rem;
-        padding: .72rem .04rem;
+        gap: .58rem;
+        padding: .68rem;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--product-tone) 14%,
+                var(--ws-border)
+            );
+        border-left: 3px solid var(--product-tone);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .product-row + .product-row {
-        border-top: 1px solid var(--ws-border);
+        border-top-color:
+            color-mix(
+                in srgb,
+                var(--product-tone) 14%,
+                var(--ws-border)
+            );
     }
 
     .product-row.is-warning {
@@ -1033,48 +1122,62 @@
     }
 
     .product-limit-ratio {
-        color: var(--product-tone);
-        font-size: .78rem;
-        font-weight: 850;
+        display: grid;
+        min-width: 118px;
+        gap: .04rem;
+        justify-items: end;
+        color: var(--ws-muted-text);
         text-align: right;
         white-space: nowrap;
+    }
+
+    .product-limit-ratio span {
+        font-size: .62rem;
+        font-weight: 720;
+    }
+
+    .product-limit-ratio strong {
+        color: var(--product-tone);
+        font-size: .8rem;
+        font-weight: 850;
     }
 
     .product-row-secondary {
         display: grid;
         min-width: 0;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: .62rem;
-        align-items: center;
-        margin-left: 2.94rem;
-        padding: .46rem .52rem;
-        border-radius: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .42rem;
+    }
+
+    .product-metric {
+        display: grid;
+        min-width: 0;
+        gap: .07rem;
+        padding: .48rem .52rem;
+        border-radius: 9px;
         background: var(--ws-soft);
     }
 
-    .product-used-text {
-        min-width: 0;
-        color: var(--ws-secondary);
-        font-size: .72rem;
-        line-height: 1.4;
+    .product-metric > span {
+        color: var(--ws-muted-text);
+        font-size: .63rem;
+        font-weight: 710;
     }
 
-    .product-used-text strong {
+    .product-metric > strong {
         color: var(--ws-text);
+        font-size: .73rem;
         font-weight: 810;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
     }
 
-    .product-availability {
+    .product-metric.availability > strong {
         color: var(--product-tone);
-        font-size: .72rem;
-        font-weight: 820;
-        text-align: right;
-        white-space: nowrap;
     }
 
     .product-progress {
         height: 8px;
-        margin-left: 2.94rem;
         overflow: hidden;
         border-radius: 999px;
         background: #e5ece7;
@@ -1160,6 +1263,7 @@
     .records-list {
         display: grid;
         min-width: 0;
+        gap: .55rem;
     }
 
     .record-row {
@@ -1168,12 +1272,26 @@
 
         display: grid;
         min-width: 0;
-        gap: .48rem;
-        padding: .72rem .03rem;
+        gap: .55rem;
+        padding: .68rem;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--record-tone) 14%,
+                var(--ws-border)
+            );
+        border-left: 3px solid var(--record-tone);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .record-row + .record-row {
-        border-top: 1px solid var(--ws-border);
+        border-top-color:
+            color-mix(
+                in srgb,
+                var(--record-tone) 14%,
+                var(--ws-border)
+            );
     }
 
     .record-row.type-delivery {
@@ -1265,11 +1383,24 @@
     }
 
     .record-amount {
-        color: var(--record-tone);
-        font-size: .8rem;
-        font-weight: 850;
+        display: grid;
+        min-width: 112px;
+        gap: .04rem;
+        justify-items: end;
+        color: var(--ws-muted-text);
         text-align: right;
         white-space: nowrap;
+    }
+
+    .record-amount span {
+        font-size: .62rem;
+        font-weight: 720;
+    }
+
+    .record-amount strong {
+        color: var(--record-tone);
+        font-size: .82rem;
+        font-weight: 850;
     }
 
     .record-summary {
@@ -1278,27 +1409,37 @@
         grid-template-columns:
             repeat(auto-fit, minmax(145px, 1fr));
         gap: .42rem;
-        margin-left: 2.96rem;
-        padding: .46rem .52rem;
-        border-radius: 10px;
-        background: var(--ws-soft);
-        color: var(--ws-secondary);
-        font-size: .7rem;
-        line-height: 1.4;
     }
 
-    .record-summary span {
+    .record-summary-item {
+        display: grid;
         min-width: 0;
+        gap: .07rem;
+        padding: .48rem .52rem;
+        border-radius: 9px;
+        background: var(--ws-soft);
     }
 
-    .record-summary strong {
+    .record-summary-item > span {
+        color: var(--ws-muted-text);
+        font-size: .62rem;
+        font-weight: 710;
+        line-height: 1.35;
+    }
+
+    .record-summary-item > strong {
         color: var(--ws-text);
+        font-size: .72rem;
         font-weight: 810;
+        line-height: 1.4;
         overflow-wrap: anywhere;
     }
 
+    .record-summary-item.emphasis > strong {
+        color: var(--record-tone);
+    }
+
     .record-details {
-        margin-left: 2.96rem;
         overflow: hidden;
         border: 1px solid var(--ws-border);
         border-radius: 9px;
@@ -1343,7 +1484,6 @@
     .record-actions {
         display: grid;
         justify-content: end;
-        margin-left: 2.96rem;
     }
 
     .status-badge {
@@ -1789,6 +1929,11 @@
             font-size: .7rem;
         }
 
+        .section-guide {
+            align-items: start;
+            padding: .5rem .54rem;
+        }
+
         .product-row-main {
             grid-template-columns: 36px minmax(0, 1fr);
             align-items: start;
@@ -1800,10 +1945,20 @@
         }
 
         .product-limit-ratio {
-            grid-column: 2;
-            justify-self: start;
-            margin-top: -.14rem;
+            grid-column: 1 / -1;
+            grid-template-columns: minmax(0, 1fr) auto;
+            width: 100%;
+            min-width: 0;
+            justify-items: stretch;
+            align-items: center;
+            padding: .42rem .5rem;
+            border-radius: 9px;
+            background: var(--product-soft);
             text-align: left;
+        }
+
+        .product-limit-ratio strong {
+            text-align: right;
         }
 
         .product-name-line {
@@ -1816,19 +1971,9 @@
             justify-self: start;
         }
 
-        .product-row-secondary,
-        .product-progress {
-            margin-left: 2.92rem;
-        }
-
         .product-row-secondary {
-            grid-template-columns: 1fr;
-            gap: .12rem;
-        }
-
-        .product-availability {
-            text-align: left;
-            white-space: normal;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .3rem;
         }
 
         .record-main {
@@ -1842,10 +1987,20 @@
         }
 
         .record-amount {
-            grid-column: 2;
-            justify-self: start;
-            margin-top: -.12rem;
+            grid-column: 1 / -1;
+            grid-template-columns: minmax(0, 1fr) auto;
+            width: 100%;
+            min-width: 0;
+            justify-items: stretch;
+            align-items: center;
+            padding: .42rem .5rem;
+            border-radius: 9px;
+            background: var(--record-soft);
             text-align: left;
+        }
+
+        .record-amount strong {
+            text-align: right;
         }
 
         .record-title-line {
@@ -1863,12 +2018,6 @@
             grid-auto-columns: 1fr;
             width: 100%;
             gap: .12rem;
-        }
-
-        .record-summary,
-        .record-details,
-        .record-actions {
-            margin-left: 2.92rem;
         }
 
         .record-summary {
@@ -1924,17 +2073,17 @@
             grid-template-columns: 1fr;
         }
 
-        .product-row-secondary,
-        .product-progress,
-        .record-summary,
-        .record-details,
-        .record-actions {
-            margin-left: 0;
+        .product-row,
+        .record-row {
+            padding: .58rem;
+        }
+
+        .product-row-secondary {
+            grid-template-columns: 1fr;
         }
 
         .record-summary {
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
         }
 
         .pager {
@@ -2407,6 +2556,59 @@
                     </button>
                 </div>
             </header>
+        `;
+    }
+
+    function awSectionGuide(section) {
+        const guides = {
+            limits: {
+                icon: 'ph-gauge',
+                title: 'Como ler:',
+                text: 'compare o que já foi entregue com o limite e veja quanto ainda está disponível.',
+            },
+
+            deliveries: {
+                icon: 'ph-path',
+                title: 'Fluxo da entrega:',
+                text: 'a quantidade é registrada, recebe um destino e então gera os valores financeiros.',
+            },
+
+            distributions: {
+                icon: 'ph-map-trifold',
+                title: 'Como funciona:',
+                text: 'cada destino representa uma parte da entrega encaminhada para um cliente.',
+            },
+
+            receipts: {
+                icon: 'ph-calculator',
+                title: 'Entenda os valores:',
+                text: 'o valor líquido é o bruto menos as taxas aplicadas ao comprovante.',
+            },
+
+            payments: {
+                icon: 'ph-check-circle',
+                title: 'Nesta etapa:',
+                text: 'aparecem somente os valores já pagos e vinculados aos comprovantes.',
+            },
+        };
+
+        const guide = guides[section];
+
+        if (!guide) {
+            return '';
+        }
+
+        return `
+            <div class="section-guide ${awEsc(section)}">
+                <span class="section-guide-icon" aria-hidden="true">
+                    <i class="ph-duotone ${awEsc(guide.icon)}"></i>
+                </span>
+
+                <div class="section-guide-copy">
+                    <strong>${awEsc(guide.title)}</strong>
+                    ${awEsc(guide.text)}
+                </div>
+            </div>
         `;
     }
 
@@ -3008,10 +3210,8 @@
                             )
                     );
 
-            const usedText =
-                hasMaximum
-                    ? `Entregue <strong>${awQty(delivered)} ${awEsc(unit)}</strong> de <strong>${awQty(maximumValue)} ${awEsc(unit)}</strong>`
-                    : `Já entregue: <strong>${awQty(delivered)} ${awEsc(unit)}</strong>`;
+            const usedValue =
+                `${awQty(delivered)} ${awEsc(unit)}`;
 
             return `
                 <article class="product-row ${tone}">
@@ -3045,19 +3245,27 @@
                             </span>
                         </div>
 
-                        <strong class="product-limit-ratio">
-                            ${ratio}
-                        </strong>
+                        <div class="product-limit-ratio">
+                            <span>
+                                ${hasMaximum
+                                    ? 'Entregue / limite'
+                                    : 'Quantidade entregue'}
+                            </span>
+
+                            <strong>${ratio}</strong>
+                        </div>
                     </div>
 
                     <div class="product-row-secondary">
-                        <span class="product-used-text">
-                            ${usedText}
-                        </span>
+                        <div class="product-metric">
+                            <span>Já entregue</span>
+                            <strong>${usedValue}</strong>
+                        </div>
 
-                        <strong class="product-availability">
-                            ${availability}
-                        </strong>
+                        <div class="product-metric availability">
+                            <span>Situação do limite</span>
+                            <strong>${availability}</strong>
+                        </div>
                     </div>
 
                     ${hasMaximum
@@ -3090,6 +3298,8 @@
                 )}
 
                 <div class="section-body">
+                    ${awSectionGuide('limits')}
+
                     <div class="financial-strip">
                         <div class="financial-strip-item">
                             <span>Limite financeiro</span>
@@ -3306,36 +3516,52 @@
                             </div>
                         </div>
 
-                        <strong class="record-amount">
-                            ${awQty(item.quantity)}
-                            ${awEsc(item.unit)}
-                        </strong>
+                        <div class="record-amount">
+                            <span>Quantidade entregue</span>
+                            <strong>
+                                ${awQty(item.quantity)}
+                                ${awEsc(item.unit)}
+                            </strong>
+                        </div>
                     </div>
 
                     <div class="record-summary">
-                        <span>
-                            Distribuído:
+                        <div class="record-summary-item">
+                            <span>Com destino definido</span>
                             <strong>
                                 ${awQty(item.distributed)}
                                 ${awEsc(item.unit)}
                             </strong>
-                        </span>
+                        </div>
 
-                        <span>
+                        <div class="record-summary-item ${remaining > 0
+                            ? 'emphasis'
+                            : ''}">
+                            <span>
                             ${remaining > 0
-                                ? 'Sem destino:'
-                                : 'Toda a quantidade recebeu destino:'}
+                                ? 'Ainda sem destino'
+                                : 'Quantidade sem destino'}
+                            </span>
 
                             <strong>
                                 ${awQty(remaining)}
                                 ${awEsc(item.unit)}
                             </strong>
-                        </span>
+                        </div>
 
                         ${Number(item.distribution_count || 0) > 0
-                            ? `<span>Valor distribuído: <strong>${awMoney(item.gross)}</strong></span>
-                               <span>Líquido: <strong>${awMoney(item.net)}</strong></span>`
-                            : '<span>Financeiro: <strong>Aguardando distribuição</strong></span>'}
+                            ? `<div class="record-summary-item">
+                                   <span>Valor bruto distribuído</span>
+                                   <strong>${awMoney(item.gross)}</strong>
+                               </div>
+                               <div class="record-summary-item emphasis">
+                                   <span>Valor líquido previsto</span>
+                                   <strong>${awMoney(item.net)}</strong>
+                               </div>`
+                            : `<div class="record-summary-item">
+                                   <span>Situação financeira</span>
+                                   <strong>Aguardando distribuição</strong>
+                               </div>`}
                     </div>
 
                     ${details
@@ -3366,6 +3592,8 @@
                 )}
 
                 <div class="section-body">
+                    ${awSectionGuide('deliveries')}
+
                     ${awTools('deliveries')}
 
                     ${rows
@@ -3418,26 +3646,25 @@
                         </div>
                     </div>
 
-                    <strong class="record-amount">
-                        ${awMoney(item.gross)}
-                    </strong>
+                    <div class="record-amount">
+                        <span>Valor bruto</span>
+                        <strong>${awMoney(item.gross)}</strong>
+                    </div>
                 </div>
 
                 <div class="record-summary">
-                    <span>
-                        Quantidade:
+                    <div class="record-summary-item">
+                        <span>Quantidade destinada</span>
                         <strong>
                             ${awQty(item.quantity)}
                             ${awEsc(item.unit)}
                         </strong>
-                    </span>
+                    </div>
 
-                    <span>
-                        Preço:
-                        <strong>
-                            ${awMoney(item.unit_price)}
-                        </strong>
-                    </span>
+                    <div class="record-summary-item">
+                        <span>Preço por ${awEsc(item.unit || 'unidade')}</span>
+                        <strong>${awMoney(item.unit_price)}</strong>
+                    </div>
                 </div>
 
                 ${item.receipt
@@ -3468,6 +3695,8 @@
                 )}
 
                 <div class="section-body">
+                    ${awSectionGuide('distributions')}
+
                     ${awTools('distributions')}
 
                     ${rows
@@ -3518,26 +3747,27 @@
                         </div>
                     </div>
 
-                    <strong class="record-amount">
-                        ${awMoney(item.net)}
-                    </strong>
+                    <div class="record-amount">
+                        <span>Valor líquido</span>
+                        <strong>${awMoney(item.net)}</strong>
+                    </div>
                 </div>
 
                 <div class="record-summary">
-                    <span>
-                        Bruto:
+                    <div class="record-summary-item">
+                        <span>Valor bruto</span>
                         <strong>${awMoney(item.gross)}</strong>
-                    </span>
+                    </div>
 
-                    <span>
-                        Taxas:
+                    <div class="record-summary-item">
+                        <span>Taxas e descontos</span>
                         <strong>${awMoney(item.fees)}</strong>
-                    </span>
+                    </div>
 
-                    <span>
-                        Líquido:
+                    <div class="record-summary-item emphasis">
+                        <span>Valor líquido</span>
                         <strong>${awMoney(item.net)}</strong>
-                    </span>
+                    </div>
                 </div>
 
                 <div class="record-actions">
@@ -3568,6 +3798,8 @@
                 )}
 
                 <div class="section-body">
+                    ${awSectionGuide('receipts')}
+
                     ${rows
                         ? `<div class="records-list">${rows}</div>`
                         : awEmpty(
@@ -3623,9 +3855,10 @@
                         </div>
                     </div>
 
-                    <strong class="record-amount">
-                        ${awMoney(item.amount)}
-                    </strong>
+                    <div class="record-amount">
+                        <span>Valor pago</span>
+                        <strong>${awMoney(item.amount)}</strong>
+                    </div>
                 </div>
             </article>
         `).join('');
@@ -3640,6 +3873,8 @@
                 )}
 
                 <div class="section-body">
+                    ${awSectionGuide('payments')}
+
                     ${rows
                         ? `<div class="records-list">${rows}</div>`
                         : awEmpty(

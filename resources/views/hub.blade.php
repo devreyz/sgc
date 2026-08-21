@@ -1,28 +1,47 @@
 @extends('layouts.bento')
 
-@section('title', 'Selecione seu painel')
+@section('title', 'Escolher painel')
 
 @php
     $displayName = session('tenant_id')
         && method_exists($user, 'getTenantName')
-            ? (
-                $user->getTenantName(session('tenant_id'))
-                ?: 'Membro'
-            )
+            ? ($user->getTenantName(session('tenant_id')) ?: 'Membro')
             : ($user->name ?: 'Membro');
 
     $rolesCollection = collect($roles ?? []);
     $hasSuperAdmin = $user->hasRole('super_admin');
+    $availablePanelsCount = $rolesCollection->count() + ($hasSuperAdmin ? 1 : 0);
 
-    $availablePanelsCount =
-        $rolesCollection->count()
-        + ($hasSuperAdmin ? 1 : 0);
+    $hubNewsItems = collect($hubNews ?? $news ?? [])
+        ->take(3)
+        ->map(static function ($item): array {
+            return [
+                'title' => data_get($item, 'title', 'Novidade no SGC'),
+                'description' => data_get(
+                    $item,
+                    'description',
+                    data_get($item, 'summary', '')
+                ),
+                'date' => data_get($item, 'date', data_get($item, 'published_at', '')),
+                'icon' => data_get($item, 'icon', 'ph-sparkle'),
+                'tone' => data_get($item, 'tone', 'green'),
+            ];
+        })
+        ->filter(static fn (array $item): bool => filled($item['title']))
+        ->values();
 
-    /*
-     * Visual próprio por portal.
-     * Primeiro tenta reconhecer pelo nome da função.
-     * Se não reconhecer, usa icon/color já fornecidos pelo backend.
-     */
+    if ($hubNewsItems->isEmpty()) {
+        $hubNewsItems = collect([
+            [
+                'title' => 'Central de painéis renovada',
+                'description' => 'Seus acessos agora estão mais organizados e fáceis de encontrar.',
+                'date' => 'Nesta versão',
+                'icon' => 'ph-squares-four',
+                'tone' => 'violet',
+            ],
+        ]);
+    }
+
     $phosphorIcons = [
         'settings' => 'ph-gear-six',
         'settings-2' => 'ph-gear-six',
@@ -57,29 +76,15 @@
     ];
 
     $resolvePhosphorIcon = static fn ($icon): string =>
-        $phosphorIcons[$icon ?? '']
-        ?? 'ph-squares-four';
+        $phosphorIcons[$icon ?? ''] ?? 'ph-squares-four';
 
     $resolveTone = static function ($color): string {
         return match ($color) {
-            'info',
-            'blue',
-            'cyan' => 'blue',
-
-            'warning',
-            'orange' => 'amber',
-
-            'danger',
-            'red' => 'red',
-
-            'secondary',
-            'indigo',
-            'violet',
-            'purple' => 'violet',
-
-            'slate',
-            'gray' => 'slate',
-
+            'info', 'blue', 'cyan' => 'blue',
+            'warning', 'orange' => 'amber',
+            'danger', 'red' => 'red',
+            'secondary', 'indigo', 'violet', 'purple' => 'violet',
+            'slate', 'gray' => 'slate',
             default => 'green',
         };
     };
@@ -88,10 +93,7 @@
         string $name,
         ?string $fallbackIcon = null,
         ?string $fallbackColor = null
-    ) use (
-        $resolvePhosphorIcon,
-        $resolveTone
-    ): array {
+    ) use ($resolvePhosphorIcon, $resolveTone): array {
         $normalized = \Illuminate\Support\Str::lower(
             \Illuminate\Support\Str::ascii($name)
         );
@@ -104,8 +106,7 @@
             return [
                 'tone' => 'red',
                 'icon' => 'ph-crown-simple',
-                'label' => 'Sistema',
-                'hint' => 'Administração global',
+                'hint' => 'Controle geral do sistema',
             ];
         }
 
@@ -116,7 +117,6 @@
             return [
                 'tone' => 'violet',
                 'icon' => 'ph-shield-check',
-                'label' => 'Administração',
                 'hint' => 'Configuração e controle',
             ];
         }
@@ -129,8 +129,7 @@
             return [
                 'tone' => 'blue',
                 'icon' => 'ph-chart-line-up',
-                'label' => 'Gestão',
-                'hint' => 'Visão geral e projetos',
+                'hint' => 'Gestão e projetos',
             ];
         }
 
@@ -142,7 +141,6 @@
             return [
                 'tone' => 'amber',
                 'icon' => 'ph-wallet',
-                'label' => 'Financeiro',
                 'hint' => 'Valores e conferências',
             ];
         }
@@ -154,7 +152,6 @@
             return [
                 'tone' => 'sky',
                 'icon' => 'ph-file-text',
-                'label' => 'Secretaria',
                 'hint' => 'Cadastros e documentos',
             ];
         }
@@ -167,8 +164,7 @@
             return [
                 'tone' => 'green',
                 'icon' => 'ph-package',
-                'label' => 'Operação',
-                'hint' => 'Entregas e execução',
+                'hint' => 'Entregas e operação',
             ];
         }
 
@@ -179,7 +175,6 @@
             return [
                 'tone' => 'slate',
                 'icon' => 'ph-warehouse',
-                'label' => 'Estoque',
                 'hint' => 'Itens e movimentações',
             ];
         }
@@ -192,7 +187,6 @@
             return [
                 'tone' => 'green',
                 'icon' => 'ph-user-circle',
-                'label' => 'Portal pessoal',
                 'hint' => 'Participação e histórico',
             ];
         }
@@ -200,278 +194,409 @@
         return [
             'tone' => $resolveTone($fallbackColor),
             'icon' => $resolvePhosphorIcon($fallbackIcon),
-            'label' => 'Portal',
-            'hint' => 'Ambiente disponível',
+            'hint' => 'Ferramentas deste painel',
         ];
     };
 @endphp
 
 @section('page-title')
-Bem-vindo, {{ $displayName }}!
+Painéis
 @endsection
 
-@section('page-subtitle', 'Escolha o ambiente que deseja acessar.')
-@section('user-role', 'Selecione uma opção')
+@section('page-subtitle', ($currentTenant->name ?? 'Sua organização') . ' · Acesse as áreas disponíveis para o seu perfil.')
+@section('user-role', 'Central de acesso')
 
 @section('content')
 <style>
     .hub-page {
         --hub-green: #168a4d;
+        --hub-green-deep: #0e542e;
         --hub-green-soft: #eaf8ef;
-
         --hub-blue: #2563eb;
         --hub-blue-soft: #eef4ff;
-
         --hub-sky: #0284c7;
         --hub-sky-soft: #edf8fe;
-
         --hub-violet: #7c3aed;
         --hub-violet-soft: #f4f0ff;
-
         --hub-amber: #c87408;
         --hub-amber-soft: #fff7e8;
-
         --hub-red: #cf3f3f;
         --hub-red-soft: #fff0f0;
-
         --hub-slate: #596b61;
         --hub-slate-soft: #eef2ef;
+        --hub-ease: cubic-bezier(.2, .8, .2, 1);
 
-        display: grid;
-        width: min(100%, 1180px);
+        width: min(100%, calc(100dvw - 40px), 1500px);
         min-width: 0;
         grid-column: 1 / -1;
-        gap: .8rem;
         margin: 0 auto;
     }
 
+    .hub-page,
     .hub-page *,
     .hub-page *::before,
     .hub-page *::after {
         box-sizing: border-box;
     }
 
-    /* =========================================================
-       INTRO
-       ========================================================= */
-
-    .hub-intro {
-        display: grid;
+    .hub-shell {
+        width: 100%;
         min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .72rem;
-        align-items: center;
-        padding: .78rem .82rem;
-        border: 1px solid var(--color-border);
-        border-radius: 15px;
-        background:
-            linear-gradient(
-                120deg,
-                var(--color-surface) 0%,
-                var(--color-surface-soft) 64%,
-                rgba(37, 99, 235, .045) 100%
-            );
-        box-shadow: var(--shadow-sm);
     }
 
-    .hub-intro-icon {
-        display: grid;
-        width: 44px;
-        height: 44px;
-        place-items: center;
+    .hub-toolbar {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .hub-tenant-logo {
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgba(22, 138, 77, .12);
+        border-radius: 11px;
+        background: var(--hub-green-soft);
+    }
+
+    .hub-tenant-logo img {
+        width: 25px;
+        height: 25px;
+        object-fit: contain;
+    }
+
+    .hub-context-name {
+        color: var(--color-text, #102018);
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .hub-context-meta {
+        margin-top: 2px;
+        color: var(--color-text-muted, #809087);
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 1.3;
+    }
+
+    .hub-search {
+        position: relative;
+        width: min(100%, 280px);
+    }
+
+    .hub-search-icon {
+        position: absolute;
+        top: 50%;
+        left: .78rem;
+        color: var(--color-text-muted, #809087);
+        transform: translateY(-50%);
+        pointer-events: none;
+    }
+
+    .hub-search-input {
+        width: 100%;
+        height: 40px;
+        border: 1px solid var(--color-border, #dce6df);
         border-radius: 12px;
-        overflow: hidden;
-        background: var(--hub-violet-soft);
-        color: var(--hub-violet);
+        background: rgba(255, 255, 255, .86);
+        padding: 0 2.3rem 0 2.25rem;
+        color: var(--color-text, #102018);
+        font-size: 12px;
+        font-weight: 650;
+        outline: none;
+        transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
     }
 
-    .hub-intro .hub-intro-icon > i,
-    .hub-intro .hub-intro-icon > img {
-        display: block;
-        width: 36px;
-        height: 36px;
-        object-fit: cover;
-        font-size: 1.2rem;
-        line-height: 1;
+    .hub-search-input::placeholder {
+        color: var(--color-text-muted, #809087);
+        font-weight: 550;
+    }
+
+    .hub-search-input:focus {
+        border-color: color-mix(in srgb, var(--hub-green) 50%, transparent);
+        background: #fff;
+        box-shadow: 0 0 0 4px rgba(22, 138, 77, .09);
+    }
+
+    .hub-search-clear {
+        position: absolute;
+        top: 50%;
+        right: .45rem;
+        display: none;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 0;
         border-radius: 8px;
+        background: transparent;
+        color: var(--color-text-muted, #809087);
+        cursor: pointer;
+        transform: translateY(-50%);
     }
 
-    .hub-intro-copy {
-        min-width: 0;
+    .hub-search.has-value .hub-search-clear { display: grid; }
+
+    .hub-search-clear:hover,
+    .hub-search-clear:focus-visible {
+        background: var(--color-surface-muted, #edf2ef);
+        color: var(--color-text, #102018);
+        outline: none;
     }
 
-    .hub-intro-copy strong,
-    .hub-intro-copy span {
-        display: block;
-    }
-
-    .hub-intro-copy strong {
-        color: var(--color-text);
-        font-size: .92rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-    }
-
-    .hub-intro-copy span {
-        margin-top: .12rem;
-        color: var(--color-text-secondary);
-        font-size: .76rem;
-        line-height: 1.45;
-    }
-
-    .hub-count {
+    .hub-list {
         display: grid;
-        min-height: 34px;
-        grid-template-columns: auto auto;
-        gap: .3rem;
-        align-items: center;
-        padding: .34rem .5rem;
-        border-radius: 999px;
-        background: var(--color-surface);
-        color: var(--color-text-secondary);
-        font-size: .7rem;
-        font-weight: 780;
-        white-space: nowrap;
-        box-shadow: var(--shadow-sm);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 13px;
     }
-
-    .hub-intro .hub-count > i {
-        display: block;
-        color: var(--hub-blue);
-        font-size: .86rem;
-        line-height: 1;
-    }
-
-    /* =========================================================
-       WORKSPACE DESKTOP
-       ========================================================= */
 
     .hub-workspace {
         display: grid;
         min-width: 0;
-        grid-template-columns:
-            minmax(360px, .92fr)
-            minmax(0, 1.08fr);
-        gap: .8rem;
+        grid-template-columns: minmax(0, 1fr) 310px;
         align-items: start;
+        gap: 14px;
     }
 
-    .hub-list-panel,
-    .hub-preview {
+    .hub-aside {
+        position: sticky;
+        top: 16px;
+        display: grid;
+        min-width: 0;
+        gap: 12px;
+    }
+
+    .hub-widget {
         overflow: hidden;
-        border: 1px solid var(--color-border);
+        border: 1px solid var(--color-border, #dce6df);
         border-radius: 16px;
-        background: var(--color-surface);
-        box-shadow: var(--shadow-md);
+        background: rgba(255, 255, 255, .94);
+        box-shadow: 0 4px 16px rgba(15, 35, 24, .04);
     }
 
-    .hub-list-head,
-    .hub-preview-head {
-        display: grid;
-        min-height: 66px;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .58rem;
+    .hub-widget-header {
+        display: flex;
+        min-height: 48px;
         align-items: center;
-        padding: .7rem .76rem;
-        border-bottom: 1px solid var(--color-border);
-        background:
-            linear-gradient(
-                180deg,
-                var(--color-surface-soft),
-                var(--color-surface)
-            );
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--color-border, #dce6df);
     }
 
-    .hub-list-head-icon,
-    .hub-preview-head-icon {
+    .hub-widget-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: 0;
+        color: var(--color-text, #102018);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .hub-widget-title i {
+        color: var(--hub-violet);
+        font-size: 16px;
+    }
+
+    .hub-widget-badge {
+        border: 1px solid rgba(124, 58, 237, .12);
+        border-radius: 999px;
+        background: var(--hub-violet-soft);
+        padding: 3px 7px;
+        color: var(--hub-violet);
+        font-size: 9px;
+        font-weight: 800;
+    }
+
+    .hub-news-list {
         display: grid;
-        width: 40px;
-        height: 40px;
+        padding: 4px 14px;
+    }
+
+    .hub-news-item {
+        --news-tone: var(--hub-green);
+        --news-soft: var(--hub-green-soft);
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: start;
+        gap: 10px;
+        padding: 12px 0;
+    }
+
+    .hub-news-item + .hub-news-item {
+        border-top: 1px solid var(--color-border, #e4ebe6);
+    }
+
+    .hub-news-item.tone-blue {
+        --news-tone: var(--hub-blue);
+        --news-soft: var(--hub-blue-soft);
+    }
+
+    .hub-news-item.tone-sky {
+        --news-tone: var(--hub-sky);
+        --news-soft: var(--hub-sky-soft);
+    }
+
+    .hub-news-item.tone-violet {
+        --news-tone: var(--hub-violet);
+        --news-soft: var(--hub-violet-soft);
+    }
+
+    .hub-news-item.tone-amber {
+        --news-tone: var(--hub-amber);
+        --news-soft: var(--hub-amber-soft);
+    }
+
+    .hub-news-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
         place-items: center;
-        border-radius: 11px;
+        border-radius: 10px;
+        background: var(--news-soft);
+        color: var(--news-tone);
     }
 
-    .hub-list-head-icon {
-        background: var(--hub-green-soft);
-        color: var(--hub-green);
-    }
-
-    .hub-preview-head-icon {
-        background: var(--hub-blue-soft);
-        color: var(--hub-blue);
-    }
-
-    .hub-list-head .hub-list-head-icon > i,
-    .hub-preview-head .hub-preview-head-icon > i {
+    .hub-news-title {
         display: block;
-        font-size: 1.08rem;
-        line-height: 1;
+        color: var(--color-text, #102018);
+        font-size: 11px;
+        font-weight: 800;
+        line-height: 1.35;
     }
 
-    .hub-head-copy {
-        min-width: 0;
+    .hub-news-description {
+        display: -webkit-box;
+        overflow: hidden;
+        margin-top: 3px;
+        color: var(--color-text-secondary, #52645a);
+        font-size: 10px;
+        line-height: 1.45;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
     }
 
-    .hub-head-copy strong,
-    .hub-head-copy span {
+    .hub-news-date {
         display: block;
+        margin-top: 5px;
+        color: var(--color-text-muted, #809087);
+        font-size: 9px;
+        font-weight: 650;
     }
 
-    .hub-head-copy strong {
-        color: var(--color-text);
-        font-size: .86rem;
-        font-weight: 830;
-        letter-spacing: -.02em;
+    .hub-recent-link[hidden],
+    .hub-recent-empty[hidden] {
+        display: none !important;
     }
 
-    .hub-head-copy span {
-        margin-top: .08rem;
-        color: var(--color-text-muted);
-        font-size: .72rem;
-        line-height: 1.42;
+    .hub-recent-content {
+        padding: 12px;
     }
 
-    /* =========================================================
-       LISTA DE PORTAIS
-       ========================================================= */
-
-    .hub-list {
+    .hub-recent-link {
+        --recent-tone: var(--hub-green);
+        --recent-soft: var(--hub-green-soft);
         display: grid;
-        min-width: 0;
-        padding: .34rem .55rem .55rem;
+        grid-template-columns: 38px minmax(0, 1fr) 26px;
+        align-items: center;
+        gap: 9px;
+        border-radius: 12px;
+        padding: 8px;
+        color: inherit;
+        text-decoration: none;
+        transition: background 150ms ease, transform 150ms ease;
+    }
+
+    .hub-recent-link:hover,
+    .hub-recent-link:focus-visible {
+        background: color-mix(in srgb, var(--recent-soft) 58%, #fff);
+        outline: none;
+        transform: translateY(-1px);
+    }
+
+    .hub-recent[data-tone="blue"] .hub-recent-link {
+        --recent-tone: var(--hub-blue);
+        --recent-soft: var(--hub-blue-soft);
+    }
+
+    .hub-recent[data-tone="sky"] .hub-recent-link {
+        --recent-tone: var(--hub-sky);
+        --recent-soft: var(--hub-sky-soft);
+    }
+
+    .hub-recent[data-tone="violet"] .hub-recent-link {
+        --recent-tone: var(--hub-violet);
+        --recent-soft: var(--hub-violet-soft);
+    }
+
+    .hub-recent[data-tone="amber"] .hub-recent-link {
+        --recent-tone: var(--hub-amber);
+        --recent-soft: var(--hub-amber-soft);
+    }
+
+    .hub-recent[data-tone="red"] .hub-recent-link {
+        --recent-tone: var(--hub-red);
+        --recent-soft: var(--hub-red-soft);
+    }
+
+    .hub-recent[data-tone="slate"] .hub-recent-link {
+        --recent-tone: var(--hub-slate);
+        --recent-soft: var(--hub-slate-soft);
+    }
+
+    .hub-recent-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--recent-soft);
+        color: var(--recent-tone);
+    }
+
+    .hub-recent-empty {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        align-items: center;
+        gap: 9px;
+        padding: 4px;
+    }
+
+    .hub-recent-empty-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--color-surface-muted, #eef4f0);
+        color: var(--color-text-muted, #809087);
     }
 
     .hub-link {
         --portal-tone: var(--hub-green);
         --portal-soft: var(--hub-green-soft);
-
+        position: relative;
         display: grid;
-        min-width: 0;
-        min-height: 88px;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .68rem;
+        min-height: 102px;
+        grid-template-columns: auto minmax(0, 1fr);
         align-items: center;
-        padding: .62rem .28rem;
-        border: 0;
-        border-radius: 11px;
-        background: transparent;
+        gap: 13px;
+        overflow: hidden;
+        border: 1px solid var(--color-border, #dce6df);
+        border-radius: 15px;
+        background:
+            linear-gradient(145deg, rgba(255, 255, 255, .98), rgba(249, 251, 250, .96));
+        padding: 15px 46px 15px 15px;
         color: inherit;
         text-decoration: none;
+        box-shadow: 0 3px 12px rgba(15, 35, 24, .035);
         transition:
+            border-color 150ms ease,
             background 150ms ease,
             box-shadow 150ms ease,
             transform 150ms ease;
-    }
-
-    .hub-link + .hub-link {
-        border-top: 1px solid var(--color-border);
-        border-top-left-radius: 0;
-        border-top-right-radius: 0;
-    }
-
-    .hub-link.tone-green {
-        --portal-tone: var(--hub-green);
-        --portal-soft: var(--hub-green-soft);
     }
 
     .hub-link.tone-blue {
@@ -505,438 +630,146 @@ Bem-vindo, {{ $displayName }}!
     }
 
     .hub-link:hover,
-    .hub-link:focus-visible,
-    .hub-link.is-active {
-        background: var(--portal-soft);
+    .hub-link:focus-visible {
+        border-color: color-mix(in srgb, var(--portal-tone) 28%, transparent);
+        background:
+            linear-gradient(145deg, #fff, color-mix(in srgb, var(--portal-soft) 42%, #fff));
         color: inherit;
         outline: none;
-        box-shadow:
-            inset 0 0 0 1px
-            color-mix(
-                in srgb,
-                var(--portal-tone) 12%,
-                transparent
-            );
+        box-shadow: 0 12px 28px rgba(15, 35, 24, .085);
+        transform: translateY(-2px);
     }
 
-    .hub-link:active {
-        transform: scale(.996);
-    }
+    .hub-link:active { transform: translateY(0); }
 
     .hub-role-icon {
-        display: grid;
-        width: 46px;
-        height: 46px;
-        place-items: center;
-        border-radius: 13px;
+        width: 48px;
+        height: 48px;
+        border: 1px solid color-mix(in srgb, var(--portal-tone) 10%, transparent);
         background: var(--portal-soft);
         color: var(--portal-tone);
     }
 
-    .hub-link .hub-role-icon > i {
-        display: block;
-        font-size: 1.25rem;
-        line-height: 1;
+    .hub-link-arrow {
+        position: absolute;
+        top: 50%;
+        right: 12px;
+        color: var(--color-text-muted, #809087);
+        transform: translateY(-50%);
+        transition: background 150ms ease, color 150ms ease, transform 150ms ease;
     }
 
-    .hub-role-copy {
-        min-width: 0;
-    }
-
-    .hub-role-kicker,
-    .hub-role-title,
-    .hub-role-description {
-        display: block;
-    }
-
-    .hub-role-kicker {
-        color: var(--portal-tone);
-        font-size: .64rem;
-        font-weight: 790;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .hub-role-title {
-        margin-top: .08rem;
-        overflow: hidden;
-        color: var(--color-text);
-        font-size: .9rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .hub-role-description {
-        display: -webkit-box;
-        margin-top: .13rem;
-        overflow: hidden;
-        color: var(--color-text-secondary);
-        font-size: .74rem;
-        line-height: 1.45;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-    }
-
-    .hub-link-action {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 10px;
+    .hub-link:hover .hub-link-arrow,
+    .hub-link:focus-visible .hub-link-arrow {
         background: var(--portal-soft);
         color: var(--portal-tone);
-        transition:
-            background 150ms ease,
-            color 150ms ease,
-            transform 150ms ease;
+        transform: translate(2px, -50%);
     }
 
-    .hub-link .hub-link-action > i {
-        display: block;
-        font-size: .92rem;
-        line-height: 1;
+    .hub-link.is-opening {
+        border-color: color-mix(in srgb, var(--portal-tone) 34%, transparent);
+        background: var(--portal-soft);
+        pointer-events: none;
     }
 
-    .hub-link:hover
-    .hub-link-action,
-    .hub-link:focus-visible
-    .hub-link-action,
-    .hub-link.is-active
-    .hub-link-action {
-        background: var(--portal-tone);
-        color: #fff;
-        transform: translateX(2px);
+    .hub-link.is-opening::after {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -34%;
+        width: 30%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent);
+        content: "";
+        animation: hub-scan 1.05s ease-in-out infinite;
+        pointer-events: none;
     }
 
-    /* =========================================================
-       PREVIEW DESKTOP
-       ========================================================= */
-
-    .hub-preview {
-        position: sticky;
-        top: calc(var(--header-height, 72px) + .8rem);
-        min-height: 430px;
-    }
-
-    .hub-preview-body {
-        --preview-tone: var(--hub-blue);
-        --preview-soft: var(--hub-blue-soft);
-
-        display: grid;
-        min-height: 360px;
-        align-content: center;
-        padding: clamp(1rem, 3vw, 1.6rem);
-        background:
-            radial-gradient(
-                circle at 92% 12%,
-                color-mix(
-                    in srgb,
-                    var(--preview-tone) 10%,
-                    transparent
-                ),
-                transparent 18rem
-            ),
-            linear-gradient(
-                145deg,
-                #ffffff 0%,
-                var(--color-surface-soft) 100%
-            );
-    }
-
-    .hub-preview-visual {
-        display: grid;
-        justify-items: start;
-    }
-
-    .hub-preview-icon {
-        display: grid;
-        width: 64px;
-        height: 64px;
-        place-items: center;
-        border-radius: 18px;
-        background: var(--preview-soft);
-        color: var(--preview-tone);
-        box-shadow:
-            inset 0 0 0 1px
-            color-mix(
-                in srgb,
-                var(--preview-tone) 12%,
-                transparent
-            );
-    }
-
-    .hub-preview-body
-    .hub-preview-icon > i {
-        display: block;
-        font-size: 1.75rem;
-        line-height: 1;
-    }
-
-    .hub-preview-kicker {
-        margin-top: 1rem;
-        color: var(--preview-tone);
-        font-size: .7rem;
-        font-weight: 800;
-        letter-spacing: .055em;
-        text-transform: uppercase;
-    }
-
-    .hub-preview-title {
-        margin: .24rem 0 0;
-        color: var(--color-text);
-        font-size: clamp(1.45rem, 3vw, 2rem);
-        font-weight: 870;
-        letter-spacing: -.045em;
-        line-height: 1.1;
-    }
-
-    .hub-preview-description {
-        max-width: 560px;
-        margin: .55rem 0 0;
-        color: var(--color-text-secondary);
-        font-size: .88rem;
-        line-height: 1.6;
-    }
-
-    .hub-preview-hint {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .5rem;
-        align-items: center;
-        margin-top: 1rem;
-        padding-top: .9rem;
-        border-top: 1px solid var(--color-border);
-        color: var(--color-text-muted);
-        font-size: .76rem;
-    }
-
-    .hub-preview-hint-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--preview-soft);
-        color: var(--preview-tone);
-    }
-
-    .hub-preview-hint
-    .hub-preview-hint-icon > i {
-        display: block;
-        font-size: .92rem;
-        line-height: 1;
-    }
-
-    .hub-preview-action {
-        display: grid;
-        width: max-content;
-        min-height: 42px;
-        grid-template-columns: auto auto;
-        gap: .38rem;
-        align-items: center;
-        margin-top: 1rem;
-        padding: .5rem .72rem;
-        border: 1px solid
-            color-mix(
-                in srgb,
-                var(--preview-tone) 35%,
-                var(--color-border)
-            );
-        border-radius: 10px;
-        background: var(--preview-tone);
-        color: #fff;
-        font-size: .76rem;
-        font-weight: 800;
-        text-decoration: none;
-        box-shadow:
-            0 8px 20px
-            color-mix(
-                in srgb,
-                var(--preview-tone) 15%,
-                transparent
-            );
-    }
-
-    .hub-preview-action:hover,
-    .hub-preview-action:focus-visible {
-        color: #fff;
-        outline: none;
-        transform: translateY(-1px);
-    }
-
-    .hub-preview-action > i {
-        display: block;
-        font-size: .9rem;
-        line-height: 1;
-    }
-
-    .hub-preview-swap {
-        animation:
-            hub-preview-enter
-            170ms
-            cubic-bezier(.2, .8, .2, 1)
-            both;
-    }
-
-    @keyframes hub-preview-enter {
-        from {
-            opacity: .3;
-            transform: translateY(3px);
-        }
-
-        to {
-            opacity: 1;
-            transform: none;
-        }
-    }
-
-    /* =========================================================
-       EMPTY
-       ========================================================= */
-
-    .hub-empty {
-        display: grid;
-        min-height: 260px;
-        place-items: center;
-        padding: 1.5rem;
-        text-align: center;
-    }
-
-    .hub-empty-content {
-        width: min(100%, 410px);
+    @keyframes hub-scan {
+        from { left: -34%; }
+        to { left: 112%; }
     }
 
     .hub-empty-icon {
-        display: grid;
-        width: 58px;
-        height: 58px;
-        place-items: center;
-        margin: 0 auto .65rem;
-        border-radius: 16px;
         background: var(--hub-amber-soft);
         color: var(--hub-amber);
     }
 
-    .hub-empty .hub-empty-icon > i {
-        display: block;
-        font-size: 1.48rem;
-        line-height: 1;
+    .hub-link[hidden],
+    .hub-no-results[hidden] {
+        display: none !important;
     }
 
-    .hub-empty strong {
-        display: block;
-        color: var(--color-text);
-        font-size: .9rem;
-        font-weight: 830;
+    .hub-no-results {
+        grid-column: 1 / -1;
     }
 
-    .hub-empty p {
-        max-width: 390px;
-        margin: .22rem auto 0;
-        color: var(--color-text-secondary);
-        font-size: .76rem;
-        line-height: 1.5;
+    @media (max-width: 1180px) {
+        .hub-workspace { grid-template-columns: minmax(0, 1fr) 288px; }
+        .hub-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
-
-    /* =========================================================
-       RESPONSIVO
-       ========================================================= */
 
     @media (max-width: 900px) {
-        .hub-workspace {
-            grid-template-columns: 1fr;
-        }
-
-        .hub-preview {
-            display: none;
-        }
-
-        .hub-link {
-            min-height: 92px;
+        .hub-workspace { grid-template-columns: minmax(0, 1fr); }
+        .hub-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hub-aside {
+            position: static;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 640px) {
         .hub-page {
-            gap: .65rem;
+            width: min(100%, calc(100dvw - 20px));
         }
 
-        .hub-intro {
-            grid-template-columns: auto minmax(0, 1fr);
-            padding: .68rem;
-            border-radius: 14px;
+        .hub-toolbar {
+            display: grid;
+            align-items: flex-start;
+            gap: 10px;
         }
 
-        .hub-intro-icon {
-            width: 42px;
-            height: 42px;
+        .hub-toolbar-actions {
+            width: 100%;
         }
 
-        .hub-intro-copy strong {
-            font-size: .88rem;
-        }
-
-        .hub-intro-copy span {
-            font-size: .74rem;
-        }
-
-        .hub-count {
-            grid-column: 1 / -1;
-            justify-self: start;
-            margin-left: 3.55rem;
-        }
-
-        .hub-list-panel {
-            border-radius: 15px;
-        }
-
-        .hub-list-head {
-            padding: .64rem;
-        }
-
-        .hub-head-copy span {
-            display: none;
+        .hub-search {
+            width: 100%;
+            max-width: none;
         }
 
         .hub-list {
-            padding: .28rem .48rem .5rem;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 9px;
+        }
+
+        .hub-aside {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 9px;
+        }
+
+        .hub-news-item:nth-child(n + 2) {
+            display: none;
+        }
+
+        .hub-widget-header {
+            min-height: 44px;
         }
 
         .hub-link {
-            min-height: 94px;
-            gap: .58rem;
-            padding: .62rem .12rem;
+            min-height: 72px;
+            align-items: center;
+            padding: 11px 12px;
+            padding-right: 42px;
         }
 
         .hub-role-icon {
-            width: 43px;
-            height: 43px;
-            border-radius: 12px;
-        }
-
-        .hub-role-title {
-            font-size: .87rem;
-        }
-
-        .hub-role-description {
-            font-size: .73rem;
+            width: 42px;
+            height: 42px;
         }
     }
 
-    @media (max-width: 370px) {
-        .hub-link {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .hub-link-action {
-            grid-column: 2;
-            justify-self: start;
-            width: 30px;
-            height: 30px;
-            margin-top: -.1rem;
-        }
+    @media (max-height: 720px) {
+        .hub-link { min-height: 78px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -952,486 +785,402 @@ Bem-vindo, {{ $displayName }}!
 </style>
 
 <main class="hub-page">
-    <section class="hub-intro">
-        <span
-            class="hub-intro-icon"
-            aria-hidden="true"
-        >
-            <img
-                src="{{ !empty($currentTenant?->logo) ? asset('storage/' . $currentTenant->logo) : asset('assets/sgc-symbol.png') }}"
-                alt=""
-            >
-        </span>
+    <section class="hub-shell" aria-labelledby="hub-title">
+        <div class="hub-shell-content grid min-w-0 gap-3">
+            <header class="hub-toolbar">
+                <div class="flex min-w-0 items-center gap-2.5">
+                    <span class="hub-tenant-logo grid shrink-0 place-items-center" aria-hidden="true">
+                        <img
+                            src="{{ !empty($currentTenant?->logo)
+                                ? asset('storage/' . $currentTenant->logo)
+                                : asset('assets/sgc-symbol.png') }}"
+                            alt=""
+                        >
+                    </span>
 
-        <div class="hub-intro-copy">
-            <strong>
-                Escolha seu ambiente de trabalho
-            </strong>
-
-            <span>
-                {{ $currentTenant->name
-                    ?? 'Sua organização' }}
-                · cada portal mostra apenas as ferramentas
-                relacionadas àquela função.
-            </span>
-        </div>
-
-        <span class="hub-count">
-            <i class="ph-duotone ph-stack"></i>
-
-            {{ $availablePanelsCount }}
-            {{ $availablePanelsCount === 1
-                ? 'portal'
-                : 'portais' }}
-        </span>
-    </section>
-
-    <section class="hub-workspace">
-        <div class="hub-list-panel">
-            <header class="hub-list-head">
-                <span
-                    class="hub-list-head-icon"
-                    aria-hidden="true"
-                >
-                    <i class="ph-duotone ph-squares-four"></i>
-                </span>
-
-                <div class="hub-head-copy">
-                    <strong>
-                        Portais disponíveis
-                    </strong>
-
-                    <span>
-                        Selecione uma área para continuar.
+                    <span class="block min-w-0">
+                        <h2 class="hub-context-name m-0 truncate" id="hub-title">
+                            {{ $currentTenant->name ?? 'Sua organização' }}
+                        </h2>
+                        <span class="hub-context-meta flex items-center gap-1.5">
+                            <span class="truncate">{{ $displayName }}</span>
+                            <span aria-hidden="true">·</span>
+                            <span aria-label="{{ $availablePanelsCount }} {{ $availablePanelsCount === 1 ? 'painel disponível' : 'painéis disponíveis' }}">
+                                <span data-visible-count>{{ $availablePanelsCount }}</span>
+                                {{ $availablePanelsCount === 1 ? 'painel' : 'painéis' }}
+                            </span>
+                        </span>
                     </span>
                 </div>
-            </header>
 
-            <nav
-                class="hub-list"
-                aria-label="Portais disponíveis"
-            >
-                @if($hasSuperAdmin)
-                    @php
-                        $superVisual =
-                            $resolvePortalVisual(
-                                'Super Admin'
-                            );
-                    @endphp
-
-                    <a
-                        class="
-                            hub-link
-                            tone-{{ $superVisual['tone'] }}
-                            {{ $availablePanelsCount > 0
-                                ? 'is-active'
-                                : '' }}
-                        "
-                        href="{{ url('super-admin') }}"
-                        aria-label="Acessar Super Admin"
-                        data-portal
-                        data-tone="{{ $superVisual['tone'] }}"
-                        data-icon="{{ $superVisual['icon'] }}"
-                        data-label="{{ $superVisual['label'] }}"
-                        data-title="Super Admin"
-                        data-description="Administração geral do sistema, organizações e configurações globais."
-                        data-hint="{{ $superVisual['hint'] }}"
-                        data-url="{{ url('super-admin') }}"
-                    >
-                        <span
-                            class="hub-role-icon"
-                            aria-hidden="true"
-                        >
-                            <i
-                                class="ph-duotone {{ $superVisual['icon'] }}"
-                            ></i>
-                        </span>
-
-                        <span class="hub-role-copy">
-                            <span class="hub-role-kicker">
-                                {{ $superVisual['label'] }}
-                            </span>
-
-                            <strong class="hub-role-title">
-                                Super Admin
-                            </strong>
-
-                            <span class="hub-role-description">
-                                Administração geral do sistema e das organizações.
-                            </span>
-                        </span>
-
-                        <span
-                            class="hub-link-action"
-                            aria-hidden="true"
-                        >
-                            <i class="ph ph-arrow-right"></i>
-                        </span>
-                    </a>
-                @endif
-
-                @foreach($rolesCollection as $role)
-                    @php
-                        $visual =
-                            $resolvePortalVisual(
-                                $role['name'],
-                                $role['icon']
-                                    ?? 'layout-dashboard',
-                                $role['color']
-                                    ?? 'primary'
-                            );
-
-                        $isFirstRole =
-                            !$hasSuperAdmin
-                            && $loop->first;
-                    @endphp
-
-                    <a
-                        class="
-                            hub-link
-                            tone-{{ $visual['tone'] }}
-                            {{ $isFirstRole
-                                ? 'is-active'
-                                : '' }}
-                        "
-                        href="{{ $role['url'] }}"
-                        aria-label="Acessar {{ $role['name'] }}"
-                        data-portal
-                        data-tone="{{ $visual['tone'] }}"
-                        data-icon="{{ $visual['icon'] }}"
-                        data-label="{{ $visual['label'] }}"
-                        data-title="{{ $role['name'] }}"
-                        data-description="{{ $role['description']
-                            ?? 'Acesse as ferramentas disponíveis para esta função.' }}"
-                        data-hint="{{ $visual['hint'] }}"
-                        data-url="{{ $role['url'] }}"
-                    >
-                        <span
-                            class="hub-role-icon"
-                            aria-hidden="true"
-                        >
-                            <i
-                                class="ph-duotone {{ $visual['icon'] }}"
-                            ></i>
-                        </span>
-
-                        <span class="hub-role-copy">
-                            <span class="hub-role-kicker">
-                                {{ $visual['label'] }}
-                            </span>
-
-                            <strong class="hub-role-title">
-                                {{ $role['name'] }}
-                            </strong>
-
-                            <span class="hub-role-description">
-                                {{ $role['description']
-                                    ?? 'Acesse as ferramentas disponíveis para esta função.' }}
-                            </span>
-                        </span>
-
-                        <span
-                            class="hub-link-action"
-                            aria-hidden="true"
-                        >
-                            <i class="ph ph-arrow-right"></i>
-                        </span>
-                    </a>
-                @endforeach
-
-                @if($availablePanelsCount === 0)
-                    <div class="hub-empty">
-                        <div class="hub-empty-content">
-                            <span
-                                class="hub-empty-icon"
-                                aria-hidden="true"
+                @if($availablePanelsCount > 6)
+                    <div class="hub-toolbar-actions flex shrink-0 items-center gap-2">
+                        <div class="hub-search" data-hub-search>
+                            <label class="sr-only" for="hub-panel-search">Buscar painel</label>
+                            <i class="hub-search-icon ph ph-magnifying-glass text-sm" aria-hidden="true"></i>
+                            <input
+                                id="hub-panel-search"
+                                class="hub-search-input"
+                                type="search"
+                                placeholder="Buscar entre os painéis"
+                                autocomplete="off"
+                                spellcheck="false"
+                                data-hub-search-input
                             >
-                                <i class="ph-duotone ph-shield-warning"></i>
-                            </span>
-
-                            <strong>
-                                Nenhum portal disponível
-                            </strong>
-
-                            <p>
-                                Sua conta ainda não possui um ambiente liberado.
-                                Entre em contato com um administrador.
-                            </p>
+                            <button
+                                class="hub-search-clear"
+                                type="button"
+                                aria-label="Limpar busca"
+                                data-hub-search-clear
+                            >
+                                <i class="ph ph-x text-sm" aria-hidden="true"></i>
+                            </button>
                         </div>
                     </div>
                 @endif
-            </nav>
-        </div>
+            </header>
 
-        @if($availablePanelsCount > 0)
-            <aside
-                class="hub-preview"
-                aria-label="Detalhes do portal selecionado"
-            >
-                <header class="hub-preview-head">
-                    <span
-                        class="hub-preview-head-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-duotone ph-cursor-click"></i>
-                    </span>
-
-                    <div class="hub-head-copy">
-                        <strong>
-                            Detalhes do portal
-                        </strong>
-
-                        <span>
-                            Passe sobre uma opção ou use o teclado.
-                        </span>
-                    </div>
-                </header>
-
-                <div
-                    class="hub-preview-body"
-                    id="hub-preview-body"
+            <div class="hub-workspace">
+                <section class="grid min-w-0 gap-2" aria-label="Painéis disponíveis">
+                <nav
+                    class="hub-list min-w-0"
+                    aria-label="Painéis disponíveis"
+                    data-hub-list
                 >
-                    <div
-                        class="hub-preview-swap"
-                        id="hub-preview-content"
-                    >
-                        <div class="hub-preview-visual">
+                    @if($hasSuperAdmin)
+                        @php
+                            $superVisual = $resolvePortalVisual('Super Admin');
+                        @endphp
+
+                        <a
+                            class="hub-link tone-{{ $superVisual['tone'] }} min-w-0 text-left"
+                            href="{{ url('super-admin') }}"
+                            aria-label="Abrir Super Admin"
+                            data-hub-link
+                            data-panel-name="Super Admin"
+                            data-panel-description="{{ $superVisual['hint'] }}"
+                            data-panel-icon="{{ $superVisual['icon'] }}"
+                            data-panel-tone="{{ $superVisual['tone'] }}"
+                        >
                             <span
-                                class="hub-preview-icon"
+                                class="hub-role-icon grid shrink-0 place-items-center rounded-xl"
                                 aria-hidden="true"
                             >
-                                <i
-                                    class="ph-duotone ph-squares-four"
-                                    id="hub-preview-icon"
-                                ></i>
+                                <i class="ph-duotone {{ $superVisual['icon'] }} text-lg"></i>
+                            </span>
+
+                            <span class="block min-w-0">
+                                <strong class="block truncate text-[13px] font-extrabold text-[var(--color-text,#102018)]">
+                                    Super Admin
+                                </strong>
+                                <span class="mt-1 block truncate text-[11px] leading-[1.45] text-[var(--color-text-muted,#809087)]">
+                                    {{ $superVisual['hint'] }}
+                                </span>
                             </span>
 
                             <span
-                                class="hub-preview-kicker"
-                                id="hub-preview-kicker"
+                                class="hub-link-arrow grid size-7 place-items-center rounded-lg"
+                                aria-hidden="true"
                             >
-                                Portal
+                                <i class="ph ph-arrow-right text-sm"></i>
+                            </span>
+                        </a>
+                    @endif
+
+                    @foreach($rolesCollection as $role)
+                        @php
+                            $visual = $resolvePortalVisual(
+                                $role['name'],
+                                $role['icon'] ?? 'layout-dashboard',
+                                $role['color'] ?? 'primary'
+                            );
+
+                            $portalDescription = filled($role['description'] ?? null)
+                                ? $role['description']
+                                : $visual['hint'];
+                        @endphp
+
+                        <a
+                            class="hub-link tone-{{ $visual['tone'] }} min-w-0 text-left"
+                            href="{{ $role['url'] }}"
+                            aria-label="Abrir {{ $role['name'] }}"
+                            data-hub-link
+                            data-panel-name="{{ $role['name'] }}"
+                            data-panel-description="{{ $portalDescription }}"
+                            data-panel-icon="{{ $visual['icon'] }}"
+                            data-panel-tone="{{ $visual['tone'] }}"
+                        >
+                            <span
+                                class="hub-role-icon grid shrink-0 place-items-center rounded-xl"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone {{ $visual['icon'] }} text-lg"></i>
                             </span>
 
-                            <h2
-                                class="hub-preview-title"
-                                id="hub-preview-title"
-                            >
-                                Ambiente disponível
-                            </h2>
-
-                            <p
-                                class="hub-preview-description"
-                                id="hub-preview-description"
-                            >
-                                Selecione uma opção ao lado para visualizar
-                                os detalhes deste ambiente.
-                            </p>
-
-                            <div class="hub-preview-hint">
+                            <span class="block min-w-0">
+                                <strong class="block truncate text-[13px] font-extrabold text-[var(--color-text,#102018)]">
+                                    {{ $role['name'] }}
+                                </strong>
                                 <span
-                                    class="hub-preview-hint-icon"
-                                    aria-hidden="true"
+                                    class="mt-1 block truncate text-[11px] leading-[1.45] text-[var(--color-text-muted,#809087)]"
+                                    title="{{ $portalDescription }}"
                                 >
-                                    <i
-                                        class="ph-duotone ph-info"
-                                        id="hub-preview-hint-icon"
-                                    ></i>
+                                    {{ $portalDescription }}
                                 </span>
+                            </span>
 
-                                <span id="hub-preview-hint">
-                                    Escolha um portal para continuar.
+                            <span
+                                class="hub-link-arrow grid size-7 place-items-center rounded-lg"
+                                aria-hidden="true"
+                            >
+                                <i class="ph ph-arrow-right text-sm"></i>
+                            </span>
+                        </a>
+                    @endforeach
+
+                    @if($availablePanelsCount === 0)
+                        <div
+                            class="grid justify-items-center rounded-[13px] border border-dashed border-[var(--color-border-strong,#c8d6cd)] bg-[var(--color-surface-soft,#f8faf9)] px-4 py-6 text-center"
+                            role="status"
+                        >
+                            <span
+                                class="hub-empty-icon mb-2 grid size-11 place-items-center rounded-[13px]"
+                                aria-hidden="true"
+                            >
+                                <i class="ph-duotone ph-shield-warning text-xl"></i>
+                            </span>
+                            <strong class="text-[13px] font-extrabold text-[var(--color-text,#102018)]">
+                                Nenhum painel disponível
+                            </strong>
+                            <p class="mb-0 mt-1 max-w-[30ch] text-[11px] leading-relaxed text-[var(--color-text-secondary,#52645a)]">
+                                Solicite acesso a um administrador.
+                            </p>
+                        </div>
+                    @endif
+
+                    <div
+                        class="hub-no-results grid justify-items-center rounded-[14px] border border-dashed border-[var(--color-border-strong,#c8d6cd)] bg-[var(--color-surface-soft,#f8faf9)] px-4 py-8 text-center"
+                        role="status"
+                        aria-live="polite"
+                        hidden
+                        data-hub-no-results
+                    >
+                        <span class="hub-empty-icon mb-2 grid size-11 place-items-center rounded-[13px]" aria-hidden="true">
+                            <i class="ph-duotone ph-magnifying-glass text-xl"></i>
+                        </span>
+                        <strong class="text-[13px] font-extrabold text-[var(--color-text,#102018)]">
+                            Nenhum painel encontrado
+                        </strong>
+                        <p class="mb-0 mt-1 text-[11px] text-[var(--color-text-secondary,#52645a)]">
+                            Tente buscar por outro nome.
+                        </p>
+                    </div>
+                </nav>
+                </section>
+
+                <aside class="hub-aside" aria-label="Informações do hub">
+                    <section class="hub-widget" aria-labelledby="hub-news-title">
+                        <header class="hub-widget-header">
+                            <h3 class="hub-widget-title" id="hub-news-title">
+                                <i class="ph-duotone ph-megaphone" aria-hidden="true"></i>
+                                Novidades
+                            </h3>
+                            <span class="hub-widget-badge">SGC</span>
+                        </header>
+
+                        <div class="hub-news-list">
+                            @foreach($hubNewsItems as $newsItem)
+                                <article class="hub-news-item tone-{{ $resolveTone($newsItem['tone']) }}">
+                                    <span class="hub-news-icon" aria-hidden="true">
+                                        <i class="ph-duotone {{ $newsItem['icon'] }} text-base"></i>
+                                    </span>
+                                    <span class="block min-w-0">
+                                        <strong class="hub-news-title">{{ $newsItem['title'] }}</strong>
+                                        @if(filled($newsItem['description']))
+                                            <span class="hub-news-description">{{ $newsItem['description'] }}</span>
+                                        @endif
+                                        @if(filled($newsItem['date']))
+                                            <span class="hub-news-date">{{ $newsItem['date'] }}</span>
+                                        @endif
+                                    </span>
+                                </article>
+                            @endforeach
+                        </div>
+                    </section>
+
+                    <section
+                        class="hub-widget hub-recent"
+                        aria-labelledby="hub-recent-title"
+                        data-recent-panel
+                    >
+                        <header class="hub-widget-header">
+                            <h3 class="hub-widget-title" id="hub-recent-title">
+                                <i class="ph-duotone ph-clock-counter-clockwise" aria-hidden="true"></i>
+                                Continuar
+                            </h3>
+                        </header>
+
+                        <div class="hub-recent-content">
+                            <div class="hub-recent-empty" data-recent-panel-empty>
+                                <span class="hub-recent-empty-icon" aria-hidden="true">
+                                    <i class="ph-duotone ph-clock text-base"></i>
+                                </span>
+                                <span class="block min-w-0">
+                                    <strong class="block text-[10px] font-bold text-[var(--color-text-secondary,#52645a)]">
+                                        Nenhum acesso recente
+                                    </strong>
+                                    <span class="mt-0.5 block text-[9px] leading-snug text-[var(--color-text-muted,#809087)]">
+                                        O último painel aberto ficará disponível aqui.
+                                    </span>
                                 </span>
                             </div>
 
-                            <a
-                                class="hub-preview-action"
-                                id="hub-preview-action"
-                                href="#"
-                            >
-                                Abrir portal
-                                <i class="ph ph-arrow-right"></i>
+                            <a class="hub-recent-link" href="#" data-recent-panel-link hidden>
+                                <span class="hub-recent-icon" aria-hidden="true">
+                                    <i class="ph-duotone ph-squares-four text-lg" data-recent-panel-icon></i>
+                                </span>
+                                <span class="block min-w-0">
+                                    <strong class="block truncate text-[11px] font-extrabold text-[var(--color-text,#102018)]" data-recent-panel-name></strong>
+                                    <span class="mt-0.5 block truncate text-[9px] text-[var(--color-text-muted,#809087)]" data-recent-panel-description></span>
+                                </span>
+                                <span class="grid size-6 place-items-center rounded-lg text-[var(--color-text-muted,#809087)]" aria-hidden="true">
+                                    <i class="ph ph-arrow-right text-xs"></i>
+                                </span>
                             </a>
                         </div>
-                    </div>
-                </div>
-            </aside>
-        @endif
+                    </section>
+                </aside>
+            </div>
+        </div>
     </section>
 </main>
 
 @if($availablePanelsCount > 0)
 <script>
     (() => {
-        const portalLinks = [
-            ...document.querySelectorAll(
-                '[data-portal]'
-            )
+        const hubLinks = [
+            ...document.querySelectorAll('[data-hub-link]')
         ];
 
-        const previewBody =
-            document.getElementById(
-                'hub-preview-body'
-            );
-
-        const previewContent =
-            document.getElementById(
-                'hub-preview-content'
-            );
-
-        const previewIcon =
-            document.getElementById(
-                'hub-preview-icon'
-            );
-
-        const previewKicker =
-            document.getElementById(
-                'hub-preview-kicker'
-            );
-
-        const previewTitle =
-            document.getElementById(
-                'hub-preview-title'
-            );
-
-        const previewDescription =
-            document.getElementById(
-                'hub-preview-description'
-            );
-
-        const previewHint =
-            document.getElementById(
-                'hub-preview-hint'
-            );
-
-        const previewAction =
-            document.getElementById(
-                'hub-preview-action'
-            );
-
-        const toneValues = {
-            green: {
-                color: '#168a4d',
-                soft: '#eaf8ef'
-            },
-            blue: {
-                color: '#2563eb',
-                soft: '#eef4ff'
-            },
-            sky: {
-                color: '#0284c7',
-                soft: '#edf8fe'
-            },
-            violet: {
-                color: '#7c3aed',
-                soft: '#f4f0ff'
-            },
-            amber: {
-                color: '#c87408',
-                soft: '#fff7e8'
-            },
-            red: {
-                color: '#cf3f3f',
-                soft: '#fff0f0'
-            },
-            slate: {
-                color: '#596b61',
-                soft: '#eef2ef'
-            }
-        };
-
-        function updatePreview(link) {
-            if (
-                !link
-                || !previewBody
-            ) {
-                return;
-            }
-
-            const tone =
-                toneValues[
-                    link.dataset.tone
-                ]
-                || toneValues.green;
-
-            portalLinks.forEach(
-                currentLink => {
-                    currentLink.classList.toggle(
-                        'is-active',
-                        currentLink === link
-                    );
-                }
-            );
-
-            previewBody.style.setProperty(
-                '--preview-tone',
-                tone.color
-            );
-
-            previewBody.style.setProperty(
-                '--preview-soft',
-                tone.soft
-            );
-
-            previewIcon.className =
-                `ph-duotone ${
-                    link.dataset.icon
-                    || 'ph-squares-four'
-                }`;
-
-            previewKicker.textContent =
-                link.dataset.label
-                || 'Portal';
-
-            previewTitle.textContent =
-                link.dataset.title
-                || 'Ambiente disponível';
-
-            previewDescription.textContent =
-                link.dataset.description
-                || 'Acesse as ferramentas deste ambiente.';
-
-            previewHint.textContent =
-                link.dataset.hint
-                || 'Ambiente disponível';
-
-            previewAction.href =
-                link.dataset.url
-                || link.href;
-
-            previewContent.classList.remove(
-                'hub-preview-swap'
-            );
-
-            void previewContent.offsetWidth;
-
-            previewContent.classList.add(
-                'hub-preview-swap'
-            );
+        function resetLinks() {
+            hubLinks.forEach(link => {
+                link.classList.remove('is-opening');
+                link.removeAttribute('aria-busy');
+            });
         }
 
-        portalLinks.forEach(link => {
-            link.addEventListener(
-                'mouseenter',
-                () => updatePreview(link)
-            );
+        const search = document.querySelector('[data-hub-search]');
+        const searchInput = document.querySelector('[data-hub-search-input]');
+        const searchClear = document.querySelector('[data-hub-search-clear]');
+        const noResults = document.querySelector('[data-hub-no-results]');
+        const visibleCount = document.querySelector('[data-visible-count]');
+        const recentPanel = document.querySelector('[data-recent-panel]');
+        const recentPanelLink = document.querySelector('[data-recent-panel-link]');
+        const recentPanelName = document.querySelector('[data-recent-panel-name]');
+        const recentPanelDescription = document.querySelector('[data-recent-panel-description]');
+        const recentPanelIcon = document.querySelector('[data-recent-panel-icon]');
+        const recentPanelEmpty = document.querySelector('[data-recent-panel-empty]');
+        const recentPanelKey = @json('sgc_hub_recent_panel_' . (session('tenant_id') ?? 'global'));
 
-            link.addEventListener(
-                'focus',
-                () => updatePreview(link)
-            );
+        const normalize = value => value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLocaleLowerCase('pt-BR')
+            .trim();
+
+        function filterPanels() {
+            if (!searchInput) return;
+
+            const query = normalize(searchInput.value);
+            let matches = 0;
+
+            hubLinks.forEach(link => {
+                const isMatch = !query || normalize(link.textContent).includes(query);
+                link.hidden = !isMatch;
+                if (isMatch) matches += 1;
+            });
+
+            search?.classList.toggle('has-value', Boolean(searchInput.value));
+            if (noResults) noResults.hidden = matches !== 0;
+            if (visibleCount) visibleCount.textContent = String(matches);
+        }
+
+        function showRecentPanel() {
+            if (!recentPanel || !recentPanelLink) return;
+
+            try {
+                const stored = JSON.parse(localStorage.getItem(recentPanelKey) || 'null');
+                const source = stored?.href
+                    ? hubLinks.find(link => link.href === stored.href)
+                    : null;
+
+                if (!source) {
+                    recentPanelLink.hidden = true;
+                    if (recentPanelEmpty) recentPanelEmpty.hidden = false;
+                    return;
+                }
+
+                recentPanel.dataset.tone = source.dataset.panelTone || 'green';
+                recentPanelLink.href = source.href;
+                recentPanelLink.setAttribute('aria-label', `Continuar em ${source.dataset.panelName}`);
+                if (recentPanelName) recentPanelName.textContent = source.dataset.panelName || '';
+                if (recentPanelDescription) {
+                    recentPanelDescription.textContent = source.dataset.panelDescription || '';
+                }
+                if (recentPanelIcon) {
+                    recentPanelIcon.className = `ph-duotone ${source.dataset.panelIcon || 'ph-squares-four'} text-lg`;
+                }
+                if (recentPanelEmpty) recentPanelEmpty.hidden = true;
+                recentPanelLink.hidden = false;
+            } catch (error) {
+                recentPanelLink.hidden = true;
+                if (recentPanelEmpty) recentPanelEmpty.hidden = false;
+            }
+        }
+
+        searchInput?.addEventListener('input', filterPanels);
+        searchClear?.addEventListener('click', () => {
+            searchInput.value = '';
+            filterPanels();
+            searchInput.focus();
         });
 
-        const initialPortal =
-            portalLinks.find(
-                link =>
-                    link.classList.contains(
-                        'is-active'
-                    )
-            )
-            || portalLinks[0];
+        hubLinks.forEach(link => {
+            link.addEventListener('click', event => {
+                if (
+                    event.defaultPrevented
+                    || event.button !== 0
+                    || event.metaKey
+                    || event.ctrlKey
+                    || event.shiftKey
+                    || event.altKey
+                ) {
+                    return;
+                }
 
-        updatePreview(initialPortal);
+                try {
+                    localStorage.setItem(recentPanelKey, JSON.stringify({ href: link.href }));
+                } catch (error) {
+                    // O acesso continua normalmente quando o armazenamento não está disponível.
+                }
+
+                link.classList.add('is-opening');
+                link.setAttribute('aria-busy', 'true');
+            });
+        });
+
+        recentPanelLink?.addEventListener('click', () => {
+            recentPanelLink.setAttribute('aria-busy', 'true');
+        });
+
+        window.addEventListener('pageshow', () => {
+            resetLinks();
+            filterPanels();
+            showRecentPanel();
+            recentPanelLink?.removeAttribute('aria-busy');
+        });
+
+        showRecentPanel();
     })();
 </script>
 @endif

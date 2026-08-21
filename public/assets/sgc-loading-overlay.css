@@ -1,0 +1,96 @@
+#sgc-global-loader {
+  position: fixed;
+  z-index: 2147483000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(34, 181, 115, .2), transparent 22rem),
+    rgba(10, 25, 18, .76);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .16s ease;
+}
+
+#sgc-global-loader.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+html.sgc-loading-lock,
+body.sgc-loading-lock {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.sgc-global-loader__card {
+  display: grid;
+  width: min(100%, 320px);
+  justify-items: center;
+  gap: .7rem;
+  padding: 1.35rem;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 21px;
+  background:
+    radial-gradient(circle at 50% 0, rgba(34, 181, 115, .16), transparent 12rem),
+    #101923;
+  box-shadow: 0 28px 82px rgba(0, 0, 0, .32);
+  color: #fff;
+  text-align: center;
+  transform: translateY(8px) scale(.98);
+  transition: transform .18s ease;
+}
+
+#sgc-global-loader.is-active .sgc-global-loader__card {
+  transform: translateY(0) scale(1);
+}
+
+.sgc-global-loader__mark {
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .17);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .09);
+}
+
+.sgc-global-loader__mark img {
+  width: 41px;
+  height: 41px;
+  object-fit: contain;
+  animation: sgc-loader-logo 1.1s ease-in-out infinite alternate;
+}
+
+.sgc-global-loader__title,
+.sgc-global-loader__message { display: block; }
+.sgc-global-loader__title { font-size: .9rem; font-weight: 820; }
+.sgc-global-loader__message { color: rgba(255, 255, 255, .7); font-size: .76rem; line-height: 1.45; }
+
+.sgc-global-loader__track {
+  width: 150px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .13);
+}
+
+.sgc-global-loader__track::after {
+  display: block;
+  width: 48%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #168a4d, #2563eb);
+  content: "";
+  animation: sgc-loader-progress 1s ease-in-out infinite;
+}
+
+@keyframes sgc-loader-logo { from { transform: scale(.93) translateY(1px); } to { transform: scale(1.04) translateY(-2px); } }
+@keyframes sgc-loader-progress { from { transform: translateX(-115%); } to { transform: translateX(245%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  #sgc-global-loader, .sgc-global-loader__card { transition: none; }
+  .sgc-global-loader__mark img, .sgc-global-loader__track::after { animation: none; }
+}
