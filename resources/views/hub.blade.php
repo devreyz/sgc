@@ -12,36 +12,6 @@
     $hasSuperAdmin = $user->hasRole('super_admin');
     $availablePanelsCount = $rolesCollection->count() + ($hasSuperAdmin ? 1 : 0);
 
-    $hubNewsItems = collect($hubNews ?? $news ?? [])
-        ->take(3)
-        ->map(static function ($item): array {
-            return [
-                'title' => data_get($item, 'title', 'Novidade no SGC'),
-                'description' => data_get(
-                    $item,
-                    'description',
-                    data_get($item, 'summary', '')
-                ),
-                'date' => data_get($item, 'date', data_get($item, 'published_at', '')),
-                'icon' => data_get($item, 'icon', 'ph-sparkle'),
-                'tone' => data_get($item, 'tone', 'green'),
-            ];
-        })
-        ->filter(static fn (array $item): bool => filled($item['title']))
-        ->values();
-
-    if ($hubNewsItems->isEmpty()) {
-        $hubNewsItems = collect([
-            [
-                'title' => 'Central de painéis renovada',
-                'description' => 'Seus acessos agora estão mais organizados e fáceis de encontrar.',
-                'date' => 'Nesta versão',
-                'icon' => 'ph-squares-four',
-                'tone' => 'violet',
-            ],
-        ]);
-    }
-
     $phosphorIcons = [
         'settings' => 'ph-gear-six',
         'settings-2' => 'ph-gear-six',
@@ -347,231 +317,8 @@ Painéis
 
     .hub-list {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 13px;
-    }
-
-    .hub-workspace {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: minmax(0, 1fr) 310px;
-        align-items: start;
-        gap: 14px;
-    }
-
-    .hub-aside {
-        position: sticky;
-        top: 16px;
-        display: grid;
-        min-width: 0;
-        gap: 12px;
-    }
-
-    .hub-widget {
-        overflow: hidden;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 16px;
-        background: rgba(255, 255, 255, .94);
-        box-shadow: 0 4px 16px rgba(15, 35, 24, .04);
-    }
-
-    .hub-widget-header {
-        display: flex;
-        min-height: 48px;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        padding: 0 14px;
-        border-bottom: 1px solid var(--color-border, #dce6df);
-    }
-
-    .hub-widget-title {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        margin: 0;
-        color: var(--color-text, #102018);
-        font-size: 12px;
-        font-weight: 800;
-    }
-
-    .hub-widget-title i {
-        color: var(--hub-violet);
-        font-size: 16px;
-    }
-
-    .hub-widget-badge {
-        border: 1px solid rgba(124, 58, 237, .12);
-        border-radius: 999px;
-        background: var(--hub-violet-soft);
-        padding: 3px 7px;
-        color: var(--hub-violet);
-        font-size: 9px;
-        font-weight: 800;
-    }
-
-    .hub-news-list {
-        display: grid;
-        padding: 4px 14px;
-    }
-
-    .hub-news-item {
-        --news-tone: var(--hub-green);
-        --news-soft: var(--hub-green-soft);
-        display: grid;
-        grid-template-columns: 34px minmax(0, 1fr);
-        align-items: start;
-        gap: 10px;
-        padding: 12px 0;
-    }
-
-    .hub-news-item + .hub-news-item {
-        border-top: 1px solid var(--color-border, #e4ebe6);
-    }
-
-    .hub-news-item.tone-blue {
-        --news-tone: var(--hub-blue);
-        --news-soft: var(--hub-blue-soft);
-    }
-
-    .hub-news-item.tone-sky {
-        --news-tone: var(--hub-sky);
-        --news-soft: var(--hub-sky-soft);
-    }
-
-    .hub-news-item.tone-violet {
-        --news-tone: var(--hub-violet);
-        --news-soft: var(--hub-violet-soft);
-    }
-
-    .hub-news-item.tone-amber {
-        --news-tone: var(--hub-amber);
-        --news-soft: var(--hub-amber-soft);
-    }
-
-    .hub-news-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--news-soft);
-        color: var(--news-tone);
-    }
-
-    .hub-news-title {
-        display: block;
-        color: var(--color-text, #102018);
-        font-size: 11px;
-        font-weight: 800;
-        line-height: 1.35;
-    }
-
-    .hub-news-description {
-        display: -webkit-box;
-        overflow: hidden;
-        margin-top: 3px;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10px;
-        line-height: 1.45;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-    }
-
-    .hub-news-date {
-        display: block;
-        margin-top: 5px;
-        color: var(--color-text-muted, #809087);
-        font-size: 9px;
-        font-weight: 650;
-    }
-
-    .hub-recent-link[hidden],
-    .hub-recent-empty[hidden] {
-        display: none !important;
-    }
-
-    .hub-recent-content {
-        padding: 12px;
-    }
-
-    .hub-recent-link {
-        --recent-tone: var(--hub-green);
-        --recent-soft: var(--hub-green-soft);
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr) 26px;
-        align-items: center;
-        gap: 9px;
-        border-radius: 12px;
-        padding: 8px;
-        color: inherit;
-        text-decoration: none;
-        transition: background 150ms ease, transform 150ms ease;
-    }
-
-    .hub-recent-link:hover,
-    .hub-recent-link:focus-visible {
-        background: color-mix(in srgb, var(--recent-soft) 58%, #fff);
-        outline: none;
-        transform: translateY(-1px);
-    }
-
-    .hub-recent[data-tone="blue"] .hub-recent-link {
-        --recent-tone: var(--hub-blue);
-        --recent-soft: var(--hub-blue-soft);
-    }
-
-    .hub-recent[data-tone="sky"] .hub-recent-link {
-        --recent-tone: var(--hub-sky);
-        --recent-soft: var(--hub-sky-soft);
-    }
-
-    .hub-recent[data-tone="violet"] .hub-recent-link {
-        --recent-tone: var(--hub-violet);
-        --recent-soft: var(--hub-violet-soft);
-    }
-
-    .hub-recent[data-tone="amber"] .hub-recent-link {
-        --recent-tone: var(--hub-amber);
-        --recent-soft: var(--hub-amber-soft);
-    }
-
-    .hub-recent[data-tone="red"] .hub-recent-link {
-        --recent-tone: var(--hub-red);
-        --recent-soft: var(--hub-red-soft);
-    }
-
-    .hub-recent[data-tone="slate"] .hub-recent-link {
-        --recent-tone: var(--hub-slate);
-        --recent-soft: var(--hub-slate-soft);
-    }
-
-    .hub-recent-icon {
-        display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--recent-soft);
-        color: var(--recent-tone);
-    }
-
-    .hub-recent-empty {
-        display: grid;
-        grid-template-columns: 34px minmax(0, 1fr);
-        align-items: center;
-        gap: 9px;
-        padding: 4px;
-    }
-
-    .hub-recent-empty-icon {
-        display: grid;
-        width: 34px;
-        height: 34px;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--color-surface-muted, #eef4f0);
-        color: var(--color-text-muted, #809087);
     }
 
     .hub-link {
@@ -704,17 +451,11 @@ Painéis
     }
 
     @media (max-width: 1180px) {
-        .hub-workspace { grid-template-columns: minmax(0, 1fr) 288px; }
-        .hub-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .hub-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     }
 
-    @media (max-width: 900px) {
-        .hub-workspace { grid-template-columns: minmax(0, 1fr); }
+    @media (max-width: 880px) {
         .hub-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-        .hub-aside {
-            position: static;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
     }
 
     @media (max-width: 640px) {
@@ -740,19 +481,6 @@ Painéis
         .hub-list {
             grid-template-columns: minmax(0, 1fr);
             gap: 9px;
-        }
-
-        .hub-aside {
-            grid-template-columns: minmax(0, 1fr);
-            gap: 9px;
-        }
-
-        .hub-news-item:nth-child(n + 2) {
-            display: none;
-        }
-
-        .hub-widget-header {
-            min-height: 44px;
         }
 
         .hub-link {
@@ -840,8 +568,8 @@ Painéis
                 @endif
             </header>
 
-            <div class="hub-workspace">
-                <section class="grid min-w-0 gap-2" aria-label="Painéis disponíveis">
+            <section class="grid min-w-0 gap-2" aria-label="Painéis disponíveis">
+
                 <nav
                     class="hub-list min-w-0"
                     aria-label="Painéis disponíveis"
@@ -857,10 +585,6 @@ Painéis
                             href="{{ url('super-admin') }}"
                             aria-label="Abrir Super Admin"
                             data-hub-link
-                            data-panel-name="Super Admin"
-                            data-panel-description="{{ $superVisual['hint'] }}"
-                            data-panel-icon="{{ $superVisual['icon'] }}"
-                            data-panel-tone="{{ $superVisual['tone'] }}"
                         >
                             <span
                                 class="hub-role-icon grid shrink-0 place-items-center rounded-xl"
@@ -905,10 +629,6 @@ Painéis
                             href="{{ $role['url'] }}"
                             aria-label="Abrir {{ $role['name'] }}"
                             data-hub-link
-                            data-panel-name="{{ $role['name'] }}"
-                            data-panel-description="{{ $portalDescription }}"
-                            data-panel-icon="{{ $visual['icon'] }}"
-                            data-panel-tone="{{ $visual['tone'] }}"
                         >
                             <span
                                 class="hub-role-icon grid shrink-0 place-items-center rounded-xl"
@@ -976,81 +696,7 @@ Painéis
                         </p>
                     </div>
                 </nav>
-                </section>
-
-                <aside class="hub-aside" aria-label="Informações do hub">
-                    <section class="hub-widget" aria-labelledby="hub-news-title">
-                        <header class="hub-widget-header">
-                            <h3 class="hub-widget-title" id="hub-news-title">
-                                <i class="ph-duotone ph-megaphone" aria-hidden="true"></i>
-                                Novidades
-                            </h3>
-                            <span class="hub-widget-badge">SGC</span>
-                        </header>
-
-                        <div class="hub-news-list">
-                            @foreach($hubNewsItems as $newsItem)
-                                <article class="hub-news-item tone-{{ $resolveTone($newsItem['tone']) }}">
-                                    <span class="hub-news-icon" aria-hidden="true">
-                                        <i class="ph-duotone {{ $newsItem['icon'] }} text-base"></i>
-                                    </span>
-                                    <span class="block min-w-0">
-                                        <strong class="hub-news-title">{{ $newsItem['title'] }}</strong>
-                                        @if(filled($newsItem['description']))
-                                            <span class="hub-news-description">{{ $newsItem['description'] }}</span>
-                                        @endif
-                                        @if(filled($newsItem['date']))
-                                            <span class="hub-news-date">{{ $newsItem['date'] }}</span>
-                                        @endif
-                                    </span>
-                                </article>
-                            @endforeach
-                        </div>
-                    </section>
-
-                    <section
-                        class="hub-widget hub-recent"
-                        aria-labelledby="hub-recent-title"
-                        data-recent-panel
-                    >
-                        <header class="hub-widget-header">
-                            <h3 class="hub-widget-title" id="hub-recent-title">
-                                <i class="ph-duotone ph-clock-counter-clockwise" aria-hidden="true"></i>
-                                Continuar
-                            </h3>
-                        </header>
-
-                        <div class="hub-recent-content">
-                            <div class="hub-recent-empty" data-recent-panel-empty>
-                                <span class="hub-recent-empty-icon" aria-hidden="true">
-                                    <i class="ph-duotone ph-clock text-base"></i>
-                                </span>
-                                <span class="block min-w-0">
-                                    <strong class="block text-[10px] font-bold text-[var(--color-text-secondary,#52645a)]">
-                                        Nenhum acesso recente
-                                    </strong>
-                                    <span class="mt-0.5 block text-[9px] leading-snug text-[var(--color-text-muted,#809087)]">
-                                        O último painel aberto ficará disponível aqui.
-                                    </span>
-                                </span>
-                            </div>
-
-                            <a class="hub-recent-link" href="#" data-recent-panel-link hidden>
-                                <span class="hub-recent-icon" aria-hidden="true">
-                                    <i class="ph-duotone ph-squares-four text-lg" data-recent-panel-icon></i>
-                                </span>
-                                <span class="block min-w-0">
-                                    <strong class="block truncate text-[11px] font-extrabold text-[var(--color-text,#102018)]" data-recent-panel-name></strong>
-                                    <span class="mt-0.5 block truncate text-[9px] text-[var(--color-text-muted,#809087)]" data-recent-panel-description></span>
-                                </span>
-                                <span class="grid size-6 place-items-center rounded-lg text-[var(--color-text-muted,#809087)]" aria-hidden="true">
-                                    <i class="ph ph-arrow-right text-xs"></i>
-                                </span>
-                            </a>
-                        </div>
-                    </section>
-                </aside>
-            </div>
+            </section>
         </div>
     </section>
 </main>
@@ -1074,13 +720,6 @@ Painéis
         const searchClear = document.querySelector('[data-hub-search-clear]');
         const noResults = document.querySelector('[data-hub-no-results]');
         const visibleCount = document.querySelector('[data-visible-count]');
-        const recentPanel = document.querySelector('[data-recent-panel]');
-        const recentPanelLink = document.querySelector('[data-recent-panel-link]');
-        const recentPanelName = document.querySelector('[data-recent-panel-name]');
-        const recentPanelDescription = document.querySelector('[data-recent-panel-description]');
-        const recentPanelIcon = document.querySelector('[data-recent-panel-icon]');
-        const recentPanelEmpty = document.querySelector('[data-recent-panel-empty]');
-        const recentPanelKey = @json('sgc_hub_recent_panel_' . (session('tenant_id') ?? 'global'));
 
         const normalize = value => value
             .normalize('NFD')
@@ -1105,39 +744,6 @@ Painéis
             if (visibleCount) visibleCount.textContent = String(matches);
         }
 
-        function showRecentPanel() {
-            if (!recentPanel || !recentPanelLink) return;
-
-            try {
-                const stored = JSON.parse(localStorage.getItem(recentPanelKey) || 'null');
-                const source = stored?.href
-                    ? hubLinks.find(link => link.href === stored.href)
-                    : null;
-
-                if (!source) {
-                    recentPanelLink.hidden = true;
-                    if (recentPanelEmpty) recentPanelEmpty.hidden = false;
-                    return;
-                }
-
-                recentPanel.dataset.tone = source.dataset.panelTone || 'green';
-                recentPanelLink.href = source.href;
-                recentPanelLink.setAttribute('aria-label', `Continuar em ${source.dataset.panelName}`);
-                if (recentPanelName) recentPanelName.textContent = source.dataset.panelName || '';
-                if (recentPanelDescription) {
-                    recentPanelDescription.textContent = source.dataset.panelDescription || '';
-                }
-                if (recentPanelIcon) {
-                    recentPanelIcon.className = `ph-duotone ${source.dataset.panelIcon || 'ph-squares-four'} text-lg`;
-                }
-                if (recentPanelEmpty) recentPanelEmpty.hidden = true;
-                recentPanelLink.hidden = false;
-            } catch (error) {
-                recentPanelLink.hidden = true;
-                if (recentPanelEmpty) recentPanelEmpty.hidden = false;
-            }
-        }
-
         searchInput?.addEventListener('input', filterPanels);
         searchClear?.addEventListener('click', () => {
             searchInput.value = '';
@@ -1158,29 +764,15 @@ Painéis
                     return;
                 }
 
-                try {
-                    localStorage.setItem(recentPanelKey, JSON.stringify({ href: link.href }));
-                } catch (error) {
-                    // O acesso continua normalmente quando o armazenamento não está disponível.
-                }
-
                 link.classList.add('is-opening');
                 link.setAttribute('aria-busy', 'true');
             });
         });
 
-        recentPanelLink?.addEventListener('click', () => {
-            recentPanelLink.setAttribute('aria-busy', 'true');
-        });
-
         window.addEventListener('pageshow', () => {
             resetLinks();
             filterPanels();
-            showRecentPanel();
-            recentPanelLink?.removeAttribute('aria-busy');
         });
-
-        showRecentPanel();
     })();
 </script>
 @endif
