@@ -221,3 +221,40 @@ Notificações reutilizam `TenantNotificationDispatcher`: envio/reenvio vai some
 Cobranças sem rodada aparecem como `Processo anterior ao workflow`, sem backfill. Elas podem iniciar uma rodada real apenas se o estado atual passar pelas validações.
 
 Listagens usam eager loading, contagens SQL e paginação. Snapshot histórico é lido do JSON e nunca reconstruído para exibição. A organização recebe apenas os dados mínimos da cobrança; identidade de produtor não é serializada.
+
+## Fase 2C - Fiscal Gate e preparação para emissão
+
+### Auditoria e armazenamento
+
+- emitente continua em `tenants` (`legal_name`, `cnpj` e endereço);
+- destinatários continuam em `organizations` e `customers`, sem duplicação cadastral;
+- `SalesProject` fornece o escopo opcional do projeto;
+- settings genéricos e JSON existentes não oferecem ao mesmo tempo versionamento imutável, uma versão ativa por escopo, fingerprint e FKs tenant-aware.
+
+Foi criada `fiscal_profiles`, tabela InnoDB de configuração sem valores financeiros e sem representar nota fiscal. O padrão usa `scope_key = tenant`; override usa `scope_key = project:{id}`. A resolução é projeto ativo, depois tenant ativo. Cada salvamento cria nova versão e preserva as anteriores. A concorrência é serializada pelo registro do tenant e protegida por índices únicos.
+
+### Gate central
+
+`FiscalGateService` é a única autoridade de prontidão e retorna `ready`, `status`, `blocks`, `warnings`, `checks`, valor esperado, documento, autorização e perfil. Códigos estáveis incluem `tenant_mismatch`, `financial_integrity_error`, `authorization_missing`, `authorization_invalid`, `authorization_tenant_mismatch`, `authorization_receipt_mismatch`, `recipient_mismatch`, `fiscal_profile_missing`, `fiscal_profile_inactive`, `document_type_missing`, `fiscal_amount_source_missing`, `issuer_incomplete`, `issuer_address_incomplete`, `recipient_incomplete` e `fiscal_amount_unresolved`.
+
+O valor fiscal esperado vem exclusivamente de `BillingAuthorization.snapshot.totals.gross` ou `.net`, conforme enum controlado. O hash material atual precisa coincidir. `billing_status`, entrega-pai, taxa do produtor e `admin_fee_percentage` não participam dessa decisão.
+
+```mermaid
+flowchart TD
+    A[CustomerBillingReceipt] --> B[BillingAuthorization]
+    B --> C{authorized + hash válido}
+    C -->|não| D[bloqueado]
+    C -->|sim| E[FiscalGate]
+    E -->|blocks| D
+    E -->|ready| F[resumo para emissão]
+    F --> G[emissão externa pelo contador]
+    G --> H[Fase 2D]
+```
+
+### Portal e segurança
+
+`/{tenant}/accounting/fiscal` usa paginação e payload mínimo. O Gate completo roda nos itens da página, no dossiê aberto e novamente no `POST` de preparação. A preparação usa o snapshot autorizado, é somente leitura e se identifica como resumo, nunca como nota fiscal.
+
+Permissões: `view_accounting_fiscal_queue`, `prepare_accounting_fiscal`, `view_accounting_fiscal_settings` e `manage_accounting_fiscal_settings`. Presidente não recebe alteração implicitamente. Controllers resolvem tenant pela rota, filtram recursos por `tenant_id`, usam `no-store, private` e registram perfil e preparação no activity log. Nenhuma fila ou prontidão derivada foi persistida.
+
+XML, PDF fiscal, chave, upload, parser, SEFAZ/NFS-e e prestação de contas permanecem fora da Fase 2C.

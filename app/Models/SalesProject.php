@@ -352,6 +352,11 @@ class SalesProject extends Model
         return $this->hasMany(CustomerBillingReceipt::class, 'sales_project_id');
     }
 
+    public function fiscalProfiles(): HasMany
+    {
+        return $this->hasMany(FiscalProfile::class);
+    }
+
     /**
      * Get the cash movements related to this project.
      */

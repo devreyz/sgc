@@ -34,7 +34,7 @@ class TenantSelectionFlowTest extends TestCase
             ->get(route('tenant.select'))
             ->assertOk()
             ->assertSee('Organizacao de Teste')
-            ->assertSee('Descricao segura');
+            ->assertSee('descricao segura');
     }
 
     public function test_new_login_always_clears_tenant_and_opens_selection(): void

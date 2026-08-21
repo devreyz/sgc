@@ -250,6 +250,7 @@
                         <button class="acc-tab" type="button" data-tab="origin">Distribuições</button>
                         <button class="acc-tab" type="button" data-tab="finance">Financeiro</button>
                         <button class="acc-tab" type="button" data-tab="authorization">Autorização</button>
+                        <button class="acc-tab" type="button" data-tab="fiscal">Fiscal</button>
                         <button class="acc-tab" type="button" data-tab="related">Comprovantes relacionados</button>
                         <button class="acc-tab" type="button" data-tab="timeline">Histórico</button>
                     </div>
@@ -274,6 +275,14 @@
                         <ul class="acc-simple-list">${payload.payments.length ? payload.payments.map(payment => `<li class="acc-simple-item"><strong>${money.format(payment.amount || 0)} · ${esc(payment.date)}</strong><span>${esc(payment.account || payment.method || 'Sem conta informada')}</span></li>`).join('') : '<li class="acc-simple-item">Nenhum recebimento registrado.</li>'}</ul>
                     </div>
                     <div class="acc-tab-panel" data-panel="authorization">${renderAuthorizations(payload.authorizations)}</div>
+                    <div class="acc-tab-panel" data-panel="fiscal">
+                        <div class="acc-detail-grid">
+                            <div class="acc-detail"><span>Situação</span><strong>${esc(process.workflow.fiscal.label)}</strong></div>
+                            <div class="acc-detail"><span>Documento esperado</span><strong>${esc(process.workflow.fiscal.document_type || 'Não configurado')}</strong></div>
+                            <div class="acc-detail"><span>Valor fiscal esperado</span><strong>${process.workflow.fiscal.expected_amount == null ? 'Não determinado' : money.format(process.workflow.fiscal.expected_amount)}</strong></div>
+                        </div>
+                        ${process.workflow.fiscal.blocks?.length ? `<ul class="acc-integrity-list">${process.workflow.fiscal.blocks.map(block => `<li class="acc-integrity-item">${esc(block.message)}</li>`).join('')}</ul>` : '<div class="acc-empty">Nenhum bloqueio fiscal encontrado.</div>'}
+                    </div>
                     <div class="acc-tab-panel" data-panel="related">
                         ${renderProducerReceipts(payload.producer_receipts)}
                     </div>
@@ -283,7 +292,7 @@
                 </section>
                 <aside class="acc-side-stack">
                     <section class="acc-panel"><div class="acc-panel-head"><div><h2>Próxima ação</h2><p>${esc(process.state.next_action)}</p></div>${badge(process.workflow.authorization.label, process.workflow.authorization.state === 'authorized' ? 'success' : (['invalidated','correction_requested'].includes(process.workflow.authorization.state) ? 'danger' : 'warning'))}</div>
-                        <div class="acc-action-box" data-authorization-action>${root.dataset.canSendAuthorization === '1' && ['legacy_unsubmitted','correction_requested','invalidated','cancelled'].includes(process.workflow.authorization.state) && process.financial.status === 'pending_payment' && !integrity.critical_count ? `<button class="acc-button acc-button-primary" type="button" data-send-authorization>${icon('send')} Enviar para organização</button><div class="acc-action-feedback" aria-live="polite"></div>` : '<span class="acc-muted">Nenhuma ação interna disponível agora.</span>'}</div></section>
+                        <div class="acc-action-box" data-authorization-action>${process.workflow.fiscal.ready && process.workflow.fiscal.prepare_url ? `<button class="acc-button acc-button-primary" type="button" data-prepare-fiscal>${icon('file-check')} Preparar emissão</button><div class="acc-action-feedback" aria-live="polite"></div>` : (process.workflow.authorization.state === 'authorized' && process.workflow.fiscal.settings_url && process.workflow.fiscal.blocks?.some(block => ['fiscal_profile_missing','fiscal_profile_inactive','document_type_missing','fiscal_amount_source_missing'].includes(block.code)) ? `<a class="acc-button acc-button-primary" href="${esc(process.workflow.fiscal.settings_url)}">${icon('settings')} Configurar emissão</a>` : (root.dataset.canSendAuthorization === '1' && ['legacy_unsubmitted','correction_requested','invalidated','cancelled'].includes(process.workflow.authorization.state) && process.financial.status === 'pending_payment' && !integrity.critical_count ? `<button class="acc-button acc-button-primary" type="button" data-send-authorization>${icon('send')} Enviar para organização</button><div class="acc-action-feedback" aria-live="polite"></div>` : '<span class="acc-muted">Nenhuma ação interna disponível agora.</span>'))}</div></section>
                     <section class="acc-panel"><div class="acc-panel-head"><div><h2>Integridade</h2><p>${esc(integrity.critical_count)} bloqueio(s)</p></div>${badge(integrity.critical_count ? 'Conferir' : 'Íntegro', integrity.critical_count ? 'danger' : 'success')}</div>
                         <div style="padding:.72rem"><ul class="acc-integrity-list">${integrity.issues.length ? integrity.issues.map(issue => `<li class="acc-integrity-item">${esc(issue.message)}</li>`).join('') : '<li class="acc-simple-item">Nenhuma inconsistência crítica encontrada.</li>'}</ul></div></section>
                     <section class="acc-panel"><div class="acc-panel-head"><div><h2>Documentos</h2><p>${esc(payload.documents.length)} arquivo(s)</p></div></div>
@@ -294,6 +303,19 @@
                 target.querySelectorAll('[data-panel]').forEach(panel => panel.classList.toggle('is-active', panel.dataset.panel === button.dataset.tab));
             }));
             const sendButton = target.querySelector('[data-send-authorization]');
+            const fiscalButton = target.querySelector('[data-prepare-fiscal]');
+            fiscalButton?.addEventListener('click', async () => {
+                fiscalButton.disabled = true;
+                const feedback = target.querySelector('.acc-action-feedback');
+                feedback.textContent = 'Preparando...';
+                try {
+                    const result = await postJson(process.workflow.fiscal.prepare_url, {});
+                    window.location.assign(result.url);
+                } catch (error) {
+                    fiscalButton.disabled = false;
+                    feedback.textContent = error.message;
+                }
+            });
             sendButton?.addEventListener('click', async () => {
                 if (!window.confirm(`Enviar esta cobrança para autorização?\n\nValor: ${money.format(process.financial.net || 0)}\nPeríodo: ${process.period}`)) return;
                 const feedback = target.querySelector('.acc-action-feedback');

@@ -9,8 +9,12 @@ class AccountingNextActionResolver
     /**
      * @return array{state: string, label: string, tone: string, next_action: string, next_action_key: string}
      */
-    public function resolve(CustomerReceiptStatus|string|null $status, int $criticalIssues = 0, string $authorizationState = 'legacy_unsubmitted'): array
-    {
+    public function resolve(
+        CustomerReceiptStatus|string|null $status,
+        int $criticalIssues = 0,
+        string $authorizationState = 'legacy_unsubmitted',
+        ?array $fiscalGate = null,
+    ): array {
         if ($criticalIssues > 0) {
             return [
                 'state' => 'critical_inconsistency',
@@ -27,7 +31,7 @@ class AccountingNextActionResolver
             $authorization = match ($authorizationState) {
                 'sent' => ['state' => 'awaiting_organization', 'label' => 'Aguardando organização', 'tone' => 'warning', 'next_action' => 'Aguardar a análise da organização', 'next_action_key' => 'await_organization'],
                 'correction_requested' => ['state' => 'correction_requested', 'label' => 'Correção solicitada', 'tone' => 'danger', 'next_action' => 'Revisar a solicitação e enviar nova versão', 'next_action_key' => 'review_correction'],
-                'authorized' => ['state' => 'authorized', 'label' => 'Autorizada', 'tone' => 'success', 'next_action' => 'Aguardar a fase fiscal', 'next_action_key' => 'await_fiscal'],
+                'authorized' => $this->authorizedState($fiscalGate),
                 'invalidated' => ['state' => 'authorization_invalidated', 'label' => 'Autorização invalidada', 'tone' => 'danger', 'next_action' => 'Enviar nova versão para a organização', 'next_action_key' => 'resend_authorization'],
                 default => null,
             };
@@ -66,5 +70,23 @@ class AccountingNextActionResolver
                 'next_action_key' => 'view_dossier',
             ],
         };
+    }
+
+    private function authorizedState(?array $fiscalGate): array
+    {
+        if ($fiscalGate === null) {
+            return ['state' => 'authorized', 'label' => 'Autorizada', 'tone' => 'success', 'next_action' => 'Aguardar a fase fiscal', 'next_action_key' => 'await_fiscal'];
+        }
+
+        if ($fiscalGate['ready'] ?? false) {
+            return ['state' => 'ready_for_fiscal', 'label' => 'Pronto para emissão', 'tone' => 'success', 'next_action' => 'Preparar emissão', 'next_action_key' => 'prepare_fiscal'];
+        }
+
+        $codes = collect($fiscalGate['blocks'] ?? [])->pluck('code');
+        if ($codes->contains(fn (string $code): bool => str_starts_with($code, 'fiscal_profile_') || in_array($code, ['document_type_missing', 'fiscal_amount_source_missing'], true))) {
+            return ['state' => 'fiscal_configuration_required', 'label' => 'Configuração fiscal necessária', 'tone' => 'warning', 'next_action' => 'Configurar emissão', 'next_action_key' => 'configure_fiscal'];
+        }
+
+        return ['state' => 'fiscal_blocked', 'label' => 'Bloqueado para faturamento', 'tone' => 'danger', 'next_action' => 'Corrigir inconsistência', 'next_action_key' => 'review_fiscal_block'];
     }
 }

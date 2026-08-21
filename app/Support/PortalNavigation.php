@@ -44,6 +44,8 @@ class PortalNavigation
             'accounting' => [
                 ['key' => 'queue', 'label' => 'Fila', 'route' => 'accounting.index'],
                 ['key' => 'processes', 'label' => 'Processos', 'route' => 'accounting.processes.index'],
+                ['key' => 'fiscal', 'label' => 'Fiscal', 'route' => 'accounting.fiscal.index'],
+                ['key' => 'settings', 'label' => 'Configuração', 'route' => 'accounting.fiscal.settings'],
                 ['key' => 'home', 'label' => 'Painéis', 'route' => 'home'],
             ],
             'secretary' => [

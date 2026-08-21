@@ -90,6 +90,8 @@ class PortalNavigationTest extends TestCase
         $this->assertSame('processes', $navigation['active']);
         $this->assertStringEndsWith('/organizacao-principal/accounting', $items['queue']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/processes', $items['processes']['url']);
+        $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal', $items['fiscal']['url']);
+        $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal/settings', $items['settings']['url']);
         $this->assertArrayNotHasKey('finance', $items);
 
         $routes = collect(Route::getRoutes()->getRoutes())
@@ -98,11 +100,13 @@ class PortalNavigationTest extends TestCase
         $readRoutes = $routes->filter(fn ($route) => in_array('GET', $route->methods(), true));
         $writeRoutes = $routes->filter(fn ($route) => in_array('POST', $route->methods(), true));
 
-        $this->assertCount(6, $readRoutes);
-        $this->assertCount(2, $writeRoutes);
+        $this->assertCount(10, $readRoutes);
+        $this->assertCount(4, $writeRoutes);
         $this->assertEqualsCanonicalizing([
             'accounting.data.processes.authorization.send',
             'accounting.data.processes.authorization.cancel',
+            'accounting.fiscal.settings.store',
+            'accounting.fiscal.prepare',
         ], $writeRoutes->pluck('action.as')->all());
         $this->assertTrue($writeRoutes->every(fn ($route) => collect($route->gatherMiddleware())
             ->contains(fn (string $middleware) => str_starts_with($middleware, 'throttle:'))));

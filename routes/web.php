@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Accounting\AccountingPortalController;
+use App\Http\Controllers\Accounting\AccountingFiscalController;
 use App\Http\Controllers\Associate\AssociateDashboardController;
 use App\Http\Controllers\Associate\AssociatePortalDataController;
 use App\Http\Controllers\Associate\AssociateProjectPortalController;
@@ -253,6 +254,12 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
                 ->middleware('throttle:20,1')->whereNumber('receipt')->name('data.processes.authorization.send');
             Route::post('/data/processes/{receipt}/authorizations/{billingAuthorization}/cancel', [AccountingPortalController::class, 'cancelAuthorization'])
                 ->middleware('throttle:10,1')->whereNumber('receipt')->whereNumber('billingAuthorization')->name('data.processes.authorization.cancel');
+            Route::get('/fiscal', [AccountingFiscalController::class, 'index'])->name('fiscal.index');
+            Route::get('/data/fiscal', [AccountingFiscalController::class, 'data'])->name('fiscal.data');
+            Route::get('/fiscal/settings', [AccountingFiscalController::class, 'settings'])->name('fiscal.settings');
+            Route::post('/fiscal/settings', [AccountingFiscalController::class, 'storeSettings'])->middleware('throttle:20,1')->name('fiscal.settings.store');
+            Route::get('/fiscal/{receipt}', [AccountingFiscalController::class, 'show'])->whereNumber('receipt')->name('fiscal.show');
+            Route::post('/fiscal/{receipt}/prepare', [AccountingFiscalController::class, 'prepare'])->middleware('throttle:20,1')->whereNumber('receipt')->name('fiscal.prepare');
         });
 
     Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {

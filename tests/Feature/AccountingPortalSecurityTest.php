@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Services\Accounting\BillingAuthorizationNotificationService;
 use App\Services\Accounting\BillingAuthorizationSnapshotService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
+use App\Services\Accounting\FiscalGateService;
+use App\Services\Accounting\FiscalProfileService;
 use App\Services\TenantNotificationDispatcher;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +29,7 @@ class AccountingPortalSecurityTest extends TestCase
 
         foreach ([
             'activity_log', 'documents', 'customer_receipt_payments', 'associate_receipts',
-            'billing_authorizations', 'organization_authorized_emails', 'sales_project_organizations',
+            'fiscal_profiles', 'billing_authorizations', 'organization_authorized_emails', 'sales_project_organizations',
             'production_deliveries', 'products', 'associates', 'customer_billing_receipts',
             'customers', 'organizations', 'sales_projects', 'bank_accounts',
             'model_has_permissions', 'model_has_roles', 'role_has_permissions', 'permissions',
@@ -487,6 +489,141 @@ class AccountingPortalSecurityTest extends TestCase
         (new BillingAuthorizationNotificationService($dispatcher))->sent($round, false);
     }
 
+    public function test_valid_authorization_and_complete_profile_are_ready_for_fiscal_preparation(): void
+    {
+        $this->authorizeRound();
+        $this->createFiscalProfile();
+
+        $gate = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+
+        self::assertTrue($gate['ready']);
+        self::assertSame('ready', $gate['status']);
+        self::assertSame('180.0000', $gate['expected_fiscal_amount']);
+        self::assertSame('nfse', $gate['document_type']);
+        self::assertSame([], $gate['blocks']);
+    }
+
+    public function test_fiscal_gate_blocks_missing_authorization_and_missing_profile(): void
+    {
+        $gate = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+
+        self::assertFalse($gate['ready']);
+        self::assertContains('authorization_missing', collect($gate['blocks'])->pluck('code')->all());
+        self::assertContains('fiscal_profile_missing', collect($gate['blocks'])->pluck('code')->all());
+    }
+
+    public function test_fiscal_gate_blocks_sent_invalidated_and_outdated_authorizations(): void
+    {
+        $round = $this->sendRound();
+        $this->createFiscalProfile();
+        $sent = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+        self::assertContains('authorization_invalid', collect($sent['blocks'])->pluck('code')->all());
+
+        $round->forceFill(['status' => BillingAuthorizationStatus::INVALIDATED, 'active_marker' => true])->save();
+        $invalidated = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+        self::assertContains('authorization_invalid', collect($invalidated['blocks'])->pluck('code')->all());
+
+        $round->forceFill(['status' => BillingAuthorizationStatus::AUTHORIZED, 'snapshot_hash' => str_repeat('0', 64)])->save();
+        $outdated = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+        self::assertContains('authorization_invalid', collect($outdated['blocks'])->pluck('code')->all());
+    }
+
+    public function test_inactive_or_incomplete_fiscal_profile_blocks_preparation(): void
+    {
+        $this->authorizeRound();
+        $this->createFiscalProfile(['status' => 'draft', 'active_marker' => null, 'document_type' => null, 'amount_source' => null]);
+        $gate = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
+        $codes = collect($gate['blocks'])->pluck('code')->all();
+
+        self::assertFalse($gate['ready']);
+        self::assertContains('fiscal_profile_inactive', $codes);
+        self::assertContains('document_type_missing', $codes);
+        self::assertContains('fiscal_amount_source_missing', $codes);
+        self::assertContains('fiscal_amount_unresolved', $codes);
+    }
+
+    public function test_fiscal_amount_is_read_from_authorized_snapshot(): void
+    {
+        $round = $this->authorizeRound();
+        $this->createFiscalProfile(['amount_source' => 'authorized_gross']);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['total_gross' => 999]);
+
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $gate = app(FiscalGateService::class)->evaluate($receipt, 1);
+
+        self::assertFalse($gate['ready']);
+        self::assertSame('200.0000', data_get($round->snapshot, 'totals.gross'));
+        self::assertNull($gate['expected_fiscal_amount']);
+        self::assertContains('authorization_invalid', collect($gate['blocks'])->pluck('code')->all());
+    }
+
+    public function test_fiscal_queue_and_prepare_flow_are_permission_and_tenant_aware(): void
+    {
+        $this->authorizeRound();
+        $this->createFiscalProfile();
+        $user = User::query()->findOrFail(1);
+
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal')->assertOk();
+        $this->actingAs($user)->getJson('/tenant-a/accounting/data/fiscal')->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonCount(1, 'processes.data')
+            ->assertJsonPath('processes.data.0.gate', 'ready')
+            ->assertJsonMissingPath('processes.data.0.authorization.snapshot');
+        $this->actingAs($user)->postJson('/tenant-a/accounting/fiscal/10/prepare')->assertOk();
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/20')->assertNotFound();
+        $this->assertDatabaseHas('activity_log', ['subject_id' => 10, 'description' => 'Preparação fiscal iniciada']);
+    }
+
+    public function test_user_without_fiscal_permission_receives_forbidden(): void
+    {
+        DB::table('tenant_user')->where('user_id', 1)->where('tenant_id', 1)->update(['roles' => json_encode(['visualizador_entregas'])]);
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $user = User::query()->findOrFail(1);
+
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal')->assertForbidden();
+        $this->actingAs($user)->getJson('/tenant-a/accounting/data/fiscal')->assertForbidden();
+        $this->actingAs($user)->postJson('/tenant-a/accounting/fiscal/10/prepare')->assertForbidden();
+    }
+
+    public function test_project_profile_overrides_tenant_profile_without_mutating_old_version(): void
+    {
+        $this->createFiscalProfile(['id' => 1, 'scope_key' => 'tenant', 'sales_project_id' => null, 'document_type' => 'nfe']);
+        $this->createFiscalProfile(['id' => 2, 'scope_key' => 'project:10', 'sales_project_id' => 10, 'document_type' => 'nfse']);
+
+        $resolved = app(FiscalProfileService::class)->resolve(1, 10);
+
+        self::assertSame(2, $resolved->id);
+        self::assertSame('nfse', $resolved->document_type->value);
+        self::assertSame('nfe', DB::table('fiscal_profiles')->where('id', 1)->value('document_type'));
+    }
+
+    private function createFiscalProfile(array $overrides = []): void
+    {
+        $attributes = array_merge([
+            'id' => 1,
+            'tenant_id' => 1,
+            'sales_project_id' => null,
+            'scope_key' => 'tenant',
+            'version' => 1,
+            'status' => 'active',
+            'active_marker' => true,
+            'document_type' => 'nfse',
+            'amount_source' => 'authorized_final',
+            'require_issuer_tax_id' => true,
+            'require_issuer_address' => true,
+            'require_recipient_tax_id' => true,
+            'require_xml' => true,
+            'require_pdf' => true,
+            'standard_notes' => null,
+            'created_by' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $overrides);
+        $attributes['profile_hash'] = hash('sha256', json_encode($attributes, JSON_THROW_ON_ERROR));
+
+        DB::table('fiscal_profiles')->insert($attributes);
+    }
+
     private function sendRound(): BillingAuthorization
     {
         $this->actingAs(User::query()->findOrFail(1))->postJson('/tenant-a/accounting/data/processes/10/authorization/send', [
@@ -522,6 +659,11 @@ class AccountingPortalSecurityTest extends TestCase
             $table->string('slug')->unique();
             $table->boolean('active')->default(true);
             $table->string('locale')->nullable();
+            $table->string('legal_name')->nullable();
+            $table->string('cnpj')->nullable();
+            $table->string('address')->nullable();
+            $table->string('city')->nullable();
+            $table->string('state')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -688,6 +830,26 @@ class AccountingPortalSecurityTest extends TestCase
             $table->unique(['tenant_id', 'customer_billing_receipt_id', 'organization_id', 'sequence']);
             $table->unique(['tenant_id', 'customer_billing_receipt_id', 'organization_id', 'active_marker']);
         });
+        Schema::create('fiscal_profiles', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('sales_project_id')->nullable();
+            $table->string('scope_key');
+            $table->unsignedInteger('version');
+            $table->string('status');
+            $table->boolean('active_marker')->nullable();
+            $table->string('document_type')->nullable();
+            $table->string('amount_source')->nullable();
+            $table->boolean('require_issuer_tax_id')->default(true);
+            $table->boolean('require_issuer_address')->default(true);
+            $table->boolean('require_recipient_tax_id')->default(true);
+            $table->boolean('require_xml')->default(true);
+            $table->boolean('require_pdf')->default(true);
+            $table->text('standard_notes')->nullable();
+            $table->char('profile_hash', 64);
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+        });
         Schema::create('associates', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -787,11 +949,11 @@ class AccountingPortalSecurityTest extends TestCase
             ['id' => 3, 'name' => 'Outra conta', 'email' => 'other@example.test', 'status' => true, 'created_at' => now(), 'updated_at' => now()],
         ]);
         DB::table('tenants')->insert([
-            ['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'active' => true, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 2, 'name' => 'Tenant B', 'slug' => 'tenant-b', 'active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'active' => true, 'legal_name' => 'Cooperativa A', 'cnpj' => '12345678000100', 'address' => 'Rua A, 1', 'city' => 'Cidade A', 'state' => 'MG', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'name' => 'Tenant B', 'slug' => 'tenant-b', 'active' => true, 'legal_name' => null, 'cnpj' => null, 'address' => null, 'city' => null, 'state' => null, 'created_at' => now(), 'updated_at' => now()],
         ]);
         $roleId = DB::table('roles')->insertGetId(['name' => 'tesoureiro', 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()]);
-        foreach (['view_accounting_portal', 'view_accounting_processes', 'review_accounting_processes', 'request_accounting_corrections', 'send_accounting_authorizations', 'cancel_accounting_authorizations'] as $permission) {
+        foreach (['view_accounting_portal', 'view_accounting_processes', 'review_accounting_processes', 'request_accounting_corrections', 'send_accounting_authorizations', 'cancel_accounting_authorizations', 'view_accounting_fiscal_queue', 'prepare_accounting_fiscal', 'view_accounting_fiscal_settings', 'manage_accounting_fiscal_settings'] as $permission) {
             $permissionId = DB::table('permissions')->insertGetId(['name' => $permission, 'guard_name' => 'web', 'created_at' => now(), 'updated_at' => now()]);
             DB::table('role_has_permissions')->insert(['role_id' => $roleId, 'permission_id' => $permissionId]);
         }
@@ -804,8 +966,8 @@ class AccountingPortalSecurityTest extends TestCase
             ['id' => 20, 'tenant_id' => 2, 'title' => 'Projeto B', 'code' => 'PB-01', 'status' => 'active', 'created_at' => now(), 'updated_at' => now()],
         ]);
         DB::table('organizations')->insert([
-            ['id' => 1, 'tenant_id' => 1, 'name' => 'Prefeitura A', 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 2, 'tenant_id' => 2, 'name' => 'Prefeitura B', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 1, 'tenant_id' => 1, 'name' => 'Prefeitura A', 'cnpj' => '00987654000100', 'address' => 'Praça A, 1', 'city' => 'Cidade A', 'state' => 'MG', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'tenant_id' => 2, 'name' => 'Prefeitura B', 'cnpj' => null, 'address' => null, 'city' => null, 'state' => null, 'created_at' => now(), 'updated_at' => now()],
         ]);
         DB::table('sales_project_organizations')->insert([
             ['sales_project_id' => 10, 'organization_id' => 1, 'created_at' => now(), 'updated_at' => now()],

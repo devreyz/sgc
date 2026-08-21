@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
@@ -171,7 +172,7 @@ class Tenant extends Model
      */
     public function addUser(User $user, bool $isAdmin = false): void
     {
-        if (!$this->users()->where('user_id', $user->id)->exists()) {
+        if (! $this->users()->where('user_id', $user->id)->exists()) {
             $this->users()->attach($user->id, ['is_admin' => $isAdmin]);
         }
     }
@@ -242,6 +243,11 @@ class Tenant extends Model
         return implode(', ', $parts);
     }
 
+    public function fiscalProfiles(): HasMany
+    {
+        return $this->hasMany(FiscalProfile::class);
+    }
+
     public function associateTerm(bool $plural = false, bool $lowercase = false): string
     {
         $attribute = $plural ? 'associate_term_plural' : 'associate_term_singular';
@@ -257,7 +263,7 @@ class Tenant extends Model
      */
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo ? asset('storage/' . $this->logo) : null;
+        return $this->logo ? asset('storage/'.$this->logo) : null;
     }
 
     /**
@@ -265,7 +271,7 @@ class Tenant extends Model
      */
     public function getLogoDarkUrlAttribute(): ?string
     {
-        return $this->logo_dark ? asset('storage/' . $this->logo_dark) : null;
+        return $this->logo_dark ? asset('storage/'.$this->logo_dark) : null;
     }
 
     /**
@@ -273,7 +279,7 @@ class Tenant extends Model
      */
     public function getFaviconUrlAttribute(): ?string
     {
-        return $this->favicon ? asset('storage/' . $this->favicon) : null;
+        return $this->favicon ? asset('storage/'.$this->favicon) : null;
     }
 
     /**
@@ -281,9 +287,9 @@ class Tenant extends Model
      */
     public function hasCompleteAddress(): bool
     {
-        return !empty($this->address) 
-            && !empty($this->city) 
-            && !empty($this->state);
+        return ! empty($this->address)
+            && ! empty($this->city)
+            && ! empty($this->state);
     }
 
     /**
@@ -291,7 +297,7 @@ class Tenant extends Model
      */
     public function hasBranding(): bool
     {
-        return !empty($this->logo) 
-            || !empty($this->primary_color);
+        return ! empty($this->logo)
+            || ! empty($this->primary_color);
     }
 }

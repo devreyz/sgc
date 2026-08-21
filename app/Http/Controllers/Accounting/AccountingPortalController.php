@@ -20,6 +20,7 @@ use App\Services\Accounting\AccountingNextActionResolver;
 use App\Services\Accounting\AccountingProcessIntegrityService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\BillingAuthorizationWorkflowService;
+use App\Services\Accounting\FiscalGateService;
 use App\Services\TenantIdentityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -143,7 +144,7 @@ class AccountingPortalController extends Controller
         ]);
     }
 
-    public function processesData(Request $request, AccountingNextActionResolver $resolver): JsonResponse
+    public function processesData(Request $request, AccountingNextActionResolver $resolver, FiscalGateService $fiscalGate): JsonResponse
     {
         $tenant = $this->tenant($request);
         $this->authorizeProcesses($request);
@@ -224,7 +225,7 @@ class AccountingPortalController extends Controller
             ->withQueryString();
 
         $processes->getCollection()->transform(
-            fn (CustomerBillingReceipt $receipt) => $this->processRow($receipt, $resolver, $tenant->slug)
+            fn (CustomerBillingReceipt $receipt) => $this->processRow($receipt, $resolver, $fiscalGate, $tenant->slug)
         );
 
         return $this->privateJson([
@@ -238,6 +239,7 @@ class AccountingPortalController extends Controller
         AccountingNextActionResolver $resolver,
         AccountingProcessIntegrityService $integrity,
         BillingAuthorizationValidityService $authorizationValidity,
+        FiscalGateService $fiscalGate,
         TenantIdentityService $identities,
     ): JsonResponse {
         $tenant = $this->tenant($request);
@@ -261,7 +263,10 @@ class AccountingPortalController extends Controller
             ? $authorizationValidity->isValid($receipt, $latestRound)
             : null;
         $authorization = $this->authorizationPayload($latestRound, $isCurrentAuthorizationValid);
-        $state = $resolver->resolve($receipt->status, $integrityResult['critical_count'], $authorization['state']);
+        $fiscal = $latestRound?->status === BillingAuthorizationStatus::AUTHORIZED
+            ? $fiscalGate->evaluate($receipt, $tenant->id)
+            : null;
+        $state = $resolver->resolve($receipt->status, $integrityResult['critical_count'], $authorization['state'], $fiscal);
         $distributions = $receipt->billingDistributions()
             ->with([
                 'product:id,tenant_id,name,unit',
@@ -354,7 +359,13 @@ class AccountingPortalController extends Controller
                 'state' => $state,
                 'workflow' => [
                     'authorization' => $authorization,
-                    'fiscal' => ['state' => 'not_started', 'label' => 'Não iniciado'],
+                    'fiscal' => $this->fiscalPayload(
+                        $fiscal,
+                        $tenant->slug,
+                        $receipt->id,
+                        $request->user()->can('prepare_accounting_fiscal'),
+                        $request->user()->can('view_accounting_fiscal_settings'),
+                    ),
                     'accountability' => ['state' => 'not_started', 'label' => 'Não iniciado'],
                 ],
                 'financial' => [
@@ -487,15 +498,22 @@ class AccountingPortalController extends Controller
             });
     }
 
-    private function processRow(CustomerBillingReceipt $receipt, AccountingNextActionResolver $resolver, string $tenantSlug): array
-    {
+    private function processRow(
+        CustomerBillingReceipt $receipt,
+        AccountingNextActionResolver $resolver,
+        FiscalGateService $fiscalGate,
+        string $tenantSlug,
+    ): array {
         $critical = (int) $receipt->invalid_distributions_count;
         $critical += $receipt->billing_distributions_count < 1 ? 1 : 0;
         $critical += ! $receipt->sales_project_id ? 1 : 0;
         $critical += (($receipt->customer_id && $receipt->organization_id) || (! $receipt->customer_id && ! $receipt->organization_id)) ? 1 : 0;
         $critical += $receipt->status?->isLocked() && (float) $receipt->total_net <= 0 ? 1 : 0;
         $authorization = $this->authorizationPayload($receipt->latestAuthorizationRound);
-        $state = $resolver->resolve($receipt->status, $critical, $authorization['state']);
+        $fiscal = $authorization['state'] === BillingAuthorizationStatus::AUTHORIZED->value
+            ? $fiscalGate->evaluate($receipt, (int) $receipt->tenant_id)
+            : null;
+        $state = $resolver->resolve($receipt->status, $critical, $authorization['state'], $fiscal);
 
         return [
             'id' => $receipt->id,
@@ -515,9 +533,32 @@ class AccountingPortalController extends Controller
             'critical_issues' => $critical,
             'state' => $state,
             'authorization' => $authorization,
-            'fiscal' => ['state' => 'not_started', 'label' => 'Não iniciado'],
+            'fiscal' => $this->fiscalPayload($fiscal, $tenantSlug, $receipt->id),
             'accountability' => ['state' => 'not_started', 'label' => 'Não iniciado'],
             'url' => route('accounting.processes.show', ['tenant' => $tenantSlug, 'receipt' => $receipt->id]),
+        ];
+    }
+
+    private function fiscalPayload(
+        ?array $gate,
+        string $tenantSlug,
+        int $receiptId,
+        bool $canPrepare = false,
+        bool $canViewSettings = false,
+    ): array {
+        if ($gate === null) {
+            return ['state' => 'not_started', 'label' => 'Aguardando autorização', 'ready' => false, 'blocks' => []];
+        }
+
+        return [
+            'state' => $gate['status'],
+            'label' => $gate['ready'] ? 'Pronto para emissão' : 'Bloqueado',
+            'ready' => $gate['ready'],
+            'document_type' => $gate['document_type_label'],
+            'expected_amount' => $gate['expected_fiscal_amount'] !== null ? (float) $gate['expected_fiscal_amount'] : null,
+            'blocks' => $gate['blocks'],
+            'prepare_url' => $canPrepare ? route('accounting.fiscal.prepare', ['tenant' => $tenantSlug, 'receipt' => $receiptId]) : null,
+            'settings_url' => $canViewSettings ? route('accounting.fiscal.settings', ['tenant' => $tenantSlug]) : null,
         ];
     }
 

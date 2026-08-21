@@ -183,3 +183,38 @@ Falta somente a evidência operacional que não pode ser produzida por teste aut
 2. confirmar a entrega real das notificações no canal configurado.
 
 Esse parecer não bloqueia a implantação da Fase 2B. Após as duas confirmações manuais, o gate pode ser alterado para GO sem nova alteração estrutural.
+
+## Fase 2C - concluída em código
+
+### Entregas
+
+- [x] perfil fiscal versionado por tenant com override por projeto;
+- [x] origem do valor limitada ao bruto ou total final do snapshot autorizado;
+- [x] Gate central integrado à próxima ação e ao dossiê;
+- [x] fila fiscal paginada, responsiva e carregada por API privada;
+- [x] ações separadas de revisar, configurar e preparar;
+- [x] preparação somente leitura baseada no snapshot;
+- [x] permissões, IDOR, rate limit e activity log;
+- [x] nenhuma regra tributária, nota fiscal, upload ou fila persistida.
+
+### Evidências locais em 21/08/2026
+
+- migrations `2026_08_21_000003` e `000004` aplicadas na cópia local;
+- teste focado: 46 testes e 193 asserções, zero falhas;
+- suíte global: 234 testes e 957 asserções, zero falhas; 8 cenários concorrentes MySQL ignorados pelo runner SQLite;
+- navegação: 10 rotas GET e 4 POST contábeis; comandos POST com throttle;
+- Blade compilado e arquivos PHP sem erro de sintaxe;
+- fila sem snapshot completo;
+- cobertura de Gate, estados da autorização, perfis, snapshot, override, permissão, IDOR e auditoria.
+
+### Implantação
+
+```text
+php artisan migrate --force
+php artisan permission:cache-reset
+php artisan optimize:clear
+php artisan test tests/Feature/AccountingPortalSecurityTest.php
+php artisan test
+```
+
+Tenants existentes permanecem com **configuração fiscal pendente** até confirmação explícita. A Fase 2D não foi iniciada.
