@@ -30,6 +30,12 @@ class DeliveryProjectIntegrityService
             ->with(['associate.user', 'product', 'customer', 'parentDelivery', 'associateReceipt'])
             ->get();
 
+        $distributionParents = ProductionDelivery::withoutGlobalScopes()->withTrashed()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('id', $distributions->pluck('parent_delivery_id')->filter()->unique())
+            ->get(['id', 'tenant_id', 'sales_project_id', 'associate_id', 'product_id', 'parent_delivery_id', 'deleted_at'])
+            ->keyBy('id');
+
         foreach ($parents as $parent) {
             $productName = $parent->product?->name ?? $parent->projectDemand?->product?->name ?? 'Produto';
             $associateName = $parent->associate?->display_name ?? 'Associado';
@@ -49,7 +55,7 @@ class DeliveryProjectIntegrityService
             } elseif ($parent->status === DeliveryStatus::APPROVED && $distributed + 0.0005 < $received) {
                 $warning[] = $this->item(
                     'Entrega parcialmente distribuida',
-                    "{$productName}: " . number_format($distributed, 3, ',', '.') . ' de ' . number_format($received, 3, ',', '.') . ' distribuidos.',
+                    "{$productName}: ".number_format($distributed, 3, ',', '.').' de '.number_format($received, 3, ',', '.').' distribuidos.',
                     'Comprovante parcial pode ser gerado somente com as distribuicoes existentes.',
                     $parent->id,
                     'open_distribution'
@@ -59,7 +65,7 @@ class DeliveryProjectIntegrityService
             if ($distributed > $received + 0.0005) {
                 $critical[] = $this->item(
                     'Distribuicao maior que recebimento',
-                    "{$productName}: " . number_format($distributed, 3, ',', '.') . ' distribuidos para ' . number_format($received, 3, ',', '.') . ' recebidos.',
+                    "{$productName}: ".number_format($distributed, 3, ',', '.').' distribuidos para '.number_format($received, 3, ',', '.').' recebidos.',
                     'Reduza ou corrija as distribuicoes antes de gerar comprovantes.',
                     $parent->id,
                     'open_distribution'
@@ -68,17 +74,29 @@ class DeliveryProjectIntegrityService
         }
 
         foreach ($distributions as $distribution) {
-            $label = '#' . $distribution->id . ' - ' . ($distribution->product?->name ?? 'Produto');
+            $label = '#'.$distribution->id.' - '.($distribution->product?->name ?? 'Produto');
 
             if (! $distribution->parentDelivery) {
-                $critical[] = $this->item(
-                    'Distribuicao orfa',
-                    "{$label} esta sem entrega-pai valida.",
-                    'Exclua a distribuicao orfa se ela nao tiver efeito financeiro.',
-                    null,
-                    'delete_orphan_distribution',
-                    $distribution->id
-                );
+                $deletedParent = $distributionParents->get($distribution->parent_delivery_id);
+                if ($deletedParent?->trashed()) {
+                    $critical[] = $this->item(
+                        'Entrega-pai excluida',
+                        "{$label} pertence a uma entrega que foi excluida, mas ainda pode ser restaurada.",
+                        'Restaure a entrega-pai para recompor o historico sem alterar o comprovante.',
+                        $distribution->parent_delivery_id,
+                        'restore_parent_delivery',
+                        $distribution->id
+                    );
+                } else {
+                    $critical[] = $this->item(
+                        'Distribuicao orfa',
+                        "{$label} esta sem entrega-pai valida.",
+                        'Exclua a distribuicao orfa se ela nao tiver efeito financeiro.',
+                        null,
+                        'delete_orphan_distribution',
+                        $distribution->id
+                    );
+                }
             }
 
             if (! $distribution->customer_id) {

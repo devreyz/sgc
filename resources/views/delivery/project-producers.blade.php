@@ -2368,6 +2368,7 @@
             edit_distribution:'Corrigir distribuição',
             detach_missing_associate_receipt:'Desvincular comprovante',
             delete_orphan_distribution:'Excluir registro órfão',
+            restore_parent_delivery:'Restaurar entrega-pai',
             open_producers:'Selecionar pendentes',
         };
         return `<button class="pr-btn ${issue.severity === 'critical' ? 'danger' : ''}" type="button"
@@ -2701,7 +2702,9 @@
         }
         const message = action === 'detach_missing_associate_receipt'
             ? 'Desvincular o comprovante inexistente? A distribuição voltará a ficar disponível.'
-            : 'Excluir esta distribuição órfã? Esta ação não pode ser desfeita.';
+            : action === 'restore_parent_delivery'
+                ? 'Restaurar a entrega-pai excluída? Quantidades, valores e comprovantes não serão alterados.'
+                : 'Excluir esta distribuição órfã? Esta ação não pode ser desfeita.';
         if (!await confirmAction(message)) return;
         button.disabled = true;
         try {

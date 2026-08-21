@@ -2629,6 +2629,7 @@
                                                             'open_producers' => 'Abrir produtor',
                                                             'detach_missing_associate_receipt' => 'Desvincular',
                                                             'delete_orphan_distribution' => 'Excluir órfã',
+                                                            'restore_parent_delivery' => 'Restaurar entrega-pai',
                                                             default => 'Ver detalhes',
                                                         }
                                                     }}
@@ -3173,7 +3174,9 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
 
     const message = actionKey === 'detach_missing_associate_receipt'
         ? 'Desvincular este comprovante inexistente? A distribuição voltará a ficar disponível para um novo comprovante.'
-        : 'Excluir esta distribuição órfã? Esta correção não pode ser desfeita.';
+        : actionKey === 'restore_parent_delivery'
+            ? 'Restaurar a entrega-pai excluída? Quantidades, valores e comprovantes não serão alterados.'
+            : 'Excluir esta distribuição órfã? Esta correção não pode ser desfeita.';
     const confirmed = await customConfirm(message);
     if (!confirmed) return;
 

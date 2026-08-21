@@ -56,6 +56,13 @@
         }
         anchor.dataset.sgcNavigating = 'true';
         window.showGlobalLoading(anchor.dataset.loadingLabel || labelFor(anchor.textContent, 'Abrindo página'));
+        // Alguns componentes interceptam links GET para atualizar somente parte da tela.
+        // Nesse caso não há pagehide; encerra a transição curta para não manter a tela bloqueada.
+        window.setTimeout(() => {
+            if (anchor.dataset.sgcNavigating !== 'true') return;
+            delete anchor.dataset.sgcNavigating;
+            window.hideGlobalLoading();
+        }, 1200);
     }, true);
 
     document.addEventListener('submit', (event) => {

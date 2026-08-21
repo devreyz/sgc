@@ -378,6 +378,22 @@ class ProductionDelivery extends Model
                 }
             }
         });
+
+        static::deleting(function (ProductionDelivery $delivery): void {
+            if ($delivery->parent_delivery_id !== null) {
+                return;
+            }
+
+            $hasActiveDistributions = ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $delivery->tenant_id)
+                ->where('parent_delivery_id', $delivery->id)
+                ->exists();
+            if ($hasActiveDistributions) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'Esta entrega não pode ser excluída porque possui distribuições. Remova ou corrija os vínculos financeiros antes de excluir a entrega-pai.',
+                ]);
+            }
+        });
     }
 
     /**

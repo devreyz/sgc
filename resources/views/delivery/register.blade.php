@@ -2275,6 +2275,7 @@ function integrityActionLabel(key) {
         edit_distribution: 'Corrigir distribuicao',
         detach_missing_associate_receipt: 'Desvincular comprovante',
         delete_orphan_distribution: 'Excluir distribuicao orfa',
+        restore_parent_delivery: 'Restaurar entrega-pai',
         open_producers: 'Abrir comprovantes',
     })[key] || 'Ver detalhes';
 }
@@ -2339,7 +2340,9 @@ async function handleRegisterIntegrityAction(button) {
 
     const question = action === 'detach_missing_associate_receipt'
         ? 'Desvincular este comprovante inexistente? A distribuicao voltara a ficar disponivel.'
-        : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
+        : action === 'restore_parent_delivery'
+            ? 'Restaurar a entrega-pai excluida? Quantidades, valores e comprovantes nao serao alterados.'
+            : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
     if (!confirm(question)) return;
     button.disabled = true;
     try {

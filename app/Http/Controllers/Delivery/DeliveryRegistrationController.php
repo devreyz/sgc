@@ -24,6 +24,7 @@ use App\Models\Tenant;
 use App\Services\AssociateProjectLimitService;
 use App\Services\AssociateReceiptService;
 use App\Services\BuyerRequestFulfillmentService;
+use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
@@ -1569,7 +1570,7 @@ class DeliveryRegistrationController extends Controller
         }
 
         $validated = $request->validate([
-            'action' => 'required|in:detach_missing_associate_receipt,delete_orphan_distribution',
+            'action' => 'required|in:detach_missing_associate_receipt,delete_orphan_distribution,restore_parent_delivery',
             'distribution_id' => 'required|integer',
         ]);
 
@@ -1578,6 +1579,19 @@ class DeliveryRegistrationController extends Controller
             ->whereNotNull('parent_delivery_id')
             ->with('associateReceipt')
             ->findOrFail((int) $validated['distribution_id']);
+
+        if ($validated['action'] === 'restore_parent_delivery') {
+            app(DeliveryParentRecoveryService::class)
+                ->restoreForDistribution($distribution, Auth::user());
+
+            $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Entrega-pai restaurada. O historico e os comprovantes voltaram a ficar consistentes.',
+                'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
+            ]);
+        }
 
         if ($distribution->paid || $distribution->billing_status !== BillingStatus::UNBILLED || $distribution->billing_receipt_id) {
             return response()->json([

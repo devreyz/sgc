@@ -7,16 +7,19 @@ use App\Models\BillingAuthorization;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\User;
+use App\Services\Accounting\AccountingProcessIntegrityService;
 use App\Services\Accounting\BillingAuthorizationNotificationService;
 use App\Services\Accounting\BillingAuthorizationSnapshotService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\FiscalGateService;
 use App\Services\Accounting\FiscalProfileService;
+use App\Services\DeliveryParentRecoveryService;
 use App\Services\TenantNotificationDispatcher;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Mockery;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -100,6 +103,64 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('distributions.data.0.parent.id', 300)
             ->assertJsonPath('process.financial.net', 180)
             ->assertJsonPath('process.integrity.critical_count', 0);
+    }
+
+    public function test_parent_delivery_with_active_distribution_cannot_be_soft_deleted(): void
+    {
+        $parent = ProductionDelivery::withoutGlobalScopes()->findOrFail(300);
+
+        try {
+            $parent->delete();
+            self::fail('A entrega-pai com distribuições deveria ter sido protegida.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('delivery', $exception->errors());
+        }
+
+        self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
+        self::assertSame(300, (int) ProductionDelivery::withoutGlobalScopes()->findOrFail(301)->parent_delivery_id);
+    }
+
+    public function test_legacy_soft_deleted_parent_can_be_restored_without_changing_financial_distribution(): void
+    {
+        DB::table('production_deliveries')->where('id', 300)->update(['deleted_at' => now()]);
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $before = ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
+            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']);
+
+        $diagnosis = app(DeliveryParentRecoveryService::class)->diagnosisForCustomerReceipt($receipt);
+        self::assertSame(1, $diagnosis['recoverable']);
+        self::assertSame(0, $diagnosis['unrecoverable']);
+        self::assertContains(
+            'deleted_parent_delivery',
+            collect(app(AccountingProcessIntegrityService::class)->inspect($receipt)['issues'])->pluck('code')->all(),
+        );
+
+        $result = app(DeliveryParentRecoveryService::class)
+            ->restoreForCustomerReceipt($receipt, User::query()->findOrFail(1));
+
+        self::assertSame([300], $result['restored']);
+        self::assertSame([], $result['unresolved']);
+        self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
+        self::assertSame($before, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
+            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']));
+    }
+
+    public function test_receipt_repair_does_not_restore_distribution_from_another_project_context(): void
+    {
+        DB::table('production_deliveries')->where('id', 300)->update(['deleted_at' => now()]);
+        DB::table('production_deliveries')->where('id', 301)->update(['sales_project_id' => 999]);
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+
+        $diagnosis = app(DeliveryParentRecoveryService::class)->diagnosisForCustomerReceipt($receipt);
+        self::assertSame(0, $diagnosis['recoverable']);
+        self::assertSame(1, $diagnosis['unrecoverable']);
+
+        $result = app(DeliveryParentRecoveryService::class)
+            ->restoreForCustomerReceipt($receipt, User::query()->findOrFail(1));
+
+        self::assertSame([], $result['restored']);
+        self::assertSame([301], $result['unresolved']);
+        self::assertTrue(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
     }
 
     public function test_process_page_size_is_bounded(): void

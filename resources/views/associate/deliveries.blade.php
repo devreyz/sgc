@@ -719,48 +719,6 @@
     }
 
     /* Lista */
-    .delivery-list-guide {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .52rem;
-        align-items: center;
-        margin: .68rem .72rem 0;
-        padding: .54rem .62rem;
-        border: 1px solid
-            color-mix(
-                in srgb,
-                var(--delivery-amber) 14%,
-                var(--color-border)
-            );
-        border-radius: 11px;
-        background: var(--delivery-amber-soft);
-        color: var(--color-text-secondary);
-    }
-
-    .delivery-list-guide > i {
-        display: grid;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border-radius: 8px;
-        background: #fff;
-        color: var(--delivery-amber);
-        font-size: .9rem;
-        line-height: 1;
-    }
-
-    .delivery-list-guide span {
-        min-width: 0;
-        font-size: .71rem;
-        line-height: 1.45;
-    }
-
-    .delivery-list-guide strong {
-        color: var(--color-text);
-        font-weight: 810;
-    }
-
     .delivery-list {
         display: grid;
         min-width: 0;
@@ -1147,11 +1105,6 @@
             padding-left: .58rem;
         }
 
-        .delivery-list-guide {
-            margin-right: .58rem;
-            margin-left: .58rem;
-        }
-
         .delivery-entry-head {
             grid-template-columns: 48px minmax(0, 1fr);
             align-items: start;
@@ -1224,6 +1177,236 @@
             grid-column: auto;
         }
     }
+
+    /* =========================================================
+       COMPOSIÇÃO V2
+       ========================================================= */
+
+    .deliveries-page {
+        gap: .72rem;
+    }
+
+    .delivery-section {
+        border-radius: 14px;
+    }
+
+    .delivery-section-head {
+        min-height: 60px;
+        padding: .62rem .7rem;
+    }
+
+    .delivery-list {
+        gap: .48rem;
+        padding: .62rem;
+    }
+
+    .delivery-entry {
+        gap: .52rem;
+        padding: .64rem;
+        border-left-width: 2px;
+        border-radius: 11px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, .025);
+    }
+
+    .delivery-date {
+        width: 46px;
+        height: 46px;
+        border-radius: 11px;
+    }
+
+    .delivery-entry-head {
+        grid-template-columns: 46px minmax(0, 1fr) auto;
+        gap: .55rem;
+    }
+
+    .delivery-entry-value {
+        min-width: 126px;
+    }
+
+    .delivery-details {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid var(--color-border);
+        border-radius: 9px;
+        background: var(--color-surface-soft);
+    }
+
+    .delivery-detail {
+        min-height: 52px;
+        padding: .42rem .5rem;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .delivery-detail + .delivery-detail {
+        border-left: 1px solid var(--color-border);
+    }
+
+    .delivery-detail span {
+        font-size: .64rem;
+    }
+
+    .delivery-detail strong {
+        font-size: .72rem;
+    }
+
+    .delivery-summary-panel .delivery-overview {
+        grid-template-columns: 1fr;
+    }
+
+    .delivery-summary-panel .delivery-result-count {
+        display: none;
+    }
+
+    .delivery-summary-panel .delivery-overview-main {
+        min-height: 0;
+        padding: .82rem;
+    }
+
+    .delivery-summary-panel .delivery-overview-main > strong {
+        font-size: clamp(1.55rem, 3vw, 2rem);
+    }
+
+    .delivery-summary-panel .delivery-overview-main > p {
+        margin-top: .34rem;
+        font-size: .72rem;
+    }
+
+    .delivery-summary-panel .overview-counts {
+        margin-top: .64rem;
+    }
+
+    .delivery-summary-panel .delivery-financial {
+        padding: .65rem;
+        border-top: 1px solid var(--color-border);
+    }
+
+    .delivery-summary-panel .financial-header {
+        padding-bottom: .55rem;
+    }
+
+    .delivery-summary-panel .financial-grid {
+        gap: .34rem;
+        padding-top: .55rem;
+    }
+
+    .delivery-summary-panel .financial-item {
+        min-height: 52px;
+        padding: .38rem .42rem;
+    }
+
+    @media (min-width: 941px) {
+        .deliveries-page {
+            grid-template-columns: minmax(0, 1fr) 304px;
+            align-items: start;
+        }
+
+        .delivery-summary-panel {
+            position: sticky;
+            top: .75rem;
+            grid-column: 2;
+            grid-row: 1 / span 2;
+        }
+
+        .delivery-filters-panel {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .delivery-list-panel {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .delivery-summary-panel .financial-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 940px) {
+        .delivery-summary-panel {
+            order: -1;
+        }
+
+        .delivery-details {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .delivery-detail + .delivery-detail {
+            border-left: 0;
+        }
+
+        .delivery-detail:nth-child(even) {
+            border-left: 1px solid var(--color-border);
+        }
+
+        .delivery-detail:nth-child(n + 3) {
+            border-top: 1px solid var(--color-border);
+        }
+
+        .delivery-detail:last-child {
+            grid-column: 1 / -1;
+            border-left: 0;
+        }
+    }
+
+    @media (max-width: 620px) {
+        .delivery-section-head {
+            min-height: 56px;
+        }
+
+        .delivery-summary-panel .delivery-overview-main {
+            min-height: 0;
+            padding: .72rem;
+        }
+
+        .delivery-summary-panel .financial-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .delivery-list {
+            padding: .52rem;
+        }
+
+        .delivery-entry {
+            padding: .56rem;
+        }
+
+        .delivery-entry-head {
+            grid-template-columns: 42px minmax(0, 1fr);
+        }
+
+        .delivery-date {
+            width: 42px;
+            height: 42px;
+        }
+
+        .delivery-entry-value {
+            grid-column: 1 / -1;
+            padding: .4rem .46rem;
+        }
+    }
+
+    @media (max-width: 360px) {
+        .delivery-summary-panel .financial-grid,
+        .delivery-details {
+            grid-template-columns: 1fr;
+        }
+
+        .delivery-detail:nth-child(even),
+        .delivery-detail + .delivery-detail {
+            border-left: 0;
+        }
+
+        .delivery-detail + .delivery-detail {
+            border-top: 1px solid var(--color-border);
+        }
+
+        .delivery-detail:last-child {
+            grid-column: auto;
+        }
+    }
 </style>
 <link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 
@@ -1256,7 +1439,7 @@
 @endphp
 
 <main class="deliveries-page" data-associate-page="deliveries">
-    <section class="delivery-section">
+    <section class="delivery-section delivery-summary-panel">
         <header class="delivery-section-head">
             <span class="delivery-section-icon overview" aria-hidden="true">
                 <i class="ph-duotone ph-package"></i>
@@ -1367,7 +1550,7 @@
         </div>
     </section>
 
-    <section class="delivery-section">
+    <section class="delivery-section delivery-filters-panel">
         <header class="delivery-section-head">
             <span class="delivery-section-icon filters" aria-hidden="true">
                 <i class="ph-duotone ph-funnel"></i>
@@ -1485,7 +1668,7 @@
         @endif
     </section>
 
-    <section class="delivery-section">
+    <section class="delivery-section delivery-list-panel">
         <header class="delivery-section-head">
             <span class="delivery-section-icon list" aria-hidden="true">
                 <i class="ph-duotone ph-list-dashes"></i>
@@ -1518,15 +1701,6 @@
                 </div>
             </div>
         @else
-            <div class="delivery-list-guide">
-                <i class="ph-duotone ph-path" aria-hidden="true"></i>
-
-                <span>
-                    <strong>Como ler:</strong>
-                    a quantidade entregue recebe um destino; depois disso, os valores bruto, líquido e o faturamento são calculados.
-                </span>
-            </div>
-
             <div class="delivery-list">
                 @foreach($visibleDeliveries as $delivery)
                     @php

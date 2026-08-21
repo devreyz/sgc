@@ -47,7 +47,11 @@ class AccountingProcessIntegrityService
             $issues->push($this->issue('missing_distributions', 'Nenhuma distribuição está vinculada à cobrança.'));
         }
 
-        $this->inspectDistributions($receipt, $distributions, $issues);
+        $parents = ProductionDelivery::withoutGlobalScopes()->withTrashed()
+            ->whereIn('id', $distributions->pluck('parent_delivery_id')->filter()->unique())
+            ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'deleted_at'])
+            ->keyBy('id');
+        $this->inspectDistributions($receipt, $distributions, $parents, $issues);
 
         return [
             'critical_count' => $issues->count(),
@@ -55,7 +59,7 @@ class AccountingProcessIntegrityService
         ];
     }
 
-    private function inspectDistributions(CustomerBillingReceipt $receipt, Collection $distributions, Collection $issues): void
+    private function inspectDistributions(CustomerBillingReceipt $receipt, Collection $distributions, Collection $parents, Collection $issues): void
     {
         foreach ($distributions as $distribution) {
             if (! $distribution instanceof ProductionDelivery) {
@@ -66,6 +70,17 @@ class AccountingProcessIntegrityService
 
             if (! $distribution->parent_delivery_id) {
                 $issues->push($this->issue('parent_as_financial_line', $prefix.'a entrega física não pode ser uma linha financeira.'));
+            } else {
+                $parent = $parents->get($distribution->parent_delivery_id);
+                if (! $parent) {
+                    $issues->push($this->issue('missing_parent_delivery', $prefix.'a entrega-pai não existe mais.'));
+                } elseif ($parent->deleted_at !== null) {
+                    $issues->push($this->issue('deleted_parent_delivery', $prefix.'a entrega-pai foi excluída e pode ser restaurada.'));
+                } elseif ($parent->parent_delivery_id !== null
+                    || (int) $parent->tenant_id !== (int) $receipt->tenant_id
+                    || (int) $parent->sales_project_id !== (int) $receipt->sales_project_id) {
+                    $issues->push($this->issue('invalid_parent_delivery', $prefix.'a entrega-pai pertence a outro contexto.'));
+                }
             }
 
             if ((int) $distribution->tenant_id !== (int) $receipt->tenant_id
