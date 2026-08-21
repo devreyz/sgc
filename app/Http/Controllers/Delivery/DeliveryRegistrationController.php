@@ -1026,6 +1026,9 @@ class DeliveryRegistrationController extends Controller
                 }
             }
 
+            $distribution->associate_receipt_id = null;
+            $distribution->billing_receipt_id = null;
+            $distribution->saveQuietly();
             $distribution->delete();
         });
 

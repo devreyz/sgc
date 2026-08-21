@@ -387,6 +387,7 @@ class ProductionDelivery extends Model
             $hasActiveDistributions = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $delivery->tenant_id)
                 ->where('parent_delivery_id', $delivery->id)
+                ->whereNull('deleted_at')
                 ->exists();
             if ($hasActiveDistributions) {
                 throw ValidationException::withMessages([

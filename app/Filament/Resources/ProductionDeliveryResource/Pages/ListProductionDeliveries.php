@@ -26,8 +26,7 @@ class ListProductionDeliveries extends ListRecords
         return [
             'receptions' => Tab::make('Recepções')
                 ->icon('heroicon-o-inbox-arrow-down')
-                ->badge(fn () => static::getResource()::getModel()
-                    ::where('tenant_id', session('tenant_id'))
+                ->badge(fn () => static::getResource()::getModel()::where('tenant_id', session('tenant_id'))
                     ->whereNull('parent_delivery_id')
                     ->where('status', DeliveryStatus::PENDING)
                     ->count() ?: null)
@@ -36,14 +35,24 @@ class ListProductionDeliveries extends ListRecords
 
             'distributions' => Tab::make('Distribuições')
                 ->icon('heroicon-o-arrows-right-left')
-                ->badge(fn () => static::getResource()::getModel()
-                    ::where('tenant_id', session('tenant_id'))
+                ->badge(fn () => static::getResource()::getModel()::where('tenant_id', session('tenant_id'))
                     ->whereNotNull('parent_delivery_id')
                     ->where('paid', false)
                     ->where('status', DeliveryStatus::APPROVED)
                     ->count() ?: null)
                 ->badgeColor('info')
                 ->modifyQueryUsing(fn (Builder $query) => $query->whereNotNull('parent_delivery_id')),
+
+            'deleted_distributions' => Tab::make('Distribuições removidas')
+                ->icon('heroicon-o-archive-box')
+                ->badge(fn () => static::getResource()::getModel()::onlyTrashed()
+                    ->where('tenant_id', session('tenant_id'))
+                    ->whereNotNull('parent_delivery_id')
+                    ->count() ?: null)
+                ->badgeColor('gray')
+                ->modifyQueryUsing(fn (Builder $query) => $query
+                    ->onlyTrashed()
+                    ->whereNotNull('parent_delivery_id')),
         ];
     }
 }

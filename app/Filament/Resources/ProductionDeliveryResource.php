@@ -16,6 +16,7 @@ use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\DeletedDistributionService;
 use App\Services\DistributionBillingService;
 use App\Services\PricingService;
 use App\Services\StockService;
@@ -34,6 +35,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ProductionDeliveryResource extends Resource
@@ -573,6 +575,12 @@ class ProductionDeliveryResource extends Resource
                     ->date('d/m/Y')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('deleted_at')
+                    ->label('Removida em')
+                    ->dateTime('d/m/Y H:i')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('sales_project_id')
@@ -719,6 +727,34 @@ class ProductionDeliveryResource extends Resource
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+
+                Tables\Actions\Action::make('forceDeleteSafeDistribution')
+                    ->label('Excluir definitivamente')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(fn (ProductionDelivery $record): bool => $record->trashed() && $record->parent_delivery_id !== null)
+                    ->tooltip('Verificar se a exclusão permanente é permitida')
+                    ->requiresConfirmation()
+                    ->modalHeading('Excluir distribuição permanentemente?')
+                    ->modalDescription(fn (ProductionDelivery $record): string => app(DeletedDistributionService::class)
+                        ->permanentDeletionStatus($record)['reason'].' Esta ação não pode ser desfeita.')
+                    ->modalSubmitActionLabel('Excluir definitivamente')
+                    ->action(function (ProductionDelivery $record): void {
+                        $actor = Auth::user();
+                        if (! $actor) {
+                            Notification::make()->danger()->title('Sessão expirada')->send();
+
+                            return;
+                        }
+
+                        try {
+                            app(DeletedDistributionService::class)->forceDelete($record, $actor);
+                            Notification::make()->success()->title('Distribuição excluída definitivamente')->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()->danger()->title('Exclusão bloqueada')
+                                ->body(collect($exception->errors())->flatten()->first())->persistent()->send();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -13,6 +13,7 @@ use App\Services\Accounting\BillingAuthorizationSnapshotService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\FiscalGateService;
 use App\Services\Accounting\FiscalProfileService;
+use App\Services\DeletedDistributionService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\TenantNotificationDispatcher;
 use Illuminate\Database\Schema\Blueprint;
@@ -118,6 +119,39 @@ class AccountingPortalSecurityTest extends TestCase
 
         self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
         self::assertSame(300, (int) ProductionDelivery::withoutGlobalScopes()->findOrFail(301)->parent_delivery_id);
+    }
+
+    public function test_removed_distribution_no_longer_blocks_parent_delivery_deletion(): void
+    {
+        DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
+
+        ProductionDelivery::withoutGlobalScopes()->findOrFail(300)->delete();
+
+        self::assertTrue(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
+        self::assertTrue(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
+    }
+
+    public function test_unused_removed_distribution_can_be_permanently_deleted_but_billed_one_cannot(): void
+    {
+        DB::table('production_deliveries')->insert([
+            'id' => 302, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'customer_id' => 1, 'product_id' => 1, 'parent_delivery_id' => 300,
+            'associate_receipt_id' => null, 'billing_receipt_id' => null, 'status' => 'approved',
+            'quantity' => 1, 'unit_price' => 10, 'gross_value' => 10, 'admin_fee_amount' => 1,
+            'net_value' => 9, 'billing_status' => 'unbilled', 'paid' => false,
+            'delivery_date' => '2026-08-19', 'deleted_at' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
+        $service = app(DeletedDistributionService::class);
+        $unused = ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(302);
+        $billed = ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301);
+
+        self::assertTrue($service->permanentDeletionStatus($unused)['allowed']);
+        self::assertFalse($service->permanentDeletionStatus($billed)['allowed']);
+
+        $service->forceDelete($unused, User::query()->findOrFail(1));
+        self::assertNull(ProductionDelivery::withoutGlobalScopes()->withTrashed()->find(302));
+        self::assertNotNull(ProductionDelivery::withoutGlobalScopes()->withTrashed()->find(301));
     }
 
     public function test_legacy_soft_deleted_parent_can_be_restored_without_changing_financial_distribution(): void
@@ -937,7 +971,11 @@ class AccountingPortalSecurityTest extends TestCase
             $table->unsignedBigInteger('parent_delivery_id')->nullable();
             $table->unsignedBigInteger('associate_receipt_id')->nullable();
             $table->unsignedBigInteger('billing_receipt_id')->nullable();
+            $table->unsignedBigInteger('distribution_billing_id')->nullable();
+            $table->unsignedBigInteger('project_payment_id')->nullable();
             $table->string('status');
+            $table->string('billing_status')->default('unbilled');
+            $table->boolean('paid')->default(false);
             $table->decimal('quantity', 14, 4);
             $table->decimal('unit_price', 14, 4)->default(0);
             $table->decimal('gross_value', 14, 4)->default(0);
@@ -959,6 +997,7 @@ class AccountingPortalSecurityTest extends TestCase
             $table->string('status');
             $table->decimal('total_net', 14, 4)->default(0);
             $table->decimal('amount_paid', 14, 2)->default(0);
+            $table->json('delivery_ids')->nullable();
             $table->timestamps();
         });
         Schema::create('customer_receipt_payments', function (Blueprint $table): void {
