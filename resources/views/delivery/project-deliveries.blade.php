@@ -63,7 +63,7 @@
 
     .pd-page {
         display: grid;
-        width: min(100%, 1280px);
+        width: 100%;
         min-width: 0;
         grid-column: 1 / -1;
         gap: .76rem;
@@ -545,7 +545,7 @@
     .pd-integrity-close,
     .dist-summary-close {
         display: grid;
-        width: 34px;
+        width: 100%;
         height: 34px;
         place-items: center;
         border: 1px solid var(--pd-border);
@@ -1201,13 +1201,13 @@
     }
 
     .mobile-card.status-approved {
-        --delivery-state: var(--pd-green);
-        --delivery-state-bg: var(--pd-green-soft);
-    }
-
-    .mobile-card.status-distributed {
         --delivery-state: var(--pd-sky);
         --delivery-state-bg: var(--pd-sky-soft);
+    }
+    
+    .mobile-card.status-distributed {
+        --delivery-state: var(--pd-green);
+        --delivery-state-bg: var(--pd-green-soft);
     }
 
     .mobile-card.status-rejected {
@@ -1241,8 +1241,9 @@
 
     .mc-state-icon > i,
     .mc-state-icon > svg {
-        width: 13px;
-        height: 13px;
+        width: 24px;
+        height: 24px;
+        font-size: 23px !important;
     }
 
     .mc-head-main {
@@ -2155,7 +2156,6 @@
 .pd-header-actions .btn { background:#fff;border-color:var(--pd-border);color:var(--pd-text-2); }
 .pd-header-actions .pd-action-delivery { background:var(--pdx-green-soft);border-color:rgba(22,138,77,.15);color:var(--pdx-green); }
 .pd-header-actions .pd-action-limits { color:var(--pdx-violet); }
-.pd-header-actions .pd-action-producers { color:var(--pdx-blue); }
 
 /* Uma única barra de ferramentas: relatório, comprovantes e pendências reais. */
 .pd-tools-bar {
@@ -2265,7 +2265,6 @@
 }
 .mobile-card .mc-head { min-height:45px;padding:.5rem .58rem!important;background:linear-gradient(90deg,var(--delivery-state-bg),#fff 72%)!important;border-bottom:1px solid var(--pd-border); }
 .mobile-card .mc-head-product { font-size:.79rem!important; }
-.mobile-card .mc-date,.mobile-card .mc-head-qty { font-size:.67rem!important; }
 .mobile-card .mc-body { gap:.48rem!important;padding:.56rem .58rem .6rem!important;background:#fff!important; }
 .mobile-card .mc-assoc { font-size:.74rem!important;font-weight:790!important; }
 .mobile-card .mc-net { font-size:.7rem!important; }
@@ -2309,9 +2308,9 @@
     .pd-card-head-actions { width:100%;justify-content:flex-start; }
     .pd-status-shortcuts { flex:1 1 auto; }
     .pd-clear-filters { width:34px;min-width:34px;padding:0;font-size:0; }
-    .pd-filters-primary { grid-template-columns:minmax(0,1fr) 112px 36px;gap:.3rem;padding:.44rem .5rem; }
+    .pd-filters-primary { grid-template-columns:minmax(0,1fr) 112px 44px;gap:.3rem;padding:.44rem .5rem; }
     .pd-filter-search { grid-column:auto; }
-    .pd-filter-more { width:36px;min-width:36px;padding:0;font-size:0; }
+    .pd-filter-more { width:44px;min-width:44px;padding:0;font-size:0; }
     .pd-filter-more > span:not(.pd-filter-more-count) { display:none; }
     .pd-filter-more-chevron { display:none; }
     .pd-filters-advanced { grid-template-columns:1fr 1fr;padding:.44rem .5rem; }
@@ -2334,12 +2333,13 @@
         id="customConfirmOverlay"
         class="confirm-overlay hidden"
         role="dialog"
+        aria-hidden="true"
         aria-modal="true"
         aria-labelledby="confirmTitle"
     >
         <div class="confirm-box">
             <span class="confirm-icon" aria-hidden="true">
-                <i data-lucide="triangle-alert"></i>
+                <i class="ph-duotone ph-warning"></i>
             </span>
 
             <div class="confirm-copy">
@@ -2398,19 +2398,19 @@
             aria-label="Voltar ao painel de entregas"
             title="Voltar ao painel de entregas"
         >
-            <i data-lucide="arrow-left"></i>
+            <i class="ph-duotone ph-arrow-left"></i>
         </a>
 
         <span
             class="pd-context-icon"
             aria-hidden="true"
         >
-            <i data-lucide="package-check"></i>
+            <i class="ph-duotone ph-package"></i>
         </span>
 
         <div class="pd-context-copy">
             <span class="pd-context-kicker">
-                <i data-lucide="package-check"></i>
+                <i class="ph-duotone ph-package"></i>
                 Entregas
             </span>
 
@@ -2429,7 +2429,7 @@
                     ]) }}"
                     class="btn btn-success btn-sm pd-action-delivery"
                 >
-                    <i data-lucide="package-plus"></i>
+                    <i class="ph-duotone ph-package"></i>
                     Nova entrega
                 </a>
             @endif
@@ -2441,20 +2441,11 @@
                 ]) }}"
                 class="btn btn-primary btn-sm pd-action-limits"
             >
-                <i data-lucide="sliders-horizontal"></i>
+                <i class="ph-duotone ph-sliders-horizontal"></i>
                 Limites
             </a>
 
-            <a
-                href="{{ route('delivery.projects.producers', [
-                    'tenant' => $currentTenant->slug,
-                    'project' => $project->id,
-                ]) }}"
-                class="btn btn-ghost btn-sm pd-action-producers"
-            >
-                <i data-lucide="users-round"></i>
-                Produtores
-            </a>
+
         </div>
     </section>
 
@@ -2463,7 +2454,7 @@
         <section class="pd-tools-bar" aria-label="Ferramentas do projeto">
             <div class="pd-tools-copy">
                 <span class="pd-tools-icon" aria-hidden="true">
-                    <i data-lucide="wrench"></i>
+                    <i class="ph-duotone ph-wrench"></i>
                 </span>
                 <div>
                     <div class="pd-tools-title">Ferramentas</div>
@@ -2486,7 +2477,7 @@
                         title="Ver pendências e inconsistências"
                         aria-label="Ver {{ $integrityTotal }} pendência(s) e inconsistência(s)"
                     >
-                        <i data-lucide="shield-alert"></i>
+                        <i class="ph-duotone ph-shield-warning"></i>
                         <span class="pd-tool-label">Pendências</span>
                         <strong class="pd-tool-count" id="pd-integrity-total">{{ $integrityTotal }}</strong>
                     </button>
@@ -2500,7 +2491,7 @@
                         title="Gerar relatório"
                         aria-label="Gerar relatório"
                     >
-                        <i data-lucide="file-chart-column"></i>
+                        <i class="ph-duotone ph-chart-bar"></i>
                         <span class="pd-tool-label">Relatório</span>
                     </button>
 
@@ -2513,7 +2504,7 @@
                         title="Abrir comprovantes"
                         aria-label="Abrir comprovantes"
                     >
-                        <i data-lucide="clipboard-list"></i>
+                        <i class="ph-duotone ph-clipboard-text"></i>
                         <span class="pd-tool-label">Comprovantes</span>
                     </a>
                 @endif
@@ -2540,7 +2531,7 @@
                             class="pd-panel-icon warning"
                             aria-hidden="true"
                         >
-                            <i data-lucide="shield-alert"></i>
+                            <i class="ph-duotone ph-shield-warning"></i>
                         </span>
 
                         <div>
@@ -2548,13 +2539,11 @@
                                 class="pd-integrity-title"
                                 id="pd-integrity-title"
                             >
-                                Pendências e inconsistências
+                                Central de inconsistências
                             </div>
 
-                            <div class="pd-integrity-sub">
-                                Crítico {{ $integrityCritical }}
-                                · Atenção {{ $integrityWarning }}
-                                · Info {{ $integrityInfo }}
+                            <div class="pd-integrity-sub" id="pd-integrity-sub">
+                                {{ $integrityTotal }} ponto(s) que precisam de revisão
                             </div>
                         </div>
                     </div>
@@ -2565,7 +2554,7 @@
                         onclick="closeIntegrityModal()"
                         aria-label="Fechar"
                     >
-                        <i data-lucide="x"></i>
+                        <i class="ph-duotone ph-x"></i>
                     </button>
                 </header>
 
@@ -2573,11 +2562,11 @@
                     @foreach([
                         'critical' => [
                             'label' => 'Crítico',
-                            'icon' => 'circle-alert',
+                            'icon' => 'warning-circle',
                         ],
                         'warning' => [
                             'label' => 'Atenção',
-                            'icon' => 'triangle-alert',
+                            'icon' => 'warning',
                         ],
                         'info' => [
                             'label' => 'Informativo',
@@ -2586,7 +2575,7 @@
                     ] as $severity => $severityMeta)
                         <section class="pd-integrity-column {{ $severity }}">
                             <header class="pd-integrity-column-head">
-                                <i data-lucide="{{ $severityMeta['icon'] }}"></i>
+                                <i class="ph-duotone ph-{{ $severityMeta['icon'] }}"></i>
                                 {{ $severityMeta['label'] }}
                             </header>
 
@@ -2646,6 +2635,27 @@
                         </section>
                     @endforeach
                 </div>
+
+                <footer class="pd-integrity-foot">
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-sm"
+                        id="pd-integrity-show-all"
+                        onclick="openIntegrityModal()"
+                        hidden
+                    >
+                        <i class="ph-duotone ph-magnifying-glass" aria-hidden="true"></i>
+                        Ver todas
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm"
+                        onclick="closeIntegrityModal()"
+                    >
+                        Fechar
+                    </button>
+                </footer>
             </div>
         </div>
     @endif
@@ -2661,7 +2671,7 @@
     <section class="pd-card pd-deliveries-card">
         <header class="pd-card-header">
             <div class="pd-card-title">
-                <i data-lucide="list-checks"></i>
+                <i class="ph-duotone ph-list-checks"></i>
 
                 <div class="pd-panel-copy">
                     <div class="pd-panel-title">
@@ -2683,19 +2693,19 @@
                     </button>
 
                     <button type="button" class="pd-status-shortcut pending" id="pd-shortcut-pending" data-pd-status="pending" onclick="setQuickStatusFilter('pending')" @if($totalPending === 0) hidden @endif>
-                        <i data-lucide="clock-3"></i>
+                        <i class="ph-duotone ph-clock"></i>
                         <span>Pendentes</span>
                         <strong id="pd-count-pending">{{ $totalPending }}</strong>
                     </button>
 
                     <button type="button" class="pd-status-shortcut approved" id="pd-shortcut-approved" data-pd-status="approved" onclick="setQuickStatusFilter('approved')" @if($totalApproved === 0) hidden @endif>
-                        <i data-lucide="circle-check-big"></i>
+                        <i class="ph-duotone ph-check-circle"></i>
                         <span>Aprovadas</span>
                         <strong id="pd-count-approved">{{ $totalApproved }}</strong>
                     </button>
 
                     <button type="button" class="pd-status-shortcut rejected" id="pd-shortcut-rejected" data-pd-status="rejected" onclick="setQuickStatusFilter('rejected')" @if($totalRejected === 0) hidden @endif>
-                        <i data-lucide="circle-x"></i>
+                        <i class="ph-duotone ph-x-circle"></i>
                         <span>Rejeitadas</span>
                         <strong id="pd-count-rejected">{{ $totalRejected }}</strong>
                     </button>
@@ -2710,7 +2720,7 @@
                     title="Limpar filtros"
                     aria-label="Limpar filtros"
                 >
-                    <i data-lucide="x"></i>
+                    <i class="ph-duotone ph-x"></i>
                     <span>Limpar</span>
                 </button>
             </div>
@@ -2726,7 +2736,7 @@
                     </span>
 
                     <span class="pd-filter-control has-icon">
-                        <i data-lucide="search"></i>
+                        <i class="ph-duotone ph-magnifying-glass"></i>
 
                         <input
                             type="search"
@@ -2777,7 +2787,7 @@
                     aria-expanded="false"
                     onclick="toggleAdvancedFilters()"
                 >
-                    <i data-lucide="sliders-horizontal"></i>
+                    <i class="ph-duotone ph-sliders-horizontal"></i>
 
                     <span>Mais filtros</span>
 
@@ -2789,10 +2799,7 @@
                         0
                     </span>
 
-                    <i
-                        class="pd-filter-more-chevron"
-                        data-lucide="chevron-down"
-                    ></i>
+                    <i class="pd-filter-more-chevron ph-duotone ph-caret-down"></i>
                 </button>
             </div>
 
@@ -2910,20 +2917,7 @@
 
         @if($deliveries->isEmpty())
             <div class="pd-empty">
-                <svg
-                    class="pd-empty-icon"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-                    />
-                </svg>
+                <i class="pd-empty-icon ph-duotone ph-package" aria-hidden="true"></i>
 
                 <p>
                     Nenhuma entrega foi registrada para este projeto.
@@ -2942,11 +2936,11 @@
                             <th>Associado</th>
                             <th>Produto</th>
                             <th>Quantidade</th>
-                            <th>Valor líquido</th>
+                            <th class="pd-col-net">Valor</th>
                             <th class="pd-col-suppressed">Qualidade</th>
                             <th class="pd-col-suppressed">Status</th>
                             <th>Limite</th>
-                            <th>Distribuição e ações</th>
+                            <th>Distribuição</th>
                             <th class="pd-col-suppressed">Ações</th>
                         </tr>
                     </thead>
@@ -3016,6 +3010,7 @@
 <div
     class="dist-summary-overlay"
     id="dist-summary-overlay"
+    aria-hidden="true"
 >
     <div
         class="dist-summary-box"
@@ -3029,7 +3024,7 @@
                     class="dist-summary-icon"
                     aria-hidden="true"
                 >
-                    <i data-lucide="git-branch"></i>
+                    <i class="ph-duotone ph-git-merge"></i>
                 </span>
 
                 <div>
@@ -3047,22 +3042,696 @@
                 </div>
             </div>
 
-            <button
-                type="button"
-                class="dist-summary-close"
-                onclick="closeDistSummary()"
-                aria-label="Fechar"
-            >
-                <i data-lucide="x"></i>
-            </button>
+            
         </header>
 
         <div
             class="dist-summary-body"
             id="dist-summary-body"
         ></div>
+        <footer class="dist-summary-head">
+            <button
+                type="button"
+                class="dist-summary-close"
+                onclick="closeDistSummary()"
+                aria-label="Fechar"
+            >
+                Fechar
+            </button>
+        </footer>
     </div>
 </div>
+
+
+<style id="pd-deliveries-refinement">
+/* ================================================================
+   Refinos de interface — mantém o desenho atual.
+   ================================================================ */
+
+/* Phosphor Duotone deve herdar a cor funcional de cada componente. */
+.pd-page .ph-duotone,
+.pd-modal-scope .ph-duotone,
+.pd-integrity-overlay .ph-duotone,
+.dist-summary-overlay .ph-duotone,
+#dm-overlay .ph-duotone,
+#em-overlay .ph-duotone,
+#delivery-report-modal .ph-duotone,
+#delivery-notes-overlay .ph-duotone {
+    display: inline-block;
+    flex: 0 0 auto;
+    color: currentColor;
+    line-height: 1;
+    vertical-align: -.08em;
+}
+
+/* Não exibimos o seletor de projeto: esta tela já pertence a um projeto. */
+#delivery-report-modal label[for="dr-project"],
+#delivery-report-modal #dr-project {
+    display: none !important;
+}
+
+/* Sheets/modais: estrutura estável. Cabeçalho e rodapé nunca rolam. */
+#dm-overlay .dm-box,
+#em-overlay .em-box,
+#pd-integrity-modal .pd-integrity-box,
+#dist-summary-overlay .dist-summary-box,
+#delivery-report-modal .dr-panel,
+#delivery-notes-overlay .delivery-notes-box {
+    display: flex !important;
+    min-height: 0;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+#dm-overlay .dm-head,
+#dm-overlay .dm-progress-wrap,
+#dm-overlay .dm-foot,
+#em-overlay .em-head,
+#em-overlay .em-foot,
+#pd-integrity-modal .pd-integrity-head,
+#pd-integrity-modal .pd-integrity-foot,
+#dist-summary-overlay .dist-summary-head,
+#delivery-report-modal .dr-head,
+#delivery-report-modal .dr-actions,
+#delivery-notes-overlay .delivery-notes-head,
+#delivery-notes-overlay .delivery-notes-foot {
+    position: relative !important;
+    z-index: 3;
+    flex: 0 0 auto;
+    background: color-mix(in srgb, var(--color-surface, #fff) 96%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+/* Somente o conteúdo interno é rolável. */
+#dm-overlay .dm-body,
+#em-overlay .em-body,
+#pd-integrity-modal .pd-integrity-body,
+#dist-summary-overlay .dist-summary-body,
+#delivery-report-modal .dr-body,
+#delivery-notes-overlay .delivery-notes-content {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+#dm-overlay .dm-body::-webkit-scrollbar,
+#em-overlay .em-body::-webkit-scrollbar,
+#pd-integrity-modal .pd-integrity-body::-webkit-scrollbar,
+#dist-summary-overlay .dist-summary-body::-webkit-scrollbar,
+#delivery-report-modal .dr-body::-webkit-scrollbar,
+#delivery-report-modal .dr-filter-list::-webkit-scrollbar,
+#delivery-notes-overlay .delivery-notes-content::-webkit-scrollbar {
+    width: .1px;
+    height: .1px;
+}
+
+#dm-overlay .dm-body::-webkit-scrollbar-thumb,
+#em-overlay .em-body::-webkit-scrollbar-thumb,
+#pd-integrity-modal .pd-integrity-body::-webkit-scrollbar-thumb,
+#dist-summary-overlay .dist-summary-body::-webkit-scrollbar-thumb,
+#delivery-report-modal .dr-body::-webkit-scrollbar-thumb,
+#delivery-report-modal .dr-filter-list::-webkit-scrollbar-thumb,
+#delivery-notes-overlay .delivery-notes-content::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+/* O relatório também passa a ter body rolável, não painel inteiro. */
+#delivery-report-modal .dr-panel {
+    max-height: min(90dvh, 820px);
+}
+#delivery-report-modal .dr-body {
+    padding-bottom: 1rem;
+}
+#delivery-report-modal .dr-filter-list {
+    scrollbar-width: none;
+}
+
+/* Central: leitura vertical, menos colunas e menos ruído. */
+#pd-integrity-modal .pd-integrity-box {
+    width: min(680px, 100%);
+    max-height: min(88dvh, 760px);
+}
+#pd-integrity-modal .pd-integrity-body {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: .55rem;
+    padding: .62rem;
+}
+#pd-integrity-modal .pd-integrity-column {
+    overflow: hidden;
+    border: 1px solid var(--pd-border);
+    border-radius: 11px;
+}
+#pd-integrity-modal .pd-integrity-column + .pd-integrity-column {
+    border-top: 1px solid var(--pd-border);
+    border-left: 1px solid var(--pd-border);
+}
+#pd-integrity-modal .pd-integrity-column-head {
+    min-height: 34px;
+    padding: .4rem .55rem;
+}
+#pd-integrity-modal .pd-integrity-item {
+    padding: .55rem .62rem;
+}
+#pd-integrity-modal .pd-integrity-item-message {
+    margin-top: .12rem;
+}
+#pd-integrity-modal .pd-integrity-item-action {
+    margin-top: .18rem;
+    color: var(--pd-text-3);
+    font-weight: 650;
+}
+#pd-integrity-modal .pd-integrity-actions {
+    margin-top: .42rem;
+}
+#pd-integrity-modal .pd-integrity-empty {
+    display: none !important;
+}
+body.pd-sheet-open {
+    overflow: hidden;
+}
+
+#pd-integrity-modal .pd-integrity-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .4rem;
+    padding: .58rem .64rem max(.58rem, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--pd-border);
+}
+#pd-integrity-modal #pd-integrity-show-all {
+    margin-right: auto;
+}
+#pd-integrity-modal .pd-integrity-empty-state {
+    display: grid;
+    min-height: 180px;
+    place-items: center;
+    align-content: center;
+    gap: .3rem;
+    padding: 1.2rem;
+    color: var(--pd-text-2);
+    text-align: center;
+}
+#pd-integrity-modal .pd-integrity-empty-state > .ph-duotone {
+    margin-bottom: .2rem;
+    color: var(--pd-green);
+    font-size: 30px;
+}
+#pd-integrity-modal .pd-integrity-empty-state strong {
+    color: var(--pd-text);
+    font-size: .82rem;
+}
+#pd-integrity-modal .pd-integrity-empty-state span {
+    max-width: 360px;
+    color: var(--pd-text-3);
+    font-size: .69rem;
+}
+
+/* Confirmação própria mais clara e compacta. */
+.confirm-overlay {
+    animation: pd-overlay-in .16s ease both;
+}
+.confirm-box {
+    animation: pd-dialog-in .2s cubic-bezier(.2,.78,.28,1) both;
+}
+.confirm-icon .ph-duotone {
+    width: 19px;
+    height: 19px;
+    font-size: 19px;
+}
+
+/* Animações discretas dos sheets. */
+#dm-overlay.dm-open,
+#em-overlay.em-open,
+#pd-integrity-modal.open,
+#dist-summary-overlay.open,
+#delivery-report-modal:not([hidden]),
+#delivery-notes-overlay.open {
+    animation: pd-overlay-in .17s ease both;
+}
+
+#dm-overlay.dm-open .dm-box,
+#em-overlay.em-open .em-box,
+#pd-integrity-modal.open .pd-integrity-box,
+#dist-summary-overlay.open .dist-summary-box,
+#delivery-report-modal:not([hidden]) .dr-panel,
+#delivery-notes-overlay.open .delivery-notes-box {
+    animation: pd-dialog-in .22s cubic-bezier(.2,.78,.28,1) both;
+}
+
+/* Pequenos refinamentos nos componentes incorporados. */
+#dm-overlay .dm-box,
+#em-overlay .em-box {
+    border: 1px solid var(--color-border);
+    box-shadow: 0 24px 62px rgba(15, 35, 24, .24);
+}
+#dm-overlay .dm-close-btn,
+#em-overlay .em-close-btn,
+#delivery-notes-overlay .delivery-notes-close,
+#delivery-report-modal .dr-close {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+#dm-overlay .dm-close-btn .ph-duotone,
+#em-overlay .em-close-btn .ph-duotone,
+#delivery-notes-overlay .delivery-notes-close .ph-duotone,
+#delivery-report-modal .dr-close .ph-duotone {
+    font-size: 16px;
+}
+#dm-overlay .dm-edit-btn .ph-duotone,
+#dm-overlay .dm-del-btn .ph-duotone,
+#dm-overlay .dm-mini-btn .ph-duotone,
+#dm-overlay .dm-rm-btn .ph-duotone {
+    font-size: 16px;
+}
+.delivery-note-trigger .ph-duotone {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+}
+
+/* Indicadores com alerta usam ícone, não símbolo textual. */
+.dist-text .ph-duotone,
+.mc-dist-text .ph-duotone {
+    margin-right: .15rem;
+    font-size: 12px;
+}
+
+/* Transição somente em elementos alterados pelo servidor. */
+[data-delivery-id].pd-fragment-updated {
+    animation: pd-fragment-update .34s ease both;
+}
+
+@keyframes pd-overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes pd-dialog-in {
+    from { opacity: 0; transform: translateY(8px) scale(.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pd-fragment-update {
+    0% { opacity: .72; }
+    100% { opacity: 1; }
+}
+
+@media (max-width: 767px) {
+    #dm-overlay,
+    #em-overlay,
+    #pd-integrity-modal,
+    #dist-summary-overlay,
+    #delivery-report-modal,
+    #delivery-notes-overlay {
+        align-items: flex-end !important;
+        justify-content: stretch !important;
+        padding: 0 !important;
+    }
+
+    #dm-overlay .dm-box,
+    #em-overlay .em-box,
+    #pd-integrity-modal .pd-integrity-box,
+    #dist-summary-overlay .dist-summary-box,
+    #delivery-report-modal .dr-panel,
+    #delivery-notes-overlay .delivery-notes-box {
+        width: 100% !important;
+        max-width: none !important;
+        max-height: 92svh !important;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 0;
+        border-radius: 18px 18px 0 0 !important;
+    }
+
+    #dm-overlay.dm-open .dm-box,
+    #em-overlay.em-open .em-box,
+    #pd-integrity-modal.open .pd-integrity-box,
+    #dist-summary-overlay.open .dist-summary-box,
+    #delivery-report-modal:not([hidden]) .dr-panel,
+    #delivery-notes-overlay.open .delivery-notes-box {
+        animation-name: pd-sheet-in;
+    }
+
+    #dm-overlay .dm-foot,
+    #em-overlay .em-foot,
+    #pd-integrity-modal .pd-integrity-foot,
+    #delivery-report-modal .dr-actions,
+    #delivery-notes-overlay .delivery-notes-foot {
+        padding-bottom: max(.75rem, env(safe-area-inset-bottom));
+    }
+}
+
+@keyframes pd-sheet-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #dm-overlay.dm-open,
+    #em-overlay.em-open,
+    #pd-integrity-modal.open,
+    #dist-summary-overlay.open,
+    #delivery-report-modal:not([hidden]),
+    #delivery-notes-overlay.open,
+    #dm-overlay.dm-open .dm-box,
+    #em-overlay.em-open .em-box,
+    #pd-integrity-modal.open .pd-integrity-box,
+    #dist-summary-overlay.open .dist-summary-box,
+    #delivery-report-modal:not([hidden]) .dr-panel,
+    #delivery-notes-overlay.open .delivery-notes-box,
+    [data-delivery-id].pd-fragment-updated {
+        animation: none !important;
+    }
+}
+</style>
+
+
+<style id="pd-final-corrections">
+/* ================================================================
+   Correções finais — responsividade, duotone, tabela e segurança.
+   ================================================================ */
+
+/* ---------- PHOSPHOR: garantir que o glifo tenha tamanho real ----------
+   Vários botões compactos usam font-size:0 para esconder o texto.
+   Ícones-font precisam de font-size próprio; width/height não bastam. */
+.pd-page .ph-duotone,
+.pd-modal-scope .ph-duotone,
+.pd-integrity-overlay .ph-duotone,
+.dist-summary-overlay .ph-duotone,
+#dm-overlay .ph-duotone,
+#em-overlay .ph-duotone,
+#delivery-report-modal .ph-duotone,
+#delivery-notes-overlay .ph-duotone {
+    font-family: "Phosphor-Duotone" !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    speak: never;
+}
+
+.pd-table-control-row button .ph-duotone,
+.pd-table-control-row .delivery-note-trigger .ph-duotone {
+    font-size: 14px !important;
+    line-height: 1 !important;
+}
+
+.pd-card-control-row button .ph-duotone,
+.pd-card-control-row .delivery-note-trigger .ph-duotone,
+.mc-actions button .ph-duotone {
+    font-size: 17px !important;
+    line-height: 1 !important;
+}
+
+.pd-header-actions .ph-duotone {
+    font-size: 15px;
+}
+
+.pd-tools-icon .ph-duotone,
+.pd-tool-action .ph-duotone,
+.pd-status-shortcut .ph-duotone,
+.pd-filter-control .ph-duotone,
+.pd-filter-more .ph-duotone,
+.pd-integrity-close .ph-duotone,
+.dist-summary-close .ph-duotone {
+    font-size: 15px !important;
+}
+
+.pd-stat-icon .ph-duotone,
+.pd-card-title .ph-duotone,
+.pd-panel-icon.ph-duotone {
+    font-size: 17px !important;
+}
+
+.mc-state-icon .ph-duotone {
+    font-size: 15px;
+}
+
+#dm-overlay .dm-title .ph-duotone,
+#em-overlay .em-title .ph-duotone {
+    font-size: 18px !important;
+}
+
+#dm-overlay .dm-edit-btn .ph-duotone,
+#dm-overlay .dm-del-btn .ph-duotone,
+#dm-overlay .dm-mini-btn .ph-duotone,
+#dm-overlay .dm-rm-btn .ph-duotone,
+#dm-overlay .dm-close-btn .ph-duotone,
+#em-overlay .em-close-btn .ph-duotone {
+    font-size: 16px !important;
+}
+
+/* Fallback: se por algum motivo o CSS do Phosphor ainda estiver atrasado,
+   o elemento não desaparece por font-size herdado igual a zero. */
+.ph-duotone[class*=" ph-"],
+.ph-duotone[class^="ph-"] {
+    min-width: 1em;
+    min-height: 1em;
+}
+
+/* ---------- Header ----------
+   Nova entrega + Limites ficam lado a lado; Produtores foi removido. */
+.pd-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: .34rem !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: auto !important;
+}
+
+.pd-header-actions .pd-action-delivery {
+    border-color: rgba(22,138,77,.18) !important;
+    background: var(--pdx-green-soft) !important;
+    color: var(--pdx-green) !important;
+}
+
+.pd-header-actions .pd-action-limits {
+    border-color: rgba(124,58,237,.18) !important;
+    background: var(--pdx-violet-soft) !important;
+    color: var(--pdx-violet) !important;
+}
+
+@media (min-width: 680px) {
+    .pd-context {
+        grid-template-columns: auto auto minmax(0, 1fr) auto !important;
+    }
+}
+
+@media (max-width: 679px) {
+    .pd-context {
+        grid-template-columns: 36px minmax(0,1fr) !important;
+    }
+
+    .pd-context-icon {
+        display: none !important;
+    }
+
+    .pd-header-actions {
+        grid-column: 1 / -1 !important;
+        grid-row: auto !important;
+        justify-content: stretch !important;
+        width: 100% !important;
+    }
+
+    .pd-header-actions .btn {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+}
+
+/* ---------- Tablet / intermediário ----------
+   Fonte única do breakpoint: até 1099px = cards; 1100+ = tabela. */
+@media (max-width: 1099px) {
+    .desktop-only {
+        display: none !important;
+    }
+
+    .mobile-cards {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1100px) {
+    .desktop-only {
+        display: block !important;
+    }
+
+    .mobile-cards {
+        display: none !important;
+    }
+}
+
+@media (max-width: 767px) {
+    .mobile-cards {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ---------- Tabela ----------
+   Menos informação simultânea, sem remover os dados do DOM. */
+.data-table {
+    font-size: .68rem !important;
+}
+
+.data-table th,
+.data-table td {
+    padding: .48rem .44rem !important;
+}
+
+.data-table th {
+    font-size: .61rem !important;
+    letter-spacing: .01em;
+}
+
+/* Valor líquido continua disponível no card/mobile, mas sai da tabela
+   para reduzir ruído visual. */
+.data-table thead th.pd-col-net,
+#desktop-tbody tr > td:nth-child(6) {
+    display: none !important;
+}
+
+/* Após ocultar valor/qualidade/status, redistribuir espaço. */
+.data-table th:nth-child(1) { width: 78px !important; }
+.data-table th:nth-child(2) { width: 23% !important; }
+.data-table th:nth-child(3) { width: 21% !important; }
+.data-table th:nth-child(4) { width: 100px !important; }
+.data-table th:nth-child(8) { width: 150px !important; }
+.data-table th:nth-child(9) { width: 225px !important; }
+
+.pd-limit-cell .pdr-limit-head {
+    line-height: 1.15;
+}
+
+.pd-limit-cell .pdr-limit-free {
+    opacity: .82;
+}
+
+/* ---------- Progresso do sheet de distribuição ----------
+   Já distribuído muda de cor conforme quantidade/estado.
+   Novas inclusões permanecem roxas para não se confundir com histórico. */
+#dm-overlay .dm-progress-wrap {
+    --dm-existing-tone: #0284c7;
+    --dm-existing-soft: #e0f2fe;
+    --dm-new-tone: #7c3aed;
+}
+
+#dm-overlay .dm-progress-track {
+    background: color-mix(in srgb, var(--color-border) 62%, transparent) !important;
+}
+
+#dm-overlay .dm-bar-existing {
+    background: var(--dm-existing-tone) !important;
+    transition: width .24s ease, background-color .18s ease !important;
+}
+
+#dm-overlay .dm-bar-new {
+    background: var(--dm-new-tone) !important;
+    transition: width .24s ease !important;
+}
+
+#dm-overlay .dm-progress-wrap[data-progress-state="empty"] {
+    --dm-existing-tone: #94a3b8;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="partial"] {
+    --dm-existing-tone: #0284c7;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="high"] {
+    --dm-existing-tone: #c87408;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="complete"] {
+    --dm-existing-tone: #168a4d;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="over"] {
+    --dm-existing-tone: #cf3f3f;
+}
+
+#dm-overlay .dm-progress-wrap[data-progress-state="high"] #dm-lbl-existing strong {
+    color: #a16207 !important;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="complete"] #dm-lbl-existing strong {
+    color: #168a4d !important;
+}
+#dm-overlay .dm-progress-wrap[data-progress-state="over"] #dm-lbl-existing strong {
+    color: #cf3f3f !important;
+}
+
+/* ---------- Confirmação com desafio ----------
+   Usado para exclusões de impacto (ex.: distribuição em comprovante). */
+.confirm-challenge {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: .34rem;
+    margin-top: .48rem;
+    padding: .58rem;
+    border: 1px solid rgba(207,63,63,.16);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--pd-red-soft) 72%, #fff);
+}
+
+.confirm-challenge[hidden] {
+    display: none !important;
+}
+
+.confirm-challenge-label {
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    color: var(--pd-text-2);
+    font-size: .68rem;
+    font-weight: 720;
+    line-height: 1.35;
+}
+
+.confirm-challenge-label .ph-duotone {
+    color: var(--pd-red);
+    font-size: 16px !important;
+}
+
+.confirm-challenge-question {
+    color: var(--pd-text);
+    font-size: .77rem;
+    font-weight: 820;
+}
+
+.confirm-challenge-input {
+    width: 100%;
+    min-height: 40px;
+    padding: .46rem .54rem;
+    border: 1px solid var(--pd-border-strong);
+    border-radius: 9px;
+    outline: 0;
+    background: #fff;
+    color: var(--pd-text);
+    font: inherit;
+    font-size: .76rem;
+}
+
+.confirm-challenge-input:focus {
+    border-color: var(--pd-red);
+    box-shadow: 0 0 0 3px rgba(207,63,63,.08);
+}
+
+.confirm-challenge-error {
+    color: var(--pd-red);
+    font-size: .64rem;
+    font-weight: 720;
+}
+
+.confirm-box.is-danger .confirm-icon {
+    background: var(--pd-red-soft);
+    color: var(--pd-red);
+}
+
+.confirm-box.is-danger #confirmOk {
+    border-color: rgba(207,63,63,.18);
+    background: var(--pd-red-soft);
+    color: var(--pd-red);
+}
+</style>
 
 <script>
 const PD_TENANT    = '{{ $currentTenant->slug }}';
@@ -3071,41 +3740,103 @@ const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 const projectListState = { page: 1, perPage: 30 };
 
-function openIntegrityModal(deliveryId = null) {
-    const modal = document.getElementById('pd-integrity-modal');
-    if (!modal) return;
-    modal.classList.add('open');
-    modal.setAttribute('aria-hidden', 'false');
-    modal.querySelectorAll('[data-modal-issue-delivery]').forEach(el => el.classList.remove('pd-issue-focus'));
+let integrityFilterDeliveryId = null;
 
-    if (deliveryId) {
-        const item = modal.querySelector(`[data-modal-issue-delivery="${deliveryId}"]`);
-        if (item) {
-            item.classList.add('pd-issue-focus');
-            setTimeout(() => item.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+function setIntegrityModalScope(deliveryId = null) {
+    const modal = document.getElementById('pd-integrity-modal');
+    if (!modal) return 0;
+
+    integrityFilterDeliveryId = deliveryId ? String(deliveryId) : null;
+
+    const issues = Array.from(
+        modal.querySelectorAll('article[data-modal-issue-delivery]')
+    );
+
+    let visibleCount = 0;
+
+    issues.forEach(item => {
+        const belongs = !integrityFilterDeliveryId
+            || String(item.dataset.modalIssueDelivery || '') === integrityFilterDeliveryId;
+
+        item.hidden = !belongs;
+
+        if (belongs) {
+            visibleCount++;
+        }
+    });
+
+    modal.querySelectorAll('.pd-integrity-column').forEach(column => {
+        const hasVisibleIssue = Array.from(
+            column.querySelectorAll('article[data-modal-issue-delivery]')
+        ).some(item => !item.hidden);
+
+        column.hidden = !hasVisibleIssue;
+    });
+
+    const title = document.getElementById('pd-integrity-title');
+    const sub = document.getElementById('pd-integrity-sub');
+    const showAll = document.getElementById('pd-integrity-show-all');
+
+    if (title) {
+        title.textContent = integrityFilterDeliveryId
+            ? 'Inconsistências desta entrega'
+            : 'Central de inconsistências';
+    }
+
+    if (sub) {
+        if (integrityFilterDeliveryId) {
+            sub.textContent = visibleCount === 1
+                ? '1 ponto desta entrega precisa de revisão'
+                : `${visibleCount} pontos desta entrega precisam de revisão`;
+        } else {
+            sub.textContent = issues.length === 1
+                ? '1 ponto precisa de revisão'
+                : `${issues.length} pontos precisam de revisão`;
         }
     }
 
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (showAll) {
+        showAll.hidden = !integrityFilterDeliveryId;
+    }
+
+    return visibleCount;
+}
+
+function openIntegrityModal(deliveryId = null) {
+    const modal = document.getElementById('pd-integrity-modal');
+    if (!modal) return;
+
+    setIntegrityModalScope(deliveryId);
+
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('pd-sheet-open');
 }
 
 function closeIntegrityModal() {
     const modal = document.getElementById('pd-integrity-modal');
     if (!modal) return;
+
     modal.classList.remove('open');
     modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('pd-sheet-open');
 }
 
 function toggleIntegrityPanel() {
     const content = document.getElementById('pd-integrity-content');
     const button = document.querySelector('.pd-integrity-toggle');
+
     if (!content || !button) return;
+
     const opening = content.hidden;
     content.hidden = !opening;
     button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+
     const icon = button.querySelector('i');
-    if (icon) icon.setAttribute('data-lucide', opening ? 'chevron-up' : 'chevron-down');
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    if (icon) {
+        icon.className = `pd-filter-more-chevron ph-duotone ph-${opening ? 'caret-up' : 'caret-down'}`;
+    }
 }
 
 function focusIntegrityDelivery(deliveryId) {
@@ -3129,32 +3860,18 @@ function openIntegrityDistribution(deliveryId, distributionId = 0, edit = false)
     }
 }
 
-function applyResolvedIntegrity(integrity, actionKey, distributionId) {
-    document.querySelectorAll(`[data-integrity-item="${actionKey}-${distributionId}"]`).forEach(el => el.remove());
+function applyResolvedIntegrity(integrity) {
+    renderIntegrityCenter(integrity);
 
     const counts = integrity?.counts || {};
-    const critical = Number(counts.critical || 0);
-    const warning = Number(counts.warning || 0);
-    const info = Number(counts.info || 0);
-    const total = critical + warning + info;
+    const total =
+        Number(counts.critical || 0)
+        + Number(counts.warning || 0)
+        + Number(counts.info || 0);
 
-    const totalEl = document.getElementById('pd-integrity-total');
-    if (totalEl) totalEl.textContent = String(total);
-
-    const launch = document.getElementById('pd-integrity-launch');
-    if (launch) {
-        launch.hidden = total <= 0;
-        launch.setAttribute('aria-label', `Ver ${total} pendência(s) e inconsistência(s)`);
+    if (total <= 0) {
+        closeIntegrityModal();
     }
-
-    const sub = document.querySelector('#pd-integrity-modal .pd-integrity-sub');
-    if (sub) sub.textContent = `Crítico ${critical} · Atenção ${warning} · Info ${info}`;
-
-    document.querySelectorAll('#pd-integrity-modal .pd-integrity-column').forEach(column => {
-        column.hidden = column.querySelectorAll('.pd-integrity-item').length === 0;
-    });
-
-    if (total <= 0) closeIntegrityModal();
 }
 
 async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0, associateId = 0, associateName = '') {
@@ -3200,24 +3917,179 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
     }
 }
 
+document.addEventListener('click', event => {
+    const button = event.target.closest('[data-pd-integrity-action]');
+
+    if (!button) return;
+
+    event.preventDefault();
+
+    handleIntegrityAction(
+        button.dataset.pdIntegrityAction || '',
+        Number(button.dataset.deliveryId || 0),
+        Number(button.dataset.distributionId || 0),
+        Number(button.dataset.associateId || 0),
+        button.dataset.associateName || ''
+    );
+});
+
+
 /* ========== CUSTOM CONFIRM ========== */
-function customConfirm(message) {
-    return new Promise((resolve) => {
-        document.getElementById('confirmMessage').textContent = message;
+function customConfirm(message, options = {}) {
+    return new Promise(resolve => {
         const overlay = document.getElementById('customConfirmOverlay');
-        overlay.classList.remove('hidden');
+        const box = overlay?.querySelector('.confirm-box');
+        const title = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
         const okBtn = document.getElementById('confirmOk');
         const cancelBtn = document.getElementById('confirmCancel');
-        const closeHandler = (value) => {
+
+        if (!overlay || !box || !messageEl || !okBtn || !cancelBtn) {
+            resolve(false);
+            return;
+        }
+
+        const returnFocus = document.activeElement;
+
+        title.textContent = options.title || 'Confirmar ação';
+        messageEl.textContent = message || 'Deseja continuar?';
+        okBtn.textContent = options.confirmLabel || 'Confirmar';
+
+        box.classList.toggle('is-danger', !!options.danger);
+
+        let challengeWrap = box.querySelector('.confirm-challenge');
+        if (!challengeWrap) {
+            challengeWrap = document.createElement('div');
+            challengeWrap.className = 'confirm-challenge';
+            challengeWrap.innerHTML = `
+                <div class="confirm-challenge-label">
+                    <i class="ph-duotone ph-shield-warning" aria-hidden="true"></i>
+                    Confirmação adicional para uma ação de impacto
+                </div>
+                <div class="confirm-challenge-question"></div>
+                <input
+                    class="confirm-challenge-input"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-label="Resposta da confirmação adicional"
+                >
+                <div class="confirm-challenge-error" hidden></div>
+            `;
+
+            const buttons = box.querySelector('.confirm-buttons');
+            box.insertBefore(challengeWrap, buttons);
+        }
+
+        const questionEl = challengeWrap.querySelector('.confirm-challenge-question');
+        const inputEl = challengeWrap.querySelector('.confirm-challenge-input');
+        const errorEl = challengeWrap.querySelector('.confirm-challenge-error');
+
+        let expectedAnswer = null;
+
+        if (options.challenge) {
+            /*
+             * Desafio simples, propositalmente variável. Ele não substitui
+             * as validações do backend; serve como confirmação consciente
+             * antes de uma exclusão de impacto.
+             */
+            const a = Math.floor(Math.random() * 5) + 2;
+            const b = Math.floor(Math.random() * 4) + 1;
+            expectedAnswer = String(a + b);
+
+            questionEl.textContent = `Para continuar, responda: ${a} + ${b} = ?`;
+            inputEl.value = '';
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+            challengeWrap.hidden = false;
+        } else {
+            challengeWrap.hidden = true;
+            inputEl.value = '';
+            errorEl.hidden = true;
+            errorEl.textContent = '';
+        }
+
+        overlay.classList.remove('hidden');
+        overlay.setAttribute('aria-hidden', 'false');
+
+        const cleanup = () => {
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+            overlay.removeEventListener('click', onBackdrop);
+            document.removeEventListener('keydown', onKeydown, true);
+            inputEl.removeEventListener('keydown', onInputKeydown);
+        };
+
+        const finish = value => {
+            cleanup();
+
             overlay.classList.add('hidden');
-            okBtn.removeEventListener('click', okHandler);
-            cancelBtn.removeEventListener('click', cancelHandler);
+            overlay.setAttribute('aria-hidden', 'true');
+            box.classList.remove('is-danger');
+
+            returnFocus?.focus?.({ preventScroll: true });
             resolve(value);
         };
-        const okHandler = () => closeHandler(true);
-        const cancelHandler = () => closeHandler(false);
-        okBtn.addEventListener('click', okHandler);
-        cancelBtn.addEventListener('click', cancelHandler);
+
+        const validateChallenge = () => {
+            if (!options.challenge) return true;
+
+            const answer = String(inputEl.value || '').trim();
+
+            if (answer !== expectedAnswer) {
+                errorEl.textContent = 'Resposta incorreta. Confira a conta antes de continuar.';
+                errorEl.hidden = false;
+                inputEl.focus({ preventScroll: true });
+                inputEl.select?.();
+                return false;
+            }
+
+            errorEl.hidden = true;
+            return true;
+        };
+
+        const onOk = () => {
+            if (!validateChallenge()) return;
+            finish(true);
+        };
+
+        const onCancel = () => finish(false);
+
+        const onBackdrop = event => {
+            if (event.target === overlay) finish(false);
+        };
+
+        const onKeydown = event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                finish(false);
+            }
+        };
+
+        const onInputKeydown = event => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                onOk();
+            }
+        };
+
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        overlay.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKeydown, true);
+        inputEl.addEventListener('keydown', onInputKeydown);
+
+        if (!window.matchMedia('(max-width: 767px)').matches) {
+            window.setTimeout(() => {
+                if (options.challenge) {
+                    inputEl.focus({ preventScroll: true });
+                } else {
+                    cancelBtn.focus({ preventScroll: true });
+                }
+            }, 30);
+        }
     });
 }
 
@@ -3231,16 +4103,16 @@ function pdToast(msg, type = 'success') {
 
     const toast = document.createElement('div');
     const icon = type === 'error'
-        ? 'circle-alert'
+        ? 'warning-circle'
         : type === 'info'
             ? 'info'
-            : 'circle-check';
+            : 'check-circle';
 
     toast.className = `pd-toast ${type}`;
 
     toast.innerHTML = `
         <span class="pd-toast-icon" aria-hidden="true">
-            <i data-lucide="${icon}"></i>
+            <i class="ph-duotone ph-${icon}"></i>
         </span>
 
         <span class="pd-toast-message">
@@ -3249,10 +4121,6 @@ function pdToast(msg, type = 'success') {
     `;
 
     container.appendChild(toast);
-
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
 
     window.setTimeout(() => {
         toast.style.opacity = '0';
@@ -3287,14 +4155,7 @@ function setAdvancedFilters(open) {
     button.classList.toggle('open', open);
 
     if (chevron) {
-        chevron.setAttribute(
-            'data-lucide',
-            open ? 'chevron-up' : 'chevron-down'
-        );
-    }
-
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
+        chevron.className = `pd-filter-more-chevron ph-duotone ph-${open ? 'caret-up' : 'caret-down'}`;
     }
 }
 
@@ -3330,16 +4191,16 @@ function applyFilters() {
 
     updateAdvancedFilterState();
 
-    const isMobile = window.matchMedia('(max-width: 767px)').matches;
+    const useCardLayout = window.matchMedia('(max-width: 1099px)').matches;
     const desktopRows = Array.from(document.querySelectorAll('#desktop-tbody tr'));
     const mobileCards = Array.from(document.querySelectorAll('#mobile-cards .mobile-card'));
-    const activeItems = isMobile ? mobileCards : desktopRows;
-    const inactiveItems = isMobile ? desktopRows : mobileCards;
+    const activeItems = useCardLayout ? mobileCards : desktopRows;
+    const inactiveItems = useCardLayout ? desktopRows : mobileCards;
 
     inactiveItems.forEach(item => item.style.display = 'none');
 
     const matched = activeItems.filter(item => {
-        return isMobile
+        return useCardLayout
             ? cardMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo)
             : rowMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo);
     });
@@ -3435,11 +4296,17 @@ function openDistSummaryFromCard(card) {
             return `<div class="dist-summary-row"><strong>${esc(customer)}</strong><span>${fmtProjectQty(qty, unit)}${net > 0 ? ' - R$ ' + net.toFixed(2) : ''}</span></div>`;
         }).join('')
         : '<div class="dist-summary-row"><strong>Nenhuma distribuição</strong><span>0%</span></div>';
-    document.getElementById('dist-summary-overlay').classList.add('open');
+    const overlay = document.getElementById('dist-summary-overlay');
+    overlay?.classList.add('open');
+    overlay?.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('pd-sheet-open');
 }
 
 function closeDistSummary() {
-    document.getElementById('dist-summary-overlay')?.classList.remove('open');
+    const overlay = document.getElementById('dist-summary-overlay');
+    overlay?.classList.remove('open');
+    overlay?.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('pd-sheet-open');
 }
 
 function clearAllFilters() {
@@ -3498,7 +4365,9 @@ function updateDistIndicator(container, totalQty, distQty, unit) {
         fill.classList.add(over ? 'over' : (percent >= 100 ? 'full' : 'partial'));
     }
     if (text) {
-        text.textContent = over ? '⚠ ' + dist.toFixed(1) : percent + '%';
+        text.innerHTML = over
+            ? `<i class="ph-duotone ph-warning" aria-hidden="true"></i>${dist.toFixed(1)}`
+            : `${percent}%`;
     }
 
     // Additional warning
@@ -3583,54 +4452,15 @@ document.addEventListener('click', async function(e) {
             });
             const data = await res.json();
             if (data.success) {
-                pdToast(data.message);
-                // Update badge everywhere
-                document.querySelectorAll(`[data-delivery-id="${id}"] .badge-status`).forEach(badge => {
-                    badge.className = 'badge-status ' + (action === 'approve' ? 'approved' : 'rejected');
-                    badge.textContent = action === 'approve' ? 'Aprovada' : 'Rejeitada';
-                });
-                // Update actions and add checkbox if approved
-                if (action === 'approve') {
-                    // Desktop: update action cell
-                    const rowEl = document.getElementById('desktop-row-' + id);
-                    if (rowEl) {
-                        const actionCell = rowEl.querySelector('.action-btns');
-                        if (actionCell) {
-                            actionCell.innerHTML = buildApprovedActions(id, rowEl);
-                        }
-                        rowEl.classList.add('approved-row');
-                    }
-                    // Mobile: update actions
-                    const cardEl = document.getElementById('mobile-row-' + id);
-                    if (cardEl) {
-                        const actions = cardEl.querySelector('.mc-actions');
-                        if (actions) {
-                            actions.innerHTML = buildApprovedActionsMobile(id, cardEl);
-                        }
-                        cardEl.classList.add('status-approved');
-                    }
-                } else {
-                    const rowEl = document.getElementById('desktop-row-' + id);
-                    if (rowEl) {
-                        const actionCell = rowEl.querySelector('.action-btns');
-                        if (actionCell) {
-                            actionCell.innerHTML = buildRejectedActions(id);
-                        }
-                        rowEl.classList.remove('approved-row');
-                    }
-
-                    const cardEl = document.getElementById('mobile-row-' + id);
-                    if (cardEl) {
-                        const actions = cardEl.querySelector('.mc-actions');
-                        if (actions) {
-                            actions.innerHTML = buildRejectedActionsMobile(id);
-                        }
-                        cardEl.classList.remove('status-approved');
-                        cardEl.classList.add('status-rejected');
-                    }
+                try {
+                    await refreshDeliveryItem(id);
+                    pdToast(data.message || (action === 'approve' ? 'Entrega aprovada.' : 'Entrega rejeitada.'));
+                } catch (refreshError) {
+                    pdToast(
+                        refreshError.message || 'A operação foi salva, mas não foi possível atualizar a entrega.',
+                        'error'
+                    );
                 }
-                enhanceDeliveryActions();
-                refreshDeliveryItem(id).catch(() => applyFilters());
             } else {
                 pdToast(data.message || 'Erro ao processar.', 'error');
                 btns.forEach(b => b.disabled = false);
@@ -3650,13 +4480,13 @@ function buildApprovedActions(id, rowEl) {
         <button class="btn-distribute" data-id="${id}" data-product="${esc(prod)}" data-unit="${esc(unit)}"
             data-qty="${qty}" data-distributed="0" data-existing="[]"
             data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" title="Distribuir" aria-label="Distribuir">
-            <i data-lucide="git-branch"></i><span class="pd-action-label">Distribuir</span>
+            <i class="ph-duotone ph-git-merge"></i><span class="pd-action-label">Distribuir</span>
         </button>
         <button class="btn-edit" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]" title="Editar" aria-label="Editar">
-            <i data-lucide="pencil"></i><span class="pd-action-label">Editar</span>
+            <i class="ph-duotone ph-pencil-simple"></i><span class="pd-action-label">Editar</span>
         </button>
         <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega" aria-label="Excluir entrega">
-            <i data-lucide="trash-2"></i><span class="pd-action-label">Excluir</span>
+            <i class="ph-duotone ph-trash"></i><span class="pd-action-label">Excluir</span>
         </button>
     `;
 }
@@ -3670,14 +4500,14 @@ function buildApprovedActionsMobile(id, cardEl) {
             data-qty="${qty}" data-distributed="0" data-existing="[]"
             data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}"
             title="Distribuir" aria-label="Distribuir">
-            <i data-lucide="git-branch"></i>
+            <i class="ph-duotone ph-git-merge"></i>
         </button>
         <button class="btn-edit btn-xs" data-id="${id}" data-date="" data-qty="${qty}" data-price="" data-quality="" data-notes="" data-unit="${unit}" data-distributions="[]"
             title="Editar" aria-label="Editar">
-            <i data-lucide="pencil"></i>
+            <i class="ph-duotone ph-pencil-simple"></i>
         </button>
         <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega" aria-label="Excluir entrega">
-            <i data-lucide="trash-2"></i>
+            <i class="ph-duotone ph-trash"></i>
         </button>
     `;
 }
@@ -3685,7 +4515,7 @@ function buildApprovedActionsMobile(id, cardEl) {
 function buildRejectedActions(id) {
     return `
         <button class="btn-delete-approved" data-id="${id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada">
-            <i data-lucide="trash-2"></i><span class="pd-action-label">Excluir</span>
+            <i class="ph-duotone ph-trash"></i><span class="pd-action-label">Excluir</span>
         </button>
     `;
 }
@@ -3693,7 +4523,7 @@ function buildRejectedActions(id) {
 function buildRejectedActionsMobile(id) {
     return `
         <button class="btn-delete-approved btn-xs" data-id="${id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada">
-            <i data-lucide="trash-2"></i>
+            <i class="ph-duotone ph-trash"></i>
         </button>
     `;
 }
@@ -3741,6 +4571,8 @@ function refreshOperationalUi() {
 
 function arrangeDeliveryControls(root = document) {
     root.querySelectorAll('#desktop-tbody tr[data-delivery-id]').forEach(row => {
+        if (row.dataset.pdArranged === '1') return;
+
         const cells = Array.from(row.children).filter(cell => cell.tagName === 'TD');
         if (!cells.length) return;
 
@@ -3777,9 +4609,13 @@ function arrangeDeliveryControls(root = document) {
         if (indicator && indicator.parentElement !== control) control.appendChild(indicator);
         if (note && note.parentElement !== control) control.appendChild(note);
         if (actions && actions.parentElement !== control) control.appendChild(actions);
+
+        row.dataset.pdArranged = '1';
     });
 
     root.querySelectorAll('#mobile-cards .mobile-card').forEach(card => {
+        if (card.dataset.pdArranged === '1') return;
+
         const indicator = card.querySelector('.mc-dist-indicator');
         const actions = card.querySelector('.mc-actions');
         if (!indicator || !actions) return;
@@ -3802,15 +4638,17 @@ function arrangeDeliveryControls(root = document) {
             if (indicator.parentElement !== control) control.appendChild(indicator);
             if (actions.parentElement !== control) control.appendChild(actions);
         }
+
+        card.dataset.pdArranged = '1';
     });
 }
 
 function deliveryActionMeta(button) {
-    if (button.classList.contains('btn-distribute')) return { icon: 'git-branch', label: 'Distribuir' };
-    if (button.classList.contains('btn-edit')) return { icon: 'pencil', label: 'Editar' };
-    if (button.classList.contains('btn-approve')) return { icon: 'circle-check', label: 'Aprovar' };
-    if (button.classList.contains('btn-reject')) return { icon: 'circle-x', label: 'Rejeitar' };
-    if (button.classList.contains('btn-delete-approved')) return { icon: 'trash-2', label: 'Excluir' };
+    if (button.classList.contains('btn-distribute')) return { icon: 'git-merge', label: 'Distribuir' };
+    if (button.classList.contains('btn-edit')) return { icon: 'pencil-simple', label: 'Editar' };
+    if (button.classList.contains('btn-approve')) return { icon: 'check-circle', label: 'Aprovar' };
+    if (button.classList.contains('btn-reject')) return { icon: 'x-circle', label: 'Rejeitar' };
+    if (button.classList.contains('btn-delete-approved')) return { icon: 'trash', label: 'Excluir' };
     return null;
 }
 
@@ -3820,142 +4658,948 @@ function enhanceDeliveryActions(root = document) {
 
     root.querySelectorAll('#desktop-tbody .action-btns button').forEach(button => {
         const meta = deliveryActionMeta(button);
-        if (!meta) return;
+        if (!meta || button.dataset.pdEnhanced === '1') return;
 
+        button.dataset.pdEnhanced = '1';
         button.title = button.title || meta.label;
         button.setAttribute('aria-label', button.getAttribute('aria-label') || meta.label);
-        button.innerHTML = `<i data-lucide="${meta.icon}"></i><span class="pd-action-label">${meta.label}</span>`;
+        button.innerHTML = `<i class="ph-duotone ph-${meta.icon}" aria-hidden="true"></i><span class="pd-action-label">${meta.label}</span>`;
     });
 
     root.querySelectorAll('#mobile-cards .mc-actions button').forEach(button => {
         const meta = deliveryActionMeta(button);
-        if (!meta) return;
+        if (!meta || button.dataset.pdEnhanced === '1') return;
 
+        button.dataset.pdEnhanced = '1';
         button.title = meta.label;
         button.setAttribute('aria-label', meta.label);
-        button.innerHTML = `<i data-lucide="${meta.icon}"></i>`;
+        button.innerHTML = `<i class="ph-duotone ph-${meta.icon}" aria-hidden="true"></i>`;
+    });
+
+    root.querySelectorAll('.delivery-note-trigger').forEach(button => {
+        if (button.querySelector('.ph-duotone')) return;
+
+        button.insertAdjacentHTML(
+            'afterbegin',
+            '<i class="ph-duotone ph-note-pencil" aria-hidden="true"></i>'
+        );
     });
 
     arrangeDeliveryControls(root);
     refreshOperationalUi();
-
-    if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-    }
+    upgradeDuotoneIcons(root);
 }
 
 const DM_PROJECT_PARTICIPANTS = @json($customers->pluck('id')->values()->all());
 
-/* ========== EditModal callbacks ========== */
-EditModal.onSaved = function(d) {
-    pdToast('Entrega atualizada!');
-    // Update both views
-    const row = document.getElementById('desktop-row-' + d.id) || document.getElementById('mobile-row-' + d.id);
-    if (!row) return;
-    // Update date
-    const dateEl = row.querySelector('.mc-date, td:nth-child(2)');
-    if (dateEl) dateEl.textContent = d.delivery_date;
-    // Update qty
-    const qtyEl = row.querySelector('.mc-qty');
-    if (qtyEl) qtyEl.innerHTML = parseFloat(d.quantity).toLocaleString('pt-BR',{minimumFractionDigits:3}) + ' <small>' + (d.unit||'') + '</small>';
-    // Update quality
-    const qualEl = row.querySelector('td:nth-child(7)');
-    if (qualEl) qualEl.textContent = d.quality_grade || '—';
-};
+/* ========== Central de integridade reativa ========== */
+function integrityActionLabel(actionKey) {
+    return ({
+        open_distribution: 'Distribuir',
+        edit_distribution: 'Corrigir distribuição',
+        open_producers: 'Abrir produtor',
+        detach_missing_associate_receipt: 'Desvincular',
+        delete_orphan_distribution: 'Excluir órfã',
+        restore_parent_delivery: 'Restaurar entrega-pai',
+    })[actionKey] || 'Ver detalhes';
+}
 
-/* ========== DistModal callbacks ========== */
+function renderIntegrityCenter(integrity) {
+    const modal = document.getElementById('pd-integrity-modal');
+    const body = modal?.querySelector('.pd-integrity-body');
+    const counts = integrity?.counts || {};
+
+    const critical = Number(counts.critical || 0);
+    const warning = Number(counts.warning || 0);
+    const info = Number(counts.info || 0);
+    const total = critical + warning + info;
+
+    const totalEl = document.getElementById('pd-integrity-total');
+    const launch = document.getElementById('pd-integrity-launch');
+
+    if (totalEl) {
+        totalEl.textContent = String(total);
+    }
+
+    if (launch) {
+        launch.hidden = total <= 0;
+        launch.setAttribute(
+            'aria-label',
+            `Ver ${total} pendência(s) e inconsistência(s)`
+        );
+    }
+
+    if (!body) {
+        return;
+    }
+
+    const severityMeta = {
+        critical: {
+            label: 'Crítico',
+            icon: 'warning-circle',
+        },
+        warning: {
+            label: 'Atenção',
+            icon: 'warning',
+        },
+        info: {
+            label: 'Informativo',
+            icon: 'info',
+        },
+    };
+
+    body.innerHTML = ['critical', 'warning', 'info']
+        .map(severity => {
+            const issues = Array.isArray(integrity?.[severity])
+                ? integrity[severity]
+                : [];
+
+            if (!issues.length) {
+                return '';
+            }
+
+            const items = issues.map(issue => {
+                const actionKey = String(issue.actionKey || '');
+                const deliveryId = Number(issue.deliveryId || 0);
+                const distributionId = Number(issue.distributionId || 0);
+                const associateId = Number(issue.associateId || 0);
+                const associateName = String(issue.associateName || '');
+
+                const actionButton = actionKey
+                    ? `
+                        <div class="pd-integrity-actions">
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-sm"
+                                data-pd-integrity-action="${esc(actionKey)}"
+                                data-delivery-id="${deliveryId}"
+                                data-distribution-id="${distributionId}"
+                                data-associate-id="${associateId}"
+                                data-associate-name="${esc(associateName)}"
+                            >
+                                <i class="ph-duotone ph-wrench" aria-hidden="true"></i>
+                                ${esc(integrityActionLabel(actionKey))}
+                            </button>
+                        </div>
+                    `
+                    : '';
+
+                return `
+                    <article
+                        class="pd-integrity-item"
+                        data-modal-issue-delivery="${deliveryId || ''}"
+                        data-integrity-item="${esc(actionKey)}-${distributionId || ''}"
+                    >
+                        <div class="pd-integrity-item-title">
+                            ${esc(issue.title || 'Revisão necessária')}
+                        </div>
+
+                        <div class="pd-integrity-item-message">
+                            ${esc(issue.message || '')}
+                        </div>
+
+                        ${issue.action ? `
+                            <div class="pd-integrity-item-action">
+                                ${esc(issue.action)}
+                            </div>
+                        ` : ''}
+
+                        ${actionButton}
+                    </article>
+                `;
+            }).join('');
+
+            return `
+                <section class="pd-integrity-column ${severity}">
+                    <header class="pd-integrity-column-head">
+                        <i
+                            class="ph-duotone ph-${severityMeta[severity].icon}"
+                            aria-hidden="true"
+                        ></i>
+                        ${severityMeta[severity].label}
+                    </header>
+
+                    <div class="pd-integrity-items">
+                        ${items}
+                    </div>
+                </section>
+            `;
+        })
+        .join('');
+
+    if (!total) {
+        body.innerHTML = `
+            <div class="pd-integrity-empty-state">
+                <i class="ph-duotone ph-check-circle" aria-hidden="true"></i>
+                <strong>Nenhuma inconsistência pendente</strong>
+                <span>Os dados deste projeto estão consistentes neste momento.</span>
+            </div>
+        `;
+    }
+
+    setIntegrityModalScope(
+        total > 0 ? integrityFilterDeliveryId : null
+    );
+
+    upgradeDuotoneIcons(body);
+}
+
+async function refreshIntegrityCenter() {
+    const modal = document.getElementById('pd-integrity-modal');
+
+    /*
+     * Se esta página foi renderizada sem qualquer inconsistência, o modal
+     * não existe. Nesse caso o fragmento da entrega continua sendo atualizado
+     * normalmente e evitamos criar uma segunda árvore de interface em JS.
+     */
+    if (!modal) return null;
+
+    const url =
+        `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/integrity`
+        + `?_=${Date.now()}`;
+
+    const response = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        globalLoader: false,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+        throw new Error(
+            data.message || 'Não foi possível atualizar a central de inconsistências.'
+        );
+    }
+
+    renderIntegrityCenter(data.integrity);
+    return data.integrity;
+}
+
+/* ========== Estado reativo por fragmento do servidor ========== */
+function resolveDeliveryId(...values) {
+    for (const value of values) {
+        const candidate = Number(
+            value?.delivery_id
+            ?? value?.parent_delivery_id
+            ?? value?.id
+            ?? value
+            ?? 0
+        );
+
+        if (candidate > 0) return candidate;
+    }
+
+    return 0;
+}
+
+function parseDesktopFragment(html) {
+    const table = document.createElement('table');
+    const tbody = document.createElement('tbody');
+
+    table.appendChild(tbody);
+    tbody.innerHTML = String(html || '').trim();
+
+    return tbody.firstElementChild;
+}
+
+function parseMobileFragment(html) {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = String(html || '').trim();
+    return wrapper.firstElementChild;
+}
+
 function replaceDeliveryFragments(payload) {
-    const id = payload.delivery_id;
+    const id = resolveDeliveryId(payload);
+
     if (!id) return false;
 
+    let replaced = false;
+
     if (payload.desktop) {
-        const wrapper = document.createElement('tbody');
-        wrapper.innerHTML = payload.desktop.trim();
-        const nextDesktop = wrapper.firstElementChild;
-        document.getElementById('desktop-row-' + id)?.replaceWith(nextDesktop);
+        const nextDesktop = parseDesktopFragment(payload.desktop);
+        const currentDesktop = document.getElementById('desktop-row-' + id);
+
+        if (nextDesktop && currentDesktop) {
+            currentDesktop.replaceWith(nextDesktop);
+            nextDesktop.classList.add('pd-fragment-updated');
+            window.setTimeout(
+                () => nextDesktop.classList.remove('pd-fragment-updated'),
+                380
+            );
+            replaced = true;
+        }
     }
 
     if (payload.mobile) {
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = payload.mobile.trim();
-        const nextMobile = wrapper.firstElementChild;
-        document.getElementById('mobile-row-' + id)?.replaceWith(nextMobile);
+        const nextMobile = parseMobileFragment(payload.mobile);
+        const currentMobile = document.getElementById('mobile-row-' + id);
+
+        if (nextMobile && currentMobile) {
+            currentMobile.replaceWith(nextMobile);
+            nextMobile.classList.add('pd-fragment-updated');
+            window.setTimeout(
+                () => nextMobile.classList.remove('pd-fragment-updated'),
+                380
+            );
+            replaced = true;
+        }
     }
 
-    enhanceDeliveryActions();
-    applyFilters();
-    return true;
+    if (replaced) {
+        enhanceDeliveryActions();
+        applyFilters();
+        setIntegrityModalScope(integrityFilterDeliveryId);
+    }
+
+    return replaced;
 }
 
 async function refreshDeliveryItem(id) {
-    const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/deliveries/${id}/fragment`, {
-        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    const deliveryId = resolveDeliveryId(id);
+
+    if (!deliveryId) {
+        throw new Error('Entrega inválida para atualização.');
+    }
+
+    const url =
+        `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/deliveries/${deliveryId}/fragment`
+        + `?_=${Date.now()}`;
+
+    const res = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        loaderType: 'refresh',
+        loadingLabel: 'Atualizando entrega...',
     });
+
     const data = await res.json();
-    if (!data.success) throw new Error(data.message || 'Erro ao atualizar item.');
-    replaceDeliveryFragments(data);
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Erro ao atualizar item.');
+    }
+
+    if (!replaceDeliveryFragments(data)) {
+        throw new Error('O servidor atualizou a entrega, mas não retornou os fragmentos da interface.');
+    }
+
+    return data;
 }
 
-window._DistModalReload = async function(data) {
-    const id = data?.delivery_id;
-    pdToast('Distribuição salva!');
-    if (!id) return;
+async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
+    const deliveryId = resolveDeliveryId(id);
 
-    try {
-        await refreshDeliveryItem(id);
-    } catch (e) {
-        pdToast(e.message || 'Distribuição salva, mas não foi possível atualizar o item.', 'error');
+    if (!deliveryId) return false;
+
+    const maxAttempts = Math.max(1, Number(options.attempts || 3));
+    let deliveryError = null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            /*
+             * Fragmento e central são buscados novamente no servidor.
+             * Isso evita manter na interface cálculos antigos após editar,
+             * excluir ou forçar a remoção de uma distribuição.
+             */
+            const [deliveryResult, integrityResult] = await Promise.allSettled([
+                refreshDeliveryItem(deliveryId),
+                refreshIntegrityCenter(),
+            ]);
+
+            if (deliveryResult.status === 'fulfilled') {
+                if (integrityResult.status === 'rejected') {
+                    console.warn('Central de inconsistências não atualizada:', integrityResult.reason);
+                }
+
+                updateDistributionProgressTone();
+                upgradeDuotoneIcons(document);
+
+                if (successMessage) {
+                    pdToast(successMessage);
+                }
+
+                return true;
+            }
+
+            deliveryError = deliveryResult.reason;
+
+            if (attempt < maxAttempts) {
+                await new Promise(resolve =>
+                    window.setTimeout(resolve, 180 * attempt)
+                );
+            }
+        } catch (error) {
+            deliveryError = error;
+        }
     }
+
+    pdToast(
+        deliveryError?.message
+            || 'A alteração foi salva, mas a interface não pôde ser sincronizada.',
+        'error'
+    );
+
+    /*
+     * Última proteção: se o endpoint de fragmento falhar repetidamente,
+     * recarregamos automaticamente. O usuário nunca precisa descobrir
+     * manualmente que a tela ficou desatualizada.
+     */
+    if (options.reloadOnFailure !== false) {
+        window.setTimeout(() => window.location.reload(), 350);
+    }
+
+    return false;
+}
+
+/* ========== EditModal callbacks ========== */
+EditModal.onSaved = function(delivery) {
+    return syncDeliveryAfterMutation(
+        delivery,
+        'Entrega atualizada.'
+    );
 };
+
+/* ========== DistModal callbacks ========== */
+window._DistModalReload = function(data) {
+    updateDistributionProgressTone();
+
+    return syncDeliveryAfterMutation(
+        data,
+        'Distribuição salva.'
+    );
+};
+
 window._DistModalOnDelete = function(receptionId, data) {
-    pdToast('Distribuição removida.');
-    const id = receptionId || data?.parent_delivery_id;
-    if (!id) return;
-    refreshDeliveryItem(id).catch(() => {
-        const distQty = data.dist_total_qty || 0;
-        document.querySelectorAll(`[data-delivery-id="${id}"] .dist-indicator, [data-delivery-id="${id}"] .mc-dist-indicator`).forEach(indicator => {
-            updateDistIndicator(indicator, indicator.closest('[data-total-qty]')?.dataset?.totalQty, distQty, '');
-        });
-    });
+    updateDistributionProgressTone();
+
+    return syncDeliveryAfterMutation(
+        resolveDeliveryId(receptionId, data),
+        'Distribuição removida.',
+        {
+            attempts: 4,
+            reloadOnFailure: true,
+        }
+    );
 };
 
 window._DistModalOnUpdate = function(receptionId, data) {
-    pdToast('Distribuição atualizada.');
-    const id = receptionId || data?.parent_delivery_id;
-    if (!id) return;
-    refreshDeliveryItem(id).catch(() => {
-        pdToast('Distribuição atualizada, mas não foi possível atualizar o item.', 'error');
-    });
+    updateDistributionProgressTone();
+
+    return syncDeliveryAfterMutation(
+        resolveDeliveryId(receptionId, data),
+        'Distribuição atualizada.'
+    );
 };
 
+/* ========== Phosphor Duotone + componentes incorporados ========== */
+const PD_PHOSPHOR_MAP = {
+    'triangle-alert': 'warning',
+    'alert-triangle': 'warning',
+    'circle-alert': 'warning-circle',
+    'circle-check': 'check-circle',
+    'circle-check-big': 'check-circle',
+    'circle-x': 'x-circle',
+    'package-check': 'package',
+    'package-plus': 'package',
+    'users-round': 'users-three',
+    'file-chart-column': 'chart-bar',
+    'clipboard-list': 'clipboard-text',
+    'trash-2': 'trash',
+    'pencil': 'pencil-simple',
+    'search': 'magnifying-glass',
+    'chevron-down': 'caret-down',
+    'chevron-up': 'caret-up',
+    'sheet': 'file-xls',
+    'file-text': 'file-pdf',
+    'locate-fixed': 'crosshair',
+};
+
+function makePhosphorIcon(name, extraClass = '') {
+    const mapped = PD_PHOSPHOR_MAP[name] || name || 'circle';
+    return `<i class="${extraClass ? esc(extraClass) + ' ' : ''}ph-duotone ph-${esc(mapped)}" aria-hidden="true"></i>`;
+}
+
+function replaceSvgWithPhosphor(selector, iconName, root = document) {
+    root.querySelectorAll(selector).forEach(svg => {
+        if (svg.tagName !== 'svg') return;
+
+        const holder = document.createElement('span');
+        holder.innerHTML = makePhosphorIcon(iconName);
+        svg.replaceWith(holder.firstElementChild);
+    });
+}
+
+function upgradeDuotoneIcons(root = document) {
+    const lucideIcons = [];
+
+    if (root.matches?.('i[data-lucide]')) {
+        lucideIcons.push(root);
+    }
+
+    root.querySelectorAll?.('i[data-lucide]').forEach(icon => {
+        lucideIcons.push(icon);
+    });
+
+    lucideIcons.forEach(icon => {
+        const name = icon.getAttribute('data-lucide') || 'circle';
+        const mapped = PD_PHOSPHOR_MAP[name] || name;
+        const preserved = Array.from(icon.classList).filter(
+            className => className !== 'lucide'
+                && !className.startsWith('lucide-')
+                && className !== 'ph-duotone'
+                && !className.startsWith('ph-')
+        );
+
+        icon.removeAttribute('data-lucide');
+        icon.className = [...preserved, 'ph-duotone', `ph-${mapped}`].join(' ');
+    });
+
+    replaceSvgWithPhosphor('.dm-title > svg', 'git-merge', root);
+    replaceSvgWithPhosphor('.dm-add-btn > svg', 'plus-circle', root);
+    replaceSvgWithPhosphor('#dm-save-btn > svg', 'check-circle', root);
+    replaceSvgWithPhosphor('.dm-notice-icon > svg', 'warning-circle', root);
+    replaceSvgWithPhosphor('.em-title > svg', 'pencil-simple', root);
+    replaceSvgWithPhosphor('#em-save-btn > svg', 'floppy-disk', root);
+
+    root.querySelectorAll?.('.dm-close-btn').forEach(button => {
+        if (!button.querySelector('.ph-duotone')) {
+            button.innerHTML = makePhosphorIcon('x');
+        }
+    });
+
+    root.querySelectorAll?.('.em-close-btn').forEach(button => {
+        if (!button.querySelector('.ph-duotone')) {
+            button.innerHTML = makePhosphorIcon('x');
+        }
+    });
+
+    root.querySelectorAll?.('.delivery-notes-close').forEach(button => {
+        if (!button.querySelector('.ph-duotone')) {
+            button.innerHTML = makePhosphorIcon('x');
+        }
+    });
+
+    root.querySelectorAll?.('.dm-edit-btn').forEach(button => {
+        button.innerHTML = makePhosphorIcon('pencil-simple');
+    });
+
+    root.querySelectorAll?.('.dm-del-btn').forEach(button => {
+        button.innerHTML = makePhosphorIcon('trash');
+    });
+
+    root.querySelectorAll?.('.dm-mini-btn.save').forEach(button => {
+        button.innerHTML = makePhosphorIcon('check');
+    });
+
+    root.querySelectorAll?.('.dm-mini-btn.cancel, .dm-rm-btn').forEach(button => {
+        button.innerHTML = makePhosphorIcon('x');
+    });
+
+    root.querySelectorAll?.('.dm-action-disabled').forEach(element => {
+        element.innerHTML = makePhosphorIcon('lock-simple');
+    });
+
+    root.querySelectorAll?.('.delivery-note-trigger').forEach(button => {
+        if (!button.querySelector('.ph-duotone')) {
+            button.insertAdjacentHTML(
+                'afterbegin',
+                makePhosphorIcon('note-pencil')
+            );
+        }
+    });
+
+    root.querySelectorAll?.('.mc-state-icon').forEach(element => {
+        if (element.querySelector('.ph-duotone')) return;
+
+        const card = element.closest('.mobile-card');
+        const label = String(element.getAttribute('aria-label') || element.title || '').toLowerCase();
+
+        let icon = 'x-circle';
+
+        if (label.includes('acima') || label.includes('excede')) {
+            icon = 'warning';
+        } else if (card?.classList.contains('status-distributed')) {
+            icon = 'check-circle';
+        } else if (card?.classList.contains('status-approved')) {
+            icon = 'plus-circle';
+        } else if (card?.classList.contains('status-pending')) {
+            icon = 'clock';
+        } else if (card?.classList.contains('status-rejected')) {
+            icon = 'x-circle';
+        } else if (card?.classList.contains('status-cancelled')) {
+            icon = 'minus-circle';
+        }
+
+        element.innerHTML = makePhosphorIcon(icon);
+    });
+
+    root.querySelectorAll?.('#desktop-tbody svg').forEach(svg => {
+        const parent = svg.parentElement;
+
+        if (parent && /faturado/i.test(parent.textContent || '')) {
+            const holder = document.createElement('span');
+            holder.innerHTML = makePhosphorIcon('lock-simple');
+            svg.replaceWith(holder.firstElementChild);
+        }
+    });
+
+    root.querySelectorAll?.('.dist-text, .mc-dist-text').forEach(element => {
+        const value = String(element.textContent || '').trim();
+
+        if ((value.startsWith('⚠') || value.startsWith('!')) && !element.querySelector('.ph-duotone')) {
+            const clean = value.replace(/^[⚠!]\s*/, '');
+            element.innerHTML = `${makePhosphorIcon('warning')}${esc(clean)}`;
+        }
+    });
+
+    const overflow = document.getElementById('dm-warning-overflow');
+    if (overflow && !overflow.querySelector('.ph-duotone')) {
+        overflow.innerHTML =
+            `${makePhosphorIcon('warning-circle')}<span>Total excede a quantidade disponível</span>`;
+    }
+
+    const done = document.getElementById('dm-done-badge');
+    if (done && !done.querySelector('.ph-duotone')) {
+        done.innerHTML =
+            `${makePhosphorIcon('check-circle')}<span>100% distribuído</span>`;
+    }
+}
+
+
+function updateDistributionProgressTone() {
+    const wrap = document.querySelector('#dm-overlay .dm-progress-wrap');
+    const existingBar = document.getElementById('dm-bar-existing');
+    const newBar = document.getElementById('dm-bar-new');
+    const overflow = document.getElementById('dm-warning-overflow');
+    const done = document.getElementById('dm-done-badge');
+
+    if (!wrap || !existingBar) return;
+
+    const existingPct = Math.max(
+        0,
+        parseFloat(existingBar.style.width || '0') || 0
+    );
+
+    const newPct = Math.max(
+        0,
+        parseFloat(newBar?.style.width || '0') || 0
+    );
+
+    const totalPct = existingPct + newPct;
+
+    let state = 'empty';
+
+    if (overflow?.classList.contains('visible') || totalPct > 100.05) {
+        state = 'over';
+    } else if (done?.classList.contains('visible') || totalPct >= 99.95) {
+        state = 'complete';
+    } else if (existingPct >= 75) {
+        state = 'high';
+    } else if (existingPct > 0) {
+        state = 'partial';
+    }
+
+    wrap.dataset.progressState = state;
+}
+
+function installComponentUxOverrides() {
+    if (window.__pdComponentUxInstalled) return;
+    window.__pdComponentUxInstalled = true;
+
+    /*
+     * O componente de distribuição possui autofocus próprio.
+     * No mobile deixamos o corpo inert durante a janela desse autofocus,
+     * portanto o teclado não é aberto ao mostrar o sheet.
+     * No desktop o comportamento original permanece.
+     */
+    if (window.DistModal?.open) {
+        const originalOpen = window.DistModal.open.bind(window.DistModal);
+
+        window.DistModal.open = function(config) {
+            const mobile = window.matchMedia('(max-width: 767px)').matches;
+            const body = document.querySelector('#dm-overlay .dm-body');
+
+            if (mobile) {
+                body?.setAttribute('inert', '');
+            }
+
+            const result = originalOpen(config);
+
+            upgradeDuotoneIcons(document);
+            window.setTimeout(updateDistributionProgressTone, 0);
+            window.setTimeout(updateDistributionProgressTone, 80);
+
+            if (mobile) {
+                window.setTimeout(() => {
+                    body?.removeAttribute('inert');
+
+                    const active = document.activeElement;
+                    const overlay = document.getElementById('dm-overlay');
+
+                    if (active && overlay?.contains(active)) {
+                        active.blur?.();
+                    }
+                }, 145);
+            }
+
+            return result;
+        };
+    }
+
+    /*
+     * O componente legado ainda possui dois confirm() nativos.
+     * Interceptamos apenas esses fluxos e usamos o confirm do SGC.
+     */
+    if (window.DistModal?.editExisting && window.DistModal?.saveExistingEdit) {
+        const originalEditExisting = window.DistModal.editExisting.bind(window.DistModal);
+        const originalSaveExistingEdit = window.DistModal.saveExistingEdit.bind(window.DistModal);
+
+        window.DistModal.editExisting = function(distributionId) {
+            const row = document.getElementById('dmex-' + distributionId);
+
+            if (row) {
+                row.dataset.sgcWasInReceipt = row.querySelector('.dm-status-badge.receipt')
+                    ? '1'
+                    : '0';
+            }
+
+            const result = originalEditExisting(distributionId);
+            upgradeDuotoneIcons(document);
+            return result;
+        };
+
+        window.DistModal.saveExistingEdit = async function(distributionId) {
+            const row = document.getElementById('dmex-' + distributionId);
+            const needsReceiptConfirm = row?.dataset.sgcWasInReceipt === '1';
+
+            if (needsReceiptConfirm) {
+                const confirmed = await customConfirm(
+                    'Esta distribuição já está em um comprovante. Ao editar, o comprovante será marcado como obsoleto e precisará ser conferido.',
+                    {
+                        title: 'Editar distribuição vinculada',
+                        confirmLabel: 'Continuar edição',
+                    }
+                );
+
+                if (!confirmed) {
+                    window.DistModal.cancelExistingEdit();
+                    return;
+                }
+            }
+
+            const nativeConfirm = window.confirm;
+
+            try {
+                // O confirm legado ocorre de forma síncrona antes do primeiro await.
+                window.confirm = () => true;
+                const result = originalSaveExistingEdit(distributionId);
+                window.confirm = nativeConfirm;
+                return await result;
+            } finally {
+                window.confirm = nativeConfirm;
+                upgradeDuotoneIcons(document);
+            }
+        };
+    }
+
+    if (window.DistModal?.deleteExisting && window.DistModal?.performDelete) {
+        window.DistModal.deleteExisting = async function(distributionId) {
+            const row = document.getElementById('dmex-' + distributionId);
+            const inReceipt = !!row?.querySelector('.dm-status-badge.receipt');
+
+            if (inReceipt) {
+                const receiptLabel =
+                    row.querySelector('.dm-status-badge.receipt')?.getAttribute('title')
+                    || 'um comprovante';
+
+                const confirmed = await customConfirm(
+                    `Esta distribuição está vinculada a ${receiptLabel}. A exclusão forçada removerá o vínculo e recalculará os totais. Esta ação exige confirmação adicional.`,
+                    {
+                        title: 'Exclusão forçada',
+                        confirmLabel: 'Excluir distribuição',
+                        challenge: true,
+                        danger: true,
+                    }
+                );
+
+                if (!confirmed) return;
+
+                /*
+                 * O backend do componente já exige estas duas flags para
+                 * confirmar o impacto. O desafio acima é uma camada extra
+                 * de UX; a validação do servidor continua intacta.
+                 */
+                const result = await window.DistModal.performDelete(
+                    distributionId,
+                    {
+                        impact_confirmed: true,
+                        math_answer: 2,
+                    }
+                );
+
+                updateDistributionProgressTone();
+                upgradeDuotoneIcons(document);
+
+                return result;
+            }
+
+            const confirmed = await customConfirm(
+                'Remover esta distribuição? Os totais da entrega serão atualizados imediatamente.',
+                {
+                    title: 'Remover distribuição',
+                    confirmLabel: 'Remover',
+                    danger: true,
+                }
+            );
+
+            if (!confirmed) return;
+
+            const result = await window.DistModal.performDelete(
+                distributionId,
+                {}
+            );
+
+            updateDistributionProgressTone();
+            upgradeDuotoneIcons(document);
+
+            return result;
+        };
+    }
+
+    // Contexto do relatório já é o projeto atual.
+    const reportSubtitle = document.querySelector(
+        '#delivery-report-modal .dr-head p'
+    );
+
+    if (reportSubtitle) {
+        reportSubtitle.textContent = @json($project->title) + ' · filtros e formato de saída';
+    }
+}
+
+/* Atualiza também ícones criados posteriormente pelos componentes/fragments. */
+const pdIconObserver = new MutationObserver(mutations => {
+    const roots = new Set();
+
+    mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                roots.add(node);
+            }
+        });
+    });
+
+    roots.forEach(root => upgradeDuotoneIcons(root));
+});
+
 /* ========== Inicialização ========== */
-document.addEventListener('DOMContentLoaded', () => {
-    enhanceDeliveryActions();
-    applyFilters(); // initial count
 
-    const params = new URLSearchParams(window.location.search);
-    const deliveryId = Number(params.get('open_delivery') || 0);
-    const distributionId = Number(params.get('edit_distribution') || 0);
-    if (!deliveryId) return;
+/*
+ * A preparação visual é executada imediatamente neste ponto.
+ * Como o script fica depois de toda a marcação da página, não precisamos
+ * esperar DOMContentLoaded e evitamos a sensação de uma segunda renderização.
+ */
+installComponentUxOverrides();
+enhanceDeliveryActions();
+upgradeDuotoneIcons(document);
+applyFilters();
 
+/*
+ * Ao atravessar desktop <-> tablet/cards, reaplicamos filtros/paginação.
+ * Isso elimina o estado em que CSS e JS discordavam sobre qual lista mostrar.
+ */
+let pdResizeTimer = null;
+let pdLastCardLayout = window.matchMedia('(max-width: 1099px)').matches;
+
+window.addEventListener('resize', () => {
+    window.clearTimeout(pdResizeTimer);
+
+    pdResizeTimer = window.setTimeout(() => {
+        const nextCardLayout = window.matchMedia('(max-width: 1099px)').matches;
+
+        if (nextCardLayout !== pdLastCardLayout) {
+            pdLastCardLayout = nextCardLayout;
+            projectListState.page = 1;
+        }
+
+        applyFilters();
+    }, 90);
+}, { passive: true });
+
+if (document.body) {
+    pdIconObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
+}
+
+/*
+ * O componente de distribuição recalcula as barras alterando style/class,
+ * não adicionando nós. Observamos somente a área de progresso para atualizar
+ * a cor do "Já distribuído" sem polling.
+ */
+const pdProgressRoot = document.querySelector('#dm-overlay .dm-progress-wrap');
+
+if (pdProgressRoot) {
+    const pdProgressObserver = new MutationObserver(() => {
+        updateDistributionProgressTone();
+        upgradeDuotoneIcons(pdProgressRoot);
+    });
+
+    pdProgressObserver.observe(pdProgressRoot, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        attributeFilter: ['class', 'style'],
+    });
+
+    updateDistributionProgressTone();
+}
+
+const params = new URLSearchParams(window.location.search);
+const requestedDeliveryId = Number(params.get('open_delivery') || 0);
+const requestedDistributionId = Number(params.get('edit_distribution') || 0);
+
+if (requestedDeliveryId) {
     let attempts = 0;
+
     const openRequestedDistribution = () => {
         attempts++;
-        const button = document.querySelector(`.btn-distribute[data-id="${deliveryId}"]`);
+
+        const button = document.querySelector(
+            `.btn-distribute[data-id="${requestedDeliveryId}"]`
+        );
+
         if (!button && attempts < 8) {
             window.setTimeout(openRequestedDistribution, 250);
             return;
         }
 
-        openIntegrityDistribution(deliveryId, distributionId, distributionId > 0);
+        openIntegrityDistribution(
+            requestedDeliveryId,
+            requestedDistributionId,
+            requestedDistributionId > 0
+        );
+
         params.delete('open_delivery');
         params.delete('edit_distribution');
+
         const query = params.toString();
-        window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+
+        window.history.replaceState(
+            null,
+            '',
+            `${window.location.pathname}${query ? `?${query}` : ''}`
+        );
     };
 
     openRequestedDistribution();
-});
+}
 
 </script>
 @endsection

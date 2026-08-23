@@ -47,7 +47,7 @@
 
     .pam-shell {
         display:grid;
-        width:min(100%,1280px);
+        width: 100%;
         min-width:0;
         grid-column:1/-1;
         gap:.74rem;

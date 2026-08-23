@@ -12,7 +12,6 @@
     );
 
     $projectCount = count($projects);
-    $tenantName = $currentTenant->name ?? 'Sua organização';
 @endphp
 
 @section('content')
@@ -51,7 +50,7 @@
 
     .delivery-dashboard {
         display:grid;
-        width:min(100%,1280px);
+        width: 100%;
         min-width:0;
         grid-column:1/-1;
         gap:.78rem;
@@ -67,7 +66,7 @@
     .dp-modal-overlay *::before,
     .dp-modal-overlay *::after { box-sizing:border-box; }
 
-    /* Robust Lucide centering */
+    /* Centralização consistente dos ícones */
     .dp-context-icon,.dp-workspace-icon,.dp-project-icon,.dp-summary-icon,
     .dp-empty-icon,.dp-modal-icon,.dp-confirm-icon,.dp-product-row-icon,
     .dp-toast-icon,.btn,.dp-filter,.dp-status,.dp-free-badge,.dp-deadline {
@@ -744,51 +743,369 @@
             transition-duration:.01ms !important;
         }
     }
+    /* =========================================================
+       IDENTIDADE PROJECT WORKSPACE V3
+       ========================================================= */
+
+    .delivery-dashboard.dp-dashboard-v3 {
+        gap:.72rem;
+    }
+
+    .dp-dashboard-v3 :is(
+        .dp-workspace-icon,
+        .dp-project-icon,
+        .dp-summary-icon,
+        .dp-empty-icon,
+        .dp-modal-icon,
+        .dp-confirm-icon,
+        .dp-product-row-icon,
+        .dp-toast-icon
+    ) > i {
+        display:block;
+        font-size:1rem;
+        line-height:1;
+    }
+
+    .dp-dashboard-v3 .dp-summary-panel,
+    .dp-dashboard-v3 .dp-workspace,
+    .dp-dashboard-v3 .dp-project {
+        min-width:0;
+        overflow:hidden;
+        border:1px solid var(--dp-border);
+        border-radius:14px;
+        background:#fff;
+        box-shadow:0 4px 16px rgba(15,35,24,.04);
+    }
+
+    .dp-dashboard-v3 .dp-summary {
+        grid-template-columns:repeat(4,minmax(0,1fr));
+        border:0;
+        background:#fff;
+    }
+
+    .dp-dashboard-v3 .dp-summary-item {
+        min-height:72px;
+        padding:.5rem .56rem;
+    }
+
+    .dp-dashboard-v3 .dp-summary-icon {
+        width:34px;
+        height:34px;
+        border-radius:10px;
+    }
+
+    .dp-dashboard-v3 .dp-summary-icon > i {
+        font-size:1.02rem;
+    }
+
+    .dp-dashboard-v3 .dp-summary-copy strong {
+        font-size:.94rem;
+    }
+
+    .dp-dashboard-v3 .dp-workspace-head {
+        min-height:60px;
+        padding:.62rem .7rem;
+        background:linear-gradient(180deg,var(--dp-soft),#fff);
+    }
+
+    .dp-dashboard-v3 .dp-workspace-icon {
+        width:38px;
+        height:38px;
+        border-radius:10px;
+    }
+
+    .dp-dashboard-v3 .dp-workspace-icon > i {
+        font-size:1.08rem;
+    }
+
+    .dp-dashboard-v3 .dp-tools {
+        padding:.58rem .66rem;
+    }
+
+    .dp-dashboard-v3 .dp-search > i {
+        position:absolute;
+        z-index:2;
+        top:50%;
+        left:.68rem;
+        color:var(--dp-text-3);
+        font-size:.88rem;
+        line-height:1;
+        pointer-events:none;
+        transform:translateY(-50%);
+    }
+
+    .dp-dashboard-v3 .dp-filter > i {
+        display:block;
+        color:var(--filter-tone);
+        font-size:.8rem;
+        line-height:1;
+    }
+
+    .dp-dashboard-v3 .dp-projects {
+        grid-template-columns:1fr;
+        gap:.58rem;
+    }
+
+    .dp-dashboard-v3 .dp-project {
+        --project-tone:var(--dp-blue);
+        --project-soft:var(--dp-blue-soft);
+        transition:border-color .15s ease,box-shadow .15s ease;
+    }
+
+    .dp-dashboard-v3 .dp-project:hover {
+        border-color:color-mix(
+            in srgb,
+            var(--project-tone) 18%,
+            var(--dp-border)
+        );
+        box-shadow:0 8px 22px rgba(15,35,24,.055);
+        transform:none;
+    }
+
+    .dp-dashboard-v3 .dp-project-head {
+        min-height:64px;
+        padding:.6rem .68rem;
+        background:linear-gradient(180deg,var(--dp-soft),#fff);
+    }
+
+    .dp-dashboard-v3 .dp-project-icon {
+        width:40px;
+        height:40px;
+        border-radius:11px;
+    }
+
+    .dp-dashboard-v3 .dp-project-icon > i {
+        font-size:1.08rem;
+    }
+
+    .dp-dashboard-v3 :is(
+        .dp-free-badge,
+        .dp-status,
+        .dp-deadline,
+        .dp-draft-notice
+    ) > i {
+        display:block;
+        flex:0 0 auto;
+        font-size:.76rem;
+        line-height:1;
+    }
+
+    .dp-dashboard-v3 .dp-project-meta > span > i {
+        display:block;
+        flex:0 0 auto;
+        color:var(--dp-slate);
+        font-size:.72rem;
+        line-height:1;
+    }
+
+    .dp-dashboard-v3 .dp-project-body {
+        gap:.52rem;
+        padding:.58rem .66rem;
+    }
+
+    .dp-dashboard-v3 .dp-project-body:not(.no-progress) {
+        grid-template-columns:minmax(0,1fr) minmax(250px,.62fr);
+        align-items:stretch;
+    }
+
+    .dp-dashboard-v3 .dp-metrics {
+        background:var(--dp-soft);
+    }
+
+    .dp-dashboard-v3 .dp-metric {
+        min-height:60px;
+        padding:.46rem .5rem;
+        background:transparent;
+    }
+
+    .dp-dashboard-v3 .dp-progress {
+        align-content:center;
+        padding:.5rem .54rem;
+        background:var(--progress-soft);
+        box-shadow:inset 0 0 0 1px color-mix(
+            in srgb,
+            var(--progress-tone) 11%,
+            var(--dp-border)
+        );
+    }
+
+    .dp-dashboard-v3 .dp-project-footer {
+        padding:.52rem .66rem;
+        background:linear-gradient(180deg,#fff,var(--dp-soft));
+    }
+
+    .dp-dashboard-v3 .btn {
+        border-color:var(--dp-border-strong);
+        background:#fff;
+        color:var(--dp-text-2);
+        box-shadow:none;
+    }
+
+    .dp-dashboard-v3 .btn:hover:not(:disabled),
+    .dp-dashboard-v3 .btn:focus-visible:not(:disabled) {
+        border-color:color-mix(
+            in srgb,
+            currentColor 18%,
+            var(--dp-border)
+        );
+        background:var(--dp-soft);
+    }
+
+    .dp-dashboard-v3 .btn > i {
+        display:block;
+        flex:0 0 auto;
+        font-size:.84rem;
+        line-height:1;
+    }
+
+    .dp-dashboard-v3 :is(.btn-register,.btn-warning) > i {
+        color:var(--dp-amber);
+    }
+
+    .dp-dashboard-v3 .btn-deliveries > i {
+        color:var(--dp-blue);
+    }
+
+    .dp-dashboard-v3 :is(.btn-producers,.btn-client) > i {
+        color:var(--dp-sky);
+    }
+
+    .dp-dashboard-v3 .btn-limits > i {
+        color:var(--dp-violet);
+    }
+
+    .dp-dashboard-v3 :is(.btn-finalize,.btn-info,.btn-success,.btn-primary) > i {
+        color:var(--dp-green);
+    }
+
+    .dp-dashboard-v3 .btn-danger > i {
+        color:var(--dp-red);
+    }
+
+    .dp-dashboard-v3 :is(.btn-primary,.btn-finalize,.btn-client,.btn-register,.btn-warning) {
+        border-color:var(--dp-border-strong);
+        background:#fff;
+        color:var(--dp-text-2);
+    }
+
+    .dp-dashboard-v3 .dp-empty-icon > i,
+    .dp-dashboard-v3 .dp-product-row-icon > i,
+    .dp-dashboard-v3 .dp-modal-icon > i,
+    .dp-dashboard-v3 .dp-confirm-icon > i,
+    .dp-dashboard-v3 .dp-toast-icon > i {
+        font-size:1rem;
+    }
+
+    @media (max-width:980px) {
+        .dp-dashboard-v3 .dp-project-body:not(.no-progress) {
+            grid-template-columns:1fr;
+        }
+    }
+
+    @media (max-width:720px) {
+        .dp-dashboard-v3 .dp-summary {
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:0;
+            overflow:visible;
+            padding:0;
+        }
+
+        .dp-dashboard-v3 .dp-summary-item,
+        .dp-dashboard-v3 .dp-summary-item + .dp-summary-item {
+            min-width:0;
+            min-height:64px;
+            border:0;
+            border-radius:0;
+            background:#fff;
+        }
+
+        .dp-dashboard-v3 .dp-summary-item:nth-child(even) {
+            border-left:1px solid var(--dp-border);
+        }
+
+        .dp-dashboard-v3 .dp-summary-item:nth-child(n + 3) {
+            border-top:1px solid var(--dp-border);
+        }
+
+        .dp-dashboard-v3 .dp-project-footer {
+            gap:.48rem;
+        }
+    }
+
+    @media (max-width:560px) {
+        .dp-dashboard-v3 .dp-workspace-head,
+        .dp-dashboard-v3 .dp-tools,
+        .dp-dashboard-v3 .dp-project-head,
+        .dp-dashboard-v3 .dp-project-body,
+        .dp-dashboard-v3 .dp-project-footer {
+            padding-right:.54rem;
+            padding-left:.54rem;
+        }
+
+        .dp-dashboard-v3 .dp-project-head {
+            grid-template-columns:38px minmax(0,1fr);
+        }
+
+        .dp-dashboard-v3 .dp-project-icon {
+            width:38px;
+            height:38px;
+        }
+
+        .dp-dashboard-v3 .dp-metrics,
+        .dp-dashboard-v3 .dp-metrics.four {
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:0;
+            overflow:hidden;
+            border:1px solid var(--dp-border);
+            background:var(--dp-soft);
+        }
+
+        .dp-dashboard-v3 .dp-metric,
+        .dp-dashboard-v3 .dp-metric + .dp-metric {
+            min-width:0;
+            min-height:56px;
+            border:0;
+            border-radius:0;
+            background:transparent;
+        }
+
+        .dp-dashboard-v3 .dp-metric:nth-child(even) {
+            border-left:1px solid var(--dp-border);
+        }
+
+        .dp-dashboard-v3 .dp-metric:nth-child(n + 3) {
+            border-top:1px solid var(--dp-border);
+        }
+    }
+
+    @media (max-width:350px) {
+        .dp-dashboard-v3 .dp-actions {
+            grid-template-columns:1fr;
+        }
+
+        .dp-dashboard-v3 .dp-actions .btn,
+        .dp-dashboard-v3 .dp-actions .btn-register,
+        .dp-dashboard-v3 .dp-actions .btn-client {
+            grid-column:auto;
+        }
+    }
 </style>
 
 
 
-<div class="delivery-dashboard">
+<div class="delivery-dashboard dp-dashboard-v3">
     <div id="dp-toasts" aria-live="polite"></div>
 
     {{-- =========================================================
-         CONTEXTO E RESUMO
+         RESUMO
          ========================================================= --}}
-    <section class="dp-context">
-        <div class="dp-context-main">
-            <span
-                class="dp-context-icon"
-                aria-hidden="true"
-            >
-                <i data-lucide="package-check"></i>
-            </span>
-
-            <div class="dp-context-copy">
-                <span class="dp-context-kicker">
-                    <i data-lucide="layout-dashboard"></i>
-                    Central de entregas
-                </span>
-
-                <h1>
-                    Painel de entregas
-                </h1>
-
-                <div class="dp-context-meta">
-                    <span>
-                        <i data-lucide="building-2"></i>
-
-                        <span class="dp-context-meta-text">
-                            {{ $tenantName }}
-                        </span>
-                    </span>
-                </div>
-            </div>
-        </div>
-
+    <section class="dp-summary-panel" aria-label="Resumo do painel">
         <div class="dp-summary">
             <div class="dp-summary-item">
                 <span class="dp-summary-icon" aria-hidden="true">
-                    <i data-lucide="folders"></i>
+                    <i class="ph-duotone ph-folders"></i>
                 </span>
                 <span class="dp-summary-copy">
                     <span>Projetos</span>
@@ -798,7 +1115,7 @@
 
             <div class="dp-summary-item active">
                 <span class="dp-summary-icon" aria-hidden="true">
-                    <i data-lucide="circle-play"></i>
+                    <i class="ph-duotone ph-play-circle"></i>
                 </span>
                 <span class="dp-summary-copy">
                     <span>Ativos</span>
@@ -808,7 +1125,7 @@
 
             <div class="dp-summary-item delivery">
                 <span class="dp-summary-icon" aria-hidden="true">
-                    <i data-lucide="calendar-check-2"></i>
+                    <i class="ph-duotone ph-calendar-check"></i>
                 </span>
                 <span class="dp-summary-copy">
                     <span>Hoje</span>
@@ -818,7 +1135,7 @@
 
             <div class="dp-summary-item pending">
                 <span class="dp-summary-icon" aria-hidden="true">
-                    <i data-lucide="clock-3"></i>
+                    <i class="ph-duotone ph-clock-countdown"></i>
                 </span>
                 <span class="dp-summary-copy">
                     <span>Pendentes</span>
@@ -837,7 +1154,7 @@
                 class="dp-workspace-icon"
                 aria-hidden="true"
             >
-                <i data-lucide="folder-open"></i>
+                <i class="ph-duotone ph-folder-open"></i>
             </span>
 
             <div class="dp-workspace-copy">
@@ -857,7 +1174,7 @@
                 class="dp-search"
                 aria-label="Buscar projeto"
             >
-                <i data-lucide="search"></i>
+                <i class="ph-duotone ph-magnifying-glass"></i>
 
                 <input
                     id="dp-project-search"
@@ -876,7 +1193,7 @@
                     type="button"
                     data-status-filter="all"
                 >
-                    <i data-lucide="layers-3"></i>
+                    <i class="ph-duotone ph-stack"></i>
                     Todos
                 </button>
 
@@ -885,7 +1202,7 @@
                     type="button"
                     data-status-filter="active"
                 >
-                    <i data-lucide="circle-play"></i>
+                    <i class="ph-duotone ph-play-circle"></i>
                     Ativos
                 </button>
 
@@ -894,7 +1211,7 @@
                     type="button"
                     data-status-filter="draft"
                 >
-                    <i data-lucide="file-pen-line"></i>
+                    <i class="ph-duotone ph-file-text"></i>
                     Rascunhos
                 </button>
 
@@ -903,7 +1220,7 @@
                     type="button"
                     data-status-filter="awaiting_delivery"
                 >
-                    <i data-lucide="truck"></i>
+                    <i class="ph-duotone ph-truck"></i>
                     Aguardando cliente
                 </button>
             </div>
@@ -916,7 +1233,7 @@
     @if($projects->isEmpty())
         <div class="dp-empty">
             <span class="dp-empty-icon">
-                <i data-lucide="folder-x"></i>
+                <i class="ph-duotone ph-folder-minus"></i>
             </span>
 
             <div class="dp-empty-title">
@@ -952,11 +1269,11 @@
                             aria-hidden="true"
                         >
                             @if($project['status_value'] === 'draft')
-                                <i data-lucide="file-pen-line"></i>
+                                <i class="ph-duotone ph-file-text"></i>
                             @elseif($project['status_value'] === 'awaiting_delivery')
-                                <i data-lucide="truck"></i>
+                                <i class="ph-duotone ph-truck"></i>
                             @else
-                                <i data-lucide="folder-kanban"></i>
+                                <i class="ph-duotone ph-folders"></i>
                             @endif
                         </span>
 
@@ -971,7 +1288,7 @@
 
                                 @if($project['allow_any_product'])
                                     <span class="dp-free-badge">
-                                        <i data-lucide="infinity"></i>
+                                        <i class="ph-duotone ph-infinity"></i>
                                         Produtos livres
                                     </span>
                                 @endif
@@ -979,7 +1296,7 @@
 
                             <div class="dp-project-meta">
                                 <span>
-                                    <i data-lucide="building-2"></i>
+                                    <i class="ph-duotone ph-buildings"></i>
 
                                     <span class="dp-project-meta-text">
                                         {{ $project['customer_name'] }}
@@ -988,7 +1305,7 @@
 
                                 @if($project['start_date'])
                                     <span>
-                                        <i data-lucide="calendar-days"></i>
+                                        <i class="ph-duotone ph-calendar-dots"></i>
 
                                         <span class="dp-project-meta-text">
                                             {{ $project['start_date'] }}
@@ -1004,11 +1321,11 @@
 
                         <span class="dp-status">
                             @if($project['status_value'] === 'draft')
-                                <i data-lucide="file-pen-line"></i>
+                                <i class="ph-duotone ph-file-text"></i>
                             @elseif($project['status_value'] === 'awaiting_delivery')
-                                <i data-lucide="package-check"></i>
+                                <i class="ph-duotone ph-package"></i>
                             @else
-                                <i data-lucide="circle-play"></i>
+                                <i class="ph-duotone ph-play-circle"></i>
                             @endif
 
                             {{ $project['status'] }}
@@ -1097,7 +1414,7 @@
 
                         @if($project['status_value'] === 'draft')
                             <div class="dp-draft-notice">
-                                <i data-lucide="circle-pause"></i>
+                                <i class="ph-duotone ph-pause-circle"></i>
 
                                 <div class="dp-draft-notice-copy">
                                     Projeto não iniciado
@@ -1111,7 +1428,7 @@
                                         @js($project['title'])
                                     )"
                                 >
-                                    <i data-lucide="play"></i>
+                                    <i class="ph-duotone ph-play"></i>
                                     Iniciar
                                 </button>
                             </div>
@@ -1126,7 +1443,7 @@
                                         ? 'urgent'
                                         : '' }}"
                             >
-                                <i data-lucide="clock-3"></i>
+                                <i class="ph-duotone ph-clock"></i>
 
                                 @if($project['days_remaining'] < 0)
                                     Prazo encerrado
@@ -1140,7 +1457,7 @@
                             </div>
                         @else
                             <div class="dp-deadline">
-                                <i data-lucide="calendar-minus"></i>
+                                <i class="ph-duotone ph-calendar-x"></i>
                                 Sem prazo definido
                             </div>
                         @endif
@@ -1157,7 +1474,7 @@
                                     ) }}"
                                     class="btn btn-register"
                                 >
-                                    <i data-lucide="package-plus"></i>
+                                    <i class="ph-duotone ph-package"></i>
                                     Registrar
                                 </a>
                             @endif
@@ -1172,7 +1489,7 @@
                                 ) }}"
                                 class="btn btn-deliveries"
                             >
-                                <i data-lucide="list-checks"></i>
+                                <i class="ph-duotone ph-list-checks"></i>
                                 Entregas
                             </a>
 
@@ -1186,7 +1503,7 @@
                                 ) }}"
                                 class="btn btn-producers"
                             >
-                                <i data-lucide="users-round"></i>
+                                <i class="ph-duotone ph-users-three"></i>
                                 Produtores
                             </a>
 
@@ -1201,7 +1518,7 @@
                                 class="btn btn-limits"
                                 title="Participação e limites"
                             >
-                                <i data-lucide="sliders-horizontal"></i>
+                                <i class="ph-duotone ph-sliders-horizontal"></i>
                                 Limites
                             </a>
 
@@ -1215,7 +1532,7 @@
                                         {{ $project['pending_deliveries'] }}
                                     )"
                                 >
-                                    <i data-lucide="circle-check-big"></i>
+                                    <i class="ph-duotone ph-check-circle"></i>
                                     Finalizar
                                 </button>
                             @elseif(
@@ -1230,7 +1547,7 @@
                                         @js($project['title'])
                                     )"
                                 >
-                                    <i data-lucide="truck"></i>
+                                    <i class="ph-duotone ph-truck"></i>
                                     Entregar
                                 </button>
                             @endif
@@ -1244,7 +1561,7 @@
                 id="dp-no-results"
             >
                 <span class="dp-empty-icon">
-                    <i data-lucide="search-x"></i>
+                    <i class="ph-duotone ph-magnifying-glass"></i>
                 </span>
 
                 <div class="dp-empty-title">
@@ -1273,7 +1590,7 @@
                 class="dp-confirm-icon start"
                 aria-hidden="true"
             >
-                <i data-lucide="circle-play"></i>
+                <i class="ph-duotone ph-play-circle"></i>
             </span>
 
             <div
@@ -1331,7 +1648,7 @@
                 class="dp-confirm-icon finalize"
                 aria-hidden="true"
             >
-                <i data-lucide="circle-check-big"></i>
+                <i class="ph-duotone ph-check-circle"></i>
             </span>
 
             <div
@@ -1390,7 +1707,7 @@
                     class="dp-modal-icon delivery"
                     aria-hidden="true"
                 >
-                    <i data-lucide="truck"></i>
+                    <i class="ph-duotone ph-truck"></i>
                 </span>
 
                 <div>
@@ -1478,7 +1795,7 @@
                         hidden
                     ></span>
 
-                    <i data-lucide="check"></i>
+                    <i class="ph-duotone ph-check"></i>
                     Confirmar entrega
                 </button>
             </div>
@@ -1496,9 +1813,7 @@
     let deliverProjectId = null;
 
     function refreshIcons() {
-        if (window.lucide?.createIcons) {
-            window.lucide.createIcons();
-        }
+        return;
     }
 
     function escapeHtml(value) {
@@ -1529,15 +1844,15 @@
         const container = document.getElementById('dp-toasts');
         const toastElement = document.createElement('div');
         const iconName = type === 'success'
-            ? 'circle-check-big'
+            ? 'ph-check-circle'
             : type === 'error'
-                ? 'circle-alert'
-                : 'info';
+                ? 'ph-warning-circle'
+                : 'ph-info';
 
         toastElement.className = `dp-toast ${type}`;
         toastElement.innerHTML = `
             <span class="dp-toast-icon">
-                <i data-lucide="${iconName}"></i>
+                <i class="ph-duotone ${iconName}"></i>
             </span>
             <span class="dp-toast-message">${escapeHtml(message)}</span>
         `;
@@ -1766,7 +2081,7 @@
                             class="dp-product-row-icon"
                             aria-hidden="true"
                         >
-                            <i data-lucide="package"></i>
+                            <i class="ph-duotone ph-package"></i>
                         </span>
 
                         <div class="dp-product-row-copy">
@@ -1842,7 +2157,7 @@
                 rows.innerHTML = `
                     <div class="dp-empty" style="min-height:150px">
                         <span class="dp-empty-icon">
-                            <i data-lucide="package-x"></i>
+                            <i class="ph-duotone ph-package"></i>
                         </span>
                         <div class="dp-empty-title">Nenhum produto disponível</div>
                         <div class="dp-empty-msg">
@@ -1863,7 +2178,7 @@
             rows.innerHTML = `
                 <div class="dp-empty" style="min-height:150px">
                     <span class="dp-empty-icon error">
-                        <i data-lucide="circle-alert"></i>
+                        <i class="ph-duotone ph-warning-circle"></i>
                     </span>
                     <div class="dp-empty-title">Erro ao carregar</div>
                     <div class="dp-empty-msg">${escapeHtml(error.message)}</div>

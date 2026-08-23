@@ -878,7 +878,7 @@
 --r-border-2:var(--color-border-strong,#c8d6cd);--r-text:var(--color-text,#102018);
 --r-text-2:var(--color-text-secondary,#52645a);--r-text-3:var(--color-text-muted,#809087);
 --r-shadow:0 4px 14px rgba(15,35,24,.045);--r-shadow-md:0 14px 34px rgba(15,35,24,.09)}
-.reg-page{width:min(100%,1280px);max-width:1280px;padding:0 0 1rem;gap:.78rem}
+.reg-page{width: 100%;max-width:1280px;padding:0 0 1rem;gap:.78rem}
 .reg-page svg,.modal-overlay svg,.dist-summary-overlay svg{display:block;flex:0 0 auto;margin:0;vertical-align:middle}
 .reg-page .card{overflow:hidden;border:1px solid var(--r-border);border-radius:15px;background:#fff;box-shadow:var(--r-shadow)}
 .reg-page .card-header{min-height:46px;padding:.56rem .7rem;border-bottom:1px solid var(--r-border);background:linear-gradient(180deg,var(--r-soft),#fff);color:var(--r-text-2);font-size:.7rem;font-weight:800;letter-spacing:.03em}
@@ -1082,7 +1082,7 @@
 @media (min-width: 768px) {
     .reg-page {
         display:grid;
-        width:min(100%,1280px);
+        width: 100%;
         max-width:1280px;
         grid-template-columns:minmax(0,1fr);
         gap:0;
@@ -1733,6 +1733,2144 @@
         scroll-behavior:auto!important;
     }
 }
+
+</style>
+
+<style id="register-deliveries-refinement">
+/* =====================================================================
+   REGISTRO DE ENTREGAS — refinamento visual
+   Mesma linguagem de project-deliveries, sem alterar regras de negócio.
+   ===================================================================== */
+
+.reg-page {
+    --rr-green: #168a4d;
+    --rr-green-soft: #eaf8ef;
+    --rr-blue: #2563eb;
+    --rr-blue-soft: #eef4ff;
+    --rr-sky: #0284c7;
+    --rr-sky-soft: #edf8fe;
+    --rr-violet: #7c3aed;
+    --rr-violet-soft: #f4f0ff;
+    --rr-amber: #c87408;
+    --rr-amber-soft: #fff7e8;
+    --rr-red: #cf3f3f;
+    --rr-red-soft: #fff0f0;
+    --rr-slate: #64748b;
+    --rr-slate-soft: #f1f5f9;
+
+    --rr-border: var(--color-border, #dce7e0);
+    --rr-border-strong: var(--color-border-strong, #c8d6cd);
+    --rr-text: var(--color-text, #102018);
+    --rr-text-2: var(--color-text-secondary, #52645a);
+    --rr-text-3: var(--color-text-muted, #809087);
+    --rr-soft: var(--color-surface-soft, #f8faf9);
+    --rr-surface: var(--color-surface, #fff);
+
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0 0 1rem;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* ---------- Cards principais ---------- */
+
+.reg-page .entry-card,
+.reg-page .history-card {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--rr-border);
+    border-radius: 15px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(15, 35, 24, .04);
+}
+
+.reg-page .entry-card {
+    align-self: start;
+}
+
+.reg-page .history-card {
+    min-height: 0 !important;
+}
+
+/* Desktop: registro fixo à esquerda, histórico livre à direita. */
+@media (min-width: 1024px) {
+    .reg-page {
+        display: grid;
+        grid-template-columns: minmax(330px, 390px) minmax(0, 1fr);
+        gap: .82rem;
+        align-items: start;
+    }
+
+    .reg-page .entry-card {
+        position: sticky !important;
+        top: var(--app-sticky-top, 92px) !important;
+        z-index: 14;
+    }
+}
+
+/* Tablet/mobile: fluxo único. */
+@media (max-width: 1023px) {
+    .reg-page {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: .66rem;
+    }
+
+    .reg-page .entry-card {
+        position: static !important;
+        top: auto !important;
+    }
+}
+
+/* ---------- Cabeçalho do projeto ---------- */
+
+.reg-page .project-bar {
+    min-height: 64px;
+    gap: .55rem;
+    padding: .58rem .64rem;
+    border: 0;
+    border-bottom: 1px solid var(--rr-border);
+    border-radius: 0;
+    background:
+        radial-gradient(circle at 100% 0, rgba(37,99,235,.075), transparent 15rem),
+        linear-gradient(180deg, var(--rr-soft), #fff);
+}
+
+.reg-page .project-bar-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--rr-blue-soft);
+    color: var(--rr-blue);
+}
+
+.reg-page .project-bar-title {
+    color: var(--rr-text);
+    font-size: .85rem;
+    font-weight: 850;
+    letter-spacing: -.015em;
+}
+
+.reg-page .project-bar-sub {
+    margin-top: .03rem;
+    color: var(--rr-text-3);
+    font-size: .66rem;
+    line-height: 1.3;
+}
+
+.reg-page .project-bar-btn {
+    min-height: 35px;
+    padding: .36rem .52rem;
+    border: 1px solid rgba(37,99,235,.18);
+    border-radius: 9px;
+    background: var(--rr-blue-soft);
+    color: var(--rr-blue);
+    font-size: .66rem;
+    font-weight: 800;
+}
+
+.reg-page #pb-badge {
+    min-height: 24px !important;
+    display: inline-flex;
+    align-items: center;
+    padding: .12rem .38rem !important;
+    border: 1px solid rgba(22,138,77,.14) !important;
+    background: var(--rr-green-soft) !important;
+    color: var(--rr-green) !important;
+    font-size: .57rem !important;
+    font-weight: 820 !important;
+}
+
+/* ---------- Títulos ---------- */
+
+.reg-page .card-header {
+    min-height: 48px;
+    padding: .52rem .62rem;
+    border: 0;
+    border-bottom: 1px solid var(--rr-border);
+    background: #fff;
+    color: var(--rr-text);
+    font-size: .73rem;
+    font-weight: 830;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.reg-entry-title,
+.reg-history-head,
+.reg-history-title {
+    display: flex !important;
+    align-items: center;
+}
+
+.reg-entry-title {
+    gap: .4rem;
+}
+
+.reg-history-head {
+    justify-content: space-between !important;
+    gap: .55rem;
+}
+
+.reg-history-title {
+    min-width: 0;
+    gap: .42rem;
+}
+
+.reg-history-title #session-list-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.reg-section-icon {
+    display: inline-flex;
+    width: 31px;
+    height: 31px;
+    flex: 0 0 31px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+}
+
+.reg-section-icon-amber {
+    background: var(--rr-amber-soft);
+    color: var(--rr-amber);
+}
+
+.reg-section-icon-violet {
+    background: var(--rr-violet-soft);
+    color: var(--rr-violet);
+}
+
+#session-count {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    padding: .12rem .38rem;
+    border-radius: 999px;
+    background: var(--rr-blue-soft);
+    color: var(--rr-blue) !important;
+    font-size: .59rem !important;
+    font-weight: 820 !important;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: nowrap;
+}
+
+/* ---------- Seletores ---------- */
+
+.entry-card .card-body {
+    display: grid !important;
+    gap: .38rem !important;
+    padding: .54rem !important;
+    background: #fff;
+}
+
+.selector-row {
+    --sel-tone: var(--rr-blue);
+    --sel-soft: var(--rr-blue-soft);
+
+    position: relative;
+    min-height: 56px;
+    gap: .46rem;
+    padding: .46rem .5rem;
+    border: 1px solid var(--rr-border);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: none;
+    transition:
+        border-color .15s ease,
+        background .15s ease,
+        transform .15s ease;
+}
+
+#sel-date {
+    --sel-tone: var(--rr-amber);
+    --sel-soft: var(--rr-amber-soft);
+}
+
+#sel-product {
+    --sel-tone: var(--rr-violet);
+    --sel-soft: var(--rr-violet-soft);
+}
+
+.selector-row:hover:not(.disabled),
+.selector-row:focus-visible:not(.disabled) {
+    border-color: color-mix(in srgb, var(--sel-tone) 25%, var(--rr-border));
+    background: linear-gradient(90deg, var(--sel-soft), #fff 78%);
+    outline: none;
+}
+
+.selector-row.selected {
+    border-color: color-mix(in srgb, var(--sel-tone) 22%, var(--rr-border));
+    background: linear-gradient(90deg, var(--sel-soft), #fff 72%);
+}
+
+.selector-row.disabled {
+    opacity: .52;
+    background: var(--rr-soft);
+}
+
+.sel-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    background: var(--sel-soft);
+    color: var(--sel-tone);
+}
+
+.selector-row.selected .sel-icon {
+    background: var(--sel-soft);
+    color: var(--sel-tone);
+}
+
+.sel-label {
+    color: var(--rr-text-3);
+    font-size: .58rem;
+    font-weight: 760;
+    letter-spacing: .025em;
+}
+
+.sel-value,
+.sel-date-display {
+    margin-top: .02rem;
+    color: var(--rr-text);
+    font-size: .77rem;
+    font-weight: 810;
+}
+
+.sel-meta {
+    color: var(--rr-text-3);
+    font-size: .6rem;
+    line-height: 1.3;
+}
+
+.sel-chevron {
+    color: color-mix(in srgb, var(--sel-tone) 65%, var(--rr-text-3));
+}
+
+/* ---------- Campos da entrega ---------- */
+
+#entry-fields {
+    min-width: 0;
+    margin-top: .04rem;
+    padding: .54rem;
+    border: 1px solid var(--rr-border);
+    border-radius: 11px;
+    background:
+        radial-gradient(circle at 100% 0, rgba(22,138,77,.055), transparent 12rem),
+        var(--rr-soft);
+}
+
+#entry-fields .form-divider {
+    display: none;
+}
+
+#entry-fields .form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(118px, .72fr);
+    gap: .42rem;
+    align-items: start;
+}
+
+#entry-fields .reg-notes-control {
+    grid-column: 1 / -1;
+}
+
+.field-label {
+    margin-bottom: .2rem;
+    color: var(--rr-text-3);
+    font-size: .59rem;
+    font-weight: 760;
+    letter-spacing: .02em;
+    text-transform: none;
+}
+
+.field-input {
+    min-height: 41px;
+    padding: .43rem .52rem;
+    border: 1px solid var(--rr-border-strong);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-text);
+    font-size: .77rem;
+}
+
+.field-input:focus {
+    border-color: var(--rr-blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.06);
+}
+
+.quality-pills {
+    gap: .28rem;
+}
+
+.q-pill {
+    min-height: 41px;
+    padding: .34rem .25rem;
+    border: 1px solid var(--rr-border-strong);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-text-2);
+    font-size: .73rem;
+}
+
+.q-pill.active {
+    border-color: rgba(22,138,77,.16);
+    background: var(--rr-green-soft);
+    color: var(--rr-green);
+}
+
+.q-pill[data-q="B"].active {
+    border-color: rgba(200,116,8,.18);
+    background: var(--rr-amber-soft);
+    color: var(--rr-amber);
+}
+
+.q-pill[data-q="C"].active {
+    border-color: rgba(207,63,63,.16);
+    background: var(--rr-red-soft);
+    color: var(--rr-red);
+}
+
+/* Observação discreta: permanece disponível inclusive no mobile. */
+
+.reg-notes-control {
+    min-width: 0;
+}
+
+.reg-notes-toggle {
+    display: grid;
+    width: 100%;
+    min-height: 41px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: .42rem;
+    align-items: center;
+    padding: .36rem .44rem;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-text-2);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: .15s ease;
+}
+
+.reg-notes-toggle:hover,
+.reg-notes-toggle:focus-visible,
+.reg-notes-toggle.open {
+    border-color: rgba(100,116,139,.24);
+    background: var(--rr-slate-soft);
+    outline: none;
+}
+
+.reg-notes-toggle.has-value {
+    border-color: rgba(37,99,235,.16);
+    background: var(--rr-blue-soft);
+    color: var(--rr-blue);
+}
+
+.reg-notes-toggle-icon {
+    display: inline-flex;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--rr-slate-soft);
+    color: var(--rr-slate);
+}
+
+.reg-notes-toggle.has-value .reg-notes-toggle-icon {
+    background: #fff;
+    color: var(--rr-blue);
+}
+
+.reg-notes-toggle-copy {
+    display: grid;
+    min-width: 0;
+    gap: .02rem;
+}
+
+.reg-notes-toggle-copy strong {
+    color: currentColor;
+    font-size: .67rem;
+    font-weight: 790;
+}
+
+.reg-notes-toggle-copy small {
+    color: var(--rr-text-3);
+    font-size: .56rem;
+}
+
+.reg-notes-toggle-chevron {
+    transition: transform .16s ease;
+}
+
+.reg-notes-toggle.open .reg-notes-toggle-chevron {
+    transform: rotate(180deg);
+}
+
+.reg-notes-field {
+    margin-top: .32rem;
+}
+
+.reg-notes-field[hidden] {
+    display: none !important;
+}
+
+.btn-submit {
+    width: 100%;
+    min-height: 44px;
+    margin-top: .48rem;
+    padding: .48rem .7rem;
+    border: 1px solid rgba(22,138,77,.18);
+    border-radius: 10px;
+    background: var(--rr-green-soft);
+    box-shadow: none;
+    color: var(--rr-green);
+    font-size: .74rem;
+    font-weight: 840;
+}
+
+.btn-submit:hover:not(:disabled),
+.btn-submit:focus-visible:not(:disabled) {
+    border-color: rgba(22,138,77,.27);
+    background: color-mix(in srgb, var(--rr-green-soft) 80%, #fff);
+    color: var(--rr-green);
+    outline: none;
+}
+
+/* ---------- Central de inconsistências ---------- */
+
+.reg-integrity {
+    border: 0;
+    border-bottom: 1px solid var(--rr-border);
+    background: linear-gradient(90deg, var(--rr-amber-soft), #fff 56%);
+}
+
+.reg-integrity-head {
+    min-height: 44px;
+    padding: .42rem .62rem;
+}
+
+.reg-integrity-counts {
+    gap: .34rem;
+    font-size: .6rem;
+}
+
+.reg-integrity-toggle {
+    width: 31px;
+    height: 31px;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: #fff;
+}
+
+.reg-integrity-list {
+    padding: 0 .62rem .56rem;
+    gap: .3rem;
+}
+
+.reg-integrity-item {
+    padding: .46rem .5rem;
+    border: 1px solid var(--rr-border);
+    border-left: 3px solid var(--rr-amber);
+    border-radius: 9px;
+    background: #fff;
+}
+
+.reg-integrity-item.critical {
+    border-left-color: var(--rr-red);
+}
+
+.reg-integrity-item.info {
+    border-left-color: var(--rr-blue);
+}
+
+/* ---------- Filtros do histórico ---------- */
+
+.history-filter {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) 130px auto auto;
+    gap: .32rem;
+    align-items: center;
+    padding: .48rem .56rem;
+    overflow: visible;
+    border: 0;
+    border-bottom: 1px solid var(--rr-border);
+    background: var(--rr-soft);
+}
+
+.history-filter > label,
+.history-filter #filter-associate,
+.history-filter #filter-product,
+.history-filter #filter-date-from,
+.history-filter #filter-date-to,
+.history-filter > span {
+    display: none;
+}
+
+.history-filter.filters-expanded {
+    grid-template-columns:
+        minmax(200px, 1.25fr)
+        130px
+        minmax(140px,.75fr)
+        minmax(140px,.75fr)
+        120px
+        auto
+        120px
+        auto
+        auto;
+}
+
+.history-filter.filters-expanded #filter-associate,
+.history-filter.filters-expanded #filter-product,
+.history-filter.filters-expanded #filter-date-from,
+.history-filter.filters-expanded #filter-date-to,
+.history-filter.filters-expanded > span {
+    display: block;
+}
+
+.history-filter input,
+.history-filter select,
+.history-filter input[type=date],
+.history-filter input[type=search] {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 38px;
+    padding: .38rem .46rem;
+    border: 1px solid var(--rr-border-strong);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-text);
+    font-size: .68rem;
+}
+
+.history-filter input:focus,
+.history-filter select:focus {
+    border-color: var(--rr-blue);
+    box-shadow: 0 0 0 3px rgba(37,99,235,.055);
+}
+
+.history-filter .hf-more,
+.history-filter .hf-clear {
+    display: inline-flex;
+    min-height: 38px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-slate);
+    font: inherit;
+    font-size: .64rem;
+    font-weight: 760;
+}
+
+.history-filter .hf-more {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+}
+
+.history-filter .hf-more[aria-expanded="true"] {
+    border-color: rgba(124,58,237,.16);
+    background: var(--rr-violet-soft);
+    color: var(--rr-violet);
+}
+
+.history-filter .hf-clear::before {
+    content: none !important;
+}
+
+.history-filter .hf-clear {
+    gap: .25rem;
+    padding: 0 .46rem;
+}
+
+.history-filter .hf-clear .ph-duotone {
+    font-size: 14px !important;
+}
+
+/* ---------- Histórico / itens ---------- */
+
+#session-list {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .48rem;
+    padding: .52rem;
+    background: var(--rr-soft);
+}
+
+@media (min-width: 1320px) {
+    #session-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .session-section-header,
+    .session-collapsible,
+    .session-empty {
+        grid-column: 1 / -1;
+    }
+}
+
+.session-section-header {
+    margin: 0;
+    padding: .28rem .08rem .04rem;
+    border: 0;
+    background: transparent;
+    color: var(--rr-text-3);
+    font-size: .59rem;
+    font-weight: 810;
+    letter-spacing: .035em;
+}
+
+.session-collapsible {
+    overflow: hidden;
+    border: 1px solid var(--rr-border);
+    border-radius: 11px;
+    background: #fff;
+}
+
+.session-collapsible > summary {
+    min-height: 42px;
+    padding: .45rem .56rem;
+    background: var(--rr-soft);
+    color: var(--rr-text-2);
+    font-size: .63rem;
+}
+
+.session-collapsible-list {
+    display: grid;
+    gap: .48rem;
+    padding: .48rem;
+}
+
+#session-list .mobile-card {
+    --delivery-state: var(--rr-slate);
+    --delivery-state-bg: var(--rr-slate-soft);
+
+    display: block;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    border: 1px solid var(--rr-border);
+    border-left: 3px solid var(--delivery-state);
+    border-radius: 11px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(15,35,24,.025);
+    transition:
+        border-color .15s ease,
+        box-shadow .15s ease,
+        transform .15s ease;
+}
+
+#session-list .mobile-card:hover {
+    border-color: color-mix(in srgb, var(--delivery-state) 22%, var(--rr-border));
+    box-shadow: 0 6px 16px rgba(15,35,24,.055);
+    transform: translateY(-1px);
+}
+
+#session-list .mobile-card.status-pending {
+    --delivery-state: var(--rr-amber);
+    --delivery-state-bg: var(--rr-amber-soft);
+}
+
+#session-list .mobile-card.status-approved {
+    --delivery-state: var(--rr-sky);
+    --delivery-state-bg: var(--rr-sky-soft);
+}
+
+#session-list .mobile-card.status-distributed {
+    --delivery-state: var(--rr-green);
+    --delivery-state-bg: var(--rr-green-soft);
+}
+
+#session-list .mobile-card.status-rejected {
+    --delivery-state: var(--rr-red);
+    --delivery-state-bg: var(--rr-red-soft);
+}
+
+#session-list .mobile-card.status-cancelled {
+    --delivery-state: var(--rr-slate);
+    --delivery-state-bg: var(--rr-slate-soft);
+}
+
+#session-list .mc-head {
+    display: grid;
+    min-height: 43px;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    gap: .3rem;
+    align-items: center;
+    padding: .37rem .46rem;
+    border: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--delivery-state) 12%, var(--rr-border));
+    background: linear-gradient(90deg, var(--delivery-state-bg), #fff 76%);
+}
+
+#session-list .mc-head-main {
+    display: flex;
+    min-width: 0;
+    gap: .24rem;
+    align-items: center;
+    overflow: hidden;
+}
+
+#session-list .mc-date {
+    flex: 0 0 auto;
+    color: var(--rr-text-3);
+    font-size: .61rem;
+    font-weight: 760;
+}
+
+#session-list .mc-sep {
+    color: var(--rr-text-3);
+    opacity: .48;
+}
+
+#session-list .mc-head-product {
+    min-width: 0;
+    flex: 1 1 auto;
+    color: var(--rr-text);
+    font-size: .72rem;
+    font-weight: 840;
+}
+
+#session-list .mc-head-qty {
+    flex: 0 0 auto;
+    color: var(--rr-text-2);
+    font-size: .63rem;
+    font-weight: 790;
+}
+
+#session-list .mc-state-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--delivery-state-bg) 74%, #fff);
+    color: var(--delivery-state);
+}
+
+#session-list .mc-billed,
+#session-list .mc-status-pill {
+    font-size: .55rem;
+}
+
+#session-list .mc-body {
+    display: grid;
+    gap: .38rem;
+    padding: .44rem .48rem .48rem;
+    background: #fff;
+}
+
+#session-list .mc-info-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .3rem;
+    align-items: center;
+    font-size: .67rem;
+}
+
+#session-list .mc-associate {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--rr-text-2);
+    font-size: .69rem;
+    font-weight: 790;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#session-list .mc-net {
+    color: var(--rr-green);
+    font-size: .65rem;
+    font-weight: 810;
+}
+
+#session-list .mc-body > div[style*="display:grid"] {
+    padding: .15rem 0 !important;
+    color: var(--rr-text-3) !important;
+    font-size: .61rem !important;
+}
+
+#session-list .mc-footer {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(95px, 1fr) auto;
+    gap: .34rem;
+    align-items: center;
+    min-height: 40px;
+    padding: .28rem .3rem;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: var(--rr-soft);
+}
+
+#session-list .mc-footer-label {
+    display: none;
+}
+
+#session-list .mc-dist-indicator {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(50px, 1fr) auto;
+    gap: .3rem;
+    align-items: center;
+}
+
+#session-list .mc-dist-bar-bg {
+    width: 100%;
+    min-width: 48px;
+    max-width: none;
+    height: 6px;
+    background: color-mix(in srgb, var(--rr-border) 76%, #fff);
+}
+
+#session-list .mc-dist-bar-fill.partial {
+    background: var(--rr-amber);
+}
+
+#session-list .mc-dist-bar-fill.full {
+    background: var(--rr-green);
+}
+
+#session-list .mc-dist-bar-fill.over {
+    background: var(--rr-red);
+}
+
+#session-list .mc-dist-text {
+    min-width: 28px;
+    color: var(--rr-text-2);
+    font-size: .62rem;
+    font-weight: 790;
+}
+
+#session-list .mc-actions {
+    display: flex;
+    gap: .2rem;
+    margin: 0;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+#session-list .mc-actions .btn-approve,
+#session-list .mc-actions .btn-reject,
+#session-list .mc-actions .btn-edit,
+#session-list .mc-actions .btn-distribute,
+#session-list .mc-actions .btn-delete-approved,
+#session-list .mc-actions .delivery-note-trigger {
+    display: inline-flex;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: #fff;
+    font-size: 0;
+}
+
+#session-list .mc-actions .btn-approve {
+    border-color: rgba(22,138,77,.15);
+    background: var(--rr-green-soft);
+    color: var(--rr-green);
+}
+
+#session-list .mc-actions .btn-reject,
+#session-list .mc-actions .btn-delete-approved {
+    border-color: rgba(207,63,63,.14);
+    background: var(--rr-red-soft);
+    color: var(--rr-red);
+}
+
+#session-list .mc-actions .btn-edit {
+    border-color: rgba(37,99,235,.14);
+    background: var(--rr-blue-soft);
+    color: var(--rr-blue);
+}
+
+#session-list .mc-actions .btn-distribute {
+    border-color: rgba(124,58,237,.15);
+    background: var(--rr-violet-soft);
+    color: var(--rr-violet);
+}
+
+#session-list .mc-actions .delivery-note-trigger {
+    border-color: rgba(100,116,139,.14);
+    background: var(--rr-slate-soft);
+    color: var(--rr-slate);
+}
+
+/* ---------- Paginação ---------- */
+
+.delivery-pagination {
+    min-height: 47px;
+    margin: 0;
+    padding: .44rem .56rem;
+    border: 0;
+    border-top: 1px solid var(--rr-border);
+    background: #fff;
+}
+
+.delivery-pagination-info {
+    color: var(--rr-text-3);
+    font-size: .63rem;
+}
+
+.delivery-page-size,
+.delivery-page-btn {
+    min-height: 36px;
+    border: 1px solid var(--rr-border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rr-text-2);
+    font-size: .64rem;
+}
+
+/* ---------- Phosphor Duotone ---------- */
+
+.reg-page .ph-duotone,
+.modal-overlay .ph-duotone,
+.dist-summary-overlay .ph-duotone,
+.scroll-top-btn .ph-duotone {
+    font-family: "Phosphor-Duotone" !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    speak: never;
+    line-height: 1 !important;
+}
+
+.project-bar-icon .ph-duotone,
+.reg-section-icon .ph-duotone {
+    font-size: 18px !important;
+}
+
+.selector-row .ph-duotone {
+    font-size: 16px !important;
+}
+
+.reg-notes-toggle .ph-duotone {
+    font-size: 15px !important;
+}
+
+.mc-state-icon .ph-duotone {
+    font-size: 15px !important;
+}
+
+.mc-actions .ph-duotone,
+.delivery-note-trigger .ph-duotone {
+    font-size: 16px !important;
+}
+
+.history-filter .ph-duotone,
+.delivery-page-btn .ph-duotone,
+.reg-integrity-toggle .ph-duotone {
+    font-size: 15px !important;
+}
+
+/* ---------- Responsivo ---------- */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+    .entry-card .card-body {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 0 !important;
+        padding: 0 !important;
+    }
+
+    .selector-row {
+        min-height: 61px;
+        border-width: 0 1px 0 0;
+        border-radius: 0;
+    }
+
+    .selector-row:nth-of-type(3) {
+        border-right: 0;
+    }
+
+    #entry-fields {
+        grid-column: 1 / -1;
+        margin: 0;
+        border-width: 1px 0 0;
+        border-radius: 0;
+    }
+
+    #entry-fields .form-grid {
+        grid-template-columns: minmax(150px,.78fr) minmax(150px,.72fr) minmax(220px,1.15fr);
+    }
+
+    #entry-fields .reg-notes-control {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 767px) {
+    .reg-page {
+        gap: .58rem;
+        padding-bottom: .8rem;
+    }
+
+    .reg-page .entry-card,
+    .reg-page .history-card {
+        border-radius: 13px;
+    }
+
+    .reg-page .project-bar {
+        min-height: 58px;
+        padding: .48rem .52rem;
+    }
+
+    .reg-page .project-bar-icon {
+        width: 35px;
+        height: 35px;
+    }
+
+    .entry-card .card-body {
+        padding: .48rem !important;
+        gap: .36rem !important;
+    }
+
+    .selector-row {
+        min-height: 52px;
+        padding: .4rem .46rem;
+    }
+
+    #entry-fields {
+        padding: .46rem;
+    }
+
+    #entry-fields .form-grid {
+        grid-template-columns: minmax(0, 1fr) 118px;
+        gap: .38rem;
+    }
+
+    #entry-fields .reg-notes-control {
+        grid-column: 1 / -1;
+    }
+
+    .reg-notes-toggle {
+        width: max-content;
+        max-width: 100%;
+        min-height: 36px;
+        grid-template-columns: auto auto auto;
+        padding: .26rem .34rem;
+    }
+
+    .reg-notes-toggle-icon {
+        width: 25px;
+        height: 25px;
+    }
+
+    .reg-notes-toggle-copy strong {
+        font-size: .63rem;
+    }
+
+    .reg-notes-toggle-copy small {
+        display: none;
+    }
+
+    .btn-submit {
+        min-height: 44px;
+    }
+
+    .history-filter {
+        grid-template-columns: minmax(0, 1fr) 104px 38px 38px;
+        padding: .4rem .46rem;
+    }
+
+    .history-filter.filters-expanded {
+        grid-template-columns: 1fr 1fr 38px 38px;
+    }
+
+    .history-filter.filters-expanded #filter-history-search {
+        grid-column: 1 / -1;
+    }
+
+    .history-filter.filters-expanded #filter-status {
+        grid-column: 1;
+    }
+
+    .history-filter.filters-expanded #filter-associate,
+    .history-filter.filters-expanded #filter-product {
+        display: block;
+    }
+
+    .history-filter.filters-expanded #filter-associate {
+        grid-column: 1 / -1;
+    }
+
+    .history-filter.filters-expanded #filter-product {
+        grid-column: 1 / -1;
+    }
+
+    .history-filter.filters-expanded #filter-date-from,
+    .history-filter.filters-expanded #filter-date-to {
+        display: block;
+    }
+
+    .history-filter.filters-expanded > span {
+        display: none;
+    }
+
+    .history-filter .hf-clear {
+        width: 38px;
+        min-width: 38px;
+        padding: 0;
+    }
+
+    .history-filter .hf-clear-label {
+        display: none;
+    }
+
+    #session-list {
+        padding: .44rem;
+        gap: .44rem;
+    }
+
+    #session-list .mobile-card {
+        border-radius: 10px;
+    }
+
+    #session-list .mc-head {
+        min-height: 41px;
+        padding: .34rem .42rem;
+    }
+
+    #session-list .mc-body {
+        padding: .4rem .42rem .44rem;
+    }
+
+    #session-list .mc-footer {
+        grid-template-columns: minmax(70px, 1fr) auto;
+    }
+
+    #session-list .mc-actions .btn-approve,
+    #session-list .mc-actions .btn-reject,
+    #session-list .mc-actions .btn-edit,
+    #session-list .mc-actions .btn-distribute,
+    #session-list .mc-actions .btn-delete-approved,
+    #session-list .mc-actions .delivery-note-trigger {
+        width: 36px;
+        min-width: 36px;
+        height: 36px;
+        min-height: 36px;
+    }
+
+    .delivery-page-btn {
+        width: 38px;
+        min-width: 38px;
+        padding: 0;
+        font-size: 0;
+    }
+}
+
+@media (max-width: 420px) {
+    #entry-fields .form-grid {
+        grid-template-columns: minmax(0, 1fr) 112px;
+    }
+
+    #session-list .mc-footer {
+        grid-template-columns: 1fr;
+    }
+
+    #session-list .mc-actions {
+        justify-content: flex-end;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .reg-page *,
+    .reg-page *::before,
+    .reg-page *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+</style>
+
+
+<style id="register-v2-final">
+/* =====================================================================
+   Registro v2 — alinhado a project-deliveries
+   ===================================================================== */
+
+.reg-page {
+    --rv-green:#168a4d;
+    --rv-green-soft:#eaf8ef;
+    --rv-blue:#2563eb;
+    --rv-blue-soft:#eef4ff;
+    --rv-sky:#0284c7;
+    --rv-sky-soft:#edf8fe;
+    --rv-violet:#7c3aed;
+    --rv-violet-soft:#f4f0ff;
+    --rv-amber:#c87408;
+    --rv-amber-soft:#fff7e8;
+    --rv-red:#cf3f3f;
+    --rv-red-soft:#fff0f0;
+    --rv-slate:#64748b;
+    --rv-slate-soft:#f1f5f9;
+    --rv-border:var(--color-border,#dce7e0);
+    --rv-border-strong:var(--color-border-strong,#c8d6cd);
+    --rv-text:var(--color-text,#102018);
+    --rv-text-2:var(--color-text-secondary,#52645a);
+    --rv-text-3:var(--color-text-muted,#809087);
+    --rv-soft:var(--color-surface-soft,#f8faf9);
+}
+
+/* Seletores sempre empilhados, inclusive desktop. */
+.entry-card .card-body {
+    display:flex!important;
+    flex-direction:column!important;
+    gap:.38rem!important;
+    padding:.54rem!important;
+}
+
+@media (min-width:768px) and (max-width:1023px) {
+    .entry-card .card-body {
+        display:flex!important;
+        flex-direction:column!important;
+        gap:.38rem!important;
+        padding:.54rem!important;
+    }
+
+    .selector-row {
+        min-height:56px!important;
+        border:1px solid var(--rv-border)!important;
+        border-radius:10px!important;
+    }
+
+    #entry-fields {
+        margin-top:.04rem!important;
+        border:1px solid var(--rv-border)!important;
+        border-radius:11px!important;
+    }
+}
+
+/* Mesma lógica de cores usada em project-deliveries. */
+#sel-assoc {
+    --sel-tone:var(--rv-blue)!important;
+    --sel-soft:var(--rv-blue-soft)!important;
+}
+#sel-date {
+    --sel-tone:var(--rv-amber)!important;
+    --sel-soft:var(--rv-amber-soft)!important;
+}
+#sel-product {
+    --sel-tone:var(--rv-violet)!important;
+    --sel-soft:var(--rv-violet-soft)!important;
+}
+
+/* Quantidade: números maiores, fortes e tabulares. */
+#f-qty,
+#edit-qty,
+.quota-number,
+.mc-head-qty,
+.mc-dist-text,
+.reg-session-qty,
+.reg-session-dist-text {
+    font-variant-numeric:tabular-nums;
+    font-weight:850!important;
+}
+
+#f-qty {
+    font-size:1.02rem!important;
+    letter-spacing:.015em;
+}
+
+.sel-date-display {
+    font-variant-numeric:tabular-nums;
+    font-weight:850!important;
+}
+
+/* Header histórico */
+.reg-history-head-actions {
+    display:flex;
+    align-items:center;
+    gap:.34rem;
+}
+
+.reg-history-view-switch {
+    display:none;
+    align-items:center;
+    gap:.18rem;
+    padding:.16rem;
+    border:1px solid var(--rv-border);
+    border-radius:9px;
+    background:var(--rv-soft);
+}
+
+.reg-view-btn {
+    display:inline-flex;
+    width:31px;
+    min-width:31px;
+    height:31px;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border:0;
+    border-radius:7px;
+    background:transparent;
+    color:var(--rv-text-3);
+    cursor:pointer;
+}
+
+.reg-view-btn.active {
+    background:#fff;
+    color:var(--rv-violet);
+    box-shadow:0 1px 4px rgba(15,35,24,.08);
+}
+
+.reg-view-btn .ph-duotone {
+    font-size:15px!important;
+}
+
+@media (min-width:1100px) {
+    .reg-history-view-switch {
+        display:flex;
+    }
+}
+
+/* Cards = mesmo padrão da project-deliveries. */
+#session-list {
+    background:var(--rv-soft)!important;
+}
+
+#session-list .mobile-card {
+    padding:0!important;
+    overflow:hidden!important;
+    border:1px solid var(--rv-border)!important;
+    border-left:3px solid var(--delivery-state)!important;
+    border-radius:12px!important;
+    background:#fff!important;
+    box-shadow:none!important;
+}
+
+#session-list .mobile-card .mc-head {
+    min-height:45px!important;
+    padding:.5rem .58rem!important;
+    border-bottom:1px solid var(--rv-border)!important;
+    background:linear-gradient(90deg,var(--delivery-state-bg),#fff 72%)!important;
+}
+
+#session-list .mobile-card .mc-head-product {
+    font-size:.79rem!important;
+}
+
+#session-list .mobile-card .mc-body {
+    gap:.48rem!important;
+    padding:.56rem .58rem .6rem!important;
+    background:#fff!important;
+}
+
+#session-list .mobile-card .mc-associate {
+    font-size:.74rem!important;
+    font-weight:790!important;
+}
+
+#session-list .mc-footer {
+    display:flex!important;
+    min-width:0;
+    align-items:center;
+    gap:.4rem;
+    flex-wrap:wrap;
+    min-height:0!important;
+    padding:.42rem .46rem!important;
+    border:1px solid var(--rv-border)!important;
+    border-radius:9px!important;
+    background:var(--rv-soft)!important;
+}
+
+#session-list .mc-dist-indicator {
+    flex:1 1 118px;
+    min-width:105px;
+    display:flex!important;
+    align-items:center;
+    gap:.3rem;
+}
+
+#session-list .mc-dist-bar-bg {
+    width:auto!important;
+    max-width:none!important;
+    min-width:52px;
+    flex:1 1 auto;
+    height:6px!important;
+}
+
+#session-list .mc-actions {
+    display:flex!important;
+    gap:.18rem!important;
+    align-items:center;
+    justify-content:flex-end;
+    flex:0 0 auto;
+    flex-wrap:nowrap!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+}
+
+#session-list .mc-actions button,
+#session-list .mc-actions .delivery-note-trigger {
+    width:38px!important;
+    min-width:38px!important;
+    height:38px!important;
+    min-height:38px!important;
+    padding:0!important;
+    display:inline-flex!important;
+    align-items:center!important;
+    justify-content:center!important;
+    border-radius:9px!important;
+    font-size:0!important;
+    line-height:0!important;
+}
+
+#session-list .mc-actions .ph-duotone {
+    font-size:16px!important;
+}
+
+/* Estado/ações iguais à tela project-deliveries. */
+#session-list .btn-approve {
+    background:var(--rv-green-soft)!important;
+    color:var(--rv-green)!important;
+    border-color:rgba(22,138,77,.15)!important;
+}
+#session-list .btn-reject,
+#session-list .btn-delete-approved {
+    background:var(--rv-red-soft)!important;
+    color:var(--rv-red)!important;
+    border-color:rgba(207,63,63,.14)!important;
+}
+#session-list .btn-edit {
+    background:var(--rv-blue-soft)!important;
+    color:var(--rv-blue)!important;
+    border-color:rgba(37,99,235,.14)!important;
+}
+#session-list .btn-distribute {
+    background:var(--rv-violet-soft)!important;
+    color:var(--rv-violet)!important;
+    border-color:rgba(124,58,237,.15)!important;
+}
+#session-list .delivery-note-trigger {
+    background:var(--rv-slate-soft)!important;
+    color:var(--rv-slate)!important;
+    border-color:rgba(100,116,139,.14)!important;
+}
+
+/* Outros produtores: CTA claro e grande, sem parecer texto secundário. */
+.session-collapsible {
+    border:1px solid var(--rv-border)!important;
+    border-radius:11px!important;
+    background:#fff!important;
+}
+
+.session-collapsible > summary {
+    display:flex!important;
+    min-height:46px!important;
+    align-items:center!important;
+    justify-content:space-between!important;
+    gap:.6rem!important;
+    padding:.46rem .56rem!important;
+    background:linear-gradient(90deg,var(--rv-blue-soft),#fff 72%)!important;
+    color:var(--rv-blue)!important;
+    list-style:none!important;
+}
+
+.session-collapsible > summary::after {
+    content:none!important;
+}
+
+.session-other-main,
+.session-other-cta {
+    display:flex;
+    align-items:center;
+    gap:.34rem;
+}
+
+.session-other-main strong {
+    color:var(--rv-text);
+    font-size:.69rem;
+    font-weight:820;
+}
+
+.session-other-main .ph-duotone {
+    font-size:18px!important;
+    color:var(--rv-blue);
+}
+
+.session-other-cta {
+    min-height:30px;
+    padding:.26rem .38rem;
+    border:1px solid rgba(37,99,235,.14);
+    border-radius:8px;
+    background:#fff;
+    color:var(--rv-blue);
+    font-size:.61rem;
+    font-weight:790;
+}
+
+.session-other-cta .ph-duotone {
+    font-size:13px!important;
+    transition:transform .16s ease;
+}
+
+.session-collapsible[open] .session-other-cta .ph-duotone {
+    transform:rotate(180deg);
+}
+
+/* Tabela desktop compacta */
+.reg-session-table-wrap {
+    overflow-x:auto;
+    background:#fff;
+    scrollbar-width:thin;
+}
+
+.reg-session-table-wrap[hidden] {
+    display:none!important;
+}
+
+.reg-session-table {
+    width:100%;
+    min-width:760px;
+    border-collapse:separate;
+    border-spacing:0;
+    color:var(--rv-text);
+    font-size:.69rem;
+}
+
+.reg-session-table th {
+    padding:.52rem .52rem;
+    border-bottom:1px solid var(--rv-border);
+    background:#f7f9f8;
+    color:var(--rv-text-3);
+    font-size:.61rem;
+    font-weight:780;
+    text-align:left;
+    white-space:nowrap;
+}
+
+.reg-session-table td {
+    padding:.5rem .52rem;
+    border-bottom:1px solid var(--rv-border);
+    background:#fff;
+    vertical-align:middle;
+}
+
+.reg-session-table tr:last-child td {
+    border-bottom:0;
+}
+
+.reg-session-table tbody tr:hover td {
+    background:color-mix(in srgb,var(--rv-blue-soft) 28%,#fff);
+}
+
+.reg-session-table tr.status-pending td:first-child {
+    box-shadow:inset 3px 0 0 rgba(200,116,8,.52);
+}
+.reg-session-table tr.status-approved td:first-child,
+.reg-session-table tr.status-distributed td:first-child {
+    box-shadow:inset 3px 0 0 rgba(22,138,77,.42);
+}
+.reg-session-table tr.status-rejected td:first-child {
+    box-shadow:inset 3px 0 0 rgba(207,63,63,.46);
+}
+.reg-session-table tr.status-cancelled td:first-child {
+    box-shadow:inset 3px 0 0 rgba(100,116,139,.42);
+}
+
+.reg-table-date {
+    display:flex;
+    align-items:center;
+    gap:.34rem;
+    white-space:nowrap;
+}
+
+.reg-table-state {
+    display:inline-flex;
+    width:27px;
+    height:27px;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    background:var(--rv-slate-soft);
+    color:var(--rv-slate);
+}
+tr.status-pending .reg-table-state {background:var(--rv-amber-soft);color:var(--rv-amber)}
+tr.status-approved .reg-table-state {background:var(--rv-sky-soft);color:var(--rv-sky)}
+tr.status-distributed .reg-table-state {background:var(--rv-green-soft);color:var(--rv-green)}
+tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--rv-red)}
+
+.reg-table-state .ph-duotone {font-size:15px!important}
+
+.reg-session-associate,
+.reg-session-product {
+    max-width:220px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+
+.reg-session-associate {
+    font-weight:780;
+}
+
+.reg-session-qty {
+    font-size:.72rem;
+    white-space:nowrap;
+}
+
+.reg-table-control-row {
+    display:flex;
+    min-width:0;
+    align-items:center;
+    gap:.3rem;
+    flex-wrap:nowrap;
+}
+
+.reg-table-dist {
+    display:flex;
+    min-width:92px;
+    max-width:126px;
+    flex:1 1 100px;
+    align-items:center;
+    gap:.28rem;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:inherit;
+    cursor:pointer;
+    font:inherit;
+}
+
+.reg-table-dist-bar {
+    min-width:54px;
+    flex:1 1 auto;
+    height:6px;
+    overflow:hidden;
+    border-radius:999px;
+    background:color-mix(in srgb,var(--rv-border) 72%,#fff);
+}
+
+.reg-table-dist-fill {
+    height:100%;
+    border-radius:inherit;
+}
+.reg-table-dist-fill.partial {background:var(--rv-amber)}
+.reg-table-dist-fill.full {background:var(--rv-green)}
+.reg-table-dist-fill.over {background:var(--rv-red)}
+
+.reg-table-actions {
+    display:flex;
+    gap:.18rem;
+    align-items:center;
+    flex:0 0 auto;
+    flex-wrap:nowrap;
+}
+
+.reg-table-actions button,
+.reg-table-actions .delivery-note-trigger {
+    display:inline-flex;
+    width:31px;
+    min-width:31px;
+    height:31px;
+    min-height:31px;
+    align-items:center;
+    justify-content:center;
+    padding:0;
+    border:1px solid var(--rv-border);
+    border-radius:8px;
+    font-size:0;
+    line-height:0;
+}
+
+.reg-table-actions .ph-duotone {
+    font-size:14px!important;
+}
+
+.reg-table-action-label {
+    display:none!important;
+}
+
+.reg-table-actions .btn-approve {
+    background:var(--rv-green-soft)!important;
+    color:var(--rv-green)!important;
+    border-color:rgba(22,138,77,.15)!important;
+}
+.reg-table-actions .btn-reject,
+.reg-table-actions .btn-delete-approved {
+    background:var(--rv-red-soft)!important;
+    color:var(--rv-red)!important;
+    border-color:rgba(207,63,63,.14)!important;
+}
+.reg-table-actions .btn-edit {
+    background:var(--rv-blue-soft)!important;
+    color:var(--rv-blue)!important;
+    border-color:rgba(37,99,235,.14)!important;
+}
+.reg-table-actions .btn-distribute {
+    background:var(--rv-violet-soft)!important;
+    color:var(--rv-violet)!important;
+    border-color:rgba(124,58,237,.15)!important;
+}
+.reg-table-actions .delivery-note-trigger {
+    background:var(--rv-slate-soft)!important;
+    color:var(--rv-slate)!important;
+    border-color:rgba(100,116,139,.14)!important;
+}
+
+/* Custom calendar */
+.reg-calendar-overlay {
+    z-index:350000!important;
+}
+
+.reg-calendar-box {
+    width:min(430px,100%)!important;
+    max-height:min(90dvh,720px)!important;
+    overflow:hidden!important;
+}
+
+.reg-calendar-head {
+    background:linear-gradient(180deg,var(--rv-soft),#fff);
+}
+
+.reg-calendar-title-wrap {
+    display:flex;
+    min-width:0;
+    align-items:center;
+    gap:.44rem;
+}
+
+.reg-calendar-icon {
+    display:inline-flex;
+    width:36px;
+    height:36px;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    background:var(--rv-amber-soft);
+    color:var(--rv-amber);
+}
+
+.reg-calendar-icon .ph-duotone {
+    font-size:18px!important;
+}
+
+.reg-calendar-sub {
+    margin-top:.03rem;
+    color:var(--rv-text-3);
+    font-size:.63rem;
+}
+
+.reg-calendar-manual {
+    padding:.58rem .62rem .48rem;
+    border-bottom:1px solid var(--rv-border);
+    background:#fff;
+}
+
+.reg-calendar-manual > label {
+    display:block;
+    margin-bottom:.22rem;
+    color:var(--rv-text-3);
+    font-size:.59rem;
+    font-weight:760;
+}
+
+.reg-calendar-input-wrap {
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    gap:.32rem;
+    align-items:center;
+    min-height:42px;
+    padding:.25rem .28rem .25rem .5rem;
+    border:1px solid var(--rv-border-strong);
+    border-radius:10px;
+    background:#fff;
+}
+
+.reg-calendar-input-wrap:focus-within {
+    border-color:var(--rv-amber);
+    box-shadow:0 0 0 3px rgba(200,116,8,.07);
+}
+
+.reg-calendar-input-wrap > .ph-duotone {
+    color:var(--rv-amber);
+    font-size:16px!important;
+}
+
+#calendar-manual-input {
+    width:100%;
+    min-width:0;
+    border:0;
+    outline:0;
+    background:transparent;
+    color:var(--rv-text);
+    font:inherit;
+    font-size:.9rem;
+    font-weight:850;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.035em;
+}
+
+.reg-calendar-use-btn,
+.reg-calendar-nav-btn {
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--rv-border);
+    background:#fff;
+    color:var(--rv-text-2);
+    cursor:pointer;
+}
+
+.reg-calendar-use-btn {
+    width:34px;
+    height:34px;
+    border-radius:8px;
+    background:var(--rv-green-soft);
+    color:var(--rv-green);
+    border-color:rgba(22,138,77,.14);
+}
+
+.reg-calendar-manual-help {
+    min-height:15px;
+    margin-top:.18rem;
+    color:var(--rv-text-3);
+    font-size:.58rem;
+}
+
+.reg-calendar-manual-help.error {
+    color:var(--rv-red);
+    font-weight:720;
+}
+
+.reg-calendar-nav {
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr) auto;
+    gap:.4rem;
+    align-items:center;
+    padding:.48rem .62rem .4rem;
+}
+
+.reg-calendar-nav strong {
+    color:var(--rv-text);
+    font-size:.74rem;
+    font-weight:840;
+    text-align:center;
+    text-transform:capitalize;
+}
+
+.reg-calendar-nav-btn {
+    width:34px;
+    height:34px;
+    border-radius:9px;
+}
+
+.reg-calendar-weekdays,
+.reg-calendar-grid {
+    display:grid;
+    grid-template-columns:repeat(7,minmax(0,1fr));
+    gap:.2rem;
+    padding:0 .62rem;
+}
+
+.reg-calendar-weekdays {
+    margin-bottom:.2rem;
+}
+
+.reg-calendar-weekdays span {
+    padding:.22rem 0;
+    color:var(--rv-text-3);
+    font-size:.56rem;
+    font-weight:760;
+    text-align:center;
+}
+
+.reg-calendar-grid {
+    padding-bottom:.58rem;
+}
+
+.reg-calendar-day {
+    position:relative;
+    display:inline-flex;
+    min-width:0;
+    aspect-ratio:1;
+    align-items:center;
+    justify-content:center;
+    border:1px solid transparent;
+    border-radius:9px;
+    background:#fff;
+    color:var(--rv-text-2);
+    cursor:pointer;
+    font:inherit;
+    font-size:.7rem;
+    font-weight:740;
+    font-variant-numeric:tabular-nums;
+}
+
+.reg-calendar-day:hover,
+.reg-calendar-day:focus-visible,
+.reg-calendar-day.cursor {
+    border-color:rgba(37,99,235,.16);
+    background:var(--rv-blue-soft);
+    color:var(--rv-blue);
+    outline:none;
+}
+
+.reg-calendar-day.today::after {
+    content:"";
+    position:absolute;
+    bottom:4px;
+    width:4px;
+    height:4px;
+    border-radius:999px;
+    background:var(--rv-amber);
+}
+
+.reg-calendar-day.selected {
+    border-color:rgba(22,138,77,.16);
+    background:var(--rv-green-soft);
+    color:var(--rv-green);
+    font-weight:860;
+}
+
+.reg-calendar-day.outside {
+    opacity:.25;
+    cursor:default;
+    pointer-events:none;
+}
+
+.reg-calendar-footer {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:.5rem;
+    padding:.48rem .62rem;
+    border-top:1px solid var(--rv-border);
+    background:var(--rv-soft);
+}
+
+.reg-calendar-today {
+    display:inline-flex;
+    min-height:34px;
+    align-items:center;
+    gap:.28rem;
+    padding:.32rem .44rem;
+    border:1px solid rgba(200,116,8,.15);
+    border-radius:9px;
+    background:var(--rv-amber-soft);
+    color:var(--rv-amber);
+    cursor:pointer;
+    font:inherit;
+    font-size:.63rem;
+    font-weight:790;
+}
+
+.reg-calendar-shortcut {
+    display:flex;
+    align-items:center;
+    gap:.18rem;
+    color:var(--rv-text-3);
+    font-size:.56rem;
+}
+
+.reg-calendar-shortcut kbd {
+    min-width:20px;
+    padding:.12rem .2rem;
+    border:1px solid var(--rv-border);
+    border-bottom-width:2px;
+    border-radius:5px;
+    background:#fff;
+    color:var(--rv-text-2);
+    font:inherit;
+    font-size:.54rem;
+    text-align:center;
+}
+
+@media(max-width:767px) {
+    .reg-calendar-overlay {
+        align-items:flex-end!important;
+        padding:0!important;
+    }
+
+    .reg-calendar-box {
+        width:100%!important;
+        max-height:92svh!important;
+        border-radius:16px 16px 0 0!important;
+    }
+
+    .reg-calendar-shortcut {
+        display:none;
+    }
+}
+
+/* Em mobile/tablet os cards permanecem a visualização oficial. */
+@media(max-width:1099px) {
+    #session-list {
+        display:grid!important;
+    }
+
+    #session-table-wrap {
+        display:none!important;
+    }
+
+    .reg-history-view-switch {
+        display:none!important;
+    }
+}
+
+/* Foco do sheet não muda a densidade do layout. */
+.modal-overlay.open .modal-box,
+.dist-summary-overlay.open .dist-summary-box {
+    animation:reg-sheet-in .18s cubic-bezier(.2,.75,.25,1);
+}
+
+@keyframes reg-sheet-in {
+    from {opacity:.72;transform:translateY(10px) scale(.992)}
+    to {opacity:1;transform:none}
+}
+
+@media(prefers-reduced-motion:reduce){
+    .modal-overlay.open .modal-box,
+    .dist-summary-overlay.open .dist-summary-box {
+        animation:none;
+    }
+}
+
+/* Cards escolhidos no desktop continuam em duas colunas, sem virar "mobile ampliado". */
+@media(min-width:1100px) {
+    #session-list[style*="display: grid"],
+    #session-list[style*="display:grid"] {
+        grid-template-columns:repeat(2,minmax(0,1fr))!important;
+        gap:.52rem!important;
+        padding:.56rem!important;
+    }
+
+    #session-list .session-section-header,
+    #session-list .session-collapsible,
+    #session-list .session-empty {
+        grid-column:1/-1;
+    }
+}
+
+/* O número é a informação operacional principal. */
+#f-qty::placeholder,
+#edit-qty::placeholder {
+    font-weight:650;
+    color:var(--rv-text-3);
+}
 </style>
 
 
@@ -1765,7 +3903,12 @@
         </span>
         @endif
     </div>
-        <div class="card-header">Nova Entrega</div>
+        <div class="card-header reg-entry-title">
+            <span class="reg-section-icon reg-section-icon-amber" aria-hidden="true">
+                <i data-lucide="package-plus"></i>
+            </span>
+            <span>Nova Entrega</span>
+        </div>
         <div class="card-body" style="display:flex;flex-direction:column;gap:0.6rem;">
 
             {{-- Associate selector --}}
@@ -1783,7 +3926,16 @@
             </div>
 
             {{-- Date selector --}}
-            <div class="selector-row" id="sel-date" onclick="focusDateInput()">
+            <div
+                class="selector-row"
+                id="sel-date"
+                role="button"
+                tabindex="0"
+                onclick="focusDateInput()"
+                onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); focusDateInput(); }"
+                aria-haspopup="dialog"
+                aria-controls="modal-date"
+            >
                 <div class="sel-icon">
                     <i data-lucide="calendar" style="width:16px;height:16px"></i>
                 </div>
@@ -1791,9 +3943,7 @@
                     <div class="sel-label">Data da entrega</div>
                     <div class="sel-date-display" id="date-display">{{ date('d/m/Y') }}</div>
                 </div>
-                <input type="date" id="f-date" value="{{ date('Y-m-d') }}"
-                    style="position:absolute;opacity:0;pointer-events:none;width:0;height:0"
-                    onchange="onDateChange(this.value)">
+                <input type="hidden" id="f-date" value="{{ date('Y-m-d') }}">
                 <div class="sel-chevron">
                     <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
                 </div>
@@ -1831,9 +3981,38 @@
                             <button class="q-pill" data-q="C">C</button>
                         </div>
                     </div>
-                    <div>
-                        <label class="field-label" for="f-notes">Observações</label>
-                        <input class="field-input" type="text" id="f-notes" placeholder="Opcional">
+                    <div class="reg-notes-control">
+                        <label class="field-label">Observações</label>
+
+                        <button
+                            type="button"
+                            class="reg-notes-toggle"
+                            id="reg-notes-toggle"
+                            onclick="toggleEntryNotes()"
+                            aria-controls="reg-notes-field"
+                            aria-expanded="false"
+                        >
+                            <span class="reg-notes-toggle-icon" aria-hidden="true">
+                                <i data-lucide="message-square-plus"></i>
+                            </span>
+
+                            <span class="reg-notes-toggle-copy">
+                                <strong>Adicionar observação</strong>
+                                <small id="reg-notes-toggle-hint">Opcional</small>
+                            </span>
+
+                            <i data-lucide="chevron-down" class="reg-notes-toggle-chevron"></i>
+                        </button>
+
+                        <div class="reg-notes-field" id="reg-notes-field" hidden>
+                            <input
+                                class="field-input"
+                                type="text"
+                                id="f-notes"
+                                placeholder="Digite uma observação opcional"
+                                autocomplete="off"
+                            >
+                        </div>
                     </div>
                 </div>
 
@@ -1850,9 +4029,41 @@
 
     {{-- ─── SESSION LIST ─────────────────────────────── --}}
     <div class="card history-card">
-        <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;padding-right:1rem;padding-bottom:.6rem;">
-            <span id="session-list-title">Registros desta sessão</span>
-            <span id="session-count" style="font-size:0.8rem;font-weight:600;color:var(--color-primary);text-transform:none;letter-spacing:0"></span>
+        <div class="card-header reg-history-head">
+            <div class="reg-history-title">
+                <span class="reg-section-icon reg-section-icon-violet" aria-hidden="true">
+                    <i data-lucide="clock-counter-clockwise"></i>
+                </span>
+                <span id="session-list-title">Registros desta sessão</span>
+            </div>
+
+            <div class="reg-history-head-actions">
+                <span id="session-count"></span>
+
+                <div class="reg-history-view-switch" id="reg-history-view-switch" role="group" aria-label="Visualização do histórico">
+                    <button
+                        type="button"
+                        class="reg-view-btn"
+                        data-history-view="cards"
+                        onclick="setHistoryView('cards')"
+                        title="Visualizar em cards"
+                        aria-label="Visualizar em cards"
+                    >
+                        <i class="ph-duotone ph-squares-four"></i>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="reg-view-btn"
+                        data-history-view="table"
+                        onclick="setHistoryView('table')"
+                        title="Visualizar em tabela"
+                        aria-label="Visualizar em tabela"
+                    >
+                        <i class="ph-duotone ph-table"></i>
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="reg-integrity" id="reg-integrity" hidden>
             <div class="reg-integrity-head">
@@ -1891,11 +4102,30 @@
             <button class="hf-more" id="history-filter-toggle" type="button" onclick="toggleHistoryFilters()" aria-expanded="false" title="Mais filtros" aria-label="Mostrar mais filtros">
                 <i data-lucide="sliders-horizontal"></i>
             </button>
-            <button class="hf-clear" onclick="clearFilter()" title="Limpar filtros" aria-label="Limpar filtros">Limpar</button>
+            <button class="hf-clear" onclick="clearFilter()" title="Limpar filtros" aria-label="Limpar filtros">
+                <i data-lucide="eraser"></i>
+                <span class="hf-clear-label">Limpar</span>
+            </button>
         </div>
         <div id="session-list">
             <div class="session-empty" id="session-empty">Selecione um projeto para ver o histórico de entregas</div>
         </div>
+
+        <div class="reg-session-table-wrap" id="session-table-wrap" hidden>
+            <table class="reg-session-table" aria-label="Histórico de entregas">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Produtor</th>
+                        <th>Produto</th>
+                        <th>Quantidade</th>
+                        <th>Distribuição</th>
+                    </tr>
+                </thead>
+                <tbody id="session-table-body"></tbody>
+            </table>
+        </div>
+
         <div class="delivery-pagination" id="session-pagination" style="display:none">
             <div class="delivery-pagination-info" id="session-page-info"></div>
             <div class="delivery-pagination-actions">
@@ -1919,21 +4149,158 @@
     <i data-lucide="arrow-up" style="width:18px;height:18px"></i>
 </button>
 
-<div class="dist-summary-overlay" id="dist-summary-overlay">
+
+<div class="modal-overlay register-confirm-overlay" id="register-confirm-overlay" aria-hidden="true">
+    <div
+        class="modal-box register-confirm-box"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="register-confirm-title"
+        aria-describedby="register-confirm-message"
+    >
+        <div class="register-confirm-head">
+            <span class="register-confirm-icon" id="register-confirm-icon" aria-hidden="true">
+                <i class="ph-duotone ph-question"></i>
+            </span>
+
+            <div class="register-confirm-copy">
+                <strong id="register-confirm-title">Confirmar ação</strong>
+                <p id="register-confirm-message"></p>
+            </div>
+        </div>
+
+        <div class="register-confirm-footer">
+            <button type="button" class="register-confirm-btn cancel" id="register-confirm-cancel">
+                Cancelar
+            </button>
+
+            <button type="button" class="register-confirm-btn confirm" id="register-confirm-ok">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="dist-summary-overlay" id="dist-summary-overlay" aria-hidden="true">
     <div class="dist-summary-box" role="dialog" aria-modal="true" aria-labelledby="dist-summary-title">
         <div class="dist-summary-head">
-            <div>
-                <div class="dist-summary-title" id="dist-summary-title">Distribuicoes</div>
-                <div class="dist-summary-sub" id="dist-summary-sub"></div>
+            <div class="dist-summary-head-main">
+                <span class="dist-summary-head-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-git-merge"></i>
+                </span>
+
+                <div>
+                    <div class="dist-summary-title" id="dist-summary-title">Distribuições</div>
+                    <div class="dist-summary-sub" id="dist-summary-sub"></div>
+                </div>
             </div>
-            <button type="button" class="dist-summary-close" onclick="closeDistSummary()" aria-label="Fechar">x</button>
+
+            <button type="button" class="dist-summary-close" onclick="closeDistSummary()" aria-label="Fechar">
+                <i class="ph-duotone ph-x"></i>
+            </button>
         </div>
-        <div class="dist-summary-body" id="dist-summary-body"></div>
+
+        <div class="dist-summary-body">
+            <div class="dist-summary-overview" id="dist-summary-overview"></div>
+            <div class="dist-summary-list" id="dist-summary-list"></div>
+        </div>
+    </div>
+</div>
+
+
+{{-- Custom calendar --}}
+<div class="modal-overlay reg-calendar-overlay" id="modal-date" aria-hidden="true">
+    <div class="modal-box reg-calendar-box" role="dialog" aria-modal="true" aria-labelledby="calendar-title">
+        <div class="modal-header reg-calendar-head">
+            <div class="reg-calendar-title-wrap">
+                <span class="reg-calendar-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-calendar-dots"></i>
+                </span>
+                <div>
+                    <span class="modal-title" id="calendar-title">Data da entrega</span>
+                    <div class="reg-calendar-sub">Selecione no calendário ou digite a data</div>
+                </div>
+            </div>
+
+            <button class="modal-close" type="button" onclick="closeCalendarSheet()" aria-label="Fechar calendário">
+                <i class="ph-duotone ph-x"></i>
+            </button>
+        </div>
+
+        <div class="reg-calendar-body register-sheet-scroll">
+            <div class="reg-calendar-selection">
+                <span class="reg-calendar-selection-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-calendar-check"></i>
+                </span>
+                <div>
+                    <small>Data selecionada</small>
+                    <strong id="calendar-selected-label">—</strong>
+                </div>
+            </div>
+
+            <div class="reg-calendar-manual">
+                <label for="calendar-manual-input">Digitar manualmente</label>
+                <div class="reg-calendar-input-wrap">
+                    <i class="ph-duotone ph-keyboard"></i>
+                    <input
+                        id="calendar-manual-input"
+                        type="text"
+                        inputmode="numeric"
+                        maxlength="10"
+                        placeholder="dd/mm/aaaa"
+                        autocomplete="off"
+                        aria-describedby="calendar-manual-help"
+                    >
+                    <button
+                        type="button"
+                        class="reg-calendar-use-btn"
+                        onclick="applyManualCalendarDate()"
+                        title="Usar data digitada"
+                        aria-label="Usar data digitada"
+                    >
+                        <i class="ph-duotone ph-check"></i>
+                    </button>
+                </div>
+                <div class="reg-calendar-manual-help" id="calendar-manual-help">Formato: dia/mês/ano</div>
+            </div>
+
+            <div class="reg-calendar-month-card">
+                <div class="reg-calendar-nav">
+                    <button type="button" class="reg-calendar-nav-btn" onclick="calendarChangeMonth(-1)" aria-label="Mês anterior">
+                        <i class="ph-duotone ph-caret-left"></i>
+                    </button>
+
+                    <strong id="calendar-month-label"></strong>
+
+                    <button type="button" class="reg-calendar-nav-btn" onclick="calendarChangeMonth(1)" aria-label="Próximo mês">
+                        <i class="ph-duotone ph-caret-right"></i>
+                    </button>
+                </div>
+
+                <div class="reg-calendar-weekdays" aria-hidden="true">
+                    <span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+                </div>
+
+                <div class="reg-calendar-grid" id="calendar-grid" role="grid" aria-label="Calendário"></div>
+            </div>
+        </div>
+
+        <div class="reg-calendar-footer">
+            <button type="button" class="reg-calendar-today" onclick="calendarUseToday()">
+                <i class="ph-duotone ph-calendar-check"></i>
+                Hoje
+            </button>
+
+            <span class="reg-calendar-shortcut">
+                <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd>
+                <span>Navegar</span>
+            </span>
+        </div>
     </div>
 </div>
 
 {{-- Project modal --}}
-<div class="modal-overlay" id="modal-project">
+<div class="modal-overlay" id="modal-project" aria-hidden="true">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Projeto</span>
@@ -1949,7 +4316,7 @@
 </div>
 
 {{-- Associate modal --}}
-<div class="modal-overlay" id="modal-assoc">
+<div class="modal-overlay" id="modal-assoc" aria-hidden="true">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Associado</span>
@@ -1965,7 +4332,7 @@
 </div>
 
 {{-- Product modal --}}
-<div class="modal-overlay" id="modal-product">
+<div class="modal-overlay" id="modal-product" aria-hidden="true">
     <div class="modal-box">
         <div class="modal-header">
             <span class="modal-title">Selecionar Produto</span>
@@ -1993,7 +4360,7 @@
 </div>
 
 {{-- Gestão rápida de cota do associado --}}
-<div class="modal-overlay" id="modal-quota">
+<div class="modal-overlay" id="modal-quota" aria-hidden="true">
     <div class="modal-box quota-modal-box" role="dialog" aria-modal="true" aria-labelledby="quota-modal-title">
         <div class="modal-header">
             <div>
@@ -2009,7 +4376,7 @@
         </div>
         <div class="quota-footer" id="quota-footer" hidden>
             <button class="btn-small danger" id="quota-delete-btn" type="button" onclick="deleteQuickQuota()" hidden>
-                <i data-lucide="trash-2"></i>
+                <i class="ph-duotone ph-trash"></i>
                 Remover limite
             </button>
             <div style="display:flex;gap:.4rem;margin-left:auto">
@@ -2027,35 +4394,1011 @@
 <div id="toast-root"></div>
 
 {{-- ─────────────── MODAL EDITAR ENTREGA (mantido) ──────────────── --}}
-<div class="modal-overlay" id="modal-edit">
-    <div class="modal-box" style="max-width:400px">
+<div class="modal-overlay" id="modal-edit" aria-hidden="true">
+    <div class="modal-box reg-edit-box" role="dialog" aria-modal="true" aria-labelledby="reg-edit-title">
         <div class="modal-header">
-            <span class="modal-title">Editar Entrega</span>
+            <div class="reg-sheet-title-wrap">
+                <span class="reg-sheet-title-icon blue" aria-hidden="true">
+                    <i class="ph-duotone ph-pencil-simple"></i>
+                </span>
+                <div>
+                    <span class="modal-title" id="reg-edit-title">Editar entrega</span>
+                    <div class="reg-sheet-subtitle">Ajuste os dados do registro</div>
+                </div>
+            </div>
             <button class="modal-close" onclick="closeModal('edit')" aria-label="Fechar">
-                <i data-lucide="x" style="width:16px;height:16px"></i>
+                <i class="ph-duotone ph-x"></i>
             </button>
         </div>
-        <div style="padding:1rem;display:flex;flex-direction:column;gap:.75rem">
+
+        <div class="reg-edit-body register-sheet-scroll">
             <div>
-                <label class="field-label">Quantidade <span id="edit-unit-lbl" style="font-weight:400;color:var(--color-text-muted)"></span></label>
-                <input class="field-input" type="number" id="edit-qty" min="0.001" step="0.001" style="margin-top:.35rem">
+                <label class="field-label">Quantidade <span id="edit-unit-lbl"></span></label>
+                <input class="field-input reg-number-input" type="number" id="edit-qty" min="0.001" step="0.001">
             </div>
+
             <div>
                 <label class="field-label">Data da entrega</label>
-                <input class="field-input" type="date" id="edit-date" style="margin-top:.35rem">
+                <input class="field-input reg-date-input" type="date" id="edit-date">
             </div>
+
             <div>
                 <label class="field-label">Qualidade</label>
-                <div class="quality-group" id="edit-quality-pills" style="margin-top:.35rem">
+                <div class="quality-group" id="edit-quality-pills">
                     <button type="button" class="q-pill active" data-q="A">A</button>
                     <button type="button" class="q-pill" data-q="B">B</button>
                     <button type="button" class="q-pill" data-q="C">C</button>
                 </div>
             </div>
-            <button type="button" class="btn-submit" id="edit-save-btn" onclick="saveEdit()" style="margin-top:.25rem">Salvar</button>
+        </div>
+
+        <div class="reg-edit-footer">
+            <button type="button" class="reg-sheet-action secondary" onclick="closeModal('edit')">
+                Cancelar
+            </button>
+            <button type="button" class="reg-sheet-action primary" id="edit-save-btn" onclick="saveEdit()">
+                <i class="ph-duotone ph-floppy-disk"></i>
+                Salvar alterações
+            </button>
         </div>
     </div>
 </div>
+
+
+<style id="register-mobile-sheet-system-v3">
+/* =====================================================================
+   Sheets, calendário, confirmação e viewport móvel
+   ===================================================================== */
+
+/*
+ * Os sheets ficam fora de .reg-page no DOM. Portanto, repetimos aqui
+ * a mesma paleta usada na project-deliveries para que calendário,
+ * confirmação, cota, edição e distribuição herdem as cores corretas.
+ */
+.reg-page,
+.modal-overlay,
+.dist-summary-overlay,
+#dm-overlay,
+#delivery-notes-overlay {
+    --rv-green:#168a4d;
+    --rv-green-soft:#eaf8ef;
+    --rv-blue:#2563eb;
+    --rv-blue-soft:#eef4ff;
+    --rv-sky:#0284c7;
+    --rv-sky-soft:#edf8fe;
+    --rv-violet:#7c3aed;
+    --rv-violet-soft:#f4f0ff;
+    --rv-amber:#c87408;
+    --rv-amber-soft:#fff7e8;
+    --rv-red:#cf3f3f;
+    --rv-red-soft:#fff0f0;
+    --rv-slate:#64748b;
+    --rv-slate-soft:#f1f5f9;
+    --rv-border:var(--color-border,#dce7e0);
+    --rv-border-strong:var(--color-border-strong,#c8d6cd);
+    --rv-text:var(--color-text,#102018);
+    --rv-text-2:var(--color-text-secondary,#52645a);
+    --rv-text-3:var(--color-text-muted,#809087);
+    --rv-soft:var(--color-surface-soft,#f8faf9);
+}
+
+:root {
+    --reg-vv-height: 100dvh;
+    --reg-vv-top: 0px;
+    --reg-keyboard-height: 0px;
+}
+
+html.register-sheet-open,
+body.register-sheet-open {
+    overscroll-behavior-y: none !important;
+}
+
+body.register-sheet-open {
+    overflow: hidden !important;
+}
+
+/* Overlay ocupa exatamente a viewport visível, inclusive com teclado. */
+.modal-overlay,
+.dist-summary-overlay,
+#dm-overlay,
+#delivery-notes-overlay {
+    box-sizing: border-box;
+}
+
+body.register-sheet-open .modal-overlay.open,
+body.register-sheet-open .dist-summary-overlay.open,
+body.register-sheet-open #dm-overlay.open,
+body.register-sheet-open #delivery-notes-overlay.open {
+    top: var(--reg-vv-top) !important;
+    bottom: auto !important;
+    height: var(--reg-vv-height) !important;
+    max-height: var(--reg-vv-height) !important;
+    overscroll-behavior: none !important;
+}
+
+/* Somente o conteúdo interno deve rolar. */
+.modal-box,
+.quota-modal-box,
+.dist-summary-box,
+.reg-calendar-box,
+.reg-edit-box {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+}
+
+.modal-header,
+.product-modal-actions,
+.quota-footer,
+.reg-edit-footer,
+.dist-summary-head,
+.reg-calendar-head,
+.reg-calendar-footer {
+    flex: 0 0 auto !important;
+}
+
+.modal-list,
+.quota-body,
+.reg-edit-body,
+.dist-summary-body,
+.reg-calendar-body,
+.register-sheet-scroll,
+#dm-overlay .dm-body {
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+
+.modal-list::-webkit-scrollbar,
+.quota-body::-webkit-scrollbar,
+.reg-edit-body::-webkit-scrollbar,
+.dist-summary-body::-webkit-scrollbar,
+.reg-calendar-body::-webkit-scrollbar,
+.register-sheet-scroll::-webkit-scrollbar,
+#dm-overlay .dm-body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+/* Entrada do overlay e do sheet. */
+.modal-overlay.open,
+.dist-summary-overlay.open {
+    animation: reg-overlay-fade .16s ease both;
+}
+
+.modal-overlay.open .modal-box,
+.dist-summary-overlay.open .dist-summary-box,
+#dm-overlay.open .dm-box,
+#delivery-notes-overlay.open > :first-child {
+    animation: reg-sheet-enter .24s cubic-bezier(.22,.78,.24,1) both;
+    transform-origin: bottom center;
+}
+
+@keyframes reg-overlay-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes reg-sheet-enter {
+    from {
+        opacity: .72;
+        transform: translateY(22px) scale(.992);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ---------- Custom confirm ---------- */
+
+.register-confirm-overlay {
+    z-index: 410000 !important;
+    place-items: center !important;
+    padding: 1rem !important;
+}
+
+.register-confirm-box {
+    width: min(430px, 100%) !important;
+    border-radius: 16px !important;
+}
+
+.register-confirm-head {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr);
+    gap: .58rem;
+    align-items: start;
+    padding: .78rem;
+}
+
+.register-confirm-icon {
+    display: inline-flex;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 11px;
+    background: var(--rv-blue-soft);
+    color: var(--rv-blue);
+}
+
+.register-confirm-icon .ph-duotone {
+    font-size: 21px !important;
+}
+
+.register-confirm-box.danger .register-confirm-icon {
+    background: var(--rv-red-soft);
+    color: var(--rv-red);
+}
+
+.register-confirm-box.success .register-confirm-icon {
+    background: var(--rv-green-soft);
+    color: var(--rv-green);
+}
+
+.register-confirm-copy {
+    min-width: 0;
+}
+
+.register-confirm-copy strong {
+    display: block;
+    color: var(--rv-text);
+    font-size: .82rem;
+    font-weight: 850;
+}
+
+.register-confirm-copy p {
+    margin: .13rem 0 0;
+    color: var(--rv-text-2);
+    font-size: .7rem;
+    line-height: 1.48;
+}
+
+.register-confirm-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .38rem;
+    padding: .58rem .68rem calc(.58rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rv-border);
+    background: var(--rv-soft);
+}
+
+.register-confirm-btn {
+    min-height: 42px;
+    border: 1px solid var(--rv-border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--rv-text-2);
+    cursor: pointer;
+    font: inherit;
+    font-size: .7rem;
+    font-weight: 810;
+}
+
+.register-confirm-btn.confirm {
+    border-color: rgba(37,99,235,.16);
+    background: var(--rv-blue-soft);
+    color: var(--rv-blue);
+}
+
+.register-confirm-box.danger .register-confirm-btn.confirm {
+    border-color: rgba(207,63,63,.16);
+    background: var(--rv-red-soft);
+    color: var(--rv-red);
+}
+
+.register-confirm-box.success .register-confirm-btn.confirm {
+    border-color: rgba(22,138,77,.16);
+    background: var(--rv-green-soft);
+    color: var(--rv-green);
+}
+
+/* ---------- Todos os sheets ---------- */
+
+.reg-sheet-title-wrap {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: .44rem;
+}
+
+.reg-sheet-title-icon {
+    display: inline-flex;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+.reg-sheet-title-icon.blue {
+    background: var(--rv-blue-soft);
+    color: var(--rv-blue);
+}
+
+.reg-sheet-subtitle {
+    margin-top: .02rem;
+    color: var(--rv-text-3);
+    font-size: .61rem;
+}
+
+.reg-edit-box {
+    width: min(430px, 100%) !important;
+}
+
+.reg-edit-body {
+    display: grid;
+    gap: .7rem;
+    padding: .72rem;
+}
+
+.reg-edit-body .field-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: .28rem;
+}
+
+.reg-edit-body #edit-unit-lbl {
+    color: var(--rv-text-3);
+    font-size: .62rem;
+    font-weight: 760;
+}
+
+.reg-edit-body .field-input {
+    margin: 0 !important;
+    min-height: 44px;
+}
+
+.reg-number-input {
+    font-weight: 850 !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.reg-edit-body .quality-group {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: .35rem;
+    margin: 0 !important;
+}
+
+.reg-edit-footer {
+    display: grid;
+    grid-template-columns: minmax(105px,.7fr) minmax(160px,1fr);
+    gap: .4rem;
+    padding: .58rem .68rem calc(.58rem + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--rv-border);
+    background: #fff;
+}
+
+.reg-sheet-action {
+    display: inline-flex;
+    min-height: 43px;
+    align-items: center;
+    justify-content: center;
+    gap: .28rem;
+    border: 1px solid var(--rv-border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--rv-text-2);
+    cursor: pointer;
+    font: inherit;
+    font-size: .69rem;
+    font-weight: 810;
+}
+
+.reg-sheet-action.primary {
+    border-color: rgba(37,99,235,.16);
+    background: var(--rv-blue-soft);
+    color: var(--rv-blue);
+}
+
+/* Produto/cota: ações maiores e realmente tocáveis. */
+.mi-quota-edit {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+}
+
+.mi-quota-edit .ph-duotone,
+.mi-quota-edit i {
+    font-size: 16px !important;
+}
+
+.product-modal-actions .btn-small,
+.quota-footer .btn-small {
+    min-height: 40px !important;
+    padding: .42rem .62rem !important;
+    border-radius: 10px !important;
+    font-size: .68rem !important;
+    font-weight: 810 !important;
+}
+
+.quota-footer {
+    gap: .42rem !important;
+    padding: .56rem .62rem calc(.56rem + env(safe-area-inset-bottom)) !important;
+}
+
+.quota-footer > div {
+    display: grid !important;
+    grid-template-columns: minmax(92px,.7fr) minmax(130px,1fr);
+    gap: .4rem !important;
+    flex: 1 1 auto;
+    margin-left: 0 !important;
+}
+
+.quota-footer #quota-delete-btn {
+    flex: 0 0 auto;
+}
+
+/* ---------- Calendário premium ---------- */
+
+.reg-calendar-box {
+    width: min(455px, 100%) !important;
+    max-height: min(92dvh, 760px) !important;
+    border-radius: 17px !important;
+}
+
+.reg-calendar-head {
+    min-height: 64px;
+    padding: .62rem .68rem !important;
+    background:
+        radial-gradient(circle at 100% 0, rgba(200,116,8,.10), transparent 13rem),
+        linear-gradient(180deg,var(--rv-soft),#fff) !important;
+}
+
+.reg-calendar-icon {
+    width: 40px !important;
+    height: 40px !important;
+    border-radius: 11px !important;
+}
+
+.reg-calendar-body {
+    padding: .62rem;
+    background: #fff;
+}
+
+.reg-calendar-selection {
+    display: grid;
+    grid-template-columns: auto minmax(0,1fr);
+    gap: .48rem;
+    align-items: center;
+    margin-bottom: .5rem;
+    padding: .48rem .54rem;
+    border: 1px solid rgba(200,116,8,.15);
+    border-radius: 11px;
+    background: linear-gradient(90deg,var(--rv-amber-soft),#fff 82%);
+}
+
+.reg-calendar-selection-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: #fff;
+    color: var(--rv-amber);
+}
+
+.reg-calendar-selection small {
+    display: block;
+    color: var(--rv-text-3);
+    font-size: .56rem;
+    font-weight: 740;
+}
+
+.reg-calendar-selection strong {
+    display: block;
+    margin-top: .02rem;
+    color: var(--rv-text);
+    font-size: .82rem;
+    font-weight: 880;
+    font-variant-numeric: tabular-nums;
+}
+
+.reg-calendar-manual {
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+}
+
+.reg-calendar-input-wrap {
+    min-height: 45px !important;
+    padding: .25rem .3rem .25rem .56rem !important;
+    border-radius: 11px !important;
+}
+
+#calendar-manual-input {
+    font-size: .96rem !important;
+    font-weight: 880 !important;
+}
+
+.reg-calendar-use-btn {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 9px !important;
+}
+
+.reg-calendar-month-card {
+    margin-top: .58rem;
+    padding: .42rem .42rem .46rem;
+    border: 1px solid var(--rv-border);
+    border-radius: 13px;
+    background: var(--rv-soft);
+}
+
+.reg-calendar-nav {
+    padding: .08rem .05rem .42rem !important;
+}
+
+.reg-calendar-nav strong {
+    font-size: .8rem !important;
+    font-weight: 880 !important;
+}
+
+.reg-calendar-nav-btn {
+    width: 37px !important;
+    height: 37px !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+}
+
+.reg-calendar-weekdays,
+.reg-calendar-grid {
+    gap: .28rem !important;
+    padding: 0 !important;
+}
+
+.reg-calendar-weekdays {
+    margin-bottom: .22rem !important;
+}
+
+.reg-calendar-weekdays span {
+    padding: .2rem 0 !important;
+    font-size: .57rem !important;
+}
+
+.reg-calendar-day {
+    min-height: 40px;
+    aspect-ratio: 1;
+    border-radius: 10px !important;
+    background: #fff !important;
+    font-size: .72rem !important;
+    font-weight: 790 !important;
+}
+
+.reg-calendar-day:hover,
+.reg-calendar-day:focus-visible,
+.reg-calendar-day.cursor {
+    border-color: rgba(200,116,8,.22) !important;
+    background: var(--rv-amber-soft) !important;
+    color: var(--rv-amber) !important;
+    box-shadow: 0 0 0 2px rgba(200,116,8,.045);
+}
+
+.reg-calendar-day.selected {
+    border-color: var(--rv-amber) !important;
+    background: var(--rv-amber) !important;
+    color: #fff !important;
+    box-shadow: 0 5px 12px rgba(200,116,8,.18);
+}
+
+.reg-calendar-day.today:not(.selected)::after {
+    background: var(--rv-blue) !important;
+}
+
+.reg-calendar-footer {
+    min-height: 52px;
+    padding: .48rem .62rem calc(.48rem + env(safe-area-inset-bottom)) !important;
+    background: linear-gradient(180deg,#fff,var(--rv-soft)) !important;
+}
+
+/* ---------- Detalhamento de distribuições ---------- */
+
+.dist-summary-box {
+    display: flex !important;
+    flex-direction: column !important;
+    width: min(520px, 100%) !important;
+    max-height: min(86dvh, 680px) !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+}
+
+.dist-summary-head {
+    min-height: 60px;
+    display: grid !important;
+    grid-template-columns: minmax(0,1fr) auto !important;
+    align-items: center !important;
+    gap: .5rem !important;
+    padding: .58rem .64rem !important;
+}
+
+.dist-summary-head-main {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: auto minmax(0,1fr);
+    gap: .45rem;
+    align-items: center;
+}
+
+.dist-summary-head-icon {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--rv-violet-soft);
+    color: var(--rv-violet);
+}
+
+.dist-summary-head-icon .ph-duotone {
+    font-size: 18px !important;
+}
+
+.dist-summary-close {
+    width: 34px !important;
+    height: 34px !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--rv-border) !important;
+    border-radius: 9px !important;
+    background: #fff !important;
+}
+
+.dist-summary-body {
+    flex: 1 1 auto;
+    display: grid !important;
+    align-content: start;
+    gap: .48rem !important;
+    padding: .56rem !important;
+    background: var(--rv-soft);
+}
+
+.dist-summary-overview {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    gap: .34rem;
+    padding: .44rem;
+    border: 1px solid var(--rv-border);
+    border-radius: 11px;
+    background: #fff;
+}
+
+.dist-summary-metric {
+    min-width: 0;
+    padding: .38rem .42rem;
+    border-radius: 9px;
+    background: var(--rv-soft);
+}
+
+.dist-summary-metric span {
+    display: block;
+    color: var(--rv-text-3);
+    font-size: .55rem;
+    font-weight: 730;
+}
+
+.dist-summary-metric strong {
+    display: block;
+    margin-top: .04rem;
+    overflow: hidden;
+    color: var(--rv-text);
+    font-size: .72rem;
+    font-weight: 880;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dist-summary-progress {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    gap: .38rem;
+    align-items: center;
+}
+
+.dist-summary-progress-track {
+    height: 7px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb,var(--rv-border) 80%,#fff);
+}
+
+.dist-summary-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--rv-violet);
+}
+
+.dist-summary-progress-fill.complete {
+    background: var(--rv-green);
+}
+
+.dist-summary-progress-fill.over {
+    background: var(--rv-red);
+}
+
+.dist-summary-progress strong {
+    color: var(--rv-text-2);
+    font-size: .62rem;
+    font-weight: 850;
+}
+
+.dist-summary-list {
+    display: grid;
+    gap: .34rem;
+}
+
+.dist-summary-row {
+    display: grid !important;
+    grid-template-columns: auto minmax(0,1fr) auto !important;
+    gap: .45rem !important;
+    align-items: center !important;
+    padding: .48rem .5rem !important;
+    border: 1px solid var(--rv-border) !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+}
+
+.dist-summary-row-icon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: var(--rv-blue-soft);
+    color: var(--rv-blue);
+}
+
+.dist-summary-row-icon .ph-duotone {
+    font-size: 15px !important;
+}
+
+.dist-summary-row-main {
+    min-width: 0;
+}
+
+.dist-summary-row-main strong {
+    display: block;
+    overflow: hidden;
+    color: var(--rv-text);
+    font-size: .7rem;
+    font-weight: 820;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dist-summary-row-main small {
+    display: block;
+    margin-top: .04rem;
+    color: var(--rv-text-3);
+    font-size: .58rem;
+}
+
+.dist-summary-row-values {
+    min-width: 0;
+    text-align: right;
+}
+
+.dist-summary-row-values strong {
+    display: block;
+    color: var(--rv-text);
+    font-size: .69rem;
+    font-weight: 880;
+    font-variant-numeric: tabular-nums;
+}
+
+.dist-summary-row-values small {
+    display: block;
+    margin-top: .04rem;
+    color: var(--rv-green);
+    font-size: .58rem;
+    font-weight: 760;
+}
+
+/* ---------- Mobile ---------- */
+
+@media(max-width:767px) {
+    .modal-overlay,
+    .dist-summary-overlay,
+    #dm-overlay,
+    #delivery-notes-overlay {
+        align-items: flex-end !important;
+        justify-content: center !important;
+        padding: 0 !important;
+    }
+
+    .modal-box,
+    .quota-modal-box,
+    .reg-calendar-box,
+    .reg-edit-box,
+    .dist-summary-box,
+    #dm-overlay .dm-box,
+    #delivery-notes-overlay > :first-child {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        border-right: 0 !important;
+        border-bottom: 0 !important;
+        border-left: 0 !important;
+        border-radius: 18px 18px 0 0 !important;
+        max-height: calc(var(--reg-vv-height) - 8px) !important;
+    }
+
+    body.register-keyboard-visible .modal-box,
+    body.register-keyboard-visible .quota-modal-box,
+    body.register-keyboard-visible .reg-calendar-box,
+    body.register-keyboard-visible .reg-edit-box,
+    body.register-keyboard-visible .dist-summary-box,
+    body.register-keyboard-visible #dm-overlay .dm-box,
+    body.register-keyboard-visible #delivery-notes-overlay > :first-child {
+        max-height: var(--reg-vv-height) !important;
+        border-radius: 14px 14px 0 0 !important;
+    }
+
+    .product-modal-actions {
+        grid-template-columns: 46px minmax(0,1fr) !important;
+        gap: .38rem !important;
+        padding: .46rem .52rem !important;
+    }
+
+    .product-modal-actions .btn-small {
+        min-height: 44px !important;
+    }
+
+    #refresh-products-btn {
+        width: 46px !important;
+        min-width: 46px !important;
+        height: 44px !important;
+    }
+
+    #add-product-limit-btn {
+        font-size: .68rem !important;
+    }
+
+    .product-limit-item {
+        min-height: 62px !important;
+        padding: .48rem .52rem !important;
+    }
+
+    .product-limit-item .mi-quota-edit {
+        width: 42px !important;
+        min-width: 42px !important;
+        height: 42px !important;
+        min-height: 42px !important;
+    }
+
+    .quota-footer {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .quota-footer #quota-delete-btn {
+        width: 100% !important;
+        min-height: 44px !important;
+    }
+
+    .quota-footer > div {
+        width: 100%;
+        grid-template-columns: 1fr 1.35fr !important;
+    }
+
+    .quota-footer .btn-small {
+        min-height: 44px !important;
+        font-size: .68rem !important;
+    }
+
+    .reg-edit-footer {
+        grid-template-columns: 1fr 1.35fr;
+    }
+
+    .reg-edit-footer .reg-sheet-action {
+        min-height: 45px;
+    }
+
+    .reg-calendar-box {
+        max-height: calc(var(--reg-vv-height) - 4px) !important;
+    }
+
+    .reg-calendar-body {
+        padding: .54rem;
+    }
+
+    .reg-calendar-month-card {
+        margin-top: .5rem;
+    }
+
+    .reg-calendar-day {
+        min-height: 39px;
+    }
+
+    .reg-calendar-shortcut {
+        display: none !important;
+    }
+
+    .dist-summary-box {
+        max-height: min(calc(var(--reg-vv-height) - 6px), 78dvh) !important;
+    }
+
+    .dist-summary-overview {
+        grid-template-columns: repeat(3,minmax(0,1fr));
+    }
+
+    .dist-summary-metric {
+        padding: .34rem .3rem;
+    }
+
+    .dist-summary-metric span {
+        font-size: .51rem;
+    }
+
+    .dist-summary-metric strong {
+        font-size: .66rem;
+    }
+
+    .register-confirm-overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .register-confirm-box {
+        width: 100% !important;
+        max-width: none !important;
+        border-radius: 18px 18px 0 0 !important;
+    }
+
+    .register-confirm-btn {
+        min-height: 45px;
+    }
+}
+
+@media(max-width:380px) {
+    .reg-calendar-body {
+        padding: .46rem;
+    }
+
+    .reg-calendar-day {
+        min-height: 36px;
+        font-size: .68rem !important;
+    }
+
+    .dist-summary-overview {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .dist-summary-progress {
+        grid-column: 1 / -1;
+    }
+
+    .dist-summary-metric:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .modal-overlay.open,
+    .dist-summary-overlay.open,
+    .modal-overlay.open .modal-box,
+    .dist-summary-overlay.open .dist-summary-box,
+    #dm-overlay.open .dm-box,
+    #delivery-notes-overlay.open > :first-child {
+        animation: none !important;
+    }
+}
+</style>
 
 <script>
 (function () {
@@ -2099,6 +5442,7 @@ const S = {
     keyboardStage     : 'project',
     listPage          : 1,
     listPerPage       : 30,
+    historyView       : null,
 };
 
 const Q = {
@@ -2114,7 +5458,926 @@ const Q = {
 /* ─── DOM refs ───────────────────────────────────── */
 const $ = (id) => document.getElementById(id);
 
+
+/* ─── History-aware sheets ───────────────────────── */
+const REGISTER_SHEET_STATE_KEY = '__sgcRegisterSheet';
+let registerCurrentSheet = null;
+let registerHandlingPopState = false;
+const registerSheetRegistry = new Map();
+
+function isCompactDevice() {
+    return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function registerSheet(key, openDirect, closeDirect) {
+    registerSheetRegistry.set(key, { openDirect, closeDirect });
+}
+
+function pushRegisterSheetState(key) {
+    if (registerHandlingPopState) return;
+    if (history.state?.[REGISTER_SHEET_STATE_KEY] === key) {
+        registerCurrentSheet = key;
+        return;
+    }
+
+    const nextState = {
+        ...(history.state || {}),
+        [REGISTER_SHEET_STATE_KEY]: key,
+    };
+
+    history.pushState(nextState, '', window.location.href);
+    registerCurrentSheet = key;
+}
+
+function requestRegisterSheetClose(key, closeDirect) {
+    if (registerHandlingPopState) {
+        closeDirect?.();
+        if (registerCurrentSheet === key) registerCurrentSheet = null;
+        return;
+    }
+
+    if (
+        registerCurrentSheet === key
+        && history.state?.[REGISTER_SHEET_STATE_KEY] === key
+    ) {
+        history.back();
+        return;
+    }
+
+    closeDirect?.();
+    if (registerCurrentSheet === key) registerCurrentSheet = null;
+}
+
+function closeTopRegisterSheet() {
+    if (!registerCurrentSheet) return false;
+
+    if (history.state?.[REGISTER_SHEET_STATE_KEY] === registerCurrentSheet) {
+        history.back();
+        return true;
+    }
+
+    const handler = registerSheetRegistry.get(registerCurrentSheet);
+    handler?.closeDirect?.();
+    registerCurrentSheet = null;
+    return true;
+}
+
+window.addEventListener('popstate', event => {
+    const targetKey = event.state?.[REGISTER_SHEET_STATE_KEY] || null;
+    const previousKey = registerCurrentSheet;
+
+    registerHandlingPopState = true;
+
+    try {
+        if (previousKey && previousKey !== targetKey) {
+            registerSheetRegistry.get(previousKey)?.closeDirect?.();
+        }
+
+        registerCurrentSheet = targetKey;
+
+        if (targetKey) {
+            registerSheetRegistry.get(targetKey)?.openDirect?.(true);
+        }
+    } finally {
+        registerHandlingPopState = false;
+        syncRegisterSheetEnvironment();
+    }
+});
+
+/*
+ * Um reload não deve restaurar um "sheet fantasma" no history.state.
+ * Mantém as outras propriedades de state da aplicação.
+ */
+if (history.state?.[REGISTER_SHEET_STATE_KEY]) {
+    history.replaceState(
+        {
+            ...(history.state || {}),
+            [REGISTER_SHEET_STATE_KEY]: null,
+        },
+        '',
+        window.location.href
+    );
+}
+
+
+/* Sheets renderizados por componentes Blade externos (ex.: observações). */
+function installExternalSheetHistoryObserver({
+    selector,
+    key,
+    openClass = 'open',
+}) {
+    const element = document.querySelector(selector);
+    if (!element || element.dataset.registerHistoryObserved === '1') return;
+
+    element.dataset.registerHistoryObserved = '1';
+
+    registerSheet(
+        key,
+        () => element.classList.add(openClass),
+        () => element.classList.remove(openClass)
+    );
+
+    let wasOpen = element.classList.contains(openClass);
+
+    const observer = new MutationObserver(() => {
+        const isOpen = element.classList.contains(openClass);
+
+        if (
+            isOpen
+            && !wasOpen
+            && !registerHandlingPopState
+            && registerCurrentSheet !== key
+        ) {
+            pushRegisterSheetState(key);
+        } else if (
+            !isOpen
+            && wasOpen
+            && !registerHandlingPopState
+            && registerCurrentSheet === key
+            && history.state?.[REGISTER_SHEET_STATE_KEY] === key
+        ) {
+            /*
+             * O componente fechou por conta própria. Voltamos uma posição
+             * para não deixar um estado de sheet fantasma no histórico.
+             */
+            history.back();
+        }
+
+        wasOpen = isOpen;
+    });
+
+    observer.observe(element, {
+        attributes: true,
+        attributeFilter: ['class'],
+    });
+}
+
+function installExternalSheetHistoryObservers() {
+    installExternalSheetHistoryObserver({
+        selector: '#delivery-notes-overlay',
+        key: 'notes',
+    });
+}
+
+
+/* ─── Global sheet environment / custom confirm ──── */
+
+let registerLockedScrollY = 0;
+let registerBodyLockActive = false;
+let registerTouchStartY = 0;
+let registerConfirmResolver = null;
+let registerConfirmLastFocus = null;
+
+function getRegisterOpenSheets() {
+    return Array.from(document.querySelectorAll([
+        '.modal-overlay.open',
+        '.dist-summary-overlay.open',
+        '#dm-overlay.open',
+        '#delivery-notes-overlay.open',
+    ].join(',')));
+}
+
+function syncRegisterVisualViewport() {
+    const vv = window.visualViewport;
+    const height = vv?.height || window.innerHeight;
+    const top = vv?.offsetTop || 0;
+    const keyboardHeight = Math.max(
+        0,
+        window.innerHeight - height - top
+    );
+    const keyboardVisible = keyboardHeight > 110;
+
+    document.documentElement.style.setProperty(
+        '--reg-vv-height',
+        `${Math.round(height)}px`
+    );
+    document.documentElement.style.setProperty(
+        '--reg-vv-top',
+        `${Math.round(top)}px`
+    );
+    document.documentElement.style.setProperty(
+        '--reg-keyboard-height',
+        `${Math.round(keyboardHeight)}px`
+    );
+
+    document.body.classList.toggle(
+        'register-keyboard-visible',
+        keyboardVisible
+    );
+}
+
+function lockRegisterPageScroll() {
+    if (registerBodyLockActive) return;
+
+    registerLockedScrollY = window.scrollY || window.pageYOffset || 0;
+    registerBodyLockActive = true;
+
+    document.documentElement.classList.add('register-sheet-open');
+    document.body.classList.add('register-sheet-open');
+
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${registerLockedScrollY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+
+    syncRegisterVisualViewport();
+}
+
+function unlockRegisterPageScroll() {
+    if (!registerBodyLockActive) return;
+
+    registerBodyLockActive = false;
+
+    document.documentElement.classList.remove('register-sheet-open');
+    document.body.classList.remove(
+        'register-sheet-open',
+        'register-keyboard-visible'
+    );
+
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+
+    window.scrollTo(0, registerLockedScrollY);
+}
+
+function syncRegisterSheetEnvironment() {
+    const hasOpen = getRegisterOpenSheets().length > 0;
+
+    if (hasOpen) {
+        lockRegisterPageScroll();
+        syncRegisterVisualViewport();
+    } else {
+        unlockRegisterPageScroll();
+    }
+}
+
+function registerFindScrollableElement(target) {
+    const openSheet = target?.closest?.(
+        '.modal-overlay.open, .dist-summary-overlay.open, #dm-overlay.open, #delivery-notes-overlay.open'
+    );
+
+    if (!openSheet) return null;
+
+    let node = target instanceof Element ? target : null;
+
+    while (node && node !== openSheet) {
+        const style = window.getComputedStyle(node);
+        const canScroll = (
+            /(auto|scroll)/.test(style.overflowY)
+            && node.scrollHeight > node.clientHeight + 1
+        );
+
+        if (canScroll) return node;
+        node = node.parentElement;
+    }
+
+    return null;
+}
+
+/*
+ * Evita pull-to-refresh e "bounce" no fundo da página enquanto há sheet.
+ * Mantém o scroll normal da área interna do sheet.
+ */
+document.addEventListener('touchstart', event => {
+    if (!registerBodyLockActive) return;
+    registerTouchStartY = event.touches?.[0]?.clientY || 0;
+}, { passive: true });
+
+document.addEventListener('touchmove', event => {
+    if (!registerBodyLockActive) return;
+    if (!event.touches?.length) return;
+
+    const target = event.target;
+
+    if (
+        target?.closest?.(
+            'input[type="range"], [data-register-allow-touch="true"]'
+        )
+    ) {
+        return;
+    }
+
+    const scrollable = registerFindScrollableElement(target);
+    const currentY = event.touches[0].clientY;
+    const deltaY = currentY - registerTouchStartY;
+
+    if (!scrollable) {
+        event.preventDefault();
+        return;
+    }
+
+    const atTop = scrollable.scrollTop <= 0;
+    const atBottom = (
+        scrollable.scrollTop + scrollable.clientHeight
+        >= scrollable.scrollHeight - 1
+    );
+
+    if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener(
+        'resize',
+        syncRegisterVisualViewport,
+        { passive: true }
+    );
+    window.visualViewport.addEventListener(
+        'scroll',
+        syncRegisterVisualViewport,
+        { passive: true }
+    );
+}
+
+window.addEventListener(
+    'orientationchange',
+    () => window.setTimeout(syncRegisterVisualViewport, 80),
+    { passive: true }
+);
+
+const registerSheetEnvironmentObserver = new MutationObserver(() => {
+    syncRegisterSheetEnvironment();
+});
+
+document.querySelectorAll(
+    '.modal-overlay, .dist-summary-overlay, #dm-overlay, #delivery-notes-overlay'
+).forEach(element => {
+    registerSheetEnvironmentObserver.observe(element, {
+        attributes: true,
+        attributeFilter: ['class'],
+    });
+});
+
+function closeRegisterConfirmDirect(result = false) {
+    const overlay = $('register-confirm-overlay');
+    if (!overlay) return;
+
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+
+    const resolver = registerConfirmResolver;
+    registerConfirmResolver = null;
+
+    const focusTarget = registerConfirmLastFocus;
+    registerConfirmLastFocus = null;
+
+    resolver?.(result);
+    focusTarget?.focus?.({ preventScroll: true });
+}
+
+function registerConfirm({
+    title = 'Confirmar ação',
+    message = 'Deseja continuar?',
+    confirmLabel = 'Confirmar',
+    cancelLabel = 'Cancelar',
+    tone = 'default',
+    icon = null,
+} = {}) {
+    const overlay = $('register-confirm-overlay');
+    const box = overlay?.querySelector('.register-confirm-box');
+
+    if (!overlay || !box) {
+        return Promise.resolve(false);
+    }
+
+    if (registerConfirmResolver) {
+        registerConfirmResolver(false);
+        registerConfirmResolver = null;
+    }
+
+    registerConfirmLastFocus = document.activeElement;
+
+    $('register-confirm-title').textContent = title;
+    $('register-confirm-message').textContent = message;
+    $('register-confirm-ok').textContent = confirmLabel;
+    $('register-confirm-cancel').textContent = cancelLabel;
+
+    box.classList.remove('danger', 'success');
+    if (tone === 'danger') box.classList.add('danger');
+    if (tone === 'success') box.classList.add('success');
+
+    const iconName = icon || (
+        tone === 'danger'
+            ? 'warning'
+            : tone === 'success'
+                ? 'check-circle'
+                : 'question'
+    );
+
+    $('register-confirm-icon').innerHTML =
+        `<i class="ph-duotone ph-${iconName}"></i>`;
+
+    registerSheet(
+        'confirm',
+        () => {
+            overlay.classList.add('open');
+            overlay.setAttribute('aria-hidden', 'false');
+        },
+        () => closeRegisterConfirmDirect(false)
+    );
+
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    pushRegisterSheetState('confirm');
+
+    return new Promise(resolve => {
+        registerConfirmResolver = resolve;
+
+        if (!isCompactDevice()) {
+            window.setTimeout(() => {
+                $('register-confirm-cancel')?.focus({ preventScroll: true });
+            }, 40);
+        }
+    });
+}
+
+function resolveRegisterConfirm(value) {
+    if (
+        registerCurrentSheet === 'confirm'
+        && history.state?.[REGISTER_SHEET_STATE_KEY] === 'confirm'
+    ) {
+        const resolver = registerConfirmResolver;
+        registerConfirmResolver = null;
+
+        registerConfirmLastFocus?.focus?.({ preventScroll: true });
+        registerConfirmLastFocus = null;
+
+        $('register-confirm-overlay')?.classList.remove('open');
+        $('register-confirm-overlay')?.setAttribute('aria-hidden', 'true');
+
+        history.back();
+        resolver?.(value);
+        return;
+    }
+
+    closeRegisterConfirmDirect(value);
+}
+
+$('register-confirm-ok')?.addEventListener(
+    'click',
+    () => resolveRegisterConfirm(true)
+);
+
+$('register-confirm-cancel')?.addEventListener(
+    'click',
+    () => resolveRegisterConfirm(false)
+);
+
+$('register-confirm-overlay')?.addEventListener('click', event => {
+    if (event.target === $('register-confirm-overlay')) {
+        resolveRegisterConfirm(false);
+    }
+});
+
+
+/* ─── Custom calendar ────────────────────────────── */
+const REGISTER_CALENDAR = {
+    viewYear: new Date().getFullYear(),
+    viewMonth: new Date().getMonth(),
+    selectedIso: null,
+    cursorIso: null,
+};
+
+function isoFromDateParts(year, month, day) {
+    const y = Number(year);
+    const m = Number(month);
+    const d = Number(day);
+
+    if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) {
+        return null;
+    }
+
+    const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+
+    if (
+        date.getFullYear() !== y
+        || date.getMonth() !== m - 1
+        || date.getDate() !== d
+    ) {
+        return null;
+    }
+
+    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function isoToBr(iso) {
+    if (!iso) return '';
+    const [y, m, d] = String(iso).split('-');
+    return `${d}/${m}/${y}`;
+}
+
+function parseBrDate(value) {
+    const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+    return isoFromDateParts(match[3], match[2], match[1]);
+}
+
+function maskCalendarDateInput(value) {
+    const digits = String(value || '').replace(/\D/g, '').slice(0, 8);
+    const parts = [];
+
+    if (digits.length > 0) parts.push(digits.slice(0, 2));
+    if (digits.length > 2) parts.push(digits.slice(2, 4));
+    if (digits.length > 4) parts.push(digits.slice(4, 8));
+
+    return parts.join('/');
+}
+
+function setCalendarViewFromIso(iso) {
+    const [y, m] = String(iso || '').split('-').map(Number);
+    if (!y || !m) return;
+
+    REGISTER_CALENDAR.viewYear = y;
+    REGISTER_CALENDAR.viewMonth = m - 1;
+}
+
+function calendarMonthLabel() {
+    return new Intl.DateTimeFormat('pt-BR', {
+        month: 'long',
+        year: 'numeric',
+    }).format(
+        new Date(
+            REGISTER_CALENDAR.viewYear,
+            REGISTER_CALENDAR.viewMonth,
+            1,
+            12
+        )
+    );
+}
+
+function renderCalendar() {
+    const grid = $('calendar-grid');
+    const label = $('calendar-month-label');
+    if (!grid || !label) return;
+
+    label.textContent = calendarMonthLabel();
+
+    const selectedLabel = $('calendar-selected-label');
+    if (selectedLabel) {
+        selectedLabel.textContent = REGISTER_CALENDAR.selectedIso
+            ? isoToBr(REGISTER_CALENDAR.selectedIso)
+            : 'Nenhuma data';
+    }
+
+    const year = REGISTER_CALENDAR.viewYear;
+    const month = REGISTER_CALENDAR.viewMonth;
+    const first = new Date(year, month, 1, 12);
+    const daysInMonth = new Date(year, month + 1, 0, 12).getDate();
+    const mondayOffset = (first.getDay() + 6) % 7;
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    const cells = [];
+
+    for (let i = 0; i < mondayOffset; i++) {
+        cells.push('<span class="reg-calendar-day outside" aria-hidden="true"></span>');
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const iso = isoFromDateParts(year, month + 1, day);
+        const selected = iso === REGISTER_CALENDAR.selectedIso;
+        const cursor = iso === REGISTER_CALENDAR.cursorIso;
+        const today = iso === todayIso;
+
+        cells.push(`
+            <button
+                type="button"
+                class="reg-calendar-day${selected ? ' selected' : ''}${cursor ? ' cursor' : ''}${today ? ' today' : ''}"
+                data-calendar-date="${iso}"
+                role="gridcell"
+                aria-selected="${selected ? 'true' : 'false'}"
+                title="${isoToBr(iso)}"
+                onclick="calendarSelectDate('${iso}')"
+            >${day}</button>
+        `);
+    }
+
+    grid.innerHTML = cells.join('');
+}
+
+function openCalendarDirect(fromHistory = false) {
+    const overlay = $('modal-date');
+    if (!overlay) return;
+
+    const currentIso = $('f-date')?.value || new Date().toISOString().slice(0, 10);
+
+    REGISTER_CALENDAR.selectedIso = currentIso;
+    REGISTER_CALENDAR.cursorIso = currentIso;
+    setCalendarViewFromIso(currentIso);
+
+    const manual = $('calendar-manual-input');
+    if (manual) manual.value = isoToBr(currentIso);
+
+    const help = $('calendar-manual-help');
+    help?.classList.remove('error');
+    if (help) help.textContent = 'Formato: dia/mês/ano';
+
+    renderCalendar();
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    syncRegisterSheetEnvironment();
+
+    if (!fromHistory && !isCompactDevice()) {
+        window.setTimeout(() => {
+            const selectedDay = document.querySelector(
+                `[data-calendar-date="${REGISTER_CALENDAR.cursorIso}"]`
+            );
+
+            selectedDay?.focus({ preventScroll: true });
+        }, 35);
+    }
+}
+
+function openCalendarSheet() {
+    registerSheet(
+        'date',
+        openCalendarDirect,
+        () => {
+            $('modal-date')?.classList.remove('open');
+            $('modal-date')?.setAttribute('aria-hidden', 'true');
+        }
+    );
+
+    openCalendarDirect(false);
+    pushRegisterSheetState('date');
+}
+
+function closeCalendarDirect() {
+    $('modal-date')?.classList.remove('open');
+    $('modal-date')?.setAttribute('aria-hidden', 'true');
+    syncRegisterSheetEnvironment();
+}
+
+function closeCalendarSheet() {
+    requestRegisterSheetClose('date', closeCalendarDirect);
+}
+
+function calendarChangeMonth(delta) {
+    REGISTER_CALENDAR.viewMonth += Number(delta || 0);
+
+    if (REGISTER_CALENDAR.viewMonth < 0) {
+        REGISTER_CALENDAR.viewMonth = 11;
+        REGISTER_CALENDAR.viewYear -= 1;
+    } else if (REGISTER_CALENDAR.viewMonth > 11) {
+        REGISTER_CALENDAR.viewMonth = 0;
+        REGISTER_CALENDAR.viewYear += 1;
+    }
+
+    renderCalendar();
+}
+
+function applyCalendarIso(iso) {
+    if (!iso) return false;
+
+    const input = $('f-date');
+    if (!input) return false;
+
+    input.value = iso;
+    REGISTER_CALENDAR.selectedIso = iso;
+    REGISTER_CALENDAR.cursorIso = iso;
+
+    onDateChange(iso);
+    closeCalendarSheet();
+
+    return true;
+}
+
+function calendarSelectDate(iso) {
+    applyCalendarIso(iso);
+}
+
+function calendarUseToday() {
+    applyCalendarIso(new Date().toISOString().slice(0, 10));
+}
+
+function applyManualCalendarDate() {
+    const input = $('calendar-manual-input');
+    const help = $('calendar-manual-help');
+    const iso = parseBrDate(input?.value || '');
+
+    if (!iso) {
+        help?.classList.add('error');
+        if (help) help.textContent = 'Informe uma data válida no formato dd/mm/aaaa.';
+
+        if (!isCompactDevice()) {
+            input?.focus({ preventScroll: true });
+            input?.select?.();
+        }
+
+        return;
+    }
+
+    applyCalendarIso(iso);
+}
+
+$('calendar-manual-input')?.addEventListener('input', event => {
+    event.target.value = maskCalendarDateInput(event.target.value);
+
+    const iso = parseBrDate(event.target.value);
+    const help = $('calendar-manual-help');
+
+    if (iso) {
+        help?.classList.remove('error');
+        if (help) help.textContent = 'Pressione Enter ou toque no botão para usar esta data.';
+
+        REGISTER_CALENDAR.selectedIso = iso;
+        REGISTER_CALENDAR.cursorIso = iso;
+        setCalendarViewFromIso(iso);
+        renderCalendar();
+    } else if (String(event.target.value || '').length === 10) {
+        help?.classList.add('error');
+        if (help) help.textContent = 'Data inválida.';
+    } else {
+        help?.classList.remove('error');
+        if (help) help.textContent = 'Ex.: 22/08/2026';
+    }
+});
+
+$('calendar-manual-input')?.addEventListener('keydown', event => {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        applyManualCalendarDate();
+    }
+});
+
+document.addEventListener('keydown', event => {
+    if (!$('modal-date')?.classList.contains('open')) return;
+
+    const manual = $('calendar-manual-input');
+
+    if (event.target === manual) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeCalendarSheet();
+        }
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closeCalendarSheet();
+        return;
+    }
+
+    const cursor = REGISTER_CALENDAR.cursorIso
+        || REGISTER_CALENDAR.selectedIso
+        || $('f-date')?.value
+        || new Date().toISOString().slice(0, 10);
+
+    const [y, m, d] = cursor.split('-').map(Number);
+    const base = new Date(y, m - 1, d, 12);
+
+    let delta = null;
+
+    if (event.key === 'ArrowLeft') delta = -1;
+    if (event.key === 'ArrowRight') delta = 1;
+    if (event.key === 'ArrowUp') delta = -7;
+    if (event.key === 'ArrowDown') delta = 7;
+
+    if (event.key === 'PageUp' || event.key === 'PageDown') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        calendarChangeMonth(event.key === 'PageUp' ? -1 : 1);
+        return;
+    }
+
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        applyCalendarIso(cursor);
+        return;
+    }
+
+    if (delta !== null) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        base.setDate(base.getDate() + delta);
+
+        const nextIso = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+
+        REGISTER_CALENDAR.cursorIso = nextIso;
+        REGISTER_CALENDAR.selectedIso = nextIso;
+        REGISTER_CALENDAR.viewYear = base.getFullYear();
+        REGISTER_CALENDAR.viewMonth = base.getMonth();
+
+        if (manual) manual.value = isoToBr(nextIso);
+
+        renderCalendar();
+
+        window.requestAnimationFrame(() => {
+            document.querySelector(`[data-calendar-date="${nextIso}"]`)?.focus?.({ preventScroll: true });
+        });
+    }
+}, true);
+
+/* ─── History view ───────────────────────────────── */
+function defaultHistoryView() {
+    if (window.matchMedia('(max-width: 1099px)').matches) return 'cards';
+
+    const saved = window.localStorage?.getItem('sgc.register.historyView');
+    return saved === 'cards' || saved === 'table' ? saved : 'table';
+}
+
+function applyHistoryView() {
+    const cards = $('session-list');
+    const table = $('session-table-wrap');
+    const compact = window.matchMedia('(max-width: 1099px)').matches;
+    const view = compact ? 'cards' : (S.historyView || defaultHistoryView());
+
+    if (cards) cards.style.display = view === 'cards' ? 'grid' : 'none';
+
+    if (table) {
+        table.hidden = view !== 'table';
+        table.style.display = view === 'table' ? 'block' : 'none';
+    }
+
+    document.querySelectorAll('[data-history-view]').forEach(button => {
+        const active = button.dataset.historyView === view;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+}
+
+function setHistoryView(view) {
+    if (!['cards', 'table'].includes(view)) return;
+
+    S.historyView = view;
+
+    if (!window.matchMedia('(max-width: 1099px)').matches) {
+        try {
+            window.localStorage?.setItem('sgc.register.historyView', view);
+        } catch (_) {}
+    }
+
+    applyHistoryView();
+}
+
+let registerHistoryResizeTimer = null;
+
+window.addEventListener('resize', () => {
+    window.clearTimeout(registerHistoryResizeTimer);
+    registerHistoryResizeTimer = window.setTimeout(applyHistoryView, 80);
+}, { passive: true });
+
 /* ─── Highlight state for modals ─────────────────── */
+
+const REGISTER_ICON_MAP = Object.freeze({
+    'folder-open': 'folder-open',
+    'user': 'user',
+    'calendar': 'calendar-dots',
+    'chevron-right': 'caret-right',
+    'chevron-left': 'caret-left',
+    'chevron-down': 'caret-down',
+    'package': 'package',
+    'package-plus': 'package',
+    'message-square-plus': 'chat-circle-dots',
+    'message-square-text': 'chat-text',
+    'shield-alert': 'shield-warning',
+    'sliders-horizontal': 'sliders-horizontal',
+    'arrow-up': 'arrow-up',
+    'refresh-cw': 'arrows-clockwise',
+    'plus': 'plus',
+    'trash-2': 'trash',
+    'loader-circle': 'spinner-gap',
+    'save': 'floppy-disk',
+    'triangle-alert': 'warning',
+    'panel-top-close': 'sliders-horizontal',
+    'check': 'check-circle',
+    'x': 'x-circle',
+    'pencil': 'pencil-simple',
+    'route': 'git-merge',
+    'clock-counter-clockwise': 'clock-counter-clockwise',
+    'eraser': 'eraser',
+});
+
+function upgradeRegisterIcons(root = document) {
+    root.querySelectorAll?.('[data-lucide]').forEach(element => {
+        const requested = element.getAttribute('data-lucide') || '';
+        const icon = REGISTER_ICON_MAP[requested] || requested || 'circle';
+
+        const next = document.createElement('i');
+        next.className = `ph-duotone ph-${icon}`;
+
+        const title = element.getAttribute('title');
+        const aria = element.getAttribute('aria-label');
+        const hidden = element.getAttribute('aria-hidden');
+
+        if (title) next.setAttribute('title', title);
+        if (aria) next.setAttribute('aria-label', aria);
+        if (hidden) next.setAttribute('aria-hidden', hidden);
+
+        element.replaceWith(next);
+    });
+}
+
 const modalHighlightIndex = { project: -1, assoc: -1, product: -1 };
 
 function resetModalHighlight(type) {
@@ -2169,6 +6432,36 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+
+/*
+ * Navegação por teclado dos sheets de seleção também funciona quando
+ * nenhum input recebeu foco (importante porque mobile não recebe autofocus).
+ */
+document.addEventListener('keydown', function(e) {
+    if (e.target?.classList?.contains('modal-search')) return;
+    if (isTypingField(e.target)) return;
+
+    const type = ['project', 'assoc', 'product'].find(name =>
+        $('modal-' + name)?.classList.contains('open')
+    );
+
+    if (!type) return;
+
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        highlightModalItem(type, modalHighlightIndex[type] + 1);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        highlightModalItem(type, modalHighlightIndex[type] - 1);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        selectModalHighlight(type);
+    }
+}, true);
+
 /* ─── Keep highlight in sync with mouse clicks ───── */
 document.addEventListener('click', function(e) {
     const item = e.target.closest('.modal-item');
@@ -2200,6 +6493,111 @@ function init() {
     bindQualityPills();
     bindQtyInput();
     bindScrollTopButton();
+    S.historyView = defaultHistoryView();
+    applyHistoryView();
+    
+installDistModalHistoryBridge();
+
+/*
+ * O componente unificado ainda possui confirmações nativas em fluxos
+ * legados de edição/remoção. Interceptamos somente esses pontos para
+ * manter toda a experiência dentro do padrão visual do SGC.
+ */
+if (
+    window.DistModal?.editExisting
+    && window.DistModal?.saveExistingEdit
+    && !window.__registerDistEditConfirmInstalled
+) {
+    window.__registerDistEditConfirmInstalled = true;
+
+    const nativeDistEditExisting =
+        window.DistModal.editExisting.bind(window.DistModal);
+    const nativeDistSaveExisting =
+        window.DistModal.saveExistingEdit.bind(window.DistModal);
+
+    window.DistModal.editExisting = function(distributionId) {
+        const row = document.getElementById('dmex-' + distributionId);
+
+        if (row) {
+            row.dataset.registerWasInReceipt =
+                row.querySelector('.dm-status-badge.receipt') ? '1' : '0';
+        }
+
+        return nativeDistEditExisting(distributionId);
+    };
+
+    window.DistModal.saveExistingEdit = async function(distributionId) {
+        const row = document.getElementById('dmex-' + distributionId);
+        const needsReceiptConfirm =
+            row?.dataset.registerWasInReceipt === '1';
+
+        if (needsReceiptConfirm) {
+            const confirmed = await registerConfirm({
+                title: 'Editar distribuição vinculada',
+                message: 'Esta distribuição está em um comprovante. Ao editar, o comprovante poderá precisar ser conferido novamente.',
+                confirmLabel: 'Continuar edição',
+                tone: 'danger',
+                icon: 'warning',
+            });
+
+            if (!confirmed) {
+                window.DistModal.cancelExistingEdit?.();
+                return;
+            }
+        }
+
+        const originalWindowConfirm = window.confirm;
+
+        try {
+            window.confirm = () => true;
+            const result = nativeDistSaveExisting(distributionId);
+            window.confirm = originalWindowConfirm;
+            return await result;
+        } finally {
+            window.confirm = originalWindowConfirm;
+        }
+    };
+}
+
+if (
+    window.DistModal?.deleteExisting
+    && window.DistModal?.performDelete
+    && !window.__registerDistDeleteConfirmInstalled
+) {
+    window.__registerDistDeleteConfirmInstalled = true;
+
+    const nativeDistDeleteExisting =
+        window.DistModal.deleteExisting.bind(window.DistModal);
+
+    window.DistModal.deleteExisting = async function(distributionId) {
+        const row = document.getElementById('dmex-' + distributionId);
+        const inReceipt = !!row?.querySelector('.dm-status-badge.receipt');
+
+        /*
+         * Distribuição em comprovante já possui proteção especial no
+         * componente. Mantemos esse fluxo próprio.
+         */
+        if (inReceipt) {
+            return nativeDistDeleteExisting(distributionId);
+        }
+
+        const confirmed = await registerConfirm({
+            title: 'Remover distribuição',
+            message: 'Deseja remover esta distribuição? Os totais da entrega serão atualizados.',
+            confirmLabel: 'Remover',
+            tone: 'danger',
+            icon: 'trash',
+        });
+
+        if (!confirmed) return;
+
+        return window.DistModal.performDelete(distributionId, {});
+    };
+}
+
+syncRegisterSheetEnvironment();
+
+    installExternalSheetHistoryObservers();
     syncKeyboardStage();
 }
 
@@ -2266,7 +6664,7 @@ function toggleRegisterIntegrity() {
     btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
     const icon = btn.querySelector('i');
     if (icon) icon.setAttribute('data-lucide', opening ? 'chevron-up' : 'chevron-down');
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    upgradeRegisterIcons(list);
 }
 
 function integrityActionLabel(key) {
@@ -2304,7 +6702,7 @@ function renderRegisterIntegrity(integrity) {
             ${action ? `<div class="reg-integrity-actions">${action}</div>` : ''}
         </div>`;
     }).join('') || '<div class="reg-integrity-message">Nenhuma pendencia encontrada.</div>';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    upgradeRegisterIcons(document);
 }
 
 async function loadRegisterIntegrity(projectId) {
@@ -2343,7 +6741,15 @@ async function handleRegisterIntegrityAction(button) {
         : action === 'restore_parent_delivery'
             ? 'Restaurar a entrega-pai excluida? Quantidades, valores e comprovantes nao serao alterados.'
             : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
-    if (!confirm(question)) return;
+    const confirmed = await registerConfirm({
+        title: 'Confirmar correção',
+        message: question,
+        confirmLabel: 'Continuar',
+        tone: actionKey === 'restore_parent_delivery' ? 'default' : 'danger',
+        icon: actionKey === 'restore_parent_delivery' ? 'arrow-counter-clockwise' : 'warning',
+    });
+
+    if (!confirmed) return;
     button.disabled = true;
     try {
         const res = await fetch(ROUTES.resolveIntegrity(S.project.id), {
@@ -2402,7 +6808,7 @@ async function refreshProductList() {
     try {
         button.disabled = true;
         button.innerHTML = '<i data-lucide="loader-circle"></i> Atualizando';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        upgradeRegisterIcons(document);
         await loadDemands(S.project.id, S.associate?.id);
 
         if (selectedProductId) {
@@ -2415,7 +6821,7 @@ async function refreshProductList() {
     } finally {
         button.disabled = false;
         button.innerHTML = '<i data-lucide="refresh-cw"></i> Atualizar lista';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        upgradeRegisterIcons(document);
     }
 }
 
@@ -2430,7 +6836,15 @@ async function openQuickQuota(productId = null) {
     }
 
     const overlay = $('modal-quota');
+
+    registerSheet(
+        'quota',
+        () => overlay.classList.add('open'),
+        () => overlay.classList.remove('open')
+    );
+
     overlay.classList.add('open');
+    pushRegisterSheetState('quota');
     $('quota-associate-name').textContent = S.associate.nickname || S.associate.name;
     $('quota-footer').hidden = true;
     $('quota-body').innerHTML = '<div class="modal-empty">Carregando limites...</div>';
@@ -2469,9 +6883,14 @@ async function openQuickQuota(productId = null) {
 
 function closeQuickQuota(force = false) {
     if (Q.busy && !force) return;
-    $('modal-quota').classList.remove('open');
-    Q.selected = null;
-    Q.current = null;
+
+    const closeDirect = () => {
+        $('modal-quota')?.classList.remove('open');
+        Q.selected = null;
+        Q.current = null;
+    };
+
+    requestRegisterSheetClose('quota', closeDirect);
 }
 
 function renderQuickQuotaPicker() {
@@ -2482,7 +6901,9 @@ function renderQuickQuotaPicker() {
         '<div class="quota-picker-list" id="quota-picker-list"></div>';
     $('quota-product-search').addEventListener('input', renderQuickQuotaPickerItems);
     renderQuickQuotaPickerItems();
-    setTimeout(() => $('quota-product-search')?.focus(), 40);
+    if (!isCompactDevice()) {
+        setTimeout(() => $('quota-product-search')?.focus({ preventScroll: true }), 40);
+    }
 }
 
 function renderQuickQuotaPickerItems() {
@@ -2572,7 +6993,7 @@ function renderQuickQuotaEditor() {
     $('quota-modal-title').textContent = Q.current ? 'Editar limite do produto' : 'Adicionar produto permitido';
     $('quota-footer').hidden = false;
     $('quota-delete-btn').hidden = !Q.current;
-    $('quota-delete-btn').innerHTML = '<i data-lucide="trash-2"></i> Remover limite';
+    $('quota-delete-btn').innerHTML = '<i class="ph-duotone ph-trash"></i> Remover limite';
 
     $('quota-body').innerHTML =
         '<div><strong style="font-size:.92rem">' + escHtml(product.name) + '</strong><div class="mi-sub">' +
@@ -2594,7 +7015,7 @@ function renderQuickQuotaEditor() {
     $('quota-number').addEventListener('input', event => updateQuickQuota(event.target.value, true));
     $('quota-number').addEventListener('blur', commitQuickQuota);
     refreshQuickQuotaEditor();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    upgradeRegisterIcons(document);
 }
 
 function progressTone(element, percent) {
@@ -2717,31 +7138,47 @@ async function saveQuickQuota() {
         Q.busy = false;
         button.disabled = false;
         button.innerHTML = '<i data-lucide="save"></i> Salvar limite';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        upgradeRegisterIcons(document);
     }
 }
 
 async function deleteQuickQuota() {
     if (!Q.current?.delete_url || Q.busy) return;
+
+    const confirmed = await registerConfirm({
+        title: 'Remover limite do produto',
+        message: 'O limite será removido. As entregas já registradas serão preservadas.',
+        confirmLabel: 'Remover limite',
+        tone: 'danger',
+        icon: 'trash',
+    });
+
+    if (!confirmed) return;
+
     const button = $('quota-delete-btn');
-    if (!Q.confirmDelete) {
-        Q.confirmDelete = true;
-        button.innerHTML = '<i data-lucide="triangle-alert"></i> Confirmar remoção';
-        refreshQuickQuotaEditor('Clique novamente em Confirmar remoção. As entregas existentes serão preservadas.');
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        return;
-    }
 
     try {
         Q.busy = true;
         button.disabled = true;
+
         const response = await fetch(Q.current.delete_url, {
             method: 'DELETE',
-            headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': CSRF,
+            },
             body: '{}',
         });
+
         const data = await response.json();
-        if (!response.ok) throw new Error(data.message || 'Não foi possível remover o limite.');
+
+        if (!response.ok) {
+            throw new Error(
+                data.message || 'Não foi possível remover o limite.'
+            );
+        }
+
         await loadDemands(S.project.id, S.associate.id);
         closeQuickQuota(true);
         renderModalList('product');
@@ -2831,8 +7268,7 @@ function onDateChange(val) {
 }
 
 function focusDateInput() {
-    const inp = $('f-date');
-    try { inp.showPicker(); } catch(e) { inp.focus(); inp.click(); }
+    openCalendarSheet();
 }
 
 function clearFilter() {
@@ -2844,19 +7280,23 @@ function clearFilter() {
 }
 
 function toggleHistoryFilters() {
-    const root = $('history-filter');
+    const filter = $('history-filter');
     const button = $('history-filter-toggle');
-    if (!root || !button) return;
+    if (!filter || !button) return;
 
-    const open = !root.classList.contains('show-advanced');
-    root.classList.toggle('show-advanced', open);
-    button.setAttribute('aria-expanded', open ? 'true' : 'false');
-    button.setAttribute('aria-label', open ? 'Ocultar filtros adicionais' : 'Mostrar mais filtros');
-    button.title = open ? 'Ocultar filtros' : 'Mais filtros';
+    const open = button.getAttribute('aria-expanded') === 'true';
+    const nextOpen = !open;
 
-    const icon = button.querySelector('i');
-    if (icon) icon.setAttribute('data-lucide', open ? 'panel-top-close' : 'sliders-horizontal');
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    button.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+    button.setAttribute(
+        'aria-label',
+        nextOpen ? 'Ocultar filtros adicionais' : 'Mostrar mais filtros'
+    );
+    button.title = nextOpen ? 'Ocultar filtros' : 'Mais filtros';
+
+    filter.classList.toggle('filters-expanded', nextOpen);
+
+    upgradeRegisterIcons(filter);
 }
 
 function bindQtyInput() {
@@ -2976,6 +7416,7 @@ async function submitEntry() {
             resetProductSelector();
             $('f-qty').value  = '';
             $('f-notes').value = '';
+            toggleEntryNotes(false);
             document.querySelectorAll('#quality-group .q-pill').forEach(b => b.classList.remove('active'));
             document.querySelector('#quality-group .q-pill[data-q="A"]').classList.add('active');
             S.quality = 'A';
@@ -2989,6 +7430,48 @@ async function submitEntry() {
     } finally {
         S.submitting = false;
         checkFormReady();
+    }
+}
+
+
+/* ─── Observação da nova entrega ─────────────────── */
+function syncEntryNotesUi() {
+    const field = $('f-notes');
+    const wrap = $('reg-notes-field');
+    const button = $('reg-notes-toggle');
+    const hint = $('reg-notes-toggle-hint');
+
+    if (!field || !wrap || !button) return;
+
+    const hasValue = !!String(field.value || '').trim();
+    const open = !wrap.hidden;
+
+    button.classList.toggle('open', open);
+    button.classList.toggle('has-value', hasValue);
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+    if (hint) {
+        hint.textContent = hasValue ? 'Observação adicionada' : 'Opcional';
+    }
+}
+
+function toggleEntryNotes(force = null) {
+    const field = $('f-notes');
+    const wrap = $('reg-notes-field');
+
+    if (!field || !wrap) return;
+
+    const shouldOpen = force === null
+        ? wrap.hidden
+        : !!force;
+
+    wrap.hidden = !shouldOpen;
+    syncEntryNotesUi();
+
+    if (shouldOpen && !isCompactDevice()) {
+        window.setTimeout(() => {
+            field.focus({ preventScroll: true });
+        }, 20);
     }
 }
 
@@ -3057,13 +7540,134 @@ function renderSessionItems() {
             empty.style.display = 'block';
         }
         count.textContent = '';
+        const tableBody = $('session-table-body');
+        if (tableBody) tableBody.innerHTML = '';
         updateSessionPagination(0, 0, 0, 0, 1);
+        applyHistoryView();
+
+        /*
+         * Mesmo que a preferência desktop seja tabela, estados vazios
+         * precisam continuar visíveis.
+         */
+        list.style.display = 'grid';
+        const tableWrap = $('session-table-wrap');
+        if (tableWrap) {
+            tableWrap.hidden = true;
+            tableWrap.style.display = 'none';
+        }
+
         return;
     }
 
     if (empty) empty.style.display = 'none';
     count.textContent = renderList.length + (usingFilter ? '/' + filtered.length : '') + ' registro' + (renderList.length !== 1 ? 's' : '');
     updateSessionPagination(renderList.length, pageStart + 1, Math.min(pageStart + perPage, renderList.length), S.listPage, totalPages);
+
+    function buildActionsHtml(item, labelClass = 'mc-action-label') {
+        const statusClass = item.status || 'pending';
+        const isPending = statusClass === 'pending';
+        const isApproved = statusClass === 'approved';
+        const isRejected = statusClass === 'rejected';
+        const isBilled = !!item.has_billed;
+
+        let buttons = item.notes
+            ? `<button class="delivery-note-trigger" type="button"
+                data-delivery-notes="${escAttr(item.notes)}"
+                data-delivery-notes-title="Observações da entrega"
+                data-delivery-notes-meta="${escAttr(item.productName + ' · ' + item.associateName)}"
+                title="Observações" aria-label="Observações">
+                    <i class="ph-duotone ph-chat-text"></i>
+                    <span class="${labelClass}">Observações</span>
+               </button>`
+            : '';
+
+        if (isPending) {
+            buttons += `<button class="btn-approve btn-xs" data-action="approve" data-id="${item.id}" title="Aprovar entrega" aria-label="Aprovar entrega"><i class="ph-duotone ph-check-circle"></i><span class="${labelClass}">Aprovar</span></button>`;
+            buttons += `<button class="btn-reject btn-xs" data-action="reject" data-id="${item.id}" title="Rejeitar entrega" aria-label="Rejeitar entrega"><i class="ph-duotone ph-x-circle"></i><span class="${labelClass}">Rejeitar</span></button>`;
+            buttons += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
+            if (!isBilled) {
+                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega pendente" aria-label="Excluir entrega pendente"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+            }
+        } else if (isApproved) {
+            buttons += `<button class="btn-distribute btn-xs" data-action="distribute" data-id="${item.id}" title="Distribuir entrega" aria-label="Distribuir entrega"><i class="ph-duotone ph-git-merge"></i><span class="${labelClass}">Distribuir</span></button>`;
+            buttons += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
+
+            if (!isBilled) {
+                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete-approved" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+            }
+        } else if (isRejected) {
+            if (!isBilled) {
+                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+            }
+        } else if (!isApproved && !isBilled) {
+            buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+        }
+
+        return buttons;
+    }
+
+    function buildTableRow(item) {
+        const distQty = parseFloat(item.distributedQty || 0);
+        const totalQty = parseFloat(item.qty || 0);
+        const rawPercent = totalQty > 0 ? Math.round((distQty / totalQty) * 100) : 0;
+        const overDist = distQty > totalQty + 0.0005;
+        const distPercent = Math.min(Math.max(rawPercent, 0), 100);
+        const statusClass = item.status || 'pending';
+        const visualClass = statusClass === 'approved' && distPercent >= 100 && !overDist
+            ? 'distributed'
+            : statusClass;
+        const stateLabel = getDeliveryStateLabel(statusClass, distPercent, overDist);
+        const stateIcon = getDeliveryStateIcon(statusClass, distPercent, overDist);
+        const distJson = escAttr(JSON.stringify(item.distributions || []));
+        const dateLabel = item.date ? isoToBr(item.date) : '—';
+        const actions = buildActionsHtml(item, 'reg-table-action-label');
+
+        return `
+            <tr
+                class="status-${visualClass}"
+                data-delivery-id="${item.id}"
+                data-total-qty="${totalQty}"
+                data-unit="${escAttr(item.productUnit || '')}"
+                data-product="${escAttr(item.productName)}"
+                data-distributions="${distJson}"
+                data-distributed="${distQty}"
+            >
+                <td>
+                    <div class="reg-table-date">
+                        <span class="reg-table-state" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
+                        <strong>${escHtml(dateLabel)}</strong>
+                    </div>
+                </td>
+
+                <td class="reg-session-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</td>
+                <td class="reg-session-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</td>
+                <td class="reg-session-qty">${fmtQty(totalQty, item.productUnit)}</td>
+
+                <td>
+                    <div class="reg-table-control-row">
+                        <button
+                            type="button"
+                            class="reg-table-dist"
+                            data-summary="1"
+                            title="${overDist ? 'Distribuição acima da quantidade registrada' : (distPercent >= 100 ? 'Totalmente distribuído' : 'Ver distribuição')}"
+                            aria-label="Ver distribuição de ${escAttr(item.productName)}"
+                        >
+                            <span class="reg-table-dist-bar">
+                                <span
+                                    class="reg-table-dist-fill ${overDist ? 'over' : (distPercent >= 100 ? 'full' : 'partial')}"
+                                    style="display:block;width:${overDist ? 100 : distPercent}%"
+                                ></span>
+                            </span>
+
+                            <span class="reg-session-dist-text">${overDist ? '!' : distPercent + '%'}</span>
+                        </button>
+
+                        <div class="reg-table-actions">${actions}</div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
 
     function buildCard(item) {
         const distQty = parseFloat(item.distributedQty || 0);
@@ -3089,29 +7693,7 @@ function renderSessionItems() {
         const limitColor = limitPct == null ? '#94a3b8' : limitPct >= 100 ? '#dc2626' : limitPct >= 80 ? '#d97706' : '#059669';
         const limitHtml = limit.associate_limit == null ? '' : `<div style="display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.45rem;font-size:.68rem;color:var(--color-text-muted);padding:.2rem 0"><span>Limite</span><div style="height:5px;background:#e5e7eb;border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:${limitPct}%;background:${limitColor}"></span></div><strong style="color:var(--color-text)">${fmtQty(limit.associate_remaining,item.productUnit)} livres</strong></div>`;
 
-        const actionsHtml = (() => {
-            let btns = item.notes
-                ? `<button class="delivery-note-trigger" type="button"
-                    data-delivery-notes="${escAttr(item.notes)}"
-                    data-delivery-notes-title="Observações da entrega"
-                    data-delivery-notes-meta="${escAttr(item.productName + ' · ' + item.associateName)}"
-                    title="Observações" aria-label="Observações"><i data-lucide="message-square-text"></i><span class="mc-action-label">Observações</span></button>`
-                : '';
-            if (isPending) {
-                btns += `<button class="btn-approve btn-xs" data-action="approve" data-id="${item.id}" title="Aprovar entrega" aria-label="Aprovar entrega"><i data-lucide="check"></i><span class="mc-action-label">Aprovar</span></button>`;
-                btns += `<button class="btn-reject btn-xs" data-action="reject" data-id="${item.id}" title="Rejeitar entrega" aria-label="Rejeitar entrega"><i data-lucide="x"></i><span class="mc-action-label">Rejeitar</span></button>`;
-                btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i data-lucide="pencil"></i><span class="mc-action-label">Editar</span></button>`;
-            } else if (isApproved) {
-                btns += `<button class="btn-distribute btn-xs" data-action="distribute" data-id="${item.id}" title="Distribuir entrega" aria-label="Distribuir entrega"><i data-lucide="route"></i><span class="mc-action-label">Distribuir</span></button>`;
-                btns += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i data-lucide="pencil"></i><span class="mc-action-label">Editar</span></button>`;
-                if (!isBilled) {
-                    btns += `<button class="btn-delete-approved btn-xs" data-action="delete-approved" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i data-lucide="trash-2"></i><span class="mc-action-label">Excluir</span></button>`;
-                }
-            } else if (isRejected) {
-                btns += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i data-lucide="trash-2"></i><span class="mc-action-label">Excluir</span></button>`;
-            }
-            return btns;
-        })();
+        const actionsHtml = buildActionsHtml(item);
 
         return `
         <div class="mobile-card status-${visualClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
@@ -3156,7 +7738,17 @@ function renderSessionItems() {
         const section = document.createElement('details');
         section.className = 'session-collapsible';
         const summary = document.createElement('summary');
-        summary.textContent = `${label} (${items.length})`;
+        summary.innerHTML = `
+            <span class="session-other-main">
+                <i class="ph-duotone ph-users-three" aria-hidden="true"></i>
+                <strong>${escHtml(label)}</strong>
+            </span>
+
+            <span class="session-other-cta">
+                Ver ${items.length}
+                <i class="ph-duotone ph-caret-down" aria-hidden="true"></i>
+            </span>
+        `;
         const content = document.createElement('div');
         content.className = 'session-collapsible-list';
         items.forEach(item => {
@@ -3191,7 +7783,14 @@ function renderSessionItems() {
         });
     }
 
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    const tableBody = $('session-table-body');
+
+    if (tableBody) {
+        tableBody.innerHTML = pageItems.map(buildTableRow).join('');
+    }
+
+    applyHistoryView();
+    upgradeRegisterIcons(document);
 }
 /* Helpers */
 function fmtQty(n, unit) {
@@ -3227,12 +7826,27 @@ function getDeliveryStateLabel(status, percent, over) {
     return 'Cancelada';
 }
 function getDeliveryStateIcon(status, percent, over) {
-    if (over) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"></path></svg>';
-    if (status === 'approved' && percent >= 100) return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>';
-    if (status === 'approved') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M5 12h14"></path></svg>';
-    if (status === 'pending') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>';
-    if (status === 'rejected') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>';
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path></svg>';
+    if (over) {
+        return '<i class="ph-duotone ph-warning"></i>';
+    }
+
+    if (status === 'approved' && percent >= 100) {
+        return '<i class="ph-duotone ph-check-circle"></i>';
+    }
+
+    if (status === 'approved') {
+        return '<i class="ph-duotone ph-plus-circle"></i>';
+    }
+
+    if (status === 'pending') {
+        return '<i class="ph-duotone ph-clock"></i>';
+    }
+
+    if (status === 'rejected') {
+        return '<i class="ph-duotone ph-x-circle"></i>';
+    }
+
+    return '<i class="ph-duotone ph-minus-circle"></i>';
 }
 function updateSessionPagination(total, start, end, page, totalPages) {
     const wrap = $('session-pagination');
@@ -3255,32 +7869,151 @@ function parseCardDistributions(card) {
     try { return JSON.parse(card?.dataset?.distributions || '[]') || []; }
     catch (e) { return []; }
 }
-function openDistSummaryFromCard(card) {
-    const product = card?.dataset?.product || 'Produto';
-    const unit = card?.dataset?.unit || '';
-    const totalQty = parseFloat(card?.dataset?.totalQty || 0);
-    const distQty = parseFloat(card?.dataset?.distributed || 0);
-    const distributions = parseCardDistributions(card);
+function openDistSummaryFromElement(element) {
+    const product = element?.dataset?.product || 'Produto';
+    const unit = element?.dataset?.unit || '';
+    const totalQty = parseFloat(element?.dataset?.totalQty || 0);
+    const distQty = parseFloat(element?.dataset?.distributed || 0);
+    const distributions = parseCardDistributions(element);
+
+    const remaining = Math.max(0, totalQty - distQty);
+    const rawPercent = totalQty > 0
+        ? Math.round((distQty / totalQty) * 100)
+        : 0;
+    const percent = Math.max(0, rawPercent);
+    const widthPercent = Math.min(100, percent);
+    const over = distQty > totalQty + 0.0005;
+    const complete = !over && totalQty > 0 && distQty >= totalQty - 0.0005;
+
     $('dist-summary-title').textContent = product;
-    $('dist-summary-sub').textContent = `${fmtQty(distQty, unit)} distribuidos de ${fmtQty(totalQty, unit)}`;
-    $('dist-summary-body').innerHTML = distributions.length
-        ? distributions.map(d => {
-            const customer = d.customer || d.customer_name || d.customerName || 'Cliente';
+    $('dist-summary-sub').textContent = distributions.length
+        ? `${distributions.length} destino${distributions.length !== 1 ? 's' : ''}`
+        : 'Nenhuma distribuição registrada';
+
+    const progressClass = over
+        ? ' over'
+        : complete
+            ? ' complete'
+            : '';
+
+    $('dist-summary-overview').innerHTML = `
+        <div class="dist-summary-metric">
+            <span>Entrega</span>
+            <strong>${fmtQty(totalQty, unit)}</strong>
+        </div>
+
+        <div class="dist-summary-metric">
+            <span>Distribuído</span>
+            <strong>${fmtQty(distQty, unit)}</strong>
+        </div>
+
+        <div class="dist-summary-metric">
+            <span>${over ? 'Excedente' : 'Saldo'}</span>
+            <strong>${fmtQty(over ? distQty - totalQty : remaining, unit)}</strong>
+        </div>
+
+        <div class="dist-summary-progress">
+            <div class="dist-summary-progress-track">
+                <span
+                    class="dist-summary-progress-fill${progressClass}"
+                    style="width:${widthPercent}%"
+                ></span>
+            </div>
+            <strong>${percent}%</strong>
+        </div>
+    `;
+
+    $('dist-summary-list').innerHTML = distributions.length
+        ? distributions.map((d, index) => {
+            const customer =
+                d.customer
+                || d.customer_name
+                || d.customerName
+                || 'Cliente';
+
             const qty = parseFloat(d.qty || d.quantity || 0);
             const net = parseFloat(d.net || d.net_value || 0);
-            return `<div class="dist-summary-row"><strong>${escHtml(customer)}</strong><span>${fmtQty(qty, unit)}${net > 0 ? ' - R$ ' + net.toFixed(2) : ''}</span></div>`;
+
+            return `
+                <div class="dist-summary-row">
+                    <span class="dist-summary-row-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-buildings"></i>
+                    </span>
+
+                    <div class="dist-summary-row-main">
+                        <strong>${escHtml(customer)}</strong>
+                        <small>Destino ${index + 1}</small>
+                    </div>
+
+                    <div class="dist-summary-row-values">
+                        <strong>${fmtQty(qty, unit)}</strong>
+                        ${net > 0
+                            ? `<small>R$ ${net.toFixed(2).replace('.', ',')}</small>`
+                            : '<small>Sem valor líquido</small>'}
+                    </div>
+                </div>
+            `;
         }).join('')
-        : '<div class="dist-summary-row"><strong>Nenhuma distribuicao</strong><span>0%</span></div>';
-    $('dist-summary-overlay').classList.add('open');
+        : `
+            <div class="dist-summary-row">
+                <span class="dist-summary-row-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-git-merge"></i>
+                </span>
+                <div class="dist-summary-row-main">
+                    <strong>Nenhuma distribuição</strong>
+                    <small>Esta entrega ainda não foi rateada.</small>
+                </div>
+                <div class="dist-summary-row-values">
+                    <strong>0%</strong>
+                </div>
+            </div>
+        `;
+
+    registerSheet(
+        'dist-summary',
+        () => {
+            $('dist-summary-overlay')?.classList.add('open');
+            $('dist-summary-overlay')?.setAttribute('aria-hidden', 'false');
+        },
+        () => {
+            $('dist-summary-overlay')?.classList.remove('open');
+            $('dist-summary-overlay')?.setAttribute('aria-hidden', 'true');
+        }
+    );
+
+    $('dist-summary-overlay')?.classList.add('open');
+    $('dist-summary-overlay')?.setAttribute('aria-hidden', 'false');
+
+    pushRegisterSheetState('dist-summary');
+    upgradeRegisterIcons(document);
 }
+
+function openDistSummaryFromCard(card) {
+    openDistSummaryFromElement(card);
+}
+
 function closeDistSummary() {
-    $('dist-summary-overlay')?.classList.remove('open');
+    requestRegisterSheetClose(
+        'dist-summary',
+        () => {
+            $('dist-summary-overlay')?.classList.remove('open');
+            $('dist-summary-overlay')?.setAttribute('aria-hidden', 'true');
+        }
+    );
 }
 async function deleteItem(id, btn, isApproved = false) {
     const msg = isApproved
         ? 'Excluir esta entrega aprovada? As distribuições associadas também serão removidas.'
         : 'Excluir este registro?';
-    if (!confirm(msg)) return;
+    const confirmed = await registerConfirm({
+        title: isApproved ? 'Excluir entrega aprovada' : 'Excluir entrega',
+        message: msg,
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+        icon: 'trash',
+    });
+
+    if (!confirmed) return;
     btn.disabled = true;
 
     try {
@@ -3306,9 +8039,15 @@ async function deleteItem(id, btn, isApproved = false) {
 
 /* ─── Action delegation ────────────────────────── */
 document.addEventListener('click', function (e) {
-    const summary = e.target.closest('.mc-dist-indicator[data-summary]');
-    if (summary && summary.closest('#session-list')) {
-        openDistSummaryFromCard(summary.closest('.mobile-card'));
+    const cardSummary = e.target.closest('.mc-dist-indicator[data-summary]');
+    if (cardSummary && cardSummary.closest('#session-list')) {
+        openDistSummaryFromElement(cardSummary.closest('.mobile-card'));
+        return;
+    }
+
+    const tableSummary = e.target.closest('.reg-table-dist[data-summary]');
+    if (tableSummary && tableSummary.closest('#session-table-wrap')) {
+        openDistSummaryFromElement(tableSummary.closest('tr'));
         return;
     }
 
@@ -3319,7 +8058,7 @@ document.addEventListener('click', function (e) {
     }
 
     const btn = e.target.closest('[data-action]');
-    if (!btn || !btn.closest('#session-list')) return;
+    if (!btn || (!btn.closest('#session-list') && !btn.closest('#session-table-wrap'))) return;
     if (btn.disabled) return;
     const id     = parseInt(btn.dataset.id);
     const action = btn.dataset.action;
@@ -3333,7 +8072,15 @@ document.addEventListener('click', function (e) {
 
 /* ─── Rejeitar ─────────────────────────────────── */
 async function rejectItem(id, btn) {
-    if (!confirm('Rejeitar esta entrega?')) return;
+    const confirmed = await registerConfirm({
+        title: 'Rejeitar entrega',
+        message: 'Deseja rejeitar esta entrega? Ela continuará registrada no histórico.',
+        confirmLabel: 'Rejeitar',
+        tone: 'danger',
+        icon: 'x-circle',
+    });
+
+    if (!confirmed) return;
     btn.disabled = true;
     try {
         const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + id + '/reject', {
@@ -3359,7 +8106,15 @@ async function rejectItem(id, btn) {
 
 /* ─── Approve ────────────────────────────────────── */
 async function approveItem(id, btn) {
-    if (!confirm('Aprovar esta entrega?')) return;
+    const confirmed = await registerConfirm({
+        title: 'Aprovar entrega',
+        message: 'Confirma a aprovação desta entrega?',
+        confirmLabel: 'Aprovar',
+        tone: 'success',
+        icon: 'check-circle',
+    });
+
+    if (!confirmed) return;
     btn.disabled = true;
     try {
         const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + id + '/approve', {
@@ -3436,6 +8191,84 @@ async function saveEdit() {
 /* ─── Distribute modal ───────────────────────────── */
 let distRegId = null;
 
+let registerNativeDistModalOpen = null;
+let registerNativeDistModalClose = null;
+let registerLastDistModalConfig = null;
+
+function openDistributionDirect(config, fromHistory = false) {
+    if (!registerNativeDistModalOpen || !config) return;
+
+    registerLastDistModalConfig = config;
+
+    const body = document.querySelector('#dm-overlay .dm-body');
+
+    /*
+     * O componente legado tenta focar um campo ao abrir.
+     * Em mobile deixamos o corpo inert durante essa janela e removemos
+     * imediatamente depois; assim o sheet abre sem teclado automático.
+     */
+    if (isCompactDevice()) {
+        body?.setAttribute('inert', '');
+    }
+
+    const result = registerNativeDistModalOpen(config);
+
+    if (isCompactDevice()) {
+        window.setTimeout(() => {
+            body?.removeAttribute('inert');
+
+            const active = document.activeElement;
+            const overlay = document.getElementById('dm-overlay');
+
+            if (active && overlay?.contains(active)) {
+                active.blur?.();
+            }
+        }, 150);
+    }
+
+    return result;
+}
+
+function installDistModalHistoryBridge() {
+    if (!window.DistModal?.open || window.__registerDistHistoryInstalled) return;
+
+    window.__registerDistHistoryInstalled = true;
+
+    registerNativeDistModalOpen = window.DistModal.open.bind(window.DistModal);
+    registerNativeDistModalClose = window.DistModal.close?.bind(window.DistModal);
+
+    window.DistModal.open = function(config, fromHistory = false) {
+        const result = openDistributionDirect(config, fromHistory);
+
+        registerSheet(
+            'distribution',
+            () => {
+                if (registerLastDistModalConfig) {
+                    openDistributionDirect(registerLastDistModalConfig, true);
+                }
+            },
+            () => registerNativeDistModalClose?.()
+        );
+
+        if (!fromHistory) {
+            pushRegisterSheetState('distribution');
+        }
+
+        return result;
+    };
+
+    if (registerNativeDistModalClose) {
+        window.DistModal.close = function() {
+            requestRegisterSheetClose(
+                'distribution',
+                () => registerNativeDistModalClose?.()
+            );
+        };
+    }
+}
+
+installDistModalHistoryBridge();
+
 function openDistributeModal(id) {
     const item = S.items.find(i => i.id === id);
     if (!item) return;
@@ -3511,30 +8344,72 @@ window._DistModalOnUpdate = function(receptionId, data) {
     toast('Distribuicao atualizada.', 'success');
 };
 
+function openModalDirect(type, fromHistory = false) {
+    const overlay = $('modal-' + type);
+    if (!overlay) return;
+
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    syncRegisterSheetEnvironment();
+
+    const search = $('search-' + type);
+
+    if (search && !fromHistory) {
+        search.value = '';
+
+        /*
+         * Em mobile não forçamos foco/teclado ao abrir sheets.
+         * Desktop mantém a agilidade do teclado.
+         */
+        if (!isCompactDevice()) {
+            window.setTimeout(() => search.focus({ preventScroll: true }), 50);
+        }
+    }
+
+    if (['project', 'assoc', 'product'].includes(type)) {
+        renderModalList(type);
+        resetModalHighlight(type);
+    }
+}
+
 function openModal(type) {
     if (type === 'product' && !S.project) {
         toast('Selecione um projeto primeiro.', 'info');
         return;
     }
+
     if (type === 'product' && S.demands.length === 0 && S.loadingProjectId) {
         toast('Aguarde, carregando produtos…', 'info');
         return;
     }
 
-    const overlay = $('modal-' + type);
-    overlay.classList.add('open');
+    const key = 'modal:' + type;
 
-    const search = $('search-' + type);
-    if (search) { search.value = ''; setTimeout(() => search.focus(), 50); }
+    registerSheet(
+        key,
+        () => openModalDirect(type, true),
+        () => {
+            $('modal-' + type)?.classList.remove('open');
+            $('modal-' + type)?.setAttribute('aria-hidden', 'true');
+            syncRegisterSheetEnvironment();
+        }
+    );
 
-    renderModalList(type);
-    // Destaca o primeiro item após abrir
-    resetModalHighlight(type);
+    openModalDirect(type, false);
+    pushRegisterSheetState(key);
 }
 
 function closeModal(type) {
-    const overlay = $('modal-' + type);
-    overlay.classList.remove('open');
+    const key = 'modal:' + type;
+
+    requestRegisterSheetClose(
+        key,
+        () => {
+            $('modal-' + type)?.classList.remove('open');
+            $('modal-' + type)?.setAttribute('aria-hidden', 'true');
+            syncRegisterSheetEnvironment();
+        }
+    );
 }
 
 function filterList(type) {
@@ -3555,7 +8430,7 @@ function renderModalList(type) {
         renderProductList(list, search);
     }
 
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    upgradeRegisterIcons(document);
 }
 
 function renderProjectList(list, search) {
@@ -3674,7 +8549,9 @@ function renderProductList(list, search) {
             if (el.dataset.disabled === '1') return;
             const idx = parseInt(el.dataset.idx);
             selectProduct(items[idx]);
-            setTimeout(()=> document.getElementById('f-qty').focus(),300)
+            if (!isCompactDevice()) {
+                setTimeout(() => document.getElementById('f-qty')?.focus({ preventScroll: true }), 300);
+            }
         });
     });
 }
@@ -3727,11 +8604,19 @@ function nextRegisterStep() {
 
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-        ['project', 'assoc', 'product', 'edit', 'dist'].forEach(t => closeModal(t));
+        if (closeTopRegisterSheet()) {
+            e.preventDefault();
+            return;
+        }
+
+        ['project', 'assoc', 'product', 'edit'].forEach(t => {
+            $('modal-' + t)?.classList.remove('open');
+        });
+
         return;
     }
 
-    if (hasOpenModal()) return;
+    if (hasOpenModal() || $('dist-summary-overlay')?.classList.contains('open')) return;
 
     if (e.key === 'Enter') {
         if (isInteractiveControl(e.target)) return;
@@ -3789,14 +8674,51 @@ function scrollToRegisterTop() {
 /* ─── Boot ───────────────────────────────────────── */
 init();
 checkFormReady();
+syncEntryNotesUi();
+upgradeRegisterIcons(document);
+
+/*
+ * Conteúdo de histórico e modais é refeito via innerHTML em vários fluxos.
+ * O observer garante que todos os novos ícones recebam o mesmo Duotone.
+ */
+const registerIconObserver = new MutationObserver(mutations => {
+    for (const mutation of mutations) {
+        mutation.addedNodes.forEach(node => {
+            if (!(node instanceof Element)) return;
+
+            if (node.matches?.('[data-lucide]')) {
+                upgradeRegisterIcons(node.parentElement || document);
+            } else if (node.querySelector?.('[data-lucide]')) {
+                upgradeRegisterIcons(node);
+            }
+        });
+    }
+});
+
+if (document.body) {
+    registerIconObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
+}
+
+$('f-notes')?.addEventListener('input', syncEntryNotesUi);
 
 window.openModal            = openModal;
 window.closeModal           = closeModal;
 window.filterList           = filterList;
 window.submitEntry          = submitEntry;
+window.toggleEntryNotes      = toggleEntryNotes;
 window.deleteItem           = deleteItem;
 window.saveEdit             = saveEdit;
 window.focusDateInput       = focusDateInput;
+window.openCalendarSheet     = openCalendarSheet;
+window.closeCalendarSheet    = closeCalendarSheet;
+window.calendarChangeMonth   = calendarChangeMonth;
+window.calendarSelectDate    = calendarSelectDate;
+window.calendarUseToday      = calendarUseToday;
+window.applyManualCalendarDate = applyManualCalendarDate;
+window.setHistoryView        = setHistoryView;
 window.renderSessionItems   = renderSessionItems;
 window.clearFilter          = clearFilter;
 window.toggleHistoryFilters = toggleHistoryFilters;

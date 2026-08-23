@@ -252,7 +252,7 @@
 }
 
 .dm-bar-existing {
-    background: #a8b3bf;
+    background: #86efac;
 }
 
 .dm-bar-new {
@@ -2018,7 +2018,16 @@ window.DistModal = {
             if (!cid && qty > 0) { showNotice('Selecione o cliente para a linha com quantidade informada.', { type: 'error' }); return; }
             distributions.push({ customer_id: parseInt(cid), quantity: qty });
         }
-        if (!distributions.length) { showNotice('Adicione pelo menos uma distribuicao.', { type: 'info' }); return; }
+        if (!distributions.length) { 
+                this.close();
+                if (typeof window._DistModalReload === 'function') {
+                    window._DistModalReload(data);
+                } else {
+                    location.reload();
+                }
+                
+            
+         }
 
         const newTotal = distributions.reduce((s, d) => s + d.quantity, 0);
         const avail    = _totalQty - _distQty;

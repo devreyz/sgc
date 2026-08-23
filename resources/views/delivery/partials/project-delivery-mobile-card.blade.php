@@ -19,15 +19,20 @@ $stateLabel = $overDistributed
         : ($delivery['status_value'] === 'approved'
             ? 'Aprovada com distribuicao pendente'
             : ($delivery['status_value'] === 'pending' ? 'Pendente de aprovacao' : $delivery['status'])));
-$stateIcon = $overDistributed
-    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"></path></svg>'
-    : ($delivery['status_value'] === 'approved' && $distPercent >= 100
-        ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>'
-        : ($delivery['status_value'] === 'approved'
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"></path><path d="M5 12h14"></path></svg>'
-            : ($delivery['status_value'] === 'pending'
-                ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"></path><circle cx="12" cy="12" r="9"></circle></svg>'
-                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>')));
+if ($overDistributed) {
+    $stateIcon = '<i class="ph-duotone ph-warning"></i>';
+} elseif (
+    $delivery['status_value'] === 'approved'
+    && $distPercent >= 100
+) {
+    $stateIcon = '<i class="ph-duotone ph-check-circle"></i>';
+} elseif ($delivery['status_value'] === 'approved') {
+    $stateIcon = '<i class="ph-duotone ph-plus-circle"></i>';
+} elseif ($delivery['status_value'] === 'pending') {
+    $stateIcon = '<i class="ph-duotone ph-clock"></i>';
+} else {
+    $stateIcon = '<i class="ph-duotone ph-x-circle"></i>';
+}
 @endphp
 
 @once
@@ -119,12 +124,9 @@ $stateIcon = $overDistributed
     }
 
     .delivery-card-v2 .mc-state-icon {
-        display: inline-flex;
+        display: block;
         width: 24px;
         height: 24px;
-        flex: 0 0 auto;
-        align-items: center;
-        justify-content: center;
         border: 1px solid color-mix(in srgb, var(--dc-tone) 18%, transparent);
         border-radius: 999px;
         background: var(--dc-soft);
@@ -132,11 +134,8 @@ $stateIcon = $overDistributed
         line-height: 0;
     }
 
-    .delivery-card-v2 .mc-state-icon > svg {
-        display: block;
-        width: 12px;
-        height: 12px;
-        margin: 0;
+    .delivery-card-v2 .mc-state-icon > i {
+        font-size: 23px;
     }
 
     .delivery-card-v2 .dc-context {
@@ -192,23 +191,7 @@ $stateIcon = $overDistributed
         white-space: nowrap;
     }
 
-    .delivery-card-v2 .dc-check-wrap {
-        position: relative;
-        display: inline-flex;
-        width: 30px;
-        height: 30px;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--dc-border);
-        border-radius: 8px;
-        background: #fff;
-        cursor: pointer;
-    }
-
-    .delivery-card-v2 .dc-check-wrap:hover {
-        border-color: color-mix(in srgb, var(--dc-tone) 24%, var(--dc-border));
-        background: var(--dc-soft);
-    }
+   
 
     .delivery-card-v2 .delivery-chk {
         width: 16px;
@@ -375,7 +358,7 @@ $stateIcon = $overDistributed
     }
 
     .delivery-card-v2 .mc-dist-bar-fill.partial {
-        background: linear-gradient(90deg, #7dd3fc, var(--dist-tone));
+        background: linear-gradient(90deg, #7dd3fc, #3c80a0);
     }
 
     .delivery-card-v2 .mc-dist-bar-fill.full {
@@ -511,7 +494,7 @@ $stateIcon = $overDistributed
         }
 
         .delivery-card-v2 .dc-qty {
-            font-size: .75rem;
+            font-size: 1rem;
         }
 
         .delivery-card-v2 .dc-actions {
@@ -536,10 +519,6 @@ $stateIcon = $overDistributed
             font-size: .8rem;
         }
 
-        .delivery-card-v2 .dc-check-wrap {
-            width: 28px;
-            height: 28px;
-        }
     }
 </style>
 @endonce
@@ -572,49 +551,7 @@ $stateIcon = $overDistributed
                 >
                     {!! $stateIcon !!}
                 </span>
-            </div>
-
-            <div class="dc-context">
-                <span class="dc-context-item">
-                    <i data-lucide="user-round"></i>
-                    <span class="dc-associate" title="{{ $delivery['associate_name'] }}">
-                        {{ $delivery['associate_name'] }}
-                    </span>
-                </span>
-
-                <span class="dc-context-item date">
-                    <i data-lucide="calendar-days"></i>
-                    <span>{{ $delivery['delivery_date'] }}</span>
-                </span>
-            </div>
-        </div>
-
-        <div class="dc-side">
-            <strong class="dc-qty mc-head-qty">
-                {{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}
-            </strong>
-
-            @if($delivery['status_value'] === 'approved')
-                <label
-                    class="dc-check-wrap"
-                    title="Selecionar para comprovante"
-                    aria-label="Selecionar entrega de {{ $delivery['product_name'] }} para comprovante"
-                >
-                    <input
-                        type="checkbox"
-                        class="delivery-chk"
-                        value="{{ $delivery['id'] }}"
-                        data-associate="{{ $delivery['associate_name'] }}"
-                        data-net="{{ $delivery['dist_net_value'] }}"
-                        aria-label="Selecionar para comprovante"
-                    >
-                </label>
-            @endif
-        </div>
-    </div>
-
-    <div class="dc-body mc-body">
-        @if($delivery['has_billed'] || ($delivery['issue_count'] ?? 0) > 0 || $delivery['dist_net_value'] > 0)
+                @if($delivery['has_billed'] || ($delivery['issue_count'] ?? 0) > 0 || $delivery['dist_net_value'] > 0)
             <div class="dc-signals">
                 @if($delivery['has_billed'])
                     <span class="dc-signal billed" title="Entrega faturada">
@@ -642,6 +579,32 @@ $stateIcon = $overDistributed
                 @endif
             </div>
         @endif
+            </div>
+
+            <div class="dc-context">
+                <span class="dc-context-item">
+                    <i data-lucide="user-round"></i>
+                    <span class="dc-associate" title="{{ $delivery['associate_name'] }}">
+                        {{ $delivery['associate_name'] }}
+                    </span>
+                </span>
+
+                <span class="dc-context-item date">
+                    <i data-lucide="calendar-days"></i>
+                    <span>{{ $delivery['delivery_date'] }}</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="dc-side">
+            <strong class="dc-qty mc-head-qty">
+                {{ number_format($totalQty, 3, ',', '.') }} {{ $delivery['unit'] }}
+            </strong>
+        </div>
+    </div>
+
+    <div class="dc-body mc-body">
+        
 
         @if($associateLimit !== null)
             <div class="dc-meter dc-limit-meter">
@@ -763,6 +726,15 @@ $stateIcon = $overDistributed
                     <i data-lucide="pencil"></i>
                     <span class="dc-action-label">Editar</span>
                 </button>
+                <button
+                        class="btn-delete-approved btn-xs dc-action delete"
+                        data-id="{{ $delivery['id'] }}"
+                        title="Excluir entrega"
+                        aria-label="Excluir entrega de {{ $delivery['product_name'] }}"
+                    >
+                        <i data-lucide="trash-2"></i>
+                        <span class="dc-action-label">Excluir</span>
+                    </button>
             @elseif($delivery['status_value'] === 'approved')
                 <button
                     class="btn-distribute btn-xs dc-action distribute"
@@ -779,7 +751,7 @@ $stateIcon = $overDistributed
                     title="Distribuir entrega"
                     aria-label="Distribuir {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="route"></i>
+                    <i class="ph-duotone ph-git-merge"></i>
                     <span class="dc-action-label">Distribuir</span>
                 </button>
 

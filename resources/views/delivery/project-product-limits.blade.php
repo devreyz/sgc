@@ -41,7 +41,7 @@
     .plb {
         grid-column:1/-1;
         display:grid;
-        width:min(100%,1280px);
+        width: 100%;
         min-width:0;
         gap:.72rem;
         margin:0 auto;

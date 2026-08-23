@@ -89,8 +89,17 @@
 
             --app-content-max: 1680px;
             --app-header-height: 76px;
+            --app-header-rendered-height: var(--app-header-height);
+            --app-sticky-gap: .75rem;
+            --app-sticky-top:
+                calc(
+                    var(--app-header-rendered-height)
+                    + var(--app-sticky-gap)
+                );
             --app-sidebar-width: 236px;
-            --app-mobile-nav-height: 86px;
+            --app-mobile-nav-height: 58px;
+            --app-mobile-nav-clearance: 22px;
+            --app-mobile-nav-max-width: 760px;
             --app-shell-gutter: .75rem;
             --app-shell-gap: 1rem;
 
@@ -317,6 +326,100 @@
 
         [hidden] {
             display: none !important;
+        }
+
+        html {
+            /*
+             * Âncoras e scrollIntoView também respeitam o header.
+             * O valor real do header é sincronizado pelo JS do layout.
+             */
+            scroll-padding-top: calc(var(--app-sticky-top) + .25rem);
+        }
+
+        /*
+         * ========================================================
+         * STICKY SAFE AREA
+         * ========================================================
+         * Regra oficial para qualquer conteúdo sticky das views.
+         *
+         * Preferencial:
+         *   class="app-sticky"
+         *   data-app-sticky
+         *
+         * Compatibilidade:
+         *   class="sticky top-0"
+         *   class="md:sticky md:top-0"
+         *   class="lg:sticky lg:top-0"
+         *
+         * Assim o top: 0 da página passa a significar "logo abaixo do
+         * header" dentro do workspace, sem cada view precisar conhecer
+         * a altura do cabeçalho.
+         */
+        .app-sticky,
+        [data-app-sticky] {
+            position: sticky;
+            top: var(--app-sticky-top) !important;
+        }
+
+        /* Útil quando a própria view já controla position: sticky. */
+        .app-sticky-top,
+        [data-app-sticky-top] {
+            top: var(--app-sticky-top) !important;
+        }
+
+        /* Tailwind / CSS legado: sticky top-0. */
+        .bento-container
+        :where(
+            .sticky.top-0,
+            [class~="sticky"][class~="top-[0px]"],
+            [class~="sticky"][class~="top-[0]"]
+        ) {
+            top: var(--app-sticky-top) !important;
+        }
+
+        /* Inline styles legados com top exatamente em zero. */
+        .bento-container
+        :where(
+            [style*="position: sticky" i][style*="top: 0;" i],
+            [style*="position:sticky" i][style*="top:0;" i],
+            [style*="position: sticky" i][style$="top: 0" i],
+            [style*="position:sticky" i][style$="top:0" i],
+            [style*="position: sticky" i][style*="top: 0px;" i],
+            [style*="position:sticky" i][style*="top:0px;" i],
+            [style*="position: sticky" i][style$="top: 0px" i],
+            [style*="position:sticky" i][style$="top:0px" i]
+        ) {
+            top: var(--app-sticky-top) !important;
+        }
+
+        @media (min-width: 640px) {
+            .bento-container [class~="sm:sticky"][class~="sm:top-0"] {
+                top: var(--app-sticky-top) !important;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .bento-container [class~="md:sticky"][class~="md:top-0"] {
+                top: var(--app-sticky-top) !important;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .bento-container [class~="lg:sticky"][class~="lg:top-0"] {
+                top: var(--app-sticky-top) !important;
+            }
+        }
+
+        @media (min-width: 1280px) {
+            .bento-container [class~="xl:sticky"][class~="xl:top-0"] {
+                top: var(--app-sticky-top) !important;
+            }
+        }
+
+        @media (min-width: 1536px) {
+            .bento-container [class~="2xl:sticky"][class~="2xl:top-0"] {
+                top: var(--app-sticky-top) !important;
+            }
         }
 
         /* ========================================================
@@ -778,7 +881,7 @@
             .nav-tabs {
                 position: fixed;
                 z-index: calc(var(--app-layer-navigation) + 10);
-                top: calc(var(--app-header-height) + .65rem);
+                top: var(--app-sticky-top);
                 bottom: var(--app-shell-gutter);
                 left: var(--app-shell-gutter);
                 width: var(--app-sidebar-width);
@@ -915,31 +1018,38 @@
         }
 
         @media (max-width: 1023px) {
+            /*
+             * Bottom nav no mesmo idioma visual do Hub:
+             * superfície branca flutuante, item ativo discreto e o
+             * ícone carregando a cor funcional da área.
+             */
             .nav-tabs {
                 position: fixed;
                 z-index: calc(var(--app-layer-navigation) + 50);
-                right: max(.5rem, var(--safe-right));
-                bottom: max(.48rem, var(--safe-bottom));
-                left: max(.5rem, var(--safe-left));
+                right: max(8px, var(--safe-right));
+                bottom: max(8px, var(--safe-bottom));
+                left: max(8px, var(--safe-left));
                 width: auto;
-                max-width: none;
-                min-height: 72px;
+                max-width: var(--app-mobile-nav-max-width);
+                min-height: var(--app-mobile-nav-height);
+                grid-template-columns: none;
                 grid-auto-flow: column;
-                grid-auto-columns: minmax(72px, 1fr);
-                align-items: stretch;
-                gap: .18rem;
-                padding: .32rem;
+                grid-auto-columns: minmax(64px, 1fr);
+                align-items: center;
+                gap: 3px;
+                margin-inline: auto;
+                padding: 5px;
                 overflow-x: auto;
                 overflow-y: hidden;
-                border: 1px solid rgba(200, 214, 205, .96);
-                border-radius: 18px;
-                background: rgba(255, 255, 255, .985);
+                border: 1px solid rgba(23, 53, 42, .12);
+                border-radius: 17px;
+                background: #fff;
                 box-shadow:
-                    0 10px 38px rgba(15, 35, 24, .16),
-                    0 -2px 12px rgba(15, 35, 24, .04);
-                backdrop-filter: blur(7px);
+                    0 14px 34px rgba(17, 49, 34, .18),
+                    0 3px 9px rgba(17, 49, 34, .08);
                 scrollbar-width: none;
                 scroll-snap-type: x proximity;
+                scroll-padding-inline: 5px;
                 overscroll-behavior-inline: contain;
             }
 
@@ -952,109 +1062,154 @@
             }
 
             .nav-tab {
-                min-width: 72px;
-                min-height: 64px;
-                grid-template-columns: 1fr;
-                grid-template-rows: 36px auto;
-                justify-items: center;
-                align-content: center;
-                gap: .18rem;
-                padding: .32rem .24rem .26rem;
-                border-radius: 13px;
-                color: #66776d;
-                font-size: .64rem;
-                line-height: 1.05;
+                display: flex;
+                min-width: 64px;
+                min-height: 46px;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                padding: 4px 3px;
+                border: 0;
+                border-radius: 12px;
+                background: transparent;
+                color: #849087;
+                cursor: pointer;
+                flex-direction: column;
+                font-size: 9px;
+                line-height: 1.1;
                 text-align: center;
                 scroll-snap-align: center;
+                -webkit-tap-highlight-color: transparent;
+                transition:
+                    background-color .18s ease,
+                    color .18s ease,
+                    transform .18s ease;
             }
 
             .nav-tab:not(:last-child) {
-                box-shadow:
-                    inset -1px 0 0
-                    rgba(220, 230, 223, .72);
+                box-shadow: none;
             }
 
             .nav-tab:hover,
             .nav-tab:focus-visible {
-                background: var(--nav-soft);
+                background: #f2f6f3;
+                color: #17352a;
+                box-shadow: none;
+            }
+
+            .nav-tab:focus-visible {
+                outline: 2px solid
+                    color-mix(
+                        in srgb,
+                        var(--nav-tone) 46%,
+                        transparent
+                    );
+                outline-offset: -2px;
             }
 
             .nav-tab .app-nav-icon {
-                width: 36px;
-                height: 36px;
-                border-radius: 11px;
-                background: var(--nav-soft);
-                color: var(--nav-tone);
+                display: grid;
+                width: 28px;
+                height: 24px;
+                place-items: center;
+                border-radius: 7px;
+                background: transparent;
+                color: #97a19b;
+                box-shadow: none;
+                transition:
+                    color .18s ease,
+                    transform .18s ease;
             }
 
             .nav-tab .app-nav-icon > svg,
             .nav-tab .app-nav-icon > i {
-                width: 21px;
-                height: 21px;
-                font-size: 1.27rem;
+                width: 19px;
+                height: 19px;
+                color: currentColor;
+                font-size: 19px;
+                line-height: 1;
             }
 
             .app-nav-label {
                 width: 100%;
+                max-width: 100%;
+                overflow: hidden;
                 color: inherit;
-                font-weight: 740;
+                font-size: 9px;
+                font-weight: 760;
+                letter-spacing: -.01em;
+                line-height: 1.1;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             .nav-tab.active {
-                border-color:
-                    color-mix(
-                        in srgb,
-                        var(--nav-tone) 14%,
-                        transparent
-                    );
-                background: var(--nav-soft);
-                color: var(--nav-tone);
+                border-color: transparent;
+                background: #f2f6f3;
+                color: #17352a;
                 box-shadow: none;
             }
 
             .nav-tab.active .app-nav-icon {
-                background: var(--nav-tone);
-                color: #fff;
-                box-shadow:
-                    0 5px 13px
-                    color-mix(
-                        in srgb,
-                        var(--nav-tone) 20%,
-                        transparent
-                    );
+                background: transparent;
+                color: var(--nav-tone);
+                box-shadow: none;
                 transform: translateY(-1px);
             }
 
+            .nav-tab.active .app-nav-label {
+                color: #17352a;
+                font-weight: 780;
+            }
+
+            .nav-tab:active {
+                transform: scale(.97);
+            }
+
+            /*
+             * Ações de criar/registrar deixam de parecer um botão
+             * separado no mobile. Elas passam a seguir o mesmo padrão
+             * da bottom nav, mantendo apenas sua cor funcional quando ativas.
+             */
             .nav-tab[data-nav-key="register"],
             .nav-tab[data-nav-key="create"] {
-                overflow: visible;
-                color: var(--app-primary-700);
+                margin: 0;
+                border-color: transparent;
+                background: transparent;
+                color: #849087;
             }
 
             .nav-tab[data-nav-key="register"] .app-nav-icon,
             .nav-tab[data-nav-key="create"] .app-nav-icon {
-                width: 42px;
-                height: 42px;
-                margin-top: -4px;
-                border-radius: 13px;
-                background:
-                    linear-gradient(
-                        145deg,
-                        var(--app-primary),
-                        var(--app-primary-600)
-                    );
-                color: #fff;
-                box-shadow:
-                    0 7px 17px rgba(22, 163, 74, .22);
+                margin: 0;
+                background: transparent;
+                color: #97a19b;
+                box-shadow: none;
             }
 
-            .nav-tab[data-nav-key="register"] .app-nav-icon > svg,
-            .nav-tab[data-nav-key="create"] .app-nav-icon > svg,
-            .nav-tab[data-nav-key="register"] .app-nav-icon > i,
-            .nav-tab[data-nav-key="create"] .app-nav-icon > i {
-                width: 22px;
-                height: 22px;
-                font-size: 1.28rem;
+            .nav-tab[data-nav-key="register"].active,
+            .nav-tab[data-nav-key="create"].active {
+                background: #f2f6f3;
+                color: #17352a;
+            }
+
+            .nav-tab[data-nav-key="register"].active .app-nav-icon,
+            .nav-tab[data-nav-key="create"].active .app-nav-icon {
+                color: var(--nav-tone);
+            }
+        }
+
+        @media (max-width: 420px) {
+            .nav-tabs {
+                right: max(6px, var(--safe-right));
+                bottom: max(6px, var(--safe-bottom));
+                left: max(6px, var(--safe-left));
+                border-radius: 15px;
+            }
+
+            .nav-tab {
+                min-width: 60px;
+                border-radius: 10px;
             }
         }
 
@@ -1078,7 +1233,7 @@
             padding-bottom:
                 calc(
                     var(--app-mobile-nav-height)
-                    + 1.35rem
+                    + var(--app-mobile-nav-clearance)
                     + var(--safe-bottom)
                 );
         }
@@ -1374,7 +1529,7 @@
         .btn-edit {
             border: 1px solid var(--app-border-strong) !important;
             background: var(--app-surface) !important;
-            color: var(--app-text-secondary) !important;
+            color: var(--action-tone) !important;
             box-shadow: none !important;
         }
 
@@ -2680,8 +2835,7 @@
                     .72rem
                     max(.68rem, var(--safe-right))
                     calc(
-                        var(--app-mobile-nav-height)
-                        + 1.15rem
+                        .9rem
                         + var(--safe-bottom)
                     )
                     max(.68rem, var(--safe-left));
@@ -3216,6 +3370,28 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>
         (() => {
+            const appHeader = document.querySelector('.app-header');
+
+            function syncHeaderMetrics() {
+                if (!appHeader) return;
+
+                const renderedHeight = Math.ceil(
+                    appHeader.getBoundingClientRect().height
+                );
+
+                document.documentElement.style.setProperty(
+                    '--app-header-rendered-height',
+                    `${renderedHeight}px`
+                );
+            }
+
+            syncHeaderMetrics();
+            window.addEventListener('resize', syncHeaderMetrics, { passive: true });
+
+            if ('ResizeObserver' in window && appHeader) {
+                new ResizeObserver(syncHeaderMetrics).observe(appHeader);
+            }
+
              if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }

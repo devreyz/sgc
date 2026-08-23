@@ -40,7 +40,7 @@
 
 @section('title', 'Comprovantes de '.$memberTermPluralLower)
 @section('page-title', 'Comprovantes de '.$memberTermPluralLower)
-@section('page-subtitle', 'Gere e acompanhe comprovantes a partir das distribuições confirmadas.')
+@section('page-subtitle', 'Acompanhe e gere comprovantes por associado.')
 @section('user-role', 'Registrador')
 
 <x-delivery.notes-modal />
@@ -56,7 +56,10 @@
 >
 
 <style>
-    .pr {
+    .pr,
+    .pr-overlay,
+    .pr-dialog,
+    .pr-toast-wrap {
         --pr-green: #168a4d;
         --pr-green-soft: #eaf8ef;
         --pr-blue: #2563eb;
@@ -80,7 +83,9 @@
         --pr-surface: var(--color-surface, #fff);
         --pr-soft: var(--color-surface-soft, #f8faf9);
         --pr-muted: var(--color-surface-muted, #eef4f0);
+    }
 
+    .pr {
         display: grid;
         width: min(100%, 1280px);
         min-width: 0;
@@ -933,8 +938,8 @@
             max(.75rem, env(safe-area-inset-right))
             max(.75rem, env(safe-area-inset-bottom))
             max(.75rem, env(safe-area-inset-left));
-        background: rgba(8, 24, 15, .52);
-        backdrop-filter: blur(3px);
+        background: rgba(11, 28, 18, .34);
+        backdrop-filter: none;
     }
 
     .pr-overlay[hidden] {
@@ -950,8 +955,10 @@
         overflow: hidden;
         border: 1px solid var(--pr-border);
         border-radius: 16px;
-        background: var(--pr-surface);
-        box-shadow: 0 24px 68px rgba(8, 24, 15, .24);
+        background: #f3f7f4;
+        color: var(--pr-text);
+        isolation: isolate;
+        box-shadow: -12px 0 38px rgba(8, 24, 15, .16);
         animation:
             pr-sheet-enter
             180ms
@@ -966,8 +973,8 @@
         gap: .58rem;
         align-items: center;
         padding: .72rem;
-        border-bottom: 1px solid var(--pr-border);
-        background: linear-gradient(180deg, var(--pr-soft), #fff);
+        border-bottom: 1px solid #d8e4dc;
+        background: #fff;
     }
 
     .pr-sheet-icon {
@@ -1014,8 +1021,8 @@
             .62rem
             .74rem
             calc(.62rem + env(safe-area-inset-bottom));
-        border-top: 1px solid var(--pr-border);
-        background: var(--pr-soft);
+        border-top: 1px solid #d8e4dc;
+        background: #fff;
     }
 
     .pr-sheet-summary {
@@ -1485,8 +1492,8 @@
     }
 
     .pr-dialog::backdrop {
-        background: rgba(8, 24, 15, .52);
-        backdrop-filter: blur(3px);
+        background: rgba(11, 28, 18, .34);
+        backdrop-filter: none;
     }
 
     .pr-dialog-body {
@@ -1823,6 +1830,310 @@
         }
     }
 
+    /* =========================================================
+       COMPOSIÇÃO WORKSPACE — LISTA + RESUMO OPERACIONAL
+       ========================================================= */
+
+    .pr-card {
+        transition:
+            border-color 150ms ease,
+            box-shadow 150ms ease,
+            transform 150ms ease;
+    }
+
+    .pr-card:hover {
+        border-color:
+            color-mix(
+                in srgb,
+                var(--card-tone) 18%,
+                var(--pr-border)
+            );
+        box-shadow:
+            inset 3px 0 var(--card-tone),
+            0 8px 20px rgba(15, 35, 23, .06);
+    }
+
+    .pr-columns summary::after,
+    .pr-issues > summary::after {
+        margin-left: auto;
+        color: var(--pr-muted-text);
+        content: "\e136";
+        font-family: "Phosphor";
+        font-size: .8rem;
+        transition: transform 150ms ease;
+    }
+
+    .pr-columns[open] summary::after,
+    .pr-issues[open] > summary::after {
+        transform: rotate(180deg);
+    }
+
+    .pr-sheet-body {
+        background: #f3f7f4;
+        scrollbar-gutter: stable;
+    }
+
+    .pr-receipt,
+    .pr-dist,
+    .pr-columns,
+    .pr-issues {
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(15, 35, 23, .025);
+    }
+
+    .pr-receipt {
+        border-left: 3px solid var(--pr-blue);
+    }
+
+    .pr-selection-tools {
+        padding: .62rem;
+        border: 1px solid var(--pr-border);
+        border-radius: 11px;
+        background: #fff;
+    }
+
+    @media (min-width: 1024px) {
+        .pr {
+            grid-template-columns: minmax(0, 1fr) 292px;
+            align-items: start;
+        }
+
+        .pr-head {
+            grid-column: 1 / -1;
+        }
+
+        .pr-overview {
+            position: sticky;
+            top: .75rem;
+            grid-column: 2;
+            grid-row: 2 / span 3;
+        }
+
+        .pr-overview-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .pr-overview-action {
+            margin-left: 2.75rem;
+        }
+
+        .pr-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .pr-stat {
+            min-height: 58px;
+            padding: .48rem .52rem;
+        }
+
+        .pr-stat-icon {
+            width: 32px;
+            height: 32px;
+        }
+
+        .pr-tools-shell,
+        .pr-grid,
+        .pr-footer {
+            grid-column: 1;
+        }
+
+        .pr-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pr-card {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 228px;
+            grid-template-rows: auto auto auto auto;
+            box-shadow:
+                inset 3px 0 var(--card-tone),
+                var(--shadow-sm);
+        }
+
+        .pr-card-head {
+            grid-column: 1;
+            grid-row: 1;
+            padding: .72rem .8rem .54rem .88rem;
+        }
+
+        .pr-meter {
+            grid-column: 1;
+            grid-row: 2;
+            margin-right: .8rem;
+            margin-left: .88rem;
+        }
+
+        .pr-progress-label {
+            grid-column: 1;
+            grid-row: 3;
+            padding-right: .8rem;
+            padding-left: .88rem;
+        }
+
+        .pr-values {
+            grid-column: 1;
+            grid-row: 4;
+            margin: .56rem .8rem .72rem .88rem;
+        }
+
+        .pr-card-actions {
+            display: flex;
+            grid-column: 2;
+            grid-row: 1 / 5;
+            align-items: stretch;
+            justify-content: center;
+            flex-direction: column;
+            margin-top: 0;
+            padding: .72rem;
+            border-top: 0;
+            border-left: 1px solid var(--pr-border);
+        }
+
+        .pr-card-actions .pr-btn {
+            min-height: 42px;
+        }
+
+        .pr-overlay {
+            place-items: stretch end;
+            padding: 0;
+        }
+
+        .pr-sheet {
+            width: min(720px, 100dvw);
+            height: 100dvh;
+            max-height: 100dvh;
+            border-top: 0;
+            border-right: 0;
+            border-bottom: 0;
+            border-radius: 18px 0 0 18px;
+            animation-name: pr-sheet-desktop-enter;
+        }
+
+        .pr-sheet-head {
+            padding: .82rem .9rem;
+        }
+
+        .pr-sheet-body {
+            padding: .86rem .9rem;
+        }
+
+        .pr-sheet-footer {
+            padding-right: .9rem;
+            padding-left: .9rem;
+            box-shadow: 0 -5px 16px rgba(15, 35, 23, .035);
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .pr-summary {
+            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+        }
+
+        .pr-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .pr-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            overflow: visible;
+            scroll-snap-type: none;
+        }
+
+        .pr-stat {
+            min-width: 0;
+            min-height: 62px;
+        }
+
+        .pr-stat:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .pr-card {
+            box-shadow:
+                inset 3px 0 var(--card-tone),
+                var(--shadow-sm);
+        }
+
+        .pr-sheet {
+            height: min(96dvh, 900px);
+            max-height: 96dvh;
+        }
+
+        .pr-sheet-head {
+            position: relative;
+            padding-top: .82rem;
+        }
+
+        .pr-columns summary,
+        .pr-issues > summary {
+            min-height: 44px;
+        }
+
+        .pr-receipt-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pr-receipt-actions .pr-btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .pr-summary {
+            gap: .36rem;
+            padding: .44rem;
+        }
+
+        .pr-stat {
+            grid-template-columns: 30px minmax(0, 1fr);
+            gap: .4rem;
+            padding: .46rem;
+        }
+
+        .pr-stat-icon {
+            width: 30px;
+            height: 30px;
+        }
+
+        .pr-card-head {
+            flex-direction: column;
+        }
+
+        .pr-card-head > .pr-badge {
+            margin-left: 3rem;
+        }
+
+        .pr-card-actions,
+        .pr-receipt-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .pr-selection-tools {
+            padding: .54rem;
+        }
+
+        .pr-sheet-footer {
+            gap: .5rem;
+        }
+    }
+
+    @keyframes pr-sheet-desktop-enter {
+        from {
+            opacity: .72;
+            transform: translateX(28px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
     @media (prefers-reduced-motion: reduce) {
         .pr *,
         .pr *::before,
@@ -1906,7 +2217,7 @@
 
                 <div class="pr-overview-copy">
                     <h2 id="pr-overview-title">Situação dos comprovantes</h2>
-                    <p>Use os indicadores também como filtros rápidos.</p>
+                    <p>Toque em um indicador para filtrar a lista.</p>
                 </div>
             </div>
 
@@ -2021,9 +2332,9 @@
         </header>
 
         <div class="pr-sheet-body">
-            <details class="pr-columns" id="pr-print-settings" open>
+            <details class="pr-columns" id="pr-print-settings">
                 <summary>
-                    Colunas e tamanho dos comprovantes deste projeto
+                    Aparência do PDF
                 </summary>
 
                 <div class="pr-column-grid">
@@ -2111,8 +2422,8 @@
 
                 <div class="pr-section-head">
                     <div>
-                        <h3>Comprovantes gerados</h3>
-                        <p>Reimprima, regenere ou altere as distribuições.</p>
+                        <h3>Histórico de comprovantes</h3>
+                        <p>Consulte, atualize ou gere uma nova via.</p>
                     </div>
                 </div>
 
@@ -2282,8 +2593,8 @@
         const actionLabel = receipt?.status === 'obsolete'
             ? 'Revisar comprovante'
             : row.pending_distributions > 0
-                ? `Selecionar ${row.pending_distributions} pendente(s)`
-                : receipt ? 'Gerenciar comprovantes' : 'Criar comprovante';
+                ? `Incluir ${row.pending_distributions} pendente(s)`
+                : receipt ? 'Abrir comprovantes' : 'Criar comprovante';
         const cardTone = receipt?.status === 'obsolete'
             ? 'is-danger'
             : Number(row.pending_distributions || 0) > 0
@@ -2304,15 +2615,15 @@
                 ${status}
             </div>
             <div class="pr-meter ${percent >= 100 ? 'done' : ''}" role="progressbar" aria-label="Distribuições em comprovantes" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(percent)}"><span style="width:${percent}%"></span></div>
-            <div class="pr-progress-label"><span>Distribuições cobertas</span><strong>${covered} de ${row.deliveries}</strong></div>
+            <div class="pr-progress-label"><span>Incluídas em comprovantes</span><strong>${covered} de ${row.deliveries}</strong></div>
             <div class="pr-values">
-                <div class="pr-value"><span>Quantidade</span><strong>${qty(row.quantity)}</strong></div>
+                <div class="pr-value"><span>Quantidade entregue</span><strong>${qty(row.quantity)}</strong></div>
                 <div class="pr-value"><span>Valor líquido</span><strong>${money(row.net_value)}</strong></div>
-                <div class="pr-value"><span>Pendentes</span><strong>${row.pending_distributions}</strong></div>
+                <div class="pr-value"><span>A incluir</span><strong>${row.pending_distributions}</strong></div>
             </div>
             <div class="pr-card-actions">
                 <a class="pr-btn" href="/${encodeURIComponent(tenant)}/delivery/projects/${project}/associates/${row.associate_id}">
-                    <i class="ph ph-user"></i> Ver ${esc(memberTermLower)}
+                    <i class="ph ph-user"></i> Ver cadastro
                 </a>
                 <button class="pr-btn primary" type="button" data-open-receipts="${row.associate_id}" data-associate-name="${esc(row.name)}">
                     <i class="ph ph-file-check"></i> ${esc(actionLabel)}

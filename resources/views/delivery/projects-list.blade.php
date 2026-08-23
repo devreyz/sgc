@@ -1032,6 +1032,184 @@
             transition-duration: .01ms !important;
         }
     }
+
+    /* =========================================================
+       COMPOSIÇÃO WORKSPACE
+       ========================================================= */
+
+    .pl-page {
+        gap: .72rem;
+    }
+
+    .pl-hero,
+    .pl-workspace,
+    .pl-card,
+    .pl-empty {
+        border-radius: 14px;
+        box-shadow: 0 3px 12px rgba(15, 35, 24, .04);
+    }
+
+    .pl-hero {
+        min-height: 68px;
+        padding: .62rem .7rem;
+    }
+
+    .pl-grid {
+        grid-template-columns: 1fr;
+        gap: .55rem;
+    }
+
+    .pl-card {
+        border-left: 3px solid var(--project-tone);
+        border-radius: 12px;
+        box-shadow: 0 2px 9px rgba(15, 35, 24, .035);
+    }
+
+    .pl-card-head {
+        padding: .58rem .62rem;
+    }
+
+    .pl-card-body {
+        padding: .54rem .62rem .6rem;
+    }
+
+    .pl-actions {
+        padding: .52rem .58rem;
+    }
+
+    @media (min-width: 981px) {
+        .pl-card {
+            grid-template-columns: minmax(0, 1fr) 276px;
+            grid-template-rows: auto 1fr;
+        }
+
+        .pl-card-head {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .pl-card-body {
+            grid-column: 1;
+            grid-row: 2;
+            grid-template-columns: minmax(0, 1fr) minmax(230px, .72fr);
+            align-items: center;
+        }
+
+        .pl-meta {
+            grid-column: 1 / -1;
+        }
+
+        .pl-stats {
+            grid-column: 1;
+        }
+
+        .pl-stats:last-child {
+            grid-column: 1 / -1;
+        }
+
+        .pl-progress {
+            grid-column: 2;
+        }
+
+        .pl-actions {
+            display: grid;
+            min-width: 0;
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .38rem;
+            align-content: center;
+            padding: .65rem;
+            border-top: 0;
+            border-left: 1px solid var(--pl-border);
+        }
+
+        .pl-action {
+            width: 100%;
+            min-height: 42px;
+            padding: .42rem .36rem;
+        }
+
+        .pl-action.register {
+            margin-left: 0;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .pl-card-body {
+            grid-template-columns: 1fr;
+        }
+
+        .pl-meta,
+        .pl-stats,
+        .pl-progress {
+            grid-column: 1;
+        }
+    }
+
+    @media (max-width: 620px) {
+        .pl-hero {
+            min-height: 64px;
+            padding: .56rem .6rem;
+        }
+
+        .pl-card-head,
+        .pl-card-body,
+        .pl-actions {
+            padding-right: .54rem;
+            padding-left: .54rem;
+        }
+
+        .pl-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .34rem;
+        }
+
+        .pl-action,
+        .pl-action.register {
+            grid-column: auto;
+            min-height: 40px;
+            margin-left: 0;
+        }
+    }
+
+    @media (max-width: 450px) {
+        .pl-card-head {
+            grid-template-columns: 34px minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .pl-card-icon {
+            width: 34px;
+            height: 34px;
+        }
+
+        .pl-status {
+            grid-column: 2;
+            justify-self: start;
+        }
+
+        .pl-stats {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            overflow: hidden;
+        }
+
+        .pl-stat {
+            min-width: 0;
+            padding: .42rem .38rem;
+        }
+
+        .pl-action.limits,
+        .pl-action.register {
+            grid-column: auto;
+        }
+    }
+
+    @media (max-width: 350px) {
+        .pl-actions {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div class="pl-page">
@@ -1044,8 +1222,8 @@
         </span>
 
         <div class="pl-hero-copy">
-            <span class="pl-kicker">Gestão de projetos</span>
-            <h1 class="pl-title">Projetos</h1>
+            <span class="pl-kicker">Visão geral</span>
+            <h1 class="pl-title">Projetos disponíveis</h1>
 
             <div class="pl-hero-meta">
                 <strong>{{ $tenant->name }}</strong>
