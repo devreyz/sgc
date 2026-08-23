@@ -72,7 +72,7 @@
 /* ── Overlay principal ─────────────────────────────────────────────── */
 #dm-overlay {
     position: fixed;
-    z-index: 300000;
+    z-index: 9999;
     inset: 0;
     display: none;
     align-items: center;
@@ -784,7 +784,7 @@
 /* ── Confirmação destrutiva ───────────────────────────────────────── */
 #dm-confirm-overlay {
     position: fixed;
-    z-index: 310000;
+    z-index: 10000;
     inset: 0;
     display: none;
     align-items: center;
@@ -873,7 +873,7 @@
 /* ── Avisos / configuração de preço ───────────────────────────────── */
 #dm-notice-overlay {
     position: fixed;
-    z-index: 320000;
+    z-index: 10001;
     inset: 0;
     display: none;
     align-items: center;
@@ -1269,6 +1269,913 @@
         transition-duration: .01ms !important;
     }
 }
+
+</style>
+
+<style id="dm-project-deliveries-theme">
+/* =====================================================================
+   DIST MODAL — tema Project Deliveries / Register
+   ===================================================================== */
+
+#dm-overlay,
+#dm-confirm-overlay,
+#dm-notice-overlay {
+    --dm-green:#168a4d;
+    --dm-green-soft:#eaf8ef;
+    --dm-blue:#2563eb;
+    --dm-blue-soft:#eef4ff;
+    --dm-sky:#0284c7;
+    --dm-sky-soft:#edf8fe;
+    --dm-violet:#7c3aed;
+    --dm-violet-soft:#f4f0ff;
+    --dm-amber:#c87408;
+    --dm-amber-soft:#fff7e8;
+    --dm-red:#cf3f3f;
+    --dm-red-soft:#fff0f0;
+    --dm-slate:#64748b;
+    --dm-slate-soft:#f1f5f9;
+    --dm-surface:var(--color-surface,#fff);
+    --dm-soft:var(--color-surface-soft,#f8faf9);
+    --dm-border:var(--color-border,#dce7e0);
+    --dm-border-strong:var(--color-border-strong,#c8d6cd);
+    --dm-text:var(--color-text,#102018);
+    --dm-text-2:var(--color-text-secondary,#52645a);
+    --dm-text-3:var(--color-text-muted,#809087);
+}
+
+html.dm-page-locked,
+body.dm-page-locked {
+    overflow: hidden !important;
+    overscroll-behavior-y: none !important;
+}
+
+#dm-overlay {
+    padding: max(.8rem,env(safe-area-inset-top))
+             max(.8rem,env(safe-area-inset-right))
+             max(.8rem,env(safe-area-inset-bottom))
+             max(.8rem,env(safe-area-inset-left));
+    background:rgba(8,24,15,.52);
+    backdrop-filter:blur(6px);
+}
+
+#dm-overlay.dm-open {
+    animation:dm-overlay-in .17s ease both;
+}
+
+.dm-box {
+    width:min(720px,100%);
+    max-height:min(var(--dm-vv-height,92dvh),860px);
+    border:1px solid var(--dm-border);
+    border-radius:16px;
+    background:#fff;
+    box-shadow:0 26px 70px rgba(8,24,15,.24);
+    animation:dm-panel-in .24s cubic-bezier(.22,.78,.24,1) both;
+}
+
+.dm-head {
+    min-height:70px;
+    align-items:center;
+    padding:.62rem .68rem;
+    background:
+        radial-gradient(circle at 100% 0,rgba(124,58,237,.10),transparent 17rem),
+        linear-gradient(180deg,var(--dm-soft),#fff);
+}
+
+.dm-head-main {
+    display:grid;
+    min-width:0;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:.5rem;
+    align-items:center;
+}
+
+.dm-title-icon {
+    display:inline-flex;
+    width:40px;
+    height:40px;
+    align-items:center;
+    justify-content:center;
+    border-radius:11px;
+    background:var(--dm-violet-soft);
+    color:var(--dm-violet);
+}
+
+.dm-title-icon .ph-duotone {
+    font-size:19px !important;
+}
+
+.dm-title {
+    font-size:.9rem;
+    font-weight:870;
+    letter-spacing:-.025em;
+}
+
+.dm-subtitle {
+    margin-top:.04rem;
+    font-size:.64rem;
+    line-height:1.35;
+}
+
+.dm-notes-btn {
+    width:max-content;
+    min-height:27px;
+    margin-top:.28rem !important;
+    gap:.24rem;
+    padding:.22rem .38rem;
+    border-color:rgba(100,116,139,.14);
+    background:var(--dm-slate-soft);
+    color:var(--dm-slate);
+    font-size:.59rem;
+}
+
+.dm-notes-btn .ph-duotone {
+    font-size:13px !important;
+}
+
+.dm-close-btn {
+    width:35px;
+    height:35px;
+    border-radius:9px;
+}
+
+.dm-close-btn .ph-duotone {
+    font-size:16px !important;
+}
+
+/* ---------- Progresso ---------- */
+
+.dm-progress-wrap {
+    --dm-progress-tone:var(--dm-sky);
+    gap:.42rem;
+    padding:.54rem .68rem;
+    background:linear-gradient(180deg,#fff,var(--dm-soft));
+}
+
+.dm-progress-wrap[data-state="empty"] {
+    --dm-progress-tone:var(--dm-slate);
+}
+
+.dm-progress-wrap[data-state="partial"] {
+    --dm-progress-tone:var(--dm-sky);
+}
+
+.dm-progress-wrap[data-state="high"] {
+    --dm-progress-tone:var(--dm-amber);
+}
+
+.dm-progress-wrap[data-state="complete"] {
+    --dm-progress-tone:var(--dm-green);
+}
+
+.dm-progress-wrap[data-state="over"] {
+    --dm-progress-tone:var(--dm-red);
+}
+
+.dm-progress-track {
+    height:8px;
+    background:color-mix(in srgb,var(--dm-border) 70%,#fff);
+}
+
+.dm-bar-existing {
+    background:var(--dm-progress-tone) !important;
+    transition:width .22s ease,background-color .18s ease;
+}
+
+.dm-bar-new {
+    background:var(--dm-violet) !important;
+    transition:width .22s ease;
+}
+
+.dm-progress-labels {
+    grid-template-columns:minmax(0,1fr) auto;
+    gap:.4rem;
+}
+
+.dm-progress-labels > span {
+    display:inline-flex;
+    min-height:27px;
+    align-items:center;
+    gap:.16rem;
+    padding:.18rem .34rem;
+    border:1px solid var(--dm-border);
+    border-radius:8px;
+    background:#fff;
+    font-size:.6rem;
+}
+
+.dm-progress-labels > span:first-child {
+    width:max-content;
+    max-width:100%;
+}
+
+.dm-progress-labels strong {
+    font-size:.64rem;
+    font-weight:880;
+    font-variant-numeric:tabular-nums;
+}
+
+.dm-progress-new-value {
+    color:var(--dm-violet) !important;
+}
+
+#dm-warning-overflow,
+#dm-done-badge {
+    min-height:27px;
+    border-radius:8px;
+}
+
+#dm-warning-overflow .ph-duotone,
+#dm-done-badge .ph-duotone {
+    font-size:14px !important;
+}
+
+/* ---------- Corpo / seções ---------- */
+
+.dm-body {
+    gap:.72rem;
+    padding:.64rem .68rem .72rem;
+    background:var(--dm-soft);
+    scrollbar-width:none;
+}
+
+.dm-body::-webkit-scrollbar {
+    width:0;
+    height:0;
+}
+
+.dm-section-lbl {
+    display:flex;
+    align-items:center;
+    gap:.28rem;
+    margin-bottom:.34rem;
+    color:var(--dm-text-3);
+    font-size:.59rem;
+    font-weight:820;
+    letter-spacing:.025em;
+}
+
+#dm-existing-section,
+#dm-new-section {
+    min-width:0;
+    padding:.48rem;
+    border:1px solid var(--dm-border);
+    border-radius:12px;
+    background:#fff;
+}
+
+#dm-existing-section .dm-section-lbl::before {
+    content:"";
+    width:7px;
+    height:7px;
+    border-radius:999px;
+    background:var(--dm-green);
+}
+
+#dm-new-section .dm-section-lbl::before {
+    content:"";
+    width:7px;
+    height:7px;
+    border-radius:999px;
+    background:var(--dm-violet);
+}
+
+/* ---------- Distribuições existentes ---------- */
+
+.dm-existing-block {
+    overflow:visible;
+    border:0;
+    border-radius:0;
+    background:transparent;
+}
+
+.dm-existing-row {
+    grid-template-columns:minmax(150px,1.35fr) auto auto auto;
+    gap:.42rem;
+    min-height:60px;
+    padding:.48rem .5rem;
+    border:1px solid var(--dm-border);
+    border-left:3px solid var(--dm-green);
+    border-radius:10px;
+    background:
+        linear-gradient(90deg,var(--dm-green-soft),#fff 54%);
+}
+
+.dm-existing-row + .dm-existing-row {
+    margin-top:.38rem;
+    border-top:1px solid var(--dm-border);
+}
+
+.dm-existing-row:hover {
+    background:
+        linear-gradient(90deg,color-mix(in srgb,var(--dm-green-soft) 75%,#fff),#fff 58%);
+}
+
+.dm-existing-customer {
+    font-size:.7rem;
+    font-weight:820;
+}
+
+.dm-existing-price {
+    font-size:.58rem;
+    font-weight:680;
+}
+
+.dm-existing-qty,
+.dm-existing-net {
+    font-size:.67rem;
+    font-weight:850;
+    font-variant-numeric:tabular-nums;
+}
+
+.dm-existing-qty {
+    color:var(--dm-text);
+}
+
+.dm-existing-net {
+    color:var(--dm-green);
+}
+
+.dm-status-badges {
+    gap:.18rem;
+    margin-top:.14rem;
+}
+
+.dm-status-badge {
+    min-height:19px;
+    padding:.08rem .28rem;
+    font-size:.53rem;
+}
+
+.dm-edit-btn,
+.dm-del-btn,
+.dm-action-disabled {
+    width:34px;
+    height:34px;
+    border-radius:9px;
+}
+
+.dm-edit-btn .ph-duotone,
+.dm-del-btn .ph-duotone,
+.dm-action-disabled .ph-duotone {
+    font-size:15px !important;
+}
+
+/* ---------- Edição inline ---------- */
+
+.dm-inline-edit {
+    grid-template-columns:minmax(0,1fr) 122px auto;
+    gap:.38rem;
+}
+
+.dm-inline-edit select,
+.dm-inline-edit input,
+.dm-row select,
+.dm-row input[type=number] {
+    min-height:42px;
+    border-radius:9px;
+    font-size:.7rem;
+}
+
+.dm-inline-edit input,
+.dm-row input[type=number] {
+    font-weight:850;
+    font-variant-numeric:tabular-nums;
+}
+
+.dm-mini-btn {
+    width:38px;
+    height:38px;
+    border-radius:9px;
+}
+
+.dm-mini-btn .ph-duotone {
+    font-size:15px !important;
+}
+
+/* ---------- Novas linhas ---------- */
+
+#dm-new-rows {
+    gap:.38rem !important;
+}
+
+.dm-row {
+    grid-template-columns:minmax(0,1fr) 116px 40px;
+    gap:.34rem;
+    padding:.42rem;
+    border:1px solid var(--dm-border);
+    border-left:3px solid var(--dm-violet);
+    border-radius:10px;
+    background:
+        linear-gradient(90deg,var(--dm-violet-soft),#fff 58%);
+}
+
+.dm-row .dm-rm-btn {
+    width:40px;
+    height:42px;
+    border-radius:9px;
+    background:var(--dm-red-soft);
+    border-color:rgba(207,63,63,.13);
+}
+
+.dm-row .dm-rm-btn .ph-duotone {
+    font-size:15px !important;
+}
+
+.dm-row-price {
+    min-height:18px;
+    padding:0 .03rem;
+    font-size:.58rem;
+}
+
+.dm-row-price.available {
+    color:var(--dm-green);
+}
+
+.dm-row-price.missing {
+    color:var(--dm-amber);
+}
+
+.dm-add-actions {
+    display:flex;
+    gap:.3rem;
+    flex-wrap:wrap;
+    margin-top:.42rem;
+}
+
+.dm-add-btn {
+    min-height:36px;
+    margin:0 !important;
+    gap:.26rem;
+    padding:.34rem .46rem;
+    border:1px solid var(--dm-border);
+    border-radius:9px;
+    background:#fff;
+    font-size:.6rem;
+}
+
+.dm-add-btn.primary {
+    border-color:rgba(124,58,237,.15);
+    background:var(--dm-violet-soft);
+    color:var(--dm-violet);
+}
+
+.dm-add-btn.accent {
+    border-color:rgba(22,138,77,.15);
+    background:var(--dm-green-soft);
+    color:var(--dm-green);
+}
+
+.dm-add-btn .ph-duotone {
+    font-size:14px !important;
+}
+
+/* ---------- Rodapé fixo ---------- */
+
+.dm-foot {
+    min-height:58px;
+    gap:.38rem;
+    padding:.52rem .68rem max(.52rem,env(safe-area-inset-bottom));
+    background:
+        linear-gradient(180deg,#fff,var(--dm-soft));
+}
+
+.dm-shortcuts {
+    font-size:.55rem;
+}
+
+#dm-overlay .dm-foot .btn {
+    min-height:40px;
+    border-radius:9px;
+}
+
+#dm-overlay .dm-foot .btn-primary {
+    border-color:rgba(124,58,237,.17);
+    background:var(--dm-violet-soft);
+    color:var(--dm-violet);
+}
+
+#dm-overlay .dm-foot .btn .ph-duotone {
+    font-size:14px !important;
+}
+
+/* ---------- Confirmação ---------- */
+
+#dm-confirm-overlay,
+#dm-notice-overlay {
+    background:rgba(8,24,15,.56);
+    backdrop-filter:blur(5px);
+}
+
+#dm-confirm-overlay.open,
+#dm-notice-overlay.open {
+    animation:dm-overlay-in .16s ease both;
+}
+
+.dm-confirm-box,
+.dm-notice-box {
+    border-radius:15px;
+    box-shadow:0 24px 64px rgba(8,24,15,.24);
+    animation:dm-panel-in .22s cubic-bezier(.22,.78,.24,1) both;
+}
+
+.dm-confirm-box {
+    width:min(440px,100%);
+    padding:0;
+}
+
+.dm-confirm-head {
+    display:grid;
+    grid-template-columns:auto minmax(0,1fr);
+    gap:.52rem;
+    align-items:start;
+    padding:.7rem;
+}
+
+.dm-confirm-icon {
+    display:inline-flex;
+    width:40px;
+    height:40px;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    background:var(--dm-red-soft);
+    color:var(--dm-red);
+}
+
+.dm-confirm-box.info .dm-confirm-icon {
+    background:var(--dm-blue-soft);
+    color:var(--dm-blue);
+}
+
+.dm-confirm-box.warning .dm-confirm-icon {
+    background:var(--dm-amber-soft);
+    color:var(--dm-amber);
+}
+
+.dm-confirm-icon .ph-duotone {
+    font-size:19px !important;
+}
+
+.dm-confirm-copy {
+    min-width:0;
+}
+
+.dm-confirm-title {
+    font-size:.82rem;
+    font-weight:860;
+}
+
+.dm-confirm-text {
+    margin-top:.12rem;
+    font-size:.68rem;
+    line-height:1.48;
+}
+
+.dm-confirm-math {
+    margin:0 .7rem .64rem;
+    padding:.52rem;
+    border:1px solid rgba(207,63,63,.13);
+    border-radius:10px;
+    background:var(--dm-red-soft);
+}
+
+.dm-confirm-math[hidden] {
+    display:none !important;
+}
+
+.dm-confirm-math-head {
+    display:flex;
+    align-items:center;
+    gap:.26rem;
+    margin-bottom:.3rem;
+    color:var(--dm-red);
+    font-size:.61rem;
+    font-weight:820;
+}
+
+.dm-confirm-math-head .ph-duotone {
+    font-size:14px !important;
+}
+
+.dm-confirm-math input {
+    min-height:42px;
+    margin-top:.28rem;
+    font-size:.85rem;
+    font-weight:850;
+}
+
+.dm-confirm-error {
+    margin-top:.24rem;
+    color:var(--dm-red);
+    font-size:.58rem;
+    font-weight:760;
+}
+
+.dm-confirm-actions {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:.36rem;
+    margin:0;
+    padding:.54rem .68rem max(.54rem,env(safe-area-inset-bottom));
+    border-top:1px solid var(--dm-border);
+    background:var(--dm-soft);
+}
+
+#dm-confirm-overlay .btn {
+    min-height:42px;
+}
+
+/* ---------- Avisos/preço ---------- */
+
+.dm-notice-head {
+    padding:.68rem .7rem .58rem;
+}
+
+.dm-notice-icon {
+    width:38px;
+    height:38px;
+    border-radius:10px;
+}
+
+.dm-notice-icon .ph-duotone {
+    font-size:18px !important;
+}
+
+.dm-notice-title {
+    font-size:.81rem;
+}
+
+.dm-notice-message {
+    font-size:.68rem;
+}
+
+.dm-notice-actions {
+    padding:.54rem .68rem max(.54rem,env(safe-area-inset-bottom));
+}
+
+/* ---------- Phosphor ---------- */
+
+#dm-overlay .ph-duotone,
+#dm-confirm-overlay .ph-duotone,
+#dm-notice-overlay .ph-duotone {
+    font-family:"Phosphor-Duotone" !important;
+    font-style:normal !important;
+    font-weight:normal !important;
+    line-height:1 !important;
+}
+
+@keyframes dm-overlay-in {
+    from { opacity:0; }
+    to { opacity:1; }
+}
+
+@keyframes dm-panel-in {
+    from {
+        opacity:.75;
+        transform:translateY(18px) scale(.994);
+    }
+    to {
+        opacity:1;
+        transform:translateY(0) scale(1);
+    }
+}
+
+/* ---------- Tablet/mobile ---------- */
+
+@media(max-width:767px) {
+    #dm-overlay,
+    #dm-confirm-overlay,
+    #dm-notice-overlay {
+        align-items:flex-end;
+        padding:0;
+    }
+
+    .dm-box,
+    .dm-confirm-box,
+    .dm-notice-box {
+        width:100%;
+        max-width:none;
+        margin:0;
+        border-right:0;
+        border-bottom:0;
+        border-left:0;
+        border-radius:18px 18px 0 0;
+    }
+
+    .dm-box {
+        max-height:min(var(--dm-vv-height,96dvh),96dvh);
+        box-shadow:0 -18px 48px rgba(8,24,15,.22);
+    }
+
+    .dm-box::before {
+        top:6px;
+        width:38px;
+        height:4px;
+        background:rgba(100,116,139,.28);
+    }
+
+    .dm-head {
+        min-height:68px;
+        padding:.78rem .56rem .52rem;
+    }
+
+    .dm-title-icon {
+        width:37px;
+        height:37px;
+    }
+
+    .dm-title {
+        font-size:.84rem;
+    }
+
+    .dm-subtitle {
+        font-size:.61rem;
+    }
+
+    .dm-progress-wrap {
+        padding:.48rem .56rem;
+    }
+
+    .dm-progress-labels {
+        gap:.26rem;
+    }
+
+    .dm-progress-labels > span {
+        min-height:26px;
+        padding:.16rem .28rem;
+        font-size:.56rem;
+    }
+
+    .dm-body {
+        padding:.54rem .56rem .64rem;
+    }
+
+    #dm-existing-section,
+    #dm-new-section {
+        padding:.42rem;
+        border-radius:11px;
+    }
+
+    .dm-existing-row {
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:.26rem .38rem;
+        min-height:0;
+        padding:.44rem;
+    }
+
+    .dm-existing-customer {
+        grid-column:1;
+        grid-row:1;
+    }
+
+    .dm-existing-actions {
+        grid-column:2;
+        grid-row:1;
+    }
+
+    .dm-existing-qty {
+        grid-column:1;
+        grid-row:2;
+        text-align:left;
+    }
+
+    .dm-existing-net {
+        grid-column:2;
+        grid-row:2;
+        text-align:right;
+    }
+
+    .dm-edit-btn,
+    .dm-del-btn,
+    .dm-action-disabled {
+        width:36px;
+        height:36px;
+    }
+
+    .dm-inline-edit {
+        grid-template-columns:minmax(0,1fr) 102px;
+    }
+
+    .dm-inline-edit-actions {
+        grid-column:1 / -1;
+        justify-content:flex-end;
+    }
+
+    .dm-row {
+        grid-template-columns:minmax(0,1fr) 94px 40px;
+        gap:.28rem;
+        padding:.38rem;
+    }
+
+    .dm-row select,
+    .dm-row input[type=number] {
+        min-height:43px;
+        font-size:.68rem;
+    }
+
+    .dm-row .dm-rm-btn {
+        height:43px;
+    }
+
+    .dm-add-actions {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:.28rem;
+    }
+
+    .dm-add-btn {
+        min-height:39px;
+        justify-content:center;
+    }
+
+    .dm-add-btn.accent {
+        grid-column:1 / -1;
+    }
+
+    .dm-foot {
+        min-height:61px;
+        padding:.5rem .56rem max(.5rem,env(safe-area-inset-bottom));
+    }
+
+    .dm-shortcuts {
+        display:none;
+    }
+
+    #dm-overlay .dm-foot .btn {
+        min-height:44px;
+    }
+
+    #dm-overlay .dm-foot .btn-ghost {
+        width:44px;
+        min-width:44px;
+        padding:0;
+        font-size:0;
+    }
+
+    #dm-overlay .dm-foot .btn-ghost span {
+        display:none;
+    }
+
+    #dm-overlay .dm-foot .btn-ghost .ph-duotone {
+        font-size:16px !important;
+    }
+
+    #dm-overlay .dm-foot .btn-primary {
+        flex:1 1 auto;
+        font-size:.68rem;
+    }
+
+    .dm-confirm-box,
+    .dm-notice-box {
+        max-height:min(var(--dm-vv-height,88dvh),88dvh);
+    }
+
+    .dm-confirm-actions .btn,
+    .dm-notice-actions .btn {
+        min-height:45px;
+    }
+}
+
+@media(max-width:420px) {
+    .dm-progress-labels {
+        grid-template-columns:1fr;
+    }
+
+    .dm-progress-labels > span,
+    .dm-progress-labels > span:first-child {
+        width:100%;
+    }
+
+    .dm-row {
+        grid-template-columns:minmax(0,1fr) 88px 38px;
+    }
+
+    .dm-add-actions {
+        grid-template-columns:1fr;
+    }
+
+    .dm-add-btn.accent {
+        grid-column:auto;
+    }
+}
+
+@media(max-width:350px) {
+    .dm-row {
+        grid-template-columns:minmax(0,1fr) 40px;
+    }
+
+    .dm-row select {
+        grid-column:1 / -1;
+    }
+
+    .dm-row input[type=number] {
+        grid-column:1;
+    }
+
+    .dm-row .dm-rm-btn {
+        grid-column:2;
+    }
+}
 </style>
 
 {{-- ══ HTML ═════════════════════════════════════════════════════════════ --}}
@@ -1277,23 +2184,29 @@
 
         {{-- Head --}}
         <div class="dm-head">
-            <div class="dm-head-info">
-                <div class="dm-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                         fill="none" stroke="#4f46e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/>
-                        <circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
-                    </svg>
-                    Distribuir Recepção
+            <div class="dm-head-main">
+                <span class="dm-title-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-git-merge"></i>
+                </span>
+
+                <div class="dm-head-info">
+                    <div class="dm-title">Distribuir entrega</div>
+                    <div id="dm-subtitle" class="dm-subtitle"></div>
+
+                    <button type="button" class="dm-notes-btn" id="dm-notes-btn">
+                        <i class="ph-duotone ph-chat-text" aria-hidden="true"></i>
+                        <span>Observações</span>
+                    </button>
                 </div>
-                <div id="dm-subtitle" class="dm-subtitle"></div>
-                <button type="button" class="dm-notes-btn" id="dm-notes-btn">Observações</button>
             </div>
-            <button class="dm-close-btn" onclick="DistModal.close()" aria-label="Fechar modal de distribuição">✕</button>
+
+            <button class="dm-close-btn" onclick="DistModal.close()" aria-label="Fechar distribuição">
+                <i class="ph-duotone ph-x"></i>
+            </button>
         </div>
 
         {{-- Progress bar --}}
-        <div class="dm-progress-wrap">
+        <div class="dm-progress-wrap" id="dm-progress-wrap" data-state="empty">
             <div class="dm-progress-track">
                 <div id="dm-bar-existing" class="dm-bar-existing" style="width:0%"></div>
                 <div id="dm-bar-new"      class="dm-bar-new"      style="width:0%"></div>
@@ -1303,10 +2216,12 @@
                 <span id="dm-lbl-available"></span>
             </div>
             <div id="dm-warning-overflow">
-                ⚠ Total excede a quantidade disponível
+                <i class="ph-duotone ph-warning-circle" aria-hidden="true"></i>
+                <span>Total excede a quantidade disponível</span>
             </div>
             <div id="dm-done-badge">
-                ✓ 100 % distribuído
+                <i class="ph-duotone ph-check-circle" aria-hidden="true"></i>
+                <span>100% distribuído</span>
             </div>
         </div>
 
@@ -1323,46 +2238,67 @@
             <div id="dm-new-section">
                 <div class="dm-section-lbl">Adicionar distribuições</div>
                 <div id="dm-new-rows" style="display:flex;flex-direction:column;gap:.4rem"></div>
-                <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.addRow()" aria-label="Adicionar linha de distribuição">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Adicionar cliente
-                </button>
-                <button type="button" class="dm-add-btn" style="margin-top:.4rem" onclick="DistModal.restoreDefaultCustomers()" aria-label="Restaurar clientes padrao">
-                    Restaurar clientes padrao
-                </button>
-                <button type="button" class="dm-add-btn" id="dm-fill-default-btn" style="margin-top:.4rem;display:none" onclick="DistModal.fillAvailable()" aria-label="Preencher o saldo para o cliente padrão">
-                    Preencher saldo disponível
-                </button>
+                <div class="dm-add-actions">
+                    <button type="button" class="dm-add-btn primary" onclick="DistModal.addRow()" aria-label="Adicionar cliente">
+                        <i class="ph-duotone ph-plus-circle" aria-hidden="true"></i>
+                        <span>Adicionar cliente</span>
+                    </button>
+
+                    <button type="button" class="dm-add-btn" onclick="DistModal.restoreDefaultCustomers()" aria-label="Restaurar clientes padrão">
+                        <i class="ph-duotone ph-arrows-counter-clockwise" aria-hidden="true"></i>
+                        <span>Restaurar padrão</span>
+                    </button>
+
+                    <button type="button" class="dm-add-btn accent" id="dm-fill-default-btn" style="display:none" onclick="DistModal.fillAvailable()" aria-label="Preencher saldo disponível">
+                        <i class="ph-duotone ph-arrow-line-down" aria-hidden="true"></i>
+                        <span>Preencher saldo</span>
+                    </button>
+                </div>
             </div>
         </div>
 
         {{-- Footer --}}
         <div class="dm-foot">
             <span class="dm-shortcuts">Enter: salvar · Esc: fechar · Alt+A: adicionar cliente</span>
-            <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar modal">Cancelar</button>
+            <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar">
+                <i class="ph-duotone ph-x"></i>
+                <span>Cancelar</span>
+            </button>
             <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24"
-                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Salvar distribuições
+                <i class="ph-duotone ph-check-circle"></i>
+                <span>Salvar distribuições</span>
             </button>
         </div>
     </div>
 </div>
 
 {{-- ══ JS ══════════════════════════════════════════════════════════════ --}}
-<div id="dm-confirm-overlay">
-    <div class="dm-confirm-box" role="dialog" aria-modal="true" aria-labelledby="dm-confirm-title">
-        <div class="dm-confirm-title" id="dm-confirm-title">Confirmar exclusao</div>
-        <div class="dm-confirm-text" id="dm-confirm-text"></div>
-        <div class="dm-confirm-math">
-            <label for="dm-confirm-answer">Quanto e 1 + 1?</label>
-            <input id="dm-confirm-answer" type="number" inputmode="numeric" autocomplete="off" placeholder="Digite o resultado">
+<div id="dm-confirm-overlay" aria-hidden="true">
+    <div class="dm-confirm-box" id="dm-confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="dm-confirm-title" aria-describedby="dm-confirm-text">
+        <div class="dm-confirm-head">
+            <span class="dm-confirm-icon" id="dm-confirm-icon" aria-hidden="true">
+                <i class="ph-duotone ph-warning"></i>
+            </span>
+
+            <div class="dm-confirm-copy">
+                <div class="dm-confirm-title" id="dm-confirm-title">Confirmar ação</div>
+                <div class="dm-confirm-text" id="dm-confirm-text"></div>
+            </div>
         </div>
+
+        <div class="dm-confirm-math" id="dm-confirm-math" hidden>
+            <div class="dm-confirm-math-head">
+                <i class="ph-duotone ph-shield-warning" aria-hidden="true"></i>
+                <span>Confirmação adicional</span>
+            </div>
+            <label for="dm-confirm-answer">Para continuar, responda: <strong>1 + 1 = ?</strong></label>
+            <input id="dm-confirm-answer" type="number" inputmode="numeric" autocomplete="off" placeholder="Resultado">
+            <div class="dm-confirm-error" id="dm-confirm-error" hidden>Resposta incorreta.</div>
+        </div>
+
         <div class="dm-confirm-actions">
             <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.cancelDangerConfirm()">Cancelar</button>
-            <button type="button" class="btn btn-danger btn-sm" id="dm-confirm-ok" onclick="DistModal.acceptDangerConfirm()">Excluir distribuicao</button>
+            <button type="button" class="btn btn-danger btn-sm" id="dm-confirm-ok" onclick="DistModal.acceptDangerConfirm()">Confirmar</button>
         </div>
     </div>
 </div>
@@ -1370,8 +2306,8 @@
 <div id="dm-notice-overlay">
     <div class="dm-notice-box" id="dm-notice-box" role="alertdialog" aria-modal="true" aria-labelledby="dm-notice-title">
         <div class="dm-notice-head">
-            <div class="dm-notice-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            <div class="dm-notice-icon" id="dm-notice-icon" aria-hidden="true">
+                <i class="ph-duotone ph-warning-circle"></i>
             </div>
             <div class="dm-notice-copy">
                 <h3 class="dm-notice-title" id="dm-notice-title">Atencao</h3>
@@ -1416,7 +2352,148 @@ let _noticeAction = null;
 let _priceEditor = null;
 let _defaultCustomerId = null;
 let _singleDefaultCustomerId = null;
+
 let _notes = '';
+let _confirmResolver = null;
+let _confirmChallenge = false;
+let _confirmTone = 'danger';
+let _scrollLockY = 0;
+
+function dmCompact() {
+    return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function dmShouldAutoFocus() {
+    return !dmCompact();
+}
+
+function syncDmViewport() {
+    const viewport = window.visualViewport;
+    const height = viewport?.height || window.innerHeight;
+    document.documentElement.style.setProperty(
+        '--dm-vv-height',
+        `${Math.round(height)}px`
+    );
+}
+
+function lockDmPage() {
+    if (document.body.classList.contains('dm-page-locked')) return;
+
+    _scrollLockY = window.scrollY || window.pageYOffset || 0;
+
+    document.documentElement.classList.add('dm-page-locked');
+    document.body.classList.add('dm-page-locked');
+
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${_scrollLockY}px`;
+    document.body.style.left = '0';
+    document.body.style.right = '0';
+    document.body.style.width = '100%';
+
+    syncDmViewport();
+}
+
+function unlockDmPage() {
+    if (!document.body.classList.contains('dm-page-locked')) return;
+
+    document.documentElement.classList.remove('dm-page-locked');
+    document.body.classList.remove('dm-page-locked');
+
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.left = '';
+    document.body.style.right = '';
+    document.body.style.width = '';
+
+    window.scrollTo(0, _scrollLockY);
+}
+
+function setDmConfirmIcon(icon) {
+    const holder = $('dm-confirm-icon');
+    if (!holder) return;
+    holder.innerHTML = `<i class="ph-duotone ph-${icon}"></i>`;
+}
+
+function openDmConfirm({
+    title = 'Confirmar ação',
+    message = 'Deseja continuar?',
+    confirmLabel = 'Confirmar',
+    tone = 'danger',
+    challenge = false,
+    icon = null,
+} = {}) {
+    if (_confirmResolver) {
+        _confirmResolver(false);
+        _confirmResolver = null;
+    }
+
+    _confirmChallenge = !!challenge;
+    _confirmTone = tone;
+
+    const overlay = $('dm-confirm-overlay');
+    const box = $('dm-confirm-box');
+    const math = $('dm-confirm-math');
+    const answer = $('dm-confirm-answer');
+    const error = $('dm-confirm-error');
+
+    $('dm-confirm-title').textContent = title;
+    $('dm-confirm-text').textContent = message;
+    $('dm-confirm-ok').textContent = confirmLabel;
+
+    box.classList.remove('danger', 'warning', 'info');
+    box.classList.add(tone || 'danger');
+
+    setDmConfirmIcon(
+        icon
+        || (tone === 'warning'
+            ? 'warning'
+            : tone === 'info'
+                ? 'info'
+                : 'trash')
+    );
+
+    math.hidden = !_confirmChallenge;
+    answer.value = '';
+    error.hidden = true;
+
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    return new Promise(resolve => {
+        _confirmResolver = resolve;
+
+        if (dmShouldAutoFocus()) {
+            window.setTimeout(() => {
+                if (_confirmChallenge) {
+                    answer.focus({ preventScroll: true });
+                } else {
+                    $('dm-confirm-ok')?.focus({ preventScroll: true });
+                }
+            }, 35);
+        }
+    });
+}
+
+function finishDmConfirm(result) {
+    const overlay = $('dm-confirm-overlay');
+
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+
+    $('dm-confirm-error').hidden = true;
+
+    const resolver = _confirmResolver;
+    _confirmResolver = null;
+    _confirmChallenge = false;
+
+    resolver?.(result);
+}
+
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncDmViewport, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncDmViewport, { passive: true });
+}
+
 
 /* ── Helpers ───────────────────────────────────────────────────────── */
 function esc(s) {
@@ -1432,8 +2509,21 @@ function $ (id) { return document.getElementById(id); }
 
 function showNotice(message, options = {}) {
     const box = $('dm-notice-box');
-    box.className = 'dm-notice-box ' + (options.type || 'warning');
-    $('dm-notice-title').textContent = options.title || 'Atencao';
+    const type = options.type || 'warning';
+    box.className = 'dm-notice-box ' + type;
+
+    const noticeIcon = $('dm-notice-icon');
+    if (noticeIcon) {
+        const icon = type === 'error'
+            ? 'x-circle'
+            : type === 'info'
+                ? 'info'
+                : 'warning-circle';
+
+        noticeIcon.innerHTML = `<i class="ph-duotone ph-${icon}"></i>`;
+    }
+
+    $('dm-notice-title').textContent = options.title || 'Atenção';
     $('dm-notice-message').textContent = message || 'Nao foi possivel concluir esta acao.';
     $('dm-price-form').classList.remove('visible');
     const action = $('dm-notice-action');
@@ -1443,7 +2533,13 @@ function showNotice(message, options = {}) {
     action.disabled = false;
     action.onclick = () => _noticeAction?.();
     $('dm-notice-overlay').classList.add('open');
-    setTimeout(() => (_noticeAction ? action : $('dm-notice-overlay').querySelector('.btn-ghost'))?.focus(), 50);
+
+    if (dmShouldAutoFocus()) {
+        setTimeout(
+            () => (_noticeAction ? action : $('dm-notice-overlay').querySelector('.btn-ghost'))?.focus({ preventScroll: true }),
+            50
+        );
+    }
 }
 
 function priceCacheKey(customerId) {
@@ -1600,54 +2696,66 @@ function updateProgress() {
     $('dm-bar-existing').style.width = existPct + '%';
     $('dm-bar-new').style.width      = newPct   + '%';
 
-    $('dm-lbl-existing').innerHTML  =
-        'Já distribuído: <strong>' + fmt(_distQty, _unit) + '</strong>' +
-        (newTotal > 0 ? ' + <strong style="color:#4f46e5">' + fmt(newTotal, _unit) + '</strong>' : '');
+    const combined = _distQty + newTotal;
+    const totalPct = _totalQty > 0 ? (combined / _totalQty * 100) : 0;
+    const complete = !overflow && avail <= 0.0005 && combined > 0;
+
+    let progressState = 'empty';
+    if (overflow) progressState = 'over';
+    else if (complete) progressState = 'complete';
+    else if (totalPct >= 75) progressState = 'high';
+    else if (totalPct > 0) progressState = 'partial';
+
+    $('dm-progress-wrap')?.setAttribute('data-state', progressState);
+
+    $('dm-lbl-existing').innerHTML =
+        '<span>Já distribuído</span>&nbsp;<strong>' + fmt(_distQty, _unit) + '</strong>' +
+        (newTotal > 0
+            ? '&nbsp;+&nbsp;<strong class="dm-progress-new-value">' + fmt(newTotal, _unit) + '</strong>'
+            : '');
+
     $('dm-lbl-available').innerHTML =
-        'Disponível: <strong style="color:' + (avail <= 0 && !overflow ? '#059669' : avail < 0 ? '#dc2626' : 'var(--color-text)') + '">' +
-        fmt(avail, _unit) + '</strong>';
+        '<span>Disponível</span>&nbsp;<strong>' + fmt(avail, _unit) + '</strong>';
 
     $('dm-warning-overflow').classList.toggle('visible', overflow);
-    $('dm-done-badge').classList.toggle('visible', !overflow && avail <= 0.0005 && (_distQty + newTotal) > 0);
+    $('dm-done-badge').classList.toggle('visible', complete);
 }
 
 /* ── Build existing distributions list ─────────────────────────────── */
 function renderExisting(existing) {
     const section = $('dm-existing-section');
     const list    = $('dm-existing-list');
+
     if (!existing || existing.length === 0) {
         _existing = [];
         section.style.display = 'none';
+        list.innerHTML = '';
         return;
     }
+
     section.style.display = '';
     _existing = existing.map(normalizeExisting);
+
     list.innerHTML = _existing.map(d => `
         <div class="dm-existing-row" id="dmex-${d.id}">
-            <span class="dm-existing-customer"> ${esc(d.customer)} <small class="dm-existing-price">Valor unitario: ${fmtR(d.unit_price)}</small> ${statusBadges(d)} </span>
+            <span class="dm-existing-customer">
+                ${esc(d.customer)}
+                <small class="dm-existing-price">Valor unitário: ${fmtR(d.unit_price)}</small>
+                ${statusBadges(d)}
+            </span>
+
             <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
             <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
+
             <span class="dm-existing-actions">
                 ${distributionIsEditable(d)
-                    ? `<button class="dm-edit-btn" title="Editar distribuicao" aria-label="Editar distribuicao de ${esc(d.customer)}" onclick="DistModal.editExisting(${d.id})">✎</button>`
-                    : `<span class="dm-action-disabled" title="${d.in_receipt ? 'Remova do comprovante antes de editar' : 'Distribuicao faturada, paga ou bloqueada'}">✎</span>`}
+                    ? `<button class="dm-edit-btn" title="Editar distribuição" aria-label="Editar distribuição de ${esc(d.customer)}" onclick="DistModal.editExisting(${d.id})"><i class="ph-duotone ph-pencil-simple"></i></button>`
+                    : `<span class="dm-action-disabled" title="${d.in_receipt ? 'Remova do comprovante antes de editar' : 'Distribuição faturada, paga ou bloqueada'}"><i class="ph-duotone ph-lock-simple"></i></span>`}
+
                 ${distributionCanDelete(d)
-                    ? `<button class="dm-del-btn" title="${d.in_receipt ? 'Remover do comprovante e excluir' : 'Remover distribuicao'}" aria-label="Remover distribuicao de ${esc(d.customer)}" onclick="DistModal.deleteExisting(${d.id})">×</button>`
-                    : `<span class="dm-action-disabled" title="Distribuicao faturada, paga ou bloqueada">×</span>`}
+                    ? `<button class="dm-del-btn" title="${d.in_receipt ? 'Remover do comprovante e excluir' : 'Remover distribuição'}" aria-label="Remover distribuição de ${esc(d.customer)}" onclick="DistModal.deleteExisting(${d.id})"><i class="ph-duotone ph-trash"></i></button>`
+                    : `<span class="dm-action-disabled" title="Distribuição faturada, paga ou bloqueada"><i class="ph-duotone ph-lock-simple"></i></span>`}
             </span>
-        </div>
-    `).join('');
-    return;
-    list.innerHTML = existing.map(d => `
-        <div class="dm-existing-row" id="dmex-${d.id}">
-            <span class="dm-existing-customer">${esc(d.customer)}</span>
-            <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
-            <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
-            ${d.billed
-                ? `<span title="Distribuição faturada — não pode ser removida" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:#4f46e5;flex-shrink:0;" aria-label="Faturado"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>`
-                : (d.id ? `<button class="dm-del-btn" title="Remover distribuição" aria-label="Remover distribuição de ${esc(d.customer)}"
-                    onclick="DistModal.deleteExisting(${d.id})">✕</button>` : '')
-            }
         </div>
     `).join('');
 }
@@ -1696,8 +2804,12 @@ function buildRow(preselectId = null, autofocus = false, initialQuantity = null)
     rm.type      = 'button';
     rm.className = 'dm-rm-btn';
     rm.setAttribute('aria-label', 'Remover esta linha de distribuição');
-    rm.textContent = '×';
-    rm.onclick = () => { excludeCustomer(sel.value); row.remove(); updateProgress(); };
+    rm.innerHTML = '<i class="ph-duotone ph-trash"></i>';
+    rm.onclick = () => {
+        excludeCustomer(sel.value);
+        row.remove();
+        updateProgress();
+    };
 
     row.appendChild(sel);
     row.appendChild(inp);
@@ -1794,6 +2906,8 @@ window.DistModal = {
         updateProgress();
 
         // Open
+        lockDmPage();
+        syncDmViewport();
         $('dm-overlay').classList.add('dm-open');
         $('dm-save-btn').disabled = false;
         $('dm-fill-default-btn').style.display = _singleDefaultCustomerId ? '' : 'none';
@@ -1804,21 +2918,33 @@ window.DistModal = {
             (cfg.product || '') + ' · ' + fmt(_totalQty, _unit),
         );
 
-        // Focus first useful field for keyboard accessibility
-        setTimeout(() => {
-            const target = (_singleDefaultCustomerId || toPreload.length > 0)
-                ? $('dm-new-rows').querySelector('input[type=number]')
-                : $('dm-new-rows').querySelector('select');
-            target?.focus();
-            if (target?.select) target.select();
-        }, 80);
+        // Foco automático somente no desktop.
+        if (dmShouldAutoFocus()) {
+            setTimeout(() => {
+                const target = (_singleDefaultCustomerId || toPreload.length > 0)
+                    ? $('dm-new-rows').querySelector('input[type=number]')
+                    : $('dm-new-rows').querySelector('select');
+
+                target?.focus({ preventScroll: true });
+                target?.select?.();
+            }, 70);
+        }
     },
 
     close() {
         $('dm-overlay').classList.remove('dm-open');
+
+        if ($('dm-confirm-overlay')?.classList.contains('open')) {
+            finishDmConfirm(false);
+        }
+
+        this.closeNotice();
+
         _id = null;
         _notes = '';
         _singleDefaultCustomerId = null;
+
+        unlockDmPage();
     },
 
     addRow() {
@@ -1829,7 +2955,9 @@ window.DistModal = {
         const row = buildRow();
         $('dm-new-rows').appendChild(row);
         updateProgress();
-        setTimeout(() => row.querySelector('select')?.focus(), 30);
+        if (dmShouldAutoFocus()) {
+            setTimeout(() => row.querySelector('select')?.focus({ preventScroll: true }), 30);
+        }
     },
 
     restoreDefaultCustomers() {
@@ -1852,7 +2980,9 @@ window.DistModal = {
         const row = buildRow(_singleDefaultCustomerId, false, available);
         rows.appendChild(row);
         updateProgress();
-        setTimeout(() => row.querySelector('input')?.focus(), 30);
+        if (dmShouldAutoFocus()) {
+            setTimeout(() => row.querySelector('input')?.focus({ preventScroll: true }), 30);
+        }
     },
 
     editExisting(distributionId) {
@@ -1867,12 +2997,14 @@ window.DistModal = {
                 <select aria-label="Cliente da distribuicao">${customerOptions(d.customer_id)}</select>
                 <input type="number" min="0.001" step="0.001" value="${d.qty}" aria-label="Quantidade da distribuicao">
                 <span class="dm-inline-edit-actions">
-                    <button type="button" class="dm-mini-btn save" title="Salvar alteracao" onclick="DistModal.saveExistingEdit(${d.id})">✓</button>
-                    <button type="button" class="dm-mini-btn cancel" title="Cancelar edicao" onclick="DistModal.cancelExistingEdit()">×</button>
+                    <button type="button" class="dm-mini-btn save" title="Salvar alteração" aria-label="Salvar alteração" onclick="DistModal.saveExistingEdit(${d.id})"><i class="ph-duotone ph-check"></i></button>
+                    <button type="button" class="dm-mini-btn cancel" title="Cancelar edição" aria-label="Cancelar edição" onclick="DistModal.cancelExistingEdit()"><i class="ph-duotone ph-x"></i></button>
                 </span>
             </div>
         `;
-        setTimeout(() => row.querySelector('input')?.focus(), 40);
+        if (dmShouldAutoFocus()) {
+            setTimeout(() => row.querySelector('input')?.focus({ preventScroll: true }), 40);
+        }
     },
 
     cancelExistingEdit() {
@@ -1890,9 +3022,20 @@ window.DistModal = {
         }
 
         const existing = _existing.find(item => String(item.id) === String(distributionId));
-        if (existing?.in_receipt && !confirm('Esta distribuicao ja esta em um comprovante. Ao editar, o comprovante sera marcado como obsoleto e precisara ser conferido. Deseja continuar?')) {
-            renderExisting(_existing);
-            return;
+
+        if (existing?.in_receipt) {
+            const confirmed = await openDmConfirm({
+                title: 'Editar distribuição vinculada',
+                message: 'Esta distribuição já está em um comprovante. Ao editar, o comprovante será marcado como obsoleto e precisará ser conferido.',
+                confirmLabel: 'Continuar edição',
+                tone: 'warning',
+                icon: 'warning',
+            });
+
+            if (!confirmed) {
+                renderExisting(_existing);
+                return;
+            }
         }
 
         const saveBtn = row.querySelector('.dm-mini-btn.save');
@@ -1926,33 +3069,71 @@ window.DistModal = {
     async deleteExisting(distributionId) {
         const d = _existing.find(item => String(item.id) === String(distributionId));
         if (!d || !distributionCanDelete(d)) return;
+
         if (d.in_receipt) {
             _pendingDangerDelete = d;
-            $('dm-confirm-text').textContent = `Esta distribuicao esta no comprovante ${d.receipt_number || '#' + d.receipt_id}. Ao excluir, ela sera removida do comprovante e os totais serao recalculados.`;
-            $('dm-confirm-answer').value = '';
-            $('dm-confirm-overlay').classList.add('open');
-            setTimeout(() => $('dm-confirm-answer')?.focus(), 60);
-            return;
+
+            const confirmed = await openDmConfirm({
+                title: 'Exclusão forçada',
+                message: `Esta distribuição está no comprovante ${d.receipt_number || '#' + d.receipt_id}. Ao excluir, ela será removida do comprovante e os totais serão recalculados.`,
+                confirmLabel: 'Excluir distribuição',
+                tone: 'danger',
+                challenge: true,
+                icon: 'shield-warning',
+            });
+
+            if (!confirmed) {
+                _pendingDangerDelete = null;
+                return;
+            }
+
+            const current = _pendingDangerDelete;
+            _pendingDangerDelete = null;
+
+            return this.performDelete(
+                current.id,
+                {
+                    impact_confirmed: true,
+                    math_answer: 2,
+                }
+            );
         }
-        if (!confirm('Remover esta distribuicao?')) return;
+
+        const confirmed = await openDmConfirm({
+            title: 'Remover distribuição',
+            message: 'Deseja remover esta distribuição? Os totais da entrega serão atualizados imediatamente.',
+            confirmLabel: 'Remover',
+            tone: 'danger',
+            icon: 'trash',
+        });
+
+        if (!confirmed) return;
+
         return this.performDelete(distributionId, {});
     },
 
     cancelDangerConfirm() {
         _pendingDangerDelete = null;
-        $('dm-confirm-overlay').classList.remove('open');
+        finishDmConfirm(false);
     },
 
-    async acceptDangerConfirm() {
-        if (!_pendingDangerDelete) return;
-        const answer = parseInt($('dm-confirm-answer').value || '', 10);
-        if (answer !== 2) {
-            $('dm-confirm-answer').focus();
-            return;
+    acceptDangerConfirm() {
+        if (_confirmChallenge) {
+            const answer = parseInt($('dm-confirm-answer').value || '', 10);
+
+            if (answer !== 2) {
+                $('dm-confirm-error').hidden = false;
+
+                if (dmShouldAutoFocus()) {
+                    $('dm-confirm-answer')?.focus({ preventScroll: true });
+                    $('dm-confirm-answer')?.select?.();
+                }
+
+                return;
+            }
         }
-        const d = _pendingDangerDelete;
-        this.cancelDangerConfirm();
-        return this.performDelete(d.id, { impact_confirmed: true, math_answer: answer });
+
+        finishDmConfirm(true);
     },
 
     async performDelete(distributionId, payload = {}) {
@@ -1985,10 +3166,29 @@ window.DistModal = {
                 if (data.requires_confirmation) {
                     const d = _existing.find(item => String(item.id) === String(distributionId)) || { id: distributionId };
                     _pendingDangerDelete = d;
-                    $('dm-confirm-text').textContent = data.message || 'Esta distribuicao exige confirmacao antes de excluir.';
-                    $('dm-confirm-answer').value = '';
-                    $('dm-confirm-overlay').classList.add('open');
-                    setTimeout(() => $('dm-confirm-answer')?.focus(), 60);
+
+                    const confirmed = await openDmConfirm({
+                        title: 'Confirmação adicional',
+                        message: data.message || 'Esta distribuição exige confirmação antes de excluir.',
+                        confirmLabel: 'Excluir distribuição',
+                        tone: 'danger',
+                        challenge: true,
+                        icon: 'shield-warning',
+                    });
+
+                    if (confirmed) {
+                        _pendingDangerDelete = null;
+
+                        return this.performDelete(
+                            distributionId,
+                            {
+                                impact_confirmed: true,
+                                math_answer: 2,
+                            }
+                        );
+                    }
+
+                    _pendingDangerDelete = null;
                     return;
                 }
                 this.handleError(data, 'Erro ao remover.');
@@ -2062,8 +3262,8 @@ window.DistModal = {
         } finally {
             saveBtn.disabled    = false;
             saveBtn.textContent = '';
-            saveBtn.innerHTML   =
-                '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Salvar distribuições';
+            saveBtn.innerHTML =
+                '<i class="ph-duotone ph-check-circle"></i><span>Salvar distribuições</span>';
         }
     },
 
@@ -2099,7 +3299,9 @@ window.DistModal = {
         action.textContent = 'Salvar preco';
         _noticeAction = () => this.saveQuickPrice();
         action.onclick = _noticeAction;
-        setTimeout(() => $('dm-price-input')?.focus(), 40);
+        if (dmShouldAutoFocus()) {
+            setTimeout(() => $('dm-price-input')?.focus({ preventScroll: true }), 40);
+        }
     },
 
     async saveQuickPrice() {
@@ -2134,6 +3336,28 @@ window.DistModal = {
         }
     },
 };
+
+
+/* ── Overlay interactions ─────────────────────────────────────────── */
+$('dm-overlay')?.addEventListener('click', event => {
+    if (event.target === $('dm-overlay')) {
+        DistModal.close();
+    }
+});
+
+$('dm-confirm-overlay')?.addEventListener('click', event => {
+    if (event.target === $('dm-confirm-overlay')) {
+        DistModal.cancelDangerConfirm();
+    }
+});
+
+$('dm-notice-overlay')?.addEventListener('click', event => {
+    if (event.target === $('dm-notice-overlay')) {
+        DistModal.closeNotice();
+    }
+});
+
+syncDmViewport();
 
 /* ── Backward-compat aliases ────────────────────────────────────────── */
 document.addEventListener('keydown', event => {

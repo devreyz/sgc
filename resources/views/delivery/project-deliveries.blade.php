@@ -5,6 +5,56 @@
 @section('page-subtitle', $project->title)
 @section('user-role', 'Registrador')
 
+<div class="pd-modal-scope">
+    <!-- Custom Confirm Modal -->
+    <div
+        id="customConfirmOverlay"
+        class="confirm-overlay hidden"
+        role="dialog"
+        aria-hidden="true"
+        aria-modal="true"
+        aria-labelledby="confirmTitle"
+    >
+        <div class="confirm-box">
+            <span class="confirm-icon" aria-hidden="true">
+                <i class="ph-duotone ph-warning"></i>
+            </span>
+
+            <div class="confirm-copy">
+                <div class="confirm-title" id="confirmTitle">
+                    Confirmar ação
+                </div>
+
+                <div
+                    class="confirm-message"
+                    id="confirmMessage"
+                ></div>
+            </div>
+
+            <div class="confirm-buttons">
+                <button
+                    class="btn btn-ghost btn-sm"
+                    id="confirmCancel"
+                    type="button"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    class="btn btn-sm btn-primary"
+                    id="confirmOk"
+                    type="button"
+                >
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pd-toasts" aria-live="polite"></div>
+</div>
+
+
 <x-delivery.dist-modal
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
@@ -2327,54 +2377,6 @@
 }
 </style>
 
-<div class="pd-modal-scope">
-    <!-- Custom Confirm Modal -->
-    <div
-        id="customConfirmOverlay"
-        class="confirm-overlay hidden"
-        role="dialog"
-        aria-hidden="true"
-        aria-modal="true"
-        aria-labelledby="confirmTitle"
-    >
-        <div class="confirm-box">
-            <span class="confirm-icon" aria-hidden="true">
-                <i class="ph-duotone ph-warning"></i>
-            </span>
-
-            <div class="confirm-copy">
-                <div class="confirm-title" id="confirmTitle">
-                    Confirmar ação
-                </div>
-
-                <div
-                    class="confirm-message"
-                    id="confirmMessage"
-                ></div>
-            </div>
-
-            <div class="confirm-buttons">
-                <button
-                    class="btn btn-ghost btn-sm"
-                    id="confirmCancel"
-                    type="button"
-                >
-                    Cancelar
-                </button>
-
-                <button
-                    class="btn btn-sm btn-primary"
-                    id="confirmOk"
-                    type="button"
-                >
-                    Confirmar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="pd-toasts" aria-live="polite"></div>
-</div>
 
 @php
     $totalAll = $deliveries->count();

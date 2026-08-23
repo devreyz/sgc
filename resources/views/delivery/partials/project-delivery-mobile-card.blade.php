@@ -583,14 +583,14 @@ if ($overDistributed) {
 
             <div class="dc-context">
                 <span class="dc-context-item">
-                    <i data-lucide="user-round"></i>
+                    <i class="ph-duotone ph-user-circle"></i>
                     <span class="dc-associate" title="{{ $delivery['associate_name'] }}">
                         {{ $delivery['associate_name'] }}
                     </span>
                 </span>
 
                 <span class="dc-context-item date">
-                    <i data-lucide="calendar-days"></i>
+                    <i class="ph-duotone ph-calendar-dots"></i>
                     <span>{{ $delivery['delivery_date'] }}</span>
                 </span>
             </div>
@@ -637,7 +637,7 @@ if ($overDistributed) {
         <div class="dc-meter dc-distribution">
             <div class="dc-meter-head">
                 <span class="dc-meter-label">
-                    <i data-lucide="route"></i>
+                    <i class="ph-duotone ph-git-merge"></i>
                     Distribuição
                 </span>
 
