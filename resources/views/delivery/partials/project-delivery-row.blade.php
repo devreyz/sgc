@@ -585,12 +585,261 @@ $distributionTitle = $overDistributed
         }
     }
 </style>
+
+<style id="delivery-row-v3-refinement">
+    /*
+     * Linha desktop compacta, alinhada visualmente aos cards e ao workspace.
+     * A ordem das células e classes funcionais é preservada.
+     */
+    .pdr-row {
+        --pdr-state:var(--pdr-slate);
+        --pdr-state-soft:var(--pdr-slate-soft);
+    }
+
+    .pdr-row.status-pending {
+        --pdr-state:var(--pdr-amber);
+        --pdr-state-soft:var(--pdr-amber-soft);
+    }
+
+    .pdr-row.status-approved {
+        --pdr-state:var(--pdr-blue);
+        --pdr-state-soft:var(--pdr-blue-soft);
+    }
+
+    .pdr-row.status-rejected {
+        --pdr-state:var(--pdr-red);
+        --pdr-state-soft:var(--pdr-red-soft);
+    }
+
+    .pdr-row.status-cancelled {
+        --pdr-state:var(--pdr-slate);
+        --pdr-state-soft:var(--pdr-slate-soft);
+    }
+
+    .pdr-row > td {
+        padding-top:.46rem !important;
+        padding-bottom:.46rem !important;
+        border-color:var(--pdr-border);
+        background:#fff;
+    }
+
+    .pdr-row > td:first-child {
+        box-shadow:inset 3px 0 0 color-mix(in srgb,var(--pdr-state) 48%,transparent) !important;
+    }
+
+    .pdr-row:hover > td {
+        background:
+            linear-gradient(180deg,color-mix(in srgb,var(--pdr-state-soft) 30%,#fff),#fff) !important;
+    }
+
+    .pdr-date {
+        min-height:26px;
+        padding:.16rem .35rem;
+        border-color:color-mix(in srgb,var(--pdr-state) 10%,var(--pdr-border));
+        background:var(--pdr-state-soft);
+        color:var(--pdr-state);
+        font-size:.64rem;
+        font-weight:800;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .pdr-primary-text {
+        font-size:.72rem;
+        font-weight:800;
+    }
+
+    .pdr-product {
+        font-weight:840;
+    }
+
+    .pdr-qty {
+        font-size:.76rem;
+        font-weight:900;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .pdr-unit {
+        font-size:.59rem;
+    }
+
+    .pdr-money {
+        font-size:.7rem;
+        font-weight:880;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .pdr-quality {
+        min-width:27px;
+        min-height:24px;
+        border-radius:7px;
+        font-size:.62rem;
+    }
+
+    .pdr-status-stack .badge-status,
+    .pdr-billed,
+    .pdr-status-stack .pd-issue-btn {
+        min-height:23px;
+        border:1px solid transparent;
+        border-radius:7px;
+        font-size:.57rem;
+    }
+
+    .pdr-billed {
+        border-color:rgba(124,58,237,.11);
+    }
+
+    .pdr-billed .ph-duotone,
+    .pdr-status-stack .pd-issue-btn .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:12px !important;
+    }
+
+    .pdr-limit {
+        min-width:120px;
+        max-width:155px;
+        gap:.2rem;
+    }
+
+    .pdr-limit-used,
+    .pdr-limit-free {
+        font-size:.59rem;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .pdr-limit-track {
+        height:6px;
+    }
+
+    .pdr-no-limit {
+        min-height:25px;
+        padding:.16rem .34rem;
+        font-size:.59rem;
+    }
+
+    .pdr-dist {
+        min-width:118px;
+        max-width:156px;
+        gap:.2rem;
+        padding:.3rem .36rem;
+        border:1px solid color-mix(in srgb,var(--dist-tone) 10%,var(--pdr-border));
+        border-radius:8px;
+        background:#fff;
+    }
+
+    .pdr-dist.partial {
+        --dist-tone:var(--pdr-sky);
+        --dist-soft:var(--pdr-sky-soft);
+    }
+
+    .pdr-dist-label,
+    .pdr-dist-foot {
+        font-size:.56rem;
+    }
+
+    .pdr-dist-percent {
+        font-size:.62rem;
+        font-weight:900;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .pdr-dist .dist-bar-bg {
+        height:7px;
+        background:color-mix(in srgb,var(--dist-soft) 70%,var(--pdr-border));
+    }
+
+    .pdr-dist .dist-bar-fill.partial {
+        background:var(--pdr-sky) !important;
+    }
+
+    .pdr-dist .dist-bar-fill.full {
+        background:var(--pdr-green) !important;
+    }
+
+    .pdr-dist .dist-bar-fill.over {
+        background:var(--pdr-red) !important;
+    }
+
+    .pdr-actions-wrap {
+        gap:.2rem;
+    }
+
+    .pdr-actions {
+        gap:.18rem;
+    }
+
+    .pdr-actions button,
+    .pdr-note-btn {
+        min-width:31px;
+        min-height:31px;
+        padding:.26rem .36rem;
+        border-radius:8px;
+        font-size:.6rem;
+        font-weight:790;
+    }
+
+    .pdr-note-btn {
+        width:31px;
+        padding:0;
+        border-color:rgba(100,116,139,.12);
+    }
+
+    .pdr-actions .btn-approve {
+        border-color:rgba(22,138,77,.12);
+        background:var(--pdr-green-soft);
+    }
+
+    .pdr-actions .btn-reject,
+    .pdr-actions .btn-delete-approved {
+        border-color:rgba(207,63,63,.12);
+        background:var(--pdr-red-soft);
+    }
+
+    .pdr-actions .btn-edit {
+        border-color:rgba(37,99,235,.12);
+        background:var(--pdr-blue-soft);
+    }
+
+    .pdr-actions .btn-distribute {
+        border-color:rgba(124,58,237,.13);
+        background:var(--pdr-violet-soft);
+    }
+
+    .pdr-actions button > .ph-duotone,
+    .pdr-note-btn > .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:13px !important;
+        line-height:1 !important;
+    }
+
+    .pdr-row .ph-duotone {
+        font-family:"Phosphor-Duotone" !important;
+        font-style:normal !important;
+        font-weight:normal !important;
+    }
+
+    @media(max-width:1280px) {
+        .pdr-actions button {
+            width:31px !important;
+            min-width:31px !important;
+            height:31px !important;
+            min-height:31px !important;
+            padding:0 !important;
+            font-size:0 !important;
+        }
+
+        .pdr-actions button span {
+            display:none !important;
+        }
+    }
+</style>
 @endonce
 
 <tr
     id="desktop-row-{{ $delivery['id'] }}"
     data-delivery-id="{{ $delivery['id'] }}"
-    class="pdr-row {{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}"
+    class="pdr-row status-{{ $delivery['status_value'] }} {{ $delivery['status_value'] === 'approved' ? 'approved-row' : '' }}"
     data-total-qty="{{ $totalQty }}"
     data-unit="{{ $delivery['unit'] }}"
     data-product="{{ $delivery['product_name'] }}"
@@ -682,21 +931,7 @@ $distributionTitle = $overDistributed
                     class="pdr-billed"
                     title="Esta entrega possui distribuição faturada"
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="10"
-                        height="10"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2.5"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                    </svg>
+                    <i class="ph-duotone ph-lock-simple" aria-hidden="true"></i>
                     Faturado
                 </span>
             @endif
@@ -709,7 +944,7 @@ $distributionTitle = $overDistributed
                     title="Ver pendências desta entrega"
                     aria-label="Ver {{ $delivery['issue_count'] }} pendência(s) desta entrega"
                 >
-                    <i data-lucide="alert-triangle"></i>
+                    <i class="ph-duotone ph-warning"></i>
                     {{ $delivery['issue_count'] }}
                 </button>
             @endif
@@ -806,7 +1041,7 @@ $distributionTitle = $overDistributed
                     title="Ver observações"
                     aria-label="Ver observações da entrega"
                 >
-                    <i data-lucide="message-square-text"></i>
+                    <i class="ph-duotone ph-chat-text"></i>
                 </button>
             @endif
 
@@ -818,7 +1053,7 @@ $distributionTitle = $overDistributed
                         title="Aprovar entrega"
                         aria-label="Aprovar entrega"
                     >
-                        <i data-lucide="check"></i>
+                        <i class="ph-duotone ph-check-circle"></i>
                         <span>Aprovar</span>
                     </button>
 
@@ -828,7 +1063,7 @@ $distributionTitle = $overDistributed
                         title="Rejeitar entrega"
                         aria-label="Rejeitar entrega"
                     >
-                        <i data-lucide="x"></i>
+                        <i class="ph-duotone ph-x-circle"></i>
                         <span>Rejeitar</span>
                     </button>
 
@@ -845,9 +1080,21 @@ $distributionTitle = $overDistributed
                         title="Editar entrega"
                         aria-label="Editar entrega"
                     >
-                        <i data-lucide="pencil"></i>
+                        <i class="ph-duotone ph-pencil-simple"></i>
                         <span>Editar</span>
                     </button>
+
+                    @unless($delivery['has_billed'])
+                        <button
+                            class="btn-delete-approved"
+                            data-id="{{ $delivery['id'] }}"
+                            title="Excluir entrega pendente"
+                            aria-label="Excluir entrega pendente"
+                        >
+                            <i class="ph-duotone ph-trash"></i>
+                            <span>Excluir</span>
+                        </button>
+                    @endunless
                 </div>
 
             @elseif($delivery['status_value'] === 'approved')
@@ -867,7 +1114,7 @@ $distributionTitle = $overDistributed
                         title="Distribuir para clientes"
                         aria-label="Distribuir entrega para clientes"
                     >
-                        <i data-lucide="route"></i>
+                        <i class="ph-duotone ph-git-merge"></i>
                         <span>Distribuir</span>
                     </button>
 
@@ -884,7 +1131,7 @@ $distributionTitle = $overDistributed
                         title="Editar entrega"
                         aria-label="Editar entrega"
                     >
-                        <i data-lucide="pencil"></i>
+                        <i class="ph-duotone ph-pencil-simple"></i>
                         <span>Editar</span>
                     </button>
 
@@ -895,7 +1142,7 @@ $distributionTitle = $overDistributed
                             title="Excluir entrega aprovada"
                             aria-label="Excluir entrega aprovada"
                         >
-                            <i data-lucide="trash-2"></i>
+                            <i class="ph-duotone ph-trash"></i>
                             <span>Excluir</span>
                         </button>
                     @endunless
@@ -909,7 +1156,7 @@ $distributionTitle = $overDistributed
                         title="Excluir entrega rejeitada"
                         aria-label="Excluir entrega rejeitada"
                     >
-                        <i data-lucide="trash-2"></i>
+                        <i class="ph-duotone ph-trash"></i>
                         <span>Excluir</span>
                     </button>
                 </div>

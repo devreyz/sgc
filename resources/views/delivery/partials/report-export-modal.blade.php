@@ -969,6 +969,422 @@
     }
 </style>
 
+<style id="delivery-report-v3-refinement">
+    /*
+     * Modal de exportação no mesmo sistema visual de dist/edit sheets.
+     * Mantém IDs, inputs, endpoints e DeliveryReports.open/close.
+     */
+    .dr-modal {
+        --dr-vv-height:100dvh;
+        background:rgba(8,24,15,.52) !important;
+        backdrop-filter:blur(6px) !important;
+        animation:dr-overlay-enter .17s ease both;
+    }
+
+    .dr-panel {
+        width:min(840px,100%) !important;
+        max-height:min(var(--dr-vv-height,92dvh),860px) !important;
+        border-radius:16px !important;
+        box-shadow:0 26px 70px rgba(8,24,15,.24) !important;
+        animation:dr-panel-enter .24s cubic-bezier(.22,.78,.24,1) both;
+    }
+
+    .dr-head {
+        min-height:70px !important;
+        padding:.62rem .68rem !important;
+        background:
+            radial-gradient(circle at 100% 0,rgba(124,58,237,.10),transparent 17rem),
+            linear-gradient(180deg,var(--dr-soft),#fff) !important;
+    }
+
+    .dr-head-icon {
+        width:40px !important;
+        height:40px !important;
+        border-radius:11px !important;
+    }
+
+    .dr-head h2 {
+        font-size:.9rem !important;
+        font-weight:870 !important;
+    }
+
+    .dr-head p {
+        margin-top:.04rem !important;
+        font-size:.62rem !important;
+    }
+
+    .dr-close {
+        width:35px !important;
+        height:35px !important;
+        border-radius:9px !important;
+    }
+
+    .dr-head-icon .ph-duotone {
+        font-size:19px !important;
+    }
+
+    .dr-close .ph-duotone {
+        font-size:16px !important;
+    }
+
+    .dr-body {
+        gap:.58rem !important;
+        padding:.58rem .64rem .68rem !important;
+        background:var(--dr-soft);
+        scrollbar-width:none !important;
+    }
+
+    .dr-body::-webkit-scrollbar,
+    .dr-filter-list::-webkit-scrollbar {
+        width:0;
+        height:0;
+    }
+
+    .dr-section {
+        border-radius:12px !important;
+        background:#fff;
+    }
+
+    .dr-section-head {
+        min-height:48px !important;
+        padding:.44rem .5rem !important;
+    }
+
+    .dr-section-icon {
+        width:32px !important;
+        height:32px !important;
+        border-radius:9px !important;
+    }
+
+    .dr-section-icon .ph-duotone {
+        font-size:14px !important;
+    }
+
+    .dr-section-title {
+        font-size:.7rem !important;
+        font-weight:830 !important;
+    }
+
+    .dr-section-sub {
+        font-size:.58rem !important;
+    }
+
+    .dr-section-body {
+        padding:.52rem !important;
+    }
+
+    .dr-label {
+        margin-bottom:.22rem !important;
+        font-size:.6rem !important;
+        font-weight:780 !important;
+    }
+
+    .dr-select,
+    .dr-input,
+    .dr-filter-search {
+        min-height:42px !important;
+        border-radius:9px !important;
+        font-size:.68rem !important;
+    }
+
+    .dr-scope-grid {
+        gap:.4rem !important;
+    }
+
+    .dr-modes {
+        gap:.32rem !important;
+    }
+
+    .dr-choice > span {
+        min-height:50px !important;
+        border-radius:9px !important;
+        font-size:.65rem !important;
+        font-weight:790 !important;
+    }
+
+    .dr-choice-icon {
+        width:29px !important;
+        height:29px !important;
+        border-radius:8px !important;
+    }
+
+    .dr-choice-icon .ph-duotone {
+        font-size:14px !important;
+    }
+
+    .dr-loading {
+        min-height:58px !important;
+        border-style:solid !important;
+        background:#fff !important;
+        font-size:.65rem !important;
+    }
+
+    .dr-filters {
+        gap:.34rem !important;
+    }
+
+    .dr-filter {
+        border-radius:10px !important;
+    }
+
+    .dr-filter summary {
+        min-height:45px !important;
+        padding:.4rem .44rem !important;
+        font-size:.64rem !important;
+    }
+
+    .dr-filter-icon {
+        width:29px !important;
+        height:29px !important;
+    }
+
+    .dr-filter-icon .ph-duotone {
+        font-size:14px !important;
+    }
+
+    .dr-filter-count {
+        min-height:22px !important;
+        font-size:.55rem !important;
+    }
+
+    .dr-filter-list {
+        max-height:220px !important;
+        overscroll-behavior:contain;
+        scrollbar-width:none !important;
+    }
+
+    .dr-option {
+        min-height:36px !important;
+        font-size:.64rem !important;
+    }
+
+    .dr-layout {
+        border-radius:10px !important;
+    }
+
+    .dr-layout > summary {
+        min-height:46px !important;
+        font-size:.66rem !important;
+        font-weight:790 !important;
+    }
+
+    .dr-columns {
+        gap:.32rem !important;
+    }
+
+    .dr-column {
+        min-height:38px !important;
+        border-radius:8px !important;
+        font-size:.63rem !important;
+    }
+
+    .dr-error {
+        border-radius:9px !important;
+        font-size:.65rem !important;
+    }
+
+    .dr-actions {
+        min-height:62px;
+        gap:.38rem !important;
+        padding:.52rem .68rem max(.52rem,env(safe-area-inset-bottom)) !important;
+        background:linear-gradient(180deg,#fff,var(--dr-soft)) !important;
+    }
+
+    .dr-btn {
+        min-height:42px !important;
+        border-radius:9px !important;
+        font-size:.67rem !important;
+        font-weight:800 !important;
+    }
+
+    .dr-btn .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:15px !important;
+    }
+
+    .dr-btn-excel {
+        border-color:rgba(22,138,77,.15) !important;
+        background:var(--dr-green-soft) !important;
+        color:var(--dr-green) !important;
+    }
+
+    .dr-btn-primary {
+        border-color:rgba(124,58,237,.16) !important;
+        background:var(--dr-violet-soft) !important;
+        color:var(--dr-violet) !important;
+    }
+
+    .dr-modal .ph-duotone {
+        font-family:"Phosphor-Duotone" !important;
+        font-style:normal !important;
+        font-weight:normal !important;
+        line-height:1 !important;
+    }
+
+    html.dr-page-locked,
+    body.dr-page-locked {
+        overflow:hidden !important;
+        overscroll-behavior-y:none !important;
+    }
+
+    @keyframes dr-overlay-enter {
+        from { opacity:0; }
+        to { opacity:1; }
+    }
+
+    @keyframes dr-panel-enter {
+        from {
+            opacity:.74;
+            transform:translateY(18px) scale(.994);
+        }
+        to {
+            opacity:1;
+            transform:translateY(0) scale(1);
+        }
+    }
+
+    @media(max-width:767px) {
+        .dr-modal {
+            display:flex !important;
+            align-items:flex-end !important;
+            justify-content:center !important;
+            padding:0 !important;
+        }
+
+        .dr-modal[hidden] {
+            display:none !important;
+        }
+
+        .dr-panel {
+            position:relative;
+            width:100% !important;
+            max-width:none !important;
+            max-height:min(var(--dr-vv-height,96dvh),96dvh) !important;
+            margin:0 !important;
+            border-right:0 !important;
+            border-bottom:0 !important;
+            border-left:0 !important;
+            border-radius:18px 18px 0 0 !important;
+            box-shadow:0 -18px 48px rgba(8,24,15,.22) !important;
+        }
+
+        .dr-panel::before {
+            position:absolute;
+            z-index:5;
+            top:6px;
+            left:50%;
+            width:38px;
+            height:4px;
+            border-radius:999px;
+            background:rgba(100,116,139,.28);
+            content:"";
+            transform:translateX(-50%);
+        }
+
+        .dr-head {
+            min-height:68px !important;
+            padding:.78rem .56rem .52rem !important;
+        }
+
+        .dr-head-icon {
+            width:37px !important;
+            height:37px !important;
+        }
+
+        .dr-head h2 {
+            font-size:.84rem !important;
+        }
+
+        .dr-head p {
+            font-size:.59rem !important;
+        }
+
+        .dr-body {
+            padding:.54rem .56rem .64rem !important;
+        }
+
+        .dr-scope-grid {
+            grid-template-columns:1fr 1fr !important;
+        }
+
+        .dr-scope-grid .dr-field:first-child {
+            grid-column:1 / -1;
+        }
+
+        .dr-modes {
+            grid-template-columns:1fr !important;
+        }
+
+        .dr-choice > span {
+            min-height:46px !important;
+            grid-template-columns:auto minmax(0,1fr) !important;
+            justify-content:start !important;
+            text-align:left !important;
+        }
+
+        .dr-filters {
+            grid-template-columns:1fr !important;
+        }
+
+        .dr-filter-list {
+            max-height:min(220px,36vh) !important;
+        }
+
+        .dr-grid {
+            grid-template-columns:1fr 1fr !important;
+        }
+
+        .dr-actions {
+            min-height:62px;
+            padding:.5rem .56rem max(.5rem,env(safe-area-inset-bottom)) !important;
+        }
+
+        .dr-actions-spacer {
+            display:none !important;
+        }
+
+        .dr-btn {
+            min-height:44px !important;
+        }
+
+        .dr-btn-cancel {
+            width:44px !important;
+            min-width:44px !important;
+            padding:0 !important;
+            font-size:0 !important;
+        }
+
+        .dr-btn-cancel span {
+            display:none !important;
+        }
+
+        .dr-btn-excel,
+        .dr-btn-primary {
+            flex:1 1 0 !important;
+        }
+    }
+
+    @media(max-width:420px) {
+        .dr-scope-grid,
+        .dr-grid {
+            grid-template-columns:1fr !important;
+        }
+
+        .dr-scope-grid .dr-field:first-child {
+            grid-column:auto;
+        }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+        .dr-modal,
+        .dr-panel {
+            animation:none !important;
+        }
+    }
+</style>
+
+
 <div
     class="dr-modal"
     id="delivery-report-modal"
@@ -983,7 +1399,7 @@
     >
         <header class="dr-head">
             <span class="dr-head-icon" aria-hidden="true">
-                <i data-lucide="file-chart-column"></i>
+                <i class="ph-duotone ph-chart-bar"></i>
             </span>
 
             <div class="dr-head-copy">
@@ -1002,7 +1418,7 @@
                 aria-label="Fechar relatório"
                 title="Fechar"
             >
-                <i data-lucide="x"></i>
+                <i class="ph-duotone ph-x"></i>
             </button>
         </header>
 
@@ -1010,12 +1426,12 @@
             <section class="dr-section">
                 <header class="dr-section-head">
                     <span class="dr-section-icon" aria-hidden="true">
-                        <i data-lucide="folder-kanban"></i>
+                        <i class="ph-duotone ph-calendar-dots"></i>
                     </span>
 
                     <div>
                         <div class="dr-section-title">
-                            Escopo
+                            Período
                         </div>
                         <div class="dr-section-sub">
                             Projeto e período incluídos no relatório.
@@ -1072,7 +1488,7 @@
             <section class="dr-section">
                 <header class="dr-section-head">
                     <span class="dr-section-icon violet" aria-hidden="true">
-                        <i data-lucide="rows-3"></i>
+                        <i class="ph-duotone ph-rows"></i>
                     </span>
 
                     <div>
@@ -1096,7 +1512,7 @@
                             >
                             <span>
                                 <span class="dr-choice-icon" aria-hidden="true">
-                                    <i data-lucide="users-round"></i>
+                                    <i class="ph-duotone ph-users-three"></i>
                                 </span>
                                 <span data-dr-member-label>Por membro</span>
                             </span>
@@ -1110,7 +1526,7 @@
                             >
                             <span>
                                 <span class="dr-choice-icon" aria-hidden="true">
-                                    <i data-lucide="package"></i>
+                                    <i class="ph-duotone ph-package"></i>
                                 </span>
                                 <span>Por produto</span>
                             </span>
@@ -1124,7 +1540,7 @@
                             >
                             <span>
                                 <span class="dr-choice-icon" aria-hidden="true">
-                                    <i data-lucide="building-2"></i>
+                                    <i class="ph-duotone ph-buildings"></i>
                                 </span>
                                 <span>Por cliente</span>
                             </span>
@@ -1141,7 +1557,7 @@
                 <details class="dr-filter members">
                     <summary>
                         <span class="dr-filter-icon" aria-hidden="true">
-                            <i data-lucide="users-round"></i>
+                            <i class="ph-duotone ph-users-three"></i>
                         </span>
                         <span data-dr-members-title>Membros</span>
                         <span
@@ -1168,7 +1584,7 @@
                 <details class="dr-filter products">
                     <summary>
                         <span class="dr-filter-icon" aria-hidden="true">
-                            <i data-lucide="package"></i>
+                            <i class="ph-duotone ph-package"></i>
                         </span>
                         <span>Produtos</span>
                         <span
@@ -1195,7 +1611,7 @@
                 <details class="dr-filter customers">
                     <summary>
                         <span class="dr-filter-icon" aria-hidden="true">
-                            <i data-lucide="building-2"></i>
+                            <i class="ph-duotone ph-buildings"></i>
                         </span>
                         <span>Clientes</span>
                         <span
@@ -1227,7 +1643,7 @@
             >
                 <summary>
                     <span class="dr-layout-summary-icon" aria-hidden="true">
-                        <i data-lucide="settings-2"></i>
+                        <i class="ph-duotone ph-sliders-horizontal"></i>
                     </span>
                     <span>Layout e colunas</span>
                 </summary>
@@ -1319,7 +1735,7 @@
                 title="Cancelar"
                 aria-label="Cancelar e fechar"
             >
-                <i data-lucide="x"></i>
+                <i class="ph-duotone ph-x"></i>
                 <span>Cancelar</span>
             </button>
 
@@ -1330,7 +1746,7 @@
                 type="button"
                 data-dr-export="xlsx"
             >
-                <i data-lucide="sheet"></i>
+                <i class="ph-duotone ph-file-xls"></i>
                 <span>Excel</span>
             </button>
 
@@ -1339,7 +1755,7 @@
                 type="button"
                 data-dr-export="pdf"
             >
-                <i data-lucide="file-text"></i>
+                <i class="ph-duotone ph-file-pdf"></i>
                 <span>PDF</span>
             </button>
         </footer>
@@ -1357,6 +1773,79 @@
     const error = document.getElementById('dr-error');
     let controller = null;
     let optionData = null;
+    let reportScrollY = 0;
+    let reportOwnsScrollLock = false;
+    let reportPushedHistory = false;
+    const REPORT_HISTORY_KEY = '__sgcDeliveryReport';
+
+    const compactReportViewport = () =>
+        window.matchMedia('(max-width: 767px)').matches;
+
+    function syncReportViewport() {
+        const viewport = window.visualViewport;
+        const height = viewport?.height || window.innerHeight;
+        modal.style.setProperty('--dr-vv-height', `${Math.round(height)}px`);
+    }
+
+    function lockReportPage() {
+        if (
+            document.body.classList.contains('register-sheet-open')
+            || document.body.classList.contains('dm-page-locked')
+            || document.body.classList.contains('em-page-locked')
+            || document.body.classList.contains('dr-page-locked')
+        ) {
+            syncReportViewport();
+            return;
+        }
+
+        reportOwnsScrollLock = true;
+        reportScrollY = window.scrollY || window.pageYOffset || 0;
+
+        document.documentElement.classList.add('dr-page-locked');
+        document.body.classList.add('dr-page-locked');
+
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${reportScrollY}px`;
+        document.body.style.left = '0';
+        document.body.style.right = '0';
+        document.body.style.width = '100%';
+
+        syncReportViewport();
+    }
+
+    function unlockReportPage() {
+        if (!reportOwnsScrollLock) return;
+
+        reportOwnsScrollLock = false;
+
+        document.documentElement.classList.remove('dr-page-locked');
+        document.body.classList.remove('dr-page-locked');
+
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.left = '';
+        document.body.style.right = '';
+        document.body.style.width = '';
+
+        window.scrollTo(0, reportScrollY);
+    }
+
+    function pushReportHistory() {
+        if (history.state?.[REPORT_HISTORY_KEY]) {
+            reportPushedHistory = true;
+            return;
+        }
+
+        history.pushState(
+            {
+                ...(history.state || {}),
+                [REPORT_HISTORY_KEY]: true,
+            },
+            ''
+        );
+
+        reportPushedHistory = true;
+    }
 
     const selected = key => [...modal.querySelectorAll(`[data-dr-list="${key}"] input:checked`)].map(input => input.value);
     const updateCount = key => {
@@ -1419,18 +1908,44 @@
         }
     }
 
-    function close() {
+    function closeDirect() {
         modal.hidden = true;
         modal.setAttribute('aria-hidden', 'true');
-        document.body.style.overflow = '';
+        unlockReportPage();
     }
+
+    function close() {
+        if (
+            reportPushedHistory
+            && history.state?.[REPORT_HISTORY_KEY]
+        ) {
+            reportPushedHistory = false;
+            history.back();
+            return;
+        }
+
+        closeDirect();
+    }
+
     function open() {
         modal.hidden = false;
         modal.setAttribute('aria-hidden', 'false');
-        document.body.style.overflow = 'hidden';
+
+        lockReportPage();
+        syncReportViewport();
+        pushReportHistory();
         loadOptions();
-        window.setTimeout(() => project.focus(), 20);
-        if (window.lucide) window.lucide.createIcons();
+
+        /*
+         * Desktop pode focar o projeto para agilizar a operação.
+         * Mobile abre sem teclado/foco forçado.
+         */
+        if (!compactReportViewport()) {
+            window.setTimeout(
+                () => project.focus({ preventScroll:true }),
+                30
+            );
+        }
     }
     async function exportReport(format) {
         const id = Number(project.value || 0);
@@ -1506,7 +2021,34 @@
         const query = input.value.trim().toLocaleLowerCase('pt-BR');
         modal.querySelectorAll(`[data-dr-list="${input.dataset.drSearch}"] [data-dr-option]`).forEach(option => { option.hidden = query !== '' && !option.textContent.toLocaleLowerCase('pt-BR').includes(query); });
     }));
-    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.hidden) close(); });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !modal.hidden) {
+            close();
+        }
+    });
+
+    window.addEventListener('popstate', () => {
+        if (!modal.hidden && !history.state?.[REPORT_HISTORY_KEY]) {
+            reportPushedHistory = false;
+            closeDirect();
+        }
+    });
+
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener(
+            'resize',
+            syncReportViewport,
+            { passive:true }
+        );
+        window.visualViewport.addEventListener(
+            'scroll',
+            syncReportViewport,
+            { passive:true }
+        );
+    }
+
+    syncReportViewport();
+
     window.DeliveryReports = {open, close};
 })();
 </script>

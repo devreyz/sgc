@@ -8,7 +8,9 @@ $limit = $delivery['limit'] ?? [];
 $associateLimit = $limit['associate_limit'] ?? null;
 $associateRemaining = $limit['associate_remaining'] ?? null;
 $limitPercent = $limit['associate_percent'] ?? null;
-$limitColor = $limitPercent === null ? '#94a3b8' : ($limitPercent >= 100 ? '#dc2626' : ($limitPercent >= 80 ? '#d97706' : '#059669'));
+$limitTone = $limitPercent === null
+    ? 'slate'
+    : ($limitPercent >= 100 ? 'red' : ($limitPercent >= 80 ? 'amber' : 'green'));
 $visualStatus = $delivery['status_value'] === 'approved' && $distPercent >= 100 && ! $overDistributed
     ? 'distributed'
     : $delivery['status_value'];
@@ -521,6 +523,327 @@ if ($overDistributed) {
 
     }
 </style>
+
+<style id="delivery-card-v3-refinement">
+    /*
+     * Card mobile/tablet no mesmo padrão do workspace Project Deliveries.
+     * Mantém todas as classes funcionais mc-* e data-* esperadas pelo JS.
+     */
+    .delivery-card-v2 {
+        --dc-green:#168a4d;
+        --dc-green-soft:#eaf8ef;
+        --dc-blue:#2563eb;
+        --dc-blue-soft:#eef4ff;
+        --dc-sky:#0284c7;
+        --dc-sky-soft:#edf8fe;
+        --dc-violet:#7c3aed;
+        --dc-violet-soft:#f4f0ff;
+        --dc-amber:#c87408;
+        --dc-amber-soft:#fff7e8;
+        --dc-red:#cf3f3f;
+        --dc-red-soft:#fff0f0;
+        --dc-slate:#64748b;
+        --dc-slate-soft:#f1f5f9;
+
+        border-radius:12px !important;
+        border-left-width:3px !important;
+        box-shadow:0 2px 9px rgba(15,35,24,.025) !important;
+        transition:border-color .14s ease,box-shadow .14s ease,transform .14s ease;
+    }
+
+    .delivery-card-v2:hover {
+        border-color:color-mix(in srgb,var(--dc-tone) 19%,var(--dc-border));
+        box-shadow:0 6px 18px rgba(15,35,24,.05) !important;
+        transform:translateY(-1px);
+    }
+
+    .delivery-card-v2 .dc-head {
+        min-height:47px;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:.45rem;
+        align-items:center;
+        padding:.5rem .56rem !important;
+        background:
+            radial-gradient(circle at 100% 0,color-mix(in srgb,var(--dc-tone) 8%,transparent),transparent 10rem),
+            linear-gradient(90deg,var(--dc-soft),#fff 74%) !important;
+    }
+
+    .delivery-card-v2 .dc-product-line {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:.32rem;
+        align-items:center;
+    }
+
+    .delivery-card-v2 .dc-product {
+        font-size:.79rem !important;
+        font-weight:850 !important;
+    }
+
+    .delivery-card-v2 .mc-state-icon {
+        display:inline-flex !important;
+        width:27px !important;
+        height:27px !important;
+        align-items:center;
+        justify-content:center;
+        border-radius:8px !important;
+    }
+
+    .delivery-card-v2 .mc-state-icon > .ph-duotone {
+        font-size:15px !important;
+        line-height:1 !important;
+    }
+
+    .delivery-card-v2 .dc-signals {
+        grid-column:1 / -1;
+        gap:.22rem;
+        margin-top:.02rem;
+    }
+
+    .delivery-card-v2 .dc-signal,
+    .delivery-card-v2 .mc-net,
+    .delivery-card-v2 .pd-issue-btn {
+        min-height:22px;
+        padding:.12rem .32rem;
+        border:1px solid transparent;
+        font-size:.57rem;
+    }
+
+    .delivery-card-v2 .dc-signal.billed {
+        border-color:rgba(124,58,237,.11);
+        background:var(--dc-violet-soft);
+        color:var(--dc-violet);
+    }
+
+    .delivery-card-v2 .mc-net {
+        border-color:rgba(22,138,77,.10);
+        background:var(--dc-green-soft);
+        color:var(--dc-green);
+    }
+
+    .delivery-card-v2 .dc-signals .ph-duotone,
+    .delivery-card-v2 .pd-issue-btn .ph-duotone {
+        font-size:12px !important;
+    }
+
+    .delivery-card-v2 .dc-context {
+        gap:.22rem .5rem;
+        margin-top:.15rem;
+        font-size:.63rem;
+    }
+
+    .delivery-card-v2 .dc-context-item > .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:12px !important;
+        color:var(--dc-tone);
+    }
+
+    .delivery-card-v2 .dc-associate {
+        font-weight:760;
+    }
+
+    .delivery-card-v2 .dc-qty {
+        font-size:.92rem !important;
+        font-weight:900 !important;
+        font-variant-numeric:tabular-nums;
+        letter-spacing:-.015em;
+    }
+
+    .delivery-card-v2 .dc-body {
+        gap:.42rem;
+        padding:.48rem .54rem .54rem !important;
+        background:#fff !important;
+    }
+
+    .delivery-card-v2 .dc-meter {
+        gap:.25rem;
+        padding:.36rem .42rem;
+        border:1px solid var(--dc-border);
+        border-radius:9px;
+        background:var(--dc-bg);
+    }
+
+    .delivery-card-v2 .dc-meter-label {
+        font-size:.6rem;
+        font-weight:760;
+    }
+
+    .delivery-card-v2 .dc-meter-label > .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:12px !important;
+    }
+
+    .delivery-card-v2 .dc-meter-value {
+        font-size:.62rem;
+        font-weight:850;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .delivery-card-v2 .dc-limit-meter {
+        --limit-tone:var(--dc-slate);
+        --limit-soft:var(--dc-slate-soft);
+    }
+
+    .delivery-card-v2 .dc-limit-meter.green {
+        --limit-tone:var(--dc-green);
+        --limit-soft:var(--dc-green-soft);
+    }
+
+    .delivery-card-v2 .dc-limit-meter.amber {
+        --limit-tone:var(--dc-amber);
+        --limit-soft:var(--dc-amber-soft);
+    }
+
+    .delivery-card-v2 .dc-limit-meter.red {
+        --limit-tone:var(--dc-red);
+        --limit-soft:var(--dc-red-soft);
+    }
+
+    .delivery-card-v2 .dc-limit-meter .dc-meter-label > .ph-duotone,
+    .delivery-card-v2 .dc-limit-meter .dc-meter-value {
+        color:var(--limit-tone);
+    }
+
+    .delivery-card-v2 .dc-limit-meter .dc-track {
+        background:var(--limit-soft);
+    }
+
+    .delivery-card-v2 .dc-limit-meter .dc-track > span {
+        background:var(--limit-tone) !important;
+    }
+
+    .delivery-card-v2 .dc-distribution {
+        --dist-tone:var(--dc-sky);
+        --dist-soft:var(--dc-sky-soft);
+    }
+
+    .delivery-card-v2.status-distributed .dc-distribution {
+        --dist-tone:var(--dc-green);
+        --dist-soft:var(--dc-green-soft);
+    }
+
+    .delivery-card-v2 .dc-distribution:has(.mc-dist-bar-fill.over) {
+        --dist-tone:var(--dc-red);
+        --dist-soft:var(--dc-red-soft);
+    }
+
+    .delivery-card-v2 .dc-distribution .dc-meter-label > .ph-duotone,
+    .delivery-card-v2 .dc-distribution .dc-meter-value {
+        color:var(--dist-tone);
+    }
+
+    .delivery-card-v2 .mc-dist-indicator {
+        min-height:30px;
+        padding:.2rem .26rem;
+        border:1px solid color-mix(in srgb,var(--dist-tone) 10%,var(--dc-border));
+        border-radius:8px;
+        background:#fff;
+    }
+
+    .delivery-card-v2 .mc-dist-bar-bg {
+        height:7px;
+        background:color-mix(in srgb,var(--dist-soft) 72%,var(--dc-border));
+    }
+
+    .delivery-card-v2 .mc-dist-bar-fill.partial {
+        background:var(--dc-sky) !important;
+    }
+
+    .delivery-card-v2 .mc-dist-bar-fill.full {
+        background:var(--dc-green) !important;
+    }
+
+    .delivery-card-v2 .mc-dist-bar-fill.over {
+        background:var(--dc-red) !important;
+    }
+
+    .delivery-card-v2 .mc-dist-text {
+        color:var(--dist-tone);
+        font-size:.64rem;
+        font-weight:880;
+        font-variant-numeric:tabular-nums;
+    }
+
+    .delivery-card-v2 .dc-actions {
+        gap:.22rem;
+        padding-top:.02rem;
+    }
+
+    .delivery-card-v2 .dc-action {
+        min-width:35px;
+        min-height:35px;
+        padding:.36rem .44rem;
+        border-radius:9px;
+        background:var(--action-soft);
+        font-size:.62rem;
+        font-weight:790;
+    }
+
+    .delivery-card-v2 .dc-action > .ph-duotone {
+        width:auto !important;
+        height:auto !important;
+        font-size:15px !important;
+        line-height:1 !important;
+    }
+
+    .delivery-card-v2 .dc-action.approve {
+        border-color:rgba(22,138,77,.13);
+    }
+
+    .delivery-card-v2 .dc-action.reject,
+    .delivery-card-v2 .dc-action.delete {
+        border-color:rgba(207,63,63,.12);
+    }
+
+    .delivery-card-v2 .dc-action.edit {
+        border-color:rgba(37,99,235,.12);
+    }
+
+    .delivery-card-v2 .dc-action.distribute {
+        border-color:rgba(124,58,237,.13);
+    }
+
+    .delivery-card-v2 .dc-action.notes {
+        border-color:rgba(100,116,139,.12);
+    }
+
+    .delivery-card-v2 .ph-duotone {
+        font-family:"Phosphor-Duotone" !important;
+        font-style:normal !important;
+        font-weight:normal !important;
+    }
+
+    @media(max-width:679px) {
+        .delivery-card-v2 .dc-action {
+            width:36px !important;
+            min-width:36px !important;
+            height:36px !important;
+            min-height:36px !important;
+            padding:0 !important;
+            font-size:0 !important;
+        }
+
+        .delivery-card-v2 .dc-action-label {
+            display:none !important;
+        }
+    }
+
+    @media(max-width:390px) {
+        .delivery-card-v2 .dc-body {
+            padding:.44rem .5rem .5rem !important;
+        }
+
+        .delivery-card-v2 .dc-meter {
+            padding:.34rem .38rem;
+        }
+
+        .delivery-card-v2 .dc-actions {
+            justify-content:flex-end;
+        }
+    }
+</style>
 @endonce
 
 <div class="mobile-card delivery-card-v2 status-{{ $visualStatus }} variant-c"
@@ -555,7 +878,7 @@ if ($overDistributed) {
             <div class="dc-signals">
                 @if($delivery['has_billed'])
                     <span class="dc-signal billed" title="Entrega faturada">
-                        <i data-lucide="receipt-text" style="width:11px;height:11px"></i>
+                        <i class="ph-duotone ph-receipt"></i>
                         Faturada
                     </span>
                 @endif
@@ -568,12 +891,12 @@ if ($overDistributed) {
                         title="Ver pendências desta entrega"
                         aria-label="Ver {{ $delivery['issue_count'] }} pendência(s) desta entrega"
                     >
-                        <i data-lucide="triangle-alert"></i>
+                        <i class="ph-duotone ph-warning"></i>
                         {{ $delivery['issue_count'] }}
                     </button>
                 @elseif($delivery['dist_net_value'] > 0)
                     <span class="mc-net" title="Valor líquido distribuído">
-                        <i data-lucide="circle-dollar-sign" style="width:11px;height:11px"></i>
+                        <i class="ph-duotone ph-currency-circle-dollar"></i>
                         R$ {{ number_format($delivery['dist_net_value'], 2, ',', '.') }}
                     </span>
                 @endif
@@ -607,10 +930,10 @@ if ($overDistributed) {
         
 
         @if($associateLimit !== null)
-            <div class="dc-meter dc-limit-meter">
+            <div class="dc-meter dc-limit-meter {{ $limitTone }}">
                 <div class="dc-meter-head">
                     <span class="dc-meter-label">
-                        <i data-lucide="gauge"></i>
+                        <i class="ph-duotone ph-gauge"></i>
                         Cota do associado
                     </span>
 
@@ -628,7 +951,7 @@ if ($overDistributed) {
                     aria-valuenow="{{ min(100, $limitPercent ?? 0) }}"
                 >
                     <span
-                        style="width:{{ min(100, $limitPercent ?? 0) }}%;background:{{ $limitColor }}"
+                        style="width:{{ min(100, $limitPercent ?? 0) }}%"
                     ></span>
                 </div>
             </div>
@@ -684,7 +1007,7 @@ if ($overDistributed) {
                     title="Ver observações"
                     aria-label="Ver observações da entrega"
                 >
-                    <i data-lucide="message-square-text"></i>
+                    <i class="ph-duotone ph-chat-text"></i>
                     <span class="dc-action-label">Observações</span>
                 </button>
             @endif
@@ -696,7 +1019,7 @@ if ($overDistributed) {
                     title="Aprovar entrega"
                     aria-label="Aprovar entrega de {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="check"></i>
+                    <i class="ph-duotone ph-check-circle"></i>
                     <span class="dc-action-label">Aprovar</span>
                 </button>
 
@@ -706,7 +1029,7 @@ if ($overDistributed) {
                     title="Rejeitar entrega"
                     aria-label="Rejeitar entrega de {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="x"></i>
+                    <i class="ph-duotone ph-x-circle"></i>
                     <span class="dc-action-label">Rejeitar</span>
                 </button>
 
@@ -723,7 +1046,7 @@ if ($overDistributed) {
                     title="Editar entrega"
                     aria-label="Editar entrega de {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="pencil"></i>
+                    <i class="ph-duotone ph-pencil-simple"></i>
                     <span class="dc-action-label">Editar</span>
                 </button>
                 <button
@@ -732,7 +1055,7 @@ if ($overDistributed) {
                         title="Excluir entrega"
                         aria-label="Excluir entrega de {{ $delivery['product_name'] }}"
                     >
-                        <i data-lucide="trash-2"></i>
+                        <i class="ph-duotone ph-trash"></i>
                         <span class="dc-action-label">Excluir</span>
                     </button>
             @elseif($delivery['status_value'] === 'approved')
@@ -768,7 +1091,7 @@ if ($overDistributed) {
                     title="Editar entrega"
                     aria-label="Editar entrega de {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="pencil"></i>
+                    <i class="ph-duotone ph-pencil-simple"></i>
                     <span class="dc-action-label">Editar</span>
                 </button>
 
@@ -779,7 +1102,7 @@ if ($overDistributed) {
                         title="Excluir entrega"
                         aria-label="Excluir entrega de {{ $delivery['product_name'] }}"
                     >
-                        <i data-lucide="trash-2"></i>
+                        <i class="ph-duotone ph-trash"></i>
                         <span class="dc-action-label">Excluir</span>
                     </button>
                 @endunless
@@ -790,7 +1113,7 @@ if ($overDistributed) {
                     title="Excluir entrega rejeitada"
                     aria-label="Excluir entrega rejeitada de {{ $delivery['product_name'] }}"
                 >
-                    <i data-lucide="trash-2"></i>
+                    <i class="ph-duotone ph-trash"></i>
                     <span class="dc-action-label">Excluir</span>
                 </button>
             @endif
