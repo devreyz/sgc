@@ -1281,8 +1281,8 @@
 
     .mc-state-icon {
         display: grid;
-        width: 27px;
-        height: 27px;
+        width: 24px;
+        height: 24px;
         place-items: center;
         border-radius: 8px;
         background: var(--delivery-state-bg);
@@ -1291,9 +1291,9 @@
 
     .mc-state-icon > i,
     .mc-state-icon > svg {
-        width: 24px;
-        height: 24px;
-        font-size: 23px !important;
+        width: 18px;
+        height: 18px;
+        font-size: 18px !important;
     }
 
     .mc-head-main {

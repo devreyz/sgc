@@ -568,12 +568,7 @@ if ($overDistributed) {
             linear-gradient(90deg,var(--dc-soft),#fff 74%) !important;
     }
 
-    .delivery-card-v2 .dc-product-line {
-        display:grid;
-        grid-template-columns:minmax(0,1fr) auto;
-        gap:.32rem;
-        align-items:center;
-    }
+    
 
     .delivery-card-v2 .dc-product {
         font-size:.79rem !important;
@@ -589,10 +584,7 @@ if ($overDistributed) {
         border-radius:8px !important;
     }
 
-    .delivery-card-v2 .mc-state-icon > .ph-duotone {
-        font-size:15px !important;
-        line-height:1 !important;
-    }
+    
 
     .delivery-card-v2 .dc-signals {
         grid-column:1 / -1;
