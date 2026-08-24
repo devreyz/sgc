@@ -2123,6 +2123,29 @@
         }
     }
 
+    .summary-simulator-action {
+        display: inline-flex;
+        width: max-content;
+        min-height: 38px;
+        gap: .38rem;
+        align-items: center;
+        margin-top: .72rem;
+        padding: .46rem .62rem;
+        border: 1px solid color-mix(in srgb, var(--summary-tone) 22%, var(--ws-border));
+        border-radius: 9px;
+        color: var(--summary-tone);
+        background: rgba(255, 255, 255, .72);
+        font-size: .72rem;
+        font-weight: 790;
+        text-decoration: none;
+    }
+
+    .summary-simulator-action:hover,
+    .summary-simulator-action:focus-visible {
+        border-color: var(--summary-tone);
+        outline: none;
+    }
+
     /* Tabela de preços e simulação */
     .price-list,
     .simulation-list {
@@ -3471,6 +3494,14 @@
                                         <span style="width:${percent}%"></span>
                                     </div>
                                 `}
+
+                            <a
+                                class="summary-simulator-action"
+                                href="${AW_SIMULATOR_URL}"
+                            >
+                                <i class="ph ph-calculator"></i>
+                                Simular entrega
+                            </a>
                         </article>
 
                         <div class="summary-facts">
@@ -3583,14 +3614,6 @@
                     </div>
 
                     <div class="summary-action-row">
-                        <a
-                            class="text-button"
-                            href="${AW_SIMULATOR_URL}"
-                        >
-                            Simular entrega
-                            <i class="ph ph-calculator"></i>
-                        </a>
-
                         <button
                             type="button"
                             class="text-button"
