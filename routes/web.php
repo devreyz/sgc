@@ -322,6 +322,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             ->name('data.ledger');
         Route::get('/projects', [AssociateDashboardController::class, 'projects'])->name('projects');
         Route::get('/projects/{project}', [AssociateProjectPortalController::class, 'show'])->name('projects.show');
+        Route::get('/projects/{project}/simulate', [AssociateProjectPortalController::class, 'simulatorPage'])->name('projects.simulator');
         Route::get('/projects/{project}/data/{section}', [AssociateProjectPortalController::class, 'data'])->name('projects.data');
         Route::get('/projects/{project}/receipts/{receipt}/download', [AssociateProjectPortalController::class, 'downloadReceipt'])->name('projects.receipts.download');
         Route::get('/deliveries', [AssociateDashboardController::class, 'deliveries'])->name('deliveries');

@@ -39,6 +39,18 @@ class AssociateProjectPortalController extends Controller
         return view('associate.project-workspace', compact('project', 'associate'));
     }
 
+    public function simulatorPage(Request $request)
+    {
+        [$project, $associate] = $this->context($request);
+        $historyScope = substr(hash_hmac(
+            'sha256',
+            implode(':', [$project->tenant_id, $project->id, $request->user()->id]),
+            (string) config('app.key'),
+        ), 0, 32);
+
+        return view('associate.project-simulator', compact('project', 'associate', 'historyScope'));
+    }
+
     public function data(Request $request): JsonResponse
     {
         [$project, $associate] = $this->context($request);

@@ -1229,7 +1229,7 @@
                 max(.8rem, var(--safe-left));
         }
 
-        body.has-app-nav .bento-container {
+        body.has-active-app-nav .bento-container {
             padding-bottom:
                 calc(
                     var(--app-mobile-nav-height)
@@ -2958,6 +2958,12 @@
             }
         }
 
+        @media (max-width: 1023px) {
+            .app-nav-layer.has-no-active-item {
+                display: none;
+            }
+        }
+
         .push-permission-dialog {
             width: min(92vw, 420px);
             padding: 0;
@@ -3078,6 +3084,11 @@
         ? $bentoNavigation
         : [];
     $hasBentoNavigation = ! empty($bentoNavigation['items']);
+    $activeBentoNavigationKey = $bentoNavigation['active'] ?? null;
+    $hasActiveBentoNavigation = collect($bentoNavigation['items'] ?? [])->contains(
+        fn (array $item): bool => (bool) (($item['active'] ?? null)
+            ?? ($activeBentoNavigationKey !== null && ($item['key'] ?? null) === $activeBentoNavigationKey))
+    );
     $bentoPortal = preg_replace('/[^a-z0-9_-]/i', '', (string) ($bentoNavigation['portal'] ?? ''));
 
     $currentTenant = null;
@@ -3116,7 +3127,7 @@
     }
 @endphp
 
-<body class="{{ $hasBentoNavigation ? 'has-app-nav' : '' }}{{ $bentoPortal !== '' ? ' portal-'.$bentoPortal : '' }}">
+<body class="{{ $hasBentoNavigation ? 'has-app-nav' : '' }}{{ $hasActiveBentoNavigation ? ' has-active-app-nav' : '' }}{{ $bentoPortal !== '' ? ' portal-'.$bentoPortal : '' }}">
     
     <div
         id="global-request-loader"
@@ -3439,7 +3450,7 @@
     </aside>
 
     @if($hasBentoNavigation)
-        <div class="app-nav-layer" aria-label="Navegação principal do portal">
+        <div class="app-nav-layer {{ $hasActiveBentoNavigation ? 'has-active-item' : 'has-no-active-item' }}" aria-label="Navegação principal do portal">
             <x-portal.nav
                 :items="$bentoNavigation['items']"
                 :active="$bentoNavigation['active'] ?? null"

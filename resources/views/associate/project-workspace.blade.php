@@ -2603,6 +2603,18 @@
                 {{ $projectStatusLabel }}
             </span>
 
+            <a
+                class="workspace-header-action"
+                href="{{ route('associate.projects.simulator', [
+                    'tenant' => $tenantSlug,
+                    'project' => $project->id,
+                ]) }}"
+                aria-label="Simular entrega"
+                title="Simular entrega"
+            >
+                <i class="ph ph-calculator" aria-hidden="true"></i>
+            </a>
+
             <button
                 class="workspace-header-action"
                 type="button"
@@ -2646,15 +2658,6 @@
             >
                 <i class="ph-duotone ph-tag"></i>
                 <span>Preços</span>
-            </button>
-
-            <button
-                class="workspace-tab"
-                type="button"
-                data-section="simulator"
-            >
-                <i class="ph-duotone ph-calculator"></i>
-                <span>Simular</span>
             </button>
 
             <button
@@ -2762,6 +2765,12 @@
     const AW_BASE =
         @json(url('/'.$tenantSlug.'/associate/projects/'.$project->id));
 
+    const AW_SIMULATOR_URL =
+        @json(route('associate.projects.simulator', [
+            'tenant' => $tenantSlug,
+            'project' => $project->id,
+        ]));
+
     const awRoot =
         document.getElementById('aw-content');
 
@@ -2824,13 +2833,6 @@
             subtitle: 'Valores dos produtos para os destinos deste projeto.',
             icon: 'ph-tag',
             iconClass: 'prices',
-        },
-
-        simulator: {
-            title: 'Simular entregas',
-            subtitle: 'Combine produtos e quantidades antes de planejar a entrega.',
-            icon: 'ph-calculator',
-            iconClass: 'simulator',
         },
 
         deliveries: {
@@ -3579,6 +3581,14 @@
                     </div>
 
                     <div class="summary-action-row">
+                        <a
+                            class="text-button"
+                            href="${AW_SIMULATOR_URL}"
+                        >
+                            Simular entrega
+                            <i class="ph ph-calculator"></i>
+                        </a>
+
                         <button
                             type="button"
                             class="text-button"
