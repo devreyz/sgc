@@ -2219,9 +2219,7 @@
                         <div class="hub-portal-explainer">
                             <div class="hub-portal-explainer-copy">
                                 <strong>Escolha um portal para entrar</strong>
-                                <span>
-                                    Os cartões desta área são acessos. Recursos, notícias e contato ficam separados.
-                                </span>
+                               
                             </div>
 
                             @if($availablePanelsCount > 5)

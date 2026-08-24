@@ -5,6 +5,7 @@ namespace App\Filament\Resources\SalesProjectResource\RelationManagers;
 use App\Models\Associate;
 use App\Models\Product;
 use App\Models\ProjectAssociateProductLimit;
+use App\Models\TenantUser;
 use App\Services\AssociateProjectLimitService;
 use Filament\Forms;
 use Filament\Forms\Get;
@@ -288,7 +289,18 @@ class AssociateProductLimitsRelationManager extends RelationManager
             ->modifyQueryUsing(fn ($query) => $query->where('status', 'active'))
             ->description(fn (): HtmlString => $this->budgetSummary())
             ->columns([
-                Tables\Columns\TextColumn::make('associate.display_name')->label('Associado')->searchable()->sortable(),
+                Tables\Columns\TextColumn::make('associate.display_name')
+                    ->label('Associado')
+                    ->searchable(query: static function ($query, string $search) {
+                        $tenantId = (int) session('tenant_id');
+
+                        return $query->whereHas('associate', static function ($associateQuery) use ($tenantId, $search): void {
+                            $associateQuery->whereIn('user_id', TenantUser::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('tenant_name', 'like', '%'.$search.'%')
+                                ->select('user_id'));
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('product.name')->label('Produto')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('max_quantity')->label('Limite')->numeric(3)->sortable(),
                 Tables\Columns\TextColumn::make('reference_unit_price')->label('Preco de referencia')->money('BRL'),

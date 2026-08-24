@@ -11,6 +11,7 @@ use App\Models\CustomerProjectFee;
 use App\Models\CustomerReceiptPayment;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Support\FinancialAmount;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -315,7 +316,7 @@ class CustomerBillingReceiptService
             throw new \RuntimeException('A cobranca nao pertence ao tenant atual.');
         }
 
-        $amount = bcadd((string) round((float) ($data['amount'] ?? 0), 2), '0', 8);
+        $amount = FinancialAmount::cents($data['amount'] ?? 0);
         if (bccomp($amount, '0', 2) <= 0) {
             throw new \RuntimeException('O valor do recebimento deve ser maior que zero.');
         }
@@ -353,8 +354,8 @@ class CustomerBillingReceiptService
                 throw new \RuntimeException('A cobranca nao esta disponivel para recebimento.');
             }
 
-            $netValue = (string) ($lockedReceipt->total_net ?? 0);
-            if (bccomp($netValue, '0', 8) <= 0) {
+            $netValue = FinancialAmount::cents($lockedReceipt->total_net);
+            if (bccomp($netValue, '0', 2) <= 0) {
                 throw new \RuntimeException('A cobranca nao possui valor liquido congelado.');
             }
 
@@ -363,8 +364,11 @@ class CustomerBillingReceiptService
                 ->where('customer_billing_receipt_id', $lockedReceipt->id)
                 ->lockForUpdate()
                 ->get(['id', 'amount', 'document_number']);
-            $paid = (string) $paymentRows->sum(fn ($payment) => (float) $payment->amount);
-            $remaining = bcsub($netValue, $paid, 8);
+            $paid = $paymentRows->reduce(
+                fn (string $total, $payment): string => bcadd($total, FinancialAmount::cents($payment->amount), 2),
+                '0.00',
+            );
+            $remaining = FinancialAmount::remaining($netValue, $paid);
 
             if (bccomp($amount, $remaining, 2) > 0) {
                 throw new \RuntimeException(
@@ -393,7 +397,7 @@ class CustomerBillingReceiptService
             ]);
 
             // ── Atualizar amount_paid ──────────────────────────────────────
-            $newPaid = bcadd($paid, $amount, 8);
+            $newPaid = bcadd($paid, $amount, 2);
             $isFull = bccomp($newPaid, $netValue, 2) >= 0;
 
             $updateData = [

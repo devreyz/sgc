@@ -23,11 +23,26 @@ class FinancialPaymentIntegrityTest extends TestCase
         foreach ([
             'activity_log', 'cash_movements', 'bank_accounts', 'associate_ledgers',
             'associate_receipt_payments', 'customer_receipt_payments', 'production_deliveries',
-            'associate_receipts', 'customer_billing_receipts', 'associates', 'customers', 'sales_projects',
+            'associate_receipts', 'customer_billing_receipts', 'associates', 'customers', 'sales_projects', 'tenant_user', 'tenants',
         ] as $table) {
             Schema::dropIfExists($table);
         }
 
+        Schema::create('tenants', function (Blueprint $table): void {
+            $table->id();
+            $table->string('slug');
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        Schema::create('tenant_user', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('user_id');
+            $table->boolean('is_admin')->default(false);
+            $table->json('roles')->nullable();
+            $table->boolean('status')->default(true);
+            $table->timestamps();
+        });
         Schema::create('sales_projects', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -179,6 +194,10 @@ class FinancialPaymentIntegrityTest extends TestCase
             $table->timestamps();
         });
 
+        DB::table('tenants')->insert([
+            ['id' => 1, 'slug' => 'tenant-um', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'slug' => 'tenant-dois', 'created_at' => now(), 'updated_at' => now()],
+        ]);
         DB::table('sales_projects')->insert(['id' => 20, 'tenant_id' => 1, 'title' => 'Projeto', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('associates')->insert(['id' => 30, 'tenant_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('customers')->insert(['id' => 40, 'tenant_id' => 1, 'name' => 'Cliente', 'created_at' => now(), 'updated_at' => now()]);
@@ -284,6 +303,29 @@ class FinancialPaymentIntegrityTest extends TestCase
         $service->addPayment($receipt->fresh(), $last);
         $this->assertSame('100.00', $receipt->fresh()->amount_paid);
         $this->assertDatabaseCount('customer_receipt_payments', 2);
+    }
+
+    public function test_receipts_settle_using_the_same_cent_amount_shown_to_the_user(): void
+    {
+        $associateReceipt = $this->associateReceipt();
+        $associateReceipt->update(['total_net' => '100.0050']);
+        $this->assertSame(100.01, $associateReceipt->fresh()->remaining_amount);
+        app(AssociateReceiptService::class)->addPayment(
+            $associateReceipt->fresh(),
+            $this->payment(100.01, 'ARRED-ASSOC', '88888888-8888-4888-8888-888888888888'),
+        );
+        $this->assertSame('100.01', $associateReceipt->fresh()->amount_paid);
+        $this->assertSame('paid', $associateReceipt->fresh()->status->value);
+
+        $customerReceipt = $this->customerReceipt();
+        $customerReceipt->update(['total_net' => '100.0050']);
+        $this->assertSame(100.01, $customerReceipt->fresh()->remaining_amount);
+        app(CustomerBillingReceiptService::class)->addPayment(
+            $customerReceipt->fresh(),
+            $this->payment(100.01, 'ARRED-CLIENTE', '99999999-9999-4999-8999-999999999999'),
+        );
+        $this->assertSame('100.01', $customerReceipt->fresh()->amount_paid);
+        $this->assertSame('paid', $customerReceipt->fresh()->status->value);
     }
 
     public function test_invalid_account_rolls_back_customer_receipt(): void

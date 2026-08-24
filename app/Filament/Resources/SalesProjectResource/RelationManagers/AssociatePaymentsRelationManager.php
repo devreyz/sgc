@@ -8,6 +8,7 @@ use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\BankAccount;
 use App\Models\ProductionDelivery;
+use App\Models\TenantUser;
 use App\Services\AssociateReceiptService;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -53,7 +54,16 @@ class AssociatePaymentsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Associado')
-                    ->searchable(),
+                    ->searchable(query: static function ($query, string $search) {
+                        $tenantId = (int) session('tenant_id');
+
+                        return $query->whereHas('associate', static function ($associateQuery) use ($tenantId, $search): void {
+                            $associateQuery->whereIn('user_id', TenantUser::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('tenant_name', 'like', '%'.$search.'%')
+                                ->select('user_id'));
+                        });
+                    }),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Status')

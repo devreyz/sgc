@@ -7,6 +7,7 @@ use App\Models\Associate;
 use App\Models\DistributionBilling;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Models\TenantUser;
 use App\Services\DistributionBillingService;
 use App\Services\TenantIdentityService;
 use Filament\Forms;
@@ -122,7 +123,16 @@ class DistributionBillingResource extends Resource
 
                 Tables\Columns\TextColumn::make('associate.display_name')
                     ->label('Associado')
-                    ->searchable()
+                    ->searchable(query: static function (Builder $query, string $search): Builder {
+                        $tenantId = (int) session('tenant_id');
+
+                        return $query->whereHas('associate', static function (Builder $associateQuery) use ($tenantId, $search): void {
+                            $associateQuery->whereIn('user_id', TenantUser::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('tenant_name', 'like', '%'.$search.'%')
+                                ->select('user_id'));
+                        });
+                    })
                     ->default('—'),
 
                 Tables\Columns\TextColumn::make('total_distributions')

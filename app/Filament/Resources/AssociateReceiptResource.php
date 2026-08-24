@@ -13,6 +13,7 @@ use App\Models\BankAccount;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Models\TenantUser;
 use App\Services\AssociateReceiptService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
@@ -26,6 +27,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\HtmlString;
@@ -250,8 +252,16 @@ class AssociateReceiptResource extends Resource
 
                 Tables\Columns\TextColumn::make('associate.display_name')
                     ->label(fn (): string => static::associateTerm())
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: static function (Builder $query, string $search): Builder {
+                        $tenantId = (int) session('tenant_id');
+
+                        return $query->whereHas('associate', static function (Builder $associateQuery) use ($tenantId, $search): void {
+                            $associateQuery->whereIn('user_id', TenantUser::query()
+                                ->where('tenant_id', $tenantId)
+                                ->where('tenant_name', 'like', '%'.$search.'%')
+                                ->select('user_id'));
+                        });
+                    }),
 
                 Tables\Columns\TextColumn::make('project.title')
                     ->label('Projeto')

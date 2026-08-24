@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ReceiptStatus;
 use App\Services\ProjectReceiptNumberingService;
+use App\Support\FinancialAmount;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -125,7 +126,7 @@ class AssociateReceipt extends Model
      */
     public function getRemainingAmountAttribute(): float
     {
-        return max(0, (float) ($this->total_net ?? 0) - (float) ($this->amount_paid ?? 0));
+        return (float) FinancialAmount::remaining($this->total_net, $this->amount_paid);
     }
 
     /**

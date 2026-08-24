@@ -14,6 +14,7 @@ use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Support\FinancialAmount;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -464,7 +465,7 @@ class AssociateReceiptService
             throw new \RuntimeException('O comprovante nao pertence ao tenant atual.');
         }
 
-        $amount = bcadd((string) round((float) ($data['amount'] ?? 0), 2), '0', 8);
+        $amount = FinancialAmount::cents($data['amount'] ?? 0);
         if (bccomp($amount, '0', 2) <= 0) {
             throw new \RuntimeException('O valor do pagamento deve ser maior que zero.');
         }
@@ -499,8 +500,8 @@ class AssociateReceiptService
                 throw new \RuntimeException('O comprovante nao esta disponivel para pagamento.');
             }
 
-            $netValue = (string) ($lockedReceipt->total_net ?? 0);
-            if (bccomp($netValue, '0', 8) <= 0) {
+            $netValue = FinancialAmount::cents($lockedReceipt->total_net);
+            if (bccomp($netValue, '0', 2) <= 0) {
                 throw new \RuntimeException('O comprovante nao possui valor liquido congelado.');
             }
 
@@ -509,8 +510,11 @@ class AssociateReceiptService
                 ->where('associate_receipt_id', $lockedReceipt->id)
                 ->lockForUpdate()
                 ->get(['id', 'amount', 'document_number']);
-            $paid = (string) $paymentRows->sum(fn ($payment) => (float) $payment->amount);
-            $remaining = bcsub($netValue, $paid, 8);
+            $paid = $paymentRows->reduce(
+                fn (string $total, $payment): string => bcadd($total, FinancialAmount::cents($payment->amount), 2),
+                '0.00',
+            );
+            $remaining = FinancialAmount::remaining($netValue, $paid);
 
             if (bccomp($amount, $remaining, 2) > 0) {
                 throw new \RuntimeException(
@@ -539,7 +543,7 @@ class AssociateReceiptService
             ]);
 
             // ── Atualizar amount_paid ──────────────────────────────────────
-            $newPaid = bcadd($paid, $amount, 8);
+            $newPaid = bcadd($paid, $amount, 2);
             $isFull = bccomp($newPaid, $netValue, 2) >= 0;
 
             $updateData = [
