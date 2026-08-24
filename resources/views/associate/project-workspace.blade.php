@@ -47,6 +47,11 @@
         'cancelled' => 'ph-x-circle',
         default => 'ph-circle',
     };
+
+    $projectSimulatorUrl = route('associate.projects.simulator', [
+        'tenant' => $tenantSlug,
+        'project' => $project->id,
+    ]);
 @endphp
 
 <link
@@ -2766,10 +2771,7 @@
         @json(url('/'.$tenantSlug.'/associate/projects/'.$project->id));
 
     const AW_SIMULATOR_URL =
-        @json(route('associate.projects.simulator', [
-            'tenant' => $tenantSlug,
-            'project' => $project->id,
-        ]));
+        @json($projectSimulatorUrl);
 
     const awRoot =
         document.getElementById('aw-content');
