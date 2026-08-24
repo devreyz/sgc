@@ -2379,17 +2379,13 @@
 
 
 @php
-    $totalAll = $deliveries->count();
-    $totalApproved = $deliveries->where('status_value', 'approved')->count();
-    $totalPending = $deliveries->where('status_value', 'pending')->count();
-    $totalRejected = $deliveries->where('status_value', 'rejected')->count();
-    $totalNet = $deliveries->sum('net_value');
-
-    $integrityCritical = $integrity['counts']['critical'] ?? 0;
-    $integrityWarning = $integrity['counts']['warning'] ?? 0;
-    $integrityInfo = $integrity['counts']['info'] ?? 0;
-    $integrityTotal = $integrityCritical + $integrityWarning + $integrityInfo;
+    $deliveryStyleDummy = [
+        'id' => 0, 'quantity' => 0, 'distributed_qty' => 0, 'unit' => 'un',
+        'limit' => [], 'status_value' => 'pending', 'distributions' => [],
+    ];
 @endphp
+@include('delivery.partials.project-delivery-row', ['delivery' => $deliveryStyleDummy, 'customers' => $customers, 'stylesOnly' => true])
+@include('delivery.partials.project-delivery-mobile-card', ['delivery' => $deliveryStyleDummy, 'customers' => $customers, 'stylesOnly' => true])
 
 <main class="pd-page">
     {{-- CONTEXTO DO PROJETO --}}
@@ -2452,8 +2448,7 @@
     </section>
 
     {{-- FERRAMENTAS OPERACIONAIS: só aparece quando há algo útil para fazer --}}
-    @if($totalApproved > 0 || $integrityTotal > 0)
-        <section class="pd-tools-bar" aria-label="Ferramentas do projeto">
+        <section class="pd-tools-bar" id="pd-tools-bar" aria-label="Ferramentas do projeto" hidden>
             <div class="pd-tools-copy">
                 <span class="pd-tools-icon" aria-hidden="true">
                     <i class="ph-duotone ph-wrench"></i>
@@ -2461,31 +2456,26 @@
                 <div>
                     <div class="pd-tools-title">Ferramentas</div>
                     <div class="pd-tools-sub">
-                        {{ $totalAll }} entrega(s)
-                        @if($totalNet > 0)
-                            · R$ {{ number_format($totalNet, 2, ',', '.') }} líquido
-                        @endif
+                        <span id="pd-tools-summary">Carregando entregas...</span>
                     </div>
                 </div>
             </div>
 
             <div class="pd-tools-actions">
-                @if($integrityTotal > 0)
                     <button
                         type="button"
                         class="pd-tool-action pd-tool-integrity"
                         id="pd-integrity-launch"
                         onclick="openIntegrityModal()"
                         title="Ver pendências e inconsistências"
-                        aria-label="Ver {{ $integrityTotal }} pendência(s) e inconsistência(s)"
+                        aria-label="Ver pendências e inconsistências"
+                        hidden
                     >
                         <i class="ph-duotone ph-shield-warning"></i>
                         <span class="pd-tool-label">Pendências</span>
-                        <strong class="pd-tool-count" id="pd-integrity-total">{{ $integrityTotal }}</strong>
+                        <strong class="pd-tool-count" id="pd-integrity-total">0</strong>
                     </button>
-                @endif
 
-                @if($totalApproved > 0)
                     <button
                         type="button"
                         class="pd-tool-action"
@@ -2509,13 +2499,9 @@
                         <i class="ph-duotone ph-clipboard-text"></i>
                         <span class="pd-tool-label">Comprovantes</span>
                     </a>
-                @endif
             </div>
         </section>
-    @endif
 
-    {{-- Pendências ficam em modal e só existem quando há algo a tratar --}}
-    @if($integrityTotal > 0)
         <div
             class="pd-integrity-overlay"
             id="pd-integrity-modal"
@@ -2545,7 +2531,7 @@
                             </div>
 
                             <div class="pd-integrity-sub" id="pd-integrity-sub">
-                                {{ $integrityTotal }} ponto(s) que precisam de revisão
+                                Carregando verificações...
                             </div>
                         </div>
                     </div>
@@ -2561,81 +2547,7 @@
                 </header>
 
                 <div class="pd-integrity-body">
-                    @foreach([
-                        'critical' => [
-                            'label' => 'Crítico',
-                            'icon' => 'warning-circle',
-                        ],
-                        'warning' => [
-                            'label' => 'Atenção',
-                            'icon' => 'warning',
-                        ],
-                        'info' => [
-                            'label' => 'Informativo',
-                            'icon' => 'info',
-                        ],
-                    ] as $severity => $severityMeta)
-                        <section class="pd-integrity-column {{ $severity }}">
-                            <header class="pd-integrity-column-head">
-                                <i class="ph-duotone ph-{{ $severityMeta['icon'] }}"></i>
-                                {{ $severityMeta['label'] }}
-                            </header>
-
-                            <div class="pd-integrity-items">
-                                @forelse(($integrity[$severity] ?? []) as $issue)
-                                    <article
-                                        class="pd-integrity-item"
-                                        data-modal-issue-delivery="{{ $issue['deliveryId'] ?? '' }}"
-                                        data-integrity-item="{{ $issue['actionKey'] ?? '' }}-{{ $issue['distributionId'] ?? '' }}"
-                                    >
-                                        <div class="pd-integrity-item-title">
-                                            {{ $issue['title'] }}
-                                        </div>
-
-                                        <div class="pd-integrity-item-message">
-                                            {{ $issue['message'] }}
-                                        </div>
-
-                                        <div class="pd-integrity-item-action">
-                                            {{ $issue['action'] }}
-                                        </div>
-
-                                        @if(!empty($issue['actionKey']))
-                                            <div class="pd-integrity-actions">
-                                                <button
-                                                    type="button"
-                                                    class="btn btn-primary btn-sm"
-                                                    onclick="handleIntegrityAction(
-                                                        '{{ $issue['actionKey'] }}',
-                                                        {{ (int) ($issue['deliveryId'] ?? 0) }},
-                                                        {{ (int) ($issue['distributionId'] ?? 0) }},
-                                                        {{ (int) ($issue['associateId'] ?? 0) }},
-                                                        @js($issue['associateName'] ?? '')
-                                                    )"
-                                                >
-                                                    {{
-                                                        match($issue['actionKey']) {
-                                                            'open_distribution' => 'Distribuir',
-                                                            'edit_distribution' => 'Corrigir distribuição',
-                                                            'open_producers' => 'Abrir produtor',
-                                                            'detach_missing_associate_receipt' => 'Desvincular',
-                                                            'delete_orphan_distribution' => 'Excluir órfã',
-                                                            'restore_parent_delivery' => 'Restaurar entrega-pai',
-                                                            default => 'Ver detalhes',
-                                                        }
-                                                    }}
-                                                </button>
-                                            </div>
-                                        @endif
-                                    </article>
-                                @empty
-                                    <div class="pd-integrity-empty">
-                                        Nenhum item nesta categoria.
-                                    </div>
-                                @endforelse
-                            </div>
-                        </section>
-                    @endforeach
+                    <div class="pd-integrity-empty">Carregando...</div>
                 </div>
 
                 <footer class="pd-integrity-foot">
@@ -2660,7 +2572,6 @@
                 </footer>
             </div>
         </div>
-    @endif
 
     @include('delivery.partials.report-export-modal', [
         'reportProjects' => collect([
@@ -2670,7 +2581,7 @@
     ])
 
     {{-- LISTA DE ENTREGAS --}}
-    <section class="pd-card pd-deliveries-card">
+    <section class="pd-card pd-deliveries-card" id="pd-deliveries-surface" aria-busy="true">
         <header class="pd-card-header">
             <div class="pd-card-title">
                 <i class="ph-duotone ph-list-checks"></i>
@@ -2681,7 +2592,7 @@
                     </div>
 
                     <div class="pd-panel-sub">
-                        <span id="filtered-count">{{ $totalAll }}</span>
+                        <span id="filtered-count">0</span>
                         registros
                     </div>
                 </div>
@@ -2691,25 +2602,25 @@
                 <div class="pd-status-shortcuts" role="group" aria-label="Filtrar entregas por situação">
                     <button type="button" class="pd-status-shortcut active" data-pd-status="" onclick="setQuickStatusFilter('')">
                         <span>Todos</span>
-                        <strong id="pd-count-all">{{ $totalAll }}</strong>
+                        <strong id="pd-count-all">0</strong>
                     </button>
 
-                    <button type="button" class="pd-status-shortcut pending" id="pd-shortcut-pending" data-pd-status="pending" onclick="setQuickStatusFilter('pending')" @if($totalPending === 0) hidden @endif>
+                    <button type="button" class="pd-status-shortcut pending" id="pd-shortcut-pending" data-pd-status="pending" onclick="setQuickStatusFilter('pending')" hidden>
                         <i class="ph-duotone ph-clock"></i>
                         <span>Pendentes</span>
-                        <strong id="pd-count-pending">{{ $totalPending }}</strong>
+                        <strong id="pd-count-pending">0</strong>
                     </button>
 
-                    <button type="button" class="pd-status-shortcut approved" id="pd-shortcut-approved" data-pd-status="approved" onclick="setQuickStatusFilter('approved')" @if($totalApproved === 0) hidden @endif>
+                    <button type="button" class="pd-status-shortcut approved" id="pd-shortcut-approved" data-pd-status="approved" onclick="setQuickStatusFilter('approved')" hidden>
                         <i class="ph-duotone ph-check-circle"></i>
                         <span>Aprovadas</span>
-                        <strong id="pd-count-approved">{{ $totalApproved }}</strong>
+                        <strong id="pd-count-approved">0</strong>
                     </button>
 
-                    <button type="button" class="pd-status-shortcut rejected" id="pd-shortcut-rejected" data-pd-status="rejected" onclick="setQuickStatusFilter('rejected')" @if($totalRejected === 0) hidden @endif>
+                    <button type="button" class="pd-status-shortcut rejected" id="pd-shortcut-rejected" data-pd-status="rejected" onclick="setQuickStatusFilter('rejected')" hidden>
                         <i class="ph-duotone ph-x-circle"></i>
                         <span>Rejeitadas</span>
-                        <strong id="pd-count-rejected">{{ $totalRejected }}</strong>
+                        <strong id="pd-count-rejected">0</strong>
                     </button>
                 </div>
 
@@ -2823,17 +2734,6 @@
                             Todos os associados
                         </option>
 
-                        @foreach(
-                            $deliveries
-                                ->pluck('associate_name')
-                                ->unique()
-                                ->sort()
-                            as $assoc
-                        )
-                            <option value="{{ $assoc }}">
-                                {{ $assoc }}
-                            </option>
-                        @endforeach
                     </select>
                 </label>
 
@@ -2850,17 +2750,6 @@
                             Todos os produtos
                         </option>
 
-                        @foreach(
-                            $deliveries
-                                ->pluck('product_name')
-                                ->unique()
-                                ->sort()
-                            as $prod
-                        )
-                            <option value="{{ $prod }}">
-                                {{ $prod }}
-                            </option>
-                        @endforeach
                     </select>
                 </label>
 
@@ -2897,35 +2786,30 @@
                         class="filter-select"
                         id="delivery-page-size"
                     >
-                        <option value="30">
-                            30 últimas
+                        <option value="12">12 por página</option>
+                        <option value="24" selected>
+                            24 por página
                         </option>
 
-                        <option value="50">
-                            50 últimas
+                        <option value="48">
+                            48 por página
                         </option>
 
-                        <option value="100">
-                            100 últimas
-                        </option>
-
-                        <option value="all">
-                            Todas
-                        </option>
                     </select>
                 </label>
             </div>
         </div>
 
-        @if($deliveries->isEmpty())
-            <div class="pd-empty">
+            <div class="pd-empty" id="pd-empty" hidden>
                 <i class="pd-empty-icon ph-duotone ph-package" aria-hidden="true"></i>
 
                 <p>
                     Nenhuma entrega foi registrada para este projeto.
                 </p>
             </div>
-        @else
+            <div class="pd-delivery-skeleton" id="pd-delivery-skeleton" aria-label="Carregando entregas">
+                @for($i = 0; $i < 6; $i++)<span></span>@endfor
+            </div>
             {{-- TABELA DESKTOP --}}
             <div class="table-scroll desktop-only">
                 <table
@@ -2948,15 +2832,6 @@
                     </thead>
 
                     <tbody id="desktop-tbody">
-                        @foreach($deliveries as $delivery)
-                            @include(
-                                'delivery.partials.project-delivery-row',
-                                [
-                                    'delivery' => $delivery,
-                                    'customers' => $customers,
-                                ]
-                            )
-                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -2966,15 +2841,6 @@
                 class="mobile-cards"
                 id="mobile-cards"
             >
-                @foreach($deliveries as $delivery)
-                    @include(
-                        'delivery.partials.project-delivery-mobile-card',
-                        [
-                            'delivery' => $delivery,
-                            'customers' => $customers,
-                        ]
-                    )
-                @endforeach
             </div>
 
             <div
@@ -3004,7 +2870,6 @@
                     </button>
                 </div>
             </div>
-        @endif
     </section>
 </main>
 
@@ -3069,6 +2934,7 @@
 /* ================================================================
    Refinos de interface — mantém o desenho atual.
    ================================================================ */
+.pd-delivery-skeleton{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;padding:.65rem}.pd-delivery-skeleton[hidden]{display:none}.pd-delivery-skeleton span{display:block;height:142px;border:1px solid var(--pd-border);border-radius:10px;background:linear-gradient(90deg,var(--pd-soft) 25%,#fff 45%,var(--pd-soft) 65%);background-size:220% 100%;animation:pd-skeleton 1.15s ease-in-out infinite}.pd-deliveries-card[aria-busy="true"] .table-scroll,.pd-deliveries-card[aria-busy="true"] .mobile-cards{opacity:.42;transition:opacity .16s ease}.pd-deliveries-card[aria-busy="false"] .table-scroll,.pd-deliveries-card[aria-busy="false"] .mobile-cards{opacity:1;transition:opacity .16s ease}@keyframes pd-skeleton{to{background-position:-220% 0}}@media(max-width:700px){.pd-delivery-skeleton{grid-template-columns:1fr}.pd-delivery-skeleton span{height:156px}}
 
 /* Phosphor Duotone deve herdar a cor funcional de cada componente. */
 .pd-page .ph-duotone,
@@ -3740,7 +3606,15 @@ const PD_TENANT    = '{{ $currentTenant->slug }}';
 const PD_CSRF      = '{{ csrf_token() }}';
 const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
-const projectListState = { page: 1, perPage: 30 };
+const projectListState = {
+    page: 1,
+    perPage: 24,
+    lastPage: 1,
+    loading: false,
+    abort: null,
+    summary: null,
+    filtersLoaded: false,
+};
 
 let integrityFilterDeliveryId = null;
 
@@ -4181,44 +4055,137 @@ function updateAdvancedFilterState() {
 }
 
 function applyFilters() {
-    const search   = normalizeFilterText(document.getElementById('filter-search')?.value || '');
-    const status   = document.getElementById('filter-status')?.value || '';
-    const assoc    = document.getElementById('filter-associate')?.value || '';
-    const prod     = document.getElementById('filter-product')?.value || '';
-    const dateFrom = document.getElementById('filter-date-from')?.value || '';
-    const dateTo   = document.getElementById('filter-date-to')?.value || '';
-
-    const hasFilter = search || status || assoc || prod || dateFrom || dateTo;
+    const hasFilter = ['filter-search','filter-status','filter-associate','filter-product','filter-date-from','filter-date-to']
+        .some(id => document.getElementById(id)?.value);
     document.getElementById('clear-filters-btn').style.display = hasFilter ? '' : 'none';
-
     updateAdvancedFilterState();
+    window.clearTimeout(projectListState.filterTimer);
+    projectListState.filterTimer = window.setTimeout(() => loadDeliveryPage(), 220);
+}
 
-    const useCardLayout = window.matchMedia('(max-width: 1099px)').matches;
-    const desktopRows = Array.from(document.querySelectorAll('#desktop-tbody tr'));
-    const mobileCards = Array.from(document.querySelectorAll('#mobile-cards .mobile-card'));
-    const activeItems = useCardLayout ? mobileCards : desktopRows;
-    const inactiveItems = useCardLayout ? desktopRows : mobileCards;
+function pdStatusLabel(status) {
+    return ({pending:'Pendente',approved:'Aprovada',rejected:'Rejeitada',cancelled:'Cancelada'})[status] || status;
+}
 
-    inactiveItems.forEach(item => item.style.display = 'none');
+function pdQty(value, unit = '') {
+    const number = Number(value || 0);
+    return number.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) + (unit ? ` ${unit}` : '');
+}
 
-    const matched = activeItems.filter(item => {
-        return useCardLayout
-            ? cardMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo)
-            : rowMatchesFilter(item, search, status, assoc, prod, dateFrom, dateTo);
+function pdMoney(value) {
+    return Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+
+function pdActions(item, mobile = false) {
+    const label = mobile ? 'dc-action-label' : 'pd-action-label';
+    const button = (classes, icon, text, attrs = '') => {
+        let renderedClasses = classes;
+        if (mobile) {
+            const tone = classes.includes('btn-approve') ? 'approve'
+                : classes.includes('btn-reject') ? 'reject'
+                : classes.includes('btn-edit') ? 'edit'
+                : classes.includes('btn-distribute') ? 'distribute'
+                : classes.includes('btn-delete') ? 'delete'
+                : 'notes';
+            renderedClasses += ` dc-action ${tone}`;
+        }
+        return `<button type="button" class="${renderedClasses}" ${attrs} title="${text}" aria-label="${text}"><i class="ph-duotone ph-${icon}"></i><span class="${label}">${text}</span></button>`;
+    };
+    let html = item.notes ? button('delivery-note-trigger', 'chat-text', 'Observações', `data-delivery-notes="${esc(item.notes)}" data-delivery-notes-title="Observações da entrega" data-delivery-notes-meta="${esc(item.product_name + ' · ' + item.associate_name)}"`) : '';
+    const editAttrs = `data-id="${item.id}" data-date="${item.delivery_date_raw}" data-qty="${item.quantity}" data-price="${item.unit_price}" data-quality="${esc(item.quality_grade || '')}" data-notes="${esc(item.notes || '')}" data-unit="${esc(item.unit)}" data-distributions="${esc(JSON.stringify(item.distributions || []))}"`;
+    if (item.status_value === 'pending') {
+        html += button('btn-approve btn-xs', 'check-circle', 'Aprovar', `data-id="${item.id}"`);
+        html += button('btn-reject btn-xs', 'x-circle', 'Rejeitar', `data-id="${item.id}"`);
+        html += button('btn-edit btn-xs', 'pencil-simple', 'Editar', editAttrs);
+        html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
+    } else if (item.status_value === 'approved') {
+        html += button('btn-distribute btn-xs', 'git-merge', 'Distribuir', `data-id="${item.id}" data-product="${esc(item.product_name)}" data-unit="${esc(item.unit)}" data-qty="${item.quantity}" data-distributed="${item.distributed_qty}" data-existing="${esc(JSON.stringify(item.distributions || []))}" data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" data-default-customer-id="${item.default_customer_id || ''}" data-notes="${esc(item.notes || '')}" data-context="${item.sales_project_id}:${item.associate_id}"`);
+        html += button('btn-edit btn-xs', 'pencil-simple', 'Editar', editAttrs);
+        if (!item.has_billed) html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
+    } else if (item.status_value === 'rejected' && !item.has_billed) {
+        html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
+    }
+    return html;
+}
+
+function pdMetrics(item) {
+    const total = Number(item.quantity || 0);
+    const distributed = Number(item.distributed_qty || 0);
+    const over = distributed > total + .0005;
+    const percent = total > 0 ? Math.min(100, Math.round(distributed / total * 100)) : 0;
+    return { total, distributed, over, percent, display: over ? 100 : percent };
+}
+
+function renderProjectRow(item) {
+    const m = pdMetrics(item), limit = item.limit || {}, limitPct = limit.associate_percent == null ? null : Math.min(100, Number(limit.associate_percent));
+    const distributions = esc(JSON.stringify(item.distributions || []));
+    return `<tr id="desktop-row-${item.id}" class="pdr-row status-${item.status_value} ${item.status_value === 'approved' ? 'approved-row' : ''}" data-delivery-id="${item.id}" data-total-qty="${m.total}" data-unit="${esc(item.unit)}" data-product="${esc(item.product_name)}" data-distributed="${m.distributed}" data-distributions="${distributions}" data-filter-date="${item.delivery_date_raw}" data-filter-associate="${esc(item.associate_name)}" data-filter-product="${esc(item.product_name)}" data-filter-status="${item.status_value}">
+        <td><span class="pdr-date">${esc(item.delivery_date)}</span></td><td><strong class="pdr-primary-text">${esc(item.associate_name)}</strong></td><td><strong class="pdr-primary-text pdr-product">${esc(item.product_name)}</strong></td><td><span class="pdr-qty">${pdQty(m.total,item.unit)}</span></td><td class="pd-col-net"><strong class="pdr-money">${item.dist_net_value > 0 ? pdMoney(item.dist_net_value) : '—'}</strong></td><td class="pd-col-suppressed"><span class="pdr-quality">${esc(item.quality_grade || '—')}</span></td><td class="pd-col-suppressed"><span class="badge-status ${item.status_value}">${pdStatusLabel(item.status_value)}</span></td>
+        <td class="pd-limit-cell">${limitPct == null ? '<span class="pdr-no-limit">Sem cota</span>' : `<div class="pdr-limit ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="pdr-limit-head"><span class="pdr-limit-used">${pdQty(limit.associate_delivered,item.unit)}</span><strong class="pdr-limit-free">${pdQty(limit.associate_remaining,item.unit)} livres</strong></div><div class="pdr-limit-track"><span style="width:${limitPct}%"></span></div></div>`}</td>
+        <td class="pd-control-cell"><button type="button" class="pdr-dist ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" data-summary="1"><div class="pdr-dist-head"><span>Distribuição</span><strong>${m.over ? '!' : m.percent + '%'}</strong></div><div class="dist-bar-bg"><span class="dist-bar-fill ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" style="display:block;width:${m.display}%"></span></div></button></td><td class="pd-action-cell"><div class="action-btns pdr-actions">${pdActions(item)}</div></td></tr>`;
+}
+
+function renderProjectCard(item) {
+    const m = pdMetrics(item), limit = item.limit || {}, limitPct = limit.associate_percent == null ? null : Math.min(100, Number(limit.associate_percent));
+    const visualStatus = item.status_value === 'approved' && m.percent >= 100 && !m.over ? 'distributed' : item.status_value;
+    const signals = `${item.has_billed ? '<span class="dc-signal billed" title="Entrega faturada"><i class="ph-duotone ph-receipt"></i></span>' : ''}${item.issue_count > 0 ? `<button type="button" class="pd-issue-btn ${item.issue_severity || 'warning'}" onclick="openIntegrityModal(${item.id})" title="Ver pendências desta entrega" aria-label="Ver ${item.issue_count} pendência(s) desta entrega"><i class="ph-duotone ph-warning"></i>${item.issue_count}</button>` : ''}`;
+    return `<article class="mobile-card delivery-card-v2 status-${visualStatus}" id="mobile-row-${item.id}" data-delivery-id="${item.id}" data-total-qty="${m.total}" data-unit="${esc(item.unit)}" data-product="${esc(item.product_name)}" data-distributed="${m.distributed}" data-distributions="${esc(JSON.stringify(item.distributions || []))}" data-filter-date="${item.delivery_date_raw}" data-filter-associate="${esc(item.associate_name)}" data-filter-product="${esc(item.product_name)}" data-filter-status="${item.status_value}">
+        <div class="dc-head mc-head"><div class="dc-main"><div class="dc-product-line"><strong class="dc-product mc-head-product">${esc(item.product_name)}</strong><span class="badge-status ${item.status_value}">${pdStatusLabel(item.status_value)}</span></div>${signals ? `<div class="dc-signals">${signals}</div>` : ''}<div class="dc-context"><span class="dc-context-item"><i class="ph-duotone ph-user"></i><span class="dc-associate mc-assoc">${esc(item.associate_name)}</span></span><span class="dc-context-item date"><i class="ph-duotone ph-calendar-dots"></i>${esc(item.delivery_date)}</span></div></div><div class="dc-side"><strong class="dc-qty mc-head-qty">${pdQty(m.total,item.unit)}</strong></div></div>
+        <div class="dc-body mc-body">${limitPct == null ? '' : `<div class="dc-meter dc-limit-meter ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-gauge"></i>Cota</span><strong class="dc-meter-value">${pdQty(limit.associate_remaining,item.unit)} livres</strong></div><div class="dc-track"><span style="width:${limitPct}%"></span></div></div>`}<div class="dc-meter dc-distribution"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-git-merge"></i>Distribuição</span><strong class="dc-meter-value">${m.over ? 'Excedeu ' + pdQty(m.distributed-m.total,item.unit) : m.percent >= 100 ? 'Concluída' : pdQty(m.total-m.distributed,item.unit) + ' restantes'}</strong></div><div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1"><div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" style="width:${m.display}%"></div></div><span class="mc-dist-text">${m.over ? '!' : m.percent + '%'}</span></div></div><div class="dc-actions mc-actions">${pdActions(item,true)}</div></div></article>`;
+}
+
+function updateProjectFilterOptions(filters) {
+    [['filter-associate', filters?.associates || [], 'Todos os associados'], ['filter-product', filters?.products || [], 'Todos os produtos']].forEach(([id, options, placeholder]) => {
+        const select = document.getElementById(id), current = select?.value || '';
+        if (!select) return;
+        select.innerHTML = `<option value="">${placeholder}</option>` + options.map(option => `<option value="${option.id}">${esc(option.name)}</option>`).join('');
+        select.value = current;
     });
+}
 
-    const perPage = projectListState.perPage === 'all' ? matched.length || 1 : parseInt(projectListState.perPage || 30, 10);
-    const totalPages = Math.max(1, Math.ceil(matched.length / perPage));
-    projectListState.page = Math.min(Math.max(projectListState.page || 1, 1), totalPages);
-    const start = (projectListState.page - 1) * perPage;
-    const pageItems = new Set(matched.slice(start, start + perPage));
+async function loadDeliveryPage(silent = false) {
+    projectListState.abort?.abort();
+    const controller = new AbortController(); projectListState.abort = controller; projectListState.loading = true;
+    const skeleton = document.getElementById('pd-delivery-skeleton');
+    const surface = document.getElementById('pd-deliveries-surface');
+    surface?.setAttribute('aria-busy', 'true');
+    if (!silent) skeleton.hidden = false;
+    const query = new URLSearchParams({ page:String(projectListState.page), per_page:String(projectListState.perPage) });
+    if (!projectListState.filtersLoaded) query.set('include_filters', '1');
+    const requestedDelivery = Number(new URLSearchParams(window.location.search).get('open_delivery') || 0);
+    if (requestedDelivery > 0) query.set('delivery_id', String(requestedDelivery));
+    const fields = {search:'filter-search',status:'filter-status',associate_id:'filter-associate',product_id:'filter-product',date_from:'filter-date-from',date_to:'filter-date-to'};
+    Object.entries(fields).forEach(([key,id]) => { const value = document.getElementById(id)?.value; if (value) query.set(key,value); });
+    try {
+        const response = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/deliveries-data?${query}`, { cache:'no-store', signal:controller.signal, headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}, globalLoader:false });
+        const payload = await response.json(); if (!response.ok || !payload.success) throw new Error(payload.message || 'Não foi possível carregar as entregas.');
 
-    activeItems.forEach(item => {
-        item.style.display = pageItems.has(item) ? '' : 'none';
-    });
+        if (payload.data.length === 0 && payload.meta.total > 0 && projectListState.page > payload.meta.last_page) {
+            projectListState.page = payload.meta.last_page;
+            return loadDeliveryPage(silent);
+        }
 
-    document.getElementById('filtered-count').textContent = matched.length;
-    updateProjectPagination(matched.length, matched.length ? start + 1 : 0, Math.min(start + perPage, matched.length), projectListState.page, totalPages);
+        document.getElementById('desktop-tbody').innerHTML = payload.data.map(renderProjectRow).join('');
+        document.getElementById('mobile-cards').innerHTML = payload.data.map(renderProjectCard).join('');
+        document.getElementById('pd-empty').hidden = payload.data.length > 0;
+        projectListState.page = payload.meta.current_page; projectListState.lastPage = payload.meta.last_page;
+        document.getElementById('filtered-count').textContent = payload.meta.total;
+        updateProjectPagination(payload.meta.total, payload.meta.from || 0, payload.meta.to || 0, payload.meta.current_page, payload.meta.last_page);
+        if (payload.filters) {
+            updateProjectFilterOptions(payload.filters);
+            projectListState.filtersLoaded = true;
+        }
+        updateProjectSummary(payload.summary); enhanceDeliveryActions();
+    } catch (error) { if (error.name !== 'AbortError') pdToast(error.message, 'error'); }
+    finally { if (projectListState.abort === controller) { projectListState.loading = false; skeleton.hidden = true; surface?.setAttribute('aria-busy', 'false'); } }
+}
+
+function updateProjectSummary(summary) {
+    projectListState.summary = summary || {};
+    [['pd-count-all','all'],['pd-count-pending','pending'],['pd-count-approved','approved'],['pd-count-rejected','rejected']].forEach(([id,key]) => { const el=document.getElementById(id); if(el) el.textContent=summary?.[key] || 0; });
+    ['pending','approved','rejected'].forEach(status => { const el=document.getElementById('pd-shortcut-'+status); if(el) el.hidden = !(summary?.[status] > 0); });
+    const tools=document.getElementById('pd-tools-bar'); if(tools) tools.hidden = !(summary?.approved > 0 || Number(document.getElementById('pd-integrity-total')?.textContent || 0) > 0);
+    const text=document.getElementById('pd-tools-summary'); if(text) text.textContent = `${summary?.all || 0} entrega(s)${summary?.net > 0 ? ' · ' + pdMoney(summary.net) + ' líquido' : ''}`;
     refreshOperationalUi();
 }
 
@@ -4261,7 +4228,9 @@ function updateProjectPagination(total, start, end, page, totalPages) {
     const wrap = document.getElementById('project-pagination');
     if (!wrap) return;
     wrap.style.display = total > 0 ? 'grid' : 'none';
-    document.getElementById('project-page-info').textContent = total > 0 ? `${start}-${end} de ${total}` : '';
+    document.getElementById('project-page-info').textContent = total > 0
+        ? `${start}-${end} de ${total} · Página ${page} de ${totalPages}`
+        : '';
     document.getElementById('project-prev').disabled = page <= 1;
     document.getElementById('project-next').disabled = page >= totalPages;
 }
@@ -4344,11 +4313,6 @@ document.getElementById('project-prev')?.addEventListener('click', function() {
 document.getElementById('project-next')?.addEventListener('click', function() {
     projectListState.page += 1;
     applyFilters();
-});
-
-window.addEventListener('resize', () => {
-    window.clearTimeout(window.__pdFilterResizeTimer);
-    window.__pdFilterResizeTimer = window.setTimeout(applyFilters, 120);
 });
 
 /* ========== DISTRIBUTION INDICATOR UPDATE ========== */
@@ -4530,7 +4494,7 @@ function buildRejectedActionsMobile(id) {
     `;
 }
 
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function setQuickStatusFilter(status) {
     const select = document.getElementById('filter-status');
@@ -4541,13 +4505,13 @@ function setQuickStatusFilter(status) {
 }
 
 function refreshOperationalUi() {
-    const rows = Array.from(document.querySelectorAll('#desktop-tbody tr[data-delivery-id]'));
-    const counts = { all: rows.length, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
-
-    rows.forEach(row => {
-        const status = row.dataset.filterStatus || '';
-        if (Object.prototype.hasOwnProperty.call(counts, status)) counts[status]++;
-    });
+    const counts = projectListState.summary || {
+        all: 0,
+        pending: 0,
+        approved: 0,
+        rejected: 0,
+        cancelled: 0,
+    };
 
     const write = (id, value) => {
         const el = document.getElementById(id);
@@ -4730,6 +4694,8 @@ function renderIntegrityCenter(integrity) {
             `Ver ${total} pendência(s) e inconsistência(s)`
         );
     }
+    const tools = document.getElementById('pd-tools-bar');
+    if (tools && total > 0) tools.hidden = false;
 
     if (!body) {
         return;
@@ -4849,11 +4815,6 @@ function renderIntegrityCenter(integrity) {
 async function refreshIntegrityCenter() {
     const modal = document.getElementById('pd-integrity-modal');
 
-    /*
-     * Se esta página foi renderizada sem qualquer inconsistência, o modal
-     * não existe. Nesse caso o fragmento da entrega continua sendo atualizado
-     * normalmente e evitamos criar uma segunda árvore de interface em JS.
-     */
     if (!modal) return null;
 
     const url =
@@ -4881,7 +4842,7 @@ async function refreshIntegrityCenter() {
     return data.integrity;
 }
 
-/* ========== Estado reativo por fragmento do servidor ========== */
+/* ========== Sincronização reativa da listagem ========== */
 function resolveDeliveryId(...values) {
     for (const value of values) {
         const candidate = Number(
@@ -4898,68 +4859,6 @@ function resolveDeliveryId(...values) {
     return 0;
 }
 
-function parseDesktopFragment(html) {
-    const table = document.createElement('table');
-    const tbody = document.createElement('tbody');
-
-    table.appendChild(tbody);
-    tbody.innerHTML = String(html || '').trim();
-
-    return tbody.firstElementChild;
-}
-
-function parseMobileFragment(html) {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = String(html || '').trim();
-    return wrapper.firstElementChild;
-}
-
-function replaceDeliveryFragments(payload) {
-    const id = resolveDeliveryId(payload);
-
-    if (!id) return false;
-
-    let replaced = false;
-
-    if (payload.desktop) {
-        const nextDesktop = parseDesktopFragment(payload.desktop);
-        const currentDesktop = document.getElementById('desktop-row-' + id);
-
-        if (nextDesktop && currentDesktop) {
-            currentDesktop.replaceWith(nextDesktop);
-            nextDesktop.classList.add('pd-fragment-updated');
-            window.setTimeout(
-                () => nextDesktop.classList.remove('pd-fragment-updated'),
-                380
-            );
-            replaced = true;
-        }
-    }
-
-    if (payload.mobile) {
-        const nextMobile = parseMobileFragment(payload.mobile);
-        const currentMobile = document.getElementById('mobile-row-' + id);
-
-        if (nextMobile && currentMobile) {
-            currentMobile.replaceWith(nextMobile);
-            nextMobile.classList.add('pd-fragment-updated');
-            window.setTimeout(
-                () => nextMobile.classList.remove('pd-fragment-updated'),
-                380
-            );
-            replaced = true;
-        }
-    }
-
-    if (replaced) {
-        enhanceDeliveryActions();
-        applyFilters();
-        setIntegrityModalScope(integrityFilterDeliveryId);
-    }
-
-    return replaced;
-}
-
 async function refreshDeliveryItem(id) {
     const deliveryId = resolveDeliveryId(id);
 
@@ -4967,31 +4866,8 @@ async function refreshDeliveryItem(id) {
         throw new Error('Entrega inválida para atualização.');
     }
 
-    const url =
-        `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/deliveries/${deliveryId}/fragment`
-        + `?_=${Date.now()}`;
-
-    const res = await fetch(url, {
-        cache: 'no-store',
-        headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        loaderType: 'refresh',
-        loadingLabel: 'Atualizando entrega...',
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-        throw new Error(data.message || 'Erro ao atualizar item.');
-    }
-
-    if (!replaceDeliveryFragments(data)) {
-        throw new Error('O servidor atualizou a entrega, mas não retornou os fragmentos da interface.');
-    }
-
-    return data;
+    await loadDeliveryPage(true);
+    return { success: true, delivery_id: deliveryId };
 }
 
 async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
@@ -5004,11 +4880,7 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            /*
-             * Fragmento e central são buscados novamente no servidor.
-             * Isso evita manter na interface cálculos antigos após editar,
-             * excluir ou forçar a remoção de uma distribuição.
-             */
+            // A lista e a central voltam da fonte de verdade após cada mutação.
             const [deliveryResult, integrityResult] = await Promise.allSettled([
                 refreshDeliveryItem(deliveryId),
                 refreshIntegrityCenter(),
@@ -5048,7 +4920,7 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
     );
 
     /*
-     * Última proteção: se o endpoint de fragmento falhar repetidamente,
+     * Última proteção: se a sincronização falhar repetidamente,
      * recarregamos automaticamente. O usuário nunca precisa descobrir
      * manualmente que a tela ficou desatualizada.
      */
@@ -5484,7 +5356,7 @@ function installComponentUxOverrides() {
     }
 }
 
-/* Atualiza também ícones criados posteriormente pelos componentes/fragments. */
+/* Atualiza também ícones criados posteriormente pelos componentes. */
 const pdIconObserver = new MutationObserver(mutations => {
     const roots = new Set();
 
@@ -5510,11 +5382,9 @@ installComponentUxOverrides();
 enhanceDeliveryActions();
 upgradeDuotoneIcons(document);
 applyFilters();
+refreshIntegrityCenter().catch(error => console.warn('Central de inconsistências:', error));
 
-/*
- * Ao atravessar desktop <-> tablet/cards, reaplicamos filtros/paginação.
- * Isso elimina o estado em que CSS e JS discordavam sobre qual lista mostrar.
- */
+/* Mantém somente os ajustes visuais ao alternar entre tabela e cards. */
 let pdResizeTimer = null;
 let pdLastCardLayout = window.matchMedia('(max-width: 1099px)').matches;
 
@@ -5526,10 +5396,9 @@ window.addEventListener('resize', () => {
 
         if (nextCardLayout !== pdLastCardLayout) {
             pdLastCardLayout = nextCardLayout;
-            projectListState.page = 1;
+            refreshOperationalUi();
+            upgradeDuotoneIcons(document);
         }
-
-        applyFilters();
     }, 90);
 }, { passive: true });
 

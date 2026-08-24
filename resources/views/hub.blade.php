@@ -394,1676 +394,1623 @@
 @endphp
 
 @section('page-title', 'Central da organização')
-
-@section('page-subtitle', ($currentTenant->name ?? 'Sua organização') . ' · Serviços, comunicação e áreas de trabalho.')
+@section(
+    'page-subtitle',
+    ($currentTenant->name ?? 'Sua organização') . ' · Portais, recursos e comunicação.'
+)
 @section('user-role', 'Hub institucional')
 
 @section('content')
 <style>
     .hub-page {
-        --hub-green: #168a4d;
-        --hub-green-deep: #0e542e;
-        --hub-green-soft: #eaf8ef;
-        --hub-blue: #2563eb;
-        --hub-blue-soft: #eef4ff;
-        --hub-sky: #0284c7;
-        --hub-sky-soft: #edf8fe;
-        --hub-violet: #7c3aed;
-        --hub-violet-soft: #f4f0ff;
-        --hub-amber: #c87408;
-        --hub-amber-soft: #fff7e8;
-        --hub-red: #cf3f3f;
-        --hub-red-soft: #fff0f0;
-        --hub-slate: #596b61;
-        --hub-slate-soft: #eef2ef;
-        --hub-ease: cubic-bezier(.2, .8, .2, 1);
+        --hub-green:#168a4d;
+        --hub-green-soft:#eaf8ef;
+        --hub-blue:#2563eb;
+        --hub-blue-soft:#eef4ff;
+        --hub-sky:#0284c7;
+        --hub-sky-soft:#edf8fe;
+        --hub-violet:#7c3aed;
+        --hub-violet-soft:#f4f0ff;
+        --hub-amber:#c87408;
+        --hub-amber-soft:#fff7e8;
+        --hub-red:#cf3f3f;
+        --hub-red-soft:#fff0f0;
+        --hub-slate:#64748b;
+        --hub-slate-soft:#f1f5f9;
 
-        width: min(100%, calc(100dvw - 40px), 1500px);
-        min-width: 0;
-        grid-column: 1 / -1;
-        margin: 0 auto;
+        --hub-surface:var(--color-surface,#fff);
+        --hub-soft:var(--color-surface-soft,#f8faf9);
+        --hub-border:var(--color-border,#dce7e0);
+        --hub-border-strong:var(--color-border-strong,#c8d6cd);
+        --hub-text:var(--color-text,#102018);
+        --hub-text-2:var(--color-text-secondary,#52645a);
+        --hub-text-3:var(--color-text-muted,#809087);
+
+        width:min(100%,calc(100dvw - 34px),1480px);
+        min-width:0;
+        grid-column:1 / -1;
+        margin:0 auto;
+        padding-bottom:18px;
     }
 
     .hub-page,
     .hub-page *,
     .hub-page *::before,
     .hub-page *::after {
-        box-sizing: border-box;
+        box-sizing:border-box;
     }
 
-    .hub-shell {
-        width: 100%;
-        min-width: 0;
+    .hub-page a {
+        -webkit-tap-highlight-color:transparent;
     }
 
-    .hub-toolbar {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
+    /* =========================================================
+       CABEÇALHO CONTEXTUAL — pequeno e claro
+       ========================================================= */
+
+    .hub-context {
+        display:grid;
+        min-width:0;
+        min-height:68px;
+        grid-template-columns:auto minmax(0,1fr) auto;
+        gap:.62rem;
+        align-items:center;
+        margin-bottom:.7rem;
+        padding:.56rem .64rem;
+        border:1px solid rgba(22,138,77,.13);
+        border-radius:15px;
+        background:
+            radial-gradient(circle at 100% 0,rgba(124,58,237,.07),transparent 15rem),
+            linear-gradient(145deg,#fff,#fbfdfc);
+        box-shadow:0 4px 16px rgba(15,35,24,.035);
     }
 
-    .hub-tenant-logo {
-        width: 38px;
-        height: 38px;
-        border: 1px solid rgba(22, 138, 77, .12);
-        border-radius: 11px;
-        background: var(--hub-green-soft);
+    .hub-context-logo {
+        display:grid;
+        width:43px;
+        height:43px;
+        place-items:center;
+        overflow:hidden;
+        border:1px solid rgba(22,138,77,.13);
+        border-radius:11px;
+        background:var(--hub-green-soft);
     }
 
-    .hub-tenant-logo img {
-        width: 25px;
-        height: 25px;
-        object-fit: contain;
+    .hub-context-logo img {
+        width:28px;
+        height:28px;
+        object-fit:contain;
+    }
+
+    .hub-context-copy {
+        min-width:0;
+    }
+
+    .hub-context-kicker {
+        display:flex;
+        align-items:center;
+        gap:.28rem;
+        color:var(--hub-green);
+        font-size:.52rem;
+        font-weight:880;
+        letter-spacing:.055em;
+        text-transform:uppercase;
+    }
+
+    .hub-context-kicker::before {
+        width:6px;
+        height:6px;
+        border-radius:999px;
+        background:var(--hub-green);
+        content:"";
+        box-shadow:0 0 0 3px var(--hub-green-soft);
     }
 
     .hub-context-name {
-        color: var(--color-text, #102018);
-        font-size: 13px;
-        font-weight: 800;
-        line-height: 1.25;
+        margin:.08rem 0 0;
+        overflow:hidden;
+        color:var(--hub-text);
+        font-size:.86rem;
+        font-weight:900;
+        letter-spacing:-.025em;
+        line-height:1.25;
+        text-overflow:ellipsis;
+        white-space:nowrap;
     }
 
     .hub-context-meta {
-        margin-top: 2px;
-        color: var(--color-text-muted, #809087);
-        font-size: 10px;
-        font-weight: 650;
-        line-height: 1.3;
+        display:flex;
+        gap:.24rem .55rem;
+        align-items:center;
+        flex-wrap:wrap;
+        margin-top:.15rem;
+        color:var(--hub-text-3);
+        font-size:.56rem;
+        font-weight:680;
     }
 
-    .hub-search {
-        position: relative;
-        width: min(100%, 280px);
+    .hub-context-meta span {
+        display:inline-flex;
+        align-items:center;
+        gap:.16rem;
     }
 
-    .hub-search-icon {
-        position: absolute;
-        top: 50%;
-        left: .78rem;
-        color: var(--color-text-muted, #809087);
-        transform: translateY(-50%);
-        pointer-events: none;
+    .hub-context-meta .ph {
+        color:var(--hub-blue);
+        font-size:.68rem;
     }
 
-    .hub-search-input {
-        width: 100%;
-        height: 40px;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, .86);
-        padding: 0 2.3rem 0 2.25rem;
-        color: var(--color-text, #102018);
-        font-size: 12px;
-        font-weight: 650;
-        outline: none;
-        transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    .hub-context-site {
+        display:inline-flex;
+        min-height:35px;
+        align-items:center;
+        justify-content:center;
+        gap:.25rem;
+        padding:.34rem .48rem;
+        border:1px solid var(--hub-border);
+        border-radius:9px;
+        background:#fff;
+        color:var(--hub-text-2);
+        font-size:.59rem;
+        font-weight:790;
+        text-decoration:none;
+        transition:background .14s ease,border-color .14s ease,color .14s ease;
     }
 
-    .hub-search-input::placeholder {
-        color: var(--color-text-muted, #809087);
-        font-weight: 550;
+    .hub-context-site:hover,
+    .hub-context-site:focus-visible {
+        border-color:rgba(37,99,235,.18);
+        background:var(--hub-blue-soft);
+        color:var(--hub-blue);
+        outline:none;
     }
 
-    .hub-search-input:focus {
-        border-color: color-mix(in srgb, var(--hub-green) 50%, transparent);
-        background: #fff;
-        box-shadow: 0 0 0 4px rgba(22, 138, 77, .09);
-    }
-
-    .hub-search-clear {
-        position: absolute;
-        top: 50%;
-        right: .45rem;
-        display: none;
-        width: 28px;
-        height: 28px;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--color-text-muted, #809087);
-        cursor: pointer;
-        transform: translateY(-50%);
-    }
-
-    .hub-search.has-value .hub-search-clear { display: grid; }
-
-    .hub-search-clear:hover,
-    .hub-search-clear:focus-visible {
-        background: var(--color-surface-muted, #edf2ef);
-        color: var(--color-text, #102018);
-        outline: none;
-    }
-
-    .hub-list {
-        display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 13px;
-    }
-
-    .hub-link {
-        --portal-tone: var(--hub-green);
-        --portal-soft: var(--hub-green-soft);
-        position: relative;
-        display: grid;
-        min-height: 102px;
-        grid-template-columns: auto minmax(0, 1fr);
-        align-items: center;
-        gap: 13px;
-        overflow: hidden;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 15px;
-        background:
-            linear-gradient(145deg, rgba(255, 255, 255, .98), rgba(249, 251, 250, .96));
-        padding: 15px 46px 15px 15px;
-        color: inherit;
-        text-decoration: none;
-        box-shadow: 0 3px 12px rgba(15, 35, 24, .035);
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            box-shadow 150ms ease,
-            transform 150ms ease;
-    }
-
-    .hub-link.tone-blue {
-        --portal-tone: var(--hub-blue);
-        --portal-soft: var(--hub-blue-soft);
-    }
-
-    .hub-link.tone-sky {
-        --portal-tone: var(--hub-sky);
-        --portal-soft: var(--hub-sky-soft);
-    }
-
-    .hub-link.tone-violet {
-        --portal-tone: var(--hub-violet);
-        --portal-soft: var(--hub-violet-soft);
-    }
-
-    .hub-link.tone-amber {
-        --portal-tone: var(--hub-amber);
-        --portal-soft: var(--hub-amber-soft);
-    }
-
-    .hub-link.tone-red {
-        --portal-tone: var(--hub-red);
-        --portal-soft: var(--hub-red-soft);
-    }
-
-    .hub-link.tone-slate {
-        --portal-tone: var(--hub-slate);
-        --portal-soft: var(--hub-slate-soft);
-    }
-
-    .hub-link:hover,
-    .hub-link:focus-visible {
-        border-color: color-mix(in srgb, var(--portal-tone) 28%, transparent);
-        background:
-            linear-gradient(145deg, #fff, color-mix(in srgb, var(--portal-soft) 42%, #fff));
-        color: inherit;
-        outline: none;
-        box-shadow: 0 12px 28px rgba(15, 35, 24, .085);
-        transform: translateY(-2px);
-    }
-
-    .hub-link:active { transform: translateY(0); }
-
-    .hub-role-icon {
-        width: 48px;
-        height: 48px;
-        border: 1px solid color-mix(in srgb, var(--portal-tone) 10%, transparent);
-        background: var(--portal-soft);
-        color: var(--portal-tone);
-    }
-
-    .hub-link-arrow {
-        position: absolute;
-        top: 50%;
-        right: 12px;
-        color: var(--color-text-muted, #809087);
-        transform: translateY(-50%);
-        transition: background 150ms ease, color 150ms ease, transform 150ms ease;
-    }
-
-    .hub-link:hover .hub-link-arrow,
-    .hub-link:focus-visible .hub-link-arrow {
-        background: var(--portal-soft);
-        color: var(--portal-tone);
-        transform: translate(2px, -50%);
-    }
-
-    .hub-link.is-opening {
-        border-color: color-mix(in srgb, var(--portal-tone) 34%, transparent);
-        background: var(--portal-soft);
-        pointer-events: none;
-    }
-
-    .hub-link.is-opening::after {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: -34%;
-        width: 30%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65), transparent);
-        content: "";
-        animation: hub-scan 1.05s ease-in-out infinite;
-        pointer-events: none;
-    }
-
-    @keyframes hub-scan {
-        from { left: -34%; }
-        to { left: 112%; }
-    }
-
-    .hub-empty-icon {
-        background: var(--hub-amber-soft);
-        color: var(--hub-amber);
-    }
-
-    .hub-link[hidden],
-    .hub-no-results[hidden] {
-        display: none !important;
-    }
-
-    .hub-no-results {
-        grid-column: 1 / -1;
-    }
-
-    @media (max-width: 1180px) {
-        .hub-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    }
-
-    @media (max-width: 880px) {
-        .hub-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-
-    @media (max-width: 640px) {
-        .hub-page {
-            width: min(100%, calc(100dvw - 20px));
-        }
-
-        .hub-toolbar {
-            display: grid;
-            align-items: flex-start;
-            gap: 10px;
-        }
-
-        .hub-toolbar-actions {
-            width: 100%;
-        }
-
-        .hub-search {
-            width: 100%;
-            max-width: none;
-        }
-
-        .hub-list {
-            grid-template-columns: minmax(0, 1fr);
-            gap: 9px;
-        }
-
-        .hub-link {
-            min-height: 72px;
-            align-items: center;
-            padding: 11px 12px;
-            padding-right: 42px;
-        }
-
-        .hub-role-icon {
-            width: 42px;
-            height: 42px;
-        }
-    }
-
-    @media (max-height: 720px) {
-        .hub-link { min-height: 78px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .hub-page *,
-        .hub-page *::before,
-        .hub-page *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
-        }
-    }
     /* =========================================================
-       HUB INSTITUCIONAL — CENTRAL, LATERAIS E DESTAQUES
+       LAYOUT DESKTOP — portais dominam, demais conteúdos separados
        ========================================================= */
 
-    .hub-page {
-        width: min(100%, calc(100dvw - 32px), 1500px);
+    .hub-desktop-layout {
+        display:grid;
+        min-width:0;
+        grid-template-columns:minmax(0,1.7fr) minmax(300px,.7fr);
+        gap:.72rem;
+        align-items:start;
     }
 
-    .hub-home {
-        display: grid;
-        min-width: 0;
-        gap: 14px;
+    .hub-main-stack,
+    .hub-side-stack {
+        display:grid;
+        min-width:0;
+        gap:.72rem;
     }
 
-    .hub-hero,
-    .hub-panel {
-        min-width: 0;
-        border: 1px solid var(--color-border, #dce6df);
-        background: #fff;
-        box-shadow: 0 3px 14px rgba(15, 35, 24, .045);
+    .hub-side-stack {
+        position:sticky;
+        top:var(--app-sticky-top,90px);
     }
 
-    .hub-hero {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: center;
-        padding: 16px;
-        overflow: hidden;
-        border-radius: 17px;
-        background:
-            radial-gradient(circle at 96% 0, rgba(124, 58, 237, .055), transparent 260px),
-            linear-gradient(180deg, #fff, #fbfdfc);
-    }
-
-    .hub-hero-logo {
-        display: grid;
-        width: 58px;
-        height: 58px;
-        place-items: center;
-        overflow: hidden;
-        border: 1px solid rgba(22, 138, 77, .12);
-        border-radius: 15px;
-        background: var(--hub-green-soft);
-    }
-
-    .hub-hero-logo img {
-        width: 38px;
-        height: 38px;
-        object-fit: contain;
-    }
-
-    .hub-eyebrow {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin: 0 0 3px;
-        color: var(--hub-green);
-        font-size: 10px;
-        font-weight: 820;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-    }
-
-    .hub-eyebrow::before {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--hub-green);
-        box-shadow: 0 0 0 4px var(--hub-green-soft);
-        content: "";
-    }
-
-    .hub-hero h2,
-    .hub-hero p {
-        margin: 0;
-    }
-
-    .hub-hero h2 {
-        color: var(--color-text, #102018);
-        font-size: clamp(16px, 2vw, 20px);
-        font-weight: 880;
-        letter-spacing: -.025em;
-        line-height: 1.25;
-    }
-
-    .hub-hero p {
-        max-width: 72ch;
-        margin-top: 4px;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 11px;
-        line-height: 1.55;
-    }
-
-    .hub-hero-meta {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        margin-top: 9px;
-    }
-
-    .hub-chip {
-        display: inline-flex;
-        min-height: 25px;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 8px;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 999px;
-        background: #fff;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10px;
-        font-weight: 720;
-    }
-
-    .hub-chip i {
-        color: var(--hub-blue);
-        font-size: 12px;
-    }
-
-    .hub-hero-action {
-        display: inline-flex;
-        min-height: 38px;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        padding: 8px 11px;
-        border: 1px solid var(--color-border-strong, #c8d6cd);
-        border-radius: 10px;
-        background: #fff;
-        color: var(--color-text, #102018);
-        font-size: 11px;
-        font-weight: 780;
-        text-decoration: none;
-    }
-
-    .hub-hero-action i {
-        color: var(--hub-blue);
-        font-size: 14px;
-    }
-
-    .hub-hero-action:hover,
-    .hub-hero-action:focus-visible {
-        border-color: rgba(37, 99, 235, .24);
-        background: var(--hub-blue-soft);
-        color: var(--color-text, #102018);
-        outline: none;
-    }
-
-    .hub-layout {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 244px minmax(440px, 1fr) 304px;
-        grid-template-areas: "left main right";
-        gap: 14px;
-        align-items: start;
-    }
-
-    .hub-main-column { grid-area: main; }
-    .hub-left-column { grid-area: left; }
-    .hub-right-column { grid-area: right; }
-
-    .hub-left-column,
-    .hub-right-column {
-        display: grid;
-        min-width: 0;
-        gap: 12px;
+    .hub-screen {
+        min-width:0;
     }
 
     .hub-panel {
-        overflow: hidden;
-        border-radius: 15px;
+        min-width:0;
+        overflow:hidden;
+        border:1px solid var(--hub-border);
+        border-radius:14px;
+        background:#fff;
+        box-shadow:0 3px 13px rgba(15,35,24,.032);
     }
 
     .hub-panel-head {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        min-height: 54px;
-        padding: 10px 12px;
-        border-bottom: 1px solid var(--color-border, #dce6df);
-        background: linear-gradient(180deg, var(--color-surface-soft, #f8faf9), #fff);
-    }
-
-    .hub-panel-title {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 9px;
-    }
-
-    .hub-panel-icon,
-    .hub-tone-icon {
-        --item-tone: var(--hub-slate);
-        --item-soft: var(--hub-slate-soft);
-        display: grid;
-        flex: none;
-        place-items: center;
-        background: var(--item-soft);
-        color: var(--item-tone);
+        display:grid;
+        min-width:0;
+        min-height:55px;
+        grid-template-columns:auto minmax(0,1fr) auto;
+        gap:.46rem;
+        align-items:center;
+        padding:.48rem .56rem;
+        border-bottom:1px solid var(--hub-border);
+        background:linear-gradient(180deg,var(--hub-soft),#fff);
     }
 
     .hub-panel-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
+        display:inline-flex;
+        width:34px;
+        height:34px;
+        align-items:center;
+        justify-content:center;
+        border-radius:9px;
+        background:var(--hub-slate-soft);
+        color:var(--hub-slate);
     }
 
-    .hub-tone-icon {
-        width: 38px;
-        height: 38px;
-        border-radius: 11px;
+    .hub-panel-icon.violet { background:var(--hub-violet-soft); color:var(--hub-violet); }
+    .hub-panel-icon.amber  { background:var(--hub-amber-soft);  color:var(--hub-amber); }
+    .hub-panel-icon.blue   { background:var(--hub-blue-soft);   color:var(--hub-blue); }
+    .hub-panel-icon.green  { background:var(--hub-green-soft);  color:var(--hub-green); }
+
+    .hub-panel-icon .ph-duotone {
+        font-size:16px;
     }
 
-    .tone-green { --item-tone: var(--hub-green); --item-soft: var(--hub-green-soft); }
-    .tone-blue { --item-tone: var(--hub-blue); --item-soft: var(--hub-blue-soft); }
-    .tone-sky { --item-tone: var(--hub-sky); --item-soft: var(--hub-sky-soft); }
-    .tone-violet { --item-tone: var(--hub-violet); --item-soft: var(--hub-violet-soft); }
-    .tone-amber { --item-tone: var(--hub-amber); --item-soft: var(--hub-amber-soft); }
-    .tone-red { --item-tone: var(--hub-red); --item-soft: var(--hub-red-soft); }
-    .tone-slate { --item-tone: var(--hub-slate); --item-soft: var(--hub-slate-soft); }
+    .hub-panel-title {
+        min-width:0;
+    }
 
+    .hub-panel-title h2,
     .hub-panel-title h3,
     .hub-panel-title p {
-        margin: 0;
+        margin:0;
     }
 
+    .hub-panel-title h2,
     .hub-panel-title h3 {
-        color: var(--color-text, #102018);
-        font-size: 13px;
-        font-weight: 840;
-        line-height: 1.25;
+        overflow:hidden;
+        color:var(--hub-text);
+        font-size:.71rem;
+        font-weight:860;
+        line-height:1.25;
+        text-overflow:ellipsis;
+        white-space:nowrap;
     }
 
     .hub-panel-title p {
-        margin-top: 2px;
-        color: var(--color-text-muted, #809087);
-        font-size: 10px;
-        line-height: 1.35;
+        overflow:hidden;
+        margin-top:.04rem;
+        color:var(--hub-text-3);
+        font-size:.54rem;
+        line-height:1.35;
+        text-overflow:ellipsis;
+        white-space:nowrap;
     }
 
     .hub-count {
-        min-width: 28px;
-        padding: 4px 7px;
-        border-radius: 999px;
-        background: var(--color-surface-muted, #eef4f0);
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10px;
-        font-weight: 800;
-        text-align: center;
-    }
-
-    .hub-portal-tools {
-        padding: 10px 11px 0;
-    }
-
-    .hub-portal-tools .hub-search {
-        width: 100%;
-        max-width: none;
-    }
-
-    .hub-portal-tools .hub-search-input {
-        background: #fff;
-    }
-
-    .hub-portal-body {
-        padding: 11px;
-    }
-
-    .hub-main-column .hub-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 9px;
-    }
-
-    .hub-main-column .hub-link {
-        min-height: 86px;
-        gap: 11px;
-        padding: 12px 40px 12px 12px;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: none;
-    }
-
-    .hub-main-column .hub-link:hover,
-    .hub-main-column .hub-link:focus-visible {
-        background: var(--color-surface-soft, #f8faf9);
-        box-shadow: 0 6px 16px rgba(15, 35, 24, .055);
-        transform: translateY(-1px);
-    }
-
-    .hub-main-column .hub-role-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 11px;
-    }
-
-    .hub-main-column .hub-link-arrow {
-        right: 8px;
-        background: transparent !important;
-    }
-
-    .hub-tenant-body {
-        padding: 13px;
-    }
-
-    .hub-tenant-brand {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .hub-tenant-avatar {
-        display: grid;
-        width: 46px;
-        height: 46px;
-        flex: none;
-        place-items: center;
-        overflow: hidden;
-        border: 1px solid rgba(22, 138, 77, .12);
-        border-radius: 12px;
-        background: var(--hub-green-soft);
-    }
-
-    .hub-tenant-avatar img {
-        width: 31px;
-        height: 31px;
-        object-fit: contain;
-    }
-
-    .hub-tenant-brand strong,
-    .hub-tenant-brand span {
-        display: block;
-    }
-
-    .hub-tenant-brand strong {
-        color: var(--color-text, #102018);
-        font-size: 12px;
-        font-weight: 840;
-        line-height: 1.3;
-    }
-
-    .hub-tenant-brand span {
-        margin-top: 2px;
-        color: var(--color-text-muted, #809087);
-        font-size: 10px;
-    }
-
-    .hub-tenant-description {
-        margin: 11px 0 0;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10.5px;
-        line-height: 1.55;
-    }
-
-    .hub-facts {
-        display: grid;
-        gap: 0;
-        margin-top: 11px;
-        border-top: 1px solid var(--color-border, #dce6df);
-    }
-
-    .hub-fact {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: 26px minmax(0, 1fr);
-        gap: 7px;
-        align-items: center;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--color-border, #dce6df);
-    }
-
-    .hub-fact:last-child { border-bottom: 0; padding-bottom: 0; }
-
-    .hub-fact > i {
-        color: var(--hub-blue);
-        font-size: 15px;
-        text-align: center;
-    }
-
-    .hub-fact span,
-    .hub-fact strong {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .hub-fact span {
-        color: var(--color-text-muted, #809087);
-        font-size: 9px;
-    }
-
-    .hub-fact strong {
-        margin-top: 1px;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10.5px;
-        font-weight: 760;
-    }
-
-    .hub-resource-list,
-    .hub-contact-list {
-        display: grid;
-        min-width: 0;
-        gap: 6px;
-        padding: 9px;
-    }
-
-    .hub-resource-link,
-    .hub-contact-link {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
-        min-height: 48px;
-        padding: 6px 7px;
-        border: 1px solid transparent;
-        border-radius: 10px;
-        background: transparent;
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .hub-resource-link:hover,
-    .hub-resource-link:focus-visible,
-    .hub-contact-link:hover,
-    .hub-contact-link:focus-visible {
-        border-color: var(--color-border, #dce6df);
-        background: var(--color-surface-soft, #f8faf9);
-        color: inherit;
-        outline: none;
-    }
-
-    .hub-resource-link .hub-tone-icon,
-    .hub-contact-link .hub-tone-icon {
-        width: 34px;
-        height: 34px;
-        border-radius: 9px;
-        font-size: 15px;
-    }
-
-    .hub-resource-copy,
-    .hub-contact-copy {
-        min-width: 0;
-    }
-
-    .hub-resource-copy strong,
-    .hub-resource-copy span,
-    .hub-contact-copy strong,
-    .hub-contact-copy span {
-        display: block;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .hub-resource-copy strong,
-    .hub-contact-copy strong {
-        color: var(--color-text, #102018);
-        font-size: 10.5px;
-        font-weight: 790;
-    }
-
-    .hub-resource-copy span,
-    .hub-contact-copy span {
-        margin-top: 1px;
-        color: var(--color-text-muted, #809087);
-        font-size: 9px;
-    }
-
-    .hub-resource-link > .ph-caret-right,
-    .hub-contact-link > .ph-caret-right {
-        color: var(--color-text-muted, #809087);
-        font-size: 12px;
-    }
-
-    .hub-carousel-controls {
-        display: flex;
-        gap: 5px;
-        align-items: center;
-    }
-
-    .hub-carousel-button {
-        display: grid;
-        width: 29px;
-        height: 29px;
-        place-items: center;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--color-text-secondary, #52645a);
-        cursor: pointer;
-    }
-
-    .hub-carousel-button:hover:not(:disabled),
-    .hub-carousel-button:focus-visible:not(:disabled) {
-        background: var(--color-surface-muted, #eef4f0);
-        color: var(--color-text, #102018);
-        outline: none;
-    }
-
-    .hub-carousel-button:disabled {
-        cursor: default;
-        opacity: .38;
-    }
-
-    .hub-news-viewport {
-        min-width: 0;
-        overflow: hidden;
-    }
-
-    .hub-news-track {
-        display: flex;
-        min-width: 0;
-        gap: 8px;
-        padding: 10px;
-        overflow-x: auto;
-        scroll-behavior: smooth;
-        scroll-snap-type: x mandatory;
-        scrollbar-width: none;
-        overscroll-behavior-inline: contain;
-    }
-
-    .hub-news-track::-webkit-scrollbar { display: none; }
-
-    .hub-news-slide {
-        --news-tone: var(--hub-blue);
-        --news-soft: var(--hub-blue-soft);
-        display: grid;
-        min-width: 0;
-        min-height: 175px;
-        flex: 0 0 100%;
-        align-content: space-between;
-        gap: 15px;
-        padding: 13px;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 12px;
-        background:
-            radial-gradient(circle at 100% 0, color-mix(in srgb, var(--news-tone) 7%, transparent), transparent 150px),
-            #fff;
-        scroll-snap-align: start;
-    }
-
-    .hub-news-slide.tone-green { --news-tone: var(--hub-green); --news-soft: var(--hub-green-soft); }
-    .hub-news-slide.tone-blue { --news-tone: var(--hub-blue); --news-soft: var(--hub-blue-soft); }
-    .hub-news-slide.tone-sky { --news-tone: var(--hub-sky); --news-soft: var(--hub-sky-soft); }
-    .hub-news-slide.tone-violet { --news-tone: var(--hub-violet); --news-soft: var(--hub-violet-soft); }
-    .hub-news-slide.tone-amber { --news-tone: var(--hub-amber); --news-soft: var(--hub-amber-soft); }
-    .hub-news-slide.tone-red { --news-tone: var(--hub-red); --news-soft: var(--hub-red-soft); }
-    .hub-news-slide.tone-slate { --news-tone: var(--hub-slate); --news-soft: var(--hub-slate-soft); }
-
-    .hub-news-top {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 8px;
-    }
-
-    .hub-news-icon {
-        display: grid;
-        width: 39px;
-        height: 39px;
-        place-items: center;
-        border-radius: 11px;
-        background: var(--news-soft);
-        color: var(--news-tone);
-        font-size: 17px;
-    }
-
-    .hub-news-label {
-        display: inline-flex;
-        min-height: 23px;
-        align-items: center;
-        padding: 4px 7px;
-        border-radius: 999px;
-        background: var(--news-soft);
-        color: var(--news-tone);
-        font-size: 9px;
-        font-weight: 800;
-    }
-
-    .hub-news-slide h4,
-    .hub-news-slide p {
-        margin: 0;
-    }
-
-    .hub-news-slide h4 {
-        color: var(--color-text, #102018);
-        font-size: 13px;
-        font-weight: 840;
-        line-height: 1.35;
-    }
-
-    .hub-news-slide p {
-        margin-top: 5px;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10px;
-        line-height: 1.55;
-    }
-
-    .hub-news-action {
-        display: inline-flex;
-        width: max-content;
-        align-items: center;
-        gap: 5px;
-        color: var(--news-tone);
-        font-size: 10px;
-        font-weight: 790;
-        text-decoration: none;
-    }
-
-    .hub-news-action:hover,
-    .hub-news-action:focus-visible {
-        text-decoration: underline;
-        outline: none;
-    }
-
-    .hub-carousel-dots {
-        display: flex;
-        justify-content: center;
-        gap: 5px;
-        padding: 0 10px 10px;
-    }
-
-    .hub-carousel-dot {
-        width: 6px;
-        height: 6px;
-        padding: 0;
-        border: 0;
-        border-radius: 999px;
-        background: #cbd5cf;
-        cursor: pointer;
-        transition: width 150ms ease, background 150ms ease;
-    }
-
-    .hub-carousel-dot.active {
-        width: 18px;
-        background: var(--hub-violet);
-    }
-
-    .hub-contact-empty {
-        margin: 0;
-        padding: 13px;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 10px;
-        line-height: 1.55;
-    }
-
-    .hub-socials {
-        display: flex;
-        gap: 6px;
-        flex-wrap: wrap;
-        padding: 0 9px 10px;
-    }
-
-    .hub-social-link {
-        display: inline-flex;
-        min-height: 31px;
-        align-items: center;
-        gap: 5px;
-        padding: 5px 8px;
-        border: 1px solid var(--color-border, #dce6df);
-        border-radius: 9px;
-        background: #fff;
-        color: var(--color-text-secondary, #52645a);
-        font-size: 9px;
-        font-weight: 740;
-        text-decoration: none;
-    }
-
-    .hub-social-link i {
-        color: var(--hub-violet);
-        font-size: 14px;
-    }
-
-    .hub-social-link:hover,
-    .hub-social-link:focus-visible {
-        background: var(--color-surface-soft, #f8faf9);
-        color: var(--color-text, #102018);
-        outline: none;
-    }
-
-    @media (min-width: 1181px) {
-        .hub-left-column,
-        .hub-right-column {
-            position: sticky;
-            top: 12px;
-        }
-    }
-
-    @media (max-width: 1180px) {
-        .hub-layout {
-            grid-template-columns: minmax(0, 1fr) 300px;
-            grid-template-areas:
-                "main right"
-                "left right";
-        }
-
-        .hub-left-column {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .hub-right-column {
-            position: sticky;
-            top: 12px;
-        }
-    }
-
-    @media (max-width: 820px) {
-        .hub-page {
-            width: min(100%, calc(100dvw - 20px));
-        }
-
-        .hub-hero {
-            grid-template-columns: auto minmax(0, 1fr);
-            padding: 13px;
-        }
-
-        .hub-hero-action {
-            grid-column: 1 / -1;
-            justify-self: stretch;
-        }
-
-        .hub-layout {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .hub-main-column { order: 1; width: 100%; }
-        .hub-right-column { position: static; order: 2; width: 100%; }
-        .hub-left-column { order: 3; width: 100%; }
-
-        .hub-left-column {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .hub-news-slide {
-            min-height: 160px;
-            flex-basis: calc(100% - 28px);
-        }
-    }
-
-    @media (max-width: 620px) {
-        .hub-home { gap: 10px; }
-
-        .hub-hero-logo {
-            width: 48px;
-            height: 48px;
-            border-radius: 13px;
-        }
-
-        .hub-hero-logo img {
-            width: 31px;
-            height: 31px;
-        }
-
-        .hub-hero p {
-            display: -webkit-box;
-            overflow: hidden;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-        }
-
-        .hub-chip {
-            min-height: 23px;
-            font-size: 9px;
-        }
-
-        .hub-main-column .hub-list,
-        .hub-left-column {
-            grid-template-columns: 1fr;
-        }
-
-        .hub-main-column .hub-link {
-            min-height: 72px;
-            padding: 10px 38px 10px 10px;
-        }
-
-        .hub-main-column .hub-role-icon {
-            width: 40px;
-            height: 40px;
-        }
-
-        .hub-panel-head {
-            min-height: 51px;
-            padding: 9px 10px;
-        }
-
-        .hub-panel-title p {
-            display: none;
-        }
-
-        .hub-news-track {
-            padding: 8px;
-        }
-
-        .hub-news-slide {
-            min-height: 154px;
-            padding: 11px;
-        }
+        display:inline-flex;
+        min-width:29px;
+        min-height:23px;
+        align-items:center;
+        justify-content:center;
+        padding:.1rem .32rem;
+        border-radius:999px;
+        background:var(--hub-violet-soft);
+        color:var(--hub-violet);
+        font-size:.54rem;
+        font-weight:860;
     }
 
     /* =========================================================
-       REFINAMENTO PREMIUM — HIERARQUIA, SUPERFÍCIES E NAVEGAÇÃO
+       PORTAIS — parecem links, não cards informativos
        ========================================================= */
 
-    .hub-page {
-        --hub-nav-height: 58px;
-        --hub-premium-ink: #17352a;
-        --hub-premium-border: #dce8e1;
-        --hub-premium-surface: #f7faf8;
+    .hub-portal-area {
+        padding:.52rem;
+        background:var(--hub-soft);
     }
 
-    .hub-home {
-        gap: 16px;
+    .hub-portal-explainer {
+        display:flex;
+        min-width:0;
+        align-items:center;
+        justify-content:space-between;
+        gap:.55rem;
+        margin-bottom:.46rem;
+        padding:.38rem .42rem;
+        border:1px solid var(--hub-border);
+        border-radius:9px;
+        background:#fff;
     }
 
-    .hub-hero {
-        position: relative;
-        padding: 18px;
-        border-color: rgba(22, 138, 77, .16);
-        border-radius: 20px;
+    .hub-portal-explainer-copy {
+        min-width:0;
+    }
+
+    .hub-portal-explainer strong,
+    .hub-portal-explainer span {
+        display:block;
+    }
+
+    .hub-portal-explainer strong {
+        color:var(--hub-text);
+        font-size:.62rem;
+        font-weight:820;
+    }
+
+    .hub-portal-explainer span {
+        margin-top:.03rem;
+        color:var(--hub-text-3);
+        font-size:.52rem;
+        line-height:1.4;
+    }
+
+    .hub-search {
+        position:relative;
+        width:min(220px,100%);
+        flex:0 0 auto;
+    }
+
+    .hub-search > .ph {
+        position:absolute;
+        top:50%;
+        left:.54rem;
+        color:var(--hub-text-3);
+        font-size:.7rem;
+        transform:translateY(-50%);
+        pointer-events:none;
+    }
+
+    .hub-search-input {
+        width:100%;
+        min-height:36px;
+        padding:.3rem 1.9rem .3rem 1.65rem;
+        border:1px solid var(--hub-border);
+        border-radius:8px;
+        outline:none;
+        background:#fff;
+        color:var(--hub-text);
+        font:inherit;
+        font-size:.59rem;
+    }
+
+    .hub-search-input:focus {
+        border-color:rgba(124,58,237,.34);
+        box-shadow:0 0 0 3px rgba(124,58,237,.06);
+    }
+
+    .hub-search-clear {
+        position:absolute;
+        top:50%;
+        right:.22rem;
+        display:none;
+        width:28px;
+        height:28px;
+        place-items:center;
+        border:0;
+        border-radius:7px;
+        background:transparent;
+        color:var(--hub-text-3);
+        cursor:pointer;
+        transform:translateY(-50%);
+    }
+
+    .hub-search.has-value .hub-search-clear {
+        display:grid;
+    }
+
+    .hub-portal-grid {
+        display:grid;
+        min-width:0;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:.45rem;
+    }
+
+    .hub-portal-link {
+        --portal-tone:var(--hub-green);
+        --portal-soft:var(--hub-green-soft);
+
+        position:relative;
+        display:grid;
+        min-width:0;
+        min-height:126px;
+        grid-template-rows:1fr auto;
+        overflow:hidden;
+        border:1px solid var(--hub-border);
+        border-left:3px solid var(--portal-tone);
+        border-radius:11px;
+        background:#fff;
+        color:inherit;
+        text-decoration:none;
+        isolation:isolate;
+        box-shadow:0 1px 4px rgba(15,35,24,.025);
+        transition:
+            border-color .14s ease,
+            box-shadow .14s ease,
+            transform .14s ease,
+            background .14s ease;
+    }
+
+    .hub-portal-link.tone-blue   { --portal-tone:var(--hub-blue);   --portal-soft:var(--hub-blue-soft); }
+    .hub-portal-link.tone-sky    { --portal-tone:var(--hub-sky);    --portal-soft:var(--hub-sky-soft); }
+    .hub-portal-link.tone-violet { --portal-tone:var(--hub-violet); --portal-soft:var(--hub-violet-soft); }
+    .hub-portal-link.tone-amber  { --portal-tone:var(--hub-amber);  --portal-soft:var(--hub-amber-soft); }
+    .hub-portal-link.tone-red    { --portal-tone:var(--hub-red);    --portal-soft:var(--hub-red-soft); }
+    .hub-portal-link.tone-slate  { --portal-tone:var(--hub-slate);  --portal-soft:var(--hub-slate-soft); }
+
+    .hub-portal-link:hover,
+    .hub-portal-link:focus-visible {
+        border-color:color-mix(in srgb,var(--portal-tone) 28%,var(--hub-border));
+        background:linear-gradient(145deg,#fff,color-mix(in srgb,var(--portal-soft) 28%,#fff));
+        box-shadow:0 8px 20px rgba(15,35,24,.07);
+        outline:none;
+        transform:translateY(-1px);
+    }
+
+    .hub-portal-main {
+        display:grid;
+        min-width:0;
+        grid-template-columns:auto minmax(0,1fr);
+        gap:.46rem;
+        align-content:start;
+        padding:.52rem;
         background:
-            radial-gradient(circle at 88% -30%, rgba(124, 58, 237, .11), transparent 310px),
-            radial-gradient(circle at 8% 120%, rgba(22, 138, 77, .10), transparent 280px),
-            linear-gradient(145deg, #ffffff 0%, #f9fcfa 58%, #f7f5ff 100%);
+            radial-gradient(
+                circle at 100% 0,
+                color-mix(in srgb,var(--portal-tone) 8%,transparent),
+                transparent 9rem
+            );
+    }
+
+    .hub-portal-icon {
+        display:inline-flex;
+        width:41px;
+        height:41px;
+        align-items:center;
+        justify-content:center;
+        border:1px solid color-mix(in srgb,var(--portal-tone) 10%,transparent);
+        border-radius:10px;
+        background:var(--portal-soft);
+        color:var(--portal-tone);
+        transition:transform .18s ease,box-shadow .18s ease;
+    }
+
+    .hub-portal-icon .ph-duotone {
+        font-size:19px;
+    }
+
+    .hub-portal-copy {
+        min-width:0;
+    }
+
+    .hub-portal-badge {
+        display:inline-flex;
+        min-height:18px;
+        align-items:center;
+        gap:.13rem;
+        padding:.05rem .24rem;
+        border-radius:999px;
+        background:var(--portal-soft);
+        color:var(--portal-tone);
+        font-size:.46rem;
+        font-weight:920;
+        letter-spacing:.055em;
+        text-transform:uppercase;
+    }
+
+    .hub-portal-name {
+        display:block;
+        margin-top:.14rem;
+        overflow:hidden;
+        color:var(--hub-text);
+        font-size:.74rem;
+        font-weight:900;
+        letter-spacing:-.015em;
+        line-height:1.26;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .hub-portal-description {
+        display:-webkit-box;
+        overflow:hidden;
+        margin-top:.08rem;
+        color:var(--hub-text-3);
+        font-size:.55rem;
+        line-height:1.42;
+        -webkit-box-orient:vertical;
+        -webkit-line-clamp:2;
+    }
+
+    .hub-portal-cta {
+        display:flex;
+        min-height:35px;
+        align-items:center;
+        justify-content:space-between;
+        gap:.4rem;
+        padding:.3rem .48rem;
+        border-top:1px solid color-mix(in srgb,var(--portal-tone) 10%,var(--hub-border));
+        background:var(--portal-soft);
+        color:var(--portal-tone);
+        font-size:.57rem;
+        font-weight:880;
+        transition:background .16s ease,color .16s ease;
+    }
+
+    .hub-portal-cta .ph {
+        font-size:.72rem;
+        transition:transform .16s ease;
+    }
+
+    .hub-portal-link:hover .hub-portal-cta .ph,
+    .hub-portal-link:focus-visible .hub-portal-cta .ph {
+        transform:translateX(2px);
+    }
+
+    /* Clique: halo + brilho bem visível antes da navegação. */
+    .hub-portal-link.is-opening {
+        border-color:color-mix(in srgb,var(--portal-tone) 64%,var(--hub-border));
+        background:color-mix(in srgb,var(--portal-soft) 56%,#fff);
         box-shadow:
-            0 14px 38px rgba(17, 49, 34, .07),
-            0 2px 7px rgba(17, 49, 34, .035);
+            0 0 0 3px color-mix(in srgb,var(--portal-tone) 14%,transparent),
+            0 14px 34px color-mix(in srgb,var(--portal-tone) 20%,transparent);
+        pointer-events:none;
+        transform:translateY(-1px) scale(.995);
+        animation:hub-click-pulse .48s ease both;
     }
 
-    .hub-hero::after {
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 4px;
-        border-radius: 20px 0 0 20px;
-        background: linear-gradient(180deg, var(--hub-green), var(--hub-violet));
-        content: "";
+    .hub-portal-link.is-opening .hub-portal-icon {
+        box-shadow:0 0 0 5px color-mix(in srgb,var(--portal-tone) 11%,transparent);
+        transform:scale(1.08);
     }
 
-    .hub-hero-logo {
-        border-color: rgba(22, 138, 77, .16);
-        background: rgba(255, 255, 255, .88);
-        box-shadow: inset 0 0 0 5px var(--hub-green-soft);
+    .hub-portal-link.is-opening .hub-portal-cta {
+        background:var(--portal-tone);
+        color:#fff;
     }
 
-    .hub-chip {
-        border-color: rgba(23, 53, 42, .10);
-        background: rgba(255, 255, 255, .78);
-    }
-
-    .hub-hero-action {
-        border-color: rgba(23, 53, 42, .13);
-        box-shadow: 0 3px 10px rgba(17, 49, 34, .05);
-    }
-
-    .hub-layout {
-        grid-template-columns: 252px minmax(460px, 1fr) 316px;
-        gap: 16px;
-    }
-
-    .hub-left-column,
-    .hub-right-column {
-        gap: 14px;
-    }
-
-    .hub-panel {
-        border-color: var(--hub-premium-border);
-        border-radius: 18px;
-        background: #fff;
-        box-shadow:
-            0 9px 26px rgba(17, 49, 34, .055),
-            0 1px 3px rgba(17, 49, 34, .035);
-    }
-
-    .hub-panel-head {
-        min-height: 60px;
-        padding: 12px 14px;
-        border-bottom-color: #e7eee9;
-        background: linear-gradient(180deg, #fbfdfc, #f8fbf9);
-    }
-
-    .hub-main-column .hub-portal-body {
-        background: var(--hub-premium-surface);
-    }
-
-    .hub-main-column .hub-list {
-        gap: 10px;
-        padding: 12px;
-    }
-
-    .hub-main-column .hub-link {
-        border-color: #e2ebe5;
-        border-radius: 13px;
-        background: #fff;
-        box-shadow: 0 2px 7px rgba(17, 49, 34, .035);
-    }
-
-    .hub-main-column .hub-link:hover,
-    .hub-main-column .hub-link:focus-visible {
-        border-color: color-mix(in srgb, var(--item-tone) 30%, #dce8e1);
-        box-shadow: 0 8px 20px rgba(17, 49, 34, .075);
-        transform: translateY(-1px);
-    }
-
-    .hub-resource-link,
-    .hub-contact-link {
-        border-radius: 11px;
-    }
-
-    .hub-news-slide {
-        border-color: color-mix(in srgb, var(--item-tone) 17%, #e0e9e3);
-        border-radius: 14px;
+    .hub-portal-link.is-opening::after {
+        position:absolute;
+        z-index:4;
+        top:-35%;
+        bottom:-35%;
+        left:-55%;
+        width:42%;
         background:
-            linear-gradient(145deg, #fff 0%, color-mix(in srgb, var(--item-soft) 65%, #fff) 100%);
+            linear-gradient(
+                105deg,
+                transparent 0%,
+                rgba(255,255,255,0) 12%,
+                rgba(255,255,255,.78) 40%,
+                color-mix(in srgb,var(--portal-tone) 28%,#fff) 50%,
+                rgba(255,255,255,.92) 60%,
+                rgba(255,255,255,0) 88%,
+                transparent 100%
+            );
+        content:"";
+        filter:blur(.2px);
+        opacity:.95;
+        pointer-events:none;
+        transform:skewX(-17deg);
+        animation:hub-portal-shine .72s cubic-bezier(.2,.75,.2,1) both;
     }
 
-    .hub-mobile-nav {
-        --hub-green: #168a4d;
-        --hub-blue: #2563eb;
-        --hub-violet: #7c3aed;
-        --hub-amber: #c87408;
-        --hub-slate: #596b61;
-        --hub-premium-ink: #17352a;
-        display: none;
+    @keyframes hub-portal-shine {
+        from { left:-55%; }
+        to { left:125%; }
     }
 
-    [data-hub-nav-section] {
-        scroll-margin-top: 82px;
+    @keyframes hub-click-pulse {
+        0% { filter:saturate(1); }
+        45% { filter:saturate(1.18) brightness(1.025); }
+        100% { filter:saturate(1.06); }
     }
 
-    @media (max-width: 1180px) and (min-width: 821px) {
-        .hub-layout {
-            grid-template-columns: minmax(0, 1fr) 310px;
+    .hub-portal-link[hidden],
+    .hub-no-results[hidden] {
+        display:none !important;
+    }
+
+    .hub-no-results {
+        grid-column:1 / -1;
+        padding:.9rem;
+        border:1px dashed var(--hub-border-strong);
+        border-radius:9px;
+        background:#fff;
+        color:var(--hub-text-3);
+        font-size:.59rem;
+        line-height:1.5;
+        text-align:center;
+    }
+
+    /* =========================================================
+       RECURSOS — deliberadamente parecem lista, não portais
+       ========================================================= */
+
+    .hub-list {
+        display:grid;
+        min-width:0;
+        gap:.3rem;
+        padding:.44rem;
+    }
+
+    .hub-list-link {
+        --item-tone:var(--hub-slate);
+        --item-soft:var(--hub-slate-soft);
+
+        display:grid;
+        min-width:0;
+        min-height:49px;
+        grid-template-columns:auto minmax(0,1fr) auto;
+        gap:.4rem;
+        align-items:center;
+        padding:.36rem .4rem;
+        border:1px solid transparent;
+        border-radius:9px;
+        color:inherit;
+        text-decoration:none;
+        transition:background .14s ease,border-color .14s ease;
+    }
+
+    .hub-list-link.tone-green  { --item-tone:var(--hub-green);  --item-soft:var(--hub-green-soft); }
+    .hub-list-link.tone-blue   { --item-tone:var(--hub-blue);   --item-soft:var(--hub-blue-soft); }
+    .hub-list-link.tone-sky    { --item-tone:var(--hub-sky);    --item-soft:var(--hub-sky-soft); }
+    .hub-list-link.tone-violet { --item-tone:var(--hub-violet); --item-soft:var(--hub-violet-soft); }
+    .hub-list-link.tone-amber  { --item-tone:var(--hub-amber);  --item-soft:var(--hub-amber-soft); }
+    .hub-list-link.tone-red    { --item-tone:var(--hub-red);    --item-soft:var(--hub-red-soft); }
+    .hub-list-link.tone-slate  { --item-tone:var(--hub-slate);  --item-soft:var(--hub-slate-soft); }
+
+    .hub-list-link:hover,
+    .hub-list-link:focus-visible {
+        border-color:var(--hub-border);
+        background:var(--hub-soft);
+        outline:none;
+    }
+
+    .hub-list-icon {
+        display:inline-flex;
+        width:34px;
+        height:34px;
+        align-items:center;
+        justify-content:center;
+        border-radius:9px;
+        background:var(--item-soft);
+        color:var(--item-tone);
+    }
+
+    .hub-list-icon .ph-duotone {
+        font-size:15px;
+    }
+
+    .hub-list-copy {
+        min-width:0;
+    }
+
+    .hub-list-copy strong,
+    .hub-list-copy span {
+        display:block;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .hub-list-copy strong {
+        color:var(--hub-text);
+        font-size:.61rem;
+        font-weight:810;
+    }
+
+    .hub-list-copy span {
+        margin-top:.02rem;
+        color:var(--hub-text-3);
+        font-size:.51rem;
+    }
+
+    .hub-list-arrow {
+        color:var(--hub-text-3);
+        font-size:.7rem;
+    }
+
+    .hub-empty {
+        padding:.75rem;
+        color:var(--hub-text-3);
+        font-size:.56rem;
+        line-height:1.5;
+        text-align:center;
+    }
+
+    /* =========================================================
+       NOVIDADES — leitura, não acesso principal
+       ========================================================= */
+
+    .hub-news-list {
+        display:grid;
+        min-width:0;
+        gap:.32rem;
+        padding:.44rem;
+    }
+
+    .hub-news-item {
+        --news-tone:var(--hub-blue);
+        --news-soft:var(--hub-blue-soft);
+
+        display:grid;
+        min-width:0;
+        grid-template-columns:auto minmax(0,1fr);
+        gap:.4rem;
+        padding:.4rem;
+        border:1px solid var(--hub-border);
+        border-left:3px solid var(--news-tone);
+        border-radius:9px;
+        background:linear-gradient(90deg,var(--news-soft),#fff 72%);
+    }
+
+    .hub-news-item.tone-green  { --news-tone:var(--hub-green);  --news-soft:var(--hub-green-soft); }
+    .hub-news-item.tone-blue   { --news-tone:var(--hub-blue);   --news-soft:var(--hub-blue-soft); }
+    .hub-news-item.tone-sky    { --news-tone:var(--hub-sky);    --news-soft:var(--hub-sky-soft); }
+    .hub-news-item.tone-violet { --news-tone:var(--hub-violet); --news-soft:var(--hub-violet-soft); }
+    .hub-news-item.tone-amber  { --news-tone:var(--hub-amber);  --news-soft:var(--hub-amber-soft); }
+    .hub-news-item.tone-red    { --news-tone:var(--hub-red);    --news-soft:var(--hub-red-soft); }
+    .hub-news-item.tone-slate  { --news-tone:var(--hub-slate);  --news-soft:var(--hub-slate-soft); }
+
+    .hub-news-icon {
+        display:inline-flex;
+        width:33px;
+        height:33px;
+        align-items:center;
+        justify-content:center;
+        border-radius:8px;
+        background:#fff;
+        color:var(--news-tone);
+    }
+
+    .hub-news-icon .ph-duotone {
+        font-size:15px;
+    }
+
+    .hub-news-copy {
+        min-width:0;
+    }
+
+    .hub-news-label {
+        display:block;
+        color:var(--news-tone);
+        font-size:.46rem;
+        font-weight:900;
+        letter-spacing:.045em;
+        text-transform:uppercase;
+    }
+
+    .hub-news-title {
+        display:block;
+        margin-top:.04rem;
+        color:var(--hub-text);
+        font-size:.62rem;
+        font-weight:830;
+        line-height:1.35;
+    }
+
+    .hub-news-description {
+        display:-webkit-box;
+        overflow:hidden;
+        margin-top:.06rem;
+        color:var(--hub-text-2);
+        font-size:.52rem;
+        line-height:1.45;
+        -webkit-box-orient:vertical;
+        -webkit-line-clamp:3;
+    }
+
+    .hub-news-action {
+        display:inline-flex;
+        align-items:center;
+        gap:.13rem;
+        margin-top:.18rem;
+        color:var(--news-tone);
+        font-size:.51rem;
+        font-weight:800;
+        text-decoration:none;
+    }
+
+    /* =========================================================
+       CONTATO + organização
+       ========================================================= */
+
+    .hub-org-summary {
+        display:grid;
+        gap:.38rem;
+        padding:.44rem;
+        border-bottom:1px solid var(--hub-border);
+        background:var(--hub-soft);
+    }
+
+    .hub-org-main {
+        display:grid;
+        min-width:0;
+        grid-template-columns:auto minmax(0,1fr);
+        gap:.38rem;
+        align-items:center;
+    }
+
+    .hub-org-logo {
+        display:grid;
+        width:36px;
+        height:36px;
+        place-items:center;
+        overflow:hidden;
+        border-radius:9px;
+        background:var(--hub-green-soft);
+    }
+
+    .hub-org-logo img {
+        width:23px;
+        height:23px;
+        object-fit:contain;
+    }
+
+    .hub-org-copy {
+        min-width:0;
+    }
+
+    .hub-org-copy strong {
+        display:block;
+        overflow:hidden;
+        color:var(--hub-text);
+        font-size:.61rem;
+        font-weight:840;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+    }
+
+    .hub-org-copy span {
+        display:-webkit-box;
+        overflow:hidden;
+        margin-top:.02rem;
+        color:var(--hub-text-3);
+        font-size:.5rem;
+        line-height:1.38;
+        -webkit-box-orient:vertical;
+        -webkit-line-clamp:2;
+    }
+
+    .hub-org-facts {
+        display:flex;
+        gap:.22rem;
+        flex-wrap:wrap;
+    }
+
+    .hub-org-fact {
+        display:inline-flex;
+        min-height:22px;
+        align-items:center;
+        gap:.16rem;
+        padding:.12rem .26rem;
+        border:1px solid var(--hub-border);
+        border-radius:999px;
+        background:#fff;
+        color:var(--hub-text-2);
+        font-size:.48rem;
+        font-weight:700;
+    }
+
+    .hub-socials {
+        display:flex;
+        gap:.24rem;
+        flex-wrap:wrap;
+        padding:0 .44rem .44rem;
+    }
+
+    .hub-social-link {
+        display:inline-flex;
+        min-height:30px;
+        align-items:center;
+        gap:.18rem;
+        padding:.26rem .34rem;
+        border:1px solid var(--hub-border);
+        border-radius:8px;
+        background:#fff;
+        color:var(--hub-text-2);
+        font-size:.5rem;
+        font-weight:750;
+        text-decoration:none;
+    }
+
+    /* =========================================================
+       MOBILE — cada item da bottom bar é uma TELA
+       ========================================================= */
+
+    .hub-mobile-screen-title,
+    .hub-bottom-nav {
+        display:none;
+    }
+
+    @media(max-width:1080px) and (min-width:821px) {
+        .hub-desktop-layout {
+            grid-template-columns:minmax(0,1.4fr) minmax(270px,.65fr);
+        }
+
+        .hub-portal-grid {
+            grid-template-columns:1fr;
         }
     }
 
-    @media (max-width: 820px) {
-        body.hub-context-navigation .app-nav-layer {
-            display: none !important;
+    @media(max-width:820px) {
+        body.hub-app-navigation .app-nav-layer {
+            display:none !important;
         }
 
-        body.hub-context-navigation.has-app-nav .bento-container {
-            padding-bottom: calc(58px + 22px + env(safe-area-inset-bottom, 0px)) !important;
+        body.hub-app-navigation.has-app-nav .bento-container {
+            padding-bottom:calc(70px + 12px + env(safe-area-inset-bottom,0px)) !important;
         }
 
         .hub-page {
-            width: min(100%, calc(100dvw - 18px));
-            padding-bottom: calc(var(--hub-nav-height) + 14px + env(safe-area-inset-bottom, 0px));
+            width:min(100%,calc(100dvw - 16px));
+            padding-bottom:calc(70px + 14px + env(safe-area-inset-bottom,0px));
         }
 
-        .hub-home {
-            gap: 11px;
+        .hub-context {
+            min-height:58px;
+            grid-template-columns:auto minmax(0,1fr);
+            gap:.46rem;
+            margin-bottom:.4rem;
+            padding:.42rem .46rem;
+            border-radius:12px;
         }
 
-        .hub-hero {
-            padding: 14px;
-            border-radius: 17px;
-            box-shadow: 0 8px 24px rgba(17, 49, 34, .06);
+        .hub-context-logo {
+            width:38px;
+            height:38px;
+            border-radius:10px;
         }
 
-        .hub-hero::after {
-            width: 3px;
-            border-radius: 17px 0 0 17px;
+        .hub-context-logo img {
+            width:24px;
+            height:24px;
         }
 
-        .hub-layout {
-            gap: 11px;
+        .hub-context-kicker,
+        .hub-context-site,
+        .hub-context-extra {
+            display:none !important;
         }
 
-        .hub-left-column,
-        .hub-right-column {
-            gap: 11px;
+        .hub-context-name {
+            font-size:.75rem;
+        }
+
+        .hub-context-meta {
+            margin-top:.08rem;
+            font-size:.5rem;
+        }
+
+        .hub-mobile-screen-title {
+            display:grid;
+            min-height:47px;
+            grid-template-columns:auto minmax(0,1fr);
+            gap:.38rem;
+            align-items:center;
+            margin-bottom:.4rem;
+            padding:.38rem .42rem;
+            border:1px solid var(--hub-border);
+            border-radius:11px;
+            background:#fff;
+            box-shadow:0 2px 9px rgba(15,35,24,.025);
+        }
+
+        .hub-mobile-screen-icon {
+            display:inline-flex;
+            width:32px;
+            height:32px;
+            align-items:center;
+            justify-content:center;
+            border-radius:8px;
+            background:var(--hub-violet-soft);
+            color:var(--hub-violet);
+        }
+
+        .hub-mobile-screen-icon .ph-duotone {
+            font-size:15px;
+        }
+
+        .hub-mobile-screen-copy {
+            min-width:0;
+        }
+
+        .hub-mobile-screen-copy strong,
+        .hub-mobile-screen-copy span {
+            display:block;
+        }
+
+        .hub-mobile-screen-copy strong {
+            color:var(--hub-text);
+            font-size:.64rem;
+            font-weight:850;
+        }
+
+        .hub-mobile-screen-copy span {
+            overflow:hidden;
+            margin-top:.02rem;
+            color:var(--hub-text-3);
+            font-size:.5rem;
+            text-overflow:ellipsis;
+            white-space:nowrap;
+        }
+
+        .hub-desktop-layout,
+        .hub-main-stack,
+        .hub-side-stack {
+            display:block;
+        }
+
+        .hub-side-stack {
+            position:static;
+        }
+
+        .hub-screen {
+            display:none;
+        }
+
+        .hub-screen.is-active {
+            display:block;
+            animation:hub-screen-enter .18s ease both;
         }
 
         .hub-panel {
-            border-radius: 15px;
-            box-shadow: 0 5px 16px rgba(17, 49, 34, .045);
+            border-radius:12px;
+            box-shadow:0 2px 10px rgba(15,35,24,.025);
         }
 
         .hub-panel-head {
-            min-height: 54px;
-            padding: 10px 11px;
+            min-height:50px;
+            padding:.42rem .46rem;
         }
 
-        [data-hub-nav-section] {
-            scroll-margin-top: 72px;
+        .hub-panel-title p {
+            display:none;
         }
 
-        .hub-mobile-nav {
-            position: fixed;
-            z-index: 680;
-            right: 8px;
-            bottom: max(8px, env(safe-area-inset-bottom, 0px));
-            left: 8px;
-            display: grid;
-            min-height: 58px;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 3px;
-            padding: 5px;
-            border: 1px solid rgba(23, 53, 42, .12);
-            border-radius: 17px;
-            background: #fff;
+        .hub-portal-area {
+            padding:.42rem;
+        }
+
+        .hub-portal-explainer {
+            display:block;
+            padding:.36rem;
+        }
+
+        .hub-portal-explainer-copy {
+            margin-bottom:.32rem;
+        }
+
+        .hub-search {
+            width:100%;
+        }
+
+        .hub-search-input {
+            min-height:39px;
+            font-size:.6rem;
+        }
+
+        .hub-portal-grid {
+            grid-template-columns:1fr;
+            gap:.38rem;
+        }
+
+        .hub-portal-link {
+            min-height:105px;
+            border-radius:10px;
+        }
+
+        .hub-portal-main {
+            gap:.4rem;
+            padding:.46rem;
+        }
+
+        .hub-portal-icon {
+            width:38px;
+            height:38px;
+        }
+
+        .hub-portal-name {
+            font-size:.68rem;
+        }
+
+        .hub-portal-description {
+            font-size:.53rem;
+            -webkit-line-clamp:2;
+        }
+
+        .hub-portal-cta {
+            min-height:34px;
+            padding:.28rem .44rem;
+            font-size:.55rem;
+        }
+
+        .hub-list,
+        .hub-news-list {
+            gap:.3rem;
+            padding:.4rem;
+        }
+
+        .hub-list-link {
+            min-height:53px;
+            padding:.38rem;
+        }
+
+        .hub-list-icon {
+            width:36px;
+            height:36px;
+        }
+
+        .hub-news-item {
+            min-height:75px;
+            padding:.4rem;
+        }
+
+        .hub-news-title {
+            font-size:.63rem;
+        }
+
+        .hub-news-description {
+            font-size:.52rem;
+            -webkit-line-clamp:4;
+        }
+
+        .hub-bottom-nav {
+            position:fixed;
+            z-index:690;
+            right:7px;
+            bottom:max(7px,env(safe-area-inset-bottom,0px));
+            left:7px;
+            display:grid;
+            min-height:62px;
+            grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:3px;
+            padding:5px;
+            border:1px solid rgba(23,53,42,.12);
+            border-radius:17px;
+            background:rgba(255,255,255,.98);
             box-shadow:
-                0 14px 34px rgba(17, 49, 34, .18),
-                0 3px 9px rgba(17, 49, 34, .08);
+                0 14px 34px rgba(17,49,34,.18),
+                0 3px 9px rgba(17,49,34,.08);
+            backdrop-filter:blur(12px);
         }
 
-        .hub-mobile-nav-item {
-            --nav-tone: var(--hub-slate);
-            display: flex;
-            min-width: 0;
-            min-height: 46px;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            padding: 4px 3px;
-            border: 0;
-            border-radius: 12px;
-            background: transparent;
-            color: #849087;
-            cursor: pointer;
-            flex-direction: column;
-            font: inherit;
-            -webkit-tap-highlight-color: transparent;
-            transition: background-color .18s ease, color .18s ease, transform .18s ease;
+        .hub-bottom-item {
+            --nav-tone:var(--hub-slate);
+
+            display:flex;
+            min-width:0;
+            min-height:50px;
+            flex-direction:column;
+            align-items:center;
+            justify-content:center;
+            gap:3px;
+            padding:4px 3px;
+            border:0;
+            border-radius:12px;
+            background:transparent;
+            color:#86918b;
+            cursor:pointer;
+            font:inherit;
+            -webkit-tap-highlight-color:transparent;
+            transition:background .16s ease,color .16s ease,transform .16s ease;
         }
 
-        .hub-mobile-nav-item[data-tone="green"] { --nav-tone: var(--hub-green); }
-        .hub-mobile-nav-item[data-tone="violet"] { --nav-tone: var(--hub-violet); }
-        .hub-mobile-nav-item[data-tone="blue"] { --nav-tone: var(--hub-blue); }
-        .hub-mobile-nav-item[data-tone="amber"] { --nav-tone: var(--hub-amber); }
+        .hub-bottom-item[data-tone="violet"] { --nav-tone:var(--hub-violet); }
+        .hub-bottom-item[data-tone="amber"]  { --nav-tone:var(--hub-amber); }
+        .hub-bottom-item[data-tone="blue"]   { --nav-tone:var(--hub-blue); }
+        .hub-bottom-item[data-tone="green"]  { --nav-tone:var(--hub-green); }
 
-        .hub-mobile-nav-item i {
-            color: #97a19b;
-            font-size: 19px;
-            line-height: 1;
-            transition: color .18s ease, transform .18s ease;
+        .hub-bottom-item .ph-duotone {
+            color:#98a39d;
+            font-size:19px;
+            transition:color .16s ease,transform .16s ease;
         }
 
-        .hub-mobile-nav-item span {
-            max-width: 100%;
-            overflow: hidden;
-            font-size: 9px;
-            font-weight: 760;
-            letter-spacing: -.01em;
-            line-height: 1.1;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        .hub-bottom-item span {
+            overflow:hidden;
+            max-width:100%;
+            font-size:.5rem;
+            font-weight:790;
+            line-height:1.1;
+            text-overflow:ellipsis;
+            white-space:nowrap;
         }
 
-        .hub-mobile-nav-item.active {
-            background: #f2f6f3;
-            color: var(--hub-premium-ink);
+        .hub-bottom-item.is-active {
+            background:#f1f5f2;
+            color:var(--hub-text);
         }
 
-        .hub-mobile-nav-item.active i {
-            color: var(--nav-tone);
-            transform: translateY(-1px);
+        .hub-bottom-item.is-active .ph-duotone {
+            color:var(--nav-tone);
+            transform:translateY(-1px);
         }
 
-        .hub-mobile-nav-item:focus-visible {
-            outline: 2px solid color-mix(in srgb, var(--nav-tone) 46%, transparent);
-            outline-offset: -2px;
+        .hub-bottom-item:active {
+            transform:scale(.97);
         }
 
-        .hub-mobile-nav-item:active {
-            transform: scale(.97);
-        }
-    }
-
-    @media (max-width: 420px) {
-        .hub-mobile-nav {
-            right: 6px;
-            bottom: max(6px, env(safe-area-inset-bottom, 0px));
-            left: 6px;
-            border-radius: 15px;
+        .hub-bottom-item:focus-visible {
+            outline:2px solid color-mix(in srgb,var(--nav-tone) 38%,transparent);
+            outline-offset:-2px;
         }
 
-        .hub-mobile-nav-item {
-            border-radius: 10px;
+        @keyframes hub-screen-enter {
+            from {
+                opacity:.62;
+                transform:translateX(var(--hub-screen-shift,8px));
+            }
+            to {
+                opacity:1;
+                transform:translateX(0);
+            }
         }
     }
 
-    @media (prefers-reduced-motion: reduce) {
-        .hub-news-track { scroll-behavior: auto; }
+    @media(max-width:390px) {
+        .hub-page {
+            width:min(100%,calc(100dvw - 12px));
+        }
 
-        .hub-mobile-nav-item,
-        .hub-mobile-nav-item i {
-            transition: none;
+        .hub-bottom-nav {
+            right:5px;
+            bottom:max(5px,env(safe-area-inset-bottom,0px));
+            left:5px;
+            border-radius:15px;
+        }
+
+        .hub-bottom-item {
+            border-radius:10px;
+        }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+        .hub-page *,
+        .hub-page *::before,
+        .hub-page *::after {
+            animation-duration:.01ms !important;
+            transition-duration:.01ms !important;
         }
     }
 </style>
 
 <main class="hub-page" data-hub-root>
-    <div class="hub-home">
-        <header class="hub-hero" aria-labelledby="hub-title">
-            <span class="hub-hero-logo" aria-hidden="true">
-                <img
-                    src="{{ !empty($currentTenant?->logo)
-                        ? asset('storage/' . $currentTenant->logo)
-                        : asset('assets/sgc-symbol.png') }}"
-                    alt=""
-                >
-            </span>
-
-            <div class="min-w-0">
-                <div class="hub-eyebrow">Organização atual</div>
-                <h2 id="hub-title">{{ $currentTenant->name ?? 'Sua organização' }}</h2>
-                <p>{{ $tenantDescription }}</p>
-
-                <div class="hub-hero-meta">
-                    <span class="hub-chip">
-                        <i class="ph ph-user-circle" aria-hidden="true"></i>
-                        {{ $displayName }}
-                    </span>
-
-                    <span class="hub-chip">
-                        <i class="ph ph-squares-four" aria-hidden="true"></i>
-                        <span data-visible-count>{{ $availablePanelsCount }}</span>
-                        {{ $availablePanelsCount === 1 ? 'painel' : 'painéis' }}
-                    </span>
-
-                    @if($tenantLocation)
-                        <span class="hub-chip">
-                            <i class="ph ph-map-pin" aria-hidden="true"></i>
-                            {{ $tenantLocation }}
-                        </span>
-                    @endif
-                </div>
-            </div>
-
-            @if($tenantWebsite)
-                <a
-                    class="hub-hero-action"
-                    href="{{ $tenantWebsite }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    <i class="ph ph-globe" aria-hidden="true"></i>
-                    Site oficial
-                </a>
-            @endif
-        </header>
-
-        <div class="hub-layout">
-            <section
-                id="hub-portals-panel"
-                class="hub-main-column hub-panel"
-                aria-labelledby="hub-portals-title"
-                data-hub-nav-section
+    <header class="hub-context" aria-labelledby="hub-title">
+        <span class="hub-context-logo" aria-hidden="true">
+            <img
+                src="{{ !empty($currentTenant?->logo)
+                    ? asset('storage/' . $currentTenant->logo)
+                    : asset('assets/sgc-symbol.png') }}"
+                alt=""
             >
-                <header class="hub-panel-head">
-                    <div class="hub-panel-title">
-                        <span class="hub-panel-icon tone-violet" aria-hidden="true">
+        </span>
+
+        <div class="hub-context-copy">
+            <div class="hub-context-kicker">Organização atual</div>
+
+            <h2 class="hub-context-name" id="hub-title">
+                {{ $currentTenant->name ?? 'Sua organização' }}
+            </h2>
+
+            <div class="hub-context-meta">
+                <span>
+                    <i class="ph ph-user-circle" aria-hidden="true"></i>
+                    {{ $displayName }}
+                </span>
+
+                <span>
+                    <i class="ph ph-squares-four" aria-hidden="true"></i>
+                    <strong data-visible-count>{{ $availablePanelsCount }}</strong>
+                    {{ $availablePanelsCount === 1 ? 'portal' : 'portais' }}
+                </span>
+
+                @if($tenantLocation)
+                    <span class="hub-context-extra">
+                        <i class="ph ph-map-pin" aria-hidden="true"></i>
+                        {{ $tenantLocation }}
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        @if($tenantWebsite)
+            <a
+                class="hub-context-site"
+                href="{{ $tenantWebsite }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <i class="ph ph-globe" aria-hidden="true"></i>
+                Site oficial
+            </a>
+        @endif
+    </header>
+
+    <div class="hub-mobile-screen-title" aria-live="polite">
+        <span class="hub-mobile-screen-icon" data-mobile-screen-icon-wrap aria-hidden="true">
+            <i class="ph-duotone ph-squares-four" data-mobile-screen-icon></i>
+        </span>
+
+        <span class="hub-mobile-screen-copy">
+            <strong data-mobile-screen-title>Portais</strong>
+            <span data-mobile-screen-subtitle>Escolha a área que deseja acessar</span>
+        </span>
+    </div>
+
+    <div class="hub-desktop-layout">
+        <div class="hub-main-stack">
+            <section
+                class="hub-screen is-active"
+                id="hub-screen-portals"
+                data-hub-screen="portals"
+                aria-labelledby="hub-portals-title"
+            >
+                <div class="hub-panel">
+                    <header class="hub-panel-head">
+                        <span class="hub-panel-icon violet" aria-hidden="true">
                             <i class="ph-duotone ph-squares-four"></i>
                         </span>
 
-                        <div>
-                            <h3 id="hub-portals-title">Áreas de trabalho</h3>
-                            <p>Acesse somente os painéis disponíveis para o seu perfil.</p>
+                        <div class="hub-panel-title">
+                            <h2 id="hub-portals-title">Portais de acesso</h2>
+                            <p>As áreas abaixo abrem módulos de trabalho do SGC.</p>
                         </div>
-                    </div>
 
-                    <span
-                        class="hub-count"
-                        aria-label="{{ $availablePanelsCount }} painéis"
-                        data-visible-count
-                    >
-                        {{ $availablePanelsCount }}
-                    </span>
-                </header>
+                        <span class="hub-count" data-visible-count>
+                            {{ $availablePanelsCount }}
+                        </span>
+                    </header>
 
-                @if($availablePanelsCount > 6)
-                    <div class="hub-portal-tools">
-                        <div class="hub-search" data-hub-search>
-                            <label class="sr-only" for="hub-panel-search">Buscar painel</label>
-                            <i class="hub-search-icon ph ph-magnifying-glass" aria-hidden="true"></i>
-
-                            <input
-                                id="hub-panel-search"
-                                class="hub-search-input"
-                                type="search"
-                                placeholder="Buscar entre os painéis"
-                                autocomplete="off"
-                                spellcheck="false"
-                                data-hub-search-input
-                            >
-
-                            <button
-                                class="hub-search-clear"
-                                type="button"
-                                aria-label="Limpar busca"
-                                data-hub-search-clear
-                            >
-                                <i class="ph ph-x" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                    </div>
-                @endif
-
-                <div class="hub-portal-body">
-                    <nav
-                        class="hub-list"
-                        aria-label="Painéis disponíveis"
-                        data-hub-list
-                    >
-                        @if($hasSuperAdmin)
-                            @php($superVisual = $resolvePortalVisual('Super Admin'))
-
-                            <a
-                                class="hub-link tone-{{ $superVisual['tone'] }}"
-                                href="{{ url('super-admin') }}"
-                                aria-label="Abrir Super Admin"
-                                data-hub-link
-                            >
-                                <span class="hub-role-icon grid shrink-0 place-items-center" aria-hidden="true">
-                                    <i class="ph-duotone {{ $superVisual['icon'] }}"></i>
+                    <div class="hub-portal-area">
+                        <div class="hub-portal-explainer">
+                            <div class="hub-portal-explainer-copy">
+                                <strong>Escolha um portal para entrar</strong>
+                                <span>
+                                    Os cartões desta área são acessos. Recursos, notícias e contato ficam separados.
                                 </span>
-
-                                <span class="block min-w-0">
-                                    <strong class="block truncate text-[12px] font-extrabold text-[var(--color-text,#102018)]">
-                                        Super Admin
-                                    </strong>
-                                    <span class="mt-1 block truncate text-[10px] leading-[1.4] text-[var(--color-text-muted,#809087)]">
-                                        {{ $superVisual['hint'] }}
-                                    </span>
-                                </span>
-
-                                <span class="hub-link-arrow grid size-7 place-items-center" aria-hidden="true">
-                                    <i class="ph ph-arrow-right"></i>
-                                </span>
-                            </a>
-                        @endif
-
-                        @foreach($rolesCollection as $role)
-                            <?php
-                                $visual = $resolvePortalVisual(
-                                    $role['name'],
-                                    $role['icon'] ?? 'layout-dashboard',
-                                    $role['color'] ?? 'primary'
-                                );
-
-                                $portalDescription = filled($role['description'] ?? null)
-                                    ? $role['description']
-                                    : $visual['hint'];
-                            ?>
-
-                            <a
-                                class="hub-link tone-{{ $visual['tone'] }}"
-                                href="{{ $role['url'] }}"
-                                aria-label="Abrir {{ $role['name'] }}"
-                                data-hub-link
-                            >
-                                <span class="hub-role-icon grid shrink-0 place-items-center" aria-hidden="true">
-                                    <i class="ph-duotone {{ $visual['icon'] }}"></i>
-                                </span>
-
-                                <span class="block min-w-0">
-                                    <strong class="block truncate text-[12px] font-extrabold text-[var(--color-text,#102018)]">
-                                        {{ $role['name'] }}
-                                    </strong>
-                                    <span
-                                        class="mt-1 block truncate text-[10px] leading-[1.4] text-[var(--color-text-muted,#809087)]"
-                                        title="{{ $portalDescription }}"
-                                    >
-                                        {{ $portalDescription }}
-                                    </span>
-                                </span>
-
-                                <span class="hub-link-arrow grid size-7 place-items-center" aria-hidden="true">
-                                    <i class="ph ph-arrow-right"></i>
-                                </span>
-                            </a>
-                        @endforeach
-
-                        @if($availablePanelsCount === 0)
-                            <div class="hub-no-results grid justify-items-center rounded-xl border border-dashed border-[var(--color-border-strong,#c8d6cd)] bg-[var(--color-surface-soft,#f8faf9)] px-4 py-7 text-center" role="status">
-                                <span class="hub-empty-icon mb-2 grid size-11 place-items-center rounded-xl" aria-hidden="true">
-                                    <i class="ph-duotone ph-shield-warning text-xl"></i>
-                                </span>
-                                <strong class="text-[12px] font-extrabold text-[var(--color-text,#102018)]">
-                                    Nenhum painel disponível
-                                </strong>
-                                <p class="mb-0 mt-1 text-[10px] text-[var(--color-text-secondary,#52645a)]">
-                                    Solicite acesso a um administrador.
-                                </p>
                             </div>
-                        @endif
 
-                        <div
-                            class="hub-no-results grid justify-items-center rounded-xl border border-dashed border-[var(--color-border-strong,#c8d6cd)] bg-[var(--color-surface-soft,#f8faf9)] px-4 py-7 text-center"
-                            role="status"
-                            aria-live="polite"
-                            hidden
-                            data-hub-no-results
-                        >
-                            <span class="hub-empty-icon mb-2 grid size-11 place-items-center rounded-xl" aria-hidden="true">
-                                <i class="ph-duotone ph-magnifying-glass text-xl"></i>
-                            </span>
-                            <strong class="text-[12px] font-extrabold text-[var(--color-text,#102018)]">
-                                Nenhum painel encontrado
-                            </strong>
-                            <p class="mb-0 mt-1 text-[10px] text-[var(--color-text-secondary,#52645a)]">
-                                Tente buscar por outro nome.
-                            </p>
+                            @if($availablePanelsCount > 5)
+                                <div class="hub-search" data-hub-search>
+                                    <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+
+                                    <label class="sr-only" for="hub-panel-search">
+                                        Buscar portal
+                                    </label>
+
+                                    <input
+                                        id="hub-panel-search"
+                                        class="hub-search-input"
+                                        type="search"
+                                        placeholder="Buscar portal"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                        data-hub-search-input
+                                    >
+
+                                    <button
+                                        class="hub-search-clear"
+                                        type="button"
+                                        aria-label="Limpar busca"
+                                        data-hub-search-clear
+                                    >
+                                        <i class="ph ph-x" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            @endif
                         </div>
-                    </nav>
+
+                        <nav
+                            class="hub-portal-grid"
+                            aria-label="Portais disponíveis"
+                            data-hub-list
+                        >
+                            @if($hasSuperAdmin)
+                                @php($superVisual = $resolvePortalVisual('Super Admin'))
+
+                                <a
+                                    class="hub-portal-link tone-{{ $superVisual['tone'] }}"
+                                    href="{{ url('super-admin') }}"
+                                    aria-label="Acessar portal Super Admin"
+                                    data-hub-link
+                                    data-panel-name="Super Admin"
+                                    data-panel-description="{{ $superVisual['hint'] }}"
+                                >
+                                    <span class="hub-portal-main">
+                                        <span class="hub-portal-icon" aria-hidden="true">
+                                            <i class="ph-duotone {{ $superVisual['icon'] }}"></i>
+                                        </span>
+
+                                        <span class="hub-portal-copy">
+                                            <span class="hub-portal-badge">
+                                                <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
+                                                Portal
+                                            </span>
+
+                                            <strong class="hub-portal-name">Super Admin</strong>
+                                            <span class="hub-portal-description">
+                                                {{ $superVisual['hint'] }}
+                                            </span>
+                                        </span>
+                                    </span>
+
+                                    <span class="hub-portal-cta">
+                                        <span>Acessar portal</span>
+                                        <i class="ph ph-arrow-right" aria-hidden="true"></i>
+                                    </span>
+                                </a>
+                            @endif
+
+                            @foreach($rolesCollection as $role)
+                                <?php
+                                    $visual = $resolvePortalVisual(
+                                        $role['name'],
+                                        $role['icon'] ?? 'layout-dashboard',
+                                        $role['color'] ?? 'primary'
+                                    );
+
+                                    $portalDescription = filled($role['description'] ?? null)
+                                        ? $role['description']
+                                        : $visual['hint'];
+                                ?>
+
+                                <a
+                                    class="hub-portal-link tone-{{ $visual['tone'] }}"
+                                    href="{{ $role['url'] }}"
+                                    aria-label="Acessar portal {{ $role['name'] }}"
+                                    data-hub-link
+                                    data-panel-name="{{ $role['name'] }}"
+                                    data-panel-description="{{ $portalDescription }}"
+                                >
+                                    <span class="hub-portal-main">
+                                        <span class="hub-portal-icon" aria-hidden="true">
+                                            <i class="ph-duotone {{ $visual['icon'] }}"></i>
+                                        </span>
+
+                                        <span class="hub-portal-copy">
+                                            <span class="hub-portal-badge">
+                                                <i class="ph ph-arrow-square-out" aria-hidden="true"></i>
+                                                Portal
+                                            </span>
+
+                                            <strong class="hub-portal-name">
+                                                {{ $role['name'] }}
+                                            </strong>
+
+                                            <span
+                                                class="hub-portal-description"
+                                                title="{{ $portalDescription }}"
+                                            >
+                                                {{ $portalDescription }}
+                                            </span>
+                                        </span>
+                                    </span>
+
+                                    <span class="hub-portal-cta">
+                                        <span>Acessar portal</span>
+                                        <i class="ph ph-arrow-right" aria-hidden="true"></i>
+                                    </span>
+                                </a>
+                            @endforeach
+
+                            @if($availablePanelsCount === 0)
+                                <div class="hub-no-results">
+                                    Nenhum portal está disponível para o seu perfil.
+                                    Solicite acesso a um administrador.
+                                </div>
+                            @endif
+
+                            <div
+                                class="hub-no-results"
+                                role="status"
+                                aria-live="polite"
+                                hidden
+                                data-hub-no-results
+                            >
+                                Nenhum portal corresponde à busca.
+                            </div>
+                        </nav>
+                    </div>
                 </div>
             </section>
 
-            <aside class="hub-left-column" aria-label="Organização e recursos">
-                <section class="hub-panel" aria-labelledby="hub-tenant-title">
+            <section
+                class="hub-screen"
+                id="hub-screen-resources"
+                data-hub-screen="resources"
+                aria-labelledby="hub-resources-title"
+            >
+                <div class="hub-panel">
                     <header class="hub-panel-head">
+                        <span class="hub-panel-icon blue" aria-hidden="true">
+                            <i class="ph-duotone ph-compass-tool"></i>
+                        </span>
+
                         <div class="hub-panel-title">
-                            <span class="hub-panel-icon tone-green" aria-hidden="true">
-                                <i class="ph-duotone ph-buildings"></i>
-                            </span>
-                            <div>
-                                <h3 id="hub-tenant-title">Sua organização</h3>
-                                <p>Informações institucionais</p>
+                            <h2 id="hub-resources-title">Recursos</h2>
+                            <p>Documentos, conta e serviços complementares.</p>
+                        </div>
+
+                        <span class="hub-count">{{ $hubResources->count() }}</span>
+                    </header>
+
+                    <nav class="hub-list" aria-label="Recursos disponíveis">
+                        @forelse($hubResources as $resource)
+                            <a
+                                class="hub-list-link tone-{{ $resource['tone'] }}"
+                                href="{{ $resource['url'] }}"
+                            >
+                                <span class="hub-list-icon" aria-hidden="true">
+                                    <i class="ph-duotone {{ $resource['icon'] }}"></i>
+                                </span>
+
+                                <span class="hub-list-copy">
+                                    <strong>{{ $resource['label'] }}</strong>
+                                    <span>{{ $resource['description'] }}</span>
+                                </span>
+
+                                <i class="hub-list-arrow ph ph-caret-right" aria-hidden="true"></i>
+                            </a>
+                        @empty
+                            <div class="hub-empty">
+                                Nenhum recurso adicional foi disponibilizado para esta organização.
                             </div>
+                        @endforelse
+                    </nav>
+                </div>
+            </section>
+        </div>
+
+        <aside class="hub-side-stack" aria-label="Informações da organização">
+            <section
+                class="hub-screen"
+                id="hub-screen-news"
+                data-hub-screen="news"
+                aria-labelledby="hub-news-title"
+            >
+                <div class="hub-panel">
+                    <header class="hub-panel-head">
+                        <span class="hub-panel-icon amber" aria-hidden="true">
+                            <i class="ph-duotone ph-megaphone-simple"></i>
+                        </span>
+
+                        <div class="hub-panel-title">
+                            <h2 id="hub-news-title">Novidades</h2>
+                            <p>Atualizações e informações em destaque.</p>
                         </div>
                     </header>
 
-                    <div class="hub-tenant-body">
-                        <div class="hub-tenant-brand">
-                            <span class="hub-tenant-avatar" aria-hidden="true">
+                    <div class="hub-news-list">
+                        @foreach($hubNews as $news)
+                            <article class="hub-news-item tone-{{ $news['tone'] }}">
+                                <span class="hub-news-icon" aria-hidden="true">
+                                    <i class="ph-duotone {{ $news['icon'] }}"></i>
+                                </span>
+
+                                <div class="hub-news-copy">
+                                    <span class="hub-news-label">{{ $news['label'] }}</span>
+                                    <strong class="hub-news-title">{{ $news['title'] }}</strong>
+
+                                    @if(filled($news['description']))
+                                        <span class="hub-news-description">
+                                            {{ $news['description'] }}
+                                        </span>
+                                    @endif
+
+                                    @if(filled($news['url']))
+                                        <a class="hub-news-action" href="{{ $news['url'] }}">
+                                            Saiba mais
+                                            <i class="ph ph-arrow-right" aria-hidden="true"></i>
+                                        </a>
+                                    @endif
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+                </div>
+            </section>
+
+            <section
+                class="hub-screen"
+                id="hub-screen-contact"
+                data-hub-screen="contact"
+                aria-labelledby="hub-contact-title"
+            >
+                <div class="hub-panel">
+                    <header class="hub-panel-head">
+                        <span class="hub-panel-icon green" aria-hidden="true">
+                            <i class="ph-duotone ph-chats-circle"></i>
+                        </span>
+
+                        <div class="hub-panel-title">
+                            <h2 id="hub-contact-title">Contato</h2>
+                            <p>Informações e canais oficiais.</p>
+                        </div>
+                    </header>
+
+                    <div class="hub-org-summary">
+                        <div class="hub-org-main">
+                            <span class="hub-org-logo" aria-hidden="true">
                                 <img
                                     src="{{ !empty($currentTenant?->logo)
                                         ? asset('storage/' . $currentTenant->logo)
@@ -2072,270 +2019,109 @@
                                 >
                             </span>
 
-                            <div class="min-w-0">
+                            <div class="hub-org-copy">
                                 <strong>{{ $currentTenant->name ?? 'Sua organização' }}</strong>
-                                <span>Organização atual</span>
+                                <span>{{ $tenantDescription }}</span>
                             </div>
                         </div>
 
-                        <p class="hub-tenant-description">{{ $tenantDescription }}</p>
+                        @if($tenantDocument || $tenantLocation)
+                            <div class="hub-org-facts">
+                                @if($tenantDocument)
+                                    <span class="hub-org-fact">
+                                        <i class="ph ph-identification-card" aria-hidden="true"></i>
+                                        {{ $tenantDocument }}
+                                    </span>
+                                @endif
 
-                        <div class="hub-facts">
-                            @if($tenantDocument)
-                                <div class="hub-fact">
-                                    <i class="ph ph-identification-card" aria-hidden="true"></i>
-                                    <div>
-                                        <span>Documento</span>
-                                        <strong title="{{ $tenantDocument }}">{{ $tenantDocument }}</strong>
-                                    </div>
-                                </div>
-                            @endif
-
-                            @if($tenantLocation)
-                                <div class="hub-fact">
-                                    <i class="ph ph-map-pin" aria-hidden="true"></i>
-                                    <div>
-                                        <span>Localização</span>
-                                        <strong title="{{ $tenantLocation }}">{{ $tenantLocation }}</strong>
-                                    </div>
-                                </div>
-                            @endif
-
-                            @if($tenantEmail)
-                                <div class="hub-fact">
-                                    <i class="ph ph-envelope-simple" aria-hidden="true"></i>
-                                    <div>
-                                        <span>E-mail</span>
-                                        <strong title="{{ $tenantEmail }}">{{ $tenantEmail }}</strong>
-                                    </div>
-                                </div>
-                            @endif
-
-                            @if($tenantWebsite)
-                                <div class="hub-fact">
-                                    <i class="ph ph-globe" aria-hidden="true"></i>
-                                    <div>
-                                        <span>Site</span>
-                                        <strong title="{{ $tenantWebsite }}">{{ parse_url($tenantWebsite, PHP_URL_HOST) ?: $tenantWebsite }}</strong>
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                </section>
-
-                <section
-                    id="hub-resources-panel"
-                    class="hub-panel"
-                    aria-labelledby="hub-resources-title"
-                    data-hub-nav-section
-                >
-                    <header class="hub-panel-head">
-                        <div class="hub-panel-title">
-                            <span class="hub-panel-icon tone-blue" aria-hidden="true">
-                                <i class="ph-duotone ph-compass-tool"></i>
-                            </span>
-                            <div>
-                                <h3 id="hub-resources-title">Outros recursos</h3>
-                                <p>Documentos e serviços</p>
-                            </div>
-                        </div>
-                        <span class="hub-count">{{ $hubResources->count() }}</span>
-                    </header>
-
-                    <nav class="hub-resource-list" aria-label="Outros recursos">
-                        @forelse($hubResources as $resource)
-                            <a class="hub-resource-link" href="{{ $resource['url'] }}">
-                                <span class="hub-tone-icon tone-{{ $resource['tone'] }}" aria-hidden="true">
-                                    <i class="ph-duotone {{ $resource['icon'] }}"></i>
-                                </span>
-                                <span class="hub-resource-copy">
-                                    <strong>{{ $resource['label'] }}</strong>
-                                    <span>{{ $resource['description'] }}</span>
-                                </span>
-                                <i class="ph ph-caret-right" aria-hidden="true"></i>
-                            </a>
-                        @empty
-                            <p class="hub-contact-empty">
-                                Nenhum recurso adicional foi publicado para esta organização.
-                            </p>
-                        @endforelse
-                    </nav>
-                </section>
-            </aside>
-
-            <aside class="hub-right-column" aria-label="Novidades e contato">
-                <section
-                    id="hub-news-panel"
-                    class="hub-panel"
-                    aria-labelledby="hub-news-title"
-                    data-hub-nav-section
-                >
-                    <header class="hub-panel-head">
-                        <div class="hub-panel-title">
-                            <span class="hub-panel-icon tone-violet" aria-hidden="true">
-                                <i class="ph-duotone ph-megaphone-simple"></i>
-                            </span>
-                            <div>
-                                <h3 id="hub-news-title">Novidades</h3>
-                                <p>Informações em destaque</p>
-                            </div>
-                        </div>
-
-                        @if($hubNews->count() > 1)
-                            <div class="hub-carousel-controls">
-                                <button
-                                    class="hub-carousel-button"
-                                    type="button"
-                                    aria-label="Novidade anterior"
-                                    data-news-prev
-                                >
-                                    <i class="ph ph-caret-left" aria-hidden="true"></i>
-                                </button>
-                                <button
-                                    class="hub-carousel-button"
-                                    type="button"
-                                    aria-label="Próxima novidade"
-                                    data-news-next
-                                >
-                                    <i class="ph ph-caret-right" aria-hidden="true"></i>
-                                </button>
+                                @if($tenantLocation)
+                                    <span class="hub-org-fact">
+                                        <i class="ph ph-map-pin" aria-hidden="true"></i>
+                                        {{ $tenantLocation }}
+                                    </span>
+                                @endif
                             </div>
                         @endif
-                    </header>
-
-                    <div class="hub-news-viewport">
-                        <div
-                            class="hub-news-track"
-                            data-news-track
-                            @if($hubNews->count() > 1) tabindex="0" @endif
-                        >
-                            @foreach($hubNews as $news)
-                                <article class="hub-news-slide tone-{{ $news['tone'] }}" data-news-slide>
-                                    <div>
-                                        <div class="hub-news-top">
-                                            <span class="hub-news-icon" aria-hidden="true">
-                                                <i class="ph-duotone {{ $news['icon'] }}"></i>
-                                            </span>
-                                            <span class="hub-news-label">{{ $news['label'] }}</span>
-                                        </div>
-
-                                        <h4 class="mt-3">{{ $news['title'] }}</h4>
-                                        <p>{{ $news['description'] }}</p>
-                                    </div>
-
-                                    @if(filled($news['url']))
-                                        <a class="hub-news-action" href="{{ $news['url'] }}">
-                                            Saiba mais
-                                            <i class="ph ph-arrow-right" aria-hidden="true"></i>
-                                        </a>
-                                    @endif
-                                </article>
-                            @endforeach
-                        </div>
                     </div>
 
-                    @if($hubNews->count() > 1)
-                        <div class="hub-carousel-dots" aria-label="Selecionar novidade">
-                            @foreach($hubNews as $news)
-                                <button
-                                    class="hub-carousel-dot {{ $loop->first ? 'active' : '' }}"
-                                    type="button"
-                                    aria-label="Ir para novidade {{ $loop->iteration }}"
-                                    aria-current="{{ $loop->first ? 'true' : 'false' }}"
-                                    data-news-dot="{{ $loop->index }}"
-                                ></button>
-                            @endforeach
-                        </div>
-                    @endif
-                </section>
-
-                <section
-                    id="hub-contact-panel"
-                    class="hub-panel"
-                    aria-labelledby="hub-contact-title"
-                    data-hub-nav-section
-                >
-                    <header class="hub-panel-head">
-                        <div class="hub-panel-title">
-                            <span class="hub-panel-icon tone-green" aria-hidden="true">
-                                <i class="ph-duotone ph-chats-circle"></i>
-                            </span>
-                            <div>
-                                <h3 id="hub-contact-title">Contato</h3>
-                                <p>Canais oficiais</p>
-                            </div>
-                        </div>
-                    </header>
-
                     @if($tenantWhatsappUrl || $tenantPhoneUrl || $tenantEmailUrl || $tenantWebsite)
-                        <div class="hub-contact-list">
+                        <div class="hub-list">
                             @if($tenantWhatsappUrl)
                                 <a
-                                    class="hub-contact-link"
+                                    class="hub-list-link tone-green"
                                     href="{{ $tenantWhatsappUrl }}"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    <span class="hub-tone-icon tone-green" aria-hidden="true">
+                                    <span class="hub-list-icon" aria-hidden="true">
                                         <i class="ph-duotone ph-whatsapp-logo"></i>
                                     </span>
-                                    <span class="hub-contact-copy">
+
+                                    <span class="hub-list-copy">
                                         <strong>WhatsApp</strong>
                                         <span>{{ $tenantWhatsapp }}</span>
                                     </span>
-                                    <i class="ph ph-caret-right" aria-hidden="true"></i>
+
+                                    <i class="hub-list-arrow ph ph-caret-right" aria-hidden="true"></i>
                                 </a>
                             @endif
 
                             @if($tenantPhoneUrl)
-                                <a class="hub-contact-link" href="{{ $tenantPhoneUrl }}">
-                                    <span class="hub-tone-icon tone-blue" aria-hidden="true">
+                                <a class="hub-list-link tone-blue" href="{{ $tenantPhoneUrl }}">
+                                    <span class="hub-list-icon" aria-hidden="true">
                                         <i class="ph-duotone ph-phone"></i>
                                     </span>
-                                    <span class="hub-contact-copy">
+
+                                    <span class="hub-list-copy">
                                         <strong>Telefone</strong>
                                         <span>{{ $tenantPhone }}</span>
                                     </span>
-                                    <i class="ph ph-caret-right" aria-hidden="true"></i>
+
+                                    <i class="hub-list-arrow ph ph-caret-right" aria-hidden="true"></i>
                                 </a>
                             @endif
 
                             @if($tenantEmailUrl)
-                                <a class="hub-contact-link" href="{{ $tenantEmailUrl }}">
-                                    <span class="hub-tone-icon tone-violet" aria-hidden="true">
+                                <a class="hub-list-link tone-violet" href="{{ $tenantEmailUrl }}">
+                                    <span class="hub-list-icon" aria-hidden="true">
                                         <i class="ph-duotone ph-envelope-simple"></i>
                                     </span>
-                                    <span class="hub-contact-copy">
+
+                                    <span class="hub-list-copy">
                                         <strong>E-mail</strong>
                                         <span>{{ $tenantEmail }}</span>
                                     </span>
-                                    <i class="ph ph-caret-right" aria-hidden="true"></i>
+
+                                    <i class="hub-list-arrow ph ph-caret-right" aria-hidden="true"></i>
                                 </a>
                             @endif
 
                             @if($tenantWebsite)
                                 <a
-                                    class="hub-contact-link"
+                                    class="hub-list-link tone-sky"
                                     href="{{ $tenantWebsite }}"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
-                                    <span class="hub-tone-icon tone-sky" aria-hidden="true">
+                                    <span class="hub-list-icon" aria-hidden="true">
                                         <i class="ph-duotone ph-globe"></i>
                                     </span>
-                                    <span class="hub-contact-copy">
+
+                                    <span class="hub-list-copy">
                                         <strong>Site oficial</strong>
-                                        <span>{{ parse_url($tenantWebsite, PHP_URL_HOST) ?: $tenantWebsite }}</span>
+                                        <span>
+                                            {{ parse_url($tenantWebsite, PHP_URL_HOST) ?: $tenantWebsite }}
+                                        </span>
                                     </span>
-                                    <i class="ph ph-caret-right" aria-hidden="true"></i>
+
+                                    <i class="hub-list-arrow ph ph-caret-right" aria-hidden="true"></i>
                                 </a>
                             @endif
                         </div>
                     @else
-                        <p class="hub-contact-empty">
+                        <div class="hub-empty">
                             Os canais oficiais ainda não foram informados pela organização.
-                        </p>
+                        </div>
                     @endif
 
                     @if($tenantSocials->isNotEmpty())
@@ -2354,32 +2140,32 @@
                             @endforeach
                         </div>
                     @endif
-                </section>
-            </aside>
-        </div>
+                </div>
+            </section>
+        </aside>
     </div>
 </main>
 
 <nav
-    class="hub-mobile-nav"
-    aria-label="Navegação rápida do hub"
-    data-hub-mobile-nav
+    class="hub-bottom-nav"
+    aria-label="Navegação do Hub"
+    data-hub-bottom-nav
 >
     <button
-        class="hub-mobile-nav-item active"
+        class="hub-bottom-item is-active"
         type="button"
-        data-hub-nav-target="hub-portals-panel"
+        data-hub-screen-target="portals"
         data-tone="violet"
         aria-current="page"
     >
         <i class="ph-duotone ph-squares-four" aria-hidden="true"></i>
-        <span>Painéis</span>
+        <span>Portais</span>
     </button>
 
     <button
-        class="hub-mobile-nav-item"
+        class="hub-bottom-item"
         type="button"
-        data-hub-nav-target="hub-news-panel"
+        data-hub-screen-target="news"
         data-tone="amber"
     >
         <i class="ph-duotone ph-megaphone-simple" aria-hidden="true"></i>
@@ -2387,286 +2173,333 @@
     </button>
 
     <button
-        class="hub-mobile-nav-item"
+        class="hub-bottom-item"
         type="button"
-        data-hub-nav-target="hub-contact-panel"
-        data-tone="green"
-    >
-        <i class="ph-duotone ph-chats-circle" aria-hidden="true"></i>
-        <span>Contato</span>
-    </button>
-
-    <button
-        class="hub-mobile-nav-item"
-        type="button"
-        data-hub-nav-target="hub-resources-panel"
+        data-hub-screen-target="resources"
         data-tone="blue"
     >
         <i class="ph-duotone ph-compass-tool" aria-hidden="true"></i>
         <span>Recursos</span>
     </button>
+
+    <button
+        class="hub-bottom-item"
+        type="button"
+        data-hub-screen-target="contact"
+        data-tone="green"
+    >
+        <i class="ph-duotone ph-chats-circle" aria-hidden="true"></i>
+        <span>Contato</span>
+    </button>
 </nav>
 
 <script>
-    (() => {
-        const root = document.querySelector('[data-hub-root]');
-        if (!root) return;
+(() => {
+    'use strict';
 
-        document.body.classList.add('hub-context-navigation');
+    const root = document.querySelector('[data-hub-root]');
+    if (!root) return;
 
-        const mobileNavigation = document.querySelector('[data-hub-mobile-nav]');
-        const mobileNavigationItems = [
-            ...document.querySelectorAll('[data-hub-nav-target]')
-        ];
-        const mobileNavigationSections = mobileNavigationItems
-            .map(item => document.getElementById(item.dataset.hubNavTarget))
-            .filter(Boolean);
-        let navigationFrame = null;
+    document.body.classList.add('hub-app-navigation');
 
-        function setActiveNavigation(targetId) {
-            mobileNavigationItems.forEach(item => {
-                const active = item.dataset.hubNavTarget === targetId;
-                item.classList.toggle('active', active);
+    const MOBILE_QUERY = '(max-width: 820px)';
+    const SCREEN_STATE_KEY = '__sgcHubScreen';
 
-                if (active) {
-                    item.setAttribute('aria-current', 'page');
-                } else {
-                    item.removeAttribute('aria-current');
-                }
-            });
-        }
+    const screenMeta = {
+        portals: {
+            title:'Portais',
+            subtitle:'Escolha a área que deseja acessar',
+            icon:'ph-squares-four',
+            tone:'violet',
+        },
+        news: {
+            title:'Novidades',
+            subtitle:'Atualizações da organização',
+            icon:'ph-megaphone-simple',
+            tone:'amber',
+        },
+        resources: {
+            title:'Recursos',
+            subtitle:'Documentos e serviços disponíveis',
+            icon:'ph-compass-tool',
+            tone:'blue',
+        },
+        contact: {
+            title:'Contato',
+            subtitle:'Informações e canais oficiais',
+            icon:'ph-chats-circle',
+            tone:'green',
+        },
+    };
 
-        function detectActiveNavigation() {
-            if (!mobileNavigation || window.innerWidth > 820) return;
+    const screenOrder = ['portals','news','resources','contact'];
+    const screens = [...root.querySelectorAll('[data-hub-screen]')];
+    const navItems = [...document.querySelectorAll('[data-hub-screen-target]')];
 
-            const marker = Math.min(190, window.innerHeight * .3);
-            const closest = mobileNavigationSections.reduce(
-                (best, section) => {
-                    const distance = Math.abs(
-                        section.getBoundingClientRect().top - marker
-                    );
+    const mobileTitle = document.querySelector('[data-mobile-screen-title]');
+    const mobileSubtitle = document.querySelector('[data-mobile-screen-subtitle]');
+    const mobileIcon = document.querySelector('[data-mobile-screen-icon]');
+    const mobileIconWrap = document.querySelector('[data-mobile-screen-icon-wrap]');
 
-                    return distance < best.distance
-                        ? { id: section.id, distance }
-                        : best;
-                },
-                { id: 'hub-portals-panel', distance: Infinity }
-            );
+    const isMobile = () => window.matchMedia(MOBILE_QUERY).matches;
 
-            setActiveNavigation(closest.id);
-        }
-
-        mobileNavigationItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const target = document.getElementById(item.dataset.hubNavTarget);
-                if (!target) return;
-
-                setActiveNavigation(target.id);
-                target.scrollIntoView({
-                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-                        ? 'auto'
-                        : 'smooth',
-                    block: 'start',
-                });
-            });
-        });
-
-        const queueNavigationDetection = () => {
-            if (navigationFrame) cancelAnimationFrame(navigationFrame);
-            navigationFrame = requestAnimationFrame(detectActiveNavigation);
+    function toneVars(tone) {
+        return {
+            color:`var(--hub-${tone})`,
+            soft:`var(--hub-${tone}-soft)`,
         };
+    }
 
-        window.addEventListener('scroll', queueNavigationDetection, { passive: true });
-        window.addEventListener('resize', queueNavigationDetection, { passive: true });
+    function setScreen(name, {push=false, resetScroll=true} = {}) {
+        const next = screenMeta[name] ? name : 'portals';
+        const currentItem = navItems.find(item => item.classList.contains('is-active'));
+        const current = currentItem?.dataset.hubScreenTarget || 'portals';
 
-        const hubLinks = [
-            ...root.querySelectorAll('[data-hub-link]')
-        ];
-
-        function resetLinks() {
-            hubLinks.forEach(link => {
-                link.classList.remove('is-opening');
-                link.removeAttribute('aria-busy');
-            });
-        }
-
-        const search = root.querySelector('[data-hub-search]');
-        const searchInput = root.querySelector('[data-hub-search-input]');
-        const searchClear = root.querySelector('[data-hub-search-clear]');
-        const noResults = root.querySelector('[data-hub-no-results]');
-        const visibleCounts = [
-            ...root.querySelectorAll('[data-visible-count]')
-        ];
-
-        const normalize = value => value
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLocaleLowerCase('pt-BR')
-            .trim();
-
-        function filterPanels() {
-            if (!searchInput) return;
-
-            const query = normalize(searchInput.value);
-            let matches = 0;
-
-            hubLinks.forEach(link => {
-                const isMatch = !query || normalize(link.textContent).includes(query);
-                link.hidden = !isMatch;
-                if (isMatch) matches += 1;
-            });
-
-            search?.classList.toggle('has-value', Boolean(searchInput.value));
-            if (noResults) noResults.hidden = matches !== 0;
-            visibleCounts.forEach(counter => {
-                counter.textContent = String(matches);
-            });
-        }
-
-        searchInput?.addEventListener('input', filterPanels);
-        searchClear?.addEventListener('click', () => {
-            searchInput.value = '';
-            filterPanels();
-            searchInput.focus();
-        });
-
-        hubLinks.forEach(link => {
-            link.addEventListener('click', event => {
-                if (
-                    event.defaultPrevented
-                    || event.button !== 0
-                    || event.metaKey
-                    || event.ctrlKey
-                    || event.shiftKey
-                    || event.altKey
-                ) {
-                    return;
-                }
-
-                link.classList.add('is-opening');
-                link.setAttribute('aria-busy', 'true');
-            });
-        });
-
-        const newsTrack = root.querySelector('[data-news-track]');
-        const newsSlides = [
-            ...root.querySelectorAll('[data-news-slide]')
-        ];
-        const newsDots = [
-            ...root.querySelectorAll('[data-news-dot]')
-        ];
-        const newsPrev = root.querySelector('[data-news-prev]');
-        const newsNext = root.querySelector('[data-news-next]');
-        let newsIndex = 0;
-        let newsFrame = null;
-
-        function setNewsIndex(index, scroll = false) {
-            if (!newsSlides.length) return;
-
-            newsIndex = Math.max(
-                0,
-                Math.min(index, newsSlides.length - 1)
-            );
-
-            newsDots.forEach((dot, dotIndex) => {
-                const active = dotIndex === newsIndex;
-                dot.classList.toggle('active', active);
-                dot.setAttribute(
-                    'aria-current',
-                    active ? 'true' : 'false'
-                );
-            });
-
-            if (newsPrev) newsPrev.disabled = newsIndex === 0;
-            if (newsNext) {
-                newsNext.disabled = newsIndex === newsSlides.length - 1;
-            }
-
-            if (scroll) {
-                const firstOffset = newsSlides[0]?.offsetLeft || 0;
-                newsTrack?.scrollTo({
-                    left:
-                        newsSlides[newsIndex].offsetLeft
-                        - firstOffset,
-                    behavior: 'smooth',
-                });
-            }
-        }
-
-        function detectNewsIndex() {
-            if (!newsTrack || !newsSlides.length) return;
-
-            const left = newsTrack.scrollLeft;
-            const closest = newsSlides.reduce(
-                (best, slide, index) => {
-                    const firstOffset = newsSlides[0]?.offsetLeft || 0;
-                    const distance = Math.abs(
-                        slide.offsetLeft - firstOffset - left
-                    );
-
-                    return distance < best.distance
-                        ? { index, distance }
-                        : best;
-                },
-                { index: 0, distance: Infinity }
-            );
-
-            setNewsIndex(closest.index);
-        }
-
-        newsTrack?.addEventListener(
-            'scroll',
-            () => {
-                if (newsFrame) cancelAnimationFrame(newsFrame);
-                newsFrame = requestAnimationFrame(detectNewsIndex);
-            },
-            { passive: true }
+        const currentIndex = screenOrder.indexOf(current);
+        const nextIndex = screenOrder.indexOf(next);
+        root.style.setProperty(
+            '--hub-screen-shift',
+            nextIndex < currentIndex ? '-8px' : '8px'
         );
 
-        newsTrack?.addEventListener('keydown', event => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
-                setNewsIndex(newsIndex - 1, true);
+        screens.forEach(screen => {
+            const active = screen.dataset.hubScreen === next;
+
+            if (isMobile()) {
+                screen.classList.toggle('is-active', active);
+                screen.hidden = !active;
+            } else {
+                screen.hidden = false;
+                screen.classList.add('is-active');
             }
+        });
 
-            if (event.key === 'ArrowRight') {
-                event.preventDefault();
-                setNewsIndex(newsIndex + 1, true);
+        navItems.forEach(item => {
+            const active = item.dataset.hubScreenTarget === next;
+            item.classList.toggle('is-active', active);
+
+            if (active) {
+                item.setAttribute('aria-current','page');
+            } else {
+                item.removeAttribute('aria-current');
             }
         });
 
-        newsPrev?.addEventListener('click', () => {
-            setNewsIndex(newsIndex - 1, true);
-        });
+        const meta = screenMeta[next];
 
-        newsNext?.addEventListener('click', () => {
-            setNewsIndex(newsIndex + 1, true);
-        });
+        if (mobileTitle) mobileTitle.textContent = meta.title;
+        if (mobileSubtitle) mobileSubtitle.textContent = meta.subtitle;
 
-        newsDots.forEach(dot => {
-            dot.addEventListener('click', () => {
-                setNewsIndex(
-                    Number(dot.dataset.newsDot || 0),
-                    true
-                );
-            });
-        });
-
-        if ('ResizeObserver' in window && newsTrack) {
-            new ResizeObserver(() => {
-                detectNewsIndex();
-            }).observe(newsTrack);
+        if (mobileIcon) {
+            mobileIcon.className = `ph-duotone ${meta.icon}`;
         }
 
-        setNewsIndex(0);
-        detectActiveNavigation();
+        if (mobileIconWrap) {
+            const vars = toneVars(meta.tone);
+            mobileIconWrap.style.background = vars.soft;
+            mobileIconWrap.style.color = vars.color;
+        }
 
-        window.addEventListener('pageshow', () => {
-            resetLinks();
-            filterPanels();
-            detectNewsIndex();
-            detectActiveNavigation();
+        if (
+            push
+            && isMobile()
+            && history.state?.[SCREEN_STATE_KEY] !== next
+        ) {
+            history.pushState(
+                {
+                    ...(history.state || {}),
+                    [SCREEN_STATE_KEY]:next,
+                },
+                ''
+            );
+        }
+
+        if (isMobile() && resetScroll) {
+            window.scrollTo({top:0,behavior:'auto'});
+        }
+    }
+
+    function ensureScreenHistory() {
+        if (!isMobile()) return;
+
+        const current = history.state?.[SCREEN_STATE_KEY];
+
+        if (!screenMeta[current]) {
+            history.replaceState(
+                {
+                    ...(history.state || {}),
+                    [SCREEN_STATE_KEY]:'portals',
+                },
+                ''
+            );
+        }
+    }
+
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const next = item.dataset.hubScreenTarget;
+            const current = history.state?.[SCREEN_STATE_KEY] || 'portals';
+
+            if (next === current && isMobile()) return;
+
+            setScreen(next,{push:true,resetScroll:true});
         });
-    })();
+    });
+
+    window.addEventListener('popstate', event => {
+        if (!isMobile()) return;
+
+        setScreen(
+            event.state?.[SCREEN_STATE_KEY] || 'portals',
+            {push:false,resetScroll:true}
+        );
+    });
+
+    window.addEventListener(
+        'resize',
+        () => {
+            if (isMobile()) {
+                ensureScreenHistory();
+                setScreen(
+                    history.state?.[SCREEN_STATE_KEY] || 'portals',
+                    {push:false,resetScroll:false}
+                );
+            } else {
+                screens.forEach(screen => {
+                    screen.hidden = false;
+                    screen.classList.add('is-active');
+                });
+            }
+        },
+        {passive:true}
+    );
+
+    /* ---------------------------------------------------------
+       Busca de portais
+       --------------------------------------------------------- */
+
+    const portalLinks = [...root.querySelectorAll('[data-hub-link]')];
+    const search = root.querySelector('[data-hub-search]');
+    const searchInput = root.querySelector('[data-hub-search-input]');
+    const searchClear = root.querySelector('[data-hub-search-clear]');
+    const noResults = root.querySelector('[data-hub-no-results]');
+    const visibleCounts = [...root.querySelectorAll('[data-visible-count]')];
+
+    const normalize = value => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'')
+        .toLocaleLowerCase('pt-BR')
+        .trim();
+
+    function filterPortals() {
+        if (!searchInput) return;
+
+        const query = normalize(searchInput.value);
+        let matches = 0;
+
+        portalLinks.forEach(link => {
+            const text = normalize(
+                `${link.dataset.panelName || ''} ${link.dataset.panelDescription || ''}`
+            );
+
+            const match = !query || text.includes(query);
+            link.hidden = !match;
+            if (match) matches += 1;
+        });
+
+        search?.classList.toggle('has-value',Boolean(searchInput.value));
+        if (noResults) noResults.hidden = matches !== 0;
+
+        visibleCounts.forEach(counter => {
+            counter.textContent = String(matches);
+        });
+    }
+
+    searchInput?.addEventListener('input',filterPortals);
+
+    searchClear?.addEventListener('click',() => {
+        searchInput.value = '';
+        filterPortals();
+
+        if (!isMobile()) {
+            searchInput.focus();
+        } else {
+            searchInput.blur();
+        }
+    });
+
+    /* ---------------------------------------------------------
+       Animação forte de clique antes de abrir o portal
+       --------------------------------------------------------- */
+
+    function resetPortalOpeningState() {
+        portalLinks.forEach(link => {
+            link.classList.remove('is-opening');
+            link.removeAttribute('aria-busy');
+        });
+    }
+
+    portalLinks.forEach(link => {
+        link.addEventListener('click',event => {
+            if (
+                event.defaultPrevented
+                || event.button !== 0
+                || event.metaKey
+                || event.ctrlKey
+                || event.shiftKey
+                || event.altKey
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            resetPortalOpeningState();
+
+            link.classList.add('is-opening');
+            link.setAttribute('aria-busy','true');
+
+            const href = link.href;
+            const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const delay = reducedMotion ? 60 : 320;
+
+            window.setTimeout(() => {
+                window.location.assign(href);
+            },delay);
+        });
+    });
+
+    /* ---------------------------------------------------------
+       Inicialização
+       --------------------------------------------------------- */
+
+    ensureScreenHistory();
+
+    setScreen(
+        isMobile()
+            ? (history.state?.[SCREEN_STATE_KEY] || 'portals')
+            : 'portals',
+        {push:false,resetScroll:false}
+    );
+
+    filterPortals();
+
+    window.addEventListener('pageshow',() => {
+        resetPortalOpeningState();
+        filterPortals();
+
+        if (isMobile()) {
+            setScreen(
+                history.state?.[SCREEN_STATE_KEY] || 'portals',
+                {push:false,resetScroll:false}
+            );
+        } else {
+            screens.forEach(screen => {
+                screen.hidden = false;
+                screen.classList.add('is-active');
+            });
+        }
+    });
+})();
 </script>
 @endsection

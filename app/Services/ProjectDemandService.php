@@ -50,6 +50,7 @@ class ProjectDemandService
                 return collect($tableCustomers->get((int) $item->price_table_id, []))->map(fn ($customer) => [
                     'customer_id' => (int) $customer->id,
                     'customer' => $customer->trade_name ?: $customer->name,
+                    'price_table' => $customer->priceTable?->name,
                     'price' => (float) $item->sale_price,
                 ]);
             })->unique('customer_id')->values();

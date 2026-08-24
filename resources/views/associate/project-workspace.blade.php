@@ -371,6 +371,16 @@
         --tab-soft: var(--ws-violet-soft);
     }
 
+    .workspace-tab[data-section="prices"] {
+        --tab-tone: var(--ws-sky);
+        --tab-soft: var(--ws-sky-soft);
+    }
+
+    .workspace-tab[data-section="simulator"] {
+        --tab-tone: var(--ws-green);
+        --tab-soft: var(--ws-green-soft);
+    }
+
     .workspace-tab[data-section="deliveries"] {
         --tab-tone: var(--ws-amber);
         --tab-soft: var(--ws-amber-soft);
@@ -2107,6 +2117,366 @@
             transition-duration: .01ms !important;
         }
     }
+
+    /* Tabela de preços e simulação */
+    .price-list,
+    .simulation-list {
+        display: grid;
+        gap: .48rem;
+    }
+
+    .price-row,
+    .simulation-row {
+        min-width: 0;
+        padding: .68rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 10px;
+        background: var(--ws-surface);
+    }
+
+    .price-row-head,
+    .simulation-product {
+        display: flex;
+        min-width: 0;
+        gap: .5rem;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .price-product,
+    .simulation-product-copy {
+        min-width: 0;
+    }
+
+    .price-product strong,
+    .simulation-product-copy strong {
+        display: block;
+        color: var(--ws-text);
+        font-size: .8rem;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    .price-product span,
+    .simulation-product-copy span {
+        display: block;
+        margin-top: .08rem;
+        color: var(--ws-muted-text);
+        font-size: .65rem;
+    }
+
+    .price-range,
+    .simulation-total {
+        flex: 0 0 auto;
+        color: var(--ws-green);
+        font-size: .78rem;
+        font-weight: 840;
+        white-space: nowrap;
+    }
+
+    .price-destinations {
+        display: grid;
+        gap: .28rem;
+        margin-top: .52rem;
+        padding-top: .5rem;
+        border-top: 1px solid var(--ws-border);
+    }
+
+    .price-destination {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .55rem;
+        align-items: center;
+        color: var(--ws-secondary);
+        font-size: .7rem;
+    }
+
+    .price-destination-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .price-destination small {
+        color: var(--ws-muted-text);
+    }
+
+    .price-destination strong {
+        color: var(--ws-text);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .simulation-summary {
+        position: sticky;
+        z-index: 4;
+        top: 4.5rem;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .42rem;
+        margin-bottom: .58rem;
+        padding: .58rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 11px;
+        background: color-mix(in srgb, var(--ws-surface) 94%, transparent);
+        box-shadow: var(--shadow-sm);
+        backdrop-filter: blur(12px);
+    }
+
+    .simulation-summary.is-over {
+        border-color: color-mix(in srgb, var(--ws-red) 28%, var(--ws-border));
+    }
+
+    .simulation-summary-item span,
+    .simulation-field label {
+        display: block;
+        margin-bottom: .16rem;
+        color: var(--ws-muted-text);
+        font-size: .62rem;
+        font-weight: 730;
+    }
+
+    .simulation-summary-item strong {
+        color: var(--ws-text);
+        font-size: .82rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .simulation-summary-item.emphasis strong {
+        color: var(--ws-green);
+    }
+
+    .simulation-summary.is-over .simulation-summary-item.emphasis strong {
+        color: var(--ws-red);
+    }
+
+    .simulation-progress {
+        grid-column: 1 / -1;
+        height: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--ws-muted);
+    }
+
+    .simulation-progress span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--ws-green);
+        transition: width .18s ease, background .18s ease;
+    }
+
+    .simulation-summary.is-over .simulation-progress span {
+        background: var(--ws-red);
+    }
+
+    .simulation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .38rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: .58rem;
+    }
+
+    .simulation-row {
+        display: grid;
+        grid-template-columns: minmax(170px, 1.25fr) minmax(170px, .9fr) minmax(130px, .7fr) auto;
+        gap: .55rem;
+        align-items: end;
+    }
+
+    .simulation-product {
+        align-self: center;
+        justify-content: flex-start;
+    }
+
+    .simulation-product-icon {
+        display: grid;
+        width: 35px;
+        height: 35px;
+        flex: 0 0 auto;
+        place-items: center;
+        border-radius: 9px;
+        background: var(--ws-green-soft);
+        color: var(--ws-green);
+    }
+
+    .simulation-configured {
+        display: inline-flex !important;
+        width: max-content;
+        padding: .1rem .28rem;
+        border-radius: 999px;
+        background: var(--ws-violet-soft);
+        color: var(--ws-violet) !important;
+        font-size: .58rem !important;
+        font-weight: 780;
+    }
+
+    .simulation-control {
+        width: 100%;
+        min-height: 39px;
+        padding: .48rem .55rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ws-text);
+        font: inherit;
+        font-size: .72rem;
+    }
+
+    .simulation-control:focus {
+        border-color: color-mix(in srgb, var(--ws-green) 45%, var(--ws-border));
+        outline: 3px solid color-mix(in srgb, var(--ws-green) 10%, transparent);
+    }
+
+    .simulation-quantity-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .3rem;
+    }
+
+    .simulation-fill,
+    .simulation-remove,
+    .simulation-add {
+        min-height: 39px;
+        border: 1px solid var(--ws-border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ws-secondary);
+        cursor: pointer;
+        font: inherit;
+        font-size: .67rem;
+        font-weight: 780;
+    }
+
+    .simulation-fill {
+        padding: .42rem .5rem;
+        color: var(--ws-green);
+        white-space: nowrap;
+    }
+
+    .simulation-remove {
+        width: 39px;
+        color: var(--ws-red);
+    }
+
+    .simulation-add {
+        display: inline-flex;
+        gap: .3rem;
+        align-items: center;
+        padding: .45rem .62rem;
+        background: var(--ws-green-soft);
+        color: var(--ws-green);
+    }
+
+    .simulation-row-note {
+        grid-column: 1 / -1;
+        min-height: .8rem;
+        margin-top: -.28rem;
+        color: var(--ws-muted-text);
+        font-size: .62rem;
+    }
+
+    .simulation-row-note.warning {
+        color: var(--ws-amber);
+    }
+
+    .simulation-picker {
+        margin-bottom: .58rem;
+        padding: .58rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 10px;
+        background: var(--ws-soft);
+    }
+
+    .simulation-picker[hidden] {
+        display: none;
+    }
+
+    .simulation-picker-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap: .34rem;
+        margin-top: .42rem;
+    }
+
+    .simulation-picker-item {
+        display: flex;
+        min-width: 0;
+        gap: .4rem;
+        align-items: center;
+        padding: .48rem .52rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ws-text);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+    }
+
+    .simulation-picker-item:disabled {
+        cursor: default;
+        opacity: .5;
+    }
+
+    .simulation-picker-item strong {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        font-size: .7rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .simulation-picker-item small {
+        display: block;
+        margin-top: .08rem;
+        color: var(--ws-muted-text);
+        font-size: .6rem;
+    }
+
+    @media (max-width: 860px) {
+        .simulation-row {
+            grid-template-columns: minmax(0, 1fr) minmax(150px, .8fr);
+        }
+
+        .simulation-row .simulation-field.quantity {
+            grid-column: 1;
+        }
+    }
+
+    @media (max-width: 620px) {
+        .simulation-summary {
+            top: 4.2rem;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .simulation-summary-item.emphasis {
+            grid-column: 1 / -1;
+        }
+
+        .simulation-row {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .simulation-row .simulation-field {
+            grid-column: 1 / -1;
+        }
+
+        .simulation-remove {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .price-row-head {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
 </style>
 
 <main
@@ -2202,6 +2572,24 @@
             >
                 <i class="ph-duotone ph-gauge"></i>
                 <span>Limites</span>
+            </button>
+
+            <button
+                class="workspace-tab"
+                type="button"
+                data-section="prices"
+            >
+                <i class="ph-duotone ph-tag"></i>
+                <span>Preços</span>
+            </button>
+
+            <button
+                class="workspace-tab"
+                type="button"
+                data-section="simulator"
+            >
+                <i class="ph-duotone ph-calculator"></i>
+                <span>Simular</span>
             </button>
 
             <button
@@ -2327,6 +2715,10 @@
         abort: null,
         timer: null,
         filters: {
+            prices: {
+                search: '',
+            },
+
             deliveries: {
                 search: '',
                 status: '',
@@ -2336,6 +2728,14 @@
                 search: '',
                 status: '',
             },
+        },
+        simulator: {
+            products: [],
+            rows: [],
+            initialized: false,
+            pickerOpen: false,
+            pickerSearch: '',
+            summary: {},
         },
     };
 
@@ -2352,6 +2752,20 @@
             subtitle: 'Quanto já foi entregue e quanto ainda está disponível.',
             icon: 'ph-gauge',
             iconClass: 'limits',
+        },
+
+        prices: {
+            title: 'Tabela de preços',
+            subtitle: 'Valores dos produtos para os destinos deste projeto.',
+            icon: 'ph-tag',
+            iconClass: 'prices',
+        },
+
+        simulator: {
+            title: 'Simular entregas',
+            subtitle: 'Combine produtos e quantidades antes de planejar a entrega.',
+            icon: 'ph-calculator',
+            iconClass: 'simulator',
         },
 
         deliveries: {
@@ -2400,6 +2814,22 @@
                 + 'e o segundo é o limite disponível para sua participação. '
                 + 'A barra verde indica uso normal, a amarela indica que o '
                 + 'limite está próximo e a vermelha indica limite atingido.',
+        },
+
+        prices: {
+            title: 'Sobre os preços',
+            body:
+                'Os preços são os cadastrados para os clientes habilitados '
+                + 'neste projeto. Quando um produto possui valores diferentes, '
+                + 'cada destino aparece separadamente.',
+        },
+
+        simulator: {
+            title: 'Como usar a simulação',
+            body:
+                'A simulação usa o saldo financeiro ainda disponível e os '
+                + 'preços atuais do projeto. Ela serve para planejamento e não '
+                + 'registra entregas nem altera seus limites.',
         },
 
         deliveries: {
@@ -2565,6 +2995,18 @@
                 icon: 'ph-gauge',
                 title: 'Como ler:',
                 text: 'compare o que já foi entregue com o limite e veja quanto ainda está disponível.',
+            },
+
+            prices: {
+                icon: 'ph-tag',
+                title: 'Preço por destino:',
+                text: 'o valor financeiro definitivo será o da distribuição feita para cada cliente.',
+            },
+
+            simulator: {
+                icon: 'ph-calculator',
+                title: 'Planejamento:',
+                text: 'adicione produtos, escolha o destino e ajuste as quantidades sem alterar dados do projeto.',
             },
 
             deliveries: {
@@ -2890,6 +3332,8 @@
         const renderers = {
             summary: awSummary,
             limits: awLimits,
+            prices: awPrices,
+            simulator: awSimulator,
             deliveries: awDeliveries,
             distributions: awDistributions,
             receipts: awReceipts,
@@ -2931,7 +3375,7 @@
                         <article class="summary-main ${tone}">
                             <div class="summary-main-label">
                                 <i class="ph-duotone ph-wallet"></i>
-                                Valor disponível
+                                Valor disponível para entregar
                             </div>
 
                             <div class="summary-main-value">
@@ -3352,6 +3796,464 @@
             </section>
         `;
     }
+
+    function awPriceTools() {
+        const search = awState.filters.prices.search || '';
+
+        return `
+            <div class="tools">
+                <div class="search-field">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input
+                        class="search-input"
+                        id="aw-search"
+                        type="search"
+                        value="${awEsc(search)}"
+                        placeholder="Buscar produto ou cliente..."
+                        autocomplete="off"
+                        oninput="awDebounce()"
+                    >
+                </div>
+            </div>
+        `;
+    }
+
+    function awPrices(data) {
+        const records = data.data || [];
+        const rows = records.map(item => {
+            const destinations = (item.destinations || []).map(destination => `
+                <div class="price-destination">
+                    <span class="price-destination-name" title="${awEsc(destination.customer)}">
+                        ${awEsc(destination.customer)}
+                        ${destination.price_table
+                            ? `<small> · ${awEsc(destination.price_table)}</small>`
+                            : ''}
+                    </span>
+                    <strong>${awMoney(destination.price)}</strong>
+                </div>
+            `).join('');
+
+            return `
+                <article class="price-row">
+                    <div class="price-row-head">
+                        <div class="price-product">
+                            <strong>${awEsc(item.product_name)}</strong>
+                            <span>${awEsc(item.unit || 'un')} · ${Number(item.destination_count || 0)} destino(s)</span>
+                        </div>
+                        <div class="price-range">${awEsc(item.price_label)}</div>
+                    </div>
+                    <div class="price-destinations">${destinations}</div>
+                </article>
+            `;
+        }).join('');
+
+        awRoot.innerHTML = `
+            <section class="workspace-section">
+                ${awSectionHeader(
+                    `${Number(data.total || 0)} ${Number(data.total || 0) === 1 ? 'produto' : 'produtos'}`,
+                    'prices'
+                )}
+                <div class="section-body">
+                    ${awSectionGuide('prices')}
+                    ${awPriceTools()}
+                    ${rows
+                        ? `<div class="price-list">${rows}</div>`
+                        : awEmpty(
+                            'Nenhum preço encontrado',
+                            'Não há produto com preço para os clientes e filtros selecionados.',
+                            'ph-tag'
+                        )}
+                    ${awPager(data)}
+                </div>
+            </section>
+        `;
+    }
+
+    function awSimProduct(productId) {
+        return awState.simulator.products.find(
+            product => Number(product.product_id) === Number(productId)
+        );
+    }
+
+    function awSimDefaultDestination(product) {
+        return [...(product?.destinations || [])]
+            .filter(destination => Number(destination.price || 0) > 0)
+            .sort((left, right) => Number(right.price) - Number(left.price))[0]
+            || null;
+    }
+
+    function awSimDestination(row, product) {
+        return (product?.destinations || []).find(
+            destination => Number(destination.customer_id) === Number(row.destinationId)
+        ) || awSimDefaultDestination(product);
+    }
+
+    function awSimInitialize() {
+        const simulator = awState.simulator;
+        simulator.rows = [];
+        let available = simulator.summary.financial_remaining;
+        let budget = available === null ? null : Math.max(0, Number(available || 0));
+        const configured = simulator.products.filter(product => product.configured);
+        const candidates = configured.length ? configured : simulator.products.slice(0, 1);
+
+        candidates.forEach(product => {
+            if (budget !== null && budget <= .005) return;
+            const destination = awSimDefaultDestination(product);
+            const price = Number(destination?.price || 0);
+            if (!destination || price <= 0) return;
+            let quantity = 0;
+
+            if (budget !== null) {
+                quantity = budget / price;
+                if (product.remaining_quantity !== null && product.remaining_quantity !== undefined) {
+                    quantity = Math.min(quantity, Math.max(0, Number(product.remaining_quantity)));
+                }
+                quantity = Math.floor(quantity * 1000) / 1000;
+                budget = Math.max(0, budget - (quantity * price));
+            }
+
+            if (quantity > 0 || simulator.rows.length === 0) {
+                simulator.rows.push({
+                    productId: Number(product.product_id),
+                    destinationId: Number(destination.customer_id),
+                    quantity,
+                });
+            }
+        });
+
+        if (!simulator.rows.length && simulator.products.length) {
+            const product = simulator.products[0];
+            const destination = awSimDefaultDestination(product);
+            if (destination) {
+                simulator.rows.push({
+                    productId: Number(product.product_id),
+                    destinationId: Number(destination.customer_id),
+                    quantity: 0,
+                });
+            }
+        }
+
+        simulator.initialized = true;
+    }
+
+    function awSimTotals() {
+        const rows = awState.simulator.rows.map(row => {
+            const product = awSimProduct(row.productId);
+            const destination = awSimDestination(row, product);
+            const price = Number(destination?.price || 0);
+            const quantity = Math.max(0, Number(row.quantity || 0));
+
+            return {
+                row,
+                product,
+                destination,
+                price,
+                quantity,
+                total: price * quantity,
+            };
+        });
+
+        return {
+            rows,
+            total: rows.reduce((sum, item) => sum + item.total, 0),
+        };
+    }
+
+    function awSimPickerItems() {
+        const search = awState.simulator.pickerSearch.trim().toLocaleLowerCase('pt-BR');
+        const selected = new Set(awState.simulator.rows.map(row => Number(row.productId)));
+        const products = awState.simulator.products
+            .filter(product => !search || `${product.product_name} ${product.unit}`.toLocaleLowerCase('pt-BR').includes(search))
+            .slice(0, 18);
+
+        if (!products.length) {
+            return '<div class="state-box"><div><strong>Nenhum produto encontrado</strong></div></div>';
+        }
+
+        return products.map(product => `
+            <button
+                type="button"
+                class="simulation-picker-item"
+                onclick="awSimAdd(${Number(product.product_id)})"
+                ${selected.has(Number(product.product_id)) ? 'disabled' : ''}
+            >
+                <i class="ph-duotone ${product.configured ? 'ph-check-circle' : 'ph-cube'}"></i>
+                <span>
+                    <strong>${awEsc(product.product_name)}</strong>
+                    <small>${awEsc(product.price_label)} · ${awEsc(product.unit || 'un')}</small>
+                </span>
+            </button>
+        `).join('');
+    }
+
+    function awSimRow(item) {
+        const { row, product, destination, price, quantity, total } = item;
+        if (!product || !destination) return '';
+        const destinations = (product.destinations || []).map(option => `
+            <option
+                value="${Number(option.customer_id)}"
+                ${Number(option.customer_id) === Number(destination.customer_id) ? 'selected' : ''}
+            >
+                ${awEsc(option.customer)} · ${awMoney(option.price)}
+            </option>
+        `).join('');
+        const remaining = product.remaining_quantity;
+        const exceedsProduct = product.configured
+            && remaining !== null
+            && remaining !== undefined
+            && quantity > Number(remaining) + .0005;
+
+        return `
+            <article class="simulation-row" data-sim-product="${Number(product.product_id)}">
+                <div class="simulation-product">
+                    <span class="simulation-product-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-cube"></i>
+                    </span>
+                    <div class="simulation-product-copy">
+                        <strong>${awEsc(product.product_name)}</strong>
+                        <span>${awEsc(product.unit || 'un')} · ${awMoney(price)} por ${awEsc(product.unit || 'un')}</span>
+                        ${product.configured ? '<span class="simulation-configured">Configurado no projeto</span>' : ''}
+                    </div>
+                </div>
+                <div class="simulation-field">
+                    <label for="sim-destination-${Number(product.product_id)}">Preço e destino</label>
+                    <select
+                        class="simulation-control"
+                        id="sim-destination-${Number(product.product_id)}"
+                        onchange="awSimDestinationChange(${Number(product.product_id)}, this.value)"
+                        ${product.destinations.length === 1 ? 'disabled' : ''}
+                    >${destinations}</select>
+                </div>
+                <div class="simulation-field quantity">
+                    <label for="sim-quantity-${Number(product.product_id)}">Quantidade (${awEsc(product.unit || 'un')})</label>
+                    <div class="simulation-quantity-wrap">
+                        <input
+                            class="simulation-control"
+                            id="sim-quantity-${Number(product.product_id)}"
+                            type="number"
+                            min="0"
+                            step="0.001"
+                            inputmode="decimal"
+                            value="${quantity > 0 ? quantity : ''}"
+                            oninput="awSimQuantity(${Number(product.product_id)}, this.value)"
+                        >
+                        <button
+                            type="button"
+                            class="simulation-fill"
+                            onclick="awSimFill(${Number(product.product_id)})"
+                            title="Usar o saldo financeiro restante"
+                        >Completar</button>
+                    </div>
+                </div>
+                <div>
+                    <span class="simulation-total" id="sim-total-${Number(product.product_id)}">${awMoney(total)}</span>
+                    <button
+                        type="button"
+                        class="simulation-remove"
+                        onclick="awSimRemove(${Number(product.product_id)})"
+                        aria-label="Remover ${awEsc(product.product_name)}"
+                        title="Remover produto"
+                    ><i class="ph ph-trash"></i></button>
+                </div>
+                <div class="simulation-row-note ${exceedsProduct ? 'warning' : ''}" id="sim-note-${Number(product.product_id)}">
+                    ${exceedsProduct
+                        ? `Acima dos ${awQty(remaining)} ${awEsc(product.unit || '')} disponíveis na configuração atual.`
+                        : (product.configured && remaining !== null
+                            ? `${awQty(remaining)} ${awEsc(product.unit || '')} disponíveis na configuração atual.`
+                            : 'Produto adicional usado somente nesta simulação.')}
+                </div>
+            </article>
+        `;
+    }
+
+    function awSimulator(data) {
+        const simulator = awState.simulator;
+        simulator.products = data.products || [];
+        simulator.summary = data.summary || {};
+        simulator.catalogTruncated = !!data.catalog_truncated;
+
+        if (!simulator.initialized) {
+            awSimInitialize();
+        } else {
+            simulator.rows = simulator.rows.filter(row => awSimProduct(row.productId));
+        }
+
+        const totals = awSimTotals();
+        const available = simulator.summary.financial_remaining;
+        const remaining = available === null ? null : Number(available || 0) - totals.total;
+        const percent = available && Number(available) > 0
+            ? Math.min(100, totals.total / Number(available) * 100)
+            : 0;
+
+        awRoot.innerHTML = `
+            <section class="workspace-section">
+                ${awSectionHeader(`${simulator.rows.length} produto(s)`, 'simulator')}
+                <div class="section-body">
+                    ${awSectionGuide('simulator')}
+                    <div class="simulation-summary ${remaining !== null && remaining < -.005 ? 'is-over' : ''}" id="simulation-summary">
+                        <div class="simulation-summary-item">
+                            <span>Disponível para entregar</span>
+                            <strong>${available === null ? 'Sem limite' : awMoney(available)}</strong>
+                        </div>
+                        <div class="simulation-summary-item">
+                            <span>Total simulado</span>
+                            <strong id="simulation-total">${awMoney(totals.total)}</strong>
+                        </div>
+                        <div class="simulation-summary-item emphasis">
+                            <span id="simulation-balance-label">${remaining !== null && remaining < 0 ? 'Valor excedente' : 'Saldo após simulação'}</span>
+                            <strong id="simulation-balance">${remaining === null ? 'Livre' : awMoney(Math.abs(remaining))}</strong>
+                        </div>
+                        <div class="simulation-progress"><span id="simulation-progress" style="width:${percent}%"></span></div>
+                    </div>
+                    <div class="simulation-actions">
+                        <button type="button" class="simulation-add" onclick="awSimTogglePicker()">
+                            <i class="ph ph-plus"></i> Adicionar produto
+                        </button>
+                        <button type="button" class="text-button" onclick="awSimReset()">
+                            <i class="ph ph-arrow-counter-clockwise"></i> Recomeçar
+                        </button>
+                    </div>
+                    <div class="simulation-picker" id="simulation-picker" ${simulator.pickerOpen ? '' : 'hidden'}>
+                        <div class="search-field">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input
+                                class="search-input"
+                                type="search"
+                                value="${awEsc(simulator.pickerSearch)}"
+                                placeholder="Buscar produto para simular..."
+                                autocomplete="off"
+                                oninput="awSimSearch(this.value)"
+                            >
+                        </div>
+                        <div class="simulation-picker-list" id="simulation-picker-list">${awSimPickerItems()}</div>
+                    </div>
+                    ${totals.rows.length
+                        ? `<div class="simulation-list">${totals.rows.map(awSimRow).join('')}</div>`
+                        : awEmpty('Adicione um produto', 'Escolha um produto para começar a simulação.', 'ph-calculator')}
+                    ${simulator.catalogTruncated
+                        ? '<div class="section-guide prices"><span class="section-guide-icon"><i class="ph-duotone ph-info"></i></span><div class="section-guide-copy">O catálogo é muito grande. Os primeiros 250 produtos estão disponíveis nesta simulação.</div></div>'
+                        : ''}
+                </div>
+            </section>
+        `;
+    }
+
+    function awSimUpdate() {
+        const totals = awSimTotals();
+        const available = awState.simulator.summary.financial_remaining;
+        const remaining = available === null ? null : Number(available || 0) - totals.total;
+        const summary = document.getElementById('simulation-summary');
+        summary?.classList.toggle('is-over', remaining !== null && remaining < -.005);
+        const total = document.getElementById('simulation-total');
+        if (total) total.textContent = awMoney(totals.total);
+        const balance = document.getElementById('simulation-balance');
+        if (balance) balance.textContent = remaining === null ? 'Livre' : awMoney(Math.abs(remaining));
+        const label = document.getElementById('simulation-balance-label');
+        if (label) label.textContent = remaining !== null && remaining < 0 ? 'Valor excedente' : 'Saldo após simulação';
+        const progress = document.getElementById('simulation-progress');
+        if (progress) progress.style.width = `${available && Number(available) > 0 ? Math.min(100, totals.total / Number(available) * 100) : 0}%`;
+
+        totals.rows.forEach(item => {
+            const rowTotal = document.getElementById(`sim-total-${item.row.productId}`);
+            if (rowTotal) rowTotal.textContent = awMoney(item.total);
+            const note = document.getElementById(`sim-note-${item.row.productId}`);
+            const configuredRemaining = item.product?.remaining_quantity;
+            const exceeds = item.product?.configured
+                && configuredRemaining !== null
+                && configuredRemaining !== undefined
+                && item.quantity > Number(configuredRemaining) + .0005;
+            if (note) {
+                note.classList.toggle('warning', exceeds);
+                note.textContent = exceeds
+                    ? `Acima dos ${awQty(configuredRemaining)} ${item.product.unit || ''} disponíveis na configuração atual.`
+                    : (item.product?.configured && configuredRemaining !== null
+                        ? `${awQty(configuredRemaining)} ${item.product.unit || ''} disponíveis na configuração atual.`
+                        : 'Produto adicional usado somente nesta simulação.');
+            }
+        });
+    }
+
+    function awSimQuantity(productId, value) {
+        const row = awState.simulator.rows.find(item => Number(item.productId) === Number(productId));
+        if (!row) return;
+        row.quantity = value === '' ? 0 : Math.max(0, Number(String(value).replace(',', '.')) || 0);
+        awSimUpdate();
+    }
+
+    window.awSimQuantity = awSimQuantity;
+
+    function awSimDestinationChange(productId, destinationId) {
+        const row = awState.simulator.rows.find(item => Number(item.productId) === Number(productId));
+        if (!row) return;
+        row.destinationId = Number(destinationId);
+        awSimulator({ products: awState.simulator.products, summary: awState.simulator.summary, catalog_truncated: awState.simulator.catalogTruncated });
+    }
+
+    window.awSimDestinationChange = awSimDestinationChange;
+
+    function awSimFill(productId) {
+        const totals = awSimTotals();
+        const current = totals.rows.find(item => Number(item.row.productId) === Number(productId));
+        const available = awState.simulator.summary.financial_remaining;
+        if (!current || current.price <= 0 || available === null) return;
+        const others = totals.total - current.total;
+        let quantity = Math.max(0, (Number(available) - others) / current.price);
+        if (current.product.configured && current.product.remaining_quantity !== null) {
+            quantity = Math.min(quantity, Number(current.product.remaining_quantity));
+        }
+        current.row.quantity = Math.floor(quantity * 1000) / 1000;
+        const input = document.getElementById(`sim-quantity-${productId}`);
+        if (input) input.value = current.row.quantity > 0 ? current.row.quantity : '';
+        awSimUpdate();
+    }
+
+    window.awSimFill = awSimFill;
+
+    function awSimAdd(productId) {
+        if (awState.simulator.rows.some(row => Number(row.productId) === Number(productId))) return;
+        const product = awSimProduct(productId);
+        const destination = awSimDefaultDestination(product);
+        if (!product || !destination) return;
+        awState.simulator.rows.push({ productId: Number(productId), destinationId: Number(destination.customer_id), quantity: 0 });
+        awState.simulator.pickerOpen = false;
+        awSimulator({ products: awState.simulator.products, summary: awState.simulator.summary, catalog_truncated: awState.simulator.catalogTruncated });
+    }
+
+    window.awSimAdd = awSimAdd;
+
+    function awSimRemove(productId) {
+        awState.simulator.rows = awState.simulator.rows.filter(row => Number(row.productId) !== Number(productId));
+        awSimulator({ products: awState.simulator.products, summary: awState.simulator.summary, catalog_truncated: awState.simulator.catalogTruncated });
+    }
+
+    window.awSimRemove = awSimRemove;
+
+    function awSimTogglePicker() {
+        awState.simulator.pickerOpen = !awState.simulator.pickerOpen;
+        const picker = document.getElementById('simulation-picker');
+        if (picker) picker.hidden = !awState.simulator.pickerOpen;
+        if (awState.simulator.pickerOpen) picker?.querySelector('input')?.focus();
+    }
+
+    window.awSimTogglePicker = awSimTogglePicker;
+
+    function awSimSearch(value) {
+        awState.simulator.pickerSearch = value || '';
+        const list = document.getElementById('simulation-picker-list');
+        if (list) list.innerHTML = awSimPickerItems();
+    }
+
+    window.awSimSearch = awSimSearch;
+
+    function awSimReset() {
+        awState.simulator.initialized = false;
+        awState.simulator.pickerOpen = false;
+        awState.simulator.pickerSearch = '';
+        awSimInitialize();
+        awSimulator({ products: awState.simulator.products, summary: awState.simulator.summary, catalog_truncated: awState.simulator.catalogTruncated });
+    }
+
+    window.awSimReset = awSimReset;
 
     function awTools(section) {
         const filters =

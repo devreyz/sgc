@@ -4027,6 +4027,18 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
         </div>
     </div>
 
+    @php
+        $registerDeliveryStyleDummy = [
+            'id' => 0, 'quantity' => 0, 'distributed_qty' => 0, 'unit' => 'un',
+            'limit' => [], 'status_value' => 'pending', 'distributions' => [],
+        ];
+    @endphp
+    @include('delivery.partials.project-delivery-mobile-card', [
+        'delivery' => $registerDeliveryStyleDummy,
+        'customers' => collect(),
+        'stylesOnly' => true,
+    ])
+
     {{-- ─── SESSION LIST ─────────────────────────────── --}}
     <div class="card history-card">
         <div class="card-header reg-history-head">
@@ -6745,8 +6757,8 @@ async function handleRegisterIntegrityAction(button) {
         title: 'Confirmar correção',
         message: question,
         confirmLabel: 'Continuar',
-        tone: actionKey === 'restore_parent_delivery' ? 'default' : 'danger',
-        icon: actionKey === 'restore_parent_delivery' ? 'arrow-counter-clockwise' : 'warning',
+        tone: action === 'restore_parent_delivery' ? 'default' : 'danger',
+        icon: action === 'restore_parent_delivery' ? 'arrow-counter-clockwise' : 'warning',
     });
 
     if (!confirmed) return;
@@ -7563,7 +7575,7 @@ function renderSessionItems() {
     count.textContent = renderList.length + (usingFilter ? '/' + filtered.length : '') + ' registro' + (renderList.length !== 1 ? 's' : '');
     updateSessionPagination(renderList.length, pageStart + 1, Math.min(pageStart + perPage, renderList.length), S.listPage, totalPages);
 
-    function buildActionsHtml(item, labelClass = 'mc-action-label') {
+    function buildActionsHtml(item, labelClass = 'dc-action-label') {
         const statusClass = item.status || 'pending';
         const isPending = statusClass === 'pending';
         const isApproved = statusClass === 'approved';
@@ -7571,7 +7583,7 @@ function renderSessionItems() {
         const isBilled = !!item.has_billed;
 
         let buttons = item.notes
-            ? `<button class="delivery-note-trigger" type="button"
+            ? `<button class="delivery-note-trigger dc-action notes" type="button"
                 data-delivery-notes="${escAttr(item.notes)}"
                 data-delivery-notes-title="Observações da entrega"
                 data-delivery-notes-meta="${escAttr(item.productName + ' · ' + item.associateName)}"
@@ -7582,25 +7594,25 @@ function renderSessionItems() {
             : '';
 
         if (isPending) {
-            buttons += `<button class="btn-approve btn-xs" data-action="approve" data-id="${item.id}" title="Aprovar entrega" aria-label="Aprovar entrega"><i class="ph-duotone ph-check-circle"></i><span class="${labelClass}">Aprovar</span></button>`;
-            buttons += `<button class="btn-reject btn-xs" data-action="reject" data-id="${item.id}" title="Rejeitar entrega" aria-label="Rejeitar entrega"><i class="ph-duotone ph-x-circle"></i><span class="${labelClass}">Rejeitar</span></button>`;
-            buttons += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
+            buttons += `<button class="btn-approve btn-xs dc-action approve" data-action="approve" data-id="${item.id}" title="Aprovar entrega" aria-label="Aprovar entrega"><i class="ph-duotone ph-check-circle"></i><span class="${labelClass}">Aprovar</span></button>`;
+            buttons += `<button class="btn-reject btn-xs dc-action reject" data-action="reject" data-id="${item.id}" title="Rejeitar entrega" aria-label="Rejeitar entrega"><i class="ph-duotone ph-x-circle"></i><span class="${labelClass}">Rejeitar</span></button>`;
+            buttons += `<button class="btn-edit btn-xs dc-action edit" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
             if (!isBilled) {
-                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega pendente" aria-label="Excluir entrega pendente"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+                buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete" data-id="${item.id}" title="Excluir entrega pendente" aria-label="Excluir entrega pendente"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
             }
         } else if (isApproved) {
-            buttons += `<button class="btn-distribute btn-xs" data-action="distribute" data-id="${item.id}" title="Distribuir entrega" aria-label="Distribuir entrega"><i class="ph-duotone ph-git-merge"></i><span class="${labelClass}">Distribuir</span></button>`;
-            buttons += `<button class="btn-edit btn-xs" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
+            buttons += `<button class="btn-distribute btn-xs dc-action distribute" data-action="distribute" data-id="${item.id}" title="Distribuir entrega" aria-label="Distribuir entrega"><i class="ph-duotone ph-git-merge"></i><span class="${labelClass}">Distribuir</span></button>`;
+            buttons += `<button class="btn-edit btn-xs dc-action edit" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
 
             if (!isBilled) {
-                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete-approved" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+                buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete-approved" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
             }
         } else if (isRejected) {
             if (!isBilled) {
-                buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+                buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete" data-id="${item.id}" title="Excluir entrega rejeitada" aria-label="Excluir entrega rejeitada"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
             }
         } else if (!isApproved && !isBilled) {
-            buttons += `<button class="btn-delete-approved btn-xs" data-action="delete" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
+            buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
         }
 
         return buttons;
@@ -7695,36 +7707,9 @@ function renderSessionItems() {
 
         const actionsHtml = buildActionsHtml(item);
 
-        return `
-        <div class="mobile-card status-${visualClass} variant-c" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
-            <div class="mc-head">
-                <div class="mc-head-main">
-                    <span class="mc-date">${dateStr}</span>
-                    <span class="mc-sep" aria-hidden="true">-</span>
-                    <div class="mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</div>
-                    <span class="mc-sep" aria-hidden="true">-</span>
-                    <span class="mc-head-qty">${fmtQty(totalQty, item.productUnit)}</span>
-                </div>
-                <span class="mc-state-icon" title="${escAttr(stateLabel)}" aria-label="${escAttr(stateLabel)}">${stateIcon}</span>
-                ${statusTag}
-                ${billedTag}
-            </div>
-            <div class="mc-body">
-                <div class="mc-info-grid">
-                    <div class="mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</div>
-                    <div>${netValue > 0 ? '<span class="mc-net">R$ ' + netValue.toFixed(2) + '</span>' : ''}</div>
-                </div>
-                ${limitHtml}
-                <div class="mc-footer">
-                    <span class="mc-footer-label">Distrib.</span>
-                    <div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1" title="${overDist ? 'Excede. Total dist.: ' + distQty.toFixed(2) + ' ' + item.productUnit : (distPercent >= 100 ? 'Totalmente distribuido' : 'A distribuir: ' + (totalQty - distQty).toFixed(2) + ' ' + item.productUnit)}">
-                        <div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : (distPercent >= 100 ? 'full' : 'partial')}" style="width:${displayPercent}%;height:100%;border-radius:99px;"></div></div>
-                        <span class="mc-dist-text">${overDist ? '! ' + distQty.toFixed(1) : distPercent + '%'}</span>
-                    </div>
-                    <div class="mc-actions">${actionsHtml}</div>
-                </div>
-            </div>
-        </div>`;
+        return `<article class="mobile-card delivery-card-v2 status-${visualClass}" id="row-${item.id}" data-total-qty="${totalQty}" data-unit="${escAttr(item.productUnit || '')}" data-product="${escAttr(item.productName)}" data-distributions="${distJson}" data-distributed="${distQty}">
+            <div class="dc-head mc-head"><div class="dc-main"><div class="dc-product-line"><strong class="dc-product mc-head-product" title="${escAttr(item.productName)}">${escHtml(item.productName)}</strong>${statusTag}${billedTag}</div><div class="dc-context"><span class="dc-context-item"><i class="ph-duotone ph-user"></i><span class="dc-associate mc-associate" title="${escAttr(item.associateName)}">${escHtml(item.associateName)}</span></span><span class="dc-context-item date"><i class="ph-duotone ph-calendar-dots"></i>${dateStr}</span></div></div><div class="dc-side"><strong class="dc-qty mc-head-qty">${fmtQty(totalQty,item.productUnit)}</strong><span class="mc-state-icon" title="${escAttr(stateLabel)}">${stateIcon}</span></div></div>
+            <div class="dc-body mc-body">${limit.associate_limit == null ? '' : `<div class="dc-meter dc-limit-meter ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-gauge"></i>Cota</span><strong class="dc-meter-value">${fmtQty(limit.associate_remaining,item.productUnit)} livres</strong></div><div class="dc-track"><span style="width:${limitPct}%"></span></div></div>`}<div class="dc-meter dc-distribution"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-git-merge"></i>Distribuição</span><strong class="dc-meter-value">${overDist ? 'Excedeu ' + fmtQty(distQty-totalQty,item.productUnit) : distPercent >= 100 ? 'Concluída' : fmtQty(totalQty-distQty,item.productUnit) + ' restantes'}</strong></div><div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1"><div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${overDist ? 'over' : distPercent >= 100 ? 'full' : 'partial'}" style="width:${displayPercent}%"></div></div><span class="mc-dist-text">${overDist ? '!' : distPercent + '%'}</span></div></div>${netValue > 0 ? `<strong class="mc-net">${money(netValue)}</strong>` : ''}<div class="dc-actions mc-actions">${actionsHtml}</div></div></article>`;
     }
 
     function buildSectionHeader(label) {

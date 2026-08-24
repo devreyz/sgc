@@ -838,6 +838,7 @@ if ($overDistributed) {
 </style>
 @endonce
 
+@unless($stylesOnly ?? false)
 <div class="mobile-card delivery-card-v2 status-{{ $visualStatus }} variant-c"
      id="mobile-row-{{ $delivery['id'] }}"
      data-delivery-id="{{ $delivery['id'] }}"
@@ -1112,3 +1113,4 @@ if ($overDistributed) {
         </div>
     </div>
 </div>
+@endunless

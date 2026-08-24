@@ -935,6 +935,28 @@ class AssociateProjectLimitServiceTest extends TestCase
         $this->assertTrue($preview['uses_maximum_price']);
     }
 
+    public function test_project_price_catalog_exposes_only_authorized_destination_and_table_name(): void
+    {
+        [$project] = $this->fixture(false);
+        DB::table('customers')->insert([
+            'id' => 2,
+            'tenant_id' => 1,
+            'name' => 'Cliente fora do projeto',
+            'price_table_id' => 1,
+            'status' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $item = app(ProjectDemandService::class)->catalog($project->fresh())->first();
+
+        $this->assertSame('Banana', $item['product_name']);
+        $this->assertSame(1, $item['destination_count']);
+        $this->assertSame('Cliente A', $item['destinations'][0]['customer']);
+        $this->assertSame('Tabela', $item['destinations'][0]['price_table']);
+        $this->assertSame(5.0, $item['destinations'][0]['price']);
+    }
+
     private function fixture(bool $withSecondCustomer): array
     {
         session(['tenant_id' => 1]);

@@ -2080,63 +2080,127 @@ class DeliveryRegistrationController extends Controller
             ->with('customer')
             ->findOrFail($projectId);
 
-        $deliveryModels = ProductionDelivery::where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->whereNull('parent_delivery_id')
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
-            ->orderBy('delivery_date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        $limitContext = $this->deliveryLimitContext($deliveryModels, $project);
-        $defaultCustomerId = $project->customer_id ? (int) $project->customer_id : null;
-        $deliveries = $deliveryModels
-            ->map(fn ($delivery) => $this->deliveryViewData(
-                $delivery,
-                $limitContext[$delivery->id] ?? [],
-                $defaultCustomerId,
-            ));
-
         $customers = app(ProjectDistributionCustomerService::class)->customers($project);
-
         $currentTenant = $this->currentTenant();
-        $integrity = app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project);
 
-        return view('delivery.project-deliveries', compact('project', 'deliveries', 'currentTenant', 'customers', 'integrity'));
+        return view('delivery.project-deliveries', compact('project', 'currentTenant', 'customers'));
     }
 
-    public function projectDeliveryFragment()
+    public function projectDeliveriesData(Request $request)
     {
-        $projectId = (int) request()->route('project');
-        $deliveryId = (int) request()->route('delivery');
-        $tenantId = session('tenant_id');
-
-        if (! $tenantId) {
-            return response()->json(['success' => false, 'message' => 'Sessão expirada.'], 403);
-        }
+        $tenantId = (int) session('tenant_id');
+        $projectId = (int) $request->route('project');
+        abort_unless($tenantId > 0, 403);
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        $validated = $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|in:12,24,48',
+            'search' => 'nullable|string|max:80',
+            'status' => 'nullable|in:pending,approved,rejected,cancelled',
+            'associate_id' => 'nullable|integer|min:1',
+            'product_id' => 'nullable|integer|min:1',
+            'delivery_id' => 'nullable|integer|min:1',
+            'include_filters' => 'nullable|boolean',
+            'date_from' => 'nullable|date_format:Y-m-d',
+            'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
+        ]);
 
-        $deliveryModel = ProductionDelivery::where('tenant_id', $tenantId)
+        $base = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
-            ->whereNull('parent_delivery_id')
+            ->whereNull('parent_delivery_id');
+        $query = clone $base;
+        $search = trim((string) ($validated['search'] ?? ''));
+        if ($search !== '') {
+            $likeSearch = addcslashes($search, '\\%_');
+            $associateIds = DB::table('associates')
+                ->join('tenant_user', function ($join) use ($tenantId): void {
+                    $join->on('tenant_user.user_id', '=', 'associates.user_id')
+                        ->where('tenant_user.tenant_id', '=', $tenantId);
+                })
+                ->where('associates.tenant_id', $tenantId)
+                ->where(function ($nested) use ($likeSearch): void {
+                    $nested->where('tenant_user.tenant_name', 'like', "%{$likeSearch}%")
+                        ->orWhere('associates.nickname', 'like', "%{$likeSearch}%")
+                        ->orWhere('associates.registration_number', 'like', "%{$likeSearch}%");
+                })->pluck('associates.id');
+            $query->where(function (Builder $nested) use ($likeSearch, $associateIds): void {
+                $nested->whereIn('associate_id', $associateIds)
+                    ->orWhereHas('product', fn (Builder $product) => $product->where('name', 'like', "%{$likeSearch}%"))
+                    ->orWhereHas('projectDemand.product', fn (Builder $product) => $product->where('name', 'like', "%{$likeSearch}%"));
+            });
+        }
+        $query
+            ->when($validated['delivery_id'] ?? null, fn (Builder $q, int $id) => $q->whereKey($id))
+            ->when($validated['status'] ?? null, fn (Builder $q, string $status) => $q->where('status', $status))
+            ->when($validated['associate_id'] ?? null, fn (Builder $q, int $id) => $q->where('associate_id', $id))
+            ->when($validated['product_id'] ?? null, fn (Builder $q, int $id) => $q->where(function (Builder $productQuery) use ($id): void {
+                $productQuery->where('product_id', $id)
+                    ->orWhereHas('projectDemand', fn (Builder $demand) => $demand->where('product_id', $id));
+            }))
+            ->when($validated['date_from'] ?? null, fn (Builder $q, string $date) => $q->whereDate('delivery_date', '>=', $date))
+            ->when($validated['date_to'] ?? null, fn (Builder $q, string $date) => $q->whereDate('delivery_date', '<=', $date));
+
+        $paginator = $query
             ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
-            ->findOrFail($deliveryId);
+            ->orderByDesc('delivery_date')->orderByDesc('id')
+            ->paginate((int) ($validated['per_page'] ?? 24));
+        $models = collect($paginator->items());
+        $limits = $this->deliveryLimitContext($models, $project);
+        $defaultCustomerId = $project->customer_id ? (int) $project->customer_id : null;
+        $items = $models->map(fn (ProductionDelivery $delivery) => $this->deliveryViewData(
+            $delivery,
+            $limits[$delivery->id] ?? [],
+            $defaultCustomerId,
+        ));
 
-        $customers = app(ProjectDistributionCustomerService::class)->customers($project);
-
-        $limitContext = $this->deliveryLimitContext(collect([$deliveryModel]), $project);
-        $delivery = $this->deliveryViewData(
-            $deliveryModel,
-            $limitContext[$deliveryModel->id] ?? [],
-            $project->customer_id ? (int) $project->customer_id : null,
-        );
+        $counts = (clone $base)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status');
+        $filters = null;
+        if ($request->boolean('include_filters')) {
+            $associateIds = (clone $base)->distinct()->pluck('associate_id')->filter();
+            $productIds = (clone $base)->distinct()->pluck('product_id')->filter()
+                ->merge(ProjectDemand::where('tenant_id', $tenantId)->where('sales_project_id', $projectId)
+                    ->whereIn('id', (clone $base)->whereNotNull('project_demand_id')->distinct()->pluck('project_demand_id'))
+                    ->pluck('product_id'))
+                ->unique();
+            $associates = Associate::where('tenant_id', $tenantId)->whereIn('id', $associateIds)
+                ->with('user')->get()->map(fn (Associate $associate) => [
+                    'id' => (int) $associate->id,
+                    'name' => $associate->display_name,
+                ])->sortBy('name')->values();
+            $products = Product::where('tenant_id', $tenantId)->whereIn('id', $productIds)
+                ->orderBy('name')->get(['id', 'name'])->map(fn (Product $product) => [
+                    'id' => (int) $product->id,
+                    'name' => $product->name,
+                ]);
+            $filters = ['associates' => $associates, 'products' => $products];
+        }
+        $totalNet = ProductionDelivery::query()->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED)->sum('net_value');
 
         return response()->json([
             'success' => true,
-            'delivery_id' => $deliveryModel->id,
-            'desktop' => view('delivery.partials.project-delivery-row', compact('delivery', 'customers'))->render(),
-            'mobile' => view('delivery.partials.project-delivery-mobile-card', compact('delivery', 'customers'))->render(),
-        ]);
+            'data' => $items,
+            'meta' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+            'summary' => [
+                'all' => (int) $counts->sum(),
+                'pending' => (int) ($counts[DeliveryStatus::PENDING->value] ?? 0),
+                'approved' => (int) ($counts[DeliveryStatus::APPROVED->value] ?? 0),
+                'rejected' => (int) ($counts[DeliveryStatus::REJECTED->value] ?? 0),
+                'cancelled' => (int) ($counts[DeliveryStatus::CANCELLED->value] ?? 0),
+                'net' => (float) $totalNet,
+            ],
+            'filters' => $filters,
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**

@@ -9,10 +9,12 @@ use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\AssociateReceiptPayment;
 use App\Models\ProductionDelivery;
+use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateFinancialSummaryService;
 use App\Services\AssociateProjectLimitService;
+use App\Services\ProjectDemandService;
 use App\Services\ReceiptDataBuilder;
 use App\Services\TemplatedPdfService;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +27,7 @@ class AssociateProjectPortalController extends Controller
     public function __construct(
         private readonly AssociateProjectLimitService $limits,
         private readonly AssociateFinancialSummaryService $financial,
+        private readonly ProjectDemandService $demands,
     ) {
         $this->middleware(['auth', 'role:associado']);
     }
@@ -47,6 +50,8 @@ class AssociateProjectPortalController extends Controller
                 'products' => $this->limits->eligibleProducts($project, $associate),
                 'catalog_open' => (bool) $project->allow_any_product,
             ]),
+            'prices' => response()->json($this->prices($request, $project)),
+            'simulator' => response()->json($this->simulator($project, $associate)),
             'deliveries' => response()->json($this->deliveries($request, $project, $associate)),
             'distributions' => response()->json($this->distributions($request, $project, $associate)),
             'receipts' => response()->json($this->receipts($request, $project, $associate)),
@@ -211,6 +216,79 @@ class AssociateProjectPortalController extends Controller
         }));
 
         return $page->toArray();
+    }
+
+    private function prices(Request $request, SalesProject $project): array
+    {
+        $validated = $request->validate([
+            'search' => 'nullable|string|max:100',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:5|max:30',
+        ]);
+        $search = Str::lower(trim((string) ($validated['search'] ?? '')));
+        $catalog = $this->demands->catalog($project)
+            ->when($search !== '', fn ($items) => $items->filter(function (array $item) use ($search): bool {
+                $haystack = Str::lower($item['product_name'].' '.collect($item['destinations'])->pluck('customer')->implode(' '));
+
+                return Str::contains(Str::ascii($haystack), Str::ascii($search));
+            }))
+            ->values();
+        $perPage = min(30, max(5, (int) ($validated['per_page'] ?? 15)));
+        $page = max(1, (int) ($validated['page'] ?? 1));
+        $lastPage = max(1, (int) ceil($catalog->count() / $perPage));
+        $page = min($page, $lastPage);
+
+        return [
+            'data' => $catalog->forPage($page, $perPage)->values(),
+            'current_page' => $page,
+            'last_page' => $lastPage,
+            'per_page' => $perPage,
+            'total' => $catalog->count(),
+            'from' => $catalog->isEmpty() ? null : (($page - 1) * $perPage) + 1,
+            'to' => $catalog->isEmpty() ? null : min($page * $perPage, $catalog->count()),
+        ];
+    }
+
+    private function simulator(SalesProject $project, Associate $associate): array
+    {
+        $summary = $this->limits->summary($project, $associate);
+        $eligible = $this->limits->eligibleProducts($project, $associate)->keyBy('product_id');
+        $configured = $this->limits->productLimits($project, $associate)->keyBy('product_id');
+        $configuredProductIds = ProjectDemand::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('sales_project_id', $project->id)
+            ->pluck('product_id')
+            ->merge($configured->keys())
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+        $fullCatalog = $this->demands->catalog($project);
+        $catalog = $fullCatalog
+            ->map(function (array $item) use ($eligible, $configured, $configuredProductIds): array {
+                $productId = (int) $item['product_id'];
+                $limit = $configured->get($productId);
+                $availability = $eligible->get($productId);
+
+                return $item + [
+                    'configured' => $configuredProductIds->contains($productId),
+                    'configured_limit' => $limit['maximum_quantity'] ?? $availability['associate_limit'] ?? null,
+                    'remaining_quantity' => $limit['remaining_quantity'] ?? $availability['remaining_quantity'] ?? null,
+                    'delivered_quantity' => $limit['delivered_quantity'] ?? $availability['associate_delivered'] ?? 0,
+                ];
+            })
+            ->sortBy(fn (array $item) => ($item['configured'] ? '0:' : '1:').Str::lower($item['product_name']))
+            ->take(250)
+            ->values();
+
+        return [
+            'summary' => [
+                'financial_limit' => $summary['financial_limit'],
+                'financial_consumed' => $summary['financial_consumed'],
+                'financial_remaining' => $summary['financial_remaining'],
+            ],
+            'products' => $catalog,
+            'total_products' => $fullCatalog->count(),
+            'catalog_truncated' => $fullCatalog->count() > $catalog->count(),
+        ];
     }
 
     private function distributions(Request $request, SalesProject $project, Associate $associate): array

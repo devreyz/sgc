@@ -836,6 +836,7 @@ $distributionTitle = $overDistributed
 </style>
 @endonce
 
+@unless($stylesOnly ?? false)
 <tr
     id="desktop-row-{{ $delivery['id'] }}"
     data-delivery-id="{{ $delivery['id'] }}"
@@ -1167,3 +1168,4 @@ $distributionTitle = $overDistributed
         </div>
     </td>
 </tr>
+@endunless

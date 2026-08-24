@@ -37,7 +37,10 @@ class ProjectDistributionCustomerService
                     $allowed->{$method}('organization_id', $organizationIds);
                 }
             })
-            ->with('organization:id,name,short_name')
+            ->with([
+                'organization:id,name,short_name',
+                'priceTable:id,name',
+            ])
             ->orderBy('name')
             ->get(['id', 'tenant_id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
     }
