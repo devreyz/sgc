@@ -2958,6 +2958,116 @@
             }
         }
 
+        .push-permission-dialog {
+            width: min(92vw, 420px);
+            padding: 0;
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius-lg);
+            color: var(--app-text);
+            background: var(--app-surface);
+            box-shadow: var(--app-shadow-lg);
+        }
+
+        .push-permission-dialog::backdrop {
+            background: rgba(8, 24, 15, .48);
+            backdrop-filter: blur(5px);
+        }
+
+        .push-permission-content {
+            display: grid;
+            gap: 1rem;
+            padding: 1.25rem;
+        }
+
+        .push-permission-heading {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+        }
+
+        .push-permission-icon {
+            display: grid;
+            flex: 0 0 42px;
+            width: 42px;
+            height: 42px;
+            place-items: center;
+            border-radius: 10px;
+            color: var(--app-primary-700);
+            background: var(--app-primary-soft);
+            font-size: 1.35rem;
+        }
+
+        .push-permission-heading h2 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.25;
+        }
+
+        .push-permission-content > p {
+            margin: 0;
+            color: var(--app-text-secondary);
+            font-size: .86rem;
+            line-height: 1.55;
+        }
+
+        .push-permission-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: .65rem;
+        }
+
+        .push-permission-button {
+            min-height: 42px;
+            padding: .65rem .9rem;
+            border: 1px solid var(--app-border-strong);
+            border-radius: 9px;
+            color: var(--app-text);
+            background: var(--app-surface);
+            font: inherit;
+            font-size: .84rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .push-permission-button.primary {
+            border-color: var(--app-primary-700);
+            color: #fff;
+            background: var(--app-primary-700);
+        }
+
+        .push-permission-button:disabled {
+            opacity: .58;
+            cursor: wait;
+        }
+
+        .push-permission-feedback {
+            color: var(--app-danger) !important;
+            font-size: .78rem !important;
+        }
+
+        @media (max-width: 520px) {
+            .push-permission-dialog {
+                position: fixed;
+                inset: auto 0 0;
+                width: 100%;
+                max-width: none;
+                margin: 0;
+                border-right: 0;
+                border-bottom: 0;
+                border-left: 0;
+                border-radius: 16px 16px 0 0;
+            }
+
+            .push-permission-content {
+                padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+            }
+
+            .push-permission-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
     </style>
 
     @stack('styles')
@@ -3364,6 +3474,33 @@
     </main>
 
     @stack('overlays')
+
+    @if($currentTenantSlug)
+        <dialog
+            id="pushPermissionDialog"
+            class="push-permission-dialog"
+            aria-labelledby="pushPermissionTitle"
+        >
+            <div class="push-permission-content">
+                <div class="push-permission-heading">
+                    <span class="push-permission-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-bell-ringing"></i>
+                    </span>
+                    <h2 id="pushPermissionTitle">Ativar notificações</h2>
+                </div>
+                <p>Receba avisos importantes deste sistema neste dispositivo.</p>
+                <p class="push-permission-feedback" data-push-permission-feedback hidden></p>
+                <div class="push-permission-actions">
+                    <button class="push-permission-button" type="button" data-push-permission-later>
+                        Agora não
+                    </button>
+                    <button class="push-permission-button primary" type="button" data-push-permission-activate>
+                        Ativar
+                    </button>
+                </div>
+            </div>
+        </dialog>
+    @endif
    
     
     <!-- Lucide Icons -->

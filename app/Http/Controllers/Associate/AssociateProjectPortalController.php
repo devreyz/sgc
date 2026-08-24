@@ -267,9 +267,13 @@ class AssociateProjectPortalController extends Controller
                 $productId = (int) $item['product_id'];
                 $limit = $configured->get($productId);
                 $availability = $eligible->get($productId);
+                $deliveryEnabled = $configuredProductIds->contains($productId);
 
                 return $item + [
-                    'configured' => $configuredProductIds->contains($productId),
+                    // A product may be priced for a destination without being enabled for delivery.
+                    // It remains available for a planning simulation, but is visually secondary.
+                    'configured' => $deliveryEnabled,
+                    'delivery_enabled' => $deliveryEnabled,
                     'configured_limit' => $limit['maximum_quantity'] ?? $availability['associate_limit'] ?? null,
                     'remaining_quantity' => $limit['remaining_quantity'] ?? $availability['remaining_quantity'] ?? null,
                     'delivered_quantity' => $limit['delivered_quantity'] ?? $availability['associate_delivered'] ?? 0,
@@ -286,6 +290,7 @@ class AssociateProjectPortalController extends Controller
                 'financial_remaining' => $summary['financial_remaining'],
             ],
             'products' => $catalog,
+            'delivery_enabled_total' => $catalog->where('delivery_enabled', true)->count(),
             'total_products' => $fullCatalog->count(),
             'catalog_truncated' => $fullCatalog->count() > $catalog->count(),
         ];

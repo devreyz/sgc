@@ -16,6 +16,9 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString('function awSimulator(data)', $view);
         self::assertStringContainsString('function awSimQuantity(productId, value)', $view);
         self::assertStringContainsString('simulation-picker-list', $view);
+        self::assertStringContainsString('Produtos liberados para entrega', $view);
+        self::assertStringContainsString('Outros produtos para simular', $view);
+        self::assertStringNotContainsString('const candidates = configured.length', $view);
     }
 
     public function test_workspace_endpoints_are_read_only_and_catalog_is_bounded(): void
@@ -29,5 +32,7 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString("'simulator' => response()->json", $controller);
         self::assertStringContainsString('->take(250)', $controller);
         self::assertStringContainsString("->where('tenant_id', \$project->tenant_id)", $controller);
+        self::assertStringContainsString("'delivery_enabled' => \$deliveryEnabled", $controller);
+        self::assertStringContainsString("'delivery_enabled_total'", $controller);
     }
 }

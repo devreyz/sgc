@@ -1,6 +1,7 @@
 const config = window.SgcPwaConfig || {};
 const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 let deferredInstallPrompt = null;
+let permissionPromptShown = false;
 
 function base64UrlToUint8Array(value) {
     const padding = '='.repeat((4 - value.length % 4) % 4);
@@ -24,6 +25,70 @@ async function jsonRequest(url, options = {}) {
     return response.json();
 }
 
+async function endpointHash(endpoint) {
+    if (!window.crypto?.subtle) return null;
+    const digest = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint));
+    return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+async function bindCurrentSubscription(current, status) {
+    if (!current) return;
+    const hash = await endpointHash(current.endpoint);
+    if (hash && (status.session_endpoint_hashes || []).includes(hash)) return;
+
+    const payload = current.toJSON();
+    payload.contentEncoding = PushManager.supportedContentEncodings?.[0] || 'aes128gcm';
+    await jsonRequest(config.pushStoreUrl, {method:'POST',body:JSON.stringify(payload)});
+}
+
+async function subscribePush(worker, publicKey) {
+    const subscription = await worker.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToUint8Array(publicKey),
+    });
+    const payload = subscription.toJSON();
+    payload.contentEncoding = PushManager.supportedContentEncodings?.[0] || 'aes128gcm';
+    await jsonRequest(config.pushStoreUrl, {method:'POST',body:JSON.stringify(payload)});
+    return subscription;
+}
+
+function showPermissionPrompt(worker, publicKey) {
+    const dialog = document.getElementById('pushPermissionDialog');
+    if (!dialog || permissionPromptShown || dialog.open) return;
+
+    permissionPromptShown = true;
+    const activate = dialog.querySelector('[data-push-permission-activate]');
+    const later = dialog.querySelector('[data-push-permission-later]');
+    const feedback = dialog.querySelector('[data-push-permission-feedback]');
+
+    dialog.addEventListener('cancel', event => event.preventDefault(), {once:true});
+    later?.addEventListener('click', () => dialog.close(), {once:true});
+    activate?.addEventListener('click', async () => {
+        activate.disabled = true;
+        later.disabled = true;
+        if (feedback) feedback.hidden = true;
+
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') throw new Error('permission_denied');
+            await subscribePush(worker, publicKey);
+            dialog.close();
+            await refreshPushControls();
+        } catch (_) {
+            activate.disabled = false;
+            later.disabled = false;
+            if (feedback) {
+                feedback.textContent = Notification.permission === 'denied'
+                    ? 'A permissão foi bloqueada nas configurações do navegador.'
+                    : 'Não foi possível ativar as notificações agora.';
+                feedback.hidden = false;
+            }
+        }
+    });
+
+    dialog.showModal();
+}
+
 async function refreshUnreadCount() {
     if (!config.unreadCountUrl) return;
     try {
@@ -38,7 +103,7 @@ async function refreshUnreadCount() {
 async function refreshPushControls() {
     const controls = [...document.querySelectorAll('#push-toggle,[data-push-toggle]')];
     const labels = [...document.querySelectorAll('#push-status-label,[data-push-status]')];
-    if (!controls.length) return;
+    if (!config.pushStatusUrl || !config.pushStoreUrl) return;
 
     if (!('Notification' in window) || !('PushManager' in window)) {
         labels.forEach(label => label.textContent = 'Este navegador nao oferece suporte.');
@@ -48,6 +113,11 @@ async function refreshPushControls() {
 
     try {
         const status = await jsonRequest(config.pushStatusUrl);
+        if (status.schema_ready === false) {
+            labels.forEach(label => label.textContent = 'Atualizacao pendente no servidor.');
+            controls.forEach(control => { control.disabled = true; control.textContent = 'Indisponivel'; });
+            return;
+        }
         if (!status.configured) {
             labels.forEach(label => label.textContent = 'Configuracao pendente no servidor.');
             controls.forEach(control => { control.disabled = true; control.textContent = 'Indisponivel'; });
@@ -55,7 +125,13 @@ async function refreshPushControls() {
         }
 
         const worker = await registration();
-        const current = await worker.pushManager.getSubscription();
+        let current = await worker.pushManager.getSubscription();
+        await bindCurrentSubscription(current, status);
+        if (!current && Notification.permission === 'granted') {
+            current = await subscribePush(worker, status.public_key);
+        } else if (!current && Notification.permission === 'default') {
+            showPermissionPrompt(worker, status.public_key);
+        }
         labels.forEach(label => label.textContent = current ? 'Ativas neste dispositivo.' : (Notification.permission === 'denied' ? 'Permissao bloqueada no navegador.' : 'Desativadas neste dispositivo.'));
         controls.forEach(control => {
             control.disabled = Notification.permission === 'denied';
@@ -78,13 +154,7 @@ async function togglePush(worker, publicKey, current) {
         } else {
             const permission = await Notification.requestPermission();
             if (permission !== 'granted') throw new Error('permission_denied');
-            const subscription = await worker.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: base64UrlToUint8Array(publicKey),
-            });
-            const payload = subscription.toJSON();
-            payload.contentEncoding = PushManager.supportedContentEncodings?.[0] || 'aes128gcm';
-            await jsonRequest(config.pushStoreUrl, {method:'POST',body:JSON.stringify(payload)});
+            await subscribePush(worker, publicKey);
         }
         await refreshPushControls();
     } catch (_) {

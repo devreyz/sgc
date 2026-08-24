@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Auth\SecureGoogleProvider;
+use App\Exceptions\AccountProofRequiredException;
 use App\Http\Controllers\Controller;
 use App\Services\AuthenticationRedirector;
 use App\Services\GoogleAccountService;
+use App\Services\PushSubscriptionSessionService;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,6 +91,16 @@ class GoogleAuthController extends Controller
             }
 
             return redirect()->to($redirector->pathAfterLogin($user));
+        } catch (AccountProofRequiredException $exception) {
+            $request->session()->forget(['google_oidc_nonce', 'google_oauth_intent', 'google_oauth_user_id']);
+            $audit->record('google_login_failed', 'denied', [
+                'context' => ['stage' => 'account_proof_required'],
+            ], $request);
+
+            return redirect()->route('login')->with(
+                'error',
+                'Esta conta ainda nao esta vinculada ao Google. Entre com uma passkey ou solicite um novo acesso.'
+            );
         } catch (Throwable $exception) {
             report($exception);
             $request->session()->forget(['google_oidc_nonce', 'google_oauth_intent', 'google_oauth_user_id']);
@@ -101,8 +113,14 @@ class GoogleAuthController extends Controller
         }
     }
 
-    public function logout(Request $request, AuthenticationRedirector $redirector): RedirectResponse
-    {
+    public function logout(
+        Request $request,
+        AuthenticationRedirector $redirector,
+        PushSubscriptionSessionService $pushSessions,
+    ): RedirectResponse {
+        if ($request->user()) {
+            $pushSessions->revokeCurrentSession($request->user()->id, $request->session());
+        }
         $redirector->clearTenantSelection();
         Auth::logout();
         $request->session()->invalidate();

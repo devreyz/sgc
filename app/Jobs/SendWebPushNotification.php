@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\WebPush;
 
@@ -16,6 +17,7 @@ class SendWebPushNotification implements ShouldQueue
     use Queueable;
 
     public int $tries = 2;
+
     public int $timeout = 30;
 
     public function __construct(
@@ -29,6 +31,10 @@ class SendWebPushNotification implements ShouldQueue
 
     public function handle(): void
     {
+        if (! Schema::hasColumn('push_subscriptions', 'session_hash')) {
+            return;
+        }
+
         if (! User::query()->whereKey($this->userId)->where('status', true)->exists()
             || ! TenantUser::query()->forTenant($this->tenantId)->active()->where('user_id', $this->userId)->exists()) {
             return;
@@ -53,44 +59,49 @@ class SendWebPushNotification implements ShouldQueue
             'actions' => $this->payload['links'] ?? [],
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        PushSubscription::query()->active()->where('user_id', $this->userId)->each(function (PushSubscription $stored) use ($webPush, $body) {
-            try {
-                $subscription = Subscription::create([
-                    'endpoint' => $stored->endpoint,
-                    'publicKey' => $stored->public_key,
-                    'authToken' => $stored->auth_token,
-                    'contentEncoding' => $stored->content_encoding,
-                ]);
+        PushSubscription::query()
+            ->active()
+            ->where('user_id', $this->userId)
+            ->whereNotNull('session_hash')
+            ->each(function (PushSubscription $stored) use ($webPush, $body) {
+                try {
+                    $subscription = Subscription::create([
+                        'endpoint' => $stored->endpoint,
+                        'publicKey' => $stored->public_key,
+                        'authToken' => $stored->auth_token,
+                        'contentEncoding' => $stored->content_encoding,
+                    ]);
 
-                $report = $webPush->sendOneNotification($subscription, $body, [
-                    'TTL' => $this->payload['priority'] === 'critical' ? 86400 : 14400,
-                    'urgency' => in_array($this->payload['priority'], ['high', 'critical'], true) ? 'high' : 'normal',
-                ]);
+                    $report = $webPush->sendOneNotification($subscription, $body, [
+                        'TTL' => $this->payload['priority'] === 'critical' ? 86400 : 14400,
+                        'urgency' => in_array($this->payload['priority'], ['high', 'critical'], true) ? 'high' : 'normal',
+                    ]);
 
-                if ($report->isSuccess()) {
-                    $stored->forceFill(['failure_count' => 0, 'last_used_at' => now(), 'last_failure_at' => null])->save();
-                    return;
+                    if ($report->isSuccess()) {
+                        $stored->forceFill(['failure_count' => 0, 'last_used_at' => now(), 'last_failure_at' => null])->save();
+
+                        return;
+                    }
+
+                    $failures = $stored->failure_count + 1;
+                    $stored->forceFill([
+                        'failure_count' => $failures,
+                        'last_failure_at' => now(),
+                        'revoked_at' => $report->isSubscriptionExpired() || $failures >= config('notifications.subscription_failures_before_revoke', 3) ? now() : null,
+                    ])->save();
+                } catch (\Throwable $exception) {
+                    $failures = $stored->failure_count + 1;
+                    $stored->forceFill([
+                        'failure_count' => $failures,
+                        'last_failure_at' => now(),
+                        'revoked_at' => $failures >= config('notifications.subscription_failures_before_revoke', 3) ? now() : null,
+                    ])->save();
+                    Log::warning('Falha ao enviar Web Push.', [
+                        'subscription_id' => $stored->id,
+                        'notification_id' => $this->notificationId,
+                        'error' => $exception->getMessage(),
+                    ]);
                 }
-
-                $failures = $stored->failure_count + 1;
-                $stored->forceFill([
-                    'failure_count' => $failures,
-                    'last_failure_at' => now(),
-                    'revoked_at' => $report->isSubscriptionExpired() || $failures >= config('notifications.subscription_failures_before_revoke', 3) ? now() : null,
-                ])->save();
-            } catch (\Throwable $exception) {
-                $failures = $stored->failure_count + 1;
-                $stored->forceFill([
-                    'failure_count' => $failures,
-                    'last_failure_at' => now(),
-                    'revoked_at' => $failures >= config('notifications.subscription_failures_before_revoke', 3) ? now() : null,
-                ])->save();
-                Log::warning('Falha ao enviar Web Push.', [
-                    'subscription_id' => $stored->id,
-                    'notification_id' => $this->notificationId,
-                    'error' => $exception->getMessage(),
-                ]);
-            }
-        });
+            });
     }
 }

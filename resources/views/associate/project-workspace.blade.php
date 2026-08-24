@@ -2272,6 +2272,27 @@
         background: var(--ws-red);
     }
 
+    .simulation-intro {
+        display: flex;
+        gap: .48rem;
+        align-items: flex-start;
+        margin-bottom: .58rem;
+        padding: .58rem .64rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 10px;
+        color: var(--ws-secondary);
+        background: var(--ws-soft);
+        font-size: .71rem;
+        line-height: 1.45;
+    }
+
+    .simulation-intro i {
+        flex: 0 0 auto;
+        margin-top: .02rem;
+        color: var(--ws-green);
+        font-size: .95rem;
+    }
+
     .simulation-actions {
         display: flex;
         flex-wrap: wrap;
@@ -2279,6 +2300,12 @@
         align-items: center;
         justify-content: space-between;
         margin-bottom: .58rem;
+    }
+
+    .simulation-action-hint {
+        margin-right: auto;
+        color: var(--ws-muted-text);
+        font-size: .67rem;
     }
 
     .simulation-row {
@@ -2311,6 +2338,17 @@
         border-radius: 999px;
         background: var(--ws-violet-soft);
         color: var(--ws-violet) !important;
+        font-size: .58rem !important;
+        font-weight: 780;
+    }
+
+    .simulation-extra {
+        display: inline-flex !important;
+        width: max-content;
+        padding: .1rem .28rem;
+        border-radius: 999px;
+        background: var(--ws-muted);
+        color: var(--ws-muted-text) !important;
         font-size: .58rem !important;
         font-weight: 780;
     }
@@ -2400,7 +2438,29 @@
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
         gap: .34rem;
-        margin-top: .42rem;
+    }
+
+    .simulation-picker-group + .simulation-picker-group {
+        margin-top: .72rem;
+        padding-top: .68rem;
+        border-top: 1px solid var(--ws-border);
+    }
+
+    .simulation-picker-group-head {
+        display: grid;
+        gap: .08rem;
+        margin: 0 0 .42rem;
+    }
+
+    .simulation-picker-group-head strong {
+        color: var(--ws-text);
+        font-size: .72rem;
+    }
+
+    .simulation-picker-group-head span {
+        color: var(--ws-muted-text);
+        font-size: .62rem;
+        line-height: 1.35;
     }
 
     .simulation-picker-item {
@@ -2461,6 +2521,11 @@
 
         .simulation-row {
             grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .simulation-action-hint {
+            order: 3;
+            width: 100%;
         }
 
         .simulation-row .simulation-field {
@@ -3890,49 +3955,8 @@
 
     function awSimInitialize() {
         const simulator = awState.simulator;
+        // A simulation is a deliberate planning exercise. Never prefill products or quantities.
         simulator.rows = [];
-        let available = simulator.summary.financial_remaining;
-        let budget = available === null ? null : Math.max(0, Number(available || 0));
-        const configured = simulator.products.filter(product => product.configured);
-        const candidates = configured.length ? configured : simulator.products.slice(0, 1);
-
-        candidates.forEach(product => {
-            if (budget !== null && budget <= .005) return;
-            const destination = awSimDefaultDestination(product);
-            const price = Number(destination?.price || 0);
-            if (!destination || price <= 0) return;
-            let quantity = 0;
-
-            if (budget !== null) {
-                quantity = budget / price;
-                if (product.remaining_quantity !== null && product.remaining_quantity !== undefined) {
-                    quantity = Math.min(quantity, Math.max(0, Number(product.remaining_quantity)));
-                }
-                quantity = Math.floor(quantity * 1000) / 1000;
-                budget = Math.max(0, budget - (quantity * price));
-            }
-
-            if (quantity > 0 || simulator.rows.length === 0) {
-                simulator.rows.push({
-                    productId: Number(product.product_id),
-                    destinationId: Number(destination.customer_id),
-                    quantity,
-                });
-            }
-        });
-
-        if (!simulator.rows.length && simulator.products.length) {
-            const product = simulator.products[0];
-            const destination = awSimDefaultDestination(product);
-            if (destination) {
-                simulator.rows.push({
-                    productId: Number(product.product_id),
-                    destinationId: Number(destination.customer_id),
-                    quantity: 0,
-                });
-            }
-        }
-
         simulator.initialized = true;
     }
 
@@ -3962,28 +3986,45 @@
     function awSimPickerItems() {
         const search = awState.simulator.pickerSearch.trim().toLocaleLowerCase('pt-BR');
         const selected = new Set(awState.simulator.rows.map(row => Number(row.productId)));
-        const products = awState.simulator.products
-            .filter(product => !search || `${product.product_name} ${product.unit}`.toLocaleLowerCase('pt-BR').includes(search))
-            .slice(0, 18);
+        const products = awState.simulator.products.filter(product => !search
+            || `${product.product_name} ${product.unit}`.toLocaleLowerCase('pt-BR').includes(search));
 
         if (!products.length) {
             return '<div class="state-box"><div><strong>Nenhum produto encontrado</strong></div></div>';
         }
 
-        return products.map(product => `
+        const productButton = product => `
             <button
                 type="button"
                 class="simulation-picker-item"
                 onclick="awSimAdd(${Number(product.product_id)})"
                 ${selected.has(Number(product.product_id)) ? 'disabled' : ''}
             >
-                <i class="ph-duotone ${product.configured ? 'ph-check-circle' : 'ph-cube'}"></i>
+                <i class="ph-duotone ${product.delivery_enabled ? 'ph-check-circle' : 'ph-cube'}"></i>
                 <span>
                     <strong>${awEsc(product.product_name)}</strong>
-                    <small>${awEsc(product.price_label)} · ${awEsc(product.unit || 'un')}</small>
+                    <small>${product.delivery_enabled ? 'Liberado para entrega · ' : ''}${awEsc(product.price_label)} · ${awEsc(product.unit || 'un')}</small>
                 </span>
             </button>
-        `).join('');
+        `;
+        const enabled = products.filter(product => product.delivery_enabled).slice(0, 12);
+        const additional = products.filter(product => !product.delivery_enabled).slice(0, search ? 18 : 12);
+        const section = (title, description, items) => items.length ? `
+            <div class="simulation-picker-group">
+                <div class="simulation-picker-group-head"><strong>${title}</strong><span>${description}</span></div>
+                <div class="simulation-picker-list">${items.map(productButton).join('')}</div>
+            </div>
+        ` : '';
+
+        return section(
+            search ? 'Resultados liberados para entrega' : 'Produtos liberados para entrega',
+            'Têm demanda ou cota configurada para este projeto.',
+            enabled
+        ) + section(
+            search ? 'Outros resultados da tabela de preços' : 'Outros produtos para simular',
+            'Também podem ser usados para comparar cenários; não alteram suas cotas.',
+            additional
+        ) || '<div class="state-box"><div><strong>Nenhum produto disponível</strong></div></div>';
     }
 
     function awSimRow(item) {
@@ -4012,7 +4053,7 @@
                     <div class="simulation-product-copy">
                         <strong>${awEsc(product.product_name)}</strong>
                         <span>${awEsc(product.unit || 'un')} · ${awMoney(price)} por ${awEsc(product.unit || 'un')}</span>
-                        ${product.configured ? '<span class="simulation-configured">Configurado no projeto</span>' : ''}
+                        ${product.delivery_enabled ? '<span class="simulation-configured">Liberado para entrega</span>' : '<span class="simulation-extra">Somente simulação</span>'}
                     </div>
                 </div>
                 <div class="simulation-field">
@@ -4060,7 +4101,7 @@
                         ? `Acima dos ${awQty(remaining)} ${awEsc(product.unit || '')} disponíveis na configuração atual.`
                         : (product.configured && remaining !== null
                             ? `${awQty(remaining)} ${awEsc(product.unit || '')} disponíveis na configuração atual.`
-                            : 'Produto adicional usado somente nesta simulação.')}
+                            : 'Produto sem cota configurada: use-o apenas para comparar um possível cenário.')}
                 </div>
             </article>
         `;
@@ -4071,6 +4112,9 @@
         simulator.products = data.products || [];
         simulator.summary = data.summary || {};
         simulator.catalogTruncated = !!data.catalog_truncated;
+        simulator.deliveryEnabledTotal = Number(
+            data.delivery_enabled_total ?? simulator.deliveryEnabledTotal ?? 0
+        );
 
         if (!simulator.initialized) {
             awSimInitialize();
@@ -4089,7 +4133,10 @@
             <section class="workspace-section">
                 ${awSectionHeader(`${simulator.rows.length} produto(s)`, 'simulator')}
                 <div class="section-body">
-                    ${awSectionGuide('simulator')}
+                    <div class="simulation-intro">
+                        <i class="ph-duotone ph-calculator"></i>
+                        <span>Escolha os produtos e informe as quantidades para comparar o valor com o seu saldo disponível. A simulação não registra entrega.</span>
+                    </div>
                     <div class="simulation-summary ${remaining !== null && remaining < -.005 ? 'is-over' : ''}" id="simulation-summary">
                         <div class="simulation-summary-item">
                             <span>Disponível para entregar</span>
@@ -4107,11 +4154,12 @@
                     </div>
                     <div class="simulation-actions">
                         <button type="button" class="simulation-add" onclick="awSimTogglePicker()">
-                            <i class="ph ph-plus"></i> Adicionar produto
+                            <i class="ph ph-plus"></i> Escolher produto
                         </button>
-                        <button type="button" class="text-button" onclick="awSimReset()">
+                        <span class="simulation-action-hint">${simulator.deliveryEnabledTotal} produto(s) liberado(s) para entrega</span>
+                        ${simulator.rows.length ? `<button type="button" class="text-button" onclick="awSimReset()">
                             <i class="ph ph-arrow-counter-clockwise"></i> Recomeçar
-                        </button>
+                        </button>` : ''}
                     </div>
                     <div class="simulation-picker" id="simulation-picker" ${simulator.pickerOpen ? '' : 'hidden'}>
                         <div class="search-field">
@@ -4129,7 +4177,7 @@
                     </div>
                     ${totals.rows.length
                         ? `<div class="simulation-list">${totals.rows.map(awSimRow).join('')}</div>`
-                        : awEmpty('Adicione um produto', 'Escolha um produto para começar a simulação.', 'ph-calculator')}
+                        : awEmpty('Escolha um produto', 'Comece pelos produtos liberados para entrega ou compare outro produto da tabela de preços.', 'ph-calculator')}
                     ${simulator.catalogTruncated
                         ? '<div class="section-guide prices"><span class="section-guide-icon"><i class="ph-duotone ph-info"></i></span><div class="section-guide-copy">O catálogo é muito grande. Os primeiros 250 produtos estão disponíveis nesta simulação.</div></div>'
                         : ''}
@@ -4168,7 +4216,7 @@
                     ? `Acima dos ${awQty(configuredRemaining)} ${item.product.unit || ''} disponíveis na configuração atual.`
                     : (item.product?.configured && configuredRemaining !== null
                         ? `${awQty(configuredRemaining)} ${item.product.unit || ''} disponíveis na configuração atual.`
-                        : 'Produto adicional usado somente nesta simulação.');
+                        : 'Produto sem cota configurada: use-o apenas para comparar um possível cenário.');
             }
         });
     }

@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
-use App\Models\TenantUser;
+use App\Models\Passkey;
 use App\Models\TenantCloudStorageConnection;
+use App\Models\TenantUser;
 use App\Models\User;
 use App\Services\AccessInvitationService;
+use App\Services\EmailSwapService;
 use App\Services\GoogleAccountService;
 use App\Services\GoogleDriveClientFactory;
 use Illuminate\Database\Schema\Blueprint;
@@ -623,10 +625,10 @@ class AccessInvitationSecurityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->assertFalse(\App\Models\Passkey::query()
+        $this->assertFalse(Passkey::query()
             ->where('credential_id', 'credential-expired')
             ->exists());
-        $this->assertTrue(\App\Models\Passkey::withoutGlobalScope('usable')
+        $this->assertTrue(Passkey::withoutGlobalScope('usable')
             ->where('credential_id', 'credential-expired')
             ->exists());
     }
@@ -685,10 +687,44 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertDatabaseCount('users', 1);
     }
 
+    public function test_email_swap_never_reactivates_a_disabled_global_account(): void
+    {
+        [$actor, $tenantId] = $this->fixture();
+        $membership = TenantUser::query()->where('tenant_id', $tenantId)->where('user_id', $actor->id)->firstOrFail();
+        User::withoutEvents(fn () => User::query()->create([
+            'name' => 'Disabled',
+            'email' => 'disabled@example.test',
+            'status' => false,
+            'password' => bcrypt('unused-secret'),
+        ]));
+
+        $this->actingAs($actor)->withSession(['tenant_id' => $tenantId]);
+        $result = app(EmailSwapService::class)->swap($membership, 'disabled@example.test', $actor->id);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame($actor->id, $membership->fresh()->user_id);
+        $this->assertFalse(User::query()->where('email', 'disabled@example.test')->firstOrFail()->status);
+    }
+
+    public function test_email_swap_to_new_account_requires_access_setup_and_preserves_local_identity(): void
+    {
+        [$actor, $tenantId] = $this->fixture();
+        $membership = TenantUser::query()->where('tenant_id', $tenantId)->where('user_id', $actor->id)->firstOrFail();
+
+        $this->actingAs($actor)->withSession(['tenant_id' => $tenantId]);
+        $result = app(EmailSwapService::class)->swap($membership, 'new-owner@example.test', $actor->id);
+
+        $this->assertTrue($result['success']);
+        $this->assertTrue($result['requires_access_setup']);
+        $this->assertSame('Admin Local', $membership->fresh()->tenant_name);
+        $this->assertSame('new-owner@example.test', $membership->fresh()->user->email);
+        $this->assertDatabaseCount('oauth_accounts', 0);
+    }
+
     public function test_tenant_drive_refresh_token_is_encrypted_and_hidden(): void
     {
         [$user, $tenantId] = $this->fixture();
-        $connection = new TenantCloudStorageConnection();
+        $connection = new TenantCloudStorageConnection;
         $connection->forceFill([
             'tenant_id' => $tenantId,
             'oauth_client_id' => 'tenant-a.apps.googleusercontent.com',
@@ -723,7 +759,7 @@ class AccessInvitationSecurityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $first = new TenantCloudStorageConnection();
+        $first = new TenantCloudStorageConnection;
         $first->forceFill([
             'tenant_id' => $tenantId,
             'oauth_client_id' => 'first.apps.googleusercontent.com',
@@ -731,7 +767,7 @@ class AccessInvitationSecurityTest extends TestCase
             'status' => 'configured',
         ])->save();
 
-        $second = new TenantCloudStorageConnection();
+        $second = new TenantCloudStorageConnection;
         $second->forceFill([
             'tenant_id' => $otherTenantId,
             'oauth_client_id' => 'second.apps.googleusercontent.com',
@@ -779,7 +815,7 @@ class AccessInvitationSecurityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $connection = new TenantCloudStorageConnection();
+        $connection = new TenantCloudStorageConnection;
         $connection->forceFill([
             'tenant_id' => $otherTenantId,
             'oauth_client_id' => 'other.apps.googleusercontent.com',

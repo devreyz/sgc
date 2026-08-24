@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\AccountProofRequiredException;
 use App\Models\OAuthAccount;
 use App\Models\TenantUser;
 use App\Models\User;
@@ -49,7 +50,7 @@ class GoogleAccountService
 
                 if (! $user) {
                     if ($email && User::query()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
-                        throw new RuntimeException('Email collision requires account proof.');
+                        throw new AccountProofRequiredException('Email collision requires account proof.');
                     }
                     throw new RuntimeException('Google account is not linked.');
                 }

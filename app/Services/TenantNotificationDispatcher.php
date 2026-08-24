@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\TenantEventNotification;
 use App\Support\NotificationEventCatalog;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class TenantNotificationDispatcher
@@ -46,10 +47,7 @@ class TenantNotificationDispatcher
             throw new \InvalidArgumentException("Evento de notificacao desconhecido: {$eventKey}");
         }
 
-        $preference = NotificationEventPreference::query()
-            ->where('tenant_id', $tenantId)
-            ->where('event_key', $eventKey)
-            ->first();
+        $preference = $this->preference($eventKey, $tenantId);
 
         $databaseEnabled = $preference?->database_enabled ?? $definition['databaseDefault'];
         $pushEnabled = ($preference?->push_enabled ?? $definition['pushDefault'])
@@ -100,10 +98,7 @@ class TenantNotificationDispatcher
             return 0;
         }
 
-        $roles = NotificationEventPreference::query()
-            ->where('tenant_id', $tenantId)
-            ->where('event_key', $eventKey)
-            ->value('recipient_roles') ?? $definition['roles'];
+        $roles = $this->preference($eventKey, $tenantId)?->recipient_roles ?? $definition['roles'];
 
         if (is_string($roles)) {
             $roles = json_decode($roles, true) ?: [];
@@ -115,14 +110,15 @@ class TenantNotificationDispatcher
     public function configuredRoles(string $eventKey, int $tenantId): array
     {
         $definition = NotificationEventCatalog::get($eventKey);
-        if (! $definition) return [];
+        if (! $definition) {
+            return [];
+        }
 
-        $roles = NotificationEventPreference::query()
-            ->where('tenant_id', $tenantId)
-            ->where('event_key', $eventKey)
-            ->value('recipient_roles');
+        $roles = $this->preference($eventKey, $tenantId)?->recipient_roles;
 
-        if (is_string($roles)) $roles = json_decode($roles, true);
+        if (is_string($roles)) {
+            $roles = json_decode($roles, true);
+        }
 
         return is_array($roles) ? $roles : $definition['roles'];
     }
@@ -159,5 +155,17 @@ class TenantNotificationDispatcher
         return filled(config('notifications.vapid.subject'))
             && filled(config('notifications.vapid.public_key'))
             && filled(config('notifications.vapid.private_key'));
+    }
+
+    private function preference(string $eventKey, int $tenantId): ?NotificationEventPreference
+    {
+        if (! Schema::hasTable('notification_event_preferences')) {
+            return null;
+        }
+
+        return NotificationEventPreference::query()
+            ->where('tenant_id', $tenantId)
+            ->where('event_key', $eventKey)
+            ->first();
     }
 }

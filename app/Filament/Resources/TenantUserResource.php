@@ -342,7 +342,7 @@ class TenantUserResource extends Resource
                             ->email()
                             ->required()
                             ->maxLength(255)
-                            ->helperText('Se já existir um usuário com este email, o vínculo será transferido. Se não, um novo usuário será criado.'),
+                            ->helperText('O acesso será transferido para uma conta global ativa. Google nunca será vinculado apenas pela coincidência do email.'),
                     ])
                     ->requiresConfirmation()
                     ->modalHeading('Trocar Email do Membro')
@@ -352,10 +352,15 @@ class TenantUserResource extends Resource
                         $result = $service->swap($record, $data['new_email'], auth()->id());
 
                         if ($result['success']) {
+                            $body = $result['message'];
+                            if ($result['requires_access_setup'] ?? false) {
+                                $body .= ' O novo titular ainda nao possui Google vinculado nem passkey. Use a acao Acesso para emitir um convite seguro.';
+                            }
                             Notification::make()
                                 ->success()
                                 ->title('Email alterado com sucesso')
-                                ->body($result['message'])
+                                ->body($body)
+                                ->persistent()
                                 ->send();
                         } else {
                             Notification::make()

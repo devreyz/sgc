@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -40,21 +41,34 @@ class EmailSwapService
     /**
      * Executa a troca de email de um membro da organização.
      *
-     * @param TenantUser $tenantUser O vínculo do membro
-     * @param string $newEmail O novo email desejado
-     * @param int|null $performedBy ID do usuário que está executando (admin)
+     * @param  TenantUser  $tenantUser  O vínculo do membro
+     * @param  string  $newEmail  O novo email desejado
+     * @param  int|null  $performedBy  ID do usuário que está executando (admin)
      * @return array Resultado da operação
      *
      * @throws \RuntimeException Se o novo email já está vinculado à mesma organização
      */
     public function swap(TenantUser $tenantUser, string $newEmail, ?int $performedBy = null): array
     {
-        $newEmail = strtolower(trim($newEmail));
+        $newEmail = mb_strtolower(trim($newEmail));
+        $tenantId = (int) $tenantUser->tenant_id;
         $oldUser = $tenantUser->user;
-        $tenantId = $tenantUser->tenant_id;
+
+        if (! filter_var($newEmail, FILTER_VALIDATE_EMAIL) || mb_strlen($newEmail) > 255) {
+            return ['success' => false, 'message' => 'Informe um email valido.'];
+        }
+
+        if (! $oldUser) {
+            return ['success' => false, 'message' => 'A conta atual deste membro nao foi localizada.'];
+        }
+
+        if ($performedBy && (int) session('tenant_id') !== $tenantId
+            && ! User::query()->whereKey($performedBy)->first()?->isSuperAdmin()) {
+            return ['success' => false, 'message' => 'Nao foi possivel alterar o acesso desta organizacao.'];
+        }
 
         // Validar que o email realmente mudou
-        if ($oldUser->email === $newEmail) {
+        if (mb_strtolower((string) $oldUser->email) === $newEmail) {
             return [
                 'success' => false,
                 'message' => 'O novo email é igual ao email atual.',
@@ -63,7 +77,7 @@ class EmailSwapService
 
         // Verificar se o novo email já está vinculado à MESMA organização
         $existingMembership = TenantUser::where('tenant_id', $tenantId)
-            ->whereHas('user', fn ($q) => $q->where('email', $newEmail))
+            ->whereHas('user', fn ($q) => $q->whereRaw('LOWER(email) = ?', [$newEmail]))
             ->where('id', '!=', $tenantUser->id)
             ->first();
 
@@ -75,22 +89,44 @@ class EmailSwapService
         }
 
         return DB::transaction(function () use ($tenantUser, $newEmail, $oldUser, $tenantId, $performedBy) {
+            $lockedMembership = TenantUser::query()
+                ->whereKey($tenantUser->id)
+                ->where('tenant_id', $tenantId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless((int) $lockedMembership->user_id === (int) $oldUser->id, 409, 'O acesso foi alterado por outra operacao.');
+
             // 1. Buscar ou criar User com o novo email
-            $newUser = User::withTrashed()->where('email', $newEmail)->first();
+            $newUser = User::withTrashed()
+                ->whereRaw('LOWER(email) = ?', [$newEmail])
+                ->lockForUpdate()
+                ->first();
             $userAction = 'reutilizado';
 
-            if (!$newUser) {
+            if (! $newUser) {
                 $newUser = User::create([
-                    'name' => $oldUser->getRawOriginal('name'),
+                    'name' => trim((string) $lockedMembership->tenant_name) ?: null,
                     'email' => $newEmail,
                     'password' => Hash::make(Str::random(32)), // Senha temporária segura
                     'status' => true,
                 ]);
                 $userAction = 'criado';
-            } elseif ($newUser->trashed()) {
-                // Se o User existia mas estava soft-deleted, restaurar
-                $newUser->restore();
-                $userAction = 'restaurado';
+            } elseif ($newUser->trashed() || ! $newUser->status) {
+                return [
+                    'success' => false,
+                    'message' => 'A conta deste email esta desativada. A reativacao global deve ser revisada antes da troca.',
+                ];
+            }
+
+            $duplicate = TenantUser::query()
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $newUser->id)
+                ->whereKeyNot($lockedMembership->id)
+                ->lockForUpdate()
+                ->exists();
+            if ($duplicate) {
+                return ['success' => false, 'message' => 'Este email ja pertence a outro membro desta organizacao.'];
             }
 
             $oldUserId = $tenantUser->user_id;
@@ -98,11 +134,13 @@ class EmailSwapService
             // 2. Atualizar o vínculo para apontar para o novo User
             // Usamos update direto para bypear proteções do model (user_id é controlado pelo serviço)
             DB::table('tenant_user')
-                ->where('id', $tenantUser->id)
+                ->where('id', $lockedMembership->id)
+                ->where('tenant_id', $tenantId)
+                ->where('user_id', $oldUserId)
                 ->update(['user_id' => $newUser->id, 'updated_at' => now()]);
 
             // 2.1. Adicionar ao histórico de emails
-            $emailHistory = $tenantUser->email_history ?? [];
+            $emailHistory = $lockedMembership->email_history ?? [];
             $emailHistory[] = [
                 'email' => $oldUser->email,
                 'changed_at' => now()->toDateTimeString(),
@@ -110,20 +148,25 @@ class EmailSwapService
                 'new_email' => $newEmail,
             ];
             DB::table('tenant_user')
-                ->where('id', $tenantUser->id)
+                ->where('id', $lockedMembership->id)
                 ->update(['email_history' => json_encode($emailHistory)]);
 
             // 3. Atualizar Associate.user_id se existir
-            $associateUpdated = DB::table('associates')
-                ->where('user_id', $oldUserId)
-                ->where('tenant_id', $tenantId)
-                ->update(['user_id' => $newUser->id]);
+            $associateUpdated = Schema::hasTable('associates')
+                ? DB::table('associates')->where('user_id', $oldUserId)->where('tenant_id', $tenantId)
+                    ->update(['user_id' => $newUser->id])
+                : 0;
 
             // 4. Atualizar ServiceProvider.user_id se existir
-            $providerUpdated = DB::table('service_providers')
-                ->where('user_id', $oldUserId)
-                ->where('tenant_id', $tenantId)
-                ->update(['user_id' => $newUser->id]);
+            $providerUpdated = Schema::hasTable('service_providers')
+                ? DB::table('service_providers')->where('user_id', $oldUserId)->where('tenant_id', $tenantId)
+                    ->update(['user_id' => $newUser->id])
+                : 0;
+
+            $hasGoogle = filled($newUser->google_id)
+                || $newUser->oauthAccounts()->where('provider', 'google')->exists();
+            $hasPasskey = $newUser->passkeys()->exists();
+            $requiresAccessSetup = ! $hasGoogle && ! $hasPasskey;
 
             // 5. Registrar log de auditoria
             activity('email_swap')
@@ -147,18 +190,21 @@ class EmailSwapService
                 'tenant_user_id' => $tenantUser->id,
                 'old_user_id' => $oldUserId,
                 'new_user_id' => $newUser->id,
-                'old_email' => $oldUser->email,
-                'new_email' => $newEmail,
+                'old_email_hash' => hash('sha256', mb_strtolower((string) $oldUser->email)),
+                'new_email_hash' => hash('sha256', $newEmail),
                 'performed_by' => $performedBy ?? auth()->id(),
             ]);
 
             return [
                 'success' => true,
-                'message' => "Email alterado com sucesso. User {$userAction}.",
+                'message' => $userAction === 'criado'
+                    ? 'Email alterado e nova conta de acesso preparada.'
+                    : 'Email alterado e acesso transferido para a conta existente.',
                 'old_email' => $oldUser->email,
                 'new_email' => $newEmail,
                 'new_user_id' => $newUser->id,
                 'user_action' => $userAction,
+                'requires_access_setup' => $requiresAccessSetup,
             ];
         });
     }
