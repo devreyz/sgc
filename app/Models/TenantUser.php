@@ -121,7 +121,10 @@ class TenantUser extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        // Old versions could soft-delete the global account while retaining
+        // this membership. Keep it visible so an organization admin can
+        // restore the access deliberately instead of creating a duplicate.
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function tenant(): BelongsTo

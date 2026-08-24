@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Delivery;
 
+use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
@@ -64,6 +65,65 @@ class DeliveryRegistrationController extends Controller
     private function memberTerm(bool $plural = false): string
     {
         return $this->currentTenant()?->associateTerm(plural: $plural) ?: ($plural ? 'Membros' : 'Membro');
+    }
+
+    /**
+     * Opens the same read-only simulator used by the member portal, scoped to
+     * a member explicitly selected by an authorized delivery recorder.
+     */
+    public function simulateAssociate(Request $request)
+    {
+        [$project, $associate, $tenant] = $this->simulatorContext($request);
+        $historyScope = substr(hash_hmac(
+            'sha256',
+            implode(':', [$project->tenant_id, $project->id, $associate->id, $request->user()->id]),
+            (string) config('app.key'),
+        ), 0, 32);
+
+        return view('associate.project-simulator', [
+            'project' => $project,
+            'associate' => $associate,
+            'historyScope' => $historyScope,
+            'simulatorTitle' => 'Simular entrega',
+            'simulatorSubtitle' => $associate->display_name,
+            'simulatorHeading' => 'Simular para '.$associate->display_name,
+            'simulatorProjectLabel' => $project->title,
+            'simulatorRole' => 'Registrador de Entregas',
+            'simulatorNavigation' => \App\Support\PortalNavigation::make('delivery', 'register', $tenant->slug),
+            'simulatorBackUrl' => route('delivery.register', ['tenant' => $tenant->slug, 'project' => $project->id]),
+            'simulatorEndpoint' => route('delivery.projects.associates.simulator.data', [
+                'tenant' => $tenant->slug,
+                'project' => $project->id,
+                'associate' => $associate->id,
+            ]),
+        ]);
+    }
+
+    public function simulateAssociateData(Request $request)
+    {
+        [$project, $associate] = $this->simulatorContext($request);
+
+        return response()->json(
+            app(AssociateProjectPortalController::class)->simulatorData($project, $associate)
+        );
+    }
+
+    private function simulatorContext(Request $request): array
+    {
+        $tenant = $this->currentTenant();
+        abort_unless($tenant && (int) $tenant->id === (int) session('tenant_id'), 403);
+
+        $project = SalesProject::query()
+            ->where('tenant_id', $tenant->id)
+            ->with(['customer.priceTable', 'customers.priceTable'])
+            ->findOrFail((int) $request->route('project'));
+        $associate = Associate::query()
+            ->where('tenant_id', $tenant->id)
+            ->findOrFail((int) $request->route('associate'));
+
+        app(AssociateProjectLimitService::class)->assertContext($project, $associate);
+
+        return [$project, $associate, $tenant];
     }
 
     private function associateReceiptColumns(

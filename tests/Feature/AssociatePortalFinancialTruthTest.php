@@ -178,6 +178,12 @@ class AssociatePortalFinancialTruthTest extends TestCase
         $this->assertEqualsWithDelta(231.45, $summary['total_fees'], 0.00001);
         $this->assertEqualsWithDelta(2083.05, $summary['total_net'], 0.00001);
         $this->assertEqualsWithDelta(2083.05, $summary['unbilled'], 0.00001);
+        $this->assertCount(2, $summary['fee_breakdown']);
+        $this->assertEqualsWithDelta(
+            $summary['total_fees'],
+            array_sum(array_column($summary['fee_breakdown'], 'amount')),
+            0.00001,
+        );
     }
 
     private function insertDelivery(

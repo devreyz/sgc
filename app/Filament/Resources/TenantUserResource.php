@@ -66,6 +66,21 @@ class TenantUserResource extends Resource
                             ->email()
                             ->required()
                             ->maxLength(255)
+                            ->rule(function () {
+                                return function (string $attribute, mixed $value, \Closure $fail): void {
+                                    $email = mb_strtolower(trim((string) $value));
+                                    $user = User::withTrashed()
+                                        ->whereRaw('LOWER(email) = ?', [$email])
+                                        ->first();
+
+                                    if ($user && TenantUser::query()
+                                        ->where('tenant_id', session('tenant_id'))
+                                        ->where('user_id', $user->id)
+                                        ->exists()) {
+                                        $fail('Este e-mail já possui um vínculo nesta organização. Localize o membro na lista e reative ou restaure o acesso existente.');
+                                    }
+                                };
+                            })
                             ->visible(fn (string $operation): bool => $operation === 'create')
                             ->helperText('Se o email já existir, a conta será vinculada. Caso contrário, uma nova conta será criada.')
                             ->live(onBlur: true)
@@ -272,6 +287,30 @@ class TenantUserResource extends Resource
                     ->boolean()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('access_state')
+                    ->label('Acesso')
+                    ->badge()
+                    ->state(function (TenantUser $record): string {
+                        if ($record->user?->trashed()) {
+                            return 'Conta removida';
+                        }
+
+                        if (! $record->status) {
+                            return 'Membro desativado';
+                        }
+
+                        if (! $record->user?->status) {
+                            return 'Conta global inativa';
+                        }
+
+                        return 'Liberado';
+                    })
+                    ->color(fn (string $state): string => match ($state) {
+                        'Liberado' => 'success',
+                        'Membro desativado' => 'warning',
+                        default => 'danger',
+                    }),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Vinculado em')
                     ->dateTime('d/m/Y H:i')
@@ -308,6 +347,43 @@ class TenantUserResource extends Resource
                         'membership' => $record->id,
                     ])),
                 Tables\Actions\EditAction::make(),
+
+                Tables\Actions\Action::make('restoreAccount')
+                    ->label('Restaurar conta')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (TenantUser $record): bool => (bool) $record->user?->trashed())
+                    ->requiresConfirmation()
+                    ->modalHeading('Restaurar acesso do membro?')
+                    ->modalDescription('A conta global removida será restaurada e este vínculo voltará a ficar ativo. Nenhuma permissão nova será criada.')
+                    ->action(function (TenantUser $record): void {
+                        \Illuminate\Support\Facades\DB::transaction(function () use ($record): void {
+                            $membership = TenantUser::query()->lockForUpdate()->findOrFail($record->id);
+                            $user = User::withTrashed()->lockForUpdate()->findOrFail($membership->user_id);
+
+                            if ($user->trashed()) {
+                                $user->restore();
+                            }
+
+                            $membership->activate();
+
+                            activity('tenant_member_access')
+                                ->performedOn($membership)
+                                ->causedBy(auth()->user())
+                                ->withProperties([
+                                    'tenant_id' => $membership->tenant_id,
+                                    'tenant_user_id' => $membership->id,
+                                    'user_id' => $membership->user_id,
+                                ])
+                                ->log('member.account_restored');
+                        });
+
+                        Notification::make()
+                            ->success()
+                            ->title('Conta restaurada')
+                            ->body('O vínculo foi reativado e o membro pode voltar a entrar pelos métodos permitidos.')
+                            ->send();
+                    }),
 
                 // Ação: Ativar/Desativar vínculo
                 Tables\Actions\Action::make('toggleStatus')
@@ -353,9 +429,6 @@ class TenantUserResource extends Resource
 
                         if ($result['success']) {
                             $body = $result['message'];
-                            if ($result['requires_access_setup'] ?? false) {
-                                $body .= ' O novo titular ainda nao possui Google vinculado nem passkey. Use a acao Acesso para emitir um convite seguro.';
-                            }
                             Notification::make()
                                 ->success()
                                 ->title('Email alterado com sucesso')

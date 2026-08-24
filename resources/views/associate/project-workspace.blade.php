@@ -2123,6 +2123,23 @@
         }
     }
 
+    .summary-progress-caption {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: .3rem .7rem;
+        margin-top: .38rem;
+        color: var(--ws-secondary);
+        font-size: .72rem;
+        line-height: 1.35;
+    }
+
+    .summary-progress-caption strong {
+        color: var(--ws-text);
+        font-size: inherit;
+        font-weight: 800;
+    }
+
     .summary-simulator-action {
         display: inline-flex;
         width: max-content;
@@ -2199,6 +2216,36 @@
         color: var(--ws-green);
         font-size: .78rem;
         font-weight: 840;
+        white-space: nowrap;
+    }
+
+    .summary-fee-details {
+        display: flex;
+        grid-column: 2 / -1;
+        flex-wrap: wrap;
+        gap: .32rem;
+        padding-top: .06rem;
+    }
+
+    .summary-fee-detail {
+        display: inline-flex;
+        max-width: 100%;
+        gap: .26rem;
+        align-items: center;
+        padding: .22rem .38rem;
+        border: 1px solid var(--ws-border);
+        border-radius: 7px;
+        background: var(--ws-soft);
+        color: var(--ws-secondary);
+        font-size: .66rem;
+        font-weight: 720;
+        line-height: 1.25;
+    }
+
+    .summary-fee-detail strong {
+        color: var(--ws-text);
+        font: inherit;
+        font-weight: 850;
         white-space: nowrap;
     }
 
@@ -2868,7 +2915,7 @@
         },
 
         distributions: {
-            title: 'Distribuições e destinos',
+            title: 'Entregas por destino',
             subtitle: 'Para onde cada quantidade foi destinada.',
             icon: 'ph-map-pin-line',
             iconClass: 'distributions',
@@ -2933,17 +2980,17 @@
         },
 
         distributions: {
-            title: 'Sobre os destinos',
+            title: 'Sobre as entregas por destino',
             body:
-                'Uma distribuição informa para onde parte de uma entrega foi '
-                + 'destinada. Os valores financeiros e os comprovantes são '
-                + 'calculados a partir dessas distribuições.',
+                'Aqui você acompanha para onde cada parte das suas entregas foi '
+                + 'destinada. Os valores e os comprovantes são atualizados '
+                + 'conforme os destinos confirmados.',
         },
 
         receipts: {
             title: 'Sobre os comprovantes',
             body:
-                'O comprovante reúne distribuições já processadas. '
+                'O comprovante reúne entregas já processadas. '
                 + 'O valor líquido corresponde ao valor bruto menos taxas '
                 + 'e descontos aplicáveis.',
         },
@@ -3445,15 +3492,41 @@
         const percent =
             awClampPercent(rawPercent);
 
-        const limit =
-            data.financial_limit === null
-                ? 'Sem limite definido'
-                : awMoney(data.financial_limit);
+        const hasFinancialLimit =
+            data.financial_limit !== null
+            && data.financial_limit !== undefined;
 
-        const remaining =
-            data.financial_remaining === null
-                ? 'Sem limite definido'
-                : awMoney(data.financial_remaining);
+        const limit = Number(data.financial_limit || 0);
+        const committed = Number(data.financial_consumed || 0);
+        const gross = Number(data.total_gross || 0);
+        const fees = Number(data.total_fees || 0);
+        const net = Number(data.total_net || 0);
+        const netAdjustment = net - gross;
+        const adjustmentSignal = netAdjustment < -0.005 ? '-' : (netAdjustment > 0.005 ? '+' : '');
+        const adjustmentValue = Math.abs(netAdjustment);
+        const adjustmentLabel = netAdjustment < -0.005
+            ? 'taxas e descontos'
+            : (netAdjustment > 0.005 ? 'acréscimos e ajustes' : 'sem ajustes');
+        const feeDetails = Array.isArray(data.fee_breakdown)
+            ? data.fee_breakdown.filter(fee => Math.abs(Number(fee.amount || 0)) > 0.0005)
+            : [];
+        const feeDetailsMarkup = feeDetails.length
+            ? `
+                <div class="summary-fee-details" aria-label="Detalhamento das taxas e ajustes">
+                    ${feeDetails.map(fee => {
+                        const signal = fee.nature === 'accrual' ? '+' : '-';
+                        const label = fee.label || fee.name || 'Taxa';
+
+                        return `
+                            <span class="summary-fee-detail">
+                                ${awEsc(label)}
+                                <strong>${signal}${awMoney(Math.abs(Number(fee.amount || 0)))}</strong>
+                            </span>
+                        `;
+                    }).join('')}
+                </div>
+            `
+            : '';
 
         const tone =
             awToneClass(rawPercent);
@@ -3467,20 +3540,22 @@
                         <article class="summary-main ${tone}">
                             <div class="summary-main-label">
                                 <i class="ph-duotone ph-wallet"></i>
-                                Valor disponível para entregar
+                                Valor líquido das entregas
                             </div>
 
                             <div class="summary-main-value">
-                                ${remaining}
+                                ${awMoney(net)}
                             </div>
 
                             <div class="summary-main-helper">
-                                ${data.financial_limit === null
-                                    ? 'O projeto não possui um limite financeiro definido para sua participação.'
-                                    : `${Math.round(rawPercent)}% de ${limit} já foi utilizado.`}
+                                ${awMoney(gross)} em entregas
+                                ${adjustmentSignal
+                                    ? ` ${adjustmentSignal} ${awMoney(adjustmentValue)} em ${adjustmentLabel}`
+                                    : `, ${adjustmentLabel}`}
+                                = ${awMoney(net)} líquido.
                             </div>
 
-                            ${data.financial_limit === null
+                            ${!hasFinancialLimit
                                 ? ''
                                 : `
                                     <div
@@ -3492,6 +3567,11 @@
                                         aria-valuenow="${percent}"
                                     >
                                         <span style="width:${percent}%"></span>
+                                    </div>
+
+                                    <div class="summary-progress-caption">
+                                        <span>Cota usada: <strong>${awMoney(committed)}</strong></span>
+                                        <span>Cota total: <strong>${awMoney(limit)}</strong></span>
                                     </div>
                                 `}
 
@@ -3511,9 +3591,9 @@
                                 </span>
 
                                 <div class="summary-fact-copy">
-                                    <span>Limite utilizado</span>
+                                    <span>Cota comprometida</span>
                                     <strong>
-                                        Valor consumido pelas distribuições
+                                        Valor bruto das entregas com destino confirmado
                                     </strong>
                                 </div>
 
@@ -3522,15 +3602,36 @@
                                 </span>
                             </div>
 
+                            ${hasFinancialLimit
+                                ? `
+                                    <div class="summary-fact">
+                                        <span class="summary-fact-icon used">
+                                            <i class="ph-duotone ph-wallet"></i>
+                                        </span>
+
+                                        <div class="summary-fact-copy">
+                                            <span>Saldo da cota</span>
+                                            <strong>
+                                                Valor bruto que ainda pode ser comprometido
+                                            </strong>
+                                        </div>
+
+                                        <span class="summary-fact-value">
+                                            ${awMoney(data.financial_remaining)}
+                                        </span>
+                                    </div>
+                                `
+                                : ''}
+
                             <div class="summary-fact">
                                 <span class="summary-fact-icon gross">
                                     <i class="ph-duotone ph-coins"></i>
                                 </span>
 
                                 <div class="summary-fact-copy">
-                                    <span>Valor bruto</span>
+                                    <span>Entregas confirmadas</span>
                                     <strong>
-                                        Antes de taxas e descontos
+                                        Valor antes dos ajustes aplicados
                                     </strong>
                                 </div>
 
@@ -3545,15 +3646,17 @@
                                 </span>
 
                                 <div class="summary-fact-copy">
-                                    <span>Taxas e ajustes</span>
+                                    <span>${netAdjustment > 0.005 ? 'Acréscimos e ajustes' : 'Taxas e descontos'}</span>
                                     <strong>
                                         ${awPercent(data.effective_fee_percentage)} efetivos
                                     </strong>
                                 </div>
 
                                 <span class="summary-fact-value">
-                                    ${awMoney(data.total_fees)}
+                                    ${adjustmentSignal || ''}${awMoney(adjustmentValue)}
                                 </span>
+
+                                ${feeDetailsMarkup}
                             </div>
 
                             <div class="summary-fact">
@@ -3562,9 +3665,9 @@
                                 </span>
 
                                 <div class="summary-fact-copy">
-                                    <span>Valor líquido</span>
+                                    <span>Líquido das entregas</span>
                                     <strong>
-                                        Após taxas e descontos
+                                        Valor após os ajustes aplicados
                                     </strong>
                                 </div>
 
@@ -4687,7 +4790,7 @@
                     ${rows
                         ? `<div class="records-list">${rows}</div>`
                         : awEmpty(
-                            'Nenhuma distribuição encontrada',
+                            'Nenhuma entrega por destino encontrada',
                             'Ainda não há destinos registrados para os filtros selecionados.',
                             'ph-map-pin-line'
                         )}

@@ -63,7 +63,7 @@ class AssociateProjectPortalController extends Controller
                 'catalog_open' => (bool) $project->allow_any_product,
             ]),
             'prices' => response()->json($this->prices($request, $project)),
-            'simulator' => response()->json($this->simulator($project, $associate)),
+            'simulator' => response()->json($this->simulatorData($project, $associate)),
             'deliveries' => response()->json($this->deliveries($request, $project, $associate)),
             'distributions' => response()->json($this->distributions($request, $project, $associate)),
             'receipts' => response()->json($this->receipts($request, $project, $associate)),
@@ -167,6 +167,7 @@ class AssociateProjectPortalController extends Controller
             ],
             'total_gross' => $financial['total_gross'],
             'total_fees' => $financial['total_fees'],
+            'fee_breakdown' => $financial['fee_breakdown'] ?? [],
             'effective_fee_percentage' => $financial['total_gross'] > 0
                 ? ($financial['total_fees'] / $financial['total_gross']) * 100
                 : 0,
@@ -261,16 +262,14 @@ class AssociateProjectPortalController extends Controller
         ];
     }
 
-    private function simulator(SalesProject $project, Associate $associate): array
+    public function simulatorData(SalesProject $project, Associate $associate): array
     {
         $summary = $this->limits->summary($project, $associate);
         $eligible = $this->limits->eligibleProducts($project, $associate)->keyBy('product_id');
         $configured = $this->limits->productLimits($project, $associate)->keyBy('product_id');
-        $configuredProductIds = ProjectDemand::query()
-            ->where('tenant_id', $project->tenant_id)
-            ->where('sales_project_id', $project->id)
-            ->pluck('product_id')
-            ->merge($configured->keys())
+        // The member's enabled list is distinct from the project catalog.
+        // Project products remain available under "Todos" for comparison.
+        $configuredProductIds = $eligible->keys()
             ->map(fn ($id) => (int) $id)
             ->unique();
         $fullCatalog = $this->demands->catalog($project);

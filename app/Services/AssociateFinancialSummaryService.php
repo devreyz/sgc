@@ -124,6 +124,7 @@ class AssociateFinancialSummaryService
             'distribution_count' => $distributions->count(),
             'total_gross' => $gross,
             'total_fees' => $fees,
+            'fee_breakdown' => $resolved['fee_breakdown'],
             'total_net' => $net,
             'unbilled' => $unbilled,
             'billed' => $receivable,
@@ -149,7 +150,7 @@ class AssociateFinancialSummaryService
     public function resolveDistributions(Collection $distributions, ?SalesProject $project = null, ?AssociateReceipt $receipt = null): array
     {
         if ($distributions->isEmpty()) {
-            return ['gross' => 0.0, 'fees' => 0.0, 'net' => 0.0, 'items' => []];
+            return ['gross' => 0.0, 'fees' => 0.0, 'net' => 0.0, 'items' => [], 'fee_breakdown' => []];
         }
 
         $relations = ['associateReceipt'];
@@ -172,6 +173,7 @@ class AssociateFinancialSummaryService
             return $projectId.':'.$receiptId;
         });
         $items = [];
+        $feeBreakdown = [];
 
         foreach ($groups as $group) {
             $first = $group->first();
@@ -185,6 +187,21 @@ class AssociateFinancialSummaryService
                 true,
             );
             $items += $data['distributionFinancials'];
+
+            foreach (($data['feeBreakdown']['fees'] ?? []) as $fee) {
+                $key = implode('|', [
+                    (string) ($fee['name'] ?? 'Taxa'),
+                    (string) ($fee['nature'] ?? 'discount'),
+                    (string) ($fee['label'] ?? ''),
+                ]);
+                $feeBreakdown[$key] ??= [
+                    'name' => (string) ($fee['name'] ?? 'Taxa'),
+                    'nature' => (string) ($fee['nature'] ?? 'discount'),
+                    'label' => (string) ($fee['label'] ?? ''),
+                    'amount' => 0.0,
+                ];
+                $feeBreakdown[$key]['amount'] += (float) ($fee['amount'] ?? 0);
+            }
         }
 
         return [
@@ -192,6 +209,7 @@ class AssociateFinancialSummaryService
             'fees' => (float) collect($items)->sum('fees'),
             'net' => (float) collect($items)->sum('net'),
             'items' => $items,
+            'fee_breakdown' => array_values($feeBreakdown),
         ];
     }
 

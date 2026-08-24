@@ -1652,6 +1652,480 @@
             transition-duration:.01ms !important;
         }
     }
+
+
+    /* =========================================================
+       REFINAMENTO DE LEGIBILIDADE — escala normal, sem exageros
+       ========================================================= */
+
+    .hub-context {
+        min-height:72px;
+        padding:.62rem .72rem;
+    }
+
+    .hub-context-logo {
+        width:46px;
+        height:46px;
+    }
+
+    .hub-context-logo img {
+        width:30px;
+        height:30px;
+    }
+
+    .hub-context-kicker {
+        font-size:.64rem;
+    }
+
+    .hub-context-name {
+        font-size:1rem;
+    }
+
+    .hub-context-meta {
+        font-size:.7rem;
+    }
+
+    .hub-context-meta .ph {
+        font-size:.78rem;
+    }
+
+    .hub-context-site {
+        min-height:38px;
+        padding:.38rem .56rem;
+        font-size:.7rem;
+    }
+
+    .hub-desktop-layout {
+        grid-template-columns:minmax(0,1.62fr) minmax(330px,.72fr);
+        gap:.82rem;
+    }
+
+    .hub-main-stack,
+    .hub-side-stack {
+        gap:.82rem;
+    }
+
+    .hub-panel {
+        border-radius:15px;
+    }
+
+    .hub-panel-head {
+        min-height:62px;
+        gap:.55rem;
+        padding:.58rem .68rem;
+    }
+
+    .hub-panel-icon {
+        width:38px;
+        height:38px;
+        border-radius:10px;
+    }
+
+    .hub-panel-icon .ph-duotone {
+        font-size:18px;
+    }
+
+    .hub-panel-title h2,
+    .hub-panel-title h3 {
+        font-size:.86rem;
+    }
+
+    .hub-panel-title p {
+        margin-top:.08rem;
+        font-size:.68rem;
+    }
+
+    .hub-count {
+        min-width:32px;
+        min-height:26px;
+        font-size:.66rem;
+    }
+
+    .hub-portal-area {
+        padding:.62rem;
+    }
+
+    .hub-portal-explainer {
+        margin-bottom:.58rem;
+        padding:.48rem .52rem;
+    }
+
+    .hub-portal-explainer strong {
+        font-size:.75rem;
+    }
+
+    .hub-portal-explainer span {
+        margin-top:.06rem;
+        font-size:.66rem;
+    }
+
+    .hub-search {
+        width:min(260px,100%);
+    }
+
+    .hub-search > .ph {
+        left:.62rem;
+        font-size:.82rem;
+    }
+
+    .hub-search-input {
+        min-height:40px;
+        padding:.36rem 2rem .36rem 1.9rem;
+        font-size:.72rem;
+    }
+
+    .hub-portal-grid {
+        gap:.56rem;
+    }
+
+    .hub-portal-link {
+        min-height:140px;
+        border-radius:12px;
+    }
+
+    .hub-portal-main {
+        gap:.56rem;
+        padding:.64rem;
+    }
+
+    .hub-portal-icon {
+        width:46px;
+        height:46px;
+        border-radius:11px;
+    }
+
+    .hub-portal-icon .ph-duotone {
+        font-size:21px;
+    }
+
+    .hub-portal-badge {
+        min-height:20px;
+        padding:.07rem .28rem;
+        font-size:.58rem;
+    }
+
+    .hub-portal-name {
+        margin-top:.18rem;
+        font-size:.88rem;
+    }
+
+    .hub-portal-description {
+        margin-top:.12rem;
+        font-size:.68rem;
+        line-height:1.45;
+    }
+
+    .hub-portal-cta {
+        min-height:40px;
+        padding:.36rem .58rem;
+        font-size:.7rem;
+    }
+
+    .hub-portal-cta .ph {
+        font-size:.82rem;
+    }
+
+    .hub-no-results {
+        padding:1rem;
+        font-size:.7rem;
+    }
+
+    .hub-list,
+    .hub-news-list {
+        gap:.38rem;
+        padding:.52rem;
+    }
+
+    .hub-list-link {
+        min-height:58px;
+        gap:.5rem;
+        padding:.44rem .48rem;
+    }
+
+    .hub-list-icon {
+        width:38px;
+        height:38px;
+        border-radius:10px;
+    }
+
+    .hub-list-icon .ph-duotone {
+        font-size:17px;
+    }
+
+    .hub-list-copy strong {
+        font-size:.74rem;
+    }
+
+    .hub-list-copy span {
+        margin-top:.04rem;
+        font-size:.65rem;
+    }
+
+    .hub-list-arrow {
+        font-size:.8rem;
+    }
+
+    .hub-empty {
+        padding:.9rem;
+        font-size:.68rem;
+    }
+
+    .hub-news-item {
+        gap:.5rem;
+        padding:.5rem;
+    }
+
+    .hub-news-icon {
+        width:37px;
+        height:37px;
+        border-radius:9px;
+    }
+
+    .hub-news-icon .ph-duotone {
+        font-size:17px;
+    }
+
+    .hub-news-label {
+        font-size:.58rem;
+    }
+
+    .hub-news-title {
+        margin-top:.07rem;
+        font-size:.76rem;
+    }
+
+    .hub-news-description {
+        margin-top:.08rem;
+        font-size:.66rem;
+        line-height:1.48;
+    }
+
+    .hub-news-action {
+        margin-top:.22rem;
+        font-size:.65rem;
+    }
+
+    .hub-org-summary {
+        gap:.46rem;
+        padding:.52rem;
+    }
+
+    .hub-org-main {
+        gap:.46rem;
+    }
+
+    .hub-org-logo {
+        width:40px;
+        height:40px;
+    }
+
+    .hub-org-logo img {
+        width:26px;
+        height:26px;
+    }
+
+    .hub-org-copy strong {
+        font-size:.74rem;
+    }
+
+    .hub-org-copy span {
+        margin-top:.04rem;
+        font-size:.64rem;
+    }
+
+    .hub-org-fact {
+        min-height:25px;
+        padding:.16rem .32rem;
+        font-size:.6rem;
+    }
+
+    .hub-socials {
+        gap:.3rem;
+        padding:0 .52rem .52rem;
+    }
+
+    .hub-social-link {
+        min-height:34px;
+        padding:.3rem .4rem;
+        font-size:.63rem;
+    }
+
+    @media(max-width:1080px) and (min-width:821px) {
+        .hub-desktop-layout {
+            grid-template-columns:minmax(0,1.35fr) minmax(300px,.7fr);
+        }
+    }
+
+    @media(max-width:820px) {
+        .hub-page {
+            width:min(100%,calc(100dvw - 18px));
+        }
+
+        .hub-context {
+            min-height:64px;
+            gap:.52rem;
+            margin-bottom:.5rem;
+            padding:.5rem .54rem;
+        }
+
+        .hub-context-logo {
+            width:42px;
+            height:42px;
+        }
+
+        .hub-context-logo img {
+            width:27px;
+            height:27px;
+        }
+
+        .hub-context-name {
+            font-size:.9rem;
+        }
+
+        .hub-context-meta {
+            font-size:.64rem;
+        }
+
+        .hub-mobile-screen-title {
+            min-height:54px;
+            gap:.44rem;
+            margin-bottom:.48rem;
+            padding:.44rem .5rem;
+        }
+
+        .hub-mobile-screen-icon {
+            width:36px;
+            height:36px;
+            border-radius:9px;
+        }
+
+        .hub-mobile-screen-icon .ph-duotone {
+            font-size:17px;
+        }
+
+        .hub-mobile-screen-copy strong {
+            font-size:.76rem;
+        }
+
+        .hub-mobile-screen-copy span {
+            margin-top:.04rem;
+            font-size:.63rem;
+        }
+
+        .hub-panel-head {
+            min-height:57px;
+            padding:.5rem .56rem;
+        }
+
+        .hub-panel-title h2,
+        .hub-panel-title h3 {
+            font-size:.82rem;
+        }
+
+        .hub-portal-area {
+            padding:.5rem;
+        }
+
+        .hub-portal-explainer {
+            padding:.44rem;
+        }
+
+        .hub-portal-explainer strong {
+            font-size:.72rem;
+        }
+
+        .hub-portal-explainer span {
+            font-size:.64rem;
+        }
+
+        .hub-search-input {
+            min-height:42px;
+            font-size:.72rem;
+        }
+
+        .hub-portal-grid {
+            gap:.46rem;
+        }
+
+        .hub-portal-link {
+            min-height:118px;
+        }
+
+        .hub-portal-main {
+            gap:.48rem;
+            padding:.54rem;
+        }
+
+        .hub-portal-icon {
+            width:43px;
+            height:43px;
+        }
+
+        .hub-portal-name {
+            font-size:.82rem;
+        }
+
+        .hub-portal-description {
+            font-size:.66rem;
+        }
+
+        .hub-portal-cta {
+            min-height:38px;
+            padding:.34rem .52rem;
+            font-size:.68rem;
+        }
+
+        .hub-list,
+        .hub-news-list {
+            gap:.36rem;
+            padding:.46rem;
+        }
+
+        .hub-list-link {
+            min-height:58px;
+            padding:.44rem;
+        }
+
+        .hub-list-copy strong {
+            font-size:.73rem;
+        }
+
+        .hub-list-copy span {
+            font-size:.64rem;
+        }
+
+        .hub-news-item {
+            min-height:82px;
+            padding:.48rem;
+        }
+
+        .hub-news-title {
+            font-size:.74rem;
+        }
+
+        .hub-news-description {
+            font-size:.65rem;
+        }
+
+        .hub-bottom-nav {
+            min-height:68px;
+            padding:5px;
+        }
+
+        .hub-bottom-item {
+            min-height:56px;
+            gap:4px;
+        }
+
+        .hub-bottom-item .ph-duotone {
+            font-size:21px;
+        }
+
+        .hub-bottom-item span {
+            font-size:.62rem;
+            font-weight:800;
+        }
+    }
 </style>
 
 <main class="hub-page" data-hub-root>

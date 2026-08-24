@@ -344,6 +344,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/integrity/resolve', [DeliveryRegistrationController::class, 'resolveIntegrityIssue'])->name('projects.integrity.resolve');
         Route::get('/projects/{project}/stock-summary', [DeliveryRegistrationController::class, 'getProjectStockSummary'])->name('projects.stock-summary');
         Route::get('/projects/{project}/associates/{associate}/deliveries', [DeliveryRegistrationController::class, 'getAssociateDeliveries'])->name('associates.deliveries');
+        Route::get('/projects/{project}/associates/{associate}/simulate', [DeliveryRegistrationController::class, 'simulateAssociate'])->name('projects.associates.simulator');
+        Route::get('/projects/{project}/associates/{associate}/simulate-data', [DeliveryRegistrationController::class, 'simulateAssociateData'])->name('projects.associates.simulator.data');
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');

@@ -128,10 +128,22 @@ class ReceiptDataBuilder
             ]];
         })->all();
 
+        $feeBreakdown = self::buildFeeBreakdown(
+            $billing,
+            $project,
+            $totalGross,
+            $totalFee,
+            $totalNet,
+            $snapshot,
+            $feeColumns,
+            $summary['fee_totals'],
+        );
+
         if ($financialOnly) {
             return [
                 'summary' => $summary,
                 'distributionFinancials' => $distributionFinancials,
+                'feeBreakdown' => $feeBreakdown,
             ];
         }
 
@@ -143,18 +155,6 @@ class ReceiptDataBuilder
         ])->values()->all();
 
         $hasRoundingDivergence = PricingService::hasRoundingDivergence($flatForCheck, $summary);
-
-        // Breakdown detalhado das taxas
-        $feeBreakdown = self::buildFeeBreakdown(
-            $billing,
-            $project,
-            $totalGross,
-            $totalFee,
-            $totalNet,
-            $snapshot,
-            $feeColumns,
-            $summary['fee_totals'],
-        );
 
         // Agrupar distribuições pela entrega-pai (mesma recepção = mesmo produto/data)
         $productsSummary = $deliveries

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
+use App\Exceptions\AccountProofRequiredException;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
 use App\Models\Passkey;
@@ -649,19 +650,68 @@ class AccessInvitationSecurityTest extends TestCase
             ->assertJsonValidationErrors('name');
     }
 
-    public function test_google_subject_is_primary_and_same_email_never_auto_merges(): void
+    public function test_google_login_links_a_pre_authorized_active_member_by_verified_email(): void
     {
         [$user] = $this->fixture();
 
-        try {
-            app(GoogleAccountService::class)->resolve(
-                'login', 'different-google-subject', mb_strtolower($user->email), null, null
-            );
-            $this->fail('An email collision must not merge accounts.');
-        } catch (\RuntimeException) {
-            $this->assertDatabaseCount('oauth_accounts', 0);
-            $this->assertDatabaseCount('users', 1);
-        }
+        [$resolved, $account] = app(GoogleAccountService::class)->resolve(
+            'login', 'authorized-google-subject', mb_strtolower($user->email), null, null
+        );
+
+        $this->assertSame($user->id, $resolved->id);
+        $this->assertSame('authorized-google-subject', $account->provider_subject);
+        $this->assertDatabaseCount('oauth_accounts', 1);
+    }
+
+    public function test_google_login_does_not_link_an_unrelated_email_collision(): void
+    {
+        [$user] = $this->fixture();
+        $unrelated = User::query()->create([
+            'name' => 'Unrelated',
+            'email' => 'unrelated@example.test',
+            'password' => bcrypt('unused-secret'),
+            'status' => true,
+        ]);
+
+        $this->expectException(AccountProofRequiredException::class);
+
+        app(GoogleAccountService::class)->resolve(
+            'login', 'unrelated-google-subject', mb_strtolower($unrelated->email), null, null
+        );
+    }
+
+    public function test_google_login_does_not_link_a_member_with_only_inactive_memberships(): void
+    {
+        [$user, $tenantId] = $this->fixture();
+        TenantUser::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $user->id)
+            ->update(['status' => false]);
+
+        $this->expectException(AccountProofRequiredException::class);
+
+        app(GoogleAccountService::class)->resolve(
+            'login', 'inactive-membership-subject', mb_strtolower($user->email), null, null
+        );
+    }
+
+    public function test_membership_keeps_a_soft_deleted_account_visible_for_restoration(): void
+    {
+        [$user, $tenantId] = $this->fixture();
+        User::withoutEvents(fn () => $user->delete());
+
+        $membership = TenantUser::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $user->id)
+            ->with('user')
+            ->firstOrFail();
+
+        $this->assertNotNull($membership->user);
+        $this->assertTrue($membership->user->trashed());
+        $this->assertTrue(TenantUser::query()
+            ->whereKey($membership->id)
+            ->whereHas('user')
+            ->exists());
     }
 
     public function test_linking_google_requires_recent_authentication_and_preserves_user(): void
@@ -706,7 +756,7 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertFalse(User::query()->where('email', 'disabled@example.test')->firstOrFail()->status);
     }
 
-    public function test_email_swap_to_new_account_requires_access_setup_and_preserves_local_identity(): void
+    public function test_email_swap_to_new_account_allows_google_login_and_preserves_local_identity(): void
     {
         [$actor, $tenantId] = $this->fixture();
         $membership = TenantUser::query()->where('tenant_id', $tenantId)->where('user_id', $actor->id)->firstOrFail();
@@ -715,10 +765,15 @@ class AccessInvitationSecurityTest extends TestCase
         $result = app(EmailSwapService::class)->swap($membership, 'new-owner@example.test', $actor->id);
 
         $this->assertTrue($result['success']);
-        $this->assertTrue($result['requires_access_setup']);
+        $this->assertFalse($result['requires_access_setup']);
         $this->assertSame('Admin Local', $membership->fresh()->tenant_name);
         $this->assertSame('new-owner@example.test', $membership->fresh()->user->email);
         $this->assertDatabaseCount('oauth_accounts', 0);
+
+        [$resolved] = app(GoogleAccountService::class)->resolve(
+            'login', 'new-owner-google-subject', 'new-owner@example.test', null, null
+        );
+        $this->assertSame($membership->fresh()->user_id, $resolved->id);
     }
 
     public function test_tenant_drive_refresh_token_is_encrypted_and_hidden(): void

@@ -163,10 +163,9 @@ class EmailSwapService
                     ->update(['user_id' => $newUser->id])
                 : 0;
 
-            $hasGoogle = filled($newUser->google_id)
-                || $newUser->oauthAccounts()->where('provider', 'google')->exists();
-            $hasPasskey = $newUser->passkeys()->exists();
-            $requiresAccessSetup = ! $hasGoogle && ! $hasPasskey;
+            // An active TenantUser is an explicit authorization for the
+            // verified matching Google e-mail. Passkeys remain optional.
+            $requiresAccessSetup = false;
 
             // 5. Registrar log de auditoria
             activity('email_swap')
@@ -198,7 +197,7 @@ class EmailSwapService
             return [
                 'success' => true,
                 'message' => $userAction === 'criado'
-                    ? 'Email alterado e nova conta de acesso preparada.'
+                    ? 'Email alterado. O novo email já está autorizado para entrar com Google.'
                     : 'Email alterado e acesso transferido para a conta existente.',
                 'old_email' => $oldUser->email,
                 'new_email' => $newEmail,

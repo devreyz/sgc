@@ -3925,6 +3925,11 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                 </div>
             </div>
 
+            <button class="btn-small" id="associate-simulator-btn" type="button" onclick="openAssociateSimulator()" hidden>
+                <i data-lucide="calculator"></i>
+                Simular entrega para este membro
+            </button>
+
             {{-- Date selector --}}
             <div
                 class="selector-row"
@@ -7209,11 +7214,24 @@ function selectAssociate(assoc) {
     S.dateConfirmed = false;
     $('sel-assoc').classList.add('selected');
     $('assoc-value').textContent = assoc.nickname || assoc.name;
+    $('associate-simulator-btn').hidden = false;
     closeModal('assoc');
     checkFormReady();
     renderSessionItems();
     syncKeyboardStage();
     if (S.project) loadDemands(S.project.id, assoc.id);
+}
+
+function openAssociateSimulator() {
+    if (!S.project || !S.associate) {
+        toast('Selecione um projeto e um membro primeiro.', 'warning');
+        return;
+    }
+
+    window.location.assign(
+        '/' + TENANT + '/delivery/projects/' + S.project.id
+        + '/associates/' + S.associate.id + '/simulate'
+    );
 }
 
 /* ─── Product ────────────────────────────────────── */

@@ -49,13 +49,9 @@ class GoogleAccountService
                 $user = User::query()->where('google_id', $subject)->lockForUpdate()->first();
 
                 if (! $user) {
-                    if ($email && User::query()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
-                        throw new AccountProofRequiredException('Email collision requires account proof.');
-                    }
-                    throw new RuntimeException('Google account is not linked.');
+                    $user = $this->authorizedUserForGoogleEmail($email, $subject);
+                    $account = new OAuthAccount;
                 }
-
-                $account = new OAuthAccount;
             } else {
                 throw new RuntimeException('Google account is not linked.');
             }
@@ -84,5 +80,55 @@ class GoogleAccountService
 
             return [$user, $account];
         });
+    }
+
+    /**
+     * Resolves the first Google sign-in only when the organization has already
+     * authorized the exact account through an active TenantUser membership.
+     *
+     * The verified Google e-mail is an identifier here, never an authorization
+     * on its own: an unrelated global User with the same e-mail remains blocked.
+     */
+    private function authorizedUserForGoogleEmail(?string $email, string $subject): User
+    {
+        $email = mb_strtolower(trim((string) $email));
+
+        if ($email === '') {
+            throw new AccountProofRequiredException('Missing verified Google email.');
+        }
+
+        $user = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->lockForUpdate()
+            ->first();
+
+        if (! $user) {
+            throw new AccountProofRequiredException('Google email is not pre-authorized.');
+        }
+
+        if (filled($user->google_id) && ! hash_equals((string) $user->google_id, $subject)) {
+            throw new AccountProofRequiredException('Google subject does not match the legacy binding.');
+        }
+
+        $hasDifferentGoogleAccount = OAuthAccount::query()
+            ->where('user_id', $user->id)
+            ->where('provider', 'google')
+            ->where('provider_subject', '!=', $subject)
+            ->lockForUpdate()
+            ->exists();
+        if ($hasDifferentGoogleAccount) {
+            throw new AccountProofRequiredException('Google account already belongs to another identity.');
+        }
+
+        $authorized = TenantUser::query()
+            ->where('user_id', $user->id)
+            ->where('status', true)
+            ->lockForUpdate()
+            ->exists();
+        if (! $authorized) {
+            throw new AccountProofRequiredException('No active organization authorization.');
+        }
+
+        return $user;
     }
 }
