@@ -14,8 +14,10 @@ use App\Services\DeliveryConferenceSheetService;
 use App\Services\TemplatedPdfService;
 use App\Services\TenantGoogleDriveService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class DeliveryConferenceSheetController extends Controller
 {
@@ -59,6 +61,8 @@ class DeliveryConferenceSheetController extends Controller
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'grouping_mode' => ['required', Rule::in(['customer', 'organization_detailed', 'organization_consolidated'])],
+            'distribution_ids' => ['required', 'array', 'min:1', 'max:1000'],
+            'distribution_ids.*' => ['integer', 'distinct'],
         ]);
         $project = SalesProject::withoutGlobalScopes()->where('tenant_id', $this->tenantId())->findOrFail($data['sales_project_id']);
         $data[$data['recipient_type'].'_id'] = (int) $data['recipient_id'];
@@ -67,11 +71,70 @@ class DeliveryConferenceSheetController extends Controller
         return redirect()->route('delivery.conference-sheets.show', [$tenant, $sheet])->with('success', 'Folha preparada. Confira e emita quando estiver correta.');
     }
 
+    public function eligible(Request $request, $tenant)
+    {
+        $this->authorize('create', DeliveryConferenceSheet::class);
+        $data = $request->validate([
+            'sales_project_id' => ['required', 'integer'],
+            'recipient_type' => ['required', Rule::in(['customer', 'organization'])],
+            'recipient_id' => ['required', 'integer'],
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+        ]);
+        $project = SalesProject::withoutGlobalScopes()->where('tenant_id', $this->tenantId())->findOrFail($data['sales_project_id']);
+        $customerId = $data['recipient_type'] === 'customer' ? (int) $data['recipient_id'] : null;
+        $organizationId = $data['recipient_type'] === 'organization' ? (int) $data['recipient_id'] : null;
+        $this->sheets->assertRecipient($project, $customerId, $organizationId);
+
+        $query = $this->sheets->eligibleQuery(
+            $project, $customerId, $organizationId, $data['period_start'], $data['period_end']
+        );
+        $total = (clone $query)->count();
+        if ($total > 1000) {
+            throw ValidationException::withMessages([
+                'period_end' => 'Há mais de 1.000 distribuições neste filtro. Reduza o período para conferir a seleção com segurança.',
+            ]);
+        }
+        $rows = $query->with(['product:id,name,unit', 'customer:id,name,trade_name,organization_id'])
+            ->orderBy('delivery_date')->orderBy('id')->get([
+                'id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'customer_id',
+                'product_id', 'delivery_date', 'quantity', 'status',
+            ]);
+        $used = DB::table('delivery_conference_sheet_items as item')
+            ->join('delivery_conference_sheets as sheet', 'sheet.id', '=', 'item.delivery_conference_sheet_id')
+            ->where('sheet.tenant_id', $this->tenantId())
+            ->whereIn('item.distribution_id', $rows->pluck('id'))
+            ->whereIn('sheet.status', ['draft', 'issued', 'approved', 'correction_requested'])
+            ->select(['item.distribution_id', 'sheet.id', 'sheet.number', 'sheet.status'])
+            ->get()->keyBy('distribution_id');
+
+        return response()->json([
+            'total' => $total,
+            'available' => $rows->count() - $used->count(),
+            'already_in_sheet' => $used->count(),
+            'items' => $rows->map(function ($row) use ($used): array {
+                $existing = $used->get($row->id);
+
+                return [
+                    'id' => (int) $row->id,
+                    'date' => $row->delivery_date?->format('d/m/Y'),
+                    'customer' => $row->customer?->trade_name ?: $row->customer?->name,
+                    'product' => $row->product?->name,
+                    'quantity' => rtrim(rtrim(number_format((float) $row->quantity, 4, '.', ''), '0'), '.'),
+                    'unit' => $row->product?->unit,
+                    'available' => ! $existing,
+                    'existing_sheet' => $existing?->number ?: ($existing ? 'Rascunho #'.$existing->id : null),
+                ];
+            })->values(),
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
     public function show(Request $request, $tenant, int $sheet)
     {
         $record = $this->sheet($sheet);
         $this->authorize('view', $record);
         $record->load(['project', 'customer', 'organization', 'documents.uploader', 'supersedes', 'revisions']);
+        $displaySnapshot = $record->snapshot ?: $this->sheets->previewSnapshot($record);
         $valid = $record->snapshot_hash ? $this->sheets->isCurrentlyValid($record) : null;
         $distributionIds = collect(data_get($record->snapshot, 'distributions', []))->pluck('id');
         $billing = $distributionIds->isEmpty() ? collect() : ProductionDelivery::withoutGlobalScopes()
@@ -81,7 +144,7 @@ class DeliveryConferenceSheetController extends Controller
             ->where('tenant_id', $record->tenant_id)->whereIn('id', $distributionIds)->whereNotNull('billing_receipt_id')->count();
         $coverage = $billedCount === 0 ? 'Não cobrada' : ($billedCount === $distributionIds->count() ? 'Totalmente cobrada' : 'Parcialmente cobrada');
 
-        return response()->view('delivery.conference-sheets.show', compact('record', 'valid', 'billing', 'coverage'))
+        return response()->view('delivery.conference-sheets.show', compact('record', 'displaySnapshot', 'valid', 'billing', 'coverage'))
             ->header('Cache-Control', 'no-store, private');
     }
 
@@ -217,7 +280,7 @@ class DeliveryConferenceSheetController extends Controller
     private function pdf(DeliveryConferenceSheet $sheet, array $snapshot, bool $inline)
     {
         $sheet->loadMissing('tenant');
-        $options = app(TemplatedPdfService::class)->systemPdfOptions('pdf.delivery-conference-sheet', 'Folha de Conferência de Entregas', $sheet->project, $sheet->tenant_id);
+        $options = app(TemplatedPdfService::class)->systemPdfOptions('pdf.delivery-conference-sheet', 'Folha de Conferência de Entregas', $sheet->project?->type, $sheet->tenant_id);
         $pdf = app(TemplatedPdfService::class)->generateSystemPdf('pdf.delivery-conference-sheet', compact('sheet', 'snapshot'), $options)
             ->setOption('defaultFont', 'DejaVu Sans')->setOption('isHtml5ParserEnabled', true)->setOption('isRemoteEnabled', true);
         $filename = str_replace('/', '-', $sheet->formatted_number).'-r'.$sheet->revision.'.pdf';
@@ -236,13 +299,19 @@ class DeliveryConferenceSheetController extends Controller
                 continue;
             }
             $path = $file->store('delivery-conference/'.$sheet->tenant_id.'/'.$sheet->id, 'local');
-            $document = $sheet->documents()->create([
-                'tenant_id' => $sheet->tenant_id,
-                'name' => 'Folha assinada - página '.($position + 1), 'original_name' => $file->getClientOriginalName(),
-                'path' => $path, 'disk' => 'local', 'mime_type' => $file->getMimeType(), 'size' => $file->getSize(),
-                'extension' => strtolower($file->getClientOriginalExtension()), 'category' => DocumentCategory::DELIVERY_CONFERENCE_SIGNED,
-                'document_date' => now(), 'uploaded_by' => $request->user()->id, 'notes' => 'sha256:'.$checksum,
-            ]);
+            try {
+                $document = $sheet->documents()->create([
+                    'tenant_id' => $sheet->tenant_id,
+                    'name' => 'Folha assinada - página '.($position + 1), 'original_name' => $file->getClientOriginalName(),
+                    'path' => $path, 'disk' => 'local', 'mime_type' => $file->getMimeType(), 'size' => $file->getSize(),
+                    'extension' => strtolower($file->getClientOriginalExtension()), 'category' => DocumentCategory::DELIVERY_CONFERENCE_SIGNED,
+                    'document_date' => now(), 'uploaded_by' => $request->user()->id, 'notes' => 'sha256:'.$checksum,
+                ]);
+            } catch (\Throwable $exception) {
+                Storage::disk('local')->delete($path);
+
+                throw $exception;
+            }
             try {
                 app(TenantGoogleDriveService::class)->putDocument(
                     $sheet->tenant, $document, 'delivery_conference_signed',

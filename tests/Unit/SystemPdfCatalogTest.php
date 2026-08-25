@@ -66,4 +66,17 @@ class SystemPdfCatalogTest extends TestCase
             );
         }
     }
+
+    public function test_delivery_conference_pdf_exposes_optional_financial_and_signature_configuration(): void
+    {
+        $definition = DocumentTemplate::getSystemTemplateDefinitions()['delivery_conference_sheet'];
+
+        $this->assertArrayHasKey('financial_summary', $definition['sections']);
+        $this->assertArrayHasKey('unit_price', $definition['columns']);
+        $this->assertArrayHasKey('gross_value', $definition['columns']);
+        $this->assertContains('signature', $definition['default_sections']);
+        $this->assertNotContains('financial_summary', $definition['default_sections']);
+        $this->assertNotContains('unit_price', $definition['default_columns']);
+        $this->assertNotContains('gross_value', $definition['default_columns']);
+    }
 }

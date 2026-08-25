@@ -82,6 +82,15 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // Obter todas as permissions do Shield
         $allPermissions = Permission::all();
+        $conferencePermissions = $allPermissions->whereIn('name', [
+            'view_delivery_conference_sheets',
+            'create_delivery_conference_sheets',
+            'issue_delivery_conference_sheets',
+            'review_delivery_conference_sheets',
+            'upload_delivery_conference_documents',
+            'prepare_billing_from_delivery_conference',
+            'cancel_delivery_conference_sheets',
+        ]);
 
         if ($allPermissions->isEmpty()) {
             $this->command->warn('⚠ Nenhuma permission encontrada. Execute: php artisan shield:generate --all');
@@ -141,10 +150,13 @@ class RolesAndPermissionsSeeder extends Seeder
             );
             $financeiro->givePermissionTo($accountingPermissions);
             $tesoureiro->givePermissionTo($accountingPermissions);
+            $financeiro->givePermissionTo($conferencePermissions);
+            $tesoureiro->givePermissionTo($conferencePermissions);
             $presidente->givePermissionTo($accountingPermissions->filter(
                 fn ($permission) => str_contains($permission->name, 'view_accounting')
                     || in_array($permission->name, ['send_accounting_authorizations', 'cancel_accounting_authorizations'], true)
             ));
+            $presidente->givePermissionTo($conferencePermissions->where('name', 'view_delivery_conference_sheets'));
             $contador->givePermissionTo($accountingPermissions);
             $this->command->info('✓ Financeiro: '.$financeiroPermissions->count().' permissions atribuídas');
         }
@@ -191,6 +203,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'reject_deliveries',
             'view_distributions',
             'view_receipts',
+        ]));
+        $deliveryRecorder->givePermissionTo($conferencePermissions->whereIn('name', [
+            'view_delivery_conference_sheets',
+            'create_delivery_conference_sheets',
+            'issue_delivery_conference_sheets',
+            'review_delivery_conference_sheets',
+            'upload_delivery_conference_documents',
         ]));
         $deliveryViewer->givePermissionTo($portalPermissions->whereIn('name', [
             'view_delivery_monitor',

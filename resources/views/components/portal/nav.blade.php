@@ -25,6 +25,7 @@
         'ledger'      => 'notebook',
         'register'    => 'plus',
         'printables'  => 'printer',
+        'conference'  => 'checks',
         'orders'      => 'clipboard-text',
         'financial'   => 'wallet',
         'create'      => 'plus',

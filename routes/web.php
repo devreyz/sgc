@@ -266,6 +266,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::prefix('delivery/conference-sheets')->name('delivery.conference-sheets.')->group(function () {
         Route::get('/', [DeliveryConferenceSheetController::class, 'index'])->name('index');
         Route::post('/', [DeliveryConferenceSheetController::class, 'store'])->middleware('throttle:30,1')->name('store');
+        Route::get('/eligible', [DeliveryConferenceSheetController::class, 'eligible'])->middleware('throttle:60,1')->name('eligible');
         Route::post('/prepare-billing', [DeliveryConferenceSheetController::class, 'prepareBilling'])->middleware('throttle:10,1')->name('prepare-billing');
         Route::get('/{sheet}', [DeliveryConferenceSheetController::class, 'show'])->whereNumber('sheet')->name('show');
         Route::get('/{sheet}/preview', [DeliveryConferenceSheetController::class, 'preview'])->whereNumber('sheet')->name('preview');

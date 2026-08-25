@@ -10,7 +10,7 @@ A fonte de cada linha é exclusivamente `production_deliveries` com `parent_deli
 
 ## Interface
 
-A criação ocorre exclusivamente em `/{tenant}/delivery/conference-sheets`, dentro do portal de registro de entregas. O operador escolhe projeto, cliente ou organização e período. O backend localiza as distribuições elegíveis automaticamente.
+A criação ocorre exclusivamente em `/{tenant}/delivery/conference-sheets`, dentro do portal de registro de entregas. O operador escolhe projeto, cliente ou organização e período, visualiza todas as distribuições elegíveis em tabela e seleciona explicitamente as linhas da folha. A tela oferece seleção rápida e informa quantas distribuições disponíveis estão ficando de fora.
 
 No desktop a fila usa uma tabela plana. No mobile usa cartões com número, destinatário, período, situação e ação principal. A gestão administrativa aparece no Filament em **Projetos de Venda → Folhas de Conferência**, sem ação de criação ou exclusão; o botão de criação direciona ao portal.
 
@@ -48,7 +48,11 @@ O SHA-256 usa JSON determinístico com chaves ordenadas, distribuições ordenad
 
 O PDF é gerado pelo `TemplatedPdfService`, respeitando a identidade visual configurada pelo tenant. O cabeçalho exibe **FOLHA DE CONFERÊNCIA DE ENTREGAS** e, em destaque, **DOCUMENTO DE CONFERÊNCIA — SEM VALOR FISCAL**.
 
-Cliente individual é agrupado por produto + unidade. Organização pode ser detalhada por cliente ou consolidada por produto + unidade. Unidades diferentes nunca são somadas. O documento repete o cabeçalho da tabela, evita quebra interna das linhas, inclui paginação e mantém na última parte áreas amplas para resultado, observações, nome, função, data e assinatura do responsável externo.
+Cliente individual é agrupado por produto + unidade. Para organização, cada cliente recebe uma folha separada, sempre com cabeçalho completo. Unidades diferentes nunca são somadas. Cada produto possui uma linha com quantidade e unidade na mesma coluna, caixa de seleção **OK** e espaço de correção. O documento repete o cabeçalho em quebras físicas, evita quebra interna das linhas e termina somente com assinatura do responsável e data da entrega.
+
+O modelo **Folha de Conferência de Entregas** fica disponível em Filament > Sistema > PDFs do Sistema. A configuração permite mostrar ou ocultar identificação, destinatário/projeto, checklist, resumo financeiro e assinatura; escolher data, cliente, produto, quantidade/unidade, valor médio unitário, valor total, OK e correção; ajustar escala, orientação, cabeçalho, rodapé e tema; e configurar os campos do responsável. Valores e resumo financeiro são opcionais e permanecem desativados por padrão.
+
+Snapshots versão 2 congelam valor unitário e valor bruto das distribuições. O valor médio unitário de uma linha agrupada é ponderado pela quantidade. Folhas históricas versão 1 continuam válidas, mas exibem valores como indisponíveis caso uma configuração financeira seja aplicada, evitando consultar preços atuais e alterar silenciosamente o documento histórico.
 
 ## Imagens, documentos e Google Drive
 

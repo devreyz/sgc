@@ -7,8 +7,8 @@
 
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make('delivery', 'conference', $currentTenant->slug ?? request()->route('tenant'));
-    $rows = collect(data_get($record->snapshot, 'rows', []));
-    $isDetailed = data_get($record->snapshot, 'grouping_mode') === 'organization_detailed';
+    $rows = collect(data_get($displaySnapshot, 'rows', []));
+    $isDetailed = data_get($displaySnapshot, 'grouping_mode') === 'organization_detailed';
 @endphp
 
 @section('content')
@@ -38,13 +38,13 @@
         <form id="cancel-box" hidden class="fc-form" method="post" action="{{ route('delivery.conference-sheets.cancel',[request()->route('tenant'),$record]) }}">@csrf<div class="fc-field fc-full"><label>Motivo do cancelamento</label><textarea name="reason" required minlength="5"></textarea></div><button class="fc-btn fc-danger" type="submit">Confirmar cancelamento</button></form>
         @if($record->isDraft())@can('update',$record)<form class="fc-form" method="post" action="{{ route('delivery.conference-sheets.update',[request()->route('tenant'),$record]) }}">@csrf @method('PUT')
             <div class="fc-field"><label>Período inicial</label><input type="date" name="period_start" value="{{ $record->period_start->format('Y-m-d') }}" required></div><div class="fc-field"><label>Período final</label><input type="date" name="period_end" value="{{ $record->period_end->format('Y-m-d') }}" required></div>
-            <div class="fc-field fc-full"><label>Apresentação</label><select name="grouping_mode">@if($record->organization_id)<option value="organization_detailed" @selected($record->grouping_mode->value==='organization_detailed')>Detalhado por cliente</option><option value="organization_consolidated" @selected($record->grouping_mode->value==='organization_consolidated')>Consolidado por produto</option>@else<option value="customer">Por produto e unidade</option>@endif</select></div>
+            <div class="fc-field fc-full"><label>Apresentação</label><select name="grouping_mode">@if($record->organization_id)<option value="organization_detailed">Uma folha por cliente</option>@else<option value="customer">Por produto e unidade</option>@endif</select><small>A alteração do período mantém somente as distribuições já selecionadas que continuarem dentro dele.</small></div>
             <div class="fc-full"><button class="fc-btn" type="submit">Atualizar distribuições do rascunho</button></div>
         </form>@endcan @endif
     </section>
 
-    <section class="fc-panel"><div class="fc-section-head">Itens impressos</div><div class="fc-table-wrap"><table class="fc-table"><thead><tr>@if($isDetailed)<th>Cliente</th>@endif<th>Produto</th><th>Unidade</th><th class="r">Quantidade distribuída</th></tr></thead><tbody>
-        @forelse($rows as $row)<tr>@if($isDetailed)<td>{{ data_get($row,'customer.name') }}</td>@endif<td>{{ data_get($row,'product.name') }}</td><td>{{ $row['unit'] }}</td><td class="r">{{ rtrim(rtrim(number_format((float)$row['quantity'],4,',','.'),'0'),',') }}</td></tr>@empty<tr><td colspan="4">O rascunho contém {{ $record->distributions()->count() }} distribuições. Emita para congelar e exibir o agrupamento oficial.</td></tr>@endforelse
+    <section class="fc-panel"><div class="fc-section-head">{{ $record->isDraft() ? 'Prévia das distribuições selecionadas' : 'Itens impressos' }} @if($record->isDraft())<span class="fc-badge" style="margin-left:.4rem">Ainda não emitida</span>@endif</div><div class="fc-table-wrap"><table class="fc-table"><thead><tr>@if($isDetailed)<th>Cliente</th>@endif<th>Produto</th><th>Unidade</th><th class="r">Quantidade distribuída</th></tr></thead><tbody>
+        @forelse($rows as $row)<tr>@if($isDetailed)<td>{{ data_get($row,'customer.name') }}</td>@endif<td>{{ data_get($row,'product.name') }}</td><td>{{ $row['unit'] }}</td><td class="r">{{ rtrim(rtrim(number_format((float)$row['quantity'],4,',','.'),'0'),',') }}</td></tr>@empty<tr><td colspan="4">Nenhuma distribuição selecionada está disponível para esta folha.</td></tr>@endforelse
     </tbody></table></div></section>
 
     @if($record->status === \App\Enums\DeliveryConferenceStatus::ISSUED)

@@ -420,6 +420,7 @@ HTML;
             if (($authoritative && ! $hasRuntimeScale) || ! array_key_exists('table_scale', $viewData)) {
                 $viewData['table_scale'] = $configured['table_scale'];
             }
+            $viewData['system_pdf_template'] = $configured['template'] ?? null;
         }
 
         // When NO custom layout is configured, preserve the blade view's own

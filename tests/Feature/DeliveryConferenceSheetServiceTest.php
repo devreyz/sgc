@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\DeliveryConferenceStatus;
 use App\Models\DeliveryConferenceSheet;
+use App\Models\DocumentTemplate;
 use App\Models\SalesProject;
 use App\Models\User;
 use App\Services\DeliveryConferenceSheetService;
@@ -33,14 +34,39 @@ class DeliveryConferenceSheetServiceTest extends TestCase
         self::assertSame(DeliveryConferenceStatus::DRAFT, $sheet->status);
     }
 
-    public function test_issued_sheet_has_deterministic_snapshot_without_financial_values(): void
+    public function test_draft_contains_only_the_distributions_explicitly_selected(): void
+    {
+        $sheet = app(DeliveryConferenceSheetService::class)->createDraft(SalesProject::findOrFail(10), [
+            'customer_id' => 30,
+            'period_start' => '2026-08-01',
+            'period_end' => '2026-08-31',
+            'grouping_mode' => 'customer',
+            'distribution_ids' => [104],
+        ], User::findOrFail(1));
+
+        self::assertSame([104], $sheet->distributions()->pluck('production_deliveries.id')->all());
+    }
+
+    public function test_draft_preview_groups_selected_distributions_before_issue(): void
+    {
+        $sheet = $this->createCustomerDraft();
+        $preview = app(DeliveryConferenceSheetService::class)->previewSnapshot($sheet);
+
+        self::assertSame(2, $preview['version']);
+        self::assertCount(2, $preview['rows']);
+        self::assertSame(['Banana', 'Mamão'], collect($preview['rows'])->pluck('product.name')->all());
+        self::assertNull($sheet->snapshot);
+    }
+
+    public function test_issued_sheet_has_deterministic_snapshot_with_frozen_optional_financial_values(): void
     {
         $service = app(DeliveryConferenceSheetService::class);
         $issued = $service->issue($this->createCustomerDraft(), User::findOrFail(1));
         self::assertMatchesRegularExpression('/^FC-/', $issued->number);
         self::assertSame($issued->snapshot_hash, $service->currentHash($issued));
-        self::assertArrayNotHasKey('unit_price', $issued->snapshot['distributions'][0]);
-        self::assertArrayNotHasKey('gross_value', $issued->snapshot['distributions'][0]);
+        self::assertSame(2, $issued->snapshot_version);
+        self::assertSame('2.5000', $issued->snapshot['distributions'][0]['unit_price']);
+        self::assertSame('25.0000', $issued->snapshot['distributions'][0]['gross_value']);
         self::assertCount(2, $issued->snapshot['rows']);
     }
 
@@ -133,8 +159,59 @@ class DeliveryConferenceSheetServiceTest extends TestCase
 
         self::assertStringContainsString('FOLHA DE CONFERÊNCIA', $html);
         self::assertStringContainsString('SEM VALOR FISCAL', $html);
-        self::assertStringContainsString('OBSERVAÇÕES / CORREÇÕES', mb_strtoupper($html));
-        self::assertStringNotContainsString('Valor unitário', $html);
+        self::assertStringContainsString('>OK<', $html);
+        self::assertStringContainsString('Correção', $html);
+        self::assertStringContainsString('10 kg', $html);
+        self::assertStringContainsString('Assinatura do responsável', $html);
+        self::assertStringContainsString('Data da entrega', $html);
+        self::assertStringNotContainsString('Cargo/Função', $html);
+        self::assertStringNotContainsString('RESULTADO DA CONFERÊNCIA', mb_strtoupper($html));
+        self::assertStringNotContainsString('Valor médio unit.', $html);
+    }
+
+    public function test_pdf_configuration_can_enable_financial_columns_summary_and_responsible_identity(): void
+    {
+        $sheet = app(DeliveryConferenceSheetService::class)->issue($this->createCustomerDraft(), User::findOrFail(1));
+        $template = new DocumentTemplate([
+            'consent_enabled' => true,
+            'show_recipient_signature' => true,
+            'show_representative_signature' => true,
+        ]);
+        $html = view('pdf.delivery-conference-sheet', [
+            'sheet' => $sheet,
+            'snapshot' => $sheet->snapshot,
+            'visible_sections' => ['document_info', 'recipient_info', 'distributions', 'financial_summary', 'signature'],
+            'visible_columns' => ['product', 'quantity', 'unit_price', 'gross_value', 'ok'],
+            'table_scale' => 80,
+            'system_pdf_template' => $template,
+        ])->render();
+
+        self::assertStringContainsString('Valor médio unit.', $html);
+        self::assertStringContainsString('Valor total', $html);
+        self::assertStringContainsString('R$ 2,50', $html);
+        self::assertStringContainsString('R$ 35,00', $html);
+        self::assertStringContainsString('Resumo financeiro de referência', $html);
+        self::assertStringContainsString('Nome legível do responsável', $html);
+        self::assertStringContainsString('CPF / documento', $html);
+    }
+
+    public function test_organization_pdf_creates_one_headed_page_per_customer(): void
+    {
+        $service = app(DeliveryConferenceSheetService::class);
+        $sheet = $service->createDraft(SalesProject::findOrFail(10), [
+            'organization_id' => 20,
+            'period_start' => '2026-08-01',
+            'period_end' => '2026-08-31',
+            'grouping_mode' => 'organization_detailed',
+        ], User::findOrFail(1));
+        $sheet = $service->issue($sheet, User::findOrFail(1));
+        $html = view('pdf.delivery-conference-sheet', ['sheet' => $sheet, 'snapshot' => $sheet->snapshot])->render();
+
+        self::assertSame(2, substr_count($html, '<section class="customer-page '));
+        self::assertSame(1, substr_count($html, 'class="customer-page page-break"'));
+        self::assertSame(2, substr_count($html, 'FOLHA DE CONFERÊNCIA'));
+        self::assertStringContainsString('Escola A', $html);
+        self::assertStringContainsString('Escola B', $html);
     }
 
     private function createCustomerDraft(): DeliveryConferenceSheet
@@ -158,7 +235,7 @@ class DeliveryConferenceSheetServiceTest extends TestCase
         DB::table('sales_projects')->insert(['id' => 10, 'tenant_id' => 1, 'customer_id' => 30, 'title' => 'PAA 2026', 'reference_year' => 2026, 'receipt_numbering_scope' => 'tenant_year', 'receipt_number_format' => '{prefix}{number}/{year}']);
         DB::table('sales_project_organizations')->insert(['sales_project_id' => 10, 'organization_id' => 20]);
         DB::table('products')->insert([['id' => 1, 'tenant_id' => 1, 'name' => 'Banana', 'unit' => 'kg'], ['id' => 2, 'tenant_id' => 1, 'name' => 'Mamão', 'unit' => 'kg']]);
-        $base = ['tenant_id' => 1, 'sales_project_id' => 10, 'delivery_date' => '2026-08-10', 'created_at' => now(), 'updated_at' => now(), 'deleted_at' => null];
+        $base = ['tenant_id' => 1, 'sales_project_id' => 10, 'delivery_date' => '2026-08-10', 'unit_price' => 2.5, 'created_at' => now(), 'updated_at' => now(), 'deleted_at' => null];
         DB::table('production_deliveries')->insert([
             $base + ['id' => 100, 'parent_delivery_id' => null, 'customer_id' => null, 'product_id' => 1, 'quantity' => 50, 'status' => 'approved'],
             $base + ['id' => 101, 'parent_delivery_id' => 100, 'customer_id' => 30, 'product_id' => 1, 'quantity' => 10, 'status' => 'approved'],
@@ -166,7 +243,7 @@ class DeliveryConferenceSheetServiceTest extends TestCase
             $base + ['id' => 103, 'parent_delivery_id' => 100, 'customer_id' => 30, 'product_id' => 1, 'quantity' => 3, 'status' => 'rejected'],
             $base + ['id' => 104, 'parent_delivery_id' => 100, 'customer_id' => 30, 'product_id' => 2, 'quantity' => 4, 'status' => 'approved'],
             $base + ['id' => 105, 'parent_delivery_id' => 100, 'customer_id' => 31, 'product_id' => 1, 'quantity' => 5, 'status' => 'approved'],
-            ['id' => 106, 'tenant_id' => 2, 'sales_project_id' => 10, 'delivery_date' => '2026-08-10', 'parent_delivery_id' => 100, 'customer_id' => 32, 'product_id' => 1, 'quantity' => 90, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now(), 'deleted_at' => null],
+            ['id' => 106, 'tenant_id' => 2, 'sales_project_id' => 10, 'delivery_date' => '2026-08-10', 'parent_delivery_id' => 100, 'customer_id' => 32, 'product_id' => 1, 'quantity' => 90, 'unit_price' => 2.5, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now(), 'deleted_at' => null],
         ]);
     }
 
@@ -251,6 +328,7 @@ class DeliveryConferenceSheetServiceTest extends TestCase
             $t->unsignedBigInteger('billing_receipt_id')->nullable();
             $t->date('delivery_date');
             $t->decimal('quantity', 12, 4);
+            $t->decimal('unit_price', 12, 4)->default(0);
             $t->string('status');
             $t->softDeletes();
             $t->timestamps();

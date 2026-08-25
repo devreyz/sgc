@@ -11,6 +11,7 @@ use App\Filament\Traits\TenantScoped;
 use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
+use App\Models\DeliveryConferenceSheet;
 use App\Models\Organization;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
@@ -27,6 +28,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -627,6 +629,17 @@ class CustomerBillingReceiptResource extends Resource
                     ->modalContent(fn (CustomerBillingReceipt $r) => static::renderDistributionsModal($r))
                     ->modalSubmitAction(false)->modalCancelActionLabel('Fechar'),
 
+                Tables\Actions\Action::make('viewConferenceSheets')
+                    ->label('Folhas de conferência')
+                    ->icon('heroicon-o-clipboard-document-check')
+                    ->color('info')
+                    ->visible(fn (): bool => auth()->user()?->can('viewAny', DeliveryConferenceSheet::class) ?? false)
+                    ->modalHeading(fn (CustomerBillingReceipt $r) => 'Folhas de conferência — '.$r->formatted_number)
+                    ->modalContent(fn (CustomerBillingReceipt $r) => static::renderConferenceSheetsModal($r))
+                    ->modalWidth('5xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fechar'),
+
                 Tables\Actions\Action::make('repairIntegrity')
                     ->label('Corrigir integridade')
                     ->icon('heroicon-o-wrench-screwdriver')
@@ -1017,6 +1030,48 @@ class CustomerBillingReceiptResource extends Resource
 
         return view('filament.modals.customer-billing-distributions',
             compact('receipt', 'rows', 'totalGross'));
+    }
+
+    private static function renderConferenceSheetsModal(CustomerBillingReceipt $receipt): View
+    {
+        $distributionIds = collect($receipt->delivery_ids)
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $sheets = DeliveryConferenceSheet::query()
+            ->where('tenant_id', $receipt->tenant_id)
+            ->where('sales_project_id', $receipt->sales_project_id)
+            ->whereHas('distributions', fn ($query) => $query->whereIn('production_deliveries.id', $distributionIds))
+            ->with(['customer:id,name', 'organization:id,name'])
+            ->withCount('distributions')
+            ->withCount([
+                'distributions as receipt_distributions_count' => fn ($query) => $query->whereIn('production_deliveries.id', $distributionIds),
+            ])
+            ->orderByDesc('issued_at')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $coveredIds = $distributionIds->isEmpty()
+            ? collect()
+            : DB::table('delivery_conference_sheet_items as item')
+                ->join('delivery_conference_sheets as sheet', 'sheet.id', '=', 'item.delivery_conference_sheet_id')
+                ->where('sheet.tenant_id', $receipt->tenant_id)
+                ->where('sheet.sales_project_id', $receipt->sales_project_id)
+                ->whereNull('sheet.invalidated_at')
+                ->whereIn('item.distribution_id', $distributionIds)
+                ->pluck('item.distribution_id')
+                ->map(fn ($id): int => (int) $id)
+                ->unique();
+
+        return view('filament.modals.customer-billing-conference-sheets', [
+            'receipt' => $receipt,
+            'sheets' => $sheets,
+            'totalDistributions' => $distributionIds->count(),
+            'coveredDistributions' => $coveredIds->count(),
+            'uncoveredDistributions' => $distributionIds->diff($coveredIds)->count(),
+        ]);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

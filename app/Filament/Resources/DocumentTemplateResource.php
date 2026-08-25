@@ -160,6 +160,23 @@ class DocumentTemplateResource extends Resource
                 ->visible(fn (Get $get): bool => $get('template_category') === 'system'
                     && in_array($get('system_template_key'), self::receiptTemplateKeys(), true)),
 
+            Forms\Components\Section::make('Assinatura da Folha de Conferência')
+                ->description('Configure o bloco preenchido manualmente pelo responsável que confere o recebimento.')
+                ->schema([
+                    Forms\Components\Toggle::make('consent_enabled')
+                        ->label('Exibir bloco de responsabilidade e assinatura')
+                        ->default(true),
+                    Forms\Components\Toggle::make('show_recipient_signature')
+                        ->label('Exibir linha para assinatura do responsável')
+                        ->default(true),
+                    Forms\Components\Toggle::make('show_representative_signature')
+                        ->label('Exibir campos para nome legível e documento')
+                        ->default(true),
+                ])
+                ->columns(3)
+                ->visible(fn (Get $get): bool => $get('template_category') === 'system'
+                    && $get('system_template_key') === 'delivery_conference_sheet'),
+
             // ═══ Layout: header, footer, cover & back-cover ═══
             Forms\Components\Section::make('Layout do Documento')
                 ->description(fn (Get $get) => $get('template_category') === 'system'

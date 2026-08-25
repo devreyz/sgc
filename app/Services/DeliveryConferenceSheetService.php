@@ -18,7 +18,7 @@ use Illuminate\Validation\ValidationException;
 
 class DeliveryConferenceSheetService
 {
-    public const SNAPSHOT_VERSION = 1;
+    public const SNAPSHOT_VERSION = 2;
 
     public function eligibleQuery(
         SalesProject $project,
@@ -53,7 +53,17 @@ class DeliveryConferenceSheetService
         $distributions = $supersedes
             ? $supersedes->distributions()->get()
             : $this->eligibleQuery($project, $data['customer_id'] ?? null, $data['organization_id'] ?? null, $data['period_start'], $data['period_end'])
+                ->when(! empty($data['distribution_ids']), fn (Builder $query) => $query->whereIn('id', collect($data['distribution_ids'])->map(fn ($id) => (int) $id)->unique()->all()))
                 ->orderBy('id')->get();
+
+        if (! $supersedes && ! empty($data['distribution_ids'])) {
+            $requested = collect($data['distribution_ids'])->map(fn ($id) => (int) $id)->unique();
+            if ($distributions->count() !== $requested->count()) {
+                throw ValidationException::withMessages([
+                    'distribution_ids' => 'Uma ou mais distribuições selecionadas não pertencem aos filtros informados ou deixaram de ser elegíveis.',
+                ]);
+            }
+        }
 
         if ($distributions->isEmpty()) {
             throw ValidationException::withMessages(['period_start' => 'Nenhuma distribuição aprovada foi encontrada para este destinatário e período.']);
@@ -131,13 +141,14 @@ class DeliveryConferenceSheetService
     public function updateDraft(DeliveryConferenceSheet $sheet, array $data, User $actor): DeliveryConferenceSheet
     {
         $mode = $this->validatedMode($data['grouping_mode'], (bool) $sheet->organization_id);
+        $selectedIds = $sheet->distributions()->pluck('production_deliveries.id');
         $rows = $this->eligibleQuery(
             $sheet->project,
             $sheet->customer_id ? (int) $sheet->customer_id : null,
             $sheet->organization_id ? (int) $sheet->organization_id : null,
             $data['period_start'],
             $data['period_end'],
-        )->orderBy('id')->get();
+        )->whereIn('id', $selectedIds)->orderBy('id')->get();
         if ($rows->isEmpty()) {
             throw ValidationException::withMessages(['period_start' => 'Nenhuma distribuição aprovada foi encontrada no novo período.']);
         }
@@ -207,7 +218,9 @@ class DeliveryConferenceSheetService
             return hash('sha256', 'missing-distribution');
         }
 
-        return $this->hash($this->snapshot($sheet, $rows));
+        $snapshotVersion = (int) ($sheet->snapshot_version ?: data_get($sheet->snapshot, 'version', 1));
+
+        return $this->hash($this->snapshot($sheet, $rows, $snapshotVersion));
     }
 
     public function previewSnapshot(DeliveryConferenceSheet $sheet): array
@@ -268,33 +281,56 @@ class DeliveryConferenceSheetService
         return $receipt->fresh();
     }
 
-    private function snapshot(DeliveryConferenceSheet $sheet, Collection $distributions): array
+    private function snapshot(DeliveryConferenceSheet $sheet, Collection $distributions, int $version = self::SNAPSHOT_VERSION): array
     {
-        $rows = $distributions->sortBy('id')->map(fn (ProductionDelivery $distribution) => [
-            'id' => (int) $distribution->id,
-            'date' => $distribution->delivery_date?->format('Y-m-d'),
-            'customer' => ['id' => (int) $distribution->customer_id, 'name' => (string) $distribution->customer?->name],
-            'product' => ['id' => (int) $distribution->product_id, 'name' => (string) $distribution->product?->name],
-            'unit' => (string) $distribution->product?->unit,
-            'quantity' => number_format((float) $distribution->quantity, 4, '.', ''),
-        ])->values()->all();
+        $rows = $distributions->sortBy('id')->map(function (ProductionDelivery $distribution) use ($version): array {
+            $row = [
+                'id' => (int) $distribution->id,
+                'date' => $distribution->delivery_date?->format('Y-m-d'),
+                'customer' => ['id' => (int) $distribution->customer_id, 'name' => (string) $distribution->customer?->name],
+                'product' => ['id' => (int) $distribution->product_id, 'name' => (string) $distribution->product?->name],
+                'unit' => (string) $distribution->product?->unit,
+                'quantity' => number_format((float) $distribution->quantity, 4, '.', ''),
+            ];
+
+            if ($version >= 2) {
+                $unitPrice = (float) ($distribution->unit_price ?? 0);
+                $row['unit_price'] = number_format($unitPrice, 4, '.', '');
+                $row['gross_value'] = number_format((float) $distribution->quantity * $unitPrice, 4, '.', '');
+            }
+
+            return $row;
+        })->values()->all();
 
         $grouped = collect($rows)->groupBy(function (array $row) use ($sheet): string {
             $prefix = $sheet->grouping_mode === DeliveryConferenceGroupingMode::ORGANIZATION_DETAILED
                 ? $row['customer']['id'].'|'.$row['customer']['name'].'|' : '';
 
             return $prefix.$row['product']['id'].'|'.$row['product']['name'].'|'.$row['unit'];
-        })->map(function (Collection $items): array {
+        })->map(function (Collection $items) use ($version): array {
             $first = $items->first();
+            $quantity = $items->sum(fn (array $item) => (float) $item['quantity']);
+            $dates = $items->pluck('date')->filter()->unique()->sort()->values();
 
-            return [
+            $row = [
                 'customer' => $first['customer'], 'product' => $first['product'], 'unit' => $first['unit'],
-                'quantity' => number_format($items->sum(fn (array $item) => (float) $item['quantity']), 4, '.', ''),
+                'quantity' => number_format($quantity, 4, '.', ''),
             ];
+
+            if ($version >= 2) {
+                $gross = $items->sum(fn (array $item) => (float) ($item['gross_value'] ?? 0));
+                $row['date_start'] = $dates->first();
+                $row['date_end'] = $dates->last();
+                $row['distribution_count'] = $items->count();
+                $row['unit_price'] = number_format($quantity > 0 ? $gross / $quantity : 0, 4, '.', '');
+                $row['gross_value'] = number_format($gross, 4, '.', '');
+            }
+
+            return $row;
         })->sortBy(fn (array $row) => ($row['customer']['name'] ?? '').'|'.$row['product']['name'].'|'.$row['unit'])->values()->all();
 
         return [
-            'version' => self::SNAPSHOT_VERSION,
+            'version' => $version,
             'sheet' => ['number' => $sheet->number, 'revision' => (int) $sheet->revision],
             'tenant' => ['id' => (int) $sheet->tenant_id, 'name' => (string) $sheet->tenant?->name],
             'project' => ['id' => (int) $sheet->sales_project_id, 'title' => (string) $sheet->project?->title],
@@ -324,7 +360,7 @@ class DeliveryConferenceSheetService
         return hash('sha256', json_encode($normalize($snapshot), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_THROW_ON_ERROR));
     }
 
-    private function assertRecipient(SalesProject $project, ?int $customerId, ?int $organizationId): void
+    public function assertRecipient(SalesProject $project, ?int $customerId, ?int $organizationId): void
     {
         if (($customerId ? 1 : 0) + ($organizationId ? 1 : 0) !== 1) {
             throw ValidationException::withMessages(['recipient_type' => 'Escolha exatamente um cliente ou uma organização.']);
