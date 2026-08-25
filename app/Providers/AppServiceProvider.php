@@ -12,10 +12,12 @@ use App\Models\AssociateReceipt;
 use App\Models\BillingAuthorization;
 use App\Models\CashMovement;
 use App\Models\CollectivePurchase;
+use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
 use App\Models\DirectPurchase;
 use App\Models\Expense;
 use App\Models\FiscalProfile;
+use App\Models\Organization;
 use App\Models\Passkey;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
@@ -31,7 +33,9 @@ use App\Observers\AssociateLedgerObserver;
 use App\Observers\AssociateReceiptObserver;
 use App\Observers\CashMovementObserver;
 use App\Observers\CustomerBillingReceiptObserver;
+use App\Observers\CustomerObserver;
 use App\Observers\ExpenseObserver;
+use App\Observers\OrganizationObserver;
 use App\Observers\ProductionDeliveryObserver;
 use App\Observers\ProductObserver;
 use App\Observers\PurchaseOrderObserver;
@@ -43,6 +47,7 @@ use App\Policies\AccessInvitationPolicy;
 use App\Policies\BillingAuthorizationPolicy;
 use App\Policies\FiscalProfilePolicy;
 use App\Policies\PasskeyPolicy;
+use App\Services\CustomerHierarchyService;
 use App\Services\TenantIdentityService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Vite;
@@ -64,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->scoped(TenantIdentityService::class);
+        $this->app->scoped(CustomerHierarchyService::class);
         Passkeys::ignoreRoutes();
         Passkeys::usePasskeyModel(Passkey::class);
         $this->app->bind(GenerateRegistrationOptions::class, GenerateSecureRegistrationOptions::class);
@@ -166,6 +172,8 @@ class AppServiceProvider extends ServiceProvider
         ServiceProviderLedger::observe(ServiceProviderLedgerObserver::class);
         AssociateReceipt::observe(AssociateReceiptObserver::class);
         CustomerBillingReceipt::observe(CustomerBillingReceiptObserver::class);
+        Customer::observe(CustomerObserver::class);
+        Organization::observe(OrganizationObserver::class);
         Asset::observe(TenantStoredFileObserver::class);
         CollectivePurchase::observe(TenantStoredFileObserver::class);
         DirectPurchase::observe(TenantStoredFileObserver::class);

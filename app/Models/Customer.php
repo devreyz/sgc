@@ -22,6 +22,8 @@ class Customer extends Model
         'cnpj',
         'type',
         'organization_id',
+        'unit_type',
+        'parent_customer_id',
         'price_table_id',
         'responsible_name',
         'responsible_role',
@@ -49,7 +51,7 @@ class Customer extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'cnpj', 'type', 'responsible_name', 'city', 'state', 'status'])
+            ->logOnly(['name', 'cnpj', 'type', 'organization_id', 'unit_type', 'parent_customer_id', 'responsible_name', 'city', 'state', 'status'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -76,6 +78,25 @@ class Customer extends Model
     public function salesProjects(): HasMany
     {
         return $this->hasMany(SalesProject::class);
+    }
+
+    public function parentCustomer(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_customer_id');
+    }
+
+    public function branches(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_customer_id');
+    }
+
+    public function getUnitTypeLabelAttribute(): string
+    {
+        return match ($this->unit_type) {
+            'headquarters' => 'Matriz',
+            'branch' => 'Filial',
+            default => 'Independente',
+        };
     }
 
     public function buyerRequests(): HasMany

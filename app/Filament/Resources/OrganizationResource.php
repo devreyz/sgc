@@ -6,6 +6,7 @@ use App\Filament\Resources\OrganizationResource\Pages;
 use App\Filament\Resources\OrganizationResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
 use App\Models\Organization;
+use App\Services\CustomerHierarchyService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -121,13 +122,13 @@ class OrganizationResource extends Resource
                     ->label('Tipo')
                     ->formatStateUsing(fn ($state) => Organization::typeOptions()[$state] ?? $state)
                     ->color(fn ($state) => match ($state) {
-                        'municipio'   => 'info',
-                        'estado'      => 'primary',
-                        'federal'     => 'danger',
-                        'conab'       => 'warning',
-                        'hospital'    => 'success',
+                        'municipio' => 'info',
+                        'estado' => 'primary',
+                        'federal' => 'danger',
+                        'conab' => 'warning',
+                        'hospital' => 'success',
                         'cooperativa' => 'gray',
-                        default       => 'gray',
+                        default => 'gray',
                     }),
 
                 Tables\Columns\TextColumn::make('clients_count')
@@ -158,11 +159,18 @@ class OrganizationResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->disabled(fn (Organization $record): bool => app(CustomerHierarchyService::class)->organizationDeletionBlockReason($record) !== null)
+                    ->tooltip(fn (Organization $record): ?string => app(CustomerHierarchyService::class)->organizationDeletionBlockReason($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records): void {
+                            foreach ($records as $record) {
+                                app(CustomerHierarchyService::class)->ensureOrganizationCanDelete($record);
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('name');
@@ -178,9 +186,9 @@ class OrganizationResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListOrganizations::route('/'),
+            'index' => Pages\ListOrganizations::route('/'),
             'create' => Pages\CreateOrganization::route('/create'),
-            'edit'   => Pages\EditOrganization::route('/{record}/edit'),
+            'edit' => Pages\EditOrganization::route('/{record}/edit'),
         ];
     }
 }

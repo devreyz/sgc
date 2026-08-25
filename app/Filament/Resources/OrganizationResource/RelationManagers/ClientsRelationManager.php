@@ -2,9 +2,13 @@
 
 namespace App\Filament\Resources\OrganizationResource\RelationManagers;
 
+use App\Models\Customer;
 use App\Models\PriceTable;
+use App\Services\CustomerHierarchyService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -30,18 +34,75 @@ class ClientsRelationManager extends RelationManager
 
             Forms\Components\TextInput::make('cnpj')
                 ->label('CNPJ')
-                ->placeholder('00.000.000/0000-00'),
+                ->mask('99.999.999/9999-99')
+                ->placeholder('00.000.000/0000-00')
+                ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                    && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                ->helperText(fn (?Model $record): string => $record instanceof Customer
+                    && app(CustomerHierarchyService::class)->hasLinkedData($record)
+                        ? 'CNPJ preservado porque este cliente ja possui historico.'
+                        : 'Matriz e filiais desta organização podem compartilhar o CNPJ.'),
+
+            Forms\Components\Select::make('unit_type')
+                ->label('Estrutura da unidade')
+                ->options([
+                    'independent' => 'Unidade independente',
+                    'headquarters' => 'Matriz',
+                    'branch' => 'Filial',
+                ])
+                ->default('independent')
+                ->required()
+                ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                    && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                ->live()
+                ->afterStateUpdated(function (?string $state, Set $set): void {
+                    if ($state !== 'branch') {
+                        $set('parent_customer_id', null);
+                    }
+                }),
+
+            Forms\Components\Select::make('parent_customer_id')
+                ->label('Matriz')
+                ->options(fn (?Model $record): array => Customer::query()
+                    ->where('tenant_id', session('tenant_id'))
+                    ->where('organization_id', $this->getOwnerRecord()->id)
+                    ->whereNull('parent_customer_id')
+                    ->where('status', true)
+                    ->when($record, fn ($query) => $query->where('id', '!=', $record->id))
+                    ->orderBy('name')
+                    ->pluck('name', 'id')
+                    ->all())
+                ->searchable()
+                ->preload()
+                ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                    && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                ->required(fn (Get $get): bool => $get('unit_type') === 'branch')
+                ->visible(fn (Get $get): bool => $get('unit_type') === 'branch')
+                ->afterStateUpdated(function ($state, Get $get, Set $set): void {
+                    if (! $state || $get('cnpj')) {
+                        return;
+                    }
+
+                    $cnpj = Customer::query()
+                        ->where('tenant_id', session('tenant_id'))
+                        ->where('organization_id', $this->getOwnerRecord()->id)
+                        ->whereKey($state)
+                        ->value('cnpj');
+                    if ($cnpj) {
+                        $set('cnpj', $cnpj);
+                    }
+                }),
 
             Forms\Components\Select::make('type')
                 ->label('Tipo')
                 ->options([
-                    'escola'      => 'Escola',
-                    'creche'      => 'Creche',
-                    'prefeitura'  => 'Prefeitura',
-                    'hospital'    => 'Hospital',
+                    'escola' => 'Escola',
+                    'creche' => 'Creche',
+                    'prefeitura' => 'Prefeitura',
+                    'hospital' => 'Hospital',
                     'restaurante' => 'Restaurante / Refeitório',
-                    'mercado'     => 'Mercado',
-                    'outro'       => 'Outro',
+                    'mercado' => 'Mercado',
+                    'outro' => 'Outro',
                 ])
                 ->required()
                 ->default('escola'),
@@ -53,6 +114,13 @@ class ClientsRelationManager extends RelationManager
                 ->searchable()
                 ->placeholder('— Nenhuma (usar preços do produto) —')
                 ->helperText('Tabela de preços padrão para este cliente'),
+
+            Forms\Components\Placeholder::make('historical_identity_notice')
+                ->label('Vínculo protegido')
+                ->content('Esta unidade ja possui historico. O vínculo com a organização e a estrutura matriz/filial nao podem ser removidos.')
+                ->visible(fn (?Model $record): bool => $record instanceof Customer
+                    && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                ->columnSpanFull(),
 
             Forms\Components\TextInput::make('city')
                 ->label('Cidade'),
@@ -76,16 +144,33 @@ class ClientsRelationManager extends RelationManager
                     ->searchable()
                     ->weight('semibold'),
 
+                Tables\Columns\TextColumn::make('unit_type')
+                    ->label('Unidade')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => match ($state) {
+                        'headquarters' => 'Matriz',
+                        'branch' => 'Filial',
+                        default => 'Independente',
+                    }),
+
+                Tables\Columns\TextColumn::make('parentCustomer.name')
+                    ->label('Matriz')
+                    ->placeholder('—'),
+
+                Tables\Columns\TextColumn::make('cnpj')
+                    ->label('CNPJ')
+                    ->placeholder('—'),
+
                 Tables\Columns\BadgeColumn::make('type')
                     ->label('Tipo')
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'escola'      => 'Escola',
-                        'creche'      => 'Creche',
-                        'prefeitura'  => 'Prefeitura',
-                        'hospital'    => 'Hospital',
+                        'escola' => 'Escola',
+                        'creche' => 'Creche',
+                        'prefeitura' => 'Prefeitura',
+                        'hospital' => 'Hospital',
                         'restaurante' => 'Refeitório',
-                        'mercado'     => 'Mercado',
-                        default       => 'Outro',
+                        'mercado' => 'Mercado',
+                        default => 'Outro',
                     }),
 
                 Tables\Columns\TextColumn::make('priceTable.name')
@@ -104,25 +189,34 @@ class ClientsRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = session('tenant_id');
+
                         return $data;
                     }),
                 Tables\Actions\AssociateAction::make()
                     ->label('Vincular Cliente Existente')
                     ->preloadRecordSelect()
                     ->recordSelectSearchColumns(['name', 'trade_name'])
-                    ->recordTitle(fn (Model $record): string =>
-                        $record->name . ($record->trade_name && $record->trade_name !== $record->name
+                    ->recordTitle(fn (Model $record): string => $record->name.($record->trade_name && $record->trade_name !== $record->name
                             ? " ({$record->trade_name})"
                             : '')
                     ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DissociateAction::make(),
+                Tables\Actions\DissociateAction::make()
+                    ->disabled(fn (Customer $record): bool => app(CustomerHierarchyService::class)->hasLinkedData($record))
+                    ->tooltip(fn (Customer $record): ?string => app(CustomerHierarchyService::class)->hasLinkedData($record)
+                        ? 'O vínculo possui dados históricos e deve ser preservado.'
+                        : null),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DissociateBulkAction::make(),
+                    Tables\Actions\DissociateBulkAction::make()
+                        ->before(function ($records): void {
+                            foreach ($records as $record) {
+                                app(CustomerHierarchyService::class)->ensureCanDissociate($record);
+                            }
+                        }),
                 ]),
             ]);
     }

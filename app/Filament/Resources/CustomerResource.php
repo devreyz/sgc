@@ -4,9 +4,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CustomerResource\Pages;
 use App\Filament\Traits\HasExportActions;
+use App\Filament\Traits\TenantScoped;
 use App\Models\Customer;
+use App\Services\CustomerHierarchyService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -14,15 +18,13 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Traits\TenantScoped;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules\Unique;
 
 class CustomerResource extends Resource
 {
-    use TenantScoped;
     use HasExportActions;
-    
+    use TenantScoped;
+
     protected static ?string $model = Customer::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
@@ -66,12 +68,14 @@ class CustomerResource extends Resource
                         Forms\Components\TextInput::make('cnpj')
                             ->label('CNPJ')
                             ->mask('99.999.999/9999-99')
-                            ->unique(ignoreRecord: true, modifyRuleUsing: function (Unique $rule) {
-                                // Ignora registros soft-deleted na checagem de unicidade
-                                return $rule->where('tenant_id', session('tenant_id'))->whereNull('deleted_at');
-                            })
                             ->nullable()
-                            ->maxLength(18),
+                            ->maxLength(18)
+                            ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                            ->helperText(fn (?Model $record): string => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record)
+                                    ? 'CNPJ preservado porque este cliente ja possui historico.'
+                                    : 'Pode ser compartilhado somente entre matriz e filiais ou clientes da mesma organização.'),
 
                         Forms\Components\TextInput::make('ie')
                             ->label('Inscrição Estadual')
@@ -80,15 +84,78 @@ class CustomerResource extends Resource
                     ->columns(2),
 
                 Forms\Components\Section::make('Organização e Tabela de Preços')
-                    ->description('Vincule este cliente a uma organização (ex: município) e a uma tabela de preços padrão.')
+                    ->description('Organize matriz, filiais, agrupamento comprador e preços sem alterar o histórico das unidades.')
                     ->schema([
+                        Forms\Components\Select::make('unit_type')
+                            ->label('Estrutura da unidade')
+                            ->options([
+                                'independent' => 'Unidade independente',
+                                'headquarters' => 'Matriz',
+                                'branch' => 'Filial',
+                            ])
+                            ->default('independent')
+                            ->required()
+                            ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                            ->live()
+                            ->afterStateUpdated(function (?string $state, Set $set): void {
+                                if ($state !== 'branch') {
+                                    $set('parent_customer_id', null);
+                                }
+                            }),
+
+                        Forms\Components\Select::make('parent_customer_id')
+                            ->label('Matriz')
+                            ->options(function (?Model $record): array {
+                                return Customer::query()
+                                    ->where('tenant_id', session('tenant_id'))
+                                    ->whereNull('parent_customer_id')
+                                    ->where('status', true)
+                                    ->when($record, fn (Builder $query) => $query->where('id', '!=', $record->id))
+                                    ->orderBy('name')
+                                    ->get(['id', 'name', 'trade_name', 'cnpj'])
+                                    ->mapWithKeys(fn (Customer $customer) => [
+                                        $customer->id => $customer->name.($customer->trade_name ? ' · '.$customer->trade_name : '').($customer->cnpj ? ' · '.$customer->cnpj : ''),
+                                    ])
+                                    ->all();
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                            ->required(fn (Get $get): bool => $get('unit_type') === 'branch')
+                            ->visible(fn (Get $get): bool => $get('unit_type') === 'branch')
+                            ->live()
+                            ->afterStateUpdated(function ($state, Get $get, Set $set): void {
+                                if (! $state) {
+                                    return;
+                                }
+
+                                $parent = Customer::query()
+                                    ->where('tenant_id', session('tenant_id'))
+                                    ->find($state);
+                                if (! $parent) {
+                                    return;
+                                }
+                                if (! $get('cnpj') && $parent->cnpj) {
+                                    $set('cnpj', $parent->cnpj);
+                                }
+                                if (! $get('organization_id') && $parent->organization_id) {
+                                    $set('organization_id', $parent->organization_id);
+                                }
+                            })
+                            ->helperText('A filial pode usar o mesmo CNPJ da matriz.'),
+
                         Forms\Components\Select::make('organization_id')
                             ->label('Organização')
                             ->relationship('organization', 'name', fn ($query) => $query->where('tenant_id', session('tenant_id'))->where('active', true))
                             ->searchable()
                             ->preload()
+                            ->live()
+                            ->disabled(fn (?Model $record): bool => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
                             ->placeholder('— Nenhuma —')
-                            ->helperText('Ex: Município de Itacarambi, CONAB, Estado de MG'),
+                            ->helperText('Unidades da mesma família devem usar a mesma organização quando vinculadas.'),
 
                         Forms\Components\Select::make('price_table_id')
                             ->label('Tabela de Preços')
@@ -97,9 +164,16 @@ class CustomerResource extends Resource
                             ->preload()
                             ->placeholder('— Usar preços padrão do produto —')
                             ->helperText('Preços desta tabela serão usados nas distribuições para este cliente'),
+
+                        Forms\Components\Placeholder::make('historical_identity_notice')
+                            ->label('Cadastro protegido')
+                            ->content('Matriz, filial, organização e CNPJ foram preservados porque existem registros históricos. Contato, endereço, situação e tabela de preços continuam editáveis.')
+                            ->visible(fn (?Model $record): bool => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                            ->columnSpanFull(),
                     ])
                     ->columns(2)
-                    ->collapsed(fn (?Model $record) => $record === null),
+                    ->collapsed(false),
 
                 Forms\Components\Section::make('Endereço')
                     ->schema([
@@ -193,6 +267,20 @@ class CustomerResource extends Resource
                     ->placeholder('—')
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('unit_type')
+                    ->label('Unidade')
+                    ->badge()
+                    ->formatStateUsing(fn ($state): string => match ($state) {
+                        'headquarters' => 'Matriz',
+                        'branch' => 'Filial',
+                        default => 'Independente',
+                    })
+                    ->color(fn ($state): string => match ($state) {
+                        'headquarters' => 'primary',
+                        'branch' => 'info',
+                        default => 'gray',
+                    }),
+
                 Tables\Columns\TextColumn::make('priceTable.name')
                     ->label('Tabela de Preços')
                     ->placeholder('—')
@@ -275,8 +363,42 @@ class CustomerResource extends Resource
                                     ->label('CNPJ')
                                     ->mask('99.999.999/9999-99')
                                     ->maxLength(18)
+                                    ->default($record->cnpj)
+                                    ->helperText('O mesmo CNPJ é permitido para matriz e filial.'),
+
+                                Forms\Components\Select::make('unit_type')
+                                    ->label('Estrutura da unidade')
+                                    ->options([
+                                        'independent' => 'Unidade independente',
+                                        'branch' => 'Filial',
+                                    ])
+                                    ->default('branch')
                                     ->required()
-                                    ->helperText('Insira um CNPJ diferente do cliente original.'),
+                                    ->live(),
+
+                                Forms\Components\Select::make('parent_customer_id')
+                                    ->label('Matriz')
+                                    ->options(fn (): array => Customer::query()
+                                        ->where('tenant_id', session('tenant_id'))
+                                        ->whereNull('parent_customer_id')
+                                        ->where('status', true)
+                                        ->orderBy('name')
+                                        ->pluck('name', 'id')
+                                        ->all())
+                                    ->default($record->parent_customer_id ?: $record->id)
+                                    ->required(fn (Get $get): bool => $get('unit_type') === 'branch')
+                                    ->visible(fn (Get $get): bool => $get('unit_type') === 'branch')
+                                    ->searchable()
+                                    ->preload(),
+
+                                Forms\Components\Select::make('organization_id')
+                                    ->label('Organização')
+                                    ->relationship('organization', 'name', fn ($query) => $query
+                                        ->where('tenant_id', session('tenant_id'))
+                                        ->where('active', true))
+                                    ->default($record->organization_id)
+                                    ->searchable()
+                                    ->preload(),
 
                                 Forms\Components\TextInput::make('responsible_name')
                                     ->label('Nome do Responsável')
@@ -322,31 +444,18 @@ class CustomerResource extends Resource
                     ->action(function (Customer $record, array $data): void {
                         $tenantId = session('tenant_id');
 
-                        // Checa duplicidade de CNPJ somente se preenchido
-                        if (! empty($data['cnpj'])) {
-                            $conflict = Customer::where('tenant_id', $tenantId)
-                                ->where('cnpj', $data['cnpj'])
-                                ->whereNull('deleted_at')
-                                ->where('id', '!=', $record->id)
-                                ->exists();
-
-                            if ($conflict) {
-                                Notification::make()
-                                    ->title('CNPJ já cadastrado')
-                                    ->body('Já existe um cliente ativo com o CNPJ ' . $data['cnpj'] . '. Utilize um CNPJ diferente.')
-                                    ->danger()
-                                    ->send();
-                                return;
-                            }
-                        }
-
                         DB::transaction(function () use ($record, $data, $tenantId): void {
                             $newCustomer = $record->replicate();
                             $newCustomer->tenant_id = $tenantId;
                             $newCustomer->name = $data['name'];
                             $newCustomer->trade_name = $data['trade_name'] ?? null;
-                            $newCustomer->cnpj = $data['cnpj'];
+                            $newCustomer->cnpj = $data['cnpj'] ?? null;
                             $newCustomer->type = $data['type'];
+                            $newCustomer->unit_type = $data['unit_type'];
+                            $newCustomer->parent_customer_id = $data['unit_type'] === 'branch'
+                                ? $data['parent_customer_id']
+                                : null;
+                            $newCustomer->organization_id = $data['organization_id'] ?? null;
                             $newCustomer->responsible_name = $data['responsible_name'] ?? null;
                             $newCustomer->email = $data['email'] ?? null;
                             $newCustomer->phone = $data['phone'] ?? null;
@@ -354,19 +463,9 @@ class CustomerResource extends Resource
                             $newCustomer->state = $data['state'] ?? null;
                             $newCustomer->save();
 
-                            $pricesCopied = 0;
-                            foreach ($record->productPrices()->get() as $price) {
-                                $newPrice = $price->replicate();
-                                $newPrice->tenant_id = $tenantId;
-                                $newPrice->customer_id = $newCustomer->id;
-                                $newPrice->deleted_at = null;
-                                $newPrice->save();
-                                $pricesCopied++;
-                            }
-
                             Notification::make()
-                                ->title('Cliente duplicado com sucesso!')
-                                ->body('Novo cliente criado.'.($pricesCopied > 0 ? " {$pricesCopied} preço(s) copiado(s)." : ''))
+                                ->title('Nova unidade criada')
+                                ->body('O cliente foi criado mantendo a tabela de preços e o vínculo informado.')
                                 ->success()
                                 ->send();
                         });
@@ -374,7 +473,12 @@ class CustomerResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records): void {
+                            foreach ($records as $record) {
+                                app(CustomerHierarchyService::class)->ensureCanDelete($record);
+                            }
+                        }),
                     Tables\Actions\RestoreBulkAction::make(),
                 ]),
             ]);
