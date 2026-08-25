@@ -11,6 +11,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -119,6 +120,16 @@ class ProductionDelivery extends Model
     public function billingReceipt(): BelongsTo
     {
         return $this->belongsTo(CustomerBillingReceipt::class, 'billing_receipt_id');
+    }
+
+    public function deliveryConferenceSheets(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            DeliveryConferenceSheet::class,
+            'delivery_conference_sheet_items',
+            'distribution_id',
+            'delivery_conference_sheet_id'
+        )->withTimestamps();
     }
 
     /**

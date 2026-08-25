@@ -103,7 +103,7 @@ class ProjectReceiptNumberingService
             return $this->currentMaximumForScope($receiptModel, $tenantId, $year, $project) + 1;
         }
 
-        $receiptType = str_contains($receiptModel, 'CustomerBillingReceipt') ? 'customer' : 'associate';
+        $receiptType = $this->receiptType($receiptModel);
 
         return DB::transaction(function () use ($receiptModel, $tenantId, $year, $project, $scopeKey, $receiptType): int {
             $maximum = $this->currentMaximumForScope($receiptModel, $tenantId, $year, $project);
@@ -165,7 +165,7 @@ class ProjectReceiptNumberingService
     ): int {
         $projectScoped = $project && $this->usesProjectSequence($project);
         $scopeKey = $projectScoped ? 'project:'.$project->getKey() : 'tenant';
-        $receiptType = str_contains($receiptModel, 'CustomerBillingReceipt') ? 'customer' : 'associate';
+        $receiptType = $this->receiptType($receiptModel);
 
         return DB::transaction(function () use (
             $receiptModel,
@@ -223,6 +223,15 @@ class ProjectReceiptNumberingService
         }
 
         return (int) $query->max('receipt_number');
+    }
+
+    private function receiptType(string $receiptModel): string
+    {
+        if (str_contains($receiptModel, 'DeliveryConferenceSheet')) {
+            return 'delivery_conference';
+        }
+
+        return str_contains($receiptModel, 'CustomerBillingReceipt') ? 'customer' : 'associate';
     }
 
     public function format(

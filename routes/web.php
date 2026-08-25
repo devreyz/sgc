@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Buyer\BuyerBillingAuthorizationController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
+use App\Http\Controllers\Delivery\DeliveryConferenceSheetController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
 use App\Http\Controllers\Delivery\DeliveryReportController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
@@ -261,6 +262,22 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             Route::get('/fiscal/{receipt}', [AccountingFiscalController::class, 'show'])->whereNumber('receipt')->name('fiscal.show');
             Route::post('/fiscal/{receipt}/prepare', [AccountingFiscalController::class, 'prepare'])->middleware('throttle:20,1')->whereNumber('receipt')->name('fiscal.prepare');
         });
+
+    Route::prefix('delivery/conference-sheets')->name('delivery.conference-sheets.')->group(function () {
+        Route::get('/', [DeliveryConferenceSheetController::class, 'index'])->name('index');
+        Route::post('/', [DeliveryConferenceSheetController::class, 'store'])->middleware('throttle:30,1')->name('store');
+        Route::post('/prepare-billing', [DeliveryConferenceSheetController::class, 'prepareBilling'])->middleware('throttle:10,1')->name('prepare-billing');
+        Route::get('/{sheet}', [DeliveryConferenceSheetController::class, 'show'])->whereNumber('sheet')->name('show');
+        Route::get('/{sheet}/preview', [DeliveryConferenceSheetController::class, 'preview'])->whereNumber('sheet')->name('preview');
+        Route::get('/{sheet}/pdf', [DeliveryConferenceSheetController::class, 'download'])->whereNumber('sheet')->name('pdf');
+        Route::put('/{sheet}', [DeliveryConferenceSheetController::class, 'update'])->middleware('throttle:20,1')->whereNumber('sheet')->name('update');
+        Route::post('/{sheet}/issue', [DeliveryConferenceSheetController::class, 'issue'])->middleware('throttle:10,1')->whereNumber('sheet')->name('issue');
+        Route::post('/{sheet}/review', [DeliveryConferenceSheetController::class, 'review'])->middleware('throttle:20,1')->whereNumber('sheet')->name('review');
+        Route::post('/{sheet}/documents', [DeliveryConferenceSheetController::class, 'upload'])->middleware('throttle:20,1')->whereNumber('sheet')->name('documents.store');
+        Route::get('/{sheet}/documents/{document}', [DeliveryConferenceSheetController::class, 'document'])->whereNumber(['sheet', 'document'])->name('documents.download');
+        Route::post('/{sheet}/revision', [DeliveryConferenceSheetController::class, 'revision'])->middleware('throttle:10,1')->whereNumber('sheet')->name('revision');
+        Route::post('/{sheet}/cancel', [DeliveryConferenceSheetController::class, 'cancel'])->middleware('throttle:10,1')->whereNumber('sheet')->name('cancel');
+    });
 
     Route::prefix('secretary')->name('secretary.')->middleware(['any.role:secretario'])->group(function () {
         Route::get('/', [SecretaryPortalController::class, 'index'])->name('index');

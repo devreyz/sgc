@@ -12,6 +12,7 @@ enum DocumentCategory: string
     case LICENCA = 'licenca';
     case RELATORIO = 'relatorio';
     case FOTO = 'foto';
+    case DELIVERY_CONFERENCE_SIGNED = 'delivery_conference_signed';
     case OUTRO = 'outro';
 
     public function label(): string
@@ -25,6 +26,7 @@ enum DocumentCategory: string
             self::LICENCA => 'Licença',
             self::RELATORIO => 'Relatório',
             self::FOTO => 'Foto',
+            self::DELIVERY_CONFERENCE_SIGNED => 'Folha de conferência assinada',
             self::OUTRO => 'Outro',
         };
     }

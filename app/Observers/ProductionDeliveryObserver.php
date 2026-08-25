@@ -4,12 +4,15 @@ namespace App\Observers;
 
 use App\Enums\DeliveryStatus;
 use App\Models\CustomerBillingReceipt;
+use App\Models\DeliveryConferenceSheet;
 use App\Models\ProductionDelivery;
 use App\Models\ProjectDemand;
 use App\Services\Accounting\BillingAuthorizationValidityService;
+use App\Services\DeliveryConferenceSheetService;
 use App\Services\NotificationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class ProductionDeliveryObserver
 {
@@ -106,6 +109,7 @@ class ProductionDeliveryObserver
             'quantity', 'unit_price', 'status', 'delivery_date',
         ])) {
             $this->invalidateBillingAuthorizations($delivery);
+            $this->invalidateConferenceSheets($delivery);
         }
     }
 
@@ -116,12 +120,14 @@ class ProductionDeliveryObserver
     {
         $delivery->projectDemand?->updateDeliveredQuantity();
         $this->invalidateBillingAuthorizations($delivery);
+        $this->invalidateConferenceSheets($delivery);
     }
 
     public function restored(ProductionDelivery $delivery): void
     {
         $delivery->projectDemand?->updateDeliveredQuantity();
         $this->invalidateBillingAuthorizations($delivery);
+        $this->invalidateConferenceSheets($delivery);
     }
 
     private function invalidateBillingAuthorizations(ProductionDelivery $delivery): void
@@ -149,6 +155,39 @@ class ProductionDeliveryObserver
                         'distribution_id' => $delivery->id,
                         'receipt_id' => $receiptId,
                         'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
+        }
+    }
+
+    private function invalidateConferenceSheets(ProductionDelivery $delivery): void
+    {
+        if (! Schema::hasTable('delivery_conference_sheet_items')) {
+            return;
+        }
+
+        $sheetIds = DB::table('delivery_conference_sheet_items')
+            ->where('distribution_id', $delivery->id)->pluck('delivery_conference_sheet_id');
+
+        foreach ($sheetIds as $sheetId) {
+            DB::afterCommit(function () use ($sheetId, $delivery): void {
+                try {
+                    $sheet = DeliveryConferenceSheet::withoutGlobalScopes()
+                        ->where('tenant_id', $delivery->tenant_id)->find($sheetId);
+                    if ($sheet && $sheet->snapshot_hash && ! app(DeliveryConferenceSheetService::class)->isCurrentlyValid($sheet)) {
+                        $sheet->forceFill([
+                            'invalidated_at' => $sheet->invalidated_at ?: now(),
+                            'invalidation_reason' => $sheet->invalidation_reason ?: 'Uma distribuição impressa foi alterada depois da emissão.',
+                        ])->saveQuietly();
+                        activity()->performedOn($sheet)->causedBy(auth()->user())->event('invalidated')
+                            ->withProperties(['tenant_id' => $sheet->tenant_id, 'distribution_id' => $delivery->id])
+                            ->log('Folha de conferência ficou desatualizada');
+                    }
+                } catch (\Throwable $exception) {
+                    Log::error('Falha ao verificar validade da folha de conferência.', [
+                        'tenant_id' => $delivery->tenant_id, 'distribution_id' => $delivery->id,
+                        'sheet_id' => $sheetId, 'error' => $exception->getMessage(),
                     ]);
                 }
             });

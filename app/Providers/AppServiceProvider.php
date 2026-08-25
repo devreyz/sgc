@@ -14,6 +14,7 @@ use App\Models\CashMovement;
 use App\Models\CollectivePurchase;
 use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
+use App\Models\DeliveryConferenceSheet;
 use App\Models\DirectPurchase;
 use App\Models\Expense;
 use App\Models\FiscalProfile;
@@ -45,6 +46,7 @@ use App\Observers\ServiceProviderObserver;
 use App\Observers\TenantStoredFileObserver;
 use App\Policies\AccessInvitationPolicy;
 use App\Policies\BillingAuthorizationPolicy;
+use App\Policies\DeliveryConferenceSheetPolicy;
 use App\Policies\FiscalProfilePolicy;
 use App\Policies\PasskeyPolicy;
 use App\Services\CustomerHierarchyService;
@@ -92,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AccessInvitation::class, AccessInvitationPolicy::class);
         Gate::policy(Passkey::class, PasskeyPolicy::class);
         Gate::policy(BillingAuthorization::class, BillingAuthorizationPolicy::class);
+        Gate::policy(DeliveryConferenceSheet::class, DeliveryConferenceSheetPolicy::class);
         Gate::policy(FiscalProfile::class, FiscalProfilePolicy::class);
 
         RateLimiter::for('passkey-options', fn (Request $request) => Limit::perMinute(

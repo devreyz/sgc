@@ -11,6 +11,7 @@ class SystemPdfCatalogTest extends TestCase
     {
         foreach ([
             'pdf.delivery-sheet',
+            'pdf.delivery-conference-sheet',
             'pdf.distributions-by-customer',
             'pdf.customer-delivery-statement',
             'pdf.project-associate-receipt',

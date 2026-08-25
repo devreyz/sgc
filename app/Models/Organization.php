@@ -79,6 +79,11 @@ class Organization extends Model
         return $this->hasMany(BillingAuthorization::class);
     }
 
+    public function deliveryConferenceSheets(): HasMany
+    {
+        return $this->hasMany(DeliveryConferenceSheet::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('active', true);

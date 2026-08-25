@@ -253,6 +253,27 @@ class DocumentTemplate extends Model
                 'default_columns' => ['product', 'quantity', 'unit'],
                 'paper_orientation' => 'landscape',
             ],
+            'delivery_conference_sheet' => [
+                'label' => 'Folha de Conferência de Entregas',
+                'blade_view' => 'pdf.delivery-conference-sheet',
+                'type' => 'report',
+                'description' => 'Evidência operacional sem valor fiscal das quantidades efetivamente distribuídas',
+                'sections' => [
+                    'document_info' => 'Identificação',
+                    'recipient_info' => 'Destinatário e projeto',
+                    'distributions' => 'Produtos e quantidades',
+                    'conference' => 'Resultado e observações',
+                    'signature' => 'Responsável pela conferência',
+                ],
+                'columns' => [
+                    'customer' => 'Cliente',
+                    'product' => 'Produto',
+                    'unit' => 'Unidade',
+                    'quantity' => 'Quantidade distribuída',
+                ],
+                'default_columns' => ['customer', 'product', 'unit', 'quantity'],
+                'paper_orientation' => 'portrait',
+            ],
             'distributions_by_customer' => [
                 'label' => 'Relatorio de Distribuicoes por Cliente',
                 'blade_view' => 'pdf.distributions-by-customer',

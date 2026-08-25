@@ -258,3 +258,7 @@ flowchart TD
 Permissões: `view_accounting_fiscal_queue`, `prepare_accounting_fiscal`, `view_accounting_fiscal_settings` e `manage_accounting_fiscal_settings`. Presidente não recebe alteração implicitamente. Controllers resolvem tenant pela rota, filtram recursos por `tenant_id`, usam `no-store, private` e registram perfil e preparação no activity log. Nenhuma fila ou prontidão derivada foi persistida.
 
 XML, PDF fiscal, chave, upload, parser, SEFAZ/NFS-e e prestação de contas permanecem fora da Fase 2C.
+
+## Evidências operacionais de conferência
+
+Uma `CustomerBillingReceipt` pode ser preparada a partir da união das distribuições de uma ou mais `DeliveryConferenceSheet` aprovadas e ainda materialmente válidas. A folha é apenas evidência operacional anterior à cobrança: não fornece preços, taxas, totais nem autorização fiscal. O fluxo financeiro reconsulta os IDs em `CustomerBillingReceiptService`, que permanece a única autoridade de valores. No futuro, o dossiê contábil poderá listar essas folhas como evidências relacionadas, sem torná-las requisito universal do `FiscalGate`.

@@ -280,6 +280,11 @@ class SalesProject extends Model
         return $this->hasMany(ProductionDelivery::class);
     }
 
+    public function deliveryConferenceSheets(): HasMany
+    {
+        return $this->hasMany(DeliveryConferenceSheet::class);
+    }
+
     /**
      * Get the expenses related to this project.
      */

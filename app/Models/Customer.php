@@ -14,7 +14,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Customer extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -102,6 +102,11 @@ class Customer extends Model
     public function buyerRequests(): HasMany
     {
         return $this->hasMany(BuyerRequest::class);
+    }
+
+    public function deliveryConferenceSheets(): HasMany
+    {
+        return $this->hasMany(DeliveryConferenceSheet::class);
     }
 
     /**
