@@ -63,6 +63,7 @@ class CustomerHierarchyIntegrityTest extends TestCase
             $table->decimal('quantity', 14, 4)->default(0);
             $table->decimal('unit_price', 14, 4)->default(0);
             $table->decimal('gross_value', 14, 4)->default(0);
+            $table->unsignedBigInteger('billing_receipt_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -71,6 +72,7 @@ class CustomerHierarchyIntegrityTest extends TestCase
             $table->unsignedBigInteger('tenant_id');
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->unsignedBigInteger('organization_id')->nullable();
+            $table->json('delivery_ids')->nullable();
             $table->timestamps();
         });
 
@@ -170,6 +172,15 @@ class CustomerHierarchyIntegrityTest extends TestCase
             'quantity' => 10,
             'unit_price' => 7.5,
             'gross_value' => 75,
+            'billing_receipt_id' => 500,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('customer_billing_receipts')->insert([
+            'id' => 500,
+            'tenant_id' => 1,
+            'organization_id' => 10,
+            'delivery_ids' => json_encode([$branch->id]),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -207,6 +218,147 @@ class CustomerHierarchyIntegrityTest extends TestCase
             'customer_id' => $branch->id,
             'gross_value' => 75,
         ]);
+    }
+
+    public function test_historical_headquarters_and_branches_can_be_grouped_in_an_organization_later(): void
+    {
+        $headquarters = $this->customer([
+            'name' => 'Escola Matriz Existente',
+            'cnpj' => '12.345.678/0001-90',
+        ]);
+        $branch = $this->customer([
+            'name' => 'Escola Filial Existente',
+            'cnpj' => '12.345.678/0001-90',
+            'unit_type' => 'branch',
+            'parent_customer_id' => $headquarters->id,
+        ]);
+
+        DB::table('production_deliveries')->insert([
+            'tenant_id' => 1,
+            'customer_id' => $headquarters->id,
+            'quantity' => 10,
+            'unit_price' => 7.5,
+            'gross_value' => 75,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'tenant_id' => 1,
+            'customer_id' => $branch->id,
+            'quantity' => 5,
+            'unit_price' => 7.5,
+            'gross_value' => 37.5,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $headquarters->update(['organization_id' => 10]);
+
+        $this->assertDatabaseHas('customers', [
+            'id' => $headquarters->id,
+            'organization_id' => 10,
+            'unit_type' => 'headquarters',
+        ]);
+        $this->assertDatabaseHas('customers', [
+            'id' => $branch->id,
+            'organization_id' => 10,
+            'parent_customer_id' => $headquarters->id,
+        ]);
+        $this->assertDatabaseHas('production_deliveries', [
+            'customer_id' => $branch->id,
+            'gross_value' => 37.5,
+        ]);
+
+        $branch->update(['organization_id' => null]);
+
+        $this->assertNull($headquarters->fresh()->organization_id);
+        $this->assertNull($branch->fresh()->organization_id);
+        $this->assertDatabaseHas('production_deliveries', [
+            'customer_id' => $branch->id,
+            'gross_value' => 37.5,
+        ]);
+    }
+
+    public function test_organization_can_be_removed_before_receipts_but_branch_link_remains_protected(): void
+    {
+        $headquarters = $this->customer([
+            'name' => 'Matriz Protegida',
+            'organization_id' => 10,
+        ]);
+        $branch = $this->customer([
+            'name' => 'Filial Protegida',
+            'organization_id' => 10,
+            'unit_type' => 'branch',
+            'parent_customer_id' => $headquarters->id,
+        ]);
+
+        $branch->update(['organization_id' => null]);
+
+        $this->assertNull($branch->fresh()->organization_id);
+        $this->assertNull($headquarters->fresh()->organization_id);
+
+        $headquarters->update(['organization_id' => 11]);
+
+        $this->assertSame(11, (int) $headquarters->fresh()->organization_id);
+        $this->assertSame(11, (int) $branch->fresh()->organization_id);
+
+        $branch->refresh();
+        try {
+            $branch->update(['parent_customer_id' => null, 'unit_type' => 'independent']);
+            $this->fail('O vínculo da filial não poderia ser desfeito.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('parent_customer_id', $exception->errors());
+        }
+
+        $branch->refresh();
+        try {
+            $branch->delete();
+            $this->fail('Uma filial agrupada não poderia ser excluída.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('customer', $exception->errors());
+        }
+
+        $branch->refresh()->update(['status' => false]);
+        Organization::withoutGlobalScopes()->findOrFail(10)->update(['active' => false]);
+
+        $this->assertFalse($branch->fresh()->status);
+        $this->assertFalse(Organization::withoutGlobalScopes()->findOrFail(10)->active);
+    }
+
+    public function test_organization_cannot_be_removed_after_a_receipt_links_its_deliveries(): void
+    {
+        $customer = $this->customer([
+            'name' => 'Cliente com comprovante da organização',
+            'organization_id' => 10,
+        ]);
+        DB::table('customer_billing_receipts')->insert([
+            'id' => 700,
+            'tenant_id' => 1,
+            'organization_id' => 10,
+            'delivery_ids' => json_encode([900]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'id' => 900,
+            'tenant_id' => 1,
+            'customer_id' => $customer->id,
+            'quantity' => 3,
+            'unit_price' => 10,
+            'gross_value' => 30,
+            'billing_receipt_id' => 700,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            $customer->update(['organization_id' => null]);
+            $this->fail('A organização com comprovante vinculado não poderia ser removida.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('organization_id', $exception->errors());
+        }
+
+        $this->assertSame(10, (int) $customer->fresh()->organization_id);
     }
 
     public function test_future_price_table_can_change_without_rewriting_frozen_delivery_values(): void

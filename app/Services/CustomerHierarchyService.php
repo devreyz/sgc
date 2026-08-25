@@ -67,17 +67,19 @@ class CustomerHierarchyService
 
     public function afterSaved(Customer $customer): void
     {
-        if ($customer->unit_type !== 'branch' || ! $customer->parent_customer_id) {
-            return;
+        if ($customer->wasChanged('organization_id')) {
+            $this->syncFamilyOrganization($customer);
         }
 
-        Customer::withoutEvents(function () use ($customer): void {
-            Customer::withoutGlobalScopes()
-                ->where('tenant_id', $customer->tenant_id)
-                ->whereKey($customer->parent_customer_id)
-                ->where('unit_type', 'independent')
-                ->update(['unit_type' => 'headquarters']);
-        });
+        if ($customer->unit_type === 'branch' && $customer->parent_customer_id) {
+            Customer::withoutEvents(function () use ($customer): void {
+                Customer::withoutGlobalScopes()
+                    ->where('tenant_id', $customer->tenant_id)
+                    ->whereKey($customer->parent_customer_id)
+                    ->where('unit_type', 'independent')
+                    ->update(['unit_type' => 'headquarters']);
+            });
+        }
     }
 
     public function ensureCanDelete(Customer $customer): void
@@ -91,6 +93,12 @@ class CustomerHierarchyService
             ]);
         }
 
+        if ($customer->parent_customer_id || $this->organizationLinkIsLocked($customer)) {
+            throw ValidationException::withMessages([
+                'customer' => 'Este cliente pertence a uma família matriz/filial ou a uma organização com comprovantes vinculados e não pode ser excluído. Desative o cadastro para preservar o histórico.',
+            ]);
+        }
+
         $references = $this->linkedDataLabels($customer);
         if ($references !== []) {
             throw ValidationException::withMessages([
@@ -101,11 +109,45 @@ class CustomerHierarchyService
 
     public function ensureCanDissociate(Customer $customer): void
     {
-        if ($this->hasLinkedData($customer)) {
+        if ($this->organizationLinkIsLocked($customer)) {
             throw ValidationException::withMessages([
-                'organization_id' => 'Este cliente ja possui dados historicos e nao pode ser desvinculado da organizacao. Desative-o se ele nao deve receber novos registros.',
+                'organization_id' => 'A organização já possui comprovante vinculado a entregas. O agrupamento não pode mais ser desfeito; desative o cliente se necessário.',
             ]);
         }
+    }
+
+    public function organizationLinkIsLocked(Customer $customer): bool
+    {
+        $organizationId = (int) $customer->organization_id;
+        if ($organizationId <= 0 || ! Schema::hasTable('customer_billing_receipts')) {
+            return false;
+        }
+
+        $receipts = DB::table('customer_billing_receipts')
+            ->where('tenant_id', $customer->tenant_id)
+            ->where('organization_id', $organizationId);
+
+        if (Schema::hasTable('production_deliveries')
+            && Schema::hasColumn('production_deliveries', 'billing_receipt_id')
+            && $receipts->clone()->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('production_deliveries')
+                    ->whereColumn('production_deliveries.billing_receipt_id', 'customer_billing_receipts.id');
+            })->exists()) {
+            return true;
+        }
+
+        if (! Schema::hasColumn('customer_billing_receipts', 'delivery_ids')) {
+            return false;
+        }
+
+        return $receipts->whereNotNull('delivery_ids')
+            ->pluck('delivery_ids')
+            ->contains(function ($value): bool {
+                $ids = is_array($value) ? $value : json_decode((string) $value, true);
+
+                return is_array($ids) && $ids !== [];
+            });
     }
 
     public function ensureOrganizationCanDelete(Organization $organization): void
@@ -190,6 +232,10 @@ class CustomerHierarchyService
             return 'A matriz possui filiais vinculadas.';
         }
 
+        if ($customer->parent_customer_id || $this->organizationLinkIsLocked($customer)) {
+            return 'O cliente pertence a uma família matriz/filial ou organização com comprovantes; desative-o em vez de excluir.';
+        }
+
         $references = $this->linkedDataLabels($customer);
 
         return $references === []
@@ -200,25 +246,54 @@ class CustomerHierarchyService
     private function ensureHistoricalIdentityIsStable(Customer $customer): void
     {
         if (! $customer->exists
-            || ! $customer->isDirty(['organization_id', 'parent_customer_id', 'unit_type', 'cnpj'])
-            || ! $this->hasLinkedData($customer)) {
+            || ! $customer->isDirty(['organization_id', 'parent_customer_id', 'unit_type', 'cnpj'])) {
             return;
         }
 
         $messages = [];
-        if ($customer->isDirty('organization_id')) {
-            $messages['organization_id'] = 'A organizacao nao pode ser alterada porque este cliente ja possui dados historicos.';
+        if ($customer->isDirty('organization_id') && $customer->getOriginal('organization_id')) {
+            $original = clone $customer;
+            $original->organization_id = $customer->getOriginal('organization_id');
+            if ($this->organizationLinkIsLocked($original)) {
+                $messages['organization_id'] = 'A organização já possui comprovante vinculado a entregas e não pode ser removida ou trocada. Desative o cliente para preservar o histórico.';
+            }
         }
-        if ($customer->isDirty(['parent_customer_id', 'unit_type'])) {
-            $messages['parent_customer_id'] = 'O vinculo entre matriz e filial nao pode ser alterado porque esta unidade ja possui dados historicos.';
+
+        $hadParent = (bool) $customer->getOriginal('parent_customer_id');
+        $hasBranches = Customer::withoutGlobalScopes()
+            ->where('tenant_id', $customer->tenant_id)
+            ->where('parent_customer_id', $customer->getKey())
+            ->exists();
+        if ($customer->isDirty(['parent_customer_id', 'unit_type']) && ($hadParent || $hasBranches)) {
+            $messages['parent_customer_id'] = 'O vínculo entre matriz e filial não pode ser removido ou trocado. Desative a unidade se necessário.';
         }
-        if ($customer->isDirty('cnpj')) {
+
+        if ($customer->isDirty('cnpj') && $this->hasLinkedData($customer)) {
             $messages['cnpj'] = 'O CNPJ nao pode ser alterado porque esta unidade ja possui dados historicos.';
         }
 
-        throw ValidationException::withMessages($messages ?: [
-            'customer' => 'A identidade historica deste cliente nao pode ser alterada.',
-        ]);
+        if ($messages !== []) {
+            throw ValidationException::withMessages($messages);
+        }
+    }
+
+    private function syncFamilyOrganization(Customer $customer): void
+    {
+        $rootId = $customer->parent_customer_id ?: $customer->id;
+
+        Customer::withoutEvents(function () use ($customer, $rootId): void {
+            Customer::withoutGlobalScopes()
+                ->where('tenant_id', $customer->tenant_id)
+                ->whereNull('deleted_at')
+                ->where(function ($query) use ($rootId): void {
+                    $query->whereKey($rootId)->orWhere('parent_customer_id', $rootId);
+                })
+                ->whereKeyNot($customer->getKey())
+                ->update([
+                    'organization_id' => $customer->organization_id,
+                    'updated_at' => now(),
+                ]);
+        });
     }
 
     private function referenceExists(Customer $customer, string $table, string $column): bool
@@ -330,12 +405,15 @@ class CustomerHierarchyService
             ]);
         }
 
-        if ($parent->organization_id && ! $customer->organization_id) {
+        $isChangingFamilyOrganization = $customer->exists && $customer->isDirty('organization_id');
+
+        if ($parent->organization_id && ! $customer->organization_id && ! $isChangingFamilyOrganization) {
             $customer->organization_id = $parent->organization_id;
         }
 
         if ($parent->organization_id && $customer->organization_id
-            && (int) $parent->organization_id !== (int) $customer->organization_id) {
+            && (int) $parent->organization_id !== (int) $customer->organization_id
+            && ! $isChangingFamilyOrganization) {
             throw ValidationException::withMessages([
                 'organization_id' => 'Matriz e filial devem pertencer à mesma organização de clientes.',
             ]);
@@ -346,6 +424,10 @@ class CustomerHierarchyService
 
     private function validateFamilyOrganizations(Customer $customer, ?Customer $parent, int $tenantId): void
     {
+        if ($customer->exists && $customer->isDirty('organization_id')) {
+            return;
+        }
+
         $rootId = $parent?->id ?: ($customer->parent_customer_id ?: $customer->id);
         if (! $rootId) {
             return;

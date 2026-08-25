@@ -193,7 +193,7 @@ class ClientsRelationManager extends RelationManager
                         return $data;
                     }),
                 Tables\Actions\AssociateAction::make()
-                    ->label('Vincular Cliente Existente')
+                    ->label('Vincular Cliente ou Matriz Existente')
                     ->preloadRecordSelect()
                     ->recordSelectSearchColumns(['name', 'trade_name'])
                     ->recordTitle(fn (Model $record): string => $record->name.($record->trade_name && $record->trade_name !== $record->name
@@ -204,9 +204,9 @@ class ClientsRelationManager extends RelationManager
             ->actions([
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DissociateAction::make()
-                    ->disabled(fn (Customer $record): bool => app(CustomerHierarchyService::class)->hasLinkedData($record))
-                    ->tooltip(fn (Customer $record): ?string => app(CustomerHierarchyService::class)->hasLinkedData($record)
-                        ? 'O vínculo possui dados históricos e deve ser preservado.'
+                    ->disabled(fn (Customer $record): bool => app(CustomerHierarchyService::class)->organizationLinkIsLocked($record))
+                    ->tooltip(fn (Customer $record): ?string => app(CustomerHierarchyService::class)->organizationLinkIsLocked($record)
+                        ? 'A organização já possui comprovante ligado às entregas. Desative o cliente para preservar o histórico.'
                         : null),
             ])
             ->bulkActions([

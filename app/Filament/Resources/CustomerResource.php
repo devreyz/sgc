@@ -153,9 +153,12 @@ class CustomerResource extends Resource
                             ->preload()
                             ->live()
                             ->disabled(fn (?Model $record): bool => $record instanceof Customer
-                                && app(CustomerHierarchyService::class)->hasLinkedData($record))
+                                && app(CustomerHierarchyService::class)->organizationLinkIsLocked($record))
                             ->placeholder('— Nenhuma —')
-                            ->helperText('Unidades da mesma família devem usar a mesma organização quando vinculadas.'),
+                            ->helperText(fn (?Model $record): string => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->organizationLinkIsLocked($record)
+                                ? 'Vínculo protegido porque a organização já possui comprovante ligado a entregas. Para encerrar o uso, desative o cliente.'
+                                : 'Pode associar, remover ou trocar a organização enquanto não houver comprovante ligado às entregas. A mudança alcança matriz e filiais.'),
 
                         Forms\Components\Select::make('price_table_id')
                             ->label('Tabela de Preços')
@@ -167,7 +170,10 @@ class CustomerResource extends Resource
 
                         Forms\Components\Placeholder::make('historical_identity_notice')
                             ->label('Cadastro protegido')
-                            ->content('Matriz, filial, organização e CNPJ foram preservados porque existem registros históricos. Contato, endereço, situação e tabela de preços continuam editáveis.')
+                            ->content(fn (?Model $record): string => $record instanceof Customer
+                                && app(CustomerHierarchyService::class)->organizationLinkIsLocked($record)
+                                ? 'A organização está preservada porque já há comprovante ligado às entregas. Para encerrar o uso sem perder o histórico, desative o cadastro.'
+                                : 'CNPJ e estrutura matriz/filial permanecem protegidos pelo histórico. A organização ainda pode ser ajustada enquanto não possuir comprovante ligado às entregas.')
                             ->visible(fn (?Model $record): bool => $record instanceof Customer
                                 && app(CustomerHierarchyService::class)->hasLinkedData($record))
                             ->columnSpanFull(),
