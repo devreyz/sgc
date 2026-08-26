@@ -52,6 +52,12 @@
         'tenant' => $tenantSlug,
         'project' => $project->id,
     ]);
+
+    $projectQuotaShareUrl = route('associate.projects.simulator', [
+        'tenant' => $tenantSlug,
+        'project' => $project->id,
+        'share' => 'real-quotas',
+    ]);
 @endphp
 
 <link
@@ -1496,6 +1502,31 @@
         white-space: normal;
     }
 
+    .record-note-button {
+        display: inline-grid;
+        min-height: 38px;
+        width: max-content;
+        max-width: 100%;
+        grid-template-columns: auto minmax(0, auto);
+        gap: .35rem;
+        align-items: center;
+        padding: .45rem .62rem;
+        border: 1px solid color-mix(in srgb, var(--record-tone) 28%, var(--ws-border));
+        border-radius: 9px;
+        background: var(--record-soft);
+        color: var(--record-tone);
+        cursor: pointer;
+        font: inherit;
+        font-size: .72rem;
+        font-weight: 760;
+    }
+
+    .record-note-button:hover,
+    .record-note-button:focus-visible {
+        border-color: var(--record-tone);
+        outline: none;
+    }
+
     .record-actions {
         display: grid;
         justify-content: end;
@@ -1788,6 +1819,8 @@
         color: var(--ws-secondary);
         font-size: .76rem;
         line-height: 1.6;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
     }
 
     .info-dialog-footer {
@@ -2078,6 +2111,10 @@
 
         .workspace-header-action {
             display: none;
+        }
+
+        .workspace-header-action.quota-share {
+            display: grid;
         }
 
         .workspace-header-side {
@@ -2679,6 +2716,15 @@
             </span>
 
             <a
+                class="workspace-header-action quota-share"
+                href="{{ $projectQuotaShareUrl }}"
+                aria-label="Compartilhar cotas reais"
+                title="Compartilhar cotas reais"
+            >
+                <i class="ph ph-share-network" aria-hidden="true"></i>
+            </a>
+
+            <a
                 class="workspace-header-action"
                 href="{{ route('associate.projects.simulator', [
                     'tenant' => $tenantSlug,
@@ -3272,6 +3318,30 @@
         awInfoDialog.showModal();
     }
 
+    function awOpenNote(button) {
+        const note = String(
+            button?.dataset.awNote || ''
+        ).trim();
+
+        if (!note) {
+            return;
+        }
+
+        const meta = String(
+            button.dataset.awNoteMeta || ''
+        ).trim();
+
+        awInfoTitle.textContent =
+            button.dataset.awNoteTitle
+            || 'Observações';
+
+        awInfoBody.textContent = meta
+            ? `${meta}\n\n${note}`
+            : note;
+
+        awInfoDialog.showModal();
+    }
+
     window.awOpenInfo = awOpenInfo;
 
     document
@@ -3296,6 +3366,16 @@
             }
         }
     );
+
+    awRoot?.addEventListener('click', event => {
+        const button = event.target.closest(
+            '[data-aw-note]'
+        );
+
+        if (button) {
+            awOpenNote(button);
+        }
+    });
 
     document
         .querySelectorAll(
@@ -4567,10 +4647,10 @@
             const remaining =
                 Number(item.remaining || 0);
 
-            const details =
-                item.rejection_reason
-                || item.notes
-                || '';
+            const note = String(item.notes || '').trim();
+            const rejectionReason = String(
+                item.rejection_reason || ''
+            ).trim();
 
             return `
                 <article class="record-row type-delivery">
@@ -4652,16 +4732,31 @@
                                </div>`}
                     </div>
 
-                    ${details
+                    ${note
+                        ? `
+                            <button
+                                type="button"
+                                class="record-note-button"
+                                data-aw-note="${awEsc(note)}"
+                                data-aw-note-title="Observações da entrega"
+                                data-aw-note-meta="${awEsc(`${item.product || 'Produto'} · ${item.date || ''}`)}"
+                            >
+                                <i class="ph ph-note"></i>
+                                Ver observações
+                            </button>
+                        `
+                        : ''}
+
+                    ${rejectionReason
                         ? `
                             <details class="record-details">
                                 <summary>
-                                    <i class="ph ph-info"></i>
-                                    Ver observação
+                                    <i class="ph ph-warning-circle"></i>
+                                    Ver avaliação de qualidade
                                 </summary>
 
                                 <div class="record-details-body">
-                                    ${awEsc(details)}
+                                    ${awEsc(rejectionReason)}
                                 </div>
                             </details>
                         `
@@ -4768,6 +4863,21 @@
                                 ${awEsc(item.receipt)}
                             </div>
                         </details>
+                    `
+                    : ''}
+
+                ${String(item.notes || '').trim()
+                    ? `
+                        <button
+                            type="button"
+                            class="record-note-button"
+                            data-aw-note="${awEsc(item.notes)}"
+                            data-aw-note-title="Observações da distribuição"
+                            data-aw-note-meta="${awEsc(`${item.product || 'Produto'} · ${item.customer || 'Cliente'} · ${item.date || ''}`)}"
+                        >
+                            <i class="ph ph-note"></i>
+                            Ver observações
+                        </button>
                     `
                     : ''}
             </article>

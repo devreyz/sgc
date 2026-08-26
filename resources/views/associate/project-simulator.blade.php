@@ -1508,7 +1508,7 @@
 
     .sim-share-options {
         display:grid;
-        grid-template-columns:1fr 1fr;
+        grid-template-columns:repeat(3,minmax(0,1fr));
         gap:.55rem;
         margin-top:.8rem;
     }
@@ -1778,6 +1778,7 @@
     data-endpoint="{{ $simulatorEndpoint }}"
     data-history-key="sgc.simulations.{{ $historyScope }}.v2"
     data-legacy-history-key="sgc.simulations.{{ $historyScope }}.v1"
+    data-auto-share="{{ request()->query('share') === 'real-quotas' ? 'real-quotas' : '' }}"
 >
     <header class="sim-header">
         <a
@@ -2153,6 +2154,14 @@
                     <small>Mensagem curta e formatada para WhatsApp.</small>
                 </span>
             </button>
+
+            <button class="sim-share-option" id="sim-save-image" type="button">
+                <i class="ph-duotone ph-download-simple"></i>
+                <span>
+                    <strong>Salvar imagem</strong>
+                    <small>Guarda o retrato das cotas reais com data e hora.</small>
+                </span>
+            </button>
         </div>
     </section>
 </div>
@@ -2176,6 +2185,7 @@
         step:0,
         products:[],
         summary:{},
+        capturedAt:null,
         quotaMode:'remaining',
         customQuota:0,
         productFilter:'enabled',
@@ -2948,6 +2958,8 @@
         return {
             id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
             createdAt:Date.now(),
+            capturedAt:Date.now(),
+            isRealQuotaSnapshot:false,
             quotaMode:state.quotaMode,
             customQuota:state.customQuota,
             budget:quotaValue(),
@@ -2958,6 +2970,45 @@
                 destinationId:Number(row.destination.customer_id),
                 quantity:row.quantity,
             })),
+        };
+    }
+
+    function realQuotaRecord() {
+        const capturedAt = state.capturedAt
+            ? new Date(state.capturedAt).getTime()
+            : Date.now();
+        const rows = state.products
+            .filter(product => product.delivery_enabled)
+            .map(product => {
+                const remaining = Number(product.remaining_quantity);
+                const destination = [...(product.destinations || [])]
+                    .filter(item => Number(item.price) > 0)
+                    .sort((left,right) => Number(right.price) - Number(left.price))[0];
+
+                if (!Number.isFinite(remaining) || remaining <= EPSILON || !destination) {
+                    return null;
+                }
+
+                return {
+                    productId:Number(product.product_id),
+                    destinationId:Number(destination.customer_id),
+                    quantity:remaining,
+                };
+            })
+            .filter(Boolean);
+
+        if (!rows.length) return null;
+
+        return {
+            id:`real-${Date.now()}`,
+            createdAt:capturedAt,
+            capturedAt,
+            isRealQuotaSnapshot:true,
+            quotaMode:'remaining',
+            customQuota:0,
+            budget:Number(state.summary.financial_remaining || 0),
+            useProductLimits:true,
+            rows,
         };
     }
 
@@ -3054,12 +3105,14 @@
 
     function canvasForRecord(record) {
         const allRows = shareRows(record);
-        const rows = allRows.slice(0,14);
+        const rows = allRows.slice(0,200);
         const total = allRows.reduce((sum,row) => sum + row.total,0);
+        const capturedAt = new Date(record.capturedAt || record.createdAt || Date.now());
+        const realSnapshot = Boolean(record.isRealQuotaSnapshot);
 
         const scale = 2;
         const logicalWidth = 900;
-        const logicalHeight = 370 + rows.length * 62 + (allRows.length > 14 ? 34 : 0);
+        const logicalHeight = 370 + rows.length * 62 + (allRows.length > 200 ? 34 : 0);
         const canvas = document.createElement('canvas');
         canvas.width = logicalWidth * scale;
         canvas.height = logicalHeight * scale;
@@ -3078,7 +3131,7 @@
 
         c.fillStyle = '#102018';
         c.font = '700 28px Arial';
-        c.fillText('Cotas de produtos para entrega',48,60);
+        c.fillText(realSnapshot ? 'Cotas reais disponíveis' : 'Cotas de produtos para entrega',48,60);
 
         c.fillStyle = '#102018';
         c.font = '700 21px Arial';
@@ -3087,7 +3140,7 @@
         c.fillStyle = '#52645a';
         c.font = '16px Arial';
         c.fillText(String(PROJECT_TITLE).slice(0,72),48,126);
-        c.fillText(`Gerado em ${new Date().toLocaleString('pt-BR')}`,48,152);
+        c.fillText(`Posição em ${capturedAt.toLocaleString('pt-BR')}`,48,152);
 
         c.fillStyle = '#f2f7f4';
         c.fillRect(48,180,804,70);
@@ -3102,7 +3155,7 @@
         c.font = '700 19px Arial';
         c.fillText(String(allRows.length),66,234);
         c.fillText(money(total),330,234);
-        c.fillText(record.useProductLimits ? 'Cotas atuais' : 'Simulação',610,234);
+        c.fillText(realSnapshot ? 'Cotas reais' : (record.useProductLimits ? 'Cotas atuais' : 'Simulação'),610,234);
 
         c.fillStyle = '#168a4d';
         c.fillRect(48,274,804,42);
@@ -3137,17 +3190,19 @@
             c.textAlign = 'left';
         });
 
-        if (allRows.length > 14) {
+        if (allRows.length > 200) {
             c.fillStyle = '#52645a';
             c.font = '14px Arial';
-            c.fillText(`+ ${allRows.length - 14} produto(s) não exibido(s) nesta imagem`,48,logicalHeight - 22);
+            c.fillText(`+ ${allRows.length - 200} produto(s) não exibido(s) nesta imagem`,48,logicalHeight - 22);
         } else {
-            c.fillStyle = record.useProductLimits ? '#168a4d' : '#7c3aed';
+            c.fillStyle = realSnapshot || record.useProductLimits ? '#168a4d' : '#7c3aed';
             c.font = '700 13px Arial';
             c.fillText(
-                record.useProductLimits
-                    ? 'Valores calculados considerando as cotas atuais do associado.'
-                    : 'Simulação informativa: confirme as cotas atuais antes da entrega.',
+                realSnapshot
+                    ? 'Retrato das cotas reais disponíveis na data e hora indicadas acima.'
+                    : (record.useProductLimits
+                        ? 'Valores calculados considerando as cotas atuais do associado.'
+                        : 'Simulação informativa: confirme as cotas atuais antes da entrega.'),
                 48,
                 logicalHeight - 20
             );
@@ -3176,7 +3231,7 @@
 
         return new File(
             [blob],
-            `cotas-${associateSlug}-${new Date(record.createdAt || Date.now()).toISOString().slice(0,10)}.png`,
+            `${record.isRealQuotaSnapshot ? 'cotas-reais' : 'cotas'}-${associateSlug}-${new Date(record.capturedAt || record.createdAt || Date.now()).toISOString().slice(0,10)}.png`,
             {type:'image/png'}
         );
     }
@@ -3184,18 +3239,23 @@
     function textForRecord(record) {
         const rows = shareRows(record);
         const total = rows.reduce((sum,row) => sum + row.total,0);
+        const capturedAt = new Date(record.capturedAt || record.createdAt || Date.now());
+        const realSnapshot = Boolean(record.isRealQuotaSnapshot);
         const lines = [
-            '*COTAS DE PRODUTOS PARA ENTREGA*',
+            realSnapshot ? '*COTAS REAIS DISPONÍVEIS*' : '*COTAS DE PRODUTOS PARA ENTREGA*',
             `*Associado:* ${ASSOCIATE_NAME}`,
             `*Projeto:* ${PROJECT_TITLE}`,
+            `*Posição em:* ${capturedAt.toLocaleString('pt-BR')}`,
             '',
             '*PRODUTO | COTA PARA ENTREGA*',
             ...rows.map(row => `• ${row.product.product_name} — *${quantity(row.quantity)} ${row.product.unit || 'un'}*`),
             '',
             `*Valor estimado:* ${money(total)}`,
-            record.useProductLimits
-                ? '_Quantidades calculadas considerando as cotas atuais._'
-                : '_Simulação informativa. Confirme as cotas atuais antes da entrega._',
+            realSnapshot
+                ? '_Retrato das cotas reais disponíveis nesta data e hora._'
+                : (record.useProductLimits
+                    ? '_Quantidades calculadas considerando as cotas atuais._'
+                    : '_Simulação informativa. Confirme as cotas atuais antes da entrega._'),
         ];
 
         return lines.join('\n');
@@ -3208,6 +3268,9 @@
 
     function openShareSheet(record) {
         state.shareRecord = record;
+        document.getElementById('sim-share-title').textContent = record.isRealQuotaSnapshot
+            ? 'Compartilhar cotas reais'
+            : 'Compartilhar cotas de produtos';
         shareSheet.hidden = false;
         document.getElementById('sim-share-image')?.focus();
     }
@@ -3215,9 +3278,10 @@
     async function shareImageRecord(record) {
         try {
             const file = await imageFileForRecord(record);
+            const realSnapshot = Boolean(record.isRealQuotaSnapshot);
             const shareData = {
-                title:`Cotas de produtos - ${ASSOCIATE_NAME}`,
-                text:`Cotas de produtos para ${ASSOCIATE_NAME} · ${PROJECT_TITLE}`,
+                title:`${realSnapshot ? 'Cotas reais' : 'Cotas de produtos'} - ${ASSOCIATE_NAME}`,
+                text:`${realSnapshot ? 'Cotas reais disponíveis' : 'Cotas de produtos'} para ${ASSOCIATE_NAME} · ${PROJECT_TITLE}`,
                 files:[file],
             };
 
@@ -3246,7 +3310,7 @@
         try {
             if (typeof navigator.share === 'function') {
                 await navigator.share({
-                    title:`Cotas de produtos - ${ASSOCIATE_NAME}`,
+                    title:`${record.isRealQuotaSnapshot ? 'Cotas reais' : 'Cotas de produtos'} - ${ASSOCIATE_NAME}`,
                     text,
                 });
                 closeShareSheet();
@@ -3281,8 +3345,10 @@
             link.click();
             link.remove();
             window.setTimeout(() => URL.revokeObjectURL(url),1000);
+            return true;
         } catch (error) {
             showToast('Não foi possível gerar a imagem.');
+            return false;
         }
     }
 
@@ -3425,6 +3491,13 @@
     document.getElementById('sim-share-text').addEventListener('click',() => {
         if (state.shareRecord) shareTextRecord(state.shareRecord);
     });
+    document.getElementById('sim-save-image').addEventListener('click',async () => {
+        if (!state.shareRecord) return;
+        if (await downloadRecord(state.shareRecord)) {
+            closeShareSheet();
+            showToast('Imagem salva com a data e hora das cotas.');
+        }
+    });
     shareSheet.addEventListener('click',event => {
         if (event.target === shareSheet) closeShareSheet();
     });
@@ -3502,6 +3575,7 @@
             const data = await response.json();
             state.products = Array.isArray(data.products) ? data.products : [];
             state.summary = data.summary || {};
+            state.capturedAt = data.captured_at || new Date().toISOString();
             state.useProductLimits = state.products.some(product => product.delivery_enabled);
 
             if (
@@ -3514,6 +3588,19 @@
             readHistory();
             state.step = stepFromLocation();
             setStep(state.step,{historyMode:'replace'});
+
+            if (root.dataset.autoShare === 'real-quotas') {
+                const record = realQuotaRecord();
+                const url = new URL(window.location.href);
+                url.searchParams.delete('share');
+                window.history.replaceState(window.history.state,'',url);
+
+                if (record) {
+                    openShareSheet(record);
+                } else {
+                    showToast('Não há cotas reais disponíveis para compartilhar nesta data.');
+                }
+            }
         } catch (error) {
             showToast(error.message || 'Não foi possível abrir o simulador.');
         } finally {

@@ -41,6 +41,13 @@
         'project' => $project->id,
         'associate' => $associate->id,
     ]);
+
+    $associateQuotaShareUrl = route('delivery.projects.associates.simulator', [
+        'tenant' => $tenantSlug,
+        'project' => $project->id,
+        'associate' => $associate->id,
+        'share' => 'real-quotas',
+    ]);
 @endphp
 
 <style>
@@ -302,6 +309,12 @@
         border-color: rgba(37, 99, 235, .18);
         background: var(--ap-blue-soft);
         color: var(--ap-blue);
+    }
+
+    .ap-hero-btn.share-quotas {
+        border-color: rgba(22, 138, 77, .18);
+        background: var(--ap-green-soft);
+        color: var(--ap-green);
     }
 
     /* =========================================================
@@ -3675,6 +3688,14 @@
 
         <div class="ap-hero-actions">
             <a
+                class="ap-hero-btn share-quotas"
+                href="{{ $associateQuotaShareUrl }}"
+            >
+                <i data-lucide="share-2"></i>
+                Compartilhar cotas reais
+            </a>
+
+            <a
                 class="ap-hero-btn simulator"
                 href="{{ $associateSimulatorUrl }}"
             >
@@ -5087,6 +5108,12 @@
                 <td>${money(item.gross)}</td>
                 <td>${esc(item.receipt || '-')}</td>
                 <td>${item.paid ? badge('paid', 'Paga') : badge(item.billing_status, item.billing_status)}</td>
+                <td>
+                    ${item.notes ? `<button type="button" class="delivery-note-trigger"
+                        data-delivery-notes="${esc(item.notes)}"
+                        data-delivery-notes-title="Observações da distribuição"
+                        data-delivery-notes-meta="${esc(item.product + ' · ' + item.customer + ' · ' + item.date)}">Observações</button>` : '-'}
+                </td>
             </tr>
         `).join('');
 
@@ -5122,6 +5149,15 @@
                         <strong>${esc(item.receipt || 'Pendente')}</strong>
                     </div>
                 </div>
+
+                ${item.notes ? `
+                    <div class="ap-mobile-card-actions">
+                        <button type="button" class="delivery-note-trigger"
+                            data-delivery-notes="${esc(item.notes)}"
+                            data-delivery-notes-title="Observações da distribuição"
+                            data-delivery-notes-meta="${esc(item.product + ' · ' + item.customer + ' · ' + item.date)}">Observações</button>
+                    </div>
+                ` : ''}
             </article>
         `).join('');
 
@@ -5141,12 +5177,13 @@
                                 <th>Bruto</th>
                                 <th>Comprovante</th>
                                 <th>Status</th>
+                                <th>Observações</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${rows || `
                                 <tr>
-                                    <td colspan="8">
+                                    <td colspan="9">
                                         ${stateView(
                                             'Nenhuma distribuição encontrada',
                                             'As distribuições deste associado aparecerão aqui.',

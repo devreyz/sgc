@@ -17,6 +17,10 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString("route('associate.projects.simulator'", $view);
         self::assertStringContainsString("route('delivery.projects.associates.simulator'", $recorderView);
         self::assertStringContainsString('Simular entregas', $recorderView);
+        self::assertStringContainsString("'share' => 'real-quotas'", $view);
+        self::assertStringContainsString("'share' => 'real-quotas'", $recorderView);
+        self::assertStringContainsString('Compartilhar cotas reais', $view);
+        self::assertStringContainsString('Compartilhar cotas reais', $recorderView);
         self::assertStringContainsString('function awPrices(data)', $view);
         self::assertStringContainsString('data-step-panel="0"', $simulator);
         self::assertStringContainsString('data-step-panel="2"', $simulator);
@@ -31,6 +35,9 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString('PRODUTO | COTA PARA ENTREGA', $simulator);
         self::assertStringContainsString('Enviar como imagem', $simulator);
         self::assertStringContainsString('Enviar como texto', $simulator);
+        self::assertStringContainsString('Salvar imagem', $simulator);
+        self::assertStringContainsString('function realQuotaRecord()', $simulator);
+        self::assertStringContainsString("root.dataset.autoShare === 'real-quotas'", $simulator);
         self::assertStringContainsString('https://wa.me/?text=', $simulator);
         self::assertStringNotContainsString('state.selected.set(productId', strstr($simulator, 'async function load()'));
     }
@@ -67,12 +74,28 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertSame(['GET', 'HEAD'], $recorderDataRoute->methods());
         self::assertStringContainsString("'prices' => response()->json", $controller);
         self::assertStringContainsString("'simulator' => response()->json", $controller);
+        self::assertStringContainsString("'captured_at' => now()->toIso8601String()", $controller);
         self::assertStringContainsString('->take(250)', $controller);
         self::assertStringContainsString("->where('tenant_id', \$project->tenant_id)", $controller);
         self::assertStringContainsString("'delivery_enabled' => \$deliveryEnabled", $controller);
         self::assertStringContainsString("'delivery_enabled_total'", $controller);
         self::assertStringContainsString('$configuredProductIds = $eligible->keys()', $controller);
         self::assertStringContainsString('[$project, $associate] = $this->context($request);', $controller);
+    }
+
+    public function test_delivery_and_distribution_notes_are_available_on_both_portals(): void
+    {
+        $memberController = file_get_contents(app_path('Http/Controllers/Associate/AssociateProjectPortalController.php'));
+        $recorderController = file_get_contents(app_path('Http/Controllers/Delivery/AssociateProjectController.php'));
+        $memberView = file_get_contents(resource_path('views/associate/project-workspace.blade.php'));
+        $recorderView = file_get_contents(resource_path('views/delivery/associate-project.blade.php'));
+
+        self::assertGreaterThanOrEqual(2, substr_count($memberController, "'notes' => \$item->notes"));
+        self::assertStringContainsString("'notes' => \$item->notes", $recorderController);
+        self::assertStringContainsString('data-aw-note=', $memberView);
+        self::assertStringContainsString('Ver observações', $memberView);
+        self::assertStringContainsString('awInfoBody.textContent', $memberView);
+        self::assertStringContainsString('data-delivery-notes-title="Observações da distribuição"', $recorderView);
     }
 
     public function test_mobile_bottom_navigation_requires_an_active_item(): void

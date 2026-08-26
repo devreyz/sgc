@@ -916,6 +916,7 @@ class AssociateProjectController extends Controller
             'receipt_status' => $item->associateReceipt?->status?->value,
             'billing_status' => $item->billing_status?->value,
             'paid' => (bool) $item->paid,
+            'notes' => $item->notes,
         ]));
 
         return $page->toArray();

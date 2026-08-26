@@ -9,7 +9,6 @@ use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\AssociateReceiptPayment;
 use App\Models\ProductionDelivery;
-use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateFinancialSummaryService;
@@ -295,6 +294,7 @@ class AssociateProjectPortalController extends Controller
             ->values();
 
         return [
+            'captured_at' => now()->toIso8601String(),
             'summary' => [
                 'financial_limit' => $summary['financial_limit'],
                 'financial_consumed' => $summary['financial_consumed'],
@@ -328,6 +328,7 @@ class AssociateProjectPortalController extends Controller
             'gross' => (float) $item->gross_value,
             'receipt' => $item->associateReceipt?->formatted_number,
             'status' => $item->billing_status?->value,
+            'notes' => $item->notes,
         ]));
 
         return $page->toArray();
