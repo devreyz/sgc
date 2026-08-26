@@ -1446,6 +1446,110 @@
         display:none !important;
     }
 
+    .sim-share-sheet {
+        position:fixed;
+        z-index:110;
+        inset:0;
+        display:grid;
+        place-items:end center;
+        padding:1rem;
+        background:rgba(15,35,24,.46);
+        backdrop-filter:blur(3px);
+    }
+
+    .sim-share-sheet[hidden] {
+        display:none !important;
+    }
+
+    .sim-share-dialog {
+        width:min(100%,480px);
+        padding:.9rem;
+        border:1px solid var(--sim-border);
+        border-radius:16px;
+        background:#fff;
+        box-shadow:0 24px 70px rgba(15,35,24,.24);
+    }
+
+    .sim-share-dialog-head {
+        display:grid;
+        grid-template-columns:minmax(0,1fr) auto;
+        gap:.6rem;
+        align-items:start;
+    }
+
+    .sim-share-dialog-head strong,
+    .sim-share-dialog-head span {
+        display:block;
+    }
+
+    .sim-share-dialog-head strong {
+        color:var(--sim-text);
+        font-size:.94rem;
+    }
+
+    .sim-share-dialog-head span {
+        margin-top:.16rem;
+        color:var(--sim-secondary);
+        font-size:.72rem;
+        line-height:1.45;
+    }
+
+    .sim-share-close {
+        display:grid;
+        width:36px;
+        height:36px;
+        place-items:center;
+        border:1px solid var(--sim-border);
+        border-radius:9px;
+        background:#fff;
+        color:var(--sim-secondary);
+        cursor:pointer;
+    }
+
+    .sim-share-options {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:.55rem;
+        margin-top:.8rem;
+    }
+
+    .sim-share-option {
+        display:grid;
+        min-height:104px;
+        grid-template-columns:auto minmax(0,1fr);
+        gap:.55rem;
+        align-content:center;
+        align-items:center;
+        padding:.7rem;
+        border:1px solid var(--sim-border);
+        border-radius:12px;
+        background:var(--sim-soft);
+        color:var(--sim-text);
+        cursor:pointer;
+        text-align:left;
+    }
+
+    .sim-share-option > i {
+        color:var(--sim-blue);
+        font-size:1.35rem;
+    }
+
+    .sim-share-option strong,
+    .sim-share-option small {
+        display:block;
+    }
+
+    .sim-share-option strong {
+        font-size:.76rem;
+    }
+
+    .sim-share-option small {
+        margin-top:.12rem;
+        color:var(--sim-secondary);
+        font-size:.64rem;
+        line-height:1.35;
+    }
+
     .sim-toast {
         position:fixed;
         z-index:100;
@@ -1501,6 +1605,22 @@
             width:min(100%,calc(100dvw - 12px));
             gap:.62rem;
             padding-bottom:8rem;
+        }
+
+        .sim-share-sheet {
+            padding:0;
+        }
+
+        .sim-share-dialog {
+            border-right:0;
+            border-bottom:0;
+            border-left:0;
+            border-radius:16px 16px 0 0;
+            padding-bottom:calc(.9rem + env(safe-area-inset-bottom));
+        }
+
+        .sim-share-options {
+            grid-template-columns:1fr;
         }
 
         .sim-header {
@@ -1992,9 +2112,49 @@
 
         <button class="sim-button share final-action" type="button" id="sim-share" hidden>
             <i class="ph-duotone ph-share-network"></i>
-            <span>Compartilhar imagem</span>
+            <span>Compartilhar</span>
         </button>
     </div>
+</div>
+
+<div class="sim-share-sheet" id="sim-share-sheet" role="presentation" hidden>
+    <section
+        class="sim-share-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sim-share-title"
+    >
+        <header class="sim-share-dialog-head">
+            <div>
+                <strong id="sim-share-title">Compartilhar cotas de produtos</strong>
+                <span>
+                    Escolha o formato mais fácil para enviar pelo WhatsApp.
+                </span>
+            </div>
+
+            <button class="sim-share-close" id="sim-share-close" type="button" aria-label="Fechar">
+                <i class="ph ph-x"></i>
+            </button>
+        </header>
+
+        <div class="sim-share-options">
+            <button class="sim-share-option" id="sim-share-image" type="button">
+                <i class="ph-duotone ph-image"></i>
+                <span>
+                    <strong>Enviar como imagem</strong>
+                    <small>Tabela pronta, com associado, produtos e quantidades.</small>
+                </span>
+            </button>
+
+            <button class="sim-share-option" id="sim-share-text" type="button">
+                <i class="ph-duotone ph-whatsapp-logo"></i>
+                <span>
+                    <strong>Enviar como texto</strong>
+                    <small>Mensagem curta e formatada para WhatsApp.</small>
+                </span>
+            </button>
+        </div>
+    </section>
 </div>
 
 <div class="sim-toast" id="sim-toast" role="status" aria-live="polite" hidden></div>
@@ -2009,6 +2169,7 @@
     if (!root) return;
 
     const PROJECT_TITLE = @json($project->title);
+    const ASSOCIATE_NAME = @json($associate->display_name);
     const EPSILON = 0.0005;
 
     const state = {
@@ -2022,6 +2183,7 @@
         useProductLimits:false,
         selected:new Map(),
         history:[],
+        shareRecord:null,
     };
 
     const STEP_SLUGS = ['valor','produtos','quantidades'];
@@ -2035,6 +2197,7 @@
     const nextButton = document.getElementById('sim-next');
     const saveButton = document.getElementById('sim-save');
     const shareButton = document.getElementById('sim-share');
+    const shareSheet = document.getElementById('sim-share-sheet');
 
     function stepFromLocation() {
         const match = window.location.hash.match(/^#etapa=(valor|produtos|quantidades)$/);
@@ -2828,7 +2991,7 @@
 
                         <button class="sim-small-button primary-soft" type="button" data-share-history="${item.id}">
                             <i class="ph ph-share-network"></i>
-                            Compartilhar imagem
+                            Compartilhar
                         </button>
 
                         <button class="sim-small-button" type="button" data-download-history="${item.id}">
@@ -2885,15 +3048,18 @@
        Imagem gerada somente sob demanda
        ====================================================== */
 
+    function shareRows(record) {
+        return recordRows(record).filter(row => row.quantity > EPSILON);
+    }
+
     function canvasForRecord(record) {
-        const rows = recordRows(record).slice(0,12);
-        const total = rows.reduce((sum,row) => sum + row.total,0);
-        const budget = Number(record.budget || 0);
-        const available = Math.max(0,budget - total);
+        const allRows = shareRows(record);
+        const rows = allRows.slice(0,14);
+        const total = allRows.reduce((sum,row) => sum + row.total,0);
 
         const scale = 2;
         const logicalWidth = 900;
-        const logicalHeight = 350 + rows.length * 68 + ((record.rows || []).length > 12 ? 42 : 0);
+        const logicalHeight = 370 + rows.length * 62 + (allRows.length > 14 ? 34 : 0);
         const canvas = document.createElement('canvas');
         canvas.width = logicalWidth * scale;
         canvas.height = logicalHeight * scale;
@@ -2908,63 +3074,83 @@
         gradient.addColorStop(.5,'#7c3aed');
         gradient.addColorStop(1,'#2563eb');
         c.fillStyle = gradient;
-        c.fillRect(0,0,canvas.width,14);
+        c.fillRect(0,0,logicalWidth,14);
 
         c.fillStyle = '#102018';
-        c.font = '700 30px Arial';
-        c.fillText('Simulação de entrega',48,66);
+        c.font = '700 28px Arial';
+        c.fillText('Cotas de produtos para entrega',48,60);
+
+        c.fillStyle = '#102018';
+        c.font = '700 21px Arial';
+        c.fillText(String(ASSOCIATE_NAME).slice(0,58),48,96);
 
         c.fillStyle = '#52645a';
-        c.font = '18px Arial';
-        c.fillText(PROJECT_TITLE,48,100);
+        c.font = '16px Arial';
+        c.fillText(String(PROJECT_TITLE).slice(0,72),48,126);
+        c.fillText(`Gerado em ${new Date().toLocaleString('pt-BR')}`,48,152);
 
-        c.fillStyle = '#f7faf8';
-        c.fillRect(48,132,804,118);
+        c.fillStyle = '#f2f7f4';
+        c.fillRect(48,180,804,70);
 
-        c.fillStyle = '#809087';
-        c.font = '15px Arial';
-        c.fillText('Cota',72,168);
-        c.fillText('Total simulado',330,168);
-        c.fillText('Ainda disponível',610,168);
+        c.fillStyle = '#52645a';
+        c.font = '14px Arial';
+        c.fillText('Produtos informados',66,207);
+        c.fillText('Valor estimado',330,207);
+        c.fillText('Referência usada',610,207);
 
         c.fillStyle = '#102018';
-        c.font = '700 22px Arial';
-        c.fillText(money(budget),72,208);
-        c.fillText(money(total),330,208);
-        c.fillStyle = '#168a4d';
-        c.fillText(money(available),610,208);
+        c.font = '700 19px Arial';
+        c.fillText(String(allRows.length),66,234);
+        c.fillText(money(total),330,234);
+        c.fillText(record.useProductLimits ? 'Cotas atuais' : 'Simulação',610,234);
 
-        c.fillStyle = record.useProductLimits ? '#2563eb' : '#7c3aed';
+        c.fillStyle = '#168a4d';
+        c.fillRect(48,274,804,42);
+        c.fillStyle = '#ffffff';
         c.font = '700 15px Arial';
-        c.fillText(record.useProductLimits ? 'Modo: considerando limites atuais' : 'Modo: estudo livre',48,286);
+        c.fillText('PRODUTO',64,301);
+        c.textAlign = 'right';
+        c.fillText('COTA PARA ENTREGA',836,301);
+        c.textAlign = 'left';
 
         rows.forEach((row,index) => {
-            const y = 330 + index * 68;
+            const y = 316 + index * 62;
+            if (index % 2 === 0) {
+                c.fillStyle = '#f8fbf9';
+                c.fillRect(48,y,804,62);
+            }
+
             c.strokeStyle = '#dce7e0';
             c.beginPath();
-            c.moveTo(48,y + 36);
-            c.lineTo(852,y + 36);
+            c.moveTo(48,y + 62);
+            c.lineTo(852,y + 62);
             c.stroke();
 
             c.fillStyle = '#102018';
-            c.font = '700 17px Arial';
-            c.fillText(String(row.product.product_name).slice(0,38),48,y);
+            c.font = '700 16px Arial';
+            c.fillText(String(row.product.product_name).slice(0,52),64,y + 37);
 
-            c.fillStyle = '#52645a';
-            c.font = '16px Arial';
-            c.fillText(`${quantity(row.quantity)} ${row.product.unit || 'un'}`,500,y);
-
-            c.fillStyle = '#168a4d';
+            c.fillStyle = '#102018';
             c.font = '700 17px Arial';
             c.textAlign = 'right';
-            c.fillText(money(row.total),852,y);
+            c.fillText(`${quantity(row.quantity)} ${row.product.unit || 'un'}`,836,y + 37);
             c.textAlign = 'left';
         });
 
-        if ((record.rows || []).length > 12) {
+        if (allRows.length > 14) {
             c.fillStyle = '#52645a';
-            c.font = '16px Arial';
-            c.fillText(`+ ${(record.rows || []).length - 12} produto(s)`,48,logicalHeight - 22);
+            c.font = '14px Arial';
+            c.fillText(`+ ${allRows.length - 14} produto(s) não exibido(s) nesta imagem`,48,logicalHeight - 22);
+        } else {
+            c.fillStyle = record.useProductLimits ? '#168a4d' : '#7c3aed';
+            c.font = '700 13px Arial';
+            c.fillText(
+                record.useProductLimits
+                    ? 'Valores calculados considerando as cotas atuais do associado.'
+                    : 'Simulação informativa: confirme as cotas atuais antes da entrega.',
+                48,
+                logicalHeight - 20
+            );
         }
 
         return canvas;
@@ -2981,19 +3167,57 @@
 
     async function imageFileForRecord(record) {
         const blob = await canvasToBlob(canvasForRecord(record));
+        const associateSlug = String(ASSOCIATE_NAME || 'associado')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g,'')
+            .replace(/[^a-zA-Z0-9]+/g,'-')
+            .replace(/^-|-$/g,'')
+            .toLowerCase();
+
         return new File(
             [blob],
-            `simulacao-entrega-${new Date(record.createdAt || Date.now()).toISOString().slice(0,10)}.png`,
+            `cotas-${associateSlug}-${new Date(record.createdAt || Date.now()).toISOString().slice(0,10)}.png`,
             {type:'image/png'}
         );
     }
 
-    async function shareRecord(record) {
+    function textForRecord(record) {
+        const rows = shareRows(record);
+        const total = rows.reduce((sum,row) => sum + row.total,0);
+        const lines = [
+            '*COTAS DE PRODUTOS PARA ENTREGA*',
+            `*Associado:* ${ASSOCIATE_NAME}`,
+            `*Projeto:* ${PROJECT_TITLE}`,
+            '',
+            '*PRODUTO | COTA PARA ENTREGA*',
+            ...rows.map(row => `• ${row.product.product_name} — *${quantity(row.quantity)} ${row.product.unit || 'un'}*`),
+            '',
+            `*Valor estimado:* ${money(total)}`,
+            record.useProductLimits
+                ? '_Quantidades calculadas considerando as cotas atuais._'
+                : '_Simulação informativa. Confirme as cotas atuais antes da entrega._',
+        ];
+
+        return lines.join('\n');
+    }
+
+    function closeShareSheet() {
+        shareSheet.hidden = true;
+        state.shareRecord = null;
+    }
+
+    function openShareSheet(record) {
+        state.shareRecord = record;
+        shareSheet.hidden = false;
+        document.getElementById('sim-share-image')?.focus();
+    }
+
+    async function shareImageRecord(record) {
         try {
             const file = await imageFileForRecord(record);
             const shareData = {
-                title:'Simulação de entrega',
-                text:PROJECT_TITLE,
+                title:`Cotas de produtos - ${ASSOCIATE_NAME}`,
+                text:`Cotas de produtos para ${ASSOCIATE_NAME} · ${PROJECT_TITLE}`,
                 files:[file],
             };
 
@@ -3002,14 +3226,46 @@
 
             if (supported) {
                 await navigator.share(shareData);
+                closeShareSheet();
                 return;
             }
 
             downloadRecord(record);
-            showToast('Este navegador não compartilha arquivos diretamente. A imagem foi baixada como alternativa.');
+            closeShareSheet();
+            showToast('A imagem foi baixada. Abra o WhatsApp e anexe o arquivo para enviar.');
         } catch (error) {
             if (error?.name !== 'AbortError') {
                 showToast('Não foi possível compartilhar a imagem.');
+            }
+        }
+    }
+
+    async function shareTextRecord(record) {
+        const text = textForRecord(record);
+
+        try {
+            if (typeof navigator.share === 'function') {
+                await navigator.share({
+                    title:`Cotas de produtos - ${ASSOCIATE_NAME}`,
+                    text,
+                });
+                closeShareSheet();
+                return;
+            }
+
+            const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            const opened = window.open(whatsappUrl,'_blank','noopener,noreferrer');
+            if (opened) {
+                closeShareSheet();
+                return;
+            }
+
+            await navigator.clipboard.writeText(text);
+            closeShareSheet();
+            showToast('Texto copiado. Cole a mensagem no WhatsApp.');
+        } catch (error) {
+            if (error?.name !== 'AbortError') {
+                showToast('Não foi possível compartilhar o texto.');
             }
         }
     }
@@ -3037,7 +3293,7 @@
             return;
         }
 
-        await shareRecord(record);
+        openShareSheet(record);
     }
 
     /* ======================================================
@@ -3162,12 +3418,26 @@
     saveButton.addEventListener('click',saveCurrentSimulation);
     shareButton.addEventListener('click',shareCurrentSimulation);
 
+    document.getElementById('sim-share-close').addEventListener('click',closeShareSheet);
+    document.getElementById('sim-share-image').addEventListener('click',() => {
+        if (state.shareRecord) shareImageRecord(state.shareRecord);
+    });
+    document.getElementById('sim-share-text').addEventListener('click',() => {
+        if (state.shareRecord) shareTextRecord(state.shareRecord);
+    });
+    shareSheet.addEventListener('click',event => {
+        if (event.target === shareSheet) closeShareSheet();
+    });
+    document.addEventListener('keydown',event => {
+        if (event.key === 'Escape' && !shareSheet.hidden) closeShareSheet();
+    });
+
     document.getElementById('sim-restart').addEventListener('click',() => {
         state.selected.clear();
         state.search = '';
         state.productFilter = 'enabled';
         state.customQuota = 0;
-        state.useProductLimits = false;
+        state.useProductLimits = state.products.some(product => product.delivery_enabled);
         state.quotaMode = state.summary.financial_remaining !== null
             && Number(state.summary.financial_remaining) > 0
                 ? 'remaining'
@@ -3197,7 +3467,7 @@
         if (!item) return;
 
         if (open) restoreHistory(item);
-        if (share) shareRecord(item);
+        if (share) openShareSheet(item);
         if (download) downloadRecord(item);
 
         if (remove) {
@@ -3232,6 +3502,7 @@
             const data = await response.json();
             state.products = Array.isArray(data.products) ? data.products : [];
             state.summary = data.summary || {};
+            state.useProductLimits = state.products.some(product => product.delivery_enabled);
 
             if (
                 state.summary.financial_remaining === null

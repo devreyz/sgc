@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Delivery;
 
-use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\ReceiptStatus;
+use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Controller;
 use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Models\Associate;
@@ -33,6 +33,7 @@ use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
+use App\Support\PortalNavigation;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -89,8 +90,12 @@ class DeliveryRegistrationController extends Controller
             'simulatorHeading' => 'Simular para '.$associate->display_name,
             'simulatorProjectLabel' => $project->title,
             'simulatorRole' => 'Registrador de Entregas',
-            'simulatorNavigation' => \App\Support\PortalNavigation::make('delivery', 'register', $tenant->slug),
-            'simulatorBackUrl' => route('delivery.register', ['tenant' => $tenant->slug, 'project' => $project->id]),
+            'simulatorNavigation' => PortalNavigation::make('delivery', 'register', $tenant->slug),
+            'simulatorBackUrl' => route('delivery.projects.associates.show', [
+                'tenant' => $tenant->slug,
+                'project' => $project->id,
+                'associate' => $associate->id,
+            ]),
             'simulatorEndpoint' => route('delivery.projects.associates.simulator.data', [
                 'tenant' => $tenant->slug,
                 'project' => $project->id,

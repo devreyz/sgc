@@ -35,6 +35,12 @@
         'project' => $project->id,
         'associate' => $associate->id,
     ]);
+
+    $associateSimulatorUrl = route('delivery.projects.associates.simulator', [
+        'tenant' => $tenantSlug,
+        'project' => $project->id,
+        'associate' => $associate->id,
+    ]);
 @endphp
 
 <style>
@@ -290,6 +296,12 @@
         border-color: rgba(124, 58, 237, .18);
         background: var(--ap-violet-soft);
         color: var(--ap-violet);
+    }
+
+    .ap-hero-btn.simulator {
+        border-color: rgba(37, 99, 235, .18);
+        background: var(--ap-blue-soft);
+        color: var(--ap-blue);
     }
 
     /* =========================================================
@@ -3662,6 +3674,14 @@
         </div>
 
         <div class="ap-hero-actions">
+            <a
+                class="ap-hero-btn simulator"
+                href="{{ $associateSimulatorUrl }}"
+            >
+                <i data-lucide="calculator"></i>
+                Simular entregas
+            </a>
+
             @if($canManageLimits)
                 <button
                     class="ap-hero-btn limits"

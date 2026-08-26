@@ -9,11 +9,14 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
     public function test_workspace_links_to_the_dedicated_simulator_page(): void
     {
         $view = file_get_contents(resource_path('views/associate/project-workspace.blade.php'));
+        $recorderView = file_get_contents(resource_path('views/delivery/associate-project.blade.php'));
         $simulator = file_get_contents(resource_path('views/associate/project-simulator.blade.php'));
 
         self::assertStringContainsString('data-section="prices"', $view);
         self::assertStringNotContainsString('<span>Simular</span>', $view);
         self::assertStringContainsString("route('associate.projects.simulator'", $view);
+        self::assertStringContainsString("route('delivery.projects.associates.simulator'", $recorderView);
+        self::assertStringContainsString('Simular entregas', $recorderView);
         self::assertStringContainsString('function awPrices(data)', $view);
         self::assertStringContainsString('data-step-panel="0"', $simulator);
         self::assertStringContainsString('data-step-panel="2"', $simulator);
@@ -21,8 +24,14 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString("cache:'no-store'", $simulator);
         self::assertStringContainsString('localStorage.setItem(historyKey', $simulator);
         self::assertStringContainsString('window.history.pushState', $simulator);
-        self::assertStringContainsString("const scale = 2;", $simulator);
+        self::assertStringContainsString('const scale = 2;', $simulator);
         self::assertStringContainsString("},'image/png');", $simulator);
+        self::assertStringContainsString('const ASSOCIATE_NAME = @json($associate->display_name);', $simulator);
+        self::assertStringContainsString('COTAS DE PRODUTOS PARA ENTREGA', $simulator);
+        self::assertStringContainsString('PRODUTO | COTA PARA ENTREGA', $simulator);
+        self::assertStringContainsString('Enviar como imagem', $simulator);
+        self::assertStringContainsString('Enviar como texto', $simulator);
+        self::assertStringContainsString('https://wa.me/?text=', $simulator);
         self::assertStringNotContainsString('state.selected.set(productId', strstr($simulator, 'async function load()'));
     }
 
