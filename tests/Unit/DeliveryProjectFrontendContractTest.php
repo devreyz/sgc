@@ -35,4 +35,23 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString('mobile-card delivery-card-v2', $view);
         self::assertStringContainsString('dc-meter dc-distribution', $view);
     }
+
+    public function test_register_calculates_product_substitution_with_existing_customer_prices(): void
+    {
+        $view = file_get_contents(resource_path('views/delivery/register.blade.php'));
+        $priceRoute = app('router')->getRoutes()->getByName('delivery.sheet.products');
+
+        self::assertNotNull($priceRoute);
+        self::assertSame(['GET', 'HEAD'], $priceRoute->methods());
+        self::assertStringContainsString('id="product-substitution-trigger"', $view);
+        self::assertStringContainsString('id="modal-product-substitution"', $view);
+        self::assertStringContainsString("'/delivery/sheet/products/' + customerId", $view);
+        self::assertStringContainsString('const rawTargetQuantity = actualTotal / target.price;', $view);
+        self::assertStringContainsString('const targetQuantity = Number(rawTargetQuantity.toFixed(3));', $view);
+        self::assertStringContainsString('Substituição: entregue ${productSubstitutionQuantity', $view);
+        self::assertStringContainsString(' no lugar de ${productSubstitutionQuantity(calculation.targetQuantity)', $view);
+        self::assertStringContainsString('valor equivalente ${money(calculation.actualTotal)}.', $view);
+        self::assertStringContainsString("notes             : $('f-notes').value.trim() || null", $view);
+        self::assertStringNotContainsString('substitution_product_id', $view);
+    }
 }

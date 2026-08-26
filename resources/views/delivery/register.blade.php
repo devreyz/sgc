@@ -3963,7 +3963,21 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                     <div class="sel-label">Produto</div>
                     <div class="sel-value" id="product-value">Nenhum selecionado</div>
                     <div class="sel-meta" id="product-meta" style="display:none"></div>
+                    <div class="sel-meta product-substitution-meta" id="product-substitution-meta" hidden></div>
                 </div>
+                <button
+                    type="button"
+                    class="product-substitution-trigger"
+                    id="product-substitution-trigger"
+                    onclick="event.stopPropagation(); openProductSubstitution()"
+                    title="Calcular substituição de produto"
+                    aria-label="Calcular substituição de produto"
+                    aria-haspopup="dialog"
+                    aria-controls="modal-product-substitution"
+                    hidden
+                >
+                    <i class="ph-duotone ph-arrows-left-right"></i>
+                </button>
                 <div class="sel-chevron">
                     <i data-lucide="chevron-right" style="width:16px;height:16px"></i>
                 </div>
@@ -4015,6 +4029,7 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                                 type="text"
                                 id="f-notes"
                                 placeholder="Digite uma observação opcional"
+                                maxlength="500"
                                 autocomplete="off"
                             >
                         </div>
@@ -4372,6 +4387,86 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
         </div>
         <div class="modal-list" id="list-product">
             <div class="modal-empty">Selecione um projeto primeiro</div>
+        </div>
+    </div>
+</div>
+
+{{-- Cálculo auxiliar de substituição: não cria registros adicionais. --}}
+<div class="modal-overlay" id="modal-product-substitution" aria-hidden="true">
+    <div class="modal-box product-substitution-box" role="dialog" aria-modal="true" aria-labelledby="product-substitution-title">
+        <div class="modal-header">
+            <div class="product-substitution-heading">
+                <span class="product-substitution-heading-icon" aria-hidden="true">
+                    <i class="ph-duotone ph-arrows-left-right"></i>
+                </span>
+                <div>
+                    <span class="modal-title" id="product-substitution-title">Substituir produto</span>
+                    <div class="mi-sub">Converta pelo mesmo valor financeiro</div>
+                </div>
+            </div>
+            <button class="modal-close" type="button" onclick="closeProductSubstitution()" aria-label="Fechar substituição">
+                <i class="ph-duotone ph-x"></i>
+            </button>
+        </div>
+
+        <div class="product-substitution-body register-sheet-scroll">
+            <div class="product-substitution-notice">
+                <i class="ph-duotone ph-info"></i>
+                <span>O sistema registrará somente o produto da cota. O produto realmente entregue ficará descrito nas observações.</span>
+            </div>
+
+            <div class="product-substitution-target">
+                <span>Produto que será lançado</span>
+                <strong id="product-substitution-target-name">—</strong>
+                <small id="product-substitution-target-unit">—</small>
+            </div>
+
+            <label class="product-substitution-field" id="product-substitution-customer-field">
+                <span>Cliente usado como referência de preço</span>
+                <select class="field-input" id="product-substitution-customer" onchange="changeProductSubstitutionCustomer(this.value)"></select>
+                <small>Necessário porque o mesmo produto pode ter preços diferentes por cliente.</small>
+            </label>
+
+            <div class="product-substitution-picker">
+                <label class="product-substitution-field" for="product-substitution-search">
+                    <span>Produto realmente entregue</span>
+                    <input
+                        class="modal-search"
+                        type="search"
+                        id="product-substitution-search"
+                        placeholder="Buscar em todos os produtos com preço"
+                        oninput="renderProductSubstitutionProducts()"
+                        autocomplete="off"
+                    >
+                </label>
+                <div class="product-substitution-list" id="product-substitution-list"></div>
+            </div>
+
+            <div class="product-substitution-calculation" id="product-substitution-calculation" hidden>
+                <label class="product-substitution-field" for="product-substitution-quantity">
+                    <span>Quantidade realmente entregue <b id="product-substitution-source-unit"></b></span>
+                    <input
+                        class="field-input"
+                        type="number"
+                        id="product-substitution-quantity"
+                        min="0.001"
+                        step="0.001"
+                        placeholder="0"
+                        oninput="updateProductSubstitutionCalculation()"
+                    >
+                </label>
+
+                <div class="product-substitution-equation" id="product-substitution-equation" aria-live="polite"></div>
+                <div class="product-substitution-result" id="product-substitution-result"></div>
+            </div>
+        </div>
+
+        <div class="product-substitution-footer">
+            <button type="button" class="reg-sheet-action secondary" onclick="closeProductSubstitution()">Cancelar</button>
+            <button type="button" class="reg-sheet-action primary" id="product-substitution-apply" onclick="applyProductSubstitution()" disabled>
+                <i class="ph-duotone ph-check-circle"></i>
+                Usar quantidade calculada
+            </button>
         </div>
     </div>
 </div>
@@ -5417,6 +5512,68 @@ body.register-sheet-open #delivery-notes-overlay.open {
 }
 </style>
 
+<style id="register-product-substitution-styles">
+.product-substitution-trigger {
+    display:inline-flex;
+    width:38px;
+    min-width:38px;
+    height:38px;
+    align-items:center;
+    justify-content:center;
+    border:1px solid rgba(124,58,237,.18);
+    border-radius:10px;
+    background:var(--r-violet-soft,#f4f0ff);
+    color:var(--r-violet,#7c3aed);
+    cursor:pointer;
+}
+.product-substitution-trigger[hidden] {display:none!important}
+.product-substitution-trigger:hover,
+.product-substitution-trigger:focus-visible {border-color:currentColor;outline:none}
+.product-substitution-trigger.applied {border-color:rgba(22,138,77,.22);background:var(--r-green-soft,#eaf8ef);color:var(--r-green,#168a4d)}
+.product-substitution-trigger i {font-size:18px;line-height:1}
+.product-substitution-meta {color:var(--r-green,#168a4d)!important;font-weight:700}
+.product-substitution-box {width:min(720px,calc(100vw - 1rem));max-height:min(90dvh,820px)}
+.product-substitution-heading {display:flex;min-width:0;gap:.48rem;align-items:center}
+.product-substitution-heading-icon {display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:9px;background:var(--r-violet-soft,#f4f0ff);color:var(--r-violet,#7c3aed)}
+.product-substitution-heading-icon i {font-size:18px}
+.product-substitution-body {display:grid;gap:.62rem;padding:.7rem}
+.product-substitution-notice {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.4rem;align-items:start;padding:.52rem .58rem;border:1px solid rgba(2,132,199,.14);border-radius:10px;background:var(--r-sky-soft,#edf8fe);color:var(--r-text-2,#52645a);font-size:.67rem;line-height:1.45}
+.product-substitution-notice i {color:var(--r-sky,#0284c7);font-size:17px}
+.product-substitution-target {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.12rem .5rem;padding:.55rem .62rem;border:1px solid var(--r-border,#dce7e0);border-left:3px solid var(--r-violet,#7c3aed);border-radius:10px;background:#fff}
+.product-substitution-target span {grid-column:1/-1;color:var(--r-text-3,#809087);font-size:.57rem;font-weight:760;text-transform:uppercase}
+.product-substitution-target strong {min-width:0;overflow:hidden;color:var(--r-text,#102018);font-size:.76rem;text-overflow:ellipsis;white-space:nowrap}
+.product-substitution-target small {color:var(--r-violet,#7c3aed);font-size:.64rem;font-weight:780}
+.product-substitution-field {display:grid;gap:.24rem;color:var(--r-text-2,#52645a);font-size:.64rem;font-weight:750}
+.product-substitution-field small {color:var(--r-text-3,#809087);font-size:.58rem;font-weight:500;line-height:1.4}
+.product-substitution-picker {display:grid;min-height:0;gap:.35rem}
+.product-substitution-list {display:grid;max-height:220px;gap:.24rem;overflow-y:auto;overscroll-behavior:contain}
+.product-substitution-item {display:grid;width:100%;grid-template-columns:auto minmax(0,1fr) auto;gap:.46rem;align-items:center;padding:.48rem .54rem;border:1px solid var(--r-border,#dce7e0);border-radius:9px;background:#fff;color:var(--r-text,#102018);cursor:pointer;text-align:left}
+.product-substitution-item:hover,
+.product-substitution-item.selected {border-color:rgba(124,58,237,.32);background:linear-gradient(90deg,var(--r-violet-soft,#f4f0ff),#fff 76%)}
+.product-substitution-item-icon {display:inline-flex;width:32px;height:32px;align-items:center;justify-content:center;border-radius:8px;background:var(--r-violet-soft,#f4f0ff);color:var(--r-violet,#7c3aed);font-size:.7rem;font-weight:800}
+.product-substitution-item-copy {display:grid;min-width:0;gap:.08rem}
+.product-substitution-item-copy strong {overflow:hidden;font-size:.7rem;text-overflow:ellipsis;white-space:nowrap}
+.product-substitution-item-copy small {color:var(--r-text-3,#809087);font-size:.59rem}
+.product-substitution-price {color:var(--r-green,#168a4d);font-size:.64rem;font-weight:800;white-space:nowrap}
+.product-substitution-empty {padding:.8rem;border:1px dashed var(--r-border,#dce7e0);border-radius:9px;color:var(--r-text-3,#809087);font-size:.65rem;text-align:center}
+.product-substitution-calculation {display:grid;gap:.48rem;padding:.58rem;border:1px solid var(--r-border,#dce7e0);border-radius:10px;background:var(--r-soft,#f8faf9)}
+.product-substitution-equation {min-height:34px;padding:.44rem .5rem;border-radius:8px;background:#fff;color:var(--r-text-2,#52645a);font-size:.65rem;line-height:1.45}
+.product-substitution-result {display:grid;gap:.12rem;padding:.52rem .56rem;border-radius:9px;background:var(--r-green-soft,#eaf8ef);color:var(--r-green,#168a4d)}
+.product-substitution-result strong {font-size:.8rem}
+.product-substitution-result span {font-size:.6rem;line-height:1.4}
+.product-substitution-result.warning {background:var(--r-amber-soft,#fff7e8);color:var(--r-amber,#c87408)}
+.product-substitution-footer {display:grid;flex:0 0 auto;grid-template-columns:1fr minmax(190px,1.35fr);gap:.4rem;padding:.52rem .62rem;border-top:1px solid var(--r-border,#dce7e0);background:#fff}
+.product-substitution-footer .reg-sheet-action {min-height:42px}
+@media(max-width:767px) {
+    .product-substitution-trigger {width:36px;min-width:36px;height:36px}
+    .product-substitution-box {width:100%;max-width:none;max-height:calc(var(--reg-vv-height) - 4px)!important;border-right:0;border-bottom:0;border-left:0;border-radius:18px 18px 0 0!important}
+    .product-substitution-body {padding:.54rem}
+    .product-substitution-list {max-height:190px}
+    .product-substitution-item {min-height:50px}
+    .product-substitution-footer {grid-template-columns:1fr 1.45fr;padding-bottom:calc(.52rem + env(safe-area-inset-bottom))}
+}
+</style>
+
 <script>
 (function () {
 'use strict';
@@ -5431,6 +5588,7 @@ const ROUTES = {
     deliveries : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/deliveries-json',
     integrity  : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity',
     resolveIntegrity : (pid) => '/' + TENANT + '/delivery/projects/' + pid + '/integrity/resolve',
+    substitutionProducts : (customerId) => '/' + TENANT + '/delivery/sheet/products/' + customerId,
     store      : '/' + TENANT + '/delivery/projects/' + @json($selectedProject['id']) + '/register',
     del        : (id)  => '/' + TENANT + '/delivery/deliveries/' + id,
 };
@@ -5470,6 +5628,16 @@ const Q = {
     quantity: 0,
     busy: false,
     confirmDelete: false,
+};
+
+const PRODUCT_SUBSTITUTION = {
+    customerId: null,
+    products: [],
+    actualProduct: null,
+    loading: false,
+    requestId: 0,
+    appliedNote: '',
+    appliedTargetId: null,
 };
 
 /* ─── DOM refs ───────────────────────────────────── */
@@ -7236,6 +7404,14 @@ function openAssociateSimulator() {
 
 /* ─── Product ────────────────────────────────────── */
 function selectProduct(demand) {
+    if (
+        S.product
+        && Number(S.product.product_id) !== Number(demand.product_id)
+    ) {
+        clearAppliedProductSubstitution();
+        $('f-qty').value = '';
+    }
+
     S.product = demand;
     const el = $('sel-product');
     el.classList.add('selected');
@@ -7260,20 +7436,382 @@ function selectProduct(demand) {
         qtyInput.removeAttribute('max');
     }
     $('f-unit-lbl').textContent = '(' + (demand.product_unit || 'un') + ')';
+    $('product-substitution-trigger').hidden = false;
     closeModal('product');
     checkFormReady();
     syncKeyboardStage();
 }
 
 function resetProductSelector() {
+    clearAppliedProductSubstitution();
     S.product = null;
     const el = $('sel-product');
     el.classList.remove('selected');
     $('product-value').textContent = 'Nenhum selecionado';
     $('product-meta').style.display = 'none';
+    $('product-substitution-trigger').hidden = true;
     $('f-qty')?.removeAttribute('max');
     checkFormReady();
     syncKeyboardStage();
+}
+
+/* ─── Substituição auxiliar por equivalência financeira ───────── */
+function productSubstitutionCustomers() {
+    const allowed = new Set(
+        (S.project?.customerIds || []).map(Number)
+    );
+
+    return ALL_CUSTOMERS.filter(customer =>
+        allowed.has(Number(customer.id))
+    );
+}
+
+function clearAppliedProductSubstitution() {
+    const noteField = $('f-notes');
+
+    if (noteField && PRODUCT_SUBSTITUTION.appliedNote) {
+        noteField.value = String(noteField.value || '')
+            .split('\n')
+            .filter(line => line.trim() !== PRODUCT_SUBSTITUTION.appliedNote)
+            .join('\n')
+            .trim();
+        syncEntryNotesUi();
+    }
+
+    PRODUCT_SUBSTITUTION.appliedNote = '';
+    PRODUCT_SUBSTITUTION.appliedTargetId = null;
+
+    const meta = $('product-substitution-meta');
+    if (meta) {
+        meta.textContent = '';
+        meta.hidden = true;
+    }
+
+    const trigger = $('product-substitution-trigger');
+    trigger?.classList.remove('applied');
+    if (trigger) {
+        trigger.title = 'Calcular substituição de produto';
+    }
+}
+
+function resetProductSubstitutionModal() {
+    PRODUCT_SUBSTITUTION.products = [];
+    PRODUCT_SUBSTITUTION.actualProduct = null;
+    PRODUCT_SUBSTITUTION.loading = false;
+    $('product-substitution-search').value = '';
+    $('product-substitution-quantity').value = '';
+    $('product-substitution-calculation').hidden = true;
+    $('product-substitution-equation').textContent = '';
+    $('product-substitution-result').textContent = '';
+    $('product-substitution-result').classList.remove('warning');
+    $('product-substitution-apply').disabled = true;
+}
+
+function openProductSubstitutionDirect() {
+    const overlay = $('modal-product-substitution');
+    if (!overlay || !S.product) return;
+
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    syncRegisterSheetEnvironment();
+}
+
+function openProductSubstitution() {
+    if (!S.product) {
+        toast('Selecione primeiro o produto que será lançado.', 'info');
+        return;
+    }
+
+    const customers = productSubstitutionCustomers();
+    if (customers.length === 0) {
+        toast('Este projeto não possui cliente disponível para consultar os preços.', 'error');
+        return;
+    }
+
+    resetProductSubstitutionModal();
+    $('product-substitution-target-name').textContent = S.product.product_name;
+    $('product-substitution-target-unit').textContent = 'Unidade: ' + (S.product.product_unit || 'un');
+
+    const select = $('product-substitution-customer');
+    select.innerHTML = customers.map(customer =>
+        `<option value="${Number(customer.id)}">${escHtml(customer.name)}</option>`
+    ).join('');
+
+    const preferredCustomerId = Number(S.project?.defaultCustomerId || 0);
+    PRODUCT_SUBSTITUTION.customerId = customers.some(customer =>
+        Number(customer.id) === preferredCustomerId
+    ) ? preferredCustomerId : Number(customers[0].id);
+    select.value = String(PRODUCT_SUBSTITUTION.customerId);
+    $('product-substitution-customer-field').hidden = customers.length === 1;
+
+    const key = 'product-substitution';
+    registerSheet(
+        key,
+        openProductSubstitutionDirect,
+        () => {
+            $('modal-product-substitution')?.classList.remove('open');
+            $('modal-product-substitution')?.setAttribute('aria-hidden', 'true');
+            syncRegisterSheetEnvironment();
+        }
+    );
+
+    openProductSubstitutionDirect();
+    pushRegisterSheetState(key);
+    loadProductSubstitutionProducts();
+}
+
+function closeProductSubstitution() {
+    requestRegisterSheetClose(
+        'product-substitution',
+        () => {
+            $('modal-product-substitution')?.classList.remove('open');
+            $('modal-product-substitution')?.setAttribute('aria-hidden', 'true');
+            syncRegisterSheetEnvironment();
+        }
+    );
+}
+
+function changeProductSubstitutionCustomer(customerId) {
+    PRODUCT_SUBSTITUTION.customerId = Number(customerId);
+    PRODUCT_SUBSTITUTION.actualProduct = null;
+    $('product-substitution-calculation').hidden = true;
+    $('product-substitution-quantity').value = '';
+    $('product-substitution-apply').disabled = true;
+    loadProductSubstitutionProducts();
+}
+
+async function loadProductSubstitutionProducts() {
+    const customerId = Number(PRODUCT_SUBSTITUTION.customerId || 0);
+    if (!customerId) return;
+
+    const requestId = ++PRODUCT_SUBSTITUTION.requestId;
+    PRODUCT_SUBSTITUTION.loading = true;
+    $('product-substitution-list').innerHTML = '<div class="product-substitution-empty">Carregando produtos e preços…</div>';
+
+    try {
+        const response = await fetch(
+            ROUTES.substitutionProducts(customerId),
+            { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || data.error || 'Não foi possível consultar os preços.');
+        }
+        if (requestId !== PRODUCT_SUBSTITUTION.requestId) return;
+
+        PRODUCT_SUBSTITUTION.products = (data || []).map(product => ({
+            id: Number(product.id),
+            name: product.name || 'Produto',
+            unit: product.unit || 'un',
+            price: Number(product.sale_price || 0),
+        })).filter(product => product.price > 0);
+        renderProductSubstitutionProducts();
+    } catch (error) {
+        if (requestId !== PRODUCT_SUBSTITUTION.requestId) return;
+        PRODUCT_SUBSTITUTION.products = [];
+        $('product-substitution-list').innerHTML = `<div class="product-substitution-empty">${escHtml(error.message)}</div>`;
+    } finally {
+        if (requestId === PRODUCT_SUBSTITUTION.requestId) {
+            PRODUCT_SUBSTITUTION.loading = false;
+        }
+    }
+}
+
+function renderProductSubstitutionProducts() {
+    const list = $('product-substitution-list');
+    if (!list || PRODUCT_SUBSTITUTION.loading) return;
+
+    const term = normalizeSearch(
+        $('product-substitution-search')?.value || ''
+    );
+    const targetId = Number(S.product?.product_id || 0);
+    const products = PRODUCT_SUBSTITUTION.products.filter(product =>
+        product.id !== targetId
+        && (!term || normalizeSearch(product.name).includes(term))
+    );
+
+    if (products.length === 0) {
+        list.innerHTML = '<div class="product-substitution-empty">Nenhum outro produto com preço foi encontrado para este cliente.</div>';
+        return;
+    }
+
+    list.innerHTML = products.map(product => `
+        <button
+            type="button"
+            class="product-substitution-item${PRODUCT_SUBSTITUTION.actualProduct?.id === product.id ? ' selected' : ''}"
+            data-substitution-product="${product.id}"
+        >
+            <span class="product-substitution-item-icon">${escHtml(initials(product.name))}</span>
+            <span class="product-substitution-item-copy">
+                <strong>${escHtml(product.name)}</strong>
+                <small>${escHtml(product.unit)}</small>
+            </span>
+            <span class="product-substitution-price">${money(product.price)}/${escHtml(product.unit)}</span>
+        </button>
+    `).join('');
+
+    list.querySelectorAll('[data-substitution-product]').forEach(button => {
+        button.addEventListener('click', () =>
+            selectProductSubstitutionProduct(Number(button.dataset.substitutionProduct))
+        );
+    });
+}
+
+function selectProductSubstitutionProduct(productId) {
+    PRODUCT_SUBSTITUTION.actualProduct = PRODUCT_SUBSTITUTION.products.find(
+        product => product.id === Number(productId)
+    ) || null;
+
+    if (!PRODUCT_SUBSTITUTION.actualProduct) return;
+
+    renderProductSubstitutionProducts();
+    $('product-substitution-calculation').hidden = false;
+    $('product-substitution-source-unit').textContent = '(' + PRODUCT_SUBSTITUTION.actualProduct.unit + ')';
+    $('product-substitution-quantity').value = '';
+    updateProductSubstitutionCalculation();
+    $('product-substitution-quantity').focus({ preventScroll: true });
+}
+
+function productSubstitutionCalculation() {
+    const actual = PRODUCT_SUBSTITUTION.actualProduct;
+    const target = PRODUCT_SUBSTITUTION.products.find(product =>
+        product.id === Number(S.product?.product_id || 0)
+    );
+    const actualQuantity = Number(
+        $('product-substitution-quantity')?.value || 0
+    );
+
+    if (!actual || !target || actualQuantity <= 0 || actual.price <= 0 || target.price <= 0) {
+        return null;
+    }
+
+    const actualTotal = actualQuantity * actual.price;
+    const rawTargetQuantity = actualTotal / target.price;
+    const targetQuantity = Number(rawTargetQuantity.toFixed(3));
+    const targetTotal = targetQuantity * target.price;
+
+    return {
+        actual,
+        target,
+        actualQuantity,
+        actualTotal,
+        targetQuantity,
+        targetTotal,
+        difference: targetTotal - actualTotal,
+    };
+}
+
+function productSubstitutionQuantity(value) {
+    return Number(value || 0).toLocaleString('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3,
+    });
+}
+
+function productSubstitutionInputQuantity(value) {
+    return Number(value || 0).toFixed(3).replace(/\.?(?:0+)$/, '');
+}
+
+function updateProductSubstitutionCalculation() {
+    const calculation = productSubstitutionCalculation();
+    const equation = $('product-substitution-equation');
+    const result = $('product-substitution-result');
+    const apply = $('product-substitution-apply');
+    const target = PRODUCT_SUBSTITUTION.products.find(product =>
+        product.id === Number(S.product?.product_id || 0)
+    );
+
+    result.classList.remove('warning');
+
+    if (!target) {
+        equation.textContent = 'O produto que será lançado não possui preço para o cliente selecionado.';
+        result.innerHTML = '<strong>Escolha outro cliente de referência</strong><span>O cálculo exige preço nos dois produtos.</span>';
+        result.classList.add('warning');
+        apply.disabled = true;
+        return;
+    }
+
+    if (!calculation) {
+        equation.textContent = `Informe a quantidade de ${PRODUCT_SUBSTITUTION.actualProduct?.name || 'produto'} realmente entregue.`;
+        result.innerHTML = `<strong>Preço do produto lançado: ${money(target.price)}/${escHtml(target.unit)}</strong><span>O resultado aparecerá aqui.</span>`;
+        apply.disabled = true;
+        return;
+    }
+
+    equation.textContent =
+        `${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit}`
+        + ` × ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}`
+        + ` ÷ ${money(calculation.target.price)}`;
+
+    const maximum = S.product?.remaining_quantity;
+    const tooSmall = calculation.targetQuantity < 0.001;
+    const overLimit = maximum !== null
+        && maximum !== undefined
+        && calculation.targetQuantity > Number(maximum) + 0.0005;
+    const rounding = Math.abs(calculation.difference) >= 0.005
+        ? ` Diferença após arredondar: ${money(calculation.difference)}.`
+        : '';
+
+    result.innerHTML = `
+        <strong>${productSubstitutionQuantity(calculation.targetQuantity)} ${escHtml(calculation.target.unit)} de ${escHtml(calculation.target.name)}</strong>
+        <span>${tooSmall
+            ? 'A quantidade convertida ficou abaixo do mínimo de 0,001.'
+            : overLimit
+                ? `Ultrapassa o saldo disponível de ${productSubstitutionQuantity(maximum)} ${escHtml(calculation.target.unit)}.`
+            : `Valor convertido: ${money(calculation.targetTotal)}.${rounding}`}</span>
+    `;
+    result.classList.toggle('warning', tooSmall || overLimit);
+    apply.disabled = tooSmall || overLimit;
+}
+
+function applyProductSubstitution() {
+    const calculation = productSubstitutionCalculation();
+    if (!calculation || $('product-substitution-apply').disabled) {
+        toast('Complete o cálculo antes de aplicar a substituição.', 'info');
+        return;
+    }
+
+    const note =
+        `Substituição: entregue ${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
+        + ` no lugar de ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit} de ${calculation.target.name} lançado, `
+        + `valor equivalente ${money(calculation.actualTotal)}.`;
+
+    const noteField = $('f-notes');
+    let existing = String(noteField.value || '').trim();
+    if (PRODUCT_SUBSTITUTION.appliedNote) {
+        existing = existing.split('\n')
+            .filter(line => line.trim() !== PRODUCT_SUBSTITUTION.appliedNote)
+            .join('\n')
+            .trim();
+    }
+    const combined = [existing, note].filter(Boolean).join('\n');
+
+    if (combined.length > 500) {
+        toast('A observação ficou muito longa. Reduza o texto atual antes de aplicar.', 'error');
+        return;
+    }
+
+    $('f-qty').value = productSubstitutionInputQuantity(
+        calculation.targetQuantity
+    );
+    noteField.value = combined;
+    PRODUCT_SUBSTITUTION.appliedNote = note;
+    PRODUCT_SUBSTITUTION.appliedTargetId = Number(S.product.product_id);
+
+    const summary =
+        `${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
+        + ` → ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit}`;
+    $('product-substitution-meta').textContent = summary;
+    $('product-substitution-meta').hidden = false;
+    $('product-substitution-trigger').classList.add('applied');
+    $('product-substitution-trigger').title = 'Substituição aplicada: ' + summary;
+
+    toggleEntryNotes(true);
+    syncEntryNotesUi();
+    checkFormReady();
+    closeProductSubstitution();
+    toast('Quantidade convertida e observação adicionada.', 'success');
 }
 
 /* ─── Form logic ─────────────────────────────────── */
@@ -8732,6 +9270,12 @@ window.changeSessionPage    = changeSessionPage;
 window.closeDistSummary     = closeDistSummary;
 window.toggleRegisterIntegrity = toggleRegisterIntegrity;
 window.refreshProductList   = refreshProductList;
+window.openProductSubstitution = openProductSubstitution;
+window.closeProductSubstitution = closeProductSubstitution;
+window.changeProductSubstitutionCustomer = changeProductSubstitutionCustomer;
+window.renderProductSubstitutionProducts = renderProductSubstitutionProducts;
+window.updateProductSubstitutionCalculation = updateProductSubstitutionCalculation;
+window.applyProductSubstitution = applyProductSubstitution;
 window.openQuickQuota       = openQuickQuota;
 window.closeQuickQuota      = closeQuickQuota;
 window.saveQuickQuota       = saveQuickQuota;
