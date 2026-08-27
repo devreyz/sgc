@@ -94,3 +94,43 @@ body.sgc-loading-lock {
   #sgc-global-loader, .sgc-global-loader__card { transition: none; }
   .sgc-global-loader__mark img, .sgc-global-loader__track::after { animation: none; }
 }
+
+#sgc-offline-overlay {
+  position: fixed;
+  z-index: 2147483646;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(10, 25, 18, .9);
+  backdrop-filter: blur(10px);
+}
+
+#sgc-offline-overlay[hidden] { display: none !important; }
+
+.sgc-offline-card {
+  width: min(100%, 340px);
+  padding: 1.4rem;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 20px;
+  background: #101923;
+  box-shadow: 0 28px 82px rgba(0, 0, 0, .35);
+  color: #fff;
+  text-align: center;
+}
+
+.sgc-offline-card strong { display: block; margin-bottom: .4rem; font-size: 1rem; }
+.sgc-offline-card p { margin: 0; color: rgba(255, 255, 255, .72); font-size: .78rem; line-height: 1.5; }
+.sgc-offline-card button {
+  min-height: 42px;
+  margin-top: 1rem;
+  padding: .6rem 1rem;
+  border: 0;
+  border-radius: 10px;
+  background: #168a4d;
+  color: #fff;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 750;
+  cursor: pointer;
+}

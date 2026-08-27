@@ -27,13 +27,15 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString("productFilter:'enabled'", $simulator);
         self::assertStringContainsString("cache:'no-store'", $simulator);
         self::assertStringContainsString('localStorage.setItem(historyKey', $simulator);
-        self::assertStringContainsString('window.history.pushState', $simulator);
+        self::assertStringNotContainsString('window.history.pushState', $simulator);
+        self::assertStringNotContainsString("window.addEventListener('popstate'", $simulator);
         self::assertStringContainsString('const scale = 2;', $simulator);
         self::assertStringContainsString("},'image/png');", $simulator);
         self::assertStringContainsString('const ASSOCIATE_NAME = @json($associate->display_name);', $simulator);
         self::assertStringContainsString('COTAS DE PRODUTOS PARA ENTREGA', $simulator);
         self::assertStringContainsString('PRODUTO | COTA PARA ENTREGA', $simulator);
         self::assertStringContainsString('Enviar como imagem', $simulator);
+        self::assertStringContainsString('window.SgcShare.image', $simulator);
         self::assertStringContainsString('Enviar como texto', $simulator);
         self::assertStringContainsString('Salvar imagem', $simulator);
         self::assertStringContainsString('function realQuotaRecord()', $simulator);

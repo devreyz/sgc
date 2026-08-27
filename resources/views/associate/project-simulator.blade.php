@@ -2196,7 +2196,7 @@
         shareRecord:null,
     };
 
-    const STEP_SLUGS = ['valor','produtos','quantidades'];
+    const STEP_COUNT = 3;
 
     const historyKey = root.dataset.historyKey;
     const legacyHistoryKey = root.dataset.legacyHistoryKey;
@@ -2209,31 +2209,8 @@
     const shareButton = document.getElementById('sim-share');
     const shareSheet = document.getElementById('sim-share-sheet');
 
-    function stepFromLocation() {
-        const match = window.location.hash.match(/^#etapa=(valor|produtos|quantidades)$/);
-        const step = match ? STEP_SLUGS.indexOf(match[1]) : 0;
-
-        return step >= 0 ? step : 0;
-    }
-
-    function syncStepHistory(replace = false) {
-        const url = new URL(window.location.href);
-        url.hash = `etapa=${STEP_SLUGS[state.step]}`;
-        const payload = { simulatorStep: state.step };
-
-        if (replace) {
-            window.history.replaceState(payload,'',url);
-        } else {
-            window.history.pushState(payload,'',url);
-        }
-    }
-
-    function setStep(step,{historyMode = 'push'} = {}) {
-        state.step = Math.max(0,Math.min(STEP_SLUGS.length - 1,Number(step) || 0));
-
-        if (historyMode === 'push') syncStepHistory();
-        if (historyMode === 'replace') syncStepHistory(true);
-
+    function setStep(step) {
+        state.step = Math.max(0,Math.min(STEP_COUNT - 1,Number(step) || 0));
         renderStep();
     }
 
@@ -3280,27 +3257,23 @@
             const file = await imageFileForRecord(record);
             const realSnapshot = Boolean(record.isRealQuotaSnapshot);
             const shareData = {
+                file,
                 title:`${realSnapshot ? 'Cotas reais' : 'Cotas de produtos'} - ${ASSOCIATE_NAME}`,
                 text:`${realSnapshot ? 'Cotas reais disponíveis' : 'Cotas de produtos'} para ${ASSOCIATE_NAME} · ${PROJECT_TITLE}`,
-                files:[file],
             };
 
-            const supported = typeof navigator.share === 'function'
-                && (typeof navigator.canShare !== 'function' || navigator.canShare(shareData));
-
-            if (supported) {
-                await navigator.share(shareData);
-                closeShareSheet();
-                return;
-            }
-
-            downloadRecord(record);
+            await window.SgcShare.image(shareData);
             closeShareSheet();
-            showToast('A imagem foi baixada. Abra o WhatsApp e anexe o arquivo para enviar.');
         } catch (error) {
-            if (error?.name !== 'AbortError') {
-                showToast('Não foi possível compartilhar a imagem.');
-            }
+            if (error?.name === 'AbortError') return;
+
+            window.SgcDiagnostics?.report({
+                category:'javascript',
+                code:error?.code || 'IMAGE_SHARE_FAILED',
+                stage:'simulator.share_image',
+                message:error?.message || 'Falha ao compartilhar imagem',
+            });
+            showToast('Não foi possível compartilhar a imagem. Você ainda pode salvá-la.');
         }
     }
 
@@ -3550,11 +3523,6 @@
         }
     });
 
-    window.addEventListener('popstate',() => {
-        state.step = stepFromLocation();
-        renderStep();
-    });
-
     async function load() {
         nextButton.disabled = true;
 
@@ -3586,14 +3554,10 @@
             }
 
             readHistory();
-            state.step = stepFromLocation();
-            setStep(state.step,{historyMode:'replace'});
+            setStep(0);
 
             if (root.dataset.autoShare === 'real-quotas') {
                 const record = realQuotaRecord();
-                const url = new URL(window.location.href);
-                url.searchParams.delete('share');
-                window.history.replaceState(window.history.state,'',url);
 
                 if (record) {
                     openShareSheet(record);

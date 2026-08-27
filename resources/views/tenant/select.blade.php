@@ -879,6 +879,16 @@
                     </div>
                 @endif
 
+                <div class="feedback" id="organization-error" role="alert" hidden>
+                    <span class="feedback-icon" aria-hidden="true">
+                        <i class="ph-duotone ph-warning-circle"></i>
+                    </span>
+                    <span class="feedback-copy">
+                        <strong>Não foi possível entrar</strong>
+                        <span id="organization-error-message">Verifique sua conexão e tente novamente.</span>
+                    </span>
+                </div>
+
                 <section class="organization-section" aria-labelledby="organization-list-title">
                     <header class="organization-toolbar">
                         <h2 id="organization-list-title">Suas organizações</h2>
@@ -1035,8 +1045,12 @@
             const organizationForms = [
                 ...document.querySelectorAll('.organization-form')
             ];
+            const errorBox = document.getElementById('organization-error');
+            const errorMessage = document.getElementById('organization-error-message');
+            let selectionPending = false;
 
             function resetTransition() {
+                selectionPending = false;
                 organizationForms.forEach(form => {
                     const button = form.querySelector('button[type="submit"]');
                     if (!button) return;
@@ -1047,6 +1061,17 @@
                 if (transition) {
                     transition.classList.remove('active');
                     transition.setAttribute('aria-hidden', 'true');
+                }
+            }
+
+            function showSelectionError(message) {
+                resetTransition();
+                if (errorMessage) {
+                    errorMessage.textContent = message;
+                }
+                if (errorBox) {
+                    errorBox.hidden = false;
+                    errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
             }
 
@@ -1080,10 +1105,65 @@
             }
 
             organizationForms.forEach(form => {
-                form.addEventListener('submit', () => startOrganizationTransition(form));
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (selectionPending) return;
+
+                    if (!navigator.onLine) {
+                        showSelectionError('Você está offline. Conecte-se à internet e tente novamente.');
+                        return;
+                    }
+
+                    selectionPending = true;
+                    if (errorBox) errorBox.hidden = true;
+                    startOrganizationTransition(form);
+
+                    const controller = new AbortController();
+                    const timeout = window.setTimeout(() => controller.abort(), 20000);
+
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            globalLoader: false,
+                            signal: controller.signal,
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: new FormData(form)
+                        });
+                        const result = await response.json().catch(() => ({}));
+
+                        if (!response.ok) {
+                            throw new Error(result.message || 'O servidor não conseguiu selecionar esta organização.');
+                        }
+
+                        window.location.assign(result.redirect || '/');
+                    } catch (error) {
+                        const message = error?.name === 'AbortError'
+                            ? 'A solicitação demorou demais. Verifique sua conexão e tente novamente.'
+                            : (error?.message || 'Verifique sua conexão e tente novamente.');
+
+                        window.SgcDiagnostics?.report({
+                            category: 'network',
+                            code: error?.name === 'AbortError' ? 'TENANT_SWITCH_TIMEOUT' : 'TENANT_SWITCH_FAILED',
+                            stage: 'tenant.switch',
+                            message
+                        });
+                        showSelectionError(message);
+                    } finally {
+                        window.clearTimeout(timeout);
+                    }
+                });
             });
 
             window.addEventListener('pageshow', resetTransition);
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && !selectionPending) {
+                    resetTransition();
+                }
+            });
 
             const searchToggle = document.getElementById('search-toggle');
             const searchArea = document.getElementById('search-area');

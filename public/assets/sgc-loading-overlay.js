@@ -78,6 +78,38 @@
             .trim()
             .toLowerCase();
 
+    function ensureOfflineOverlay() {
+        let overlay = document.getElementById("sgc-offline-overlay");
+        if (overlay) return overlay;
+
+        overlay = document.createElement("div");
+        overlay.id = "sgc-offline-overlay";
+        overlay.hidden = true;
+        overlay.setAttribute("role", "alertdialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.innerHTML = `
+            <section class="sgc-offline-card">
+                <strong>Sem conexão com a internet</strong>
+                <p>O SGC funciona somente online. Reconecte-se para continuar com segurança.</p>
+                <button type="button" id="sgc-offline-retry">Tentar novamente</button>
+            </section>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector("#sgc-offline-retry")?.addEventListener("click", () => {
+            if (navigator.onLine) window.location.reload();
+        });
+        return overlay;
+    }
+
+    function updateConnectionState() {
+        const offline = !navigator.onLine;
+        const overlay = ensureOfflineOverlay();
+        if (offline) resetLoading();
+        overlay.hidden = !offline;
+        document.documentElement.classList.toggle("sgc-loading-lock", offline);
+        document.body.classList.toggle("sgc-loading-lock", offline);
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Intenção do usuário
@@ -699,8 +731,12 @@
         }
     });
 
+    window.addEventListener("offline", updateConnectionState);
+    window.addEventListener("online", updateConnectionState);
+
     /*
      * Estado inicial.
      */
     resetLoading();
+    updateConnectionState();
 })();

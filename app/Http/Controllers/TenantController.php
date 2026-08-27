@@ -44,6 +44,7 @@ class TenantController extends Controller
                 return response()->json([
                     'message' => 'Organização alterada com sucesso.',
                     'tenant' => $tenant ? ['id' => $tenant->id, 'name' => $tenant->name, 'slug' => $tenant->slug] : null,
+                    'redirect' => route('home'),
                 ], 200);
             }
 

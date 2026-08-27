@@ -29,7 +29,8 @@ class InjectGlobalLoadingOverlay
         }
 
         $assets = '<link rel="stylesheet" href="/assets/sgc-loading-overlay.css">'
-            .'<script src="/assets/sgc-loading-overlay.js" defer></script>';
+            .'<script src="/assets/sgc-loading-overlay.js" defer></script>'
+            .'<script src="/assets/sgc-native-share.js" defer></script>';
 
         if (str_contains($content, '</head>')) {
             $response->setContent(str_replace('</head>', $assets.'</head>', $content));
