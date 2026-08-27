@@ -85,6 +85,8 @@ class GoogleApiIdTokenVerifier implements GoogleIdTokenVerifier
             email: $email,
             name: $this->nullableString($claims['name'] ?? null),
             avatarUrl: $avatarUrl,
+            emailAuthoritative: str_ends_with($email, '@gmail.com')
+                || trim((string) ($claims['hd'] ?? '')) !== '',
         );
     }
 

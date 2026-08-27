@@ -64,7 +64,14 @@ class NativeGoogleAuthController extends Controller
 
         try {
             $identity = $verifier->verify((string) $request->validated('id_token'), $nonce);
-            [$user] = $accounts->resolve('login', $identity->subject, $identity->email, null, null);
+            [$user] = $accounts->resolve(
+                'login',
+                $identity->subject,
+                $identity->email,
+                null,
+                null,
+                $identity->emailAuthoritative,
+            );
 
             $attributes = ['last_authenticated_at' => now()];
             if (! $user->hasLocallyStoredAvatar() && $identity->avatarUrl) {

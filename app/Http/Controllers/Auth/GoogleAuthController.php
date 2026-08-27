@@ -64,6 +64,8 @@ class GoogleAuthController extends Controller
             $claims = $googleUser->getRaw();
             $subject = (string) ($claims['sub'] ?? '');
             $email = isset($claims['email']) ? mb_strtolower((string) $claims['email']) : null;
+            $emailAuthoritative = str_ends_with((string) $email, '@gmail.com')
+                || filled($claims['hd'] ?? null);
 
             [$user] = $accounts->resolve(
                 $intent,
@@ -71,6 +73,7 @@ class GoogleAuthController extends Controller
                 $email,
                 Auth::user(),
                 $expectedUserId,
+                $emailAuthoritative,
             );
             $attributes = ['last_authenticated_at' => now()];
             if (! $user->hasLocallyStoredAvatar() && $googleUser->avatar) {

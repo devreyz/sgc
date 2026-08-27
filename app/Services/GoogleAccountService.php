@@ -17,8 +17,9 @@ class GoogleAccountService
         ?string $email,
         ?User $currentUser,
         int|string|null $expectedUserId,
+        bool $emailAuthoritative = true,
     ): array {
-        return DB::transaction(function () use ($intent, $subject, $email, $currentUser, $expectedUserId) {
+        return DB::transaction(function () use ($intent, $subject, $email, $currentUser, $expectedUserId, $emailAuthoritative) {
             $account = OAuthAccount::query()
                 ->where('provider', 'google')
                 ->where('provider_subject', $subject)
@@ -49,7 +50,7 @@ class GoogleAccountService
                 $user = User::query()->where('google_id', $subject)->lockForUpdate()->first();
 
                 if (! $user) {
-                    $user = $this->authorizedUserForGoogleEmail($email, $subject);
+                    $user = $this->authorizedUserForGoogleEmail($email, $subject, $emailAuthoritative);
                     $account = new OAuthAccount;
                 }
             } else {
@@ -89,12 +90,16 @@ class GoogleAccountService
      * The verified Google e-mail is an identifier here, never an authorization
      * on its own: an unrelated global User with the same e-mail remains blocked.
      */
-    private function authorizedUserForGoogleEmail(?string $email, string $subject): User
+    private function authorizedUserForGoogleEmail(?string $email, string $subject, bool $emailAuthoritative): User
     {
         $email = mb_strtolower(trim((string) $email));
 
         if ($email === '') {
             throw new AccountProofRequiredException('Missing verified Google email.');
+        }
+
+        if (! $emailAuthoritative) {
+            throw new AccountProofRequiredException('Explicit account linking is required for this email provider.');
         }
 
         $user = User::query()

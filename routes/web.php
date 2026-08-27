@@ -62,6 +62,15 @@ Route::get('/storage/{path}', function (string $path) {
 
 // Home route - mostra welcome ou hub se logado
 Route::get('/', [HubController::class, 'index'])->middleware('public.headers')->name('home');
+Route::get('/app', function () {
+    if (auth()->check()) {
+        return redirect()->route('home');
+    }
+
+    return response()->view('app.portal')->withHeaders([
+        'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+    ]);
+})->middleware('public.headers')->name('app.portal');
 Route::get('/sitemap.xml', function () {
     $pages = [
         '/',

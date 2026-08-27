@@ -22,10 +22,14 @@ class SecurePasskeyVerificationRequest extends FormRequest
     {
         return [
             'credential' => ['required', 'array'],
-            'credential.id' => ['required', 'string'],
-            'credential.rawId' => ['required', 'string'],
+            'credential.id' => ['required', 'string', 'max:4096'],
+            'credential.rawId' => ['required', 'string', 'max:4096'],
             'credential.type' => ['required', 'in:public-key'],
             'credential.response' => ['required', 'array'],
+            'credential.response.clientDataJSON' => ['required', 'string', 'max:32768'],
+            'credential.response.authenticatorData' => ['required', 'string', 'max:32768'],
+            'credential.response.signature' => ['required', 'string', 'max:32768'],
+            'credential.response.userHandle' => ['nullable', 'string', 'max:4096'],
         ];
     }
 

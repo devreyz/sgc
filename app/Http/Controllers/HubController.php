@@ -3,13 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\OrganizationAuthorizedEmail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class HubController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         if (! Auth::check()) {
+            if (str_contains((string) $request->userAgent(), 'SGCAndroid/')) {
+                return response()->view('app.portal')->withHeaders([
+                    'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+                ]);
+            }
+
             return view('welcome');
         }
 

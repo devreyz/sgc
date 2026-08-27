@@ -666,6 +666,22 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertDatabaseCount('oauth_accounts', 1);
     }
 
+    public function test_google_login_requires_explicit_linking_for_a_non_authoritative_email_provider(): void
+    {
+        [$user] = $this->fixture();
+
+        $this->expectException(AccountProofRequiredException::class);
+
+        app(GoogleAccountService::class)->resolve(
+            'login',
+            'external-email-google-subject',
+            mb_strtolower($user->email),
+            null,
+            null,
+            false,
+        );
+    }
+
     public function test_google_login_does_not_link_an_unrelated_email_collision(): void
     {
         [$user] = $this->fixture();

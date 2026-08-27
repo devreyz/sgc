@@ -23,6 +23,17 @@ class GoogleApiIdTokenVerifierTest extends TestCase
         $this->assertSame('member@example.test', $identity->email);
         $this->assertSame('Member Name', $identity->name);
         $this->assertSame('https://lh3.googleusercontent.com/avatar', $identity->avatarUrl);
+        $this->assertFalse($identity->emailAuthoritative);
+    }
+
+    public function test_google_workspace_hosted_domain_marks_email_as_authoritative(): void
+    {
+        $claims = $this->claims();
+        $claims['hd'] = 'example.test';
+
+        $identity = $this->verifier($claims)->verify('signed-token', 'expected-nonce');
+
+        $this->assertTrue($identity->emailAuthoritative);
     }
 
     public function test_unverified_email_is_rejected(): void

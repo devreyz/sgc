@@ -1417,6 +1417,65 @@
             return data;
         }
 
+        function csrfToken() {
+            return document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content') || '';
+        }
+
+        async function loginWithNativePasskey() {
+            const nativeAuth = window.Capacitor?.Plugins?.NativeAuth;
+            if (!nativeAuth?.passkeySignIn) {
+                const error = new Error('Atualize o aplicativo e tente novamente.');
+                error.code = 'NATIVE_PASSKEY_UNAVAILABLE';
+                throw error;
+            }
+
+            const optionResponse = await fetch(PASSKEY_OPTIONS_URL, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                globalLoader: false,
+                headers: {
+                    Accept: 'application/json',
+                    'X-SGC-Platform': 'android'
+                }
+            }).then(jsonResponse);
+
+            if (!optionResponse?.options) {
+                const error = new Error('O servidor retornou uma solicitação de biometria inválida.');
+                error.code = 'INVALID_PASSKEY_OPTIONS';
+                throw error;
+            }
+
+            const nativeCredential = await nativeAuth.passkeySignIn({
+                requestJson: JSON.stringify(optionResponse.options)
+            });
+
+            let credential;
+            try {
+                credential = JSON.parse(nativeCredential.credentialJson);
+            } catch (_) {
+                const error = new Error('O dispositivo retornou uma credencial inválida.');
+                error.code = 'INVALID_PASSKEY_RESPONSE';
+                throw error;
+            }
+
+            return fetch(PASSKEY_VERIFY_URL, {
+                method: 'POST',
+                globalLoader: false,
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': csrfToken(),
+                    'X-SGC-Platform': 'android'
+                },
+                body: JSON.stringify({ credential })
+            }).then(jsonResponse);
+        }
+
         async function loginWithNativeGoogle(event) {
             if (!isNativeAndroid()) {
                 return;
@@ -1467,10 +1526,6 @@
                     nonce: challenge.nonce
                 });
 
-                const csrfToken = document
-                    .querySelector('meta[name="csrf-token"]')
-                    ?.getAttribute('content');
-
                 authenticationStage = 'server_validation';
                 const result = await fetch(NATIVE_GOOGLE_LOGIN_URL, {
                     method: 'POST',
@@ -1480,7 +1535,7 @@
                         Accept: 'application/json',
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': csrfToken || ''
+                        'X-CSRF-TOKEN': csrfToken()
                     },
                     body: JSON.stringify({ id_token: credential.idToken })
                 }).then(jsonResponse);
@@ -1558,12 +1613,14 @@
             });
 
             try {
-                const result = await window.SgcPasskeys.verify({
-                    routes: {
-                        options: PASSKEY_OPTIONS_URL,
-                        submit: PASSKEY_VERIFY_URL
-                    }
-                });
+                const result = isNativeAndroid()
+                    ? await loginWithNativePasskey()
+                    : await window.SgcPasskeys.verify({
+                        routes: {
+                            options: PASSKEY_OPTIONS_URL,
+                            submit: PASSKEY_VERIFY_URL
+                        }
+                    });
 
                 setStatus({
                     title: 'Identidade confirmada',
@@ -1579,7 +1636,28 @@
 
                 showSuccessAndRedirect(redirect);
             } catch (error) {
-                const cancelled = error.name === 'UserCancelledError';
+                window.resetGlobalLoading?.();
+
+                const errorCode = error?.code || error?.data?.code || 'PASSKEY_LOGIN_FAILED';
+                const cancelled = error.name === 'UserCancelledError'
+                    || errorCode === 'SIGN_IN_CANCELLED';
+                const offline = navigator.onLine === false;
+                const friendlyMessage = offline
+                    ? 'Sem conexão com a internet. Conecte-se e tente novamente.'
+                    : errorCode === 'NO_PASSKEY'
+                        ? 'Nenhuma chave de acesso está disponível para o SGC neste dispositivo.'
+                        : errorCode === 'CREDENTIAL_MANAGER_UNAVAILABLE'
+                            ? 'O gerenciador de credenciais não está disponível neste aparelho.'
+                            : (error.message || 'Tente novamente ou use o Google.');
+
+                if (!cancelled) {
+                    window.SgcDiagnostics?.report({
+                        category: 'authentication',
+                        code: errorCode,
+                        stage: isNativeAndroid() ? 'native_passkey' : 'web_passkey',
+                        message: error?.message || 'Falha no login por chave de acesso'
+                    });
+                }
 
                 setStatus({
                     title: cancelled
@@ -1587,11 +1665,12 @@
                         : 'Não foi possível entrar',
                     message: cancelled
                         ? 'Tente novamente quando quiser.'
-                        : (error.message || 'Tente novamente ou use o Google.'),
+                        : friendlyMessage,
                     type: 'error',
                     dismissAfter: 5000
                 });
             } finally {
+                window.resetGlobalLoading?.();
                 passkeyButton.disabled = false;
                 passkeyButton.removeAttribute('aria-busy');
                 passkeyButton.classList.remove('is-authenticating');
@@ -1605,10 +1684,16 @@
 
             passkeysInitialized = true;
 
-            const passkeySupported =
+            const nativePasskeySupported = Boolean(
+                isNativeAndroid()
+                && window.Capacitor?.Plugins?.NativeAuth?.passkeySignIn
+            );
+            const webPasskeySupported = Boolean(
                 window.isSecureContext
                 && window.SgcPasskeys
-                && window.SgcPasskeys.isSupported();
+                && window.SgcPasskeys.isSupported()
+            );
+            const passkeySupported = nativePasskeySupported || webPasskeySupported;
 
             if (!passkeySupported) {
                 passkeyButton.disabled = true;

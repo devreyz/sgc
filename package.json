@@ -8,6 +8,7 @@
         "adb": "adb reverse tcp:8000 tcp:8000 && adb reverse tcp:5173 tcp:5173"
     },
     "devDependencies": {
+        "@capacitor/assets": "^3.0.5",
         "@capacitor/cli": "^8.5.0",
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.11.0",

@@ -27,7 +27,9 @@ class PasskeyAuthenticationController extends Controller
             'expires_at' => now()->addSeconds((int) config('passkeys.challenge_ttl', 300))->timestamp,
         ]);
 
-        return response()->json(['options' => WebAuthn::toBrowserArray($options)]);
+        return response()
+            ->json(['options' => WebAuthn::toBrowserArray($options)])
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function verify(
@@ -56,28 +58,47 @@ class PasskeyAuthenticationController extends Controller
 
             $audit->record('passkey_used', 'success', [
                 'target_user_id' => $user->id,
-                'context' => ['passkey_id' => $passkey->id],
+                'context' => [
+                    'passkey_id' => $passkey->id,
+                    'platform' => $this->platform($request),
+                ],
             ], $request);
 
             return response()->json(['redirect' => $redirector->pathAfterLogin($user)]);
         } catch (CounterException $exception) {
-            report($exception);
             $audit->record('webauthn_sign_count_anomaly', 'denied', [
-                'context' => ['stage' => 'authentication'],
+                'context' => [
+                    'stage' => 'authentication',
+                    'platform' => $this->platform($request),
+                    'reason' => 'counter_anomaly',
+                ],
             ], $request);
 
             return response()->json([
                 'message' => 'Nao foi possivel concluir a autenticacao.',
+                'code' => 'PASSKEY_COUNTER_ANOMALY',
             ], 422);
         } catch (Throwable $exception) {
-            report($exception);
             $audit->record('webauthn_failed', 'denied', [
-                'context' => ['stage' => 'authentication'],
+                'context' => [
+                    'stage' => 'authentication',
+                    'platform' => $this->platform($request),
+                    'reason' => 'assertion_rejected',
+                    'exception_class' => $exception::class,
+                ],
             ], $request);
 
             return response()->json([
                 'message' => 'Nao foi possivel concluir a autenticacao.',
+                'code' => 'PASSKEY_ASSERTION_REJECTED',
             ], 422);
         }
+    }
+
+    private function platform(Request $request): string
+    {
+        return $request->header('X-SGC-Platform') === 'android'
+            ? 'android'
+            : 'web';
     }
 }

@@ -9,5 +9,6 @@ final readonly class GoogleIdentity
         public string $email,
         public ?string $name = null,
         public ?string $avatarUrl = null,
+        public bool $emailAuthoritative = false,
     ) {}
 }
