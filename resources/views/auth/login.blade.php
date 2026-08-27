@@ -1449,16 +1449,20 @@
                 message: 'Escolha sua conta para continuar.'
             });
 
+            let authenticationStage = 'challenge';
+
             try {
                 const challenge = await fetch(
                     NATIVE_GOOGLE_CHALLENGE_URL,
                     {
                         credentials: 'same-origin',
                         cache: 'no-store',
+                        globalLoader: false,
                         headers: { Accept: 'application/json' }
                     }
                 ).then(jsonResponse);
 
+                authenticationStage = 'native_google';
                 const credential = await nativeAuth.googleSignIn({
                     nonce: challenge.nonce
                 });
@@ -1467,8 +1471,10 @@
                     .querySelector('meta[name="csrf-token"]')
                     ?.getAttribute('content');
 
+                authenticationStage = 'server_validation';
                 const result = await fetch(NATIVE_GOOGLE_LOGIN_URL, {
                     method: 'POST',
+                    globalLoader: false,
                     credentials: 'same-origin',
                     headers: {
                         Accept: 'application/json',
@@ -1486,7 +1492,19 @@
                 });
                 showSuccessAndRedirect(result.redirect || '/');
             } catch (error) {
-                const cancelled = error?.code === 'SIGN_IN_CANCELLED';
+                window.resetGlobalLoading?.();
+
+                const errorCode = error?.code || error?.data?.code || 'GOOGLE_LOGIN_FAILED';
+                const cancelled = errorCode === 'SIGN_IN_CANCELLED';
+
+                if (!cancelled) {
+                    window.SgcDiagnostics?.report({
+                        category: 'authentication',
+                        code: errorCode,
+                        stage: authenticationStage,
+                        message: error?.message || 'Falha no login Google'
+                    });
+                }
 
                 setStatus({
                     title: cancelled ? 'Login cancelado' : 'Não foi possível entrar',
@@ -1494,9 +1512,10 @@
                         ? 'Tente novamente quando quiser.'
                         : (error?.message || 'Verifique sua conexão e tente novamente.'),
                     type: 'error',
-                    dismissAfter: 5000
+                    dismissAfter: cancelled ? 5000 : null
                 });
             } finally {
+                window.resetGlobalLoading?.();
                 googleLoginPending = false;
                 googleButton.removeAttribute('aria-disabled');
                 googleButton.removeAttribute('aria-busy');
@@ -1505,6 +1524,28 @@
         }
 
         googleButton?.addEventListener('click', loginWithNativeGoogle);
+
+        function resetTransientLoginState() {
+            if (googleLoginPending) {
+                return;
+            }
+
+            window.resetGlobalLoading?.();
+            successLayer.classList.remove('show');
+            successLayer.setAttribute('aria-hidden', 'true');
+            googleButton?.removeAttribute('aria-disabled');
+            googleButton?.removeAttribute('aria-busy');
+            googleButton?.classList.remove('is-authenticating');
+
+            statusBox.classList.remove('show');
+        }
+
+        window.addEventListener('pageshow', resetTransientLoginState);
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+                resetTransientLoginState();
+            }
+        });
 
         async function loginWithPasskey() {
             passkeyButton.disabled = true;

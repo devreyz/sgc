@@ -17,6 +17,7 @@ use App\Http\Controllers\Auth\PasskeyManagementController;
 use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Buyer\BuyerBillingAuthorizationController;
 use App\Http\Controllers\Buyer\BuyerPortalController;
+use App\Http\Controllers\ClientDiagnosticController;
 use App\Http\Controllers\Delivery\AssociateProjectController;
 use App\Http\Controllers\Delivery\DeliveryConferenceSheetController;
 use App\Http\Controllers\Delivery\DeliveryRegistrationController;
@@ -95,12 +96,20 @@ Route::get('/login', function () {
         return redirect()->to(app(AuthenticationRedirector::class)->pathFor(auth()->user()));
     }
 
-    return view('auth.login');
+    return response()->view('auth.login')->withHeaders([
+        'Cache-Control' => 'no-store, no-cache, must-revalidate, private',
+        'Pragma' => 'no-cache',
+        'Expires' => '0',
+    ]);
 })->name('login');
 
 Route::get('/auth/state', AuthenticationStateController::class)
     ->middleware('throttle:auth-state')
     ->name('auth.state');
+
+Route::post('/diagnostics/client', ClientDiagnosticController::class)
+    ->middleware('throttle:20,1')
+    ->name('diagnostics.client');
 
 Route::get('/offline', function () {
     return view('offline');

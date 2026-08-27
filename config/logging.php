@@ -54,8 +54,24 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env('LOG_STACK', 'web')),
             'ignore_exceptions' => false,
+        ],
+
+        'web' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/web.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => env('LOG_DAILY_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
+        'app' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/app.log'),
+            'level' => env('APP_LOG_LEVEL', env('LOG_LEVEL', 'debug')),
+            'days' => env('APP_LOG_DAILY_DAYS', env('LOG_DAILY_DAYS', 30)),
+            'replace_placeholders' => true,
         ],
 
         'single' => [

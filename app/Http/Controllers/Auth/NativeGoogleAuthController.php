@@ -55,6 +55,7 @@ class NativeGoogleAuthController extends Controller
             $audit->record('google_native_login_failed', 'denied', [
                 'context' => ['stage' => 'challenge'],
             ], $request);
+            $this->logFailure($request, 'challenge', 'expired_or_missing_nonce');
 
             return response()->json([
                 'message' => 'A solicitacao de login expirou. Tente novamente.',
@@ -104,7 +105,11 @@ class NativeGoogleAuthController extends Controller
                 'message' => 'Esta conta Google ainda nao esta vinculada a um acesso autorizado.',
             ], 403);
         } catch (Throwable $exception) {
-            report($exception);
+            Log::channel('app')->error('Unexpected native Google authentication error.', [
+                'exception' => $exception,
+                'platform' => 'android',
+                'ip_hash' => $audit->hashIp($request->ip()),
+            ]);
             $audit->record('google_native_login_failed', 'denied', [
                 'context' => ['stage' => 'account_resolution'],
             ], $request);
@@ -123,7 +128,7 @@ class NativeGoogleAuthController extends Controller
 
     private function logFailure(Request $request, string $stage, ?string $reason = null): void
     {
-        Log::warning('Native Google authentication denied.', [
+        Log::channel('app')->warning('Native Google authentication denied.', [
             'stage' => $stage,
             'reason' => $reason,
             'ip_hash' => app(SecurityAuditService::class)->hashIp($request->ip()),

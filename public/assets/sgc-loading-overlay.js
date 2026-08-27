@@ -23,6 +23,7 @@
     const CONFIG = Object.freeze({
         showDelay: 180,
         minVisibleTime: 220,
+        maxVisibleTime: 30000,
         userIntentWindow: 2200,
     });
 
@@ -36,6 +37,7 @@
 
     let showTimer = null;
     let hideTimer = null;
+    let safetyTimer = null;
 
     let visibleSince = 0;
 
@@ -158,6 +160,9 @@
 
             visibleSince = performance.now();
 
+            clearTimeout(safetyTimer);
+            safetyTimer = window.setTimeout(resetLoading, CONFIG.maxVisibleTime);
+
             return;
         }
 
@@ -170,6 +175,8 @@
         document.body.classList.remove("sgc-loading-lock");
 
         visibleSince = 0;
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
     }
 
     /*
@@ -191,6 +198,7 @@
 
         clearTimeout(showTimer);
         clearTimeout(hideTimer);
+        clearTimeout(safetyTimer);
 
         /*
          * Evita aquele flash agressivo
@@ -269,6 +277,7 @@
 
         showTimer = null;
         hideTimer = null;
+        safetyTimer = null;
 
         setLoaderVisible(false);
     }
@@ -295,6 +304,8 @@
     window.hideGlobalLoading = () => {
         endLoading();
     };
+
+    window.resetGlobalLoading = resetLoading;
 
     /*
     |--------------------------------------------------------------------------
@@ -493,6 +504,105 @@
              */
             return Promise.resolve(promise).finally(endLoading);
         };
+
+        const recentDiagnostics = new Map();
+        let diagnosticsContextPromise = null;
+
+        const isNativeApp = () => Boolean(
+            window.Capacitor?.isNativePlatform?.()
+            && window.Capacitor?.getPlatform?.() === "android"
+        );
+
+        const diagnosticsContext = async () => {
+            if (!isNativeApp()) {
+                return {};
+            }
+
+            if (!diagnosticsContextPromise) {
+                diagnosticsContextPromise = Promise.resolve(
+                    window.Capacitor?.Plugins?.NativeAuth?.getDiagnosticsContext?.(),
+                ).catch(() => ({}));
+            }
+
+            return diagnosticsContextPromise;
+        };
+
+        const reportDiagnostic = async (diagnostic = {}) => {
+            const message = String(diagnostic.message || "Erro sem mensagem")
+                .replace(/\s+/g, " ")
+                .trim()
+                .slice(0, 500);
+            const code = String(diagnostic.code || "CLIENT_ERROR").slice(0, 100);
+            const stage = String(diagnostic.stage || "runtime").slice(0, 100);
+            const signature = `${code}|${stage}|${message}`;
+            const lastReportedAt = recentDiagnostics.get(signature) || 0;
+
+            if (Date.now() - lastReportedAt < 30000) {
+                return;
+            }
+            recentDiagnostics.set(signature, Date.now());
+
+            const csrfToken = document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute("content");
+            if (!csrfToken) {
+                return;
+            }
+
+            const context = await diagnosticsContext();
+            const controller = new AbortController();
+            const timeout = window.setTimeout(() => controller.abort(), 5000);
+
+            try {
+                await nativeFetch("/diagnostics/client", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    keepalive: true,
+                    signal: controller.signal,
+                    headers: {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "X-CSRF-TOKEN": csrfToken,
+                    },
+                    body: JSON.stringify({
+                        platform: isNativeApp() ? "app" : "web",
+                        category: diagnostic.category || "javascript",
+                        code,
+                        stage,
+                        message,
+                        path: window.location.pathname,
+                        app_version: context?.appVersion || null,
+                        android_version: context?.androidVersion || null,
+                        device: context?.device || null,
+                    }),
+                });
+            } catch (_) {
+                // O diagnóstico nunca deve interferir com o uso da aplicação.
+            } finally {
+                window.clearTimeout(timeout);
+            }
+        };
+
+        window.SgcDiagnostics = Object.freeze({ report: reportDiagnostic });
+
+        window.addEventListener("error", (event) => {
+            reportDiagnostic({
+                category: "javascript",
+                code: "UNCAUGHT_ERROR",
+                stage: "window.error",
+                message: event.message || "Erro JavaScript não identificado",
+            });
+        });
+
+        window.addEventListener("unhandledrejection", (event) => {
+            reportDiagnostic({
+                category: "javascript",
+                code: "UNHANDLED_REJECTION",
+                stage: "promise",
+                message: event.reason?.message || String(event.reason || "Promise rejeitada"),
+            });
+        });
     }
 
     /*
@@ -582,6 +692,12 @@
     });
 
     window.addEventListener("pagehide", resetLoading);
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            resetLoading();
+        }
+    });
 
     /*
      * Estado inicial.
