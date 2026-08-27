@@ -1,0 +1,8 @@
+{
+  "appId": "br.rzin.sgc",
+  "appName": "SGC",
+  "server": {
+    "url": "https://sgc.rzin.com.br/login",
+    "clearText": false
+  }
+}
