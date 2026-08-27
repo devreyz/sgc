@@ -4442,7 +4442,9 @@ function buildApprovedActions(id, rowEl) {
     const qty  = parseFloat(rowEl?.querySelector('.btn-edit')?.dataset.qty || rowEl?.dataset?.qty || 0);
     const prod = rowEl?.querySelector('td:nth-child(4)')?.textContent?.trim() || '';
     const unit = rowEl?.querySelector('.btn-edit')?.dataset?.unit || '';
+    const notes = rowEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';
     return `
+        ${notes}
         <button class="btn-distribute" data-id="${id}" data-product="${esc(prod)}" data-unit="${esc(unit)}"
             data-qty="${qty}" data-distributed="0" data-existing="[]"
             data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" title="Distribuir" aria-label="Distribuir">
@@ -4461,7 +4463,9 @@ function buildApprovedActionsMobile(id, cardEl) {
     const qty  = parseFloat(cardEl?.dataset?.totalQty || 0);
     const unit = cardEl?.dataset?.unit || '';
     const prod = cardEl?.querySelector('.mc-product')?.textContent?.trim() || '';
+    const notes = cardEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';
     return `
+        ${notes}
         <button class="btn-distribute btn-xs" data-id="${id}" data-product="${esc(prod)}" data-unit="${esc(unit)}"
             data-qty="${qty}" data-distributed="0" data-existing="[]"
             data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}"

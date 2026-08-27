@@ -1905,7 +1905,9 @@ class DeliveryRegistrationController extends Controller
                 'quantity' => $validated['quantity'],
                 'unit_price' => $validated['unit_price'] ?? $delivery->unit_price,
                 'quality_grade' => $validated['quality_grade'] ?? null,
-                'notes' => $validated['notes'] ?? null,
+                'notes' => array_key_exists('notes', $validated)
+                    ? $validated['notes']
+                    : $delivery->notes,
             ]);
         });
 

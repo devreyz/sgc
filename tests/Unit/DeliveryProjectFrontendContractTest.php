@@ -54,4 +54,25 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString("notes             : $('f-notes').value.trim() || null", $view);
         self::assertStringNotContainsString('substitution_product_id', $view);
     }
+
+    public function test_delivery_notes_remain_visible_after_approval_and_safe_during_editing(): void
+    {
+        $registerView = file_get_contents(resource_path('views/delivery/register.blade.php'));
+        $listingView = file_get_contents(resource_path('views/delivery/project-deliveries.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/Delivery/DeliveryRegistrationController.php'));
+
+        self::assertLessThan(
+            strpos($registerView, 'if (isPending)', strpos($registerView, 'function buildActionsHtml')),
+            strpos($registerView, 'let buttons = item.notes', strpos($registerView, 'function buildActionsHtml')),
+        );
+        self::assertLessThan(
+            strpos($listingView, "if (item.status_value === 'pending')", strpos($listingView, 'function pdActions')),
+            strpos($listingView, 'let html = item.notes', strpos($listingView, 'function pdActions')),
+        );
+        self::assertStringContainsString("const notes = rowEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';", $listingView);
+        self::assertStringContainsString("const notes = cardEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';", $listingView);
+        self::assertStringContainsString('notes: item.notes || null', $registerView);
+        self::assertStringContainsString("'notes' => array_key_exists('notes', \$validated)", $controller);
+        self::assertStringContainsString(': $delivery->notes', $controller);
+    }
 }

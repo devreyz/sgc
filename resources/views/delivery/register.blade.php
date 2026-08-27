@@ -8708,7 +8708,12 @@ async function saveEdit() {
         const res  = await fetch('/' + TENANT + '/delivery/deliveries/' + editingId, {
             method : 'PUT',
             headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body   : JSON.stringify({ quantity: qty, delivery_date: date, quality_grade: qual }),
+            body   : JSON.stringify({
+                quantity: qty,
+                delivery_date: date,
+                quality_grade: qual,
+                notes: item.notes || null,
+            }),
         });
         const data = await res.json();
         if (data.success) {
