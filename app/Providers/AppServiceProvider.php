@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Actions\Passkeys\StoreSecurePasskey;
 use App\Actions\Passkeys\VerifySecurePasskey;
+use App\Contracts\GoogleIdTokenVerifier;
 use App\Models\AccessInvitation;
 use App\Models\Asset;
 use App\Models\AssociateLedger;
@@ -50,6 +51,7 @@ use App\Policies\DeliveryConferenceSheetPolicy;
 use App\Policies\FiscalProfilePolicy;
 use App\Policies\PasskeyPolicy;
 use App\Services\CustomerHierarchyService;
+use App\Services\GoogleApiIdTokenVerifier;
 use App\Services\TenantIdentityService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Vite;
@@ -72,6 +74,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(TenantIdentityService::class);
         $this->app->scoped(CustomerHierarchyService::class);
+        $this->app->bind(GoogleIdTokenVerifier::class, GoogleApiIdTokenVerifier::class);
         Passkeys::ignoreRoutes();
         Passkeys::usePasskeyModel(Passkey::class);
         $this->app->bind(GenerateRegistrationOptions::class, GenerateSecureRegistrationOptions::class);
@@ -131,6 +134,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('google-callback', fn (Request $request) => Limit::perMinute(
             (int) config('security.rates.google_callback_per_minute', 10)
         )->by('google|'.$request->session()->getId().'|'.$request->ip()));
+
+        RateLimiter::for('google-native', fn (Request $request) => Limit::perMinute(
+            (int) config('security.rates.google_native_per_minute', 10)
+        )->by('google-native|'.$request->session()->getId().'|'.$request->ip()));
 
         RateLimiter::for('auth-state', fn (Request $request) => Limit::perMinute(30)
             ->by('auth-state|'.$request->session()->getId().'|'.$request->ip()));

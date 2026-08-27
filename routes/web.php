@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\AuthenticationStateController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\GoogleDriveOAuthController;
 use App\Http\Controllers\Auth\InvitationPasskeyController;
+use App\Http\Controllers\Auth\NativeGoogleAuthController;
 use App\Http\Controllers\Auth\PasskeyAuthenticationController;
 use App\Http\Controllers\Auth\PasskeyManagementController;
 use App\Http\Controllers\Auth\SecurityController;
@@ -110,6 +111,12 @@ Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('aut
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->middleware('throttle:google-callback')
     ->name('auth.google.callback');
+Route::middleware(['guest', 'throttle:google-native'])->group(function () {
+    Route::get('/auth/google/native/challenge', [NativeGoogleAuthController::class, 'challenge'])
+        ->name('auth.google.native.challenge');
+    Route::post('/auth/google/native', [NativeGoogleAuthController::class, 'login'])
+        ->name('auth.google.native');
+});
 Route::get('/auth/google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])
     ->middleware(['auth', 'throttle:google-drive-oauth'])
     ->name('auth.google-drive.callback');

@@ -7,6 +7,7 @@ return [
     'audit_pepper' => env('SECURITY_AUDIT_PEPPER', env('APP_KEY')),
     'recent_auth_seconds' => (int) env('RECENT_AUTH_TTL', 600),
     'google_jwt_clock_skew_seconds' => (int) env('GOOGLE_JWT_CLOCK_SKEW', 10),
+    'native_google_nonce_ttl_seconds' => (int) env('NATIVE_GOOGLE_NONCE_TTL', 300),
     'rates' => [
         'invitation_create_per_hour' => (int) env('RATE_INVITATION_CREATE', 20),
         'invitation_send_per_hour' => (int) env('RATE_INVITATION_SEND', 20),
@@ -14,5 +15,6 @@ return [
         'invitation_code_per_hour' => (int) env('RATE_INVITATION_CODE', 10),
         'webauthn_per_minute' => (int) env('RATE_WEBAUTHN', 10),
         'google_callback_per_minute' => (int) env('RATE_GOOGLE_CALLBACK', 10),
+        'google_native_per_minute' => (int) env('RATE_GOOGLE_NATIVE', 10),
     ],
 ];

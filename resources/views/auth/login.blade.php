@@ -1035,6 +1035,9 @@
         ? route('auth.google')
         : url('/auth/google');
 
+    $nativeGoogleChallengeUrl = route('auth.google.native.challenge');
+    $nativeGoogleLoginUrl = route('auth.google.native');
+
     $passkeyOptionsUrl = \Illuminate\Support\Facades\Route::has(
         'auth.passkey.options'
     )
@@ -1321,7 +1324,10 @@
 
         const PASSKEY_OPTIONS_URL = @json($passkeyOptionsUrl);
         const PASSKEY_VERIFY_URL = @json($passkeyVerifyUrl);
+        const NATIVE_GOOGLE_CHALLENGE_URL = @json($nativeGoogleChallengeUrl);
+        const NATIVE_GOOGLE_LOGIN_URL = @json($nativeGoogleLoginUrl);
         const passkeyButton = document.getElementById('passkey-login');
+        const googleButton = document.getElementById('google-login');
         const statusBox = document.getElementById('login-status');
         const statusTitle = document.getElementById('login-status-title');
         const statusText = document.getElementById('login-status-text');
@@ -1330,6 +1336,7 @@
 
         let statusTimer = null;
         let passkeysInitialized = false;
+        let googleLoginPending = false;
 
         function setStatus({
             title,
@@ -1388,6 +1395,114 @@
                 520
             );
         }
+
+        function isNativeAndroid() {
+            return Boolean(
+                window.Capacitor?.isNativePlatform?.()
+                && window.Capacitor?.getPlatform?.() === 'android'
+            );
+        }
+
+        async function jsonResponse(response) {
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    data.message || 'Não foi possível concluir a autenticação.'
+                );
+            }
+
+            return data;
+        }
+
+        async function loginWithNativeGoogle(event) {
+            if (!isNativeAndroid()) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (googleLoginPending) {
+                return;
+            }
+
+            const nativeAuth = window.Capacitor?.Plugins?.NativeAuth;
+            if (!nativeAuth?.googleSignIn) {
+                setStatus({
+                    title: 'Login indisponível',
+                    message: 'Atualize o aplicativo e tente novamente.',
+                    type: 'error',
+                    dismissAfter: 5000
+                });
+                return;
+            }
+
+            googleLoginPending = true;
+            googleButton.setAttribute('aria-disabled', 'true');
+            googleButton.setAttribute('aria-busy', 'true');
+            googleButton.classList.add('is-authenticating');
+
+            setStatus({
+                title: 'Entrando com Google',
+                message: 'Escolha sua conta para continuar.'
+            });
+
+            try {
+                const challenge = await fetch(
+                    NATIVE_GOOGLE_CHALLENGE_URL,
+                    {
+                        credentials: 'same-origin',
+                        cache: 'no-store',
+                        headers: { Accept: 'application/json' }
+                    }
+                ).then(jsonResponse);
+
+                const credential = await nativeAuth.googleSignIn({
+                    nonce: challenge.nonce
+                });
+
+                const csrfToken = document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content');
+
+                const result = await fetch(NATIVE_GOOGLE_LOGIN_URL, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': csrfToken || ''
+                    },
+                    body: JSON.stringify({ id_token: credential.idToken })
+                }).then(jsonResponse);
+
+                setStatus({
+                    title: 'Identidade confirmada',
+                    message: 'Acesso autorizado. Abrindo o SGC...',
+                    type: 'success'
+                });
+                showSuccessAndRedirect(result.redirect || '/');
+            } catch (error) {
+                const cancelled = error?.code === 'SIGN_IN_CANCELLED';
+
+                setStatus({
+                    title: cancelled ? 'Login cancelado' : 'Não foi possível entrar',
+                    message: cancelled
+                        ? 'Tente novamente quando quiser.'
+                        : (error?.message || 'Verifique sua conexão e tente novamente.'),
+                    type: 'error',
+                    dismissAfter: 5000
+                });
+            } finally {
+                googleLoginPending = false;
+                googleButton.removeAttribute('aria-disabled');
+                googleButton.removeAttribute('aria-busy');
+                googleButton.classList.remove('is-authenticating');
+            }
+        }
+
+        googleButton?.addEventListener('click', loginWithNativeGoogle);
 
         async function loginWithPasskey() {
             passkeyButton.disabled = true;

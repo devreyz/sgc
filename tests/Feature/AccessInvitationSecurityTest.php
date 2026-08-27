@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
+use App\Contracts\GoogleIdTokenVerifier;
 use App\Exceptions\AccountProofRequiredException;
+use App\Exceptions\GoogleTokenVerificationException;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
 use App\Models\Passkey;
@@ -14,6 +16,7 @@ use App\Services\AccessInvitationService;
 use App\Services\EmailSwapService;
 use App\Services\GoogleAccountService;
 use App\Services\GoogleDriveClientFactory;
+use App\ValueObjects\GoogleIdentity;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -902,6 +905,122 @@ class AccessInvitationSecurityTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame($originalPassword, $user->fresh()->password);
+    }
+
+    public function test_native_google_challenge_is_single_session_bound_and_not_cached(): void
+    {
+        $response = $this->getJson(route('auth.google.native.challenge'))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store, private');
+
+        $nonce = $response->json('nonce');
+        $this->assertIsString($nonce);
+        $this->assertSame(43, strlen($nonce));
+        $response->assertSessionHas('google_native_nonce', $nonce);
+        $response->assertSessionHas('google_native_nonce_expires_at');
+    }
+
+    public function test_native_google_login_requires_an_id_token(): void
+    {
+        $this->getJson(route('auth.google.native.challenge'))->assertOk();
+
+        $this->postJson(route('auth.google.native'), [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('id_token');
+
+        $this->assertGuest();
+    }
+
+    public function test_native_google_login_rejects_an_invalid_token_without_calling_google_api(): void
+    {
+        $this->getJson(route('auth.google.native.challenge'))->assertOk();
+        $this->app->instance(GoogleIdTokenVerifier::class, new class implements GoogleIdTokenVerifier
+        {
+            public function verify(string $idToken, string $expectedNonce): GoogleIdentity
+            {
+                throw new GoogleTokenVerificationException('invalid_token');
+            }
+        });
+
+        $this->postJson(route('auth.google.native'), ['id_token' => 'invalid.jwt.value'])
+            ->assertUnprocessable()
+            ->assertJson(['message' => 'Nao foi possivel validar esta conta Google.']);
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('security_events', [
+            'event_type' => 'google_native_login_failed',
+            'result' => 'denied',
+        ]);
+    }
+
+    public function test_native_google_login_authenticates_a_linked_active_user_and_returns_tenant_redirect(): void
+    {
+        [$user] = $this->fixture();
+        DB::table('oauth_accounts')->insert([
+            'user_id' => $user->id,
+            'provider' => 'google',
+            'provider_subject' => 'native-google-subject',
+            'provider_email' => $user->email,
+            'provider_email_verified' => true,
+            'linked_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $challenge = $this->getJson(route('auth.google.native.challenge'))->assertOk();
+        $fake = new class($user->email) implements GoogleIdTokenVerifier
+        {
+            public ?string $receivedNonce = null;
+
+            public function __construct(private readonly string $email) {}
+
+            public function verify(string $idToken, string $expectedNonce): GoogleIdentity
+            {
+                $this->receivedNonce = $expectedNonce;
+
+                return new GoogleIdentity('native-google-subject', $this->email);
+            }
+        };
+        $this->app->instance(GoogleIdTokenVerifier::class, $fake);
+
+        $this->postJson(route('auth.google.native'), ['id_token' => 'signed.jwt.value'])
+            ->assertOk()
+            ->assertJson([
+                'authenticated' => true,
+                'redirect' => route('tenant.select'),
+            ])
+            ->assertSessionMissing('google_native_nonce')
+            ->assertSessionMissing('google_native_nonce_expires_at');
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame($challenge->json('nonce'), $fake->receivedNonce);
+        $this->assertNotNull($user->fresh()->last_authenticated_at);
+        $this->assertDatabaseHas('security_events', [
+            'event_type' => 'google_native_login',
+            'target_user_id' => $user->id,
+            'result' => 'success',
+        ]);
+    }
+
+    public function test_native_google_login_rejects_an_inactive_user(): void
+    {
+        [$user] = $this->fixture();
+        $user->forceFill(['status' => false])->saveQuietly();
+
+        $this->getJson(route('auth.google.native.challenge'))->assertOk();
+        $this->app->instance(GoogleIdTokenVerifier::class, new class($user->email) implements GoogleIdTokenVerifier
+        {
+            public function __construct(private readonly string $email) {}
+
+            public function verify(string $idToken, string $expectedNonce): GoogleIdentity
+            {
+                return new GoogleIdentity('inactive-native-subject', $this->email);
+            }
+        });
+
+        $this->postJson(route('auth.google.native'), ['id_token' => 'signed.jwt.value'])
+            ->assertForbidden();
+        $this->assertGuest();
     }
 
     private function fixture(): array
