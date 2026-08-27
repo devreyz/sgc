@@ -944,7 +944,10 @@ class AccessInvitationSecurityTest extends TestCase
 
         $this->postJson(route('auth.google.native'), ['id_token' => 'invalid.jwt.value'])
             ->assertUnprocessable()
-            ->assertJson(['message' => 'Nao foi possivel validar esta conta Google.']);
+            ->assertJson([
+                'message' => 'Nao foi possivel validar esta conta Google.',
+                'code' => 'invalid_token',
+            ]);
 
         $this->assertGuest();
         $this->assertDatabaseHas('security_events', [

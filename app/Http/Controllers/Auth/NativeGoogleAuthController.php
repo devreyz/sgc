@@ -13,6 +13,7 @@ use App\Services\SecurityAuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use ParagonIE\ConstantTime\Base64UrlSafe;
 use Throwable;
 
@@ -87,12 +88,17 @@ class NativeGoogleAuthController extends Controller
             $audit->record('google_native_login_failed', 'denied', [
                 'context' => ['stage' => 'token_verification', 'reason' => $exception->reason],
             ], $request);
+            $this->logFailure($request, 'token_verification', $exception->reason);
 
-            return response()->json(['message' => 'Nao foi possivel validar esta conta Google.'], 422);
+            return response()->json([
+                'message' => 'Nao foi possivel validar esta conta Google.',
+                'code' => $exception->reason,
+            ], 422);
         } catch (AccountProofRequiredException) {
             $audit->record('google_native_login_failed', 'denied', [
                 'context' => ['stage' => 'account_proof_required'],
             ], $request);
+            $this->logFailure($request, 'account_proof_required');
 
             return response()->json([
                 'message' => 'Esta conta Google ainda nao esta vinculada a um acesso autorizado.',
@@ -102,6 +108,7 @@ class NativeGoogleAuthController extends Controller
             $audit->record('google_native_login_failed', 'denied', [
                 'context' => ['stage' => 'account_resolution'],
             ], $request);
+            $this->logFailure($request, 'account_resolution', 'unexpected_error');
 
             return response()->json(['message' => 'Nao foi possivel concluir a autenticacao.'], 403);
         }
@@ -112,5 +119,16 @@ class NativeGoogleAuthController extends Controller
         if (app()->environment('production') && ! $request->isSecure()) {
             abort(400, 'HTTPS e obrigatorio para autenticacao.');
         }
+    }
+
+    private function logFailure(Request $request, string $stage, ?string $reason = null): void
+    {
+        Log::warning('Native Google authentication denied.', [
+            'stage' => $stage,
+            'reason' => $reason,
+            'ip_hash' => app(SecurityAuditService::class)->hashIp($request->ip()),
+            'correlation_id' => $request->attributes->get('security_correlation_id'),
+            'platform' => 'android',
+        ]);
     }
 }

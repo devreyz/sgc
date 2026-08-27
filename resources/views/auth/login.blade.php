@@ -1407,9 +1407,11 @@
             const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(
+                const error = new Error(
                     data.message || 'Não foi possível concluir a autenticação.'
                 );
+                error.code = data.code || null;
+                throw error;
             }
 
             return data;
