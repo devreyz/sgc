@@ -3,7 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\NotificationEventPreference;
-use App\Models\PushSubscription;
+use App\Models\PushDevice;
 use App\Models\TenantUser;
 use App\Services\TenantNotificationDispatcher;
 use App\Support\NotificationEventCatalog;
@@ -254,17 +254,16 @@ class NotificationManagement extends Page implements HasForms
 
     public function getPushConfiguredProperty(): bool
     {
-        return filled(config('notifications.vapid.subject'))
-            && filled(config('notifications.vapid.public_key'))
-            && filled(config('notifications.vapid.private_key'));
+        return app(\App\Services\FcmHttpV1Client::class)->configured();
     }
 
     public function getActiveDevicesProperty(): int
     {
         $tenantId = (int) session('tenant_id');
 
-        return PushSubscription::query()
-            ->active()
+        return PushDevice::query()
+            ->where('notifications_enabled', true)
+            ->whereNull('revoked_at')
             ->whereIn('user_id', TenantUser::query()
                 ->forTenant($tenantId)
                 ->active()
@@ -290,11 +289,11 @@ class NotificationManagement extends Page implements HasForms
                             Forms\Components\Toggle::make($prefix.'.database_enabled')
                                 ->label('Central interna'),
                             Forms\Components\Toggle::make($prefix.'.push_enabled')
-                                ->label('Notificacao push')
+                                ->label('Notificacao Android')
                                 ->disabled(! $definition['pushAllowed'])
                                 ->helperText($definition['pushAllowed']
                                     ? null
-                                    : 'Push desativado para este evento editavel.'),
+                                    : 'Notificacao Android desativada para este evento editavel.'),
                             Forms\Components\Select::make($prefix.'.priority')
                                 ->label('Prioridade')
                                 ->options([

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Jobs\SendWebPushNotification;
 use App\Models\NotificationEventPreference;
 use App\Models\Tenant;
 use App\Models\TenantUser;
@@ -81,10 +80,6 @@ class TenantNotificationDispatcher
                 $recipient->notify($notification);
             }
 
-            if ($pushEnabled && $this->pushConfigured()) {
-                SendWebPushNotification::dispatch($recipient->id, $tenantId, $notificationId, $pushPayload)->afterCommit();
-            }
-
             $sent++;
         }
 
@@ -148,13 +143,6 @@ class TenantNotificationDispatcher
                 'url' => Str::startsWith((string) ($action['url'] ?? ''), '/') ? $action['url'] : $path,
             ])->values()->all(),
         ];
-    }
-
-    private function pushConfigured(): bool
-    {
-        return filled(config('notifications.vapid.subject'))
-            && filled(config('notifications.vapid.public_key'))
-            && filled(config('notifications.vapid.private_key'));
     }
 
     private function preference(string $eventKey, int $tenantId): ?NotificationEventPreference

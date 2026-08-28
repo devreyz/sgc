@@ -1,12 +1,8 @@
 <?php
 
 return [
-    'vapid' => [
-        'subject' => env('WEBPUSH_VAPID_SUBJECT', env('APP_URL')),
-        'public_key' => env('WEBPUSH_VAPID_PUBLIC_KEY'),
-        'private_key' => env('WEBPUSH_VAPID_PRIVATE_KEY'),
-    ],
-    'subscription_failures_before_revoke' => (int) env('WEBPUSH_FAILURES_BEFORE_REVOKE', 3),
+    // Web Push de navegador foi desativado em favor do FCM Android.
+    'webpush_enabled' => false,
     'fcm' => [
         'enabled' => (bool) env('FCM_ENABLED', false),
         'project_id' => env('FCM_PROJECT_ID'),

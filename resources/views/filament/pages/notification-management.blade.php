@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     <div class="grid gap-4 md:grid-cols-2">
         <x-filament::section>
-            <x-slot name="heading">Push no servidor</x-slot>
+            <x-slot name="heading">Notificações Android (Firebase)</x-slot>
             <div class="flex items-center gap-3">
                 <x-filament::badge :color="$this->pushConfigured ? 'success' : 'warning'">
                     {{ $this->pushConfigured ? 'Configurado' : 'Configuracao pendente' }}

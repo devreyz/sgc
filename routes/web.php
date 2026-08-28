@@ -36,7 +36,6 @@ use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\PublicFormController;
-use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
@@ -173,11 +172,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/tenant/select', [TenantController::class, 'select'])->name('tenant.select');
     Route::post('/tenant/switch', [TenantController::class, 'switch'])->name('tenant.switch');
     Route::get('/security', [SecurityController::class, 'index'])->name('security.index');
-    Route::get('/notifications/push/status', [PushSubscriptionController::class, 'status'])->name('notifications.push.status');
-    Route::post('/notifications/push/subscriptions', [PushSubscriptionController::class, 'store'])
-        ->middleware('throttle:20,1')->name('notifications.push.store');
-    Route::delete('/notifications/push/subscriptions', [PushSubscriptionController::class, 'destroy'])
-        ->middleware('throttle:20,1')->name('notifications.push.destroy');
     Route::post('/notifications/push/devices', [PushDeviceController::class, 'store'])
         ->middleware('throttle:20,1')->name('notifications.push.devices.store');
     Route::delete('/notifications/push/devices', [PushDeviceController::class, 'destroy'])

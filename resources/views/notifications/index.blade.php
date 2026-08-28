@@ -702,44 +702,6 @@
 <div class="notifications-shell">
     <div class="notifications-tools">
         <section
-            class="push-control"
-            id="push-control"
-            aria-label="Notificações neste dispositivo"
-        >
-            <span class="push-control-icon" aria-hidden="true">
-                <i data-lucide="smartphone"></i>
-            </span>
-
-            <div class="push-control-copy">
-                <strong>Notificações neste dispositivo</strong>
-
-                <span id="push-status-label">
-                    <span class="push-status-dot" aria-hidden="true"></span>
-                    Verificando permissão...
-                </span>
-            </div>
-
-            <button
-                type="button"
-                class="push-primary-action"
-                id="push-toggle"
-            >
-                <i data-lucide="bell-ring"></i>
-                Ativar
-            </button>
-
-            <button
-                type="button"
-                class="push-disable-action"
-                id="push-disable"
-                hidden
-            >
-                <i data-lucide="bell-off"></i>
-                Desativar neste dispositivo
-            </button>
-        </section>
-
-        <section
             class="notifications-actions"
             aria-label="Filtros e ações das notificações"
         >
@@ -963,11 +925,6 @@
         document.querySelectorAll('[data-notification-filter]')
     );
 
-    const pushControl = document.getElementById('push-control');
-    const pushToggle = document.getElementById('push-toggle');
-    const pushDisable = document.getElementById('push-disable');
-    const pushStatusLabel = document.getElementById('push-status-label');
-
     const csrf =
         document.querySelector('meta[name="csrf-token"]')?.content || '';
 
@@ -1110,92 +1067,6 @@
         }
     );
 
-    function pushText() {
-        return [
-            pushStatusLabel?.textContent || '',
-            pushToggle?.textContent || '',
-        ]
-            .join(' ')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase();
-    }
-
-    function pushIsEnabled() {
-        const text = pushText();
-
-        return (
-            text.includes('ativad')
-            || text.includes('recebendo')
-            || text.includes('permitid')
-            || text.includes('desativar')
-            || (
-                'Notification' in window
-                && window.Notification.permission === 'granted'
-            )
-        );
-    }
-
-    function syncPushUi() {
-        const enabled = pushIsEnabled();
-
-        pushControl?.classList.toggle('is-enabled', enabled);
-
-        if (pushToggle) {
-            pushToggle.hidden = enabled;
-        }
-
-        if (pushDisable) {
-            pushDisable.hidden = !enabled;
-        }
-    }
-
-    pushDisable?.addEventListener('click', () => {
-        pushToggle?.click();
-
-        window.setTimeout(syncPushUi, 350);
-        window.setTimeout(syncPushUi, 1000);
-    });
-
-    pushToggle?.addEventListener('click', () => {
-        window.setTimeout(syncPushUi, 350);
-        window.setTimeout(syncPushUi, 1000);
-    });
-
-    if (pushStatusLabel) {
-        new MutationObserver(syncPushUi).observe(
-            pushStatusLabel,
-            {
-                childList: true,
-                characterData: true,
-                subtree: true,
-            }
-        );
-    }
-
-    if (pushToggle) {
-        new MutationObserver(syncPushUi).observe(
-            pushToggle,
-            {
-                childList: true,
-                characterData: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['disabled'],
-            }
-        );
-    }
-
-    document.addEventListener(
-        'visibilitychange',
-        () => {
-            if (!document.hidden) {
-                syncPushUi();
-            }
-        }
-    );
-
-    syncPushUi();
     updateUnreadCount();
 })();
 </script>

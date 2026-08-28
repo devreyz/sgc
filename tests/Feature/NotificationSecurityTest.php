@@ -2,10 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\SendWebPushNotification;
 use App\Jobs\SendFcmNotification;
 use App\Models\ProductionDelivery;
-use App\Models\PushSubscription;
 use App\Models\PushDevice;
 use App\Models\User;
 use App\Services\NotificationService;
@@ -206,8 +204,6 @@ class NotificationSecurityTest extends TestCase
             $table->timestamp('failed_at');
         });
 
-        config()->set('notifications.vapid.public_key', null);
-        config()->set('notifications.vapid.private_key', null);
     }
 
     public function test_role_recipients_are_strictly_scoped_to_the_tenant(): void
@@ -345,7 +341,7 @@ class NotificationSecurityTest extends TestCase
     public function test_queue_inspector_never_returns_jobs_from_another_tenant(): void
     {
         foreach ([1, 2] as $tenantId) {
-            $job = new SendWebPushNotification(10 + $tenantId, $tenantId, "notification-{$tenantId}", [
+            $job = new SendFcmNotification(10 + $tenantId, $tenantId, "00000000-0000-4000-8000-00000000000{$tenantId}", [
                 'title' => 'Teste',
                 'body' => 'Mensagem',
                 'priority' => 'normal',
@@ -356,7 +352,7 @@ class NotificationSecurityTest extends TestCase
             DB::table('jobs')->insert([
                 'queue' => 'notifications',
                 'payload' => json_encode([
-                    'displayName' => SendWebPushNotification::class,
+                    'displayName' => SendFcmNotification::class,
                     'data' => ['command' => serialize($job)],
                 ]),
                 'attempts' => 0,
@@ -370,135 +366,7 @@ class NotificationSecurityTest extends TestCase
 
         $this->assertCount(1, $jobs);
         $this->assertSame(1, $jobs[0]['tenant_id']);
-        $this->assertSame('Enviar notificacao push', $jobs[0]['name']);
-    }
-
-    public function test_delivery_push_is_queued_when_vapid_is_configured(): void
-    {
-        Queue::fake();
-        config()->set('notifications.vapid.subject', 'mailto:admin@example.test');
-        config()->set('notifications.vapid.public_key', 'public-key');
-        config()->set('notifications.vapid.private_key', 'private-key');
-
-        DB::table('tenants')->insert([
-            'id' => 1,
-            'name' => 'Tenant A',
-            'slug' => 'tenant-a',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-        $registrar = User::withoutEvents(fn () => User::query()->create([
-            'name' => 'Registrar',
-            'email' => 'registrar@example.test',
-            'status' => true,
-        ]));
-        DB::table('tenant_user')->insert([
-            'tenant_id' => 1,
-            'user_id' => $registrar->id,
-            'roles' => json_encode(['registrador_entregas']),
-            'status' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        app(TenantNotificationDispatcher::class)->dispatchToConfiguredRoles(
-            'delivery.registered',
-            1,
-            ['title' => 'Entrega', 'body' => 'Nova entrega', 'url' => '/tenant-a/delivery'],
-        );
-
-        Queue::assertPushed(SendWebPushNotification::class, fn (SendWebPushNotification $job): bool => (
-            $job->tenantId === 1 && $job->userId === $registrar->id
-        ));
-        $this->assertCount(1, $registrar->fresh()->notifications);
-    }
-
-    public function test_browser_subscription_is_atomically_rebound_to_current_authenticated_session(): void
-    {
-        $first = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
-        $second = User::withoutEvents(fn () => User::query()->create(['name' => 'B', 'email' => 'b@example.test', 'status' => true]));
-        $payload = [
-            'endpoint' => 'https://push.example.test/device-a',
-            'keys' => ['p256dh' => 'public-key', 'auth' => 'auth-token'],
-            'contentEncoding' => 'aes128gcm',
-        ];
-
-        $this->actingAs($first)->postJson(route('notifications.push.store'), $payload)->assertCreated();
-        $firstHash = PushSubscription::query()->firstOrFail()->session_hash;
-
-        auth()->logout();
-        $this->app['session']->invalidate();
-        $this->actingAs($second)->postJson(route('notifications.push.store'), $payload)->assertCreated();
-
-        $subscription = PushSubscription::query()->firstOrFail();
-        $this->assertSame($second->id, $subscription->user_id);
-        $this->assertNotSame($firstHash, $subscription->session_hash);
-        $this->assertNull($subscription->revoked_at);
-    }
-
-    public function test_endpoint_cannot_be_rebound_without_the_browser_subscription_keys(): void
-    {
-        $first = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
-        $second = User::withoutEvents(fn () => User::query()->create(['name' => 'B', 'email' => 'b@example.test', 'status' => true]));
-        $payload = [
-            'endpoint' => 'https://push.example.test/protected-device',
-            'keys' => ['p256dh' => 'real-public-key', 'auth' => 'real-auth-token'],
-            'contentEncoding' => 'aes128gcm',
-        ];
-
-        $this->actingAs($first)->postJson(route('notifications.push.store'), $payload)->assertCreated();
-        auth()->logout();
-        $this->app['session']->invalidate();
-
-        $payload['keys'] = ['p256dh' => 'forged-public-key', 'auth' => 'forged-auth-token'];
-        $this->actingAs($second)->postJson(route('notifications.push.store'), $payload)->assertConflict();
-
-        $this->assertSame($first->id, PushSubscription::query()->firstOrFail()->user_id);
-    }
-
-    public function test_push_status_does_not_fail_while_session_column_migration_is_pending(): void
-    {
-        $user = User::withoutEvents(fn () => User::query()->create([
-            'name' => 'A',
-            'email' => 'a@example.test',
-            'status' => true,
-        ]));
-        Schema::table('push_subscriptions', fn (Blueprint $table) => $table->dropColumn('session_hash'));
-
-        $this->actingAs($user)
-            ->getJson(route('notifications.push.status'))
-            ->assertOk()
-            ->assertJson([
-                'schema_ready' => false,
-                'subscriptions' => 0,
-                'session_endpoint_hashes' => [],
-            ]);
-    }
-
-    public function test_logout_revokes_only_subscriptions_bound_to_current_session(): void
-    {
-        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
-        $payload = [
-            'endpoint' => 'https://push.example.test/current',
-            'keys' => ['p256dh' => 'public-key', 'auth' => 'auth-token'],
-            'contentEncoding' => 'aes128gcm',
-        ];
-        $this->actingAs($user)->postJson(route('notifications.push.store'), $payload)->assertCreated();
-        $currentHash = PushSubscription::query()->where('endpoint_hash', hash('sha256', $payload['endpoint']))->value('session_hash');
-
-        PushSubscription::query()->create([
-            'user_id' => $user->id,
-            'session_hash' => str_repeat('a', 64),
-            'endpoint_hash' => hash('sha256', 'https://push.example.test/other'),
-            'endpoint' => 'https://push.example.test/other',
-            'public_key' => 'public-key',
-            'auth_token' => 'auth-token',
-        ]);
-
-        $this->post(route('logout'))->assertRedirect(route('login'));
-
-        $this->assertNotNull(PushSubscription::query()->where('session_hash', $currentHash)->firstOrFail()->revoked_at);
-        $this->assertNull(PushSubscription::query()->where('session_hash', str_repeat('a', 64))->firstOrFail()->revoked_at);
+        $this->assertSame('Enviar notificacao Android', $jobs[0]['name']);
     }
 
     public function test_android_device_is_rebound_to_the_new_account_without_leaking_the_old_account(): void

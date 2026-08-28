@@ -3642,9 +3642,6 @@
         if ($currentTenantSlug) {
             $sgcPwaConfig += [
                 'unreadCountUrl' => route('notifications.unread-count', ['tenant' => $currentTenantSlug]),
-                'pushStatusUrl' => route('notifications.push.status'),
-                'pushStoreUrl' => route('notifications.push.store'),
-                'pushDestroyUrl' => route('notifications.push.destroy'),
             ];
         }
     ?>

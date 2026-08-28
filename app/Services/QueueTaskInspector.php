@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Jobs\SendWebPushNotification;
+use App\Jobs\SendFcmNotification;
 use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Jobs\SyncTenantStoredFileToDrive;
 use App\Models\Asset;
@@ -177,7 +177,7 @@ class QueueTaskInspector
     private function friendlyName(string $class): string
     {
         return match ($class) {
-            SendWebPushNotification::class => 'Enviar notificacao push',
+            SendFcmNotification::class => 'Enviar notificacao Android',
             SyncAssociateReceiptToDrive::class => 'Sincronizar comprovante com o Drive',
             SyncTenantStoredFileToDrive::class => 'Sincronizar arquivo com o Drive',
             default => Str::headline(class_basename($class ?: 'Tarefa')),

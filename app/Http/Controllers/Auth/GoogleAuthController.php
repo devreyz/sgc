@@ -7,7 +7,6 @@ use App\Exceptions\AccountProofRequiredException;
 use App\Http\Controllers\Controller;
 use App\Services\AuthenticationRedirector;
 use App\Services\GoogleAccountService;
-use App\Services\PushSubscriptionSessionService;
 use App\Services\PushDeviceService;
 use App\Services\SecurityAuditService;
 use Illuminate\Http\RedirectResponse;
@@ -120,11 +119,9 @@ class GoogleAuthController extends Controller
     public function logout(
         Request $request,
         AuthenticationRedirector $redirector,
-        PushSubscriptionSessionService $pushSessions,
         PushDeviceService $pushDevices,
     ): RedirectResponse {
         if ($request->user()) {
-            $pushSessions->revokeCurrentSession($request->user()->id, $request->session());
             $pushDevices->revokeCurrentSession($request->user()->id, $request->session());
         }
         $redirector->clearTenantSelection();

@@ -31,6 +31,10 @@ class SendWebPushNotification implements ShouldQueue
 
     public function handle(): void
     {
+        if (! config('notifications.webpush_enabled', false)) {
+            return;
+        }
+
         if (! Schema::hasColumn('push_subscriptions', 'session_hash')) {
             return;
         }

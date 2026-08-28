@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
@@ -9,7 +10,20 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('queue:work', [
-    '--queue' => 'notifications,documents,default',
+    '--queue' => 'notifications',
+    '--stop-when-empty' => true,
+    '--max-time' => 50,
+    '--tries' => 3,
+    '--timeout' => 45,
+    '--memory' => 128,
+])->everyMinute()->withoutOverlapping(3);
+
+Schedule::call(function (): void {
+    Cache::put('system:cron:last_heartbeat', now()->toIso8601String(), now()->addDays(2));
+})->everyMinute()->name('cron-heartbeat');
+
+Schedule::command('queue:work', [
+    '--queue' => 'documents,default',
     '--stop-when-empty' => true,
     '--max-time' => 240,
     '--tries' => 3,

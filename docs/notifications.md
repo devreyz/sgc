@@ -1,25 +1,31 @@
-# Notificacoes e PWA
+# Notificacoes Android (Firebase)
 
 ## Implantacao
 
 1. Execute `php artisan migrate --force`.
-2. Gere as chaves com `php artisan webpush:vapid`.
-3. Salve as duas chaves no `.env` como `WEBPUSH_VAPID_PUBLIC_KEY` e `WEBPUSH_VAPID_PRIVATE_KEY`.
-4. Configure `WEBPUSH_VAPID_SUBJECT` com um e-mail administrativo no formato `mailto:email@dominio`.
-5. Execute `php artisan config:cache` e `php artisan route:cache`.
-6. Mantenha o dominio em HTTPS. Somente `localhost` funciona sem HTTPS para desenvolvimento.
+2. Configure o Firebase Cloud Messaging conforme a secao abaixo.
+3. Execute `php artisan config:cache` e `php artisan route:cache`.
+4. Mantenha o dominio em HTTPS.
 
-O service worker usa somente a rede e remove caches antigos durante a ativacao. Ele nao guarda paginas, respostas, arquivos ou dados do usuario.
+Web Push de navegador esta desativado. Assinaturas legadas sao revogadas pela migration e nao ha mais registro ou envio pelo navegador.
 
 ## Fila em hospedagem compartilhada
 
-As notificacoes push usam a fila `notifications`. O scheduler existente processa `notifications,documents,default` e encerra quando as filas esvaziam. Configure um cron a cada minuto:
+As notificacoes Android usam a fila `notifications`, processada a cada minuto. Documentos e tarefas comuns continuam a cada cinco minutos. Configure um cron a cada minuto:
 
 ```cron
 * * * * * cd /caminho/absoluto/do/projeto && /usr/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
 Nao exponha o scheduler ou o worker por rota HTTP.
+
+Para confirmar pela linha de comando que o cron esta rodando, use:
+
+```bash
+php artisan system:cron-status
+```
+
+O campo `Ultimo heartbeat do scheduler` deve mudar a cada minuto. A fila `notifications` deve ficar em zero ou diminuir logo apos um envio.
 
 ## Operacao
 
