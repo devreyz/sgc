@@ -2,6 +2,7 @@
     @php
         $pending = $this->pendingJobs;
         $failed = $this->failedJobs;
+        $drive = $this->driveDiagnostics;
         $waiting = collect($pending)->where('status', 'waiting')->count();
         $scheduled = collect($pending)->where('status', 'scheduled')->count();
         $processing = collect($pending)->where('status', 'processing')->count();
@@ -27,6 +28,43 @@
             </p>
         </x-filament::section>
     </div>
+
+    <x-filament::section>
+        <x-slot name="heading">Diagnóstico do Google Drive</x-slot>
+
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <p class="text-sm text-gray-500">Conexão</p>
+                <p class="mt-1 font-semibold {{ $drive['connected'] ? 'text-success-600' : 'text-danger-600' }}">
+                    {{ $drive['connected'] ? 'Ativa' : 'Inativa ou não configurada' }}
+                </p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Último envio concluído</p>
+                <p class="mt-1 font-semibold">{{ $drive['last_sync_at']?->format('d/m/Y H:i:s') ?? 'Nunca' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Sincronizados</p>
+                <p class="mt-1 font-semibold text-success-600">{{ $drive['synced_documents'] }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Rejeitados</p>
+                <p class="mt-1 font-semibold {{ $drive['failed_documents'] ? 'text-danger-600' : '' }}">{{ $drive['failed_documents'] }}</p>
+            </div>
+        </div>
+
+        @if($drive['last_error'])
+            <div class="mt-4 rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm text-danger-700 dark:border-danger-900 dark:bg-danger-950/30 dark:text-danger-300">
+                <strong>Último impedimento:</strong> {{ $drive['last_error'] }}
+            </div>
+        @elseif($drive['connected'] && !$drive['last_sync_at'] && !$drive['queued_documents'])
+            <p class="mt-4 text-sm text-warning-600">A conexão está ativa, mas nenhum documento elegível foi enviado ainda. Use “Sincronizar Google Drive” para fazer a primeira varredura.</p>
+        @endif
+
+        <p class="mt-4 text-sm text-gray-500">
+            O worker processa até 3 documentos por minuto para respeitar os limites da hospedagem. Uma fila com 7 itens pode levar cerca de 3 minutos, além de novas tentativas quando houver erro.
+        </p>
+    </x-filament::section>
 
     <x-filament::section>
         <x-slot name="heading">Fila desta organizacao</x-slot>

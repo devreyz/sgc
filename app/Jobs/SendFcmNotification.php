@@ -36,9 +36,22 @@ class SendFcmNotification implements ShouldQueue
 
     public function handle(FcmHttpV1Client $fcm): void
     {
-        if (! $fcm->configured()
-            || ! User::query()->whereKey($this->userId)->where('status', true)->exists()
+        if (! $fcm->configured()) {
+            if (app()->environment('testing')) {
+                return;
+            }
+
+            throw new RuntimeException('O Firebase HTTP v1 não está configurado no servidor.');
+        }
+
+        if (! User::query()->whereKey($this->userId)->where('status', true)->exists()
             || ! TenantUser::query()->forTenant($this->tenantId)->active()->where('user_id', $this->userId)->exists()) {
+            Log::notice('FCM delivery skipped after authorization recheck.', [
+                'user_id' => $this->userId,
+                'tenant_id' => $this->tenantId,
+                'notification_id' => $this->notificationId,
+            ]);
+
             return;
         }
 

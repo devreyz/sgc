@@ -135,16 +135,17 @@ class TenantGoogleDriveService
 
             return $document;
         } catch (Throwable $exception) {
+            $safeError = $this->safeConnectionError($exception);
             $document->forceFill([
                 'remote_path' => implode('/', [...$folders, $filename]),
                 'status' => 'failed',
-                'last_error' => 'Falha ao sincronizar este documento.',
+                'last_error' => $safeError,
             ])->save();
             $connection->forceFill([
-                'last_error' => 'Falha ao sincronizar documentos. Reconecte o Drive se o problema persistir.',
+                'last_error' => $safeError,
             ])->save();
 
-            throw new RuntimeException('Nao foi possivel sincronizar o documento com o Google Drive.', 0, $exception);
+            throw new RuntimeException($safeError, 0, $exception);
         }
     }
 
@@ -200,5 +201,31 @@ class TenantGoogleDriveService
     private function safeFilename(string $value): string
     {
         return mb_substr($this->safeSegment($value), 0, 180);
+    }
+
+    private function safeConnectionError(Throwable $exception): string
+    {
+        $messages = [];
+        for ($current = $exception; $current; $current = $current->getPrevious()) {
+            $messages[] = mb_strtolower($current->getMessage());
+        }
+        $message = implode(' ', $messages);
+
+        return match (true) {
+            str_contains($message, 'invalid_grant'),
+            str_contains($message, 'unauthorized'),
+            str_contains($message, '401') => 'A autorização do Google Drive expirou ou foi revogada. Reconecte a conta.',
+            str_contains($message, 'insufficientpermissions'),
+            str_contains($message, 'insufficient permission'),
+            str_contains($message, 'forbidden'),
+            str_contains($message, '403') => 'A conta conectada não possui permissão suficiente no Google Drive. Reconecte e aceite o acesso solicitado.',
+            str_contains($message, 'ratelimit'),
+            str_contains($message, 'quota'),
+            str_contains($message, '429') => 'O limite temporário do Google Drive foi atingido. A tarefa tentará novamente.',
+            str_contains($message, 'timed out'),
+            str_contains($message, 'timeout'),
+            str_contains($message, 'connection') => 'O Google Drive não respondeu. A tarefa tentará novamente.',
+            default => 'Não foi possível enviar o documento. Consulte o log de cloud_storage para o diagnóstico técnico.',
+        };
     }
 }

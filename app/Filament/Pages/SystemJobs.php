@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\TenantUser;
 use App\Services\GoogleDriveSyncDispatcher;
+use App\Services\GoogleDriveSyncDiagnostics;
 use App\Services\QueueTaskInspector;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -53,6 +54,11 @@ class SystemJobs extends Page
     public function getFailedJobsProperty(): array
     {
         return app(QueueTaskInspector::class)->failedForTenant((int) session('tenant_id'));
+    }
+
+    public function getDriveDiagnosticsProperty(): array
+    {
+        return app(GoogleDriveSyncDiagnostics::class)->forTenant((int) session('tenant_id'));
     }
 
     public function retryFailed(string $uuid): void

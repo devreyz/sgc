@@ -43,11 +43,24 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
 
     public function handle(AssociateReceiptArchiveService $archive): void
     {
-        $receipt = AssociateReceipt::query()->find($this->receiptId);
-        if (! $receipt || ! TenantCloudStorageConnection::query()
+        $receipt = AssociateReceipt::withoutGlobalScopes()->find($this->receiptId);
+        if (! $receipt) {
+            Log::notice('Google Drive receipt synchronization skipped because the receipt no longer exists.', [
+                'receipt_id' => $this->receiptId,
+            ]);
+
+            return;
+        }
+
+        if (! TenantCloudStorageConnection::query()
             ->where('tenant_id', $receipt->tenant_id)
             ->where('status', 'active')
             ->exists()) {
+            Log::notice('Google Drive receipt synchronization skipped because the connection is inactive.', [
+                'tenant_id' => $receipt->tenant_id,
+                'receipt_id' => $receipt->id,
+            ]);
+
             return;
         }
 
@@ -68,7 +81,23 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
                 'error' => mb_substr($exception->getMessage(), 0, 500),
             ]);
 
-            throw new \RuntimeException('Falha temporaria ao sincronizar comprovante com o Google Drive.');
+            throw new \RuntimeException(
+                $this->safeFailureMessage($exception),
+                0,
+                $exception,
+            );
         }
+    }
+
+    private function safeFailureMessage(Throwable $exception): string
+    {
+        $message = mb_strtolower($exception->getMessage());
+
+        return match (true) {
+            str_contains($message, 'distribuicoes financeiras') => 'O comprovante ainda não possui distribuições financeiras aprovadas para sincronizar.',
+            str_contains($message, 'tenant, projeto ou associado') => 'O comprovante está incompleto e não pode ser sincronizado.',
+            str_contains($message, 'reconect') || str_contains($message, 'token') => 'A conexão com o Google Drive precisa ser refeita.',
+            default => 'Não foi possível sincronizar o comprovante com o Google Drive. Consulte o diagnóstico da conexão.',
+        };
     }
 }
