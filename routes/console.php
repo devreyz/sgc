@@ -10,6 +10,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('queue:work', [
+    'database',
     '--queue' => 'notifications',
     '--stop-when-empty' => true,
     '--max-time' => 50,
@@ -27,6 +28,7 @@ Schedule::command('drive:sync-documents')
     ->withoutOverlapping(14);
 
 Schedule::command('queue:work', [
+    'database',
     '--queue' => 'documents',
     '--stop-when-empty' => true,
     '--max-jobs' => 3,
@@ -37,6 +39,7 @@ Schedule::command('queue:work', [
 ])->everyMinute()->withoutOverlapping(3);
 
 Schedule::command('queue:work', [
+    'database',
     '--queue' => 'default',
     '--stop-when-empty' => true,
     '--max-time' => 55,

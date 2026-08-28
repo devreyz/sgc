@@ -87,6 +87,7 @@
                             <th class="px-3 py-2">Tarefa</th>
                             <th class="px-3 py-2">Fila</th>
                             <th class="px-3 py-2">Estado</th>
+                            <th class="px-3 py-2">Tentativas</th>
                             <th class="px-3 py-2">Disponivel em</th>
                         </tr>
                     </thead>
@@ -108,6 +109,7 @@
                                         } }}
                                     </x-filament::badge>
                                 </td>
+                                <td class="px-3 py-3">{{ $job['attempts'] }}</td>
                                 <td class="px-3 py-3">{{ $job['available_at']?->format('d/m/Y H:i:s') ?? '-' }}</td>
                             </tr>
                         @endforeach

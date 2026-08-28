@@ -12,6 +12,7 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 class SendFcmNotification implements ShouldQueue
 {
@@ -69,7 +70,20 @@ class SendFcmNotification implements ShouldQueue
                     return;
                 }
 
-                $response = $fcm->send($device->token, $this->message());
+                try {
+                    $response = $fcm->send($device->token, $this->message());
+                } catch (Throwable $exception) {
+                    Log::warning('FCM delivery attempt could not contact Firebase.', [
+                        'push_device_id' => $device->id,
+                        'notification_id' => $this->notificationId,
+                        'tenant_id' => $this->tenantId,
+                        'attempt' => $this->attempts(),
+                        'exception_class' => $exception::class,
+                        'error' => mb_substr($exception->getMessage(), 0, 300),
+                    ]);
+
+                    throw $exception;
+                }
                 if ($response->successful()) {
                     $device->forceFill([
                         'failure_count' => 0,
@@ -91,6 +105,14 @@ class SendFcmNotification implements ShouldQueue
                 $status = $response->status();
 
                 if ($response->tooManyRequests() || $status >= 500) {
+                    Log::warning('FCM delivery will be retried after a temporary response.', [
+                        'push_device_id' => $device->id,
+                        'notification_id' => $this->notificationId,
+                        'tenant_id' => $this->tenantId,
+                        'http_status' => $status,
+                        'attempt' => $this->attempts(),
+                    ]);
+
                     throw new RuntimeException("Temporary FCM failure ({$status}).");
                 }
 
@@ -122,6 +144,17 @@ class SendFcmNotification implements ShouldQueue
                     'error_code' => $errorCode,
                 ]);
             });
+    }
+
+    public function failed(?Throwable $exception): void
+    {
+        Log::error('FCM notification job failed permanently.', [
+            'user_id' => $this->userId,
+            'tenant_id' => $this->tenantId,
+            'notification_id' => $this->notificationId,
+            'exception_class' => $exception ? $exception::class : null,
+            'error' => $exception ? mb_substr($exception->getMessage(), 0, 300) : null,
+        ]);
     }
 
     private function message(): array
