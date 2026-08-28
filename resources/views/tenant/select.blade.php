@@ -19,12 +19,15 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css">
 
-    <script>
-        window.SgcPwaConfig = @json([
+    @php
+        $nativePushConfig = [
             'nativePushStoreUrl' => route('notifications.push.devices.store'),
             'nativePushDestroyUrl' => route('notifications.push.devices.destroy'),
             'nativePushBindingScope' => hash_hmac('sha256', auth()->id().'|'.request()->session()->getId(), (string) config('app.key')),
-        ]);
+        ];
+    @endphp
+    <script>
+        window.SgcPwaConfig = @json($nativePushConfig);
     </script>
 
     @vite([
