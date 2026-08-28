@@ -27,6 +27,22 @@ php artisan system:cron-status
 
 O campo `Ultimo heartbeat do scheduler` deve mudar a cada minuto. A fila `notifications` deve ficar em zero ou diminuir logo apos um envio.
 
+## Limpeza de falhas Web Push legadas
+
+Depois que o Web Push foi desativado, use o modo de consulta para contar as falhas antigas:
+
+```bash
+php artisan notifications:purge-legacy-webpush
+```
+
+Se a quantidade estiver correta, remova somente essas falhas:
+
+```bash
+php artisan notifications:purge-legacy-webpush --force
+```
+
+O comando procura exclusivamente por `SendWebPushNotification` dentro de `failed_jobs`; ele nao remove falhas do FCM, documentos ou demais filas.
+
 ## Operacao
 
 - A central fica em `/{tenant}/notifications`.
