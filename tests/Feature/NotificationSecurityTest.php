@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendWebPushNotification;
+use App\Jobs\SendFcmNotification;
 use App\Models\ProductionDelivery;
 use App\Models\PushSubscription;
+use App\Models\PushDevice;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\FcmHttpV1Client;
 use App\Services\QueueTaskInspector;
 use App\Services\TenantNotificationDispatcher;
 use App\Support\NotificationEventCatalog;
@@ -14,6 +17,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\Client\Response;
+use Mockery;
 use Tests\TestCase;
 
 class NotificationSecurityTest extends TestCase
@@ -30,6 +35,8 @@ class NotificationSecurityTest extends TestCase
             'products',
             'associates',
             'push_subscriptions',
+            'push_devices',
+            'push_delivery_receipts',
             'activity_log',
             'notification_event_preferences',
             'notifications',
@@ -103,6 +110,36 @@ class NotificationSecurityTest extends TestCase
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('revoked_at')->nullable();
             $table->timestamps();
+        });
+        Schema::create('push_devices', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->string('platform', 20)->default('android');
+            $table->char('installation_hash', 64)->unique();
+            $table->char('token_hash', 64)->unique();
+            $table->text('token');
+            $table->char('session_hash', 64)->index();
+            $table->string('device_name', 120)->nullable();
+            $table->string('app_version', 40)->nullable();
+            $table->string('os_version', 40)->nullable();
+            $table->boolean('notifications_enabled')->default(true);
+            $table->unsignedSmallInteger('failure_count')->default(0);
+            $table->timestamp('bound_at')->nullable();
+            $table->timestamp('last_seen_at')->nullable();
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('last_failure_at')->nullable();
+            $table->timestamp('revoked_at')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('push_delivery_receipts', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('push_device_id');
+            $table->uuid('notification_id');
+            $table->string('status', 20);
+            $table->unsignedSmallInteger('response_code')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamps();
+            $table->unique(['push_device_id', 'notification_id']);
         });
         Schema::create('activity_log', function (Blueprint $table) {
             $table->id();
@@ -462,5 +499,118 @@ class NotificationSecurityTest extends TestCase
 
         $this->assertNotNull(PushSubscription::query()->where('session_hash', $currentHash)->firstOrFail()->revoked_at);
         $this->assertNull(PushSubscription::query()->where('session_hash', str_repeat('a', 64))->firstOrFail()->revoked_at);
+    }
+
+    public function test_android_device_is_rebound_to_the_new_account_without_leaking_the_old_account(): void
+    {
+        $first = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        $second = User::withoutEvents(fn () => User::query()->create(['name' => 'B', 'email' => 'b@example.test', 'status' => true]));
+        $payload = [
+            'installation_id' => '80ea10e6-699d-4bc1-b6d2-d075746fe878',
+            'token' => str_repeat('first-fcm-token-', 8),
+            'device_name' => 'Android Test',
+        ];
+
+        $this->actingAs($first)->postJson(route('notifications.push.devices.store'), $payload)->assertOk();
+        $firstSession = PushDevice::query()->firstOrFail()->session_hash;
+
+        auth()->logout();
+        $this->app['session']->invalidate();
+        $payload['token'] = str_repeat('rotated-fcm-token-', 8);
+        $this->actingAs($second)->postJson(route('notifications.push.devices.store'), $payload)->assertOk();
+
+        $device = PushDevice::query()->firstOrFail();
+        $this->assertDatabaseCount('push_devices', 1);
+        $this->assertSame($second->id, $device->user_id);
+        $this->assertNotSame($firstSession, $device->session_hash);
+        $this->assertNull($device->revoked_at);
+        $this->assertTrue($device->notifications_enabled);
+    }
+
+    public function test_logout_revokes_only_android_device_from_the_current_session(): void
+    {
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        $this->actingAs($user)->postJson(route('notifications.push.devices.store'), [
+            'installation_id' => 'a2b40d33-c30a-4c38-a22a-57a2448d8d2f',
+            'token' => str_repeat('current-token-', 8),
+        ])->assertOk();
+        $currentSession = PushDevice::query()->firstOrFail()->session_hash;
+
+        PushDevice::query()->create([
+            'user_id' => $user->id,
+            'platform' => 'android',
+            'installation_hash' => str_repeat('a', 64),
+            'token_hash' => str_repeat('b', 64),
+            'token' => str_repeat('other-token-', 8),
+            'session_hash' => str_repeat('c', 64),
+        ]);
+
+        $this->post(route('logout'))->assertRedirect(route('login'));
+
+        $this->assertNotNull(PushDevice::query()->where('session_hash', $currentSession)->firstOrFail()->revoked_at);
+        $this->assertNull(PushDevice::query()->where('session_hash', str_repeat('c', 64))->firstOrFail()->revoked_at);
+    }
+
+    public function test_push_notification_remains_in_database_and_fcm_delivery_is_queued(): void
+    {
+        Queue::fake();
+        DB::table('tenants')->insert(['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'created_at' => now(), 'updated_at' => now()]);
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        DB::table('tenant_user')->insert([
+            'tenant_id' => 1, 'user_id' => $user->id, 'roles' => json_encode(['admin']), 'status' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(TenantNotificationDispatcher::class)->dispatch('manual.message', 1, [$user], [
+            'title' => 'Teste', 'body' => 'Conteudo privado apenas na central.', 'url' => '/tenant-a/notifications',
+        ]);
+
+        $this->assertCount(1, $user->fresh()->notifications);
+        Queue::assertPushed(SendFcmNotification::class, fn (SendFcmNotification $job) =>
+            $job->userId === $user->id && $job->tenantId === 1
+        );
+    }
+
+    public function test_fcm_job_rechecks_active_tenant_membership_before_delivery(): void
+    {
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        $client = Mockery::mock(FcmHttpV1Client::class);
+        $client->shouldReceive('configured')->once()->andReturnTrue();
+        $client->shouldNotReceive('send');
+
+        (new SendFcmNotification($user->id, 99, '3e4bc4fb-0829-457f-9089-df56e882a855', [
+            'event_key' => 'manual.message', 'priority' => 'normal', 'url' => '/',
+        ]))->handle($client);
+    }
+
+    public function test_fcm_delivery_is_idempotent_and_records_no_sensitive_response_body(): void
+    {
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        DB::table('tenant_user')->insert([
+            'tenant_id' => 1, 'user_id' => $user->id, 'roles' => '[]', 'status' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        PushDevice::query()->create([
+            'user_id' => $user->id, 'platform' => 'android',
+            'installation_hash' => str_repeat('d', 64), 'token_hash' => str_repeat('e', 64),
+            'token' => str_repeat('valid-token-', 8), 'session_hash' => str_repeat('f', 64),
+        ]);
+        $response = Mockery::mock(Response::class);
+        $response->shouldReceive('successful')->once()->andReturnTrue();
+        $response->shouldReceive('status')->once()->andReturn(200);
+        $client = Mockery::mock(FcmHttpV1Client::class);
+        $client->shouldReceive('configured')->twice()->andReturnTrue();
+        $client->shouldReceive('send')->once()->andReturn($response);
+        $job = new SendFcmNotification($user->id, 1, '8813e6d2-eb54-4634-8165-a32f951cf675', [
+            'event_key' => 'ledger.credit', 'priority' => 'high', 'url' => '/tenant-a/notifications/id/open',
+        ]);
+
+        $job->handle($client);
+        $job->handle($client);
+
+        $this->assertDatabaseHas('push_delivery_receipts', [
+            'notification_id' => $job->notificationId, 'status' => 'sent', 'response_code' => 200,
+        ]);
+        $this->assertDatabaseCount('push_delivery_receipts', 1);
     }
 }

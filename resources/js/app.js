@@ -27,12 +27,11 @@ document.addEventListener('submit', async (event) => {
 
     try {
         const clearState = window.Capacitor?.Plugins?.NativeAuth?.clearCredentialState?.();
-        if (clearState) {
-            await Promise.race([
-                clearState,
-                new Promise((resolve) => window.setTimeout(resolve, 1200)),
-            ]);
-        }
+        const revokePush = window.SgcNativePush?.revoke?.();
+        await Promise.race([
+            Promise.allSettled([clearState, revokePush].filter(Boolean)),
+            new Promise((resolve) => window.setTimeout(resolve, 1800)),
+        ]);
     } catch (_) {
         /* O logout da sessão Laravel deve continuar mesmo se o provedor falhar. */
     }

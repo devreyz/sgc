@@ -3635,12 +3635,18 @@
     </script>
 
     <?php
-        $sgcPwaConfig = $currentTenantSlug ? [
-            'unreadCountUrl' => route('notifications.unread-count', ['tenant' => $currentTenantSlug]),
-            'pushStatusUrl' => route('notifications.push.status'),
-            'pushStoreUrl' => route('notifications.push.store'),
-            'pushDestroyUrl' => route('notifications.push.destroy'),
+        $sgcPwaConfig = auth()->check() ? [
+            'nativePushStoreUrl' => route('notifications.push.devices.store'),
+            'nativePushDestroyUrl' => route('notifications.push.devices.destroy'),
         ] : [];
+        if ($currentTenantSlug) {
+            $sgcPwaConfig += [
+                'unreadCountUrl' => route('notifications.unread-count', ['tenant' => $currentTenantSlug]),
+                'pushStatusUrl' => route('notifications.push.status'),
+                'pushStoreUrl' => route('notifications.push.store'),
+                'pushDestroyUrl' => route('notifications.push.destroy'),
+            ];
+        }
     ?>
     <script>
         window.SgcPwaConfig = <?= json_encode($sgcPwaConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;

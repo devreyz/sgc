@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\TenantUser;
+use App\Models\Tenant;
 use App\Models\User;
 
 class AuthenticationRedirector
@@ -30,13 +31,39 @@ class AuthenticationRedirector
 
     public function pathAfterLogin(User $user): string
     {
+        $notificationTarget = $this->safeNotificationTarget($user);
         $this->clearTenantSelection();
+
+        if ($notificationTarget !== null) {
+            return $notificationTarget;
+        }
 
         if ($user->isSuperAdmin()) {
             return route('home');
         }
 
         return route('tenant.select');
+    }
+
+    private function safeNotificationTarget(User $user): ?string
+    {
+        $intended = (string) session('url.intended', '');
+        $path = parse_url($intended, PHP_URL_PATH);
+        if (! is_string($path)
+            || preg_match('#^/([^/]+)/notifications/([0-9a-f-]{36})/open$#i', $path, $matches) !== 1) {
+            return null;
+        }
+
+        $tenant = Tenant::query()->where('slug', $matches[1])->where('active', true)->first();
+        if (! $tenant || (! $user->isSuperAdmin() && ! TenantUser::query()
+            ->where('user_id', $user->id)
+            ->where('tenant_id', $tenant->id)
+            ->where('status', true)
+            ->exists())) {
+            return null;
+        }
+
+        return $path;
     }
 
     public function clearTenantSelection(): void

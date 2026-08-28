@@ -37,6 +37,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Provider\ProviderDashboardController;
 use App\Http\Controllers\PublicFormController;
 use App\Http\Controllers\PushSubscriptionController;
+use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
 use App\Http\Controllers\TenantController;
@@ -177,6 +178,10 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:20,1')->name('notifications.push.store');
     Route::delete('/notifications/push/subscriptions', [PushSubscriptionController::class, 'destroy'])
         ->middleware('throttle:20,1')->name('notifications.push.destroy');
+    Route::post('/notifications/push/devices', [PushDeviceController::class, 'store'])
+        ->middleware('throttle:20,1')->name('notifications.push.devices.store');
+    Route::delete('/notifications/push/devices', [PushDeviceController::class, 'destroy'])
+        ->middleware('throttle:20,1')->name('notifications.push.devices.destroy');
     Route::get('/security/reauth/passkey/options', [PasskeyManagementController::class, 'reauthenticationOptions'])
         ->middleware(['webauthn.config', 'throttle:passkey-options'])->name('security.reauth.passkey.options');
     Route::post('/security/reauth/passkey', [PasskeyManagementController::class, 'reauthenticate'])

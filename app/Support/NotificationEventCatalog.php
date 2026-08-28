@@ -47,6 +47,38 @@ class NotificationEventCatalog
         ];
     }
 
+    public static function safePushBody(string $key): string
+    {
+        $group = self::get($key)['group'] ?? 'Administracao';
+
+        return match ($group) {
+            'Financeiro', 'Autorizações' => 'Ha uma nova atualizacao financeira no SGC.',
+            'Comprovantes' => 'Um novo documento esta disponivel no SGC.',
+            'Entregas', 'Estoque' => 'Ha uma nova atualizacao operacional no SGC.',
+            default => 'Ha uma nova atualizacao no SGC.',
+        };
+    }
+
+    public static function safePushTitle(string $key): string
+    {
+        return match ($key) {
+            'manual.message' => 'Nova mensagem administrativa',
+            default => (string) (self::get($key)['label'] ?? 'Nova notificacao'),
+        };
+    }
+
+    public static function androidChannel(string $key): string
+    {
+        $group = self::get($key)['group'] ?? 'Administracao';
+
+        return match ($group) {
+            'Financeiro', 'Autorizações' => 'financial',
+            'Comprovantes' => 'documents',
+            'Entregas', 'Estoque' => 'operations',
+            default => 'general',
+        };
+    }
+
     private static function event(
         string $label,
         string $group,

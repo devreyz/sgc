@@ -188,6 +188,11 @@ class User extends Authenticatable implements FilamentUser, PasskeyUser
         return $this->hasMany(PushSubscription::class);
     }
 
+    public function pushDevices(): HasMany
+    {
+        return $this->hasMany(PushDevice::class);
+    }
+
     public function getPasskeyUserHandle(): string
     {
         $encoded = trim((string) $this->webauthn_user_handle);

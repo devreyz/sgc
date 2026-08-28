@@ -69,12 +69,6 @@ class TenantNotificationDispatcher
             $notificationId = (string) Str::uuid();
             // Todo push tambem fica registrado na central para manter historico e leitura.
             if ($databaseEnabled || $pushEnabled) {
-                $notification = new TenantEventNotification($payload);
-                $notification->id = $notificationId;
-                $recipient->notify($notification);
-            }
-
-            if ($pushEnabled && $this->pushConfigured()) {
                 $pushPayload = $payload;
                 if ($tenantSlug) {
                     $pushPayload['url'] = route('notifications.open', [
@@ -82,6 +76,12 @@ class TenantNotificationDispatcher
                         'notification' => $notificationId,
                     ], false);
                 }
+                $notification = new TenantEventNotification($payload, $pushEnabled, $pushPayload);
+                $notification->id = $notificationId;
+                $recipient->notify($notification);
+            }
+
+            if ($pushEnabled && $this->pushConfigured()) {
                 SendWebPushNotification::dispatch($recipient->id, $tenantId, $notificationId, $pushPayload)->afterCommit();
             }
 

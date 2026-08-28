@@ -1,6 +1,6 @@
 {
-  "_vendor-KF4U7xcw.js": {
-    "file": "assets/vendor-KF4U7xcw.js",
+  "_vendor-BBHWgp-n.js": {
+    "file": "assets/vendor-BBHWgp-n.js",
     "name": "vendor"
   },
   "resources/css/app.css": {
@@ -13,12 +13,12 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/resources/js/app.js-BorpZYht.js",
+    "file": "assets/resources/js/app.js-BYS4Ux5B.js",
     "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_vendor-KF4U7xcw.js"
+      "_vendor-BBHWgp-n.js"
     ]
   }
 }
