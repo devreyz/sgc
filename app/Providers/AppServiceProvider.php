@@ -100,13 +100,26 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(DeliveryConferenceSheet::class, DeliveryConferenceSheetPolicy::class);
         Gate::policy(FiscalProfile::class, FiscalProfilePolicy::class);
 
-        RateLimiter::for('passkey-options', fn (Request $request) => Limit::perMinute(
-            (int) config('security.rates.webauthn_per_minute', 10)
-        )->by('options|'.$request->session()->getId().'|'.$request->ip()));
+        RateLimiter::for('passkey-options', function (Request $request): array {
+            $limit = (int) config('security.rates.webauthn_per_minute', 10);
 
-        RateLimiter::for('passkey-verify', fn (Request $request) => Limit::perMinute(
-            (int) config('security.rates.webauthn_per_minute', 10)
-        )->by('verify|'.$request->session()->getId().'|'.$request->ip().'|'.hash('sha256', (string) $request->input('credential.id'))));
+            return [
+                Limit::perMinute($limit)->by('passkey-options-ip|'.$request->ip()),
+                Limit::perMinute($limit)->by('passkey-options-session|'.$request->session()->getId()),
+            ];
+        });
+
+        RateLimiter::for('passkey-verify', function (Request $request): array {
+            $limit = (int) config('security.rates.webauthn_per_minute', 10);
+            $credentialHash = hash('sha256', (string) $request->input('credential.id'));
+
+            return [
+                Limit::perMinute($limit)->by('passkey-verify-ip|'.$request->ip()),
+                Limit::perMinute($limit)->by(
+                    'passkey-verify-session|'.$request->session()->getId().'|'.$credentialHash
+                ),
+            ];
+        });
 
         RateLimiter::for('invitation-token', fn (Request $request) => Limit::perHour(
             (int) config('security.rates.invitation_token_per_hour', 10)
@@ -135,9 +148,14 @@ class AppServiceProvider extends ServiceProvider
             (int) config('security.rates.google_callback_per_minute', 10)
         )->by('google|'.$request->session()->getId().'|'.$request->ip()));
 
-        RateLimiter::for('google-native', fn (Request $request) => Limit::perMinute(
-            (int) config('security.rates.google_native_per_minute', 10)
-        )->by('google-native|'.$request->session()->getId().'|'.$request->ip()));
+        RateLimiter::for('google-native', function (Request $request): array {
+            $limit = (int) config('security.rates.google_native_per_minute', 10);
+
+            return [
+                Limit::perMinute($limit)->by('google-native-ip|'.$request->ip()),
+                Limit::perMinute($limit)->by('google-native-session|'.$request->session()->getId()),
+            ];
+        });
 
         RateLimiter::for('auth-state', fn (Request $request) => Limit::perMinute(30)
             ->by('auth-state|'.$request->session()->getId().'|'.$request->ip()));

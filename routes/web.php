@@ -129,10 +129,12 @@ Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('aut
 Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])
     ->middleware('throttle:google-callback')
     ->name('auth.google.callback');
-Route::middleware(['guest', 'throttle:google-native'])->group(function () {
+Route::middleware('guest')->group(function () {
     Route::get('/auth/google/native/challenge', [NativeGoogleAuthController::class, 'challenge'])
+        ->middleware(['auth.failures:google_native_challenge', 'throttle:google-native'])
         ->name('auth.google.native.challenge');
     Route::post('/auth/google/native', [NativeGoogleAuthController::class, 'login'])
+        ->middleware(['auth.failures:google_native', 'throttle:google-native'])
         ->name('auth.google.native');
 });
 Route::get('/auth/google-drive/callback', [GoogleDriveOAuthController::class, 'callback'])
@@ -144,7 +146,8 @@ Route::middleware(['guest', 'webauthn.config'])->group(function () {
     Route::get('/auth/passkey/options', [PasskeyAuthenticationController::class, 'options'])
         ->middleware('throttle:passkey-options')->name('auth.passkey.options');
     Route::post('/auth/passkey/verify', [PasskeyAuthenticationController::class, 'verify'])
-        ->middleware('throttle:passkey-verify')->name('auth.passkey.verify');
+        ->middleware(['auth.failures:passkey', 'throttle:passkey-verify'])
+        ->name('auth.passkey.verify');
 });
 
 Route::middleware('invitation.headers')->group(function () {

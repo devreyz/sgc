@@ -2,6 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\SecurityEvent;
+use App\Services\SecurityAuditService;
+use Illuminate\Http\Request;
+use Mockery;
 use Tests\TestCase;
 
 class ClientDiagnosticTest extends TestCase
@@ -9,6 +13,21 @@ class ClientDiagnosticTest extends TestCase
     public function test_app_diagnostic_is_written_to_the_app_channel(): void
     {
         config()->set('logging.channels.app', ['driver' => 'null']);
+        $event = new SecurityEvent;
+        $event->forceFill(['ip_hash' => hash('sha256', 'test')]);
+        $audit = Mockery::mock(SecurityAuditService::class)->makePartial();
+        $audit->shouldReceive('record')
+            ->once()
+            ->with(
+                'client_authentication_error',
+                'reported',
+                Mockery::on(fn (array $attributes): bool =>
+                    ($attributes['context']['error_type'] ?? null) === 'GOOGLE_SIGN_IN_FAILED'
+                    && ($attributes['context']['platform'] ?? null) === 'app'),
+                Mockery::type(Request::class),
+            )
+            ->andReturn($event);
+        $this->app->instance(SecurityAuditService::class, $audit);
 
         $response = $this->postJson(route('diagnostics.client'), [
             'platform' => 'app',

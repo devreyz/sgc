@@ -33,7 +33,16 @@ return Application::configure(basePath: dirname(__DIR__))
             'webauthn.config' => \App\Http\Middleware\EnsureWebAuthnConfiguration::class,
             'invitation.headers' => \App\Http\Middleware\InvitationSecurityHeaders::class,
             'public.headers' => \App\Http\Middleware\PublicPageSecurityHeaders::class,
+            'auth.failures' => \App\Http\Middleware\AuditAuthenticationFailures::class,
         ]);
+
+        $middleware->prependToPriorityList(
+            [
+                \Illuminate\Routing\Middleware\ThrottleRequests::class,
+                \Illuminate\Routing\Middleware\ThrottleRequestsWithRedis::class,
+            ],
+            \App\Http\Middleware\AuditAuthenticationFailures::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

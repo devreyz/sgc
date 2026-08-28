@@ -22,7 +22,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\ValidationException;
 use Laravel\Passkeys\Actions\GenerateVerificationOptions;
 use Laravel\Passkeys\Support\WebAuthn;
 use ParagonIE\ConstantTime\Base64UrlSafe;
@@ -533,8 +532,12 @@ class AccessInvitationSecurityTest extends TestCase
         $request->setLaravelSession(app('session.store'));
         $this->assertInstanceOf(PublicKeyCredentialRequestOptions::class, $request->verificationOptions());
 
-        $this->expectException(ValidationException::class);
-        $request->verificationOptions();
+        try {
+            $request->verificationOptions();
+            $this->fail('The authentication challenge must be consumed only once.');
+        } catch (\App\Exceptions\PasskeyChallengeException $exception) {
+            $this->assertSame('missing_or_replayed_challenge', $exception->reason);
+        }
     }
 
     public function test_expired_or_revoked_invitation_token_never_returns_to_pending(): void
@@ -945,6 +948,37 @@ class AccessInvitationSecurityTest extends TestCase
             ->assertJsonValidationErrors('id_token');
 
         $this->assertGuest();
+        $this->assertDatabaseHas('security_events', [
+            'event_type' => 'google_native_login_failed',
+            'result' => 'denied',
+        ]);
+    }
+
+    public function test_forced_passkey_attempts_are_rate_limited_and_audited(): void
+    {
+        config()->set('security.rates.webauthn_per_minute', 1);
+        config()->set('passkeys.relying_party_id', 'localhost');
+        config()->set('passkeys.allowed_origins', ['http://localhost']);
+
+        $headers = ['X-SGC-Platform' => 'android'];
+
+        $this->withHeaders($headers)
+            ->postJson(route('auth.passkey.verify'), [])
+            ->assertUnprocessable();
+
+        $this->withHeaders($headers)
+            ->postJson(route('auth.passkey.verify'), [])
+            ->assertTooManyRequests();
+
+        $events = DB::table('security_events')
+            ->where('event_type', 'passkey_login_failed')
+            ->pluck('context')
+            ->map(fn (string $context): array => json_decode($context, true, flags: JSON_THROW_ON_ERROR));
+
+        $this->assertTrue($events->contains(
+            fn (array $context): bool => ($context['reason'] ?? null) === 'rate_limited'
+                && ($context['platform'] ?? null) === 'android'
+        ));
     }
 
     public function test_native_google_login_rejects_an_invalid_token_without_calling_google_api(): void

@@ -1639,6 +1639,12 @@
                 window.resetGlobalLoading?.();
 
                 const errorCode = error?.code || error?.data?.code || 'PASSKEY_LOGIN_FAILED';
+                const nativeErrorType = error?.data?.nativeErrorType
+                    || error?.nativeErrorType
+                    || null;
+                const diagnosticCode = nativeErrorType
+                    ? `${errorCode}:${nativeErrorType}`.slice(0, 100)
+                    : errorCode;
                 const cancelled = error.name === 'UserCancelledError'
                     || errorCode === 'SIGN_IN_CANCELLED';
                 const offline = navigator.onLine === false;
@@ -1653,7 +1659,7 @@
                 if (!cancelled) {
                     window.SgcDiagnostics?.report({
                         category: 'authentication',
-                        code: errorCode,
+                        code: diagnosticCode,
                         stage: isNativeAndroid() ? 'native_passkey' : 'web_passkey',
                         message: error?.message || 'Falha no login por chave de acesso'
                     });

@@ -135,6 +135,8 @@ class NativeGoogleAuthController extends Controller
 
     private function logFailure(Request $request, string $stage, ?string $reason = null): void
     {
+        $request->attributes->set('authentication_failure_recorded', true);
+
         Log::channel('app')->warning('Native Google authentication denied.', [
             'stage' => $stage,
             'reason' => $reason,

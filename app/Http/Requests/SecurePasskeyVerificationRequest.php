@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Exceptions\PasskeyChallengeException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\ValidationException;
 use Laravel\Passkeys\Support\WebAuthn;
@@ -56,12 +57,16 @@ class SecurePasskeyVerificationRequest extends FormRequest
     {
         $envelope = (array) $this->session()->pull('sgc.passkeys.authentication', []);
 
-        if (! is_string($envelope['options'] ?? null)
-            || (int) ($envelope['expires_at'] ?? 0) < now()->timestamp
-            || ($envelope['purpose'] ?? null) !== $purpose) {
-            throw ValidationException::withMessages([
-                'credential' => 'Nao foi possivel concluir a autenticacao.',
-            ]);
+        if (! is_string($envelope['options'] ?? null)) {
+            throw new PasskeyChallengeException('missing_or_replayed_challenge');
+        }
+
+        if ((int) ($envelope['expires_at'] ?? 0) < now()->timestamp) {
+            throw new PasskeyChallengeException('expired_challenge');
+        }
+
+        if (($envelope['purpose'] ?? null) !== $purpose) {
+            throw new PasskeyChallengeException('challenge_purpose_mismatch');
         }
 
         return WebAuthn::fromJson($envelope['options'], PublicKeyCredentialRequestOptions::class);
