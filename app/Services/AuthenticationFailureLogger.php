@@ -19,7 +19,11 @@ class AuthenticationFailureLogger
         int $status,
         ?Throwable $exception = null,
     ): void {
-        if ($request->attributes->get('authentication_failure_recorded') === true) {
+        $activeRequest = app('request');
+        $auditRequest = $activeRequest instanceof Request ? $activeRequest : $request;
+
+        if ($request->attributes->get('authentication_failure_recorded') === true
+            || $auditRequest->attributes->get('authentication_failure_recorded') === true) {
             return;
         }
 
@@ -39,9 +43,10 @@ class AuthenticationFailureLogger
                 'http_status' => $status,
                 'exception_class' => $exceptionClass,
             ],
-        ], $request);
+        ], $auditRequest);
 
         $request->attributes->set('authentication_failure_recorded', true);
+        $auditRequest->attributes->set('authentication_failure_recorded', true);
 
         Log::channel($platform === 'android' ? 'app' : 'web')
             ->warning('Authentication attempt denied.', [
@@ -52,7 +57,7 @@ class AuthenticationFailureLogger
                 'http_status' => $status,
                 'ip_hash' => $event->ip_hash,
                 'correlation_id' => $event->correlation_id,
-                'user_id' => $request->user()?->getAuthIdentifier(),
+                'user_id' => $auditRequest->user()?->getAuthIdentifier(),
                 'exception_class' => $exceptionClass,
             ]);
     }
