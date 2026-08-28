@@ -228,7 +228,7 @@ class NotificationSecurityTest extends TestCase
         $this->assertSame('/', $first->notifications->first()->data['url']);
     }
 
-    public function test_distribution_push_cannot_be_enabled_by_database_preference(): void
+    public function test_legacy_per_distribution_event_is_rejected(): void
     {
         DB::table('tenants')->insert(['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'created_at' => now(), 'updated_at' => now()]);
         $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
@@ -243,17 +243,16 @@ class NotificationSecurityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $sent = app(TenantNotificationDispatcher::class)->dispatch('distribution.changed', 1, [$user], [
+        $this->expectException(\InvalidArgumentException::class);
+        app(TenantNotificationDispatcher::class)->dispatch('distribution.changed', 1, [$user], [
             'title' => 'Distribuicao',
             'body' => 'Editavel',
             'url' => '/',
         ]);
 
-        $this->assertSame(0, $sent);
-        $this->assertDatabaseCount('notifications', 0);
     }
 
-    public function test_registered_delivery_notifies_tenant_registrar_without_invalid_columns(): void
+    public function test_approved_delivery_notifies_tenant_registrar_without_invalid_columns(): void
     {
         session(['tenant_id' => 1, 'tenant_slug' => 'tenant-a']);
         DB::table('tenants')->insert([
@@ -327,15 +326,16 @@ class NotificationSecurityTest extends TestCase
             'product_id' => 20,
             'parent_delivery_id' => null,
             'quantity' => 12.5,
+            'status' => \App\Enums\DeliveryStatus::APPROVED,
         ]);
         $delivery->exists = true;
 
-        app(NotificationService::class)->notifyDelivery($delivery);
+        app(NotificationService::class)->notifyDeliveryDecision($delivery);
 
         $this->assertCount(1, $registrar->fresh()->notifications);
-        $this->assertSame('Entrega registrada', $registrar->fresh()->notifications->first()->data['title']);
+        $this->assertSame('Entrega aprovada', $registrar->fresh()->notifications->first()->data['title']);
         $this->assertStringContainsString('Produtora Local', $registrar->fresh()->notifications->first()->data['body']);
-        $this->assertTrue(NotificationEventCatalog::get('delivery.registered')['pushDefault']);
+        $this->assertTrue(NotificationEventCatalog::get('delivery.approved')['pushDefault']);
     }
 
     public function test_queue_inspector_never_returns_jobs_from_another_tenant(): void

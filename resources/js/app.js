@@ -5,6 +5,41 @@ import { Passkeys } from '@laravel/passkeys';
 window.SgcPasskeys = Passkeys;
 window.dispatchEvent(new CustomEvent('sgc:passkeys-ready'));
 
+function base64FromBlob(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Não foi possível preparar o documento.'));
+        reader.onload = () => resolve(String(reader.result));
+        reader.readAsDataURL(blob);
+    });
+}
+
+function downloadInBrowser(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url; link.download = fileName; document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+window.SgcDocuments = {
+    async openPdf(blob, fileName, title = 'Documento SGC') {
+        const native = window.Capacitor?.Plugins?.NativeDocument;
+        if (isNativeAndroid() && native?.openPdf) {
+            await native.openPdf({ base64: await base64FromBlob(blob), fileName, title });
+            return;
+        }
+        window.open(URL.createObjectURL(blob), '_blank', 'noopener,noreferrer');
+    },
+    async downloadPdf(blob, fileName) {
+        const native = window.Capacitor?.Plugins?.NativeDocument;
+        if (isNativeAndroid() && native?.downloadPdf) {
+            await native.downloadPdf({ base64: await base64FromBlob(blob), fileName });
+            return;
+        }
+        downloadInBrowser(blob, fileName);
+    },
+};
+
 function isNativeAndroid() {
     return Boolean(
         window.Capacitor?.isNativePlatform?.()

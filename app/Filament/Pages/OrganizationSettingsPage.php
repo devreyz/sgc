@@ -5,26 +5,24 @@ namespace App\Filament\Pages;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\TenantUser;
-use App\Models\AssociateReceipt;
-use App\Jobs\SyncAssociateReceiptToDrive;
-use App\Jobs\SyncTenantStoredFileToDrive;
-use App\Services\TenantGoogleDriveService;
 use App\Services\GoogleDriveClientFactory;
+use App\Services\GoogleDriveSyncDispatcher;
+use App\Services\TenantGoogleDriveService;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Filament\Facades\Filament;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
-use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class OrganizationSettingsPage extends Page implements HasForms
 {
-    use InteractsWithForms;
     use HasPageShield;
+    use InteractsWithForms;
 
     public static function canAccess(array $parameters = []): bool
     {
@@ -54,6 +52,7 @@ class OrganizationSettingsPage extends Page implements HasForms
 
         if (! $tenant) {
             $this->redirect(route('filament.admin.pages.dashboard'));
+
             return;
         }
 
@@ -63,52 +62,52 @@ class OrganizationSettingsPage extends Page implements HasForms
 
         $this->form->fill([
             // Básico
-            'name'                     => $tenant->name,
-            'associate_term_singular'  => $tenant->associateTerm(),
-            'associate_term_plural'    => $tenant->associateTerm(plural: true),
-            'legal_name'               => $tenant->legal_name,
-            'cnpj'                     => $tenant->cnpj,
-            'state_registration'       => $tenant->state_registration,
-            'municipal_registration'   => $tenant->municipal_registration,
-            'foundation_date'          => $tenant->foundation_date,
+            'name' => $tenant->name,
+            'associate_term_singular' => $tenant->associateTerm(),
+            'associate_term_plural' => $tenant->associateTerm(plural: true),
+            'legal_name' => $tenant->legal_name,
+            'cnpj' => $tenant->cnpj,
+            'state_registration' => $tenant->state_registration,
+            'municipal_registration' => $tenant->municipal_registration,
+            'foundation_date' => $tenant->foundation_date,
             // Contato
-            'email'                    => $tenant->email,
-            'phone'                    => $tenant->phone,
-            'mobile'                   => $tenant->mobile,
-            'website'                  => $tenant->website,
+            'email' => $tenant->email,
+            'phone' => $tenant->phone,
+            'mobile' => $tenant->mobile,
+            'website' => $tenant->website,
             // Endereço
-            'zip_code'                 => $tenant->zip_code,
-            'address'                  => $tenant->address,
-            'address_number'           => $tenant->address_number,
-            'address_complement'       => $tenant->address_complement,
-            'neighborhood'             => $tenant->neighborhood,
-            'city'                     => $tenant->city,
-            'state'                    => $tenant->state,
-            'country'                  => $tenant->country,
+            'zip_code' => $tenant->zip_code,
+            'address' => $tenant->address,
+            'address_number' => $tenant->address_number,
+            'address_complement' => $tenant->address_complement,
+            'neighborhood' => $tenant->neighborhood,
+            'city' => $tenant->city,
+            'state' => $tenant->state,
+            'country' => $tenant->country,
             // Identidade visual
-            'logo'                     => $tenant->logo,
-            'logo_dark'                => $tenant->logo_dark,
-            'primary_color'            => $tenant->primary_color,
-            'secondary_color'          => $tenant->secondary_color,
-            'accent_color'             => $tenant->accent_color,
+            'logo' => $tenant->logo,
+            'logo_dark' => $tenant->logo_dark,
+            'primary_color' => $tenant->primary_color,
+            'secondary_color' => $tenant->secondary_color,
+            'accent_color' => $tenant->accent_color,
             // Institucional
-            'description'              => $tenant->description,
-            'mission'                  => $tenant->mission,
-            'vision'                   => $tenant->vision,
-            'values'                   => $tenant->values,
+            'description' => $tenant->description,
+            'mission' => $tenant->mission,
+            'vision' => $tenant->vision,
+            'values' => $tenant->values,
             // Dados bancários
-            'bank_name'                => $tenant->bank_name,
-            'bank_code'                => $tenant->bank_code,
-            'bank_agency'              => $tenant->bank_agency,
-            'bank_account'             => $tenant->bank_account,
-            'pix_key'                  => $tenant->pix_key,
+            'bank_name' => $tenant->bank_name,
+            'bank_code' => $tenant->bank_code,
+            'bank_agency' => $tenant->bank_agency,
+            'bank_account' => $tenant->bank_account,
+            'pix_key' => $tenant->pix_key,
             // Responsável legal
             'legal_representative_name' => $tenant->legal_representative_name,
-            'legal_representative_cpf'  => $tenant->legal_representative_cpf,
+            'legal_representative_cpf' => $tenant->legal_representative_cpf,
             'legal_representative_role' => $tenant->legal_representative_role,
             // Redes sociais
-            'social_media'             => $tenant->social_media ?? [],
-            'google_drive_client_id'   => $driveConnection?->oauth_client_id,
+            'social_media' => $tenant->social_media ?? [],
+            'google_drive_client_id' => $driveConnection?->oauth_client_id,
             'google_drive_client_secret' => null,
         ]);
     }
@@ -544,21 +543,13 @@ class OrganizationSettingsPage extends Page implements HasForms
         $tenant = $this->currentTenant();
         abort_unless($this->googleDriveConnection()?->status === 'active', 409);
 
-        AssociateReceipt::query()
-            ->where('tenant_id', $tenant->id)
-            ->select('id')
-            ->chunkById(100, function ($receipts): void {
-                foreach ($receipts as $receipt) {
-                    SyncAssociateReceiptToDrive::dispatch((int) $receipt->id);
-                }
-            });
-        SyncTenantStoredFileToDrive::dispatchExistingForTenant($tenant->id);
+        $documents = app(GoogleDriveSyncDispatcher::class)->dispatchForTenant((int) $tenant->id);
 
         activity('cloud_storage')->causedBy(auth()->user())->performedOn($tenant)
             ->withProperties(['tenant_id' => $tenant->id, 'provider' => 'google_drive'])
             ->log('Sincronizacao manual do Google Drive solicitada');
 
-        Notification::make()->success()->title('Sincronização adicionada à fila')->send();
+        Notification::make()->success()->title("Sincronização de {$documents} documento(s) adicionada à fila")->send();
     }
 
     private function persistGoogleDriveCredentials(array $data): void
@@ -592,7 +583,7 @@ class OrganizationSettingsPage extends Page implements HasForms
             || ! hash_equals($currentClientId, $clientId)
             || ($clientSecret !== '' && ! hash_equals($currentClientSecret, $clientSecret));
 
-        $connection ??= new TenantCloudStorageConnection();
+        $connection ??= new TenantCloudStorageConnection;
         $values = [
             'tenant_id' => $tenant->id,
             'provider' => 'google_drive',

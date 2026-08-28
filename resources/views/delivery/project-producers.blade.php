@@ -2910,16 +2910,14 @@
         applyPrintPreferences();
     }
 
-    function downloadPdf(data) {
+    async function downloadPdf(data) {
         const bytes = atob(data.pdf);
         const array = new Uint8Array(bytes.length);
         for (let index = 0; index < bytes.length; index++) array[index] = bytes.charCodeAt(index);
-        const url = URL.createObjectURL(new Blob([array], { type:'application/pdf' }));
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = data.filename;
-        link.click();
-        URL.revokeObjectURL(url);
+        const pdf = new Blob([array], { type:'application/pdf' });
+        if (window.SgcDocuments) return window.SgcDocuments.openPdf(pdf, data.filename, 'Comprovante SGC');
+        const url = URL.createObjectURL(pdf); const link = document.createElement('a');
+        link.href = url; link.download = data.filename; link.click(); URL.revokeObjectURL(url);
     }
 
     async function saveReceipt() {
@@ -2938,7 +2936,7 @@
                 headers:{ 'Content-Type':'application/json' },
                 body:JSON.stringify({ delivery_ids:ids, visible_columns:columns(), table_scale:tableScale() }),
             });
-            downloadPdf(data);
+            await downloadPdf(data);
             toast(data.message || `Comprovante ${data.receipt_number} gerado.`);
             await openModal(state.associateId, state.associateName);
             loadProducers();
@@ -2964,7 +2962,7 @@
                 headers:{ 'Content-Type':'application/json' },
                 body:JSON.stringify({ visible_columns:columns(), table_scale:tableScale() }),
             });
-            downloadPdf(data);
+            await downloadPdf(data);
             toast(data.message);
             await openModal(state.associateId, state.associateName);
             loadProducers();
@@ -3089,12 +3087,14 @@
     $('pr-receipts').addEventListener('click', event => {
         const preview = event.target.closest('[data-preview-url]');
         if (preview) {
-            const popup = window.open('about:blank', '_blank');
-            if (popup) popup.opener = null;
             preview.disabled = true;
             savePrintPreferences(false)
-                .then(() => { if (popup) popup.location.replace(preview.dataset.previewUrl); else window.location.href = preview.dataset.previewUrl; })
-                .catch(error => { popup?.close(); toast(error.message, 'error'); })
+                .then(async () => {
+                    const response = await fetch(preview.dataset.previewUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
+                    if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC');
+                })
+                .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { preview.disabled = false; });
             return;
         }
@@ -3104,12 +3104,14 @@
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
-            const popup = window.open('about:blank', '_blank');
-            if (popup) popup.opener = null;
             reprint.disabled = true;
             savePrintPreferences(false)
-                .then(() => { if (popup) popup.location.replace(reprint.dataset.reprintUrl); else window.location.href = reprint.dataset.reprintUrl; })
-                .catch(error => { popup?.close(); toast(error.message, 'error'); })
+                .then(async () => {
+                    const response = await fetch(reprint.dataset.reprintUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
+                    if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC');
+                })
+                .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { reprint.disabled = false; });
         }
     });

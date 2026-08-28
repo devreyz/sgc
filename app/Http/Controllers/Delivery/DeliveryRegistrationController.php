@@ -966,6 +966,9 @@ class DeliveryRegistrationController extends Controller
 
             DB::commit();
 
+            app(\App\Services\NotificationService::class)
+                ->notifyDistributionCompleted($reception, count($created));
+
             $affectedOrganizations->unique()->each(function (int $organizationId) use ($requestFulfillment, $tenantId, $project) {
                 if ($project) {
                     $requestFulfillment->updateProjectOrganizationStatuses((int) $tenantId, (int) $project->id, $organizationId);

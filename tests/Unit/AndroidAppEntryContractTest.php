@@ -36,4 +36,17 @@ class AndroidAppEntryContractTest extends TestCase
             ->assertSee('Solicitar demonstração')
             ->assertDontSee('SGC · Aplicativo');
     }
+
+    public function test_android_registers_an_internal_pdf_viewer_and_download_action(): void
+    {
+        $activity = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/MainActivity.java'));
+        $documentPlugin = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/NativeDocumentPlugin.java'));
+        $viewer = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/PdfViewerActivity.java'));
+
+        self::assertStringContainsString('registerPlugin(NativeDocumentPlugin.class)', $activity);
+        self::assertStringContainsString('openPdf', $documentPlugin);
+        self::assertStringContainsString('downloadPdf', $documentPlugin);
+        self::assertStringContainsString('PdfRenderer', $viewer);
+        self::assertStringContainsString('Baixar', $viewer);
+    }
 }

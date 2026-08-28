@@ -823,6 +823,13 @@
                         default
                             => ['label' => 'Abrir', 'icon' => 'arrow-up-right'],
                     };
+
+                    if (filled($data['action_label'] ?? null)) {
+                        $action['label'] = $data['action_label'];
+                    }
+                    if (filled($data['action_icon'] ?? null)) {
+                        $action['icon'] = $data['action_icon'];
+                    }
                 @endphp
 
                 <article

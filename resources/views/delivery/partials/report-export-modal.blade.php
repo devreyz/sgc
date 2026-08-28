@@ -1970,8 +1970,6 @@
         const buttons = [...modal.querySelectorAll('[data-dr-export]')];
         buttons.forEach(button => { button.disabled = true; });
         modal.querySelector('.dr-panel').setAttribute('aria-busy', 'true');
-        const preview = format === 'pdf' ? window.open('about:blank', '_blank') : null;
-        if (preview) preview.opener = null;
         try {
             const preferenceResponse = await fetch(`/${encodeURIComponent(tenant)}/delivery/projects/${id}/reports/preferences`, {
                 method:'PUT',
@@ -1989,23 +1987,22 @@
                 const payload = await response.json().catch(() => ({}));
                 throw new Error(payload.message || 'Não foi possível gerar o relatório com estes filtros.');
             }
-            const blobUrl = URL.createObjectURL(await response.blob());
-            if (preview) {
-                preview.location.replace(blobUrl);
+            const blob = await response.blob();
+            const disposition = response.headers.get('Content-Disposition') || '';
+            const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+            const fallbackName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+            const fileName = encodedName ? decodeURIComponent(encodedName) : (fallbackName || `relatorio.${format}`);
+            if (format === 'pdf' && window.SgcDocuments) {
+                await window.SgcDocuments.openPdf(blob, fileName, 'Relatório SGC');
             } else {
-                const disposition = response.headers.get('Content-Disposition') || '';
-                const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
-                const fallbackName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
                 const link = document.createElement('a');
-                link.href = blobUrl;
-                link.download = encodedName ? decodeURIComponent(encodedName) : (fallbackName || `relatorio.${format}`);
+                link.href = URL.createObjectURL(blob);
+                link.download = fileName;
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
             }
-            window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
         } catch (exception) {
-            preview?.close();
             showError(exception.message || 'Não foi possível gerar o relatório.');
         } finally {
             buttons.forEach(button => { button.disabled = false; });

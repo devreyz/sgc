@@ -34,16 +34,6 @@ class ProductionDeliveryObserver
             $delivery->projectDemand->updateDeliveredQuantity();
         }
 
-        // Notify about new delivery
-        try {
-            $this->notificationService->notifyDelivery($delivery);
-        } catch (\Throwable $e) {
-            Log::error('Falha ao notificar o registro de entrega.', [
-                'tenant_id' => $delivery->tenant_id,
-                'delivery_id' => $delivery->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
     }
 
     /**
@@ -102,6 +92,21 @@ class ProductionDeliveryObserver
                 // Always reset the flag
                 self::$processing = false;
             }
+        }
+
+        if ($delivery->wasChanged('status') && ! $delivery->isDistribution()
+            && in_array($delivery->status, [DeliveryStatus::APPROVED, DeliveryStatus::REJECTED], true)) {
+            DB::afterCommit(function () use ($delivery): void {
+                try {
+                    $this->notificationService->notifyDeliveryDecision($delivery);
+                } catch (\Throwable $exception) {
+                    Log::error('Falha ao notificar a decisão da entrega.', [
+                        'tenant_id' => $delivery->tenant_id,
+                        'delivery_id' => $delivery->id,
+                        'error' => $exception->getMessage(),
+                    ]);
+                }
+            });
         }
 
         if ($delivery->wasChanged([

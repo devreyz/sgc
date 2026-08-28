@@ -31,6 +31,9 @@
     <x-filament::section>
         <x-slot name="heading">Fila desta organizacao</x-slot>
         <x-slot name="headerEnd">
+            <x-filament::button size="sm" color="primary" icon="heroicon-o-cloud-arrow-up" wire:click="syncGoogleDrive" wire:loading.attr="disabled" wire:target="syncGoogleDrive">
+                Sincronizar Google Drive
+            </x-filament::button>
             <x-filament::button size="sm" color="gray" icon="heroicon-o-arrow-path" wire:click="$refresh">
                 Atualizar
             </x-filament::button>

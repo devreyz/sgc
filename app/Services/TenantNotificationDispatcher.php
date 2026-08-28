@@ -135,6 +135,8 @@ class TenantNotificationDispatcher
             'url' => $path,
             'icon' => 'heroicon-o-bell',
             'display_icon' => (string) ($message['icon'] ?? 'bell'),
+            'action_label' => Str::limit(strip_tags((string) ($message['action_label'] ?? '')), 40, ''),
+            'action_icon' => Str::limit(strip_tags((string) ($message['action_icon'] ?? '')), 40, ''),
             'iconColor' => in_array($priority, ['high', 'critical'], true) ? 'danger' : ($priority === 'info' ? 'info' : 'primary'),
             'duration' => null,
             'actions' => [],

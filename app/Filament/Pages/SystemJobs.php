@@ -2,7 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\TenantCloudStorageConnection;
 use App\Models\TenantUser;
+use App\Services\GoogleDriveSyncDispatcher;
 use App\Services\QueueTaskInspector;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -80,5 +82,24 @@ class SystemJobs extends Page
             ->title('Tarefa reagendada')
             ->success()
             ->send();
+    }
+
+    public function syncGoogleDrive(): void
+    {
+        abort_unless(static::canAccess(), 403);
+
+        $tenantId = (int) session('tenant_id');
+        if (! TenantCloudStorageConnection::query()->where('tenant_id', $tenantId)->where('status', 'active')->exists()) {
+            Notification::make()->title('Conecte e ative o Google Drive antes de sincronizar')->warning()->send();
+
+            return;
+        }
+
+        $documents = app(GoogleDriveSyncDispatcher::class)->dispatchForTenant($tenantId);
+        activity('cloud_storage')->causedBy(Filament::auth()->user())
+            ->withProperties(['tenant_id' => $tenantId, 'provider' => 'google_drive', 'documents' => $documents])
+            ->log('Sincronização manual do Google Drive solicitada pelas tarefas do sistema');
+
+        Notification::make()->title("Sincronização de {$documents} documento(s) adicionada à fila")->success()->send();
     }
 }

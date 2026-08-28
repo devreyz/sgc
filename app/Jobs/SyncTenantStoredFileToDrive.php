@@ -58,20 +58,24 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
         return self::TYPES[$model::class][0] ?? null;
     }
 
-    public static function dispatchExistingForTenant(int $tenantId): void
+    public static function dispatchExistingForTenant(int $tenantId): int
     {
+        $dispatched = 0;
         foreach (self::TYPES as $modelClass => [$field]) {
             $modelClass::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
                 ->whereNotNull($field)
                 ->where($field, '!=', '')
                 ->select('id')
-                ->chunkById(100, function ($records) use ($modelClass): void {
+                ->chunkById(100, function ($records) use ($modelClass, &$dispatched): void {
                     foreach ($records as $record) {
                         self::dispatch($modelClass, (int) $record->getKey());
+                        $dispatched++;
                     }
                 });
         }
+
+        return $dispatched;
     }
 
     public function uniqueId(): string

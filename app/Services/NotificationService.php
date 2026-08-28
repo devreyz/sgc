@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DeliveryStatus;
 use App\Models\Associate;
 use App\Models\AssociateLedger;
 use App\Models\Expense;
@@ -13,7 +14,7 @@ class NotificationService
 {
     public function __construct(private readonly TenantNotificationDispatcher $dispatcher) {}
 
-    public function notifyDelivery(ProductionDelivery $delivery): void
+    public function notifyDeliveryDecision(ProductionDelivery $delivery): void
     {
         $delivery->loadMissing([
             'associate:id,tenant_id,user_id',
@@ -25,15 +26,52 @@ class NotificationService
             return;
         }
 
-        $isDistribution = filled($delivery->parent_delivery_id);
-        $event = $isDistribution ? 'distribution.changed' : 'delivery.registered';
-        $label = $isDistribution ? 'Distribuicao registrada' : 'Entrega registrada';
+        if ($delivery->isDistribution() || ! in_array($delivery->status, [DeliveryStatus::APPROVED, DeliveryStatus::REJECTED], true)) {
+            return;
+        }
+
+        $approved = $delivery->status === DeliveryStatus::APPROVED;
+        $event = $approved ? 'delivery.approved' : 'delivery.rejected';
+        $label = $approved ? 'Entrega aprovada' : 'Entrega rejeitada';
 
         $this->dispatcher->dispatchToConfiguredRoles($event, $tenantId, [
             'title' => $label,
             'body' => sprintf('%s: %.3f %s de %s.', $delivery->associate->display_name, (float) $delivery->quantity, $delivery->product->unit, $delivery->product->name),
             'url' => $this->deliveryUrl($delivery),
-            'icon' => $isDistribution ? 'split' : 'package-check',
+            'icon' => $approved ? 'package-check' : 'package-x',
+            'action_label' => 'Ver entrega',
+            'action_icon' => 'truck',
+        ]);
+    }
+
+    /**
+     * Sends one operational summary only when a reception has no quantity left to distribute.
+     */
+    public function notifyDistributionCompleted(ProductionDelivery $reception, int $createdCount): void
+    {
+        $reception = ProductionDelivery::withoutGlobalScopes()
+            ->with(['associate:id,tenant_id,user_id', 'product:id,name,unit'])
+            ->find($reception->id);
+
+        if (! $reception || ! $reception->isReception() || ! $reception->associate || ! $reception->product
+            || $reception->remaining_quantity > 0.0005) {
+            return;
+        }
+
+        $this->dispatcher->dispatchToConfiguredRoles('distribution.completed', (int) $reception->tenant_id, [
+            'title' => 'Distribuição concluída',
+            'body' => sprintf(
+                '%s: toda a quantidade de %.3f %s de %s foi distribuída%s.',
+                $reception->associate->display_name,
+                (float) $reception->quantity,
+                $reception->product->unit,
+                $reception->product->name,
+                $createdCount > 1 ? ' em '.$createdCount.' destinos' : ''
+            ),
+            'url' => $this->deliveryUrl($reception),
+            'icon' => 'split',
+            'action_label' => 'Ver distribuição',
+            'action_icon' => 'split',
         ]);
     }
 
@@ -118,9 +156,11 @@ class NotificationService
             return '/';
         }
 
-        return route('delivery.projects.deliveries', [
+        $url = route('delivery.projects.deliveries', [
             'tenant' => $tenant->slug,
             'project' => $delivery->sales_project_id,
         ], false);
+
+        return $url.'?open_delivery='.(int) $delivery->getKey();
     }
 }

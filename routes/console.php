@@ -22,6 +22,10 @@ Schedule::call(function (): void {
     Cache::put('system:cron:last_heartbeat', now()->toIso8601String(), now()->addDays(2));
 })->everyMinute()->name('cron-heartbeat');
 
+Schedule::command('drive:sync-documents')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(14);
+
 Schedule::command('queue:work', [
     '--queue' => 'documents,default',
     '--stop-when-empty' => true,
@@ -34,3 +38,7 @@ Schedule::command('queue:work', [
 Schedule::command('queue:prune-failed', [
     '--hours' => 720,
 ])->dailyAt('03:30')->withoutOverlapping();
+
+Schedule::command('notifications:prune-history')
+    ->dailyAt('03:45')
+    ->withoutOverlapping();

@@ -9,8 +9,9 @@ class NotificationEventCatalog
     public static function all(): array
     {
         return [
-            'delivery.registered' => self::event('Entrega registrada', 'Entregas', 'Nova entrada fisica registrada.', ['registrador_entregas', 'admin'], true, 'normal'),
-            'distribution.changed' => self::event('Distribuicao alterada', 'Entregas', 'Registro interno de distribuicoes editaveis.', ['registrador_entregas', 'admin'], false, 'info', false),
+            'delivery.approved' => self::event('Entrega aprovada', 'Entregas', 'Uma entrega foi aprovada e está pronta para distribuição.', ['registrador_entregas', 'admin'], true, 'normal'),
+            'delivery.rejected' => self::event('Entrega rejeitada', 'Entregas', 'Uma entrega foi rejeitada e requer atenção.', ['registrador_entregas', 'admin'], true, 'high'),
+            'distribution.completed' => self::event('Distribuição concluída', 'Entregas', 'Toda a quantidade de uma entrega foi distribuída.', ['registrador_entregas', 'admin'], true, 'normal'),
             'receipt.generated' => self::event('Comprovante gerado', 'Comprovantes', 'Um comprovante do associado foi gerado ou regenerado.', ['associado', 'registrador_entregas', 'admin'], true, 'high'),
             'receipt.obsolete' => self::event('Comprovante obsoleto', 'Comprovantes', 'Um comprovante precisa ser conferido e regenerado.', ['registrador_entregas', 'financeiro', 'admin'], true, 'high'),
             'ledger.credit' => self::event('Credito registrado', 'Financeiro', 'Credito lancado para o associado.', ['associado'], true, 'high'),
