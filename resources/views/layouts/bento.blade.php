@@ -3638,6 +3638,7 @@
         $sgcPwaConfig = auth()->check() ? [
             'nativePushStoreUrl' => route('notifications.push.devices.store'),
             'nativePushDestroyUrl' => route('notifications.push.devices.destroy'),
+            'nativePushBindingScope' => hash_hmac('sha256', auth()->id().'|'.request()->session()->getId(), (string) config('app.key')),
         ] : [];
         if ($currentTenantSlug) {
             $sgcPwaConfig += [

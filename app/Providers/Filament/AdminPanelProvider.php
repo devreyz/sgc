@@ -209,6 +209,9 @@ class AdminPanelProvider extends PanelProvider
                     </style>
                 ')
             )
-            ;
+            ->renderHook(
+                'panels::body.end',
+                fn (): string => view('filament.partials.native-runtime')->render(),
+            );
     }
 }

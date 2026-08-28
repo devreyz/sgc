@@ -2,20 +2,22 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DeliveryStatus;
 use App\Jobs\SendFcmNotification;
 use App\Models\ProductionDelivery;
 use App\Models\PushDevice;
+use App\Models\Tenant;
 use App\Models\User;
-use App\Services\NotificationService;
 use App\Services\FcmHttpV1Client;
+use App\Services\NotificationService;
 use App\Services\QueueTaskInspector;
 use App\Services\TenantNotificationDispatcher;
 use App\Support\NotificationEventCatalog;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Http\Client\Response;
 use Mockery;
 use Tests\TestCase;
 
@@ -228,6 +230,20 @@ class NotificationSecurityTest extends TestCase
         $this->assertSame('/', $first->notifications->first()->data['url']);
     }
 
+    public function test_new_tenant_receives_recommended_notification_preferences(): void
+    {
+        $tenant = Tenant::query()->create(['name' => 'Nova organização', 'slug' => 'nova-organizacao']);
+
+        $this->assertDatabaseCount('notification_event_preferences', count(NotificationEventCatalog::all()));
+        $this->assertDatabaseHas('notification_event_preferences', [
+            'tenant_id' => $tenant->id,
+            'event_key' => 'manual.message',
+            'database_enabled' => true,
+            'push_enabled' => true,
+            'priority' => 'normal',
+        ]);
+    }
+
     public function test_legacy_per_distribution_event_is_rejected(): void
     {
         DB::table('tenants')->insert(['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'created_at' => now(), 'updated_at' => now()]);
@@ -326,7 +342,7 @@ class NotificationSecurityTest extends TestCase
             'product_id' => 20,
             'parent_delivery_id' => null,
             'quantity' => 12.5,
-            'status' => \App\Enums\DeliveryStatus::APPROVED,
+            'status' => DeliveryStatus::APPROVED,
         ]);
         $delivery->exists = true;
 
@@ -395,6 +411,25 @@ class NotificationSecurityTest extends TestCase
         $this->assertTrue($device->notifications_enabled);
     }
 
+    public function test_same_user_can_keep_multiple_android_devices_active(): void
+    {
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+
+        foreach ([
+            ['installation_id' => '1fe3a222-6bed-4ac9-a86f-9da5c91c4701', 'token' => str_repeat('phone-token-', 8), 'device_name' => 'Telefone'],
+            ['installation_id' => 'd86a119f-ad9e-4a01-a3a4-26c09d917735', 'token' => str_repeat('tablet-token-', 8), 'device_name' => 'Tablet'],
+        ] as $device) {
+            $this->actingAs($user)->postJson(route('notifications.push.devices.store'), $device)->assertOk();
+        }
+
+        $this->assertDatabaseCount('push_devices', 2);
+        $this->assertSame(2, PushDevice::query()
+            ->where('user_id', $user->id)
+            ->where('notifications_enabled', true)
+            ->whereNull('revoked_at')
+            ->count());
+    }
+
     public function test_logout_revokes_only_android_device_from_the_current_session(): void
     {
         $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
@@ -434,8 +469,7 @@ class NotificationSecurityTest extends TestCase
         ]);
 
         $this->assertCount(1, $user->fresh()->notifications);
-        Queue::assertPushed(SendFcmNotification::class, fn (SendFcmNotification $job) =>
-            $job->userId === $user->id && $job->tenantId === 1
+        Queue::assertPushed(SendFcmNotification::class, fn (SendFcmNotification $job) => $job->userId === $user->id && $job->tenantId === 1
         );
     }
 

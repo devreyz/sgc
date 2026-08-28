@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -133,12 +134,21 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
                 $disk->get($path),
                 $disk->mimeType($path) ?: 'application/octet-stream',
             );
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
             activity('cloud_storage')->withProperties([
                 'tenant_id' => $tenantId,
                 'document_type' => $definition[1],
                 'record_id' => $model->getKey(),
             ])->log('Falha ao sincronizar arquivo enviado');
+
+            Log::error('Google Drive stored-file synchronization failed.', [
+                'tenant_id' => $tenantId,
+                'document_type' => $definition[1],
+                'record_id' => $model->getKey(),
+                'exception_class' => $exception::class,
+                'exception_code' => $exception->getCode(),
+                'error' => mb_substr($exception->getMessage(), 0, 500),
+            ]);
 
             throw new \RuntimeException('Falha temporaria ao sincronizar arquivo com o Google Drive.');
         }

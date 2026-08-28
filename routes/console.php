@@ -27,13 +27,23 @@ Schedule::command('drive:sync-documents')
     ->withoutOverlapping(14);
 
 Schedule::command('queue:work', [
-    '--queue' => 'documents,default',
+    '--queue' => 'documents',
     '--stop-when-empty' => true,
-    '--max-time' => 240,
+    '--max-jobs' => 3,
+    '--max-time' => 55,
     '--tries' => 3,
     '--timeout' => 120,
     '--memory' => 128,
-])->everyFiveMinutes()->withoutOverlapping(10);
+])->everyMinute()->withoutOverlapping(3);
+
+Schedule::command('queue:work', [
+    '--queue' => 'default',
+    '--stop-when-empty' => true,
+    '--max-time' => 55,
+    '--tries' => 3,
+    '--timeout' => 45,
+    '--memory' => 128,
+])->everyFiveMinutes()->withoutOverlapping(3);
 
 Schedule::command('queue:prune-failed', [
     '--hours' => 720,

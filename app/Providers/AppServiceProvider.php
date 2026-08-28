@@ -31,6 +31,7 @@ use App\Models\ServiceOrder;
 use App\Models\ServiceOrderPayment;
 use App\Models\ServiceProvider as ServiceProviderModel;
 use App\Models\ServiceProviderLedger;
+use App\Models\Tenant;
 use App\Observers\AssociateLedgerObserver;
 use App\Observers\AssociateReceiptObserver;
 use App\Observers\CashMovementObserver;
@@ -44,6 +45,7 @@ use App\Observers\PurchaseOrderObserver;
 use App\Observers\ServiceOrderObserver;
 use App\Observers\ServiceProviderLedgerObserver;
 use App\Observers\ServiceProviderObserver;
+use App\Observers\TenantObserver;
 use App\Observers\TenantStoredFileObserver;
 use App\Policies\AccessInvitationPolicy;
 use App\Policies\BillingAuthorizationPolicy;
@@ -211,5 +213,6 @@ class AppServiceProvider extends ServiceProvider
         SalesProject::observe(TenantStoredFileObserver::class);
         ServiceOrder::observe(TenantStoredFileObserver::class);
         ServiceOrderPayment::observe(TenantStoredFileObserver::class);
+        Tenant::observe(TenantObserver::class);
     }
 }

@@ -5,6 +5,9 @@ const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
 let deferredInstallPrompt = null;
 let permissionPromptShown = false;
 let nativePushInitialized = false;
+let nativeRegistrationTimeout = null;
+let nativeTokenBindingPromise = null;
+const nativeBindingSessionKey = 'sgc.native.push.bound.auth-session.v2';
 
 function isNativeAndroid() {
     return Boolean(window.Capacitor?.isNativePlatform?.() && window.Capacitor?.getPlatform?.() === 'android');
@@ -58,10 +61,31 @@ async function nativeDeviceContext() {
 
 async function bindNativeToken(token) {
     if (!config.nativePushStoreUrl || !token) return;
-    await jsonRequest(config.nativePushStoreUrl, {
-        method: 'POST',
-        body: JSON.stringify({ token, installation_id: installationId(), ...(await nativeDeviceContext()) }),
-    });
+    if (nativeTokenBindingPromise) return nativeTokenBindingPromise;
+
+    nativeTokenBindingPromise = (async () => {
+        await jsonRequest(config.nativePushStoreUrl, {
+            method: 'POST',
+            body: JSON.stringify({ token, installation_id: installationId(), ...(await nativeDeviceContext()) }),
+        });
+        if (config.nativePushBindingScope) {
+            sessionStorage.setItem(nativeBindingSessionKey, config.nativePushBindingScope);
+        }
+        window.dispatchEvent(new CustomEvent('sgc:native-push-bound'));
+    })();
+
+    try {
+        return await nativeTokenBindingPromise;
+    } finally {
+        nativeTokenBindingPromise = null;
+    }
+}
+
+function nativeTokenAlreadyBoundForSession() {
+    return Boolean(
+        config.nativePushBindingScope
+        && sessionStorage.getItem(nativeBindingSessionKey) === config.nativePushBindingScope
+    );
 }
 
 function safeNativeNotificationRoute(value) {
@@ -104,6 +128,18 @@ async function createNativeChannels() {
 async function registerNativePush() {
     await createNativeChannels();
     await PushNotifications.register();
+
+    // Em reinstalações o evento `registration` pode chegar antes de a página
+    // autenticada terminar de carregar. Consulte também o token atual uma vez
+    // por abertura/sessão autenticada e refaça o vínculo com o Laravel.
+    try {
+        const current = await window.Capacitor?.Plugins?.NativeAuth?.getFcmToken?.();
+        if (current?.token) await bindNativeToken(current.token);
+    } catch (error) {
+        window.SgcDiagnostics?.report({
+            category:'push', stage:'token_reconciliation', message:error?.message || 'fcm_token_reconciliation_failed'
+        });
+    }
 }
 
 function showNativePermissionPrompt() {
@@ -139,7 +175,12 @@ async function initializeNativePush() {
     if (nativePushInitialized || !config.nativePushStoreUrl) return;
     nativePushInitialized = true;
 
+    // Uma navegação completa recria este módulo. Remova callbacks da página
+    // anterior sem repetir o registro remoto do token.
+    try { await PushNotifications.removeAllListeners(); } catch (_) {}
+
     await PushNotifications.addListener('registration', event => {
+        if (nativeRegistrationTimeout) window.clearTimeout(nativeRegistrationTimeout);
         bindNativeToken(event.value).catch(error => window.SgcDiagnostics?.report({
             category:'push', stage:'token_binding', message:error?.message || 'push_binding_failed'
         }));
@@ -157,7 +198,13 @@ async function initializeNativePush() {
     });
 
     const permission = await PushNotifications.checkPermissions();
-    if (permission.receive === 'granted') await registerNativePush();
+    if (permission.receive === 'granted') {
+        if (nativeTokenAlreadyBoundForSession()) return;
+        nativeRegistrationTimeout = window.setTimeout(() => window.SgcDiagnostics?.report({
+            category:'push', stage:'token_timeout', message:'fcm_registration_token_not_received'
+        }), 15000);
+        await registerNativePush();
+    }
     else if (permission.receive === 'prompt' || permission.receive === 'prompt-with-rationale') showNativePermissionPrompt();
 }
 
@@ -169,6 +216,7 @@ async function revokeNativePush() {
             });
         }
     } finally {
+        sessionStorage.removeItem(nativeBindingSessionKey);
         try { await PushNotifications.unregister(); } catch (_) {}
     }
 }

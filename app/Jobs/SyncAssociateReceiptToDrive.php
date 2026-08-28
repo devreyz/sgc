@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
@@ -52,12 +53,20 @@ class SyncAssociateReceiptToDrive implements ShouldBeUnique, ShouldQueue
 
         try {
             $archive->sync($receipt);
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
             activity('cloud_storage')->withProperties([
                 'tenant_id' => $receipt->tenant_id,
                 'receipt_id' => $receipt->id,
                 'provider' => 'google_drive',
             ])->log('Falha ao sincronizar comprovante');
+
+            Log::error('Google Drive receipt synchronization failed.', [
+                'tenant_id' => $receipt->tenant_id,
+                'receipt_id' => $receipt->id,
+                'exception_class' => $exception::class,
+                'exception_code' => $exception->getCode(),
+                'error' => mb_substr($exception->getMessage(), 0, 500),
+            ]);
 
             throw new \RuntimeException('Falha temporaria ao sincronizar comprovante com o Google Drive.');
         }

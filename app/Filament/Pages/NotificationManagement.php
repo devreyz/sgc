@@ -5,6 +5,9 @@ namespace App\Filament\Pages;
 use App\Models\NotificationEventPreference;
 use App\Models\PushDevice;
 use App\Models\TenantUser;
+use App\Services\FcmHttpV1Client;
+use App\Services\NotificationPreferenceDefaults;
+use App\Services\QueueTaskInspector;
 use App\Services\TenantNotificationDispatcher;
 use App\Support\NotificationEventCatalog;
 use Filament\Facades\Filament;
@@ -15,6 +18,7 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 
 class NotificationManagement extends Page implements HasForms
@@ -180,6 +184,26 @@ class NotificationManagement extends Page implements HasForms
             ->send();
     }
 
+    public function applyRecommendedDefaults(NotificationPreferenceDefaults $defaults): void
+    {
+        abort_unless(static::canAccess(), 403);
+
+        $tenantId = (int) session('tenant_id');
+        $defaults->applyForTenant($tenantId, (int) Filament::auth()->id(), true);
+        $this->mount();
+
+        activity('notification_settings')
+            ->causedBy(Filament::auth()->user())
+            ->withProperties(['tenant_id' => $tenantId])
+            ->log('Padrões recomendados de notificações aplicados');
+
+        Notification::make()
+            ->title('Padrões recomendados aplicados')
+            ->body('Central interna, Android, prioridades e destinatários foram reconfigurados.')
+            ->success()
+            ->send();
+    }
+
     public function sendManual(TenantNotificationDispatcher $dispatcher): void
     {
         abort_unless(static::canAccess(), 403);
@@ -214,8 +238,12 @@ class NotificationManagement extends Page implements HasForms
         $sent = $dispatcher->dispatch('manual.message', $tenantId, [$membership->user], [
             'title' => $validator['title'],
             'body' => $validator['body'],
-            'url' => $validator['url'] ?: '/',
+            'url' => $validator['url'] ?: route('notifications.index', [
+                'tenant' => (string) session('tenant_slug'),
+            ], false),
             'icon' => 'message-square',
+            'action_label' => 'Abrir mensagem',
+            'action_icon' => 'message-square',
         ]);
 
         if ($sent !== 1) {
@@ -245,16 +273,55 @@ class NotificationManagement extends Page implements HasForms
             'url' => null,
         ];
 
+        $definition = NotificationEventCatalog::get('manual.message');
+        $preference = NotificationEventPreference::query()
+            ->where('tenant_id', $tenantId)
+            ->where('event_key', 'manual.message')
+            ->first();
+        $pushEnabled = $this->pushConfigured
+            && PushDevice::query()->where('user_id', $membership->user_id)
+                ->where('notifications_enabled', true)->whereNull('revoked_at')->exists()
+            && (bool) ($preference?->push_enabled ?? $definition['pushDefault']);
+
         Notification::make()
             ->title('Notificacao enviada')
-            ->body('A mensagem ja esta na central do destinatario. O push seguira pela fila.')
+            ->body($pushEnabled
+                ? 'A mensagem está na central e o envio Android foi colocado na fila.'
+                : 'A mensagem está na central. Não há envio Android ativo para este destinatário/organização.')
             ->success()
+            ->send();
+    }
+
+    public function sendTestToMe(TenantNotificationDispatcher $dispatcher): void
+    {
+        abort_unless(static::canAccess(), 403);
+
+        $tenantId = (int) session('tenant_id');
+        $user = Filament::auth()->user();
+        $hasDevice = PushDevice::query()->where('user_id', $user->id)
+            ->where('notifications_enabled', true)->whereNull('revoked_at')->exists();
+
+        $dispatcher->dispatch('manual.message', $tenantId, [$user], [
+            'title' => 'Teste de notificações do SGC',
+            'body' => 'A central interna e a entrega Android estão sendo verificadas.',
+            'url' => route('notifications.index', ['tenant' => (string) session('tenant_slug')], false),
+            'icon' => 'bell-ring',
+            'action_label' => 'Abrir central',
+            'action_icon' => 'bell',
+        ]);
+
+        Notification::make()
+            ->title('Teste registrado na central')
+            ->body($this->pushConfigured && $hasDevice
+                ? 'O envio Android foi colocado na fila. Verifique o aparelho e Tarefas do sistema.'
+                : 'Este usuário ainda não possui um dispositivo Android ativo ou o Firebase não está configurado.')
+            ->color($this->pushConfigured && $hasDevice ? 'success' : 'warning')
             ->send();
     }
 
     public function getPushConfiguredProperty(): bool
     {
-        return app(\App\Services\FcmHttpV1Client::class)->configured();
+        return app(FcmHttpV1Client::class)->configured();
     }
 
     public function getActiveDevicesProperty(): int
@@ -269,6 +336,36 @@ class NotificationManagement extends Page implements HasForms
                 ->active()
                 ->select('user_id'))
             ->count();
+    }
+
+    public function getPushDiagnosticsProperty(): array
+    {
+        $tenantId = (int) session('tenant_id');
+        $userIds = TenantUser::query()->forTenant($tenantId)->active()->pluck('user_id');
+        $devices = PushDevice::query()->whereIn('user_id', $userIds);
+        $active = (clone $devices)->where('notifications_enabled', true)->whereNull('revoked_at');
+        $pending = collect(app(QueueTaskInspector::class)->pendingForTenant($tenantId))
+            ->where('queue', 'notifications')->count();
+        $failures = 0;
+
+        if (Schema::hasTable('push_delivery_receipts')) {
+            $failures = DB::table('push_delivery_receipts')
+                ->join('push_devices', 'push_devices.id', '=', 'push_delivery_receipts.push_device_id')
+                ->whereIn('push_devices.user_id', $userIds)
+                ->whereIn('push_delivery_receipts.status', ['failed', 'invalid_token'])
+                ->where('push_delivery_receipts.created_at', '>=', now()->subDay())
+                ->count();
+        }
+
+        return [
+            'configured' => $this->pushConfigured,
+            'active' => (clone $active)->count(),
+            'recent' => (clone $active)->where('last_seen_at', '>=', now()->subDays(7))->count(),
+            'revoked' => (clone $devices)->whereNotNull('revoked_at')->count(),
+            'pending' => $pending,
+            'failures_24h' => $failures,
+            'last_bound_at' => (clone $devices)->max('bound_at'),
+        ];
     }
 
     private function preferenceSchema(): array

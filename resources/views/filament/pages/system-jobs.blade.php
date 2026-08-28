@@ -118,6 +118,7 @@
         <p class="text-sm text-gray-600 dark:text-gray-300">
             Execute a fila por cron a cada minuto. O comando termina quando nao houver mais tarefas:
         </p>
-        <pre class="mt-3 overflow-x-auto rounded-lg bg-gray-950 p-3 text-xs text-gray-100">php artisan queue:work --stop-when-empty --queue=notifications,documents,default --tries=3</pre>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">O scheduler executa workers separados: notificações e documentos a cada minuto; tarefas gerais a cada cinco minutos.</p>
+        <pre class="mt-3 overflow-x-auto rounded-lg bg-gray-950 p-3 text-xs text-gray-100">php artisan schedule:run</pre>
     </x-filament::section>
 </x-filament-panels::page>

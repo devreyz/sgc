@@ -49,4 +49,26 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('PdfRenderer', $viewer);
         self::assertStringContainsString('Baixar', $viewer);
     }
+
+    public function test_filament_panel_loads_native_push_registration_runtime(): void
+    {
+        $provider = file_get_contents(base_path('app/Providers/Filament/AdminPanelProvider.php'));
+        $runtime = file_get_contents(base_path('resources/views/filament/partials/native-runtime.blade.php'));
+
+        self::assertStringContainsString("'panels::body.end'", $provider);
+        self::assertStringContainsString('nativePushStoreUrl', $runtime);
+        self::assertStringContainsString("@vite('resources/js/app.js')", $runtime);
+    }
+
+    public function test_native_runtime_reconciles_the_current_fcm_token_after_reinstall(): void
+    {
+        $nativeAuth = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/NativeAuthPlugin.java'));
+        $pushRuntime = file_get_contents(base_path('resources/js/pwa-notifications.js'));
+
+        self::assertStringContainsString('FirebaseMessaging.getInstance().getToken()', $nativeAuth);
+        self::assertStringContainsString('getFcmToken', $pushRuntime);
+        self::assertStringContainsString('token_reconciliation', $pushRuntime);
+        self::assertStringContainsString('nativeTokenAlreadyBoundForSession()', $pushRuntime);
+        self::assertStringContainsString('nativePushBindingScope', $pushRuntime);
+    }
 }
