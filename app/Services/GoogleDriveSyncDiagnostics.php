@@ -33,6 +33,7 @@ class GoogleDriveSyncDiagnostics
             'failed_notification_jobs' => $failedJobs->where('queue', 'notifications')->count(),
             'synced_documents' => (clone $documents)->where('status', 'synced')->count(),
             'failed_documents' => (clone $documents)->where('status', 'failed')->count(),
+            'rejected_documents' => (clone $documents)->where('status', 'rejected')->count(),
             'pending_documents' => (clone $documents)->where('status', 'pending')->count(),
         ];
     }

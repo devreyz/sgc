@@ -3,13 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\SyncAssociateReceiptToDrive;
-use App\Jobs\SyncTenantStoredFileToDrive;
-use App\Models\AssociateReceipt;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\TenantUser;
 use App\Services\GoogleDriveClientFactory;
+use App\Services\GoogleDriveSyncDispatcher;
 use App\Services\TenantGoogleDriveService;
 use Google\Service\Drive;
 use Illuminate\Http\RedirectResponse;
@@ -63,6 +61,7 @@ class GoogleDriveOAuthController extends Controller
         Request $request,
         GoogleDriveClientFactory $clients,
         TenantGoogleDriveService $driveStorage,
+        GoogleDriveSyncDispatcher $syncDispatcher,
     ): RedirectResponse {
         abort_if(app()->environment('production') && ! $request->isSecure(), 400);
         $oauth = (array) $request->session()->pull('google_drive_oauth', []);
@@ -125,15 +124,7 @@ class GoogleDriveOAuthController extends Controller
             });
 
             $driveStorage->ensureRootFolder($connection->load('tenant'));
-            AssociateReceipt::query()
-                ->where('tenant_id', $tenant->id)
-                ->select('id')
-                ->chunkById(100, function ($receipts): void {
-                    foreach ($receipts as $receipt) {
-                        SyncAssociateReceiptToDrive::dispatch($receipt->id);
-                    }
-                });
-            SyncTenantStoredFileToDrive::dispatchExistingForTenant($tenant->id);
+            $syncDispatcher->dispatchForTenant((int) $tenant->id);
             activity('cloud_storage')->causedBy($request->user())->performedOn($tenant)
                 ->withProperties(['tenant_id' => $tenant->id, 'provider' => 'google_drive'])
                 ->log('Google Drive conectado');

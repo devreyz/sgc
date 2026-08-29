@@ -26,9 +26,11 @@ Schedule::call(function (): void {
     Cache::put('system:cron:last_heartbeat', now()->toIso8601String(), now()->addDays(2));
 })->everyMinute()->name('cron-heartbeat');
 
-Schedule::command('drive:sync-documents')
-    ->everyFifteenMinutes()
-    ->withoutOverlapping(14);
+// A sincronização é orientada a alterações. A varredura completa permanece
+// disponível apenas pelo botão administrativo/comando drive:sync-documents.
+Schedule::command('drive:compact-queue')
+    ->everyFiveMinutes()
+    ->withoutOverlapping(4);
 
 Schedule::command('queue:work', [
     'database',

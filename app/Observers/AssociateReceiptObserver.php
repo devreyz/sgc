@@ -19,16 +19,22 @@ class AssociateReceiptObserver
 
     public function saved(AssociateReceipt $receipt): void
     {
-        if (empty($receipt->delivery_ids) || (float) ($receipt->total_net ?? 0) <= 0) {
-            return;
-        }
-
-        SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
-
         if ($receipt->wasChanged('status') && $receipt->status === ReceiptStatus::OBSOLETE) {
             $this->notifyReceipt($receipt, 'receipt.obsolete');
         } elseif (! $receipt->wasRecentlyCreated && $receipt->wasChanged(['delivery_ids', 'total_net', 'total_gross'])) {
             $this->notifyReceipt($receipt, 'receipt.generated');
+        }
+
+        $syncChanged = $receipt->wasRecentlyCreated || $receipt->wasChanged([
+            'delivery_ids', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
+            'issued_at', 'notes', 'status', 'amount_paid',
+        ]);
+
+        if ($syncChanged
+            && $receipt->status !== ReceiptStatus::OBSOLETE
+            && ! empty($receipt->delivery_ids)
+            && (float) ($receipt->total_net ?? 0) > 0) {
+            SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
         }
     }
 

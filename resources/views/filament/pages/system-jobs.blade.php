@@ -32,7 +32,7 @@
     <x-filament::section>
         <x-slot name="heading">Diagnóstico do Google Drive</x-slot>
 
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <div>
                 <p class="text-sm text-gray-500">Conexão</p>
                 <p class="mt-1 font-semibold {{ $drive['connected'] ? 'text-success-600' : 'text-danger-600' }}">
@@ -48,8 +48,12 @@
                 <p class="mt-1 font-semibold text-success-600">{{ $drive['synced_documents'] }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-500">Rejeitados</p>
+                <p class="text-sm text-gray-500">Falhas temporárias</p>
                 <p class="mt-1 font-semibold {{ $drive['failed_documents'] ? 'text-danger-600' : '' }}">{{ $drive['failed_documents'] }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-gray-500">Versões ignoradas</p>
+                <p class="mt-1 font-semibold text-gray-600">{{ $drive['rejected_documents'] }}</p>
             </div>
         </div>
 
@@ -62,7 +66,7 @@
         @endif
 
         <p class="mt-4 text-sm text-gray-500">
-            O worker processa até 3 documentos por minuto para respeitar os limites da hospedagem. Uma fila com 7 itens pode levar cerca de 3 minutos, além de novas tentativas quando houver erro.
+            A sincronização agora ocorre somente quando o documento muda. Versões duplicadas e comprovantes sem dados financeiros válidos são descartados sem consumir novas tentativas ou chamadas ao Drive.
         </p>
     </x-filament::section>
 

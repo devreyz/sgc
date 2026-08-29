@@ -23,11 +23,18 @@ class GoogleDriveSyncDispatcher
         }
 
         $receipts = 0;
+        $state = app(AssociateReceiptDriveState::class);
         AssociateReceipt::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->select('id')
-            ->chunkById(100, function ($items) use (&$receipts): void {
+            ->whereNotNull('delivery_ids')
+            ->where('total_net', '>', 0)
+            ->chunkById(100, function ($items) use (&$receipts, $state): void {
                 foreach ($items as $receipt) {
+                    $fingerprint = $state->fingerprint($receipt);
+                    if ($state->alreadyHandled($receipt, $fingerprint)) {
+                        continue;
+                    }
+
                     SyncAssociateReceiptToDrive::dispatch((int) $receipt->id);
                     $receipts++;
                 }
