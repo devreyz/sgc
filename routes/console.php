@@ -11,8 +11,8 @@ Artisan::command('inspire', function () {
 
 $notificationWorker = Schedule::command('queue:work', [
     'database',
+    '--stop-when-empty',
     '--queue' => 'notifications',
-    '--stop-when-empty' => true,
     '--max-time' => 50,
     '--tries' => 3,
     '--timeout' => 45,
@@ -32,8 +32,8 @@ Schedule::command('drive:sync-documents')
 
 Schedule::command('queue:work', [
     'database',
+    '--stop-when-empty',
     '--queue' => 'documents',
-    '--stop-when-empty' => true,
     '--max-jobs' => 3,
     '--max-time' => 55,
     '--tries' => 3,
@@ -43,8 +43,8 @@ Schedule::command('queue:work', [
 
 Schedule::command('queue:work', [
     'database',
+    '--stop-when-empty',
     '--queue' => 'default',
-    '--stop-when-empty' => true,
     '--max-time' => 55,
     '--tries' => 3,
     '--timeout' => 45,

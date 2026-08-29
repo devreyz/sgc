@@ -495,10 +495,11 @@ class NotificationManagement extends Page implements HasForms
                                     'critical' => 'Critica',
                                 ])
                                 ->native(false),
-                            Forms\Components\CheckboxList::make($prefix.'.roles')
+                            Forms\Components\Select::make($prefix.'.roles')
                                 ->label('Destinatarios')
                                 ->options(NotificationEventCatalog::roles())
-                                ->columns(2)
+                                ->multiple()
+                                ->native(false)
                                 ->columnSpanFull(),
                         ])
                         ->columns(3);
