@@ -2913,7 +2913,7 @@
     }
 
     async function downloadPdf(data) {
-        window.SgcNavigation?.show('Abrindo documento', 'Preparando o visualizador');
+        // window.SgcNavigation?.show('Abrindo documento', 'Preparando o visualizador');
         const bytes = atob(data.pdf);
         const array = new Uint8Array(bytes.length);
         for (let index = 0; index < bytes.length; index++) array[index] = bytes.charCodeAt(index);
