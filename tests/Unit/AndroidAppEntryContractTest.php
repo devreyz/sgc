@@ -63,6 +63,11 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('safeRelativePath', $plugin);
         self::assertStringContainsString('GestureDetector', $zoom);
         self::assertStringContainsString('requestDisallowInterceptTouchEvent', $zoom);
+        self::assertStringContainsString('EXTRA_ORIGIN', $viewer);
+        self::assertStringContainsString('Disponível no Google Drive', $viewer);
+        self::assertStringContainsString('ic_pdf_download', $viewer);
+        self::assertStringContainsString('ownsGesture', $zoom);
+        self::assertStringContainsString('EXTRA_ORIGIN', $plugin);
     }
 
     public function test_filament_panel_loads_native_push_registration_runtime(): void

@@ -42,6 +42,13 @@ class NotificationManagement extends Page implements HasForms
 
     public ?array $data = [];
 
+    /**
+     * Preferências são da organização, não do administrador que abriu a tela.
+     * Mantemos o tenant da montagem para que todas as requisições Livewire da
+     * mesma página leiam e gravem exatamente o mesmo escopo.
+     */
+    public int $preferencesTenantId = 0;
+
     public static function canAccess(array $parameters = []): bool
     {
         $user = Filament::auth()->user();
@@ -66,7 +73,13 @@ class NotificationManagement extends Page implements HasForms
     {
         abort_unless(static::canAccess(), 403);
 
-        $tenantId = (int) session('tenant_id');
+        $this->preferencesTenantId = (int) session('tenant_id');
+        $this->loadTenantPreferences();
+    }
+
+    private function loadTenantPreferences(): void
+    {
+        $tenantId = $this->currentPreferencesTenantId();
         $stored = NotificationEventPreference::query()
             ->where('tenant_id', $tenantId)
             ->get()
@@ -84,7 +97,9 @@ class NotificationManagement extends Page implements HasForms
                 'push_enabled' => $definition['pushAllowed']
                     && ($preference?->push_enabled ?? $definition['pushDefault']),
                 'priority' => $preference?->priority ?? $definition['priority'],
-                'roles' => $preference?->recipient_roles ?? $definition['roles'],
+                // Um conjunto vazio é uma escolha válida (não enviar para
+                // ninguém); só usa o padrão quando ainda não há preferência.
+                'roles' => $preference ? (array) $preference->recipient_roles : $definition['roles'],
             ];
         }
 
@@ -147,7 +162,7 @@ class NotificationManagement extends Page implements HasForms
         abort_unless(static::canAccess(), 403);
 
         $state = $this->form->getState();
-        $tenantId = (int) session('tenant_id');
+        $tenantId = $this->currentPreferencesTenantId();
         $userId = (int) Filament::auth()->id();
 
         DB::transaction(function () use ($state, $tenantId, $userId): void {
@@ -184,6 +199,10 @@ class NotificationManagement extends Page implements HasForms
             ->withProperties(['tenant_id' => $tenantId])
             ->log('Preferencias de notificacao atualizadas');
 
+        // Não preserva um estado Livewire antigo: a própria tela reflete o que
+        // acabou de ser salvo para esta tenant.
+        $this->loadTenantPreferences();
+
         Notification::make()
             ->title('Preferencias salvas')
             ->success()
@@ -194,9 +213,9 @@ class NotificationManagement extends Page implements HasForms
     {
         abort_unless(static::canAccess(), 403);
 
-        $tenantId = (int) session('tenant_id');
+        $tenantId = $this->currentPreferencesTenantId();
         $defaults->applyForTenant($tenantId, (int) Filament::auth()->id(), true);
-        $this->mount();
+        $this->loadTenantPreferences();
 
         activity('notification_settings')
             ->causedBy(Filament::auth()->user())
@@ -538,5 +557,20 @@ class NotificationManagement extends Page implements HasForms
     private function stateKey(string $eventKey): string
     {
         return str_replace('.', '__', $eventKey);
+    }
+
+    private function currentPreferencesTenantId(): int
+    {
+        $sessionTenantId = (int) session('tenant_id');
+        abort_unless($sessionTenantId > 0, 403);
+
+        if ($this->preferencesTenantId > 0) {
+            // Caso a organização seja trocada em outra aba, não permitimos que
+            // uma requisição Livewire antiga grave as preferências no tenant
+            // recém-selecionado.
+            abort_unless($this->preferencesTenantId === $sessionTenantId, 409);
+        }
+
+        return $sessionTenantId;
     }
 }

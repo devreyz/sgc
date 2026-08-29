@@ -113,6 +113,7 @@ window.SgcDocuments = {
             await native.openPdf({
                 base64: await base64FromBlob(blob), fileName, title,
                 relativePath: options.relativePath || defaultDocumentPath(title),
+                origin: options.origin || '',
             });
             return;
         }
@@ -161,6 +162,7 @@ window.SgcDocuments = {
         return {
             blob: await response.blob(), fileName: name, title,
             relativePath: response.headers.get('x-sgc-document-path') || defaultDocumentPath(title),
+            origin: response.headers.get('x-sgc-document-origin') || '',
         };
     },
 };
@@ -263,7 +265,7 @@ document.addEventListener('click', async (event) => {
     link.dataset.sgcPdfHandled = 'true';
     try {
         const documentPdf = await window.SgcDocuments.fetchPdf(href.toString(), link.getAttribute('title') || 'Documento SGC');
-        if (documentPdf) await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, { relativePath: documentPdf.relativePath });
+        if (documentPdf) await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, { relativePath: documentPdf.relativePath, origin: documentPdf.origin });
         else window.location.assign(href.toString());
     } catch (error) {
         window.appToast?.(error.message || 'Não foi possível abrir o documento.', 'error');

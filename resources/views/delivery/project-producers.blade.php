@@ -3093,7 +3093,10 @@
                 .then(async () => {
                     const response = await fetch(preview.dataset.previewUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
                     if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', { relativePath: root.dataset.documentPath });
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
+                        relativePath: root.dataset.documentPath,
+                        origin: response.headers.get('X-SGC-Document-Origin') || '',
+                    });
                 })
                 .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { preview.disabled = false; });
@@ -3110,7 +3113,10 @@
                 .then(async () => {
                     const response = await fetch(reprint.dataset.reprintUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
                     if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', { relativePath: root.dataset.documentPath });
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
+                        relativePath: root.dataset.documentPath,
+                        origin: response.headers.get('X-SGC-Document-Origin') || '',
+                    });
                 })
                 .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { reprint.disabled = false; });

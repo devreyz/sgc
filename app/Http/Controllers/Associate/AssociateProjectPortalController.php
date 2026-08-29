@@ -100,6 +100,7 @@ class AssociateProjectPortalController extends Controller
                 'Cache-Control' => 'no-store, private',
                 'X-Content-Type-Options' => 'nosniff',
                 'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
+                'X-SGC-Document-Origin' => 'google_drive',
             ]);
         }
 
@@ -149,6 +150,7 @@ class AssociateProjectPortalController extends Controller
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
             'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
+            'X-SGC-Document-Origin' => 'generated',
         ]);
     }
 
