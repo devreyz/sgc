@@ -353,6 +353,7 @@ document.addEventListener('click', async (event) => {
 
     event.preventDefault();
     link.dataset.sgcPdfHandled = 'true';
+    showNavigationLoading('Abrindo documento', 'Buscando o arquivo');
     try {
         const documentPdf = await window.SgcDocuments.fetchPdf(href.toString(), link.getAttribute('title') || 'Documento SGC');
         if (documentPdf) await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, { relativePath: documentPdf.relativePath, origin: documentPdf.origin });

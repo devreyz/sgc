@@ -2153,6 +2153,7 @@
     id="producerReceipts"
     data-tenant="{{ $tenantSlug }}"
     data-project="{{ $project->id }}"
+    data-project-title="{{ $project->title ?: 'Projeto' }}"
     data-document-path="Comprovantes/{{ now()->format('Y/m') }}/{{ \Illuminate\Support\Str::slug($project->title ?: 'projeto-'.$project->id) }}"
     data-list-url="{{ route('delivery.projects.producers-data', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
     data-preferences-url="{{ route('delivery.projects.receipt-print-preferences.update', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
@@ -2912,11 +2913,17 @@
     }
 
     async function downloadPdf(data) {
+        window.SgcNavigation?.show('Abrindo documento', 'Preparando o visualizador');
         const bytes = atob(data.pdf);
         const array = new Uint8Array(bytes.length);
         for (let index = 0; index < bytes.length; index++) array[index] = bytes.charCodeAt(index);
         const pdf = new Blob([array], { type:'application/pdf' });
-        if (window.SgcDocuments) return window.SgcDocuments.openPdf(pdf, data.filename, 'Comprovante SGC', { relativePath: root.dataset.documentPath });
+        const receiptTitle = data.document_title
+            || `Comprovante Nº ${data.receipt_number || ''} · ${root.dataset.projectTitle || 'Projeto'}`;
+        if (window.SgcDocuments) return window.SgcDocuments.openPdf(pdf, data.filename, receiptTitle, {
+            relativePath: root.dataset.documentPath,
+            documentTitle: receiptTitle,
+        });
         const url = URL.createObjectURL(pdf); const link = document.createElement('a');
         link.href = url; link.download = data.filename; link.click(); URL.revokeObjectURL(url);
     }
@@ -3089,6 +3096,7 @@
         const preview = event.target.closest('[data-preview-url]');
         if (preview) {
             preview.disabled = true;
+            window.SgcNavigation?.show('Abrindo documento', 'Buscando o comprovante');
             savePrintPreferences(false)
                 .then(async () => {
                     const response = await fetch(preview.dataset.previewUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
@@ -3099,7 +3107,7 @@
                         documentTitle: response.headers.get('X-SGC-Document-Title') || '',
                     });
                 })
-                .catch(error => { toast(error.message, 'error'); })
+                .catch(error => { window.SgcNavigation?.hide(); toast(error.message, 'error'); })
                 .finally(() => { preview.disabled = false; });
             return;
         }
@@ -3110,6 +3118,7 @@
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
             reprint.disabled = true;
+            window.SgcNavigation?.show('Abrindo documento', 'Preparando a segunda via');
             savePrintPreferences(false)
                 .then(async () => {
                     const response = await fetch(reprint.dataset.reprintUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
@@ -3120,7 +3129,7 @@
                         documentTitle: response.headers.get('X-SGC-Document-Title') || '',
                     });
                 })
-                .catch(error => { toast(error.message, 'error'); })
+                .catch(error => { window.SgcNavigation?.hide(); toast(error.message, 'error'); })
                 .finally(() => { reprint.disabled = false; });
         }
     });

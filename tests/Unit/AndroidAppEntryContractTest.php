@@ -62,14 +62,17 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('EXTRA_RELATIVE_PATH', $viewer);
         self::assertStringContainsString('safeRelativePath', $plugin);
         self::assertStringContainsString('ScaleGestureDetector', $zoom);
-        self::assertStringContainsString('dispatchTouchEvent', $zoom);
+        self::assertStringContainsString('onTouchEvent', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $viewer);
         self::assertStringContainsString('Disponível no Google Drive', $viewer);
         self::assertStringContainsString('ic_pdf_download', $viewer);
-        self::assertStringContainsString('event.getPointerCount() > 1', $zoom);
+        self::assertStringContainsString('anchorContentX', $zoom);
+        self::assertStringContainsString('scrollBy(Math.round(distanceX), Math.round(distanceY))', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $plugin);
         self::assertStringContainsString('PdfScrollView', $viewer);
         self::assertStringContainsString('setZoomListener', $viewer);
+        self::assertStringContainsString('renderVisibleQuality', $viewer);
+        self::assertStringContainsString('target.view.setImageBitmap', $viewer);
     }
 
     public function test_filament_panel_loads_native_push_registration_runtime(): void
