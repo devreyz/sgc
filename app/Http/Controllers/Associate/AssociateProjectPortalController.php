@@ -101,6 +101,7 @@ class AssociateProjectPortalController extends Controller
                 'X-Content-Type-Options' => 'nosniff',
                 'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
                 'X-SGC-Document-Origin' => 'google_drive',
+                'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
             ]);
         }
 
@@ -151,6 +152,7 @@ class AssociateProjectPortalController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
             'X-SGC-Document-Origin' => 'generated',
+            'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
         ]);
     }
 
@@ -159,6 +161,11 @@ class AssociateProjectPortalController extends Controller
         $date = $receipt->issued_at ?: now();
 
         return 'Comprovantes/'.$date->format('Y/m').'/'.Str::slug($project->title ?: 'projeto-'.$project->id);
+    }
+
+    private function receiptDocumentTitle(AssociateReceipt $receipt, SalesProject $project): string
+    {
+        return 'Comprovante Nº '.$receipt->formatted_number.' · '.($project->title ?: 'Projeto');
     }
 
     private function context(Request $request): array

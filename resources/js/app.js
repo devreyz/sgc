@@ -14,6 +14,64 @@ function base64FromBlob(blob) {
     });
 }
 
+function documentTitle(fileName, fallback = 'Documento SGC') {
+    const normalizedFallback = String(fallback || '').trim();
+    if (normalizedFallback && !/^(documento|comprovante)\s+sgc$/i.test(normalizedFallback)) {
+        return normalizedFallback;
+    }
+
+    const name = decodeURIComponent(String(fileName || ''))
+        .replace(/\.pdf$/i, '')
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    return name ? name.replace(/\b\w/g, (letter) => letter.toUpperCase()) : 'Documento SGC';
+}
+
+let navigationLoading = null;
+
+function ensureNavigationLoading() {
+    if (navigationLoading) return navigationLoading;
+    const overlay = document.createElement('div');
+    overlay.id = 'sgc-navigation-loading';
+    overlay.hidden = true;
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.innerHTML = '<div><span aria-hidden="true"></span><strong>Carregando</strong><small>Preparando a próxima tela</small></div>';
+    const style = document.createElement('style');
+    style.textContent = `
+        #sgc-navigation-loading{position:fixed;inset:0;z-index:2147482999;display:grid;place-items:center;background:rgba(8,39,27,.18);backdrop-filter:blur(2px);opacity:1;transition:opacity .16s ease}
+        #sgc-navigation-loading[hidden]{display:none}
+        #sgc-navigation-loading>div{display:grid;justify-items:center;gap:8px;min-width:178px;padding:22px 24px;border-radius:22px;background:#176146;color:#fff;box-shadow:0 18px 50px rgba(8,46,31,.28);animation:sgc-nav-enter .18s cubic-bezier(.2,.8,.2,1)}
+        #sgc-navigation-loading span{width:30px;height:30px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sgc-nav-spin .85s linear infinite}
+        #sgc-navigation-loading strong{font:700 14px/1.1 system-ui}#sgc-navigation-loading small{font:500 12px/1.2 system-ui;color:#d8f2e4}
+        @keyframes sgc-nav-spin{to{transform:rotate(360deg)}}@keyframes sgc-nav-enter{from{transform:translateY(8px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+    navigationLoading = overlay;
+    return overlay;
+}
+
+function showNavigationLoading(message = 'Carregando', detail = 'Preparando a próxima tela') {
+    const overlay = ensureNavigationLoading();
+    overlay.querySelector('strong').textContent = message;
+    overlay.querySelector('small').textContent = detail;
+    overlay.hidden = false;
+    if (isNativeAndroid()) {
+        window.Capacitor?.Plugins?.NativeNavigation?.show?.({ message }).catch?.(() => {});
+    }
+}
+
+function hideNavigationLoading() {
+    if (navigationLoading) navigationLoading.hidden = true;
+    if (isNativeAndroid()) {
+        window.Capacitor?.Plugins?.NativeNavigation?.hide?.().catch?.(() => {});
+    }
+}
+
+window.SgcNavigation = Object.freeze({ show: showNavigationLoading, hide: hideNavigationLoading });
+
 function downloadInBrowser(blob, fileName) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -104,20 +162,28 @@ function openInBrowser(blob, fileName, title) {
     viewer.querySelector('[data-sgc-pdf-frame]').src = `${url}#view=FitH&toolbar=0`;
     viewer.hidden = false;
     document.documentElement.style.overflow = 'hidden';
+    hideNavigationLoading();
 }
 
 window.SgcDocuments = {
     async openPdf(blob, fileName, title = 'Documento SGC', options = {}) {
         const native = window.Capacitor?.Plugins?.NativeDocument;
+        const resolvedTitle = documentTitle(fileName, options.documentTitle || title);
+        showNavigationLoading('Abrindo documento', 'Preparando o visualizador');
         if (isNativeAndroid() && native?.openPdf) {
-            await native.openPdf({
-                base64: await base64FromBlob(blob), fileName, title,
-                relativePath: options.relativePath || defaultDocumentPath(title),
-                origin: options.origin || '',
-            });
+            try {
+                await native.openPdf({
+                    base64: await base64FromBlob(blob), fileName, title: resolvedTitle,
+                    relativePath: options.relativePath || defaultDocumentPath(resolvedTitle),
+                    origin: options.origin || '',
+                });
+            } catch (error) {
+                hideNavigationLoading();
+                throw error;
+            }
             return;
         }
-        openInBrowser(blob, fileName, title);
+        openInBrowser(blob, fileName, resolvedTitle);
     },
     async downloadPdf(blob, fileName) {
         const native = window.Capacitor?.Plugins?.NativeDocument;
@@ -160,7 +226,8 @@ window.SgcDocuments = {
             ? decodeURIComponent(filenameMatch[1].replace(/[\"]/g, ''))
             : 'documento-sgc.pdf';
         return {
-            blob: await response.blob(), fileName: name, title,
+            blob: await response.blob(), fileName: name,
+            title: response.headers.get('x-sgc-document-title') || documentTitle(name, title),
             relativePath: response.headers.get('x-sgc-document-path') || defaultDocumentPath(title),
             origin: response.headers.get('x-sgc-document-origin') || '',
         };
@@ -186,6 +253,29 @@ window.SgcPlatform = Object.freeze({
     canShareFiles: Boolean(navigator.share && navigator.canShare),
     canPrint: typeof window.print === 'function',
 });
+
+// A WebView mostra imediatamente uma transição enquanto a próxima rota ainda
+// está sendo buscada. Links de PDF possuem seu próprio fluxo acima.
+document.addEventListener('click', (event) => {
+    if (!isNativeAndroid() || event.defaultPrevented || event.button !== 0
+        || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest?.('a[href]');
+    if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+    const target = new URL(link.href, window.location.href);
+    if (target.origin !== window.location.origin || target.href === window.location.href || target.hash && target.pathname === window.location.pathname) return;
+    if (link.matches('[data-sgc-pdf]') || /\/(?:pdf|print|preview|reprint)(?:[/?]|$)/i.test(target.pathname)) return;
+    showNavigationLoading('Abrindo', 'Carregando a próxima tela');
+}, true);
+
+document.addEventListener('submit', (event) => {
+    if (!isNativeAndroid() || event.defaultPrevented) return;
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || form.dataset.sgcNoNavigationLoading !== undefined) return;
+    showNavigationLoading('Processando', 'Aguarde um instante');
+}, true);
+
+window.addEventListener('pageshow', hideNavigationLoading);
+window.addEventListener('offline', hideNavigationLoading);
 
 // O Livewire/Filament transforma respostas de download em um link blob:
 // temporário. PDFs passam pelo visualizador universal antes do download, o que
@@ -268,6 +358,7 @@ document.addEventListener('click', async (event) => {
         if (documentPdf) await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, { relativePath: documentPdf.relativePath, origin: documentPdf.origin });
         else window.location.assign(href.toString());
     } catch (error) {
+        hideNavigationLoading();
         window.appToast?.(error.message || 'Não foi possível abrir o documento.', 'error');
     } finally {
         delete link.dataset.sgcPdfHandled;

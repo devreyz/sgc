@@ -3096,6 +3096,7 @@
                     await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
                         relativePath: root.dataset.documentPath,
                         origin: response.headers.get('X-SGC-Document-Origin') || '',
+                        documentTitle: response.headers.get('X-SGC-Document-Title') || '',
                     });
                 })
                 .catch(error => { toast(error.message, 'error'); })
@@ -3116,6 +3117,7 @@
                     await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
                         relativePath: root.dataset.documentPath,
                         origin: response.headers.get('X-SGC-Document-Origin') || '',
+                        documentTitle: response.headers.get('X-SGC-Document-Title') || '',
                     });
                 })
                 .catch(error => { toast(error.message, 'error'); })

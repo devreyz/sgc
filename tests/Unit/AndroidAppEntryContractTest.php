@@ -62,12 +62,14 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('EXTRA_RELATIVE_PATH', $viewer);
         self::assertStringContainsString('safeRelativePath', $plugin);
         self::assertStringContainsString('GestureDetector', $zoom);
-        self::assertStringContainsString('requestDisallowInterceptTouchEvent', $zoom);
+        self::assertStringContainsString('setScrollOwnership', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $viewer);
         self::assertStringContainsString('Disponível no Google Drive', $viewer);
         self::assertStringContainsString('ic_pdf_download', $viewer);
         self::assertStringContainsString('ownsGesture', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $plugin);
+        self::assertStringContainsString('PdfScrollView', $viewer);
+        self::assertStringContainsString('setChildOwnsGesture', $zoom);
     }
 
     public function test_filament_panel_loads_native_push_registration_runtime(): void
@@ -88,6 +90,20 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString("this.href.startsWith('blob:')", $runtime);
         self::assertStringContainsString('sgcDirectDownload', $runtime);
         self::assertStringContainsString('window.SgcDocuments.openPdf', $runtime);
+    }
+
+    public function test_native_navigation_uses_an_immediate_loading_transition(): void
+    {
+        $activity = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/MainActivity.java'));
+        $plugin = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/NativeNavigationPlugin.java'));
+        $runtime = file_get_contents(resource_path('js/app.js'));
+
+        self::assertStringContainsString('registerPlugin(NativeNavigationPlugin.class)', $activity);
+        self::assertStringContainsString('showNavigationLoading', $activity);
+        self::assertStringContainsString('hideNavigationLoading', $activity);
+        self::assertStringContainsString('NativeNavigation', $plugin);
+        self::assertStringContainsString('showNavigationLoading', $runtime);
+        self::assertStringContainsString('x-sgc-document-title', $runtime);
     }
 
     public function test_native_runtime_reconciles_the_current_fcm_token_after_reinstall(): void
