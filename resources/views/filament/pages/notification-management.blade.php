@@ -1,6 +1,8 @@
 <x-filament-panels::page>
-    @php($push = $this->pushDiagnostics)
-    @php($problems = $this->problemDeliveries)
+    @php
+        $push = $this->pushDiagnostics;
+        $problems = $this->problemDeliveries;
+    @endphp
     <x-filament::section>
         <x-slot name="heading">Como as notificações funcionam</x-slot>
         <div class="grid gap-4 text-sm text-gray-600 dark:text-gray-300 md:grid-cols-3">
