@@ -14,6 +14,7 @@ class NotificationEventCatalog
             'distribution.completed' => self::event('Distribuição concluída', 'Entregas', 'Toda a quantidade de uma entrega foi distribuída.', ['registrador_entregas', 'admin'], true, 'normal'),
             'receipt.generated' => self::event('Comprovante gerado', 'Comprovantes', 'Um comprovante do associado foi gerado ou regenerado.', ['associado', 'registrador_entregas', 'admin'], true, 'high'),
             'receipt.obsolete' => self::event('Comprovante obsoleto', 'Comprovantes', 'Um comprovante precisa ser conferido e regenerado.', ['registrador_entregas', 'financeiro', 'admin'], true, 'high'),
+            'drive.receipt_synced' => self::event('Comprovante salvo no Google Drive', 'Comprovantes', 'A versão mais recente do comprovante foi atualizada no Google Drive.', ['admin', 'tesoureiro'], true, 'normal'),
             'ledger.credit' => self::event('Credito registrado', 'Financeiro', 'Credito lancado para o associado.', ['associado'], true, 'high'),
             'ledger.debit' => self::event('Debito registrado', 'Financeiro', 'Debito lancado para o associado.', ['associado'], true, 'high'),
             'stock.low' => self::event('Estoque baixo', 'Estoque', 'Produto atingiu o estoque minimo.', ['comprador', 'admin'], true, 'normal'),

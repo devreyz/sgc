@@ -99,6 +99,7 @@ class AssociateProjectPortalController extends Controller
                 'Content-Disposition' => 'inline; filename="'.$filename.'"',
                 'Cache-Control' => 'no-store, private',
                 'X-Content-Type-Options' => 'nosniff',
+                'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
             ]);
         }
 
@@ -147,7 +148,15 @@ class AssociateProjectPortalController extends Controller
             'Content-Disposition' => 'inline; filename="'.$filename.'"',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
+            'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
         ]);
+    }
+
+    private function receiptDocumentPath(AssociateReceipt $receipt, SalesProject $project): string
+    {
+        $date = $receipt->issued_at ?: now();
+
+        return 'Comprovantes/'.$date->format('Y/m').'/'.Str::slug($project->title ?: 'projeto-'.$project->id);
     }
 
     private function context(Request $request): array

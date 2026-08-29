@@ -6,6 +6,8 @@ use App\Models\AssociateReceipt;
 use App\Models\TenantCloudStorageConnection;
 use App\Services\AssociateReceiptArchiveService;
 use App\Services\AssociateReceiptDriveState;
+use App\Services\TenantNotificationDispatcher;
+use App\Models\Tenant;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,7 +44,11 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
         return [60, 300, 900];
     }
 
-    public function handle(AssociateReceiptArchiveService $archive, AssociateReceiptDriveState $state): void
+    public function handle(
+        AssociateReceiptArchiveService $archive,
+        AssociateReceiptDriveState $state,
+        TenantNotificationDispatcher $notifications,
+    ): void
     {
         $receipt = AssociateReceipt::withoutGlobalScopes()->find($this->receiptId);
         if (! $receipt) {
@@ -92,6 +98,15 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
         try {
             $archive->sync($receipt);
             $state->recordSynced($receipt, $fingerprint);
+            try {
+                $this->notifySynced($receipt, $notifications);
+            } catch (Throwable $notificationError) {
+                Log::warning('Google Drive receipt was synced but its administrative notification could not be created.', [
+                    'tenant_id' => $receipt->tenant_id,
+                    'receipt_id' => $receipt->id,
+                    'error' => mb_substr($notificationError->getMessage(), 0, 300),
+                ]);
+            }
 
             // Se o comprovante mudou durante a geração, agenda somente a versão
             // atual. O lock foi liberado ao iniciar este job.
@@ -133,6 +148,29 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
                 $exception,
             );
         }
+    }
+
+    private function notifySynced(AssociateReceipt $receipt, TenantNotificationDispatcher $notifications): void
+    {
+        $tenant = Tenant::query()->find($receipt->tenant_id, ['id', 'slug']);
+        if (! $tenant) {
+            return;
+        }
+
+        $receipt->loadMissing(['associate', 'project']);
+        $notifications->dispatchToConfiguredRoles('drive.receipt_synced', (int) $tenant->id, [
+            'title' => 'Comprovante atualizado no Google Drive',
+            'body' => 'O comprovante '.$receipt->formatted_number.' de '.($receipt->associate?->display_name ?: 'associado').' foi salvo na conta Google Drive da organização.',
+            'url' => route('delivery.projects.producers', [
+                'tenant' => $tenant->slug,
+                'project' => $receipt->sales_project_id,
+                'associate' => $receipt->associate_id,
+                'name' => $receipt->associate?->display_name,
+            ], false),
+            'icon' => 'cloud-check',
+            'action_label' => 'Abrir comprovante',
+            'action_icon' => 'file-check-2',
+        ]);
     }
 
     private function safeFailureMessage(Throwable $exception): string

@@ -50,6 +50,21 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('Baixar', $viewer);
     }
 
+    public function test_android_pdf_viewer_respects_safe_area_and_exposes_complete_actions(): void
+    {
+        $viewer = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/PdfViewerActivity.java'));
+        $plugin = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/NativeDocumentPlugin.java'));
+        $zoom = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/ZoomableImageView.java'));
+
+        self::assertStringContainsString('WindowInsetsCompat.Type.systemBars()', $viewer);
+        self::assertStringContainsString('sharePdf()', $viewer);
+        self::assertStringContainsString('printPdf()', $viewer);
+        self::assertStringContainsString('EXTRA_RELATIVE_PATH', $viewer);
+        self::assertStringContainsString('safeRelativePath', $plugin);
+        self::assertStringContainsString('GestureDetector', $zoom);
+        self::assertStringContainsString('requestDisallowInterceptTouchEvent', $zoom);
+    }
+
     public function test_filament_panel_loads_native_push_registration_runtime(): void
     {
         $provider = file_get_contents(base_path('app/Providers/Filament/AdminPanelProvider.php'));
@@ -58,6 +73,16 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString("'panels::body.end'", $provider);
         self::assertStringContainsString('nativePushStoreUrl', $runtime);
         self::assertStringContainsString("@vite('resources/js/app.js')", $runtime);
+    }
+
+    public function test_filament_livewire_pdf_downloads_use_the_universal_viewer(): void
+    {
+        $runtime = file_get_contents(resource_path('js/app.js'));
+
+        self::assertStringContainsString('installLivewirePdfDownloadBridge', $runtime);
+        self::assertStringContainsString("this.href.startsWith('blob:')", $runtime);
+        self::assertStringContainsString('sgcDirectDownload', $runtime);
+        self::assertStringContainsString('window.SgcDocuments.openPdf', $runtime);
     }
 
     public function test_native_runtime_reconciles_the_current_fcm_token_after_reinstall(): void

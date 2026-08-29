@@ -259,5 +259,10 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) refr
 if (isNativeAndroid()) initializeNativePush().catch(error => window.SgcDiagnostics?.report({
     category:'push', stage:'initialization', message:error?.message || 'push_initialization_failed'
 }));
-else registration().catch(() => {});
+else {
+    // O SGC não usa mais Web Push. Navegador e PWA mantêm apenas a central
+    // interna e nunca devem exibir ou solicitar permissão de notificações.
+    document.getElementById('pushPermissionDialog')?.remove();
+    registration().catch(() => {});
+}
 refreshUnreadCount();

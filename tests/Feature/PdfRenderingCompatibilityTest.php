@@ -12,6 +12,7 @@ use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class PdfRenderingCompatibilityTest extends TestCase
@@ -68,6 +69,44 @@ class PdfRenderingCompatibilityTest extends TestCase
                 $pdf->getDomPDF()->get_canvas()->get_page_count(),
                 $view.' should fit five simple distributions on one page.',
             );
+        }
+    }
+
+    public function test_multi_page_receipt_keeps_complete_columns_after_page_break(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $distribution = $products[0]['distributions'][0];
+        $products[0]['distributions'] = collect(range(1, 34))->map(fn (int $index): array => array_merge($distribution, [
+            'customer_name' => 'Destino '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+        ]))->all();
+        $products[0]['total_quantity'] = 340;
+        $products[0]['total_gross'] = 3400;
+        $products[0]['total_admin_fee'] = 170;
+        $products[0]['total_net'] = 3230;
+        $products = [$products[0]];
+        $summary = array_merge($summary, [
+            'gross_value' => 3400,
+            'admin_fee' => 170,
+            'net_value' => 3230,
+            'deliveries_count' => 34,
+            'total_quantity' => 340,
+        ]);
+        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary') + [
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+        ];
+
+        $html = view('pdf.project-associate-receipt', $data)->render();
+        $this->assertStringNotContainsString('rowspan=', $html);
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+        $contents = $pdf->output();
+        $this->assertGreaterThan(1, $pdf->getDomPDF()->get_canvas()->get_page_count());
+
+        if ($output = env('SGC_PDF_QA_OUTPUT')) {
+            File::ensureDirectoryExists(dirname($output));
+            file_put_contents($output, $contents);
         }
     }
 

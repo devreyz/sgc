@@ -242,6 +242,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table tfoot td { padding: {{ 4 * $tableScaleRatio }}px {{ 6 * $tableScaleRatio }}px !important; }
     table.receipt-data-table .fee-col { width: 1% !important; white-space: nowrap !important; }
     table.receipt-data-table .money-col { width: 1% !important; white-space: nowrap !important; }
+    table.receipt-data-table thead { display: table-header-group; }
+    table.receipt-data-table tfoot { display: table-row-group; }
+    table.receipt-data-table tr { page-break-inside: avoid; }
 </style>
 @if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
@@ -278,8 +281,6 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         @foreach($productsSummary as $ps)
         @php
             $rowCount  = count($ps['distributions']);
-            // +1 para incluir a linha de subtotal no rowspan quando há múltiplas distribuições
-            $spanCount = $rowCount + ($rowCount > 1 ? 1 : 0);
             $groupDate = '—';
             if (!empty($ps['delivery_date'])) {
                 $dv = $ps['delivery_date'];
@@ -294,10 +295,8 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         @endphp
         @foreach($ps['distributions'] as $di => $dist)
         <tr>
-            @if($di === 0)
-            <td rowspan="{{ $spanCount }}"><strong>{{ $ps['product_name'] }}</strong></td>
-            @if($showDeliveryDate)<td rowspan="{{ $spanCount }}" style="white-space:nowrap;">{{ $groupDate }}</td>@endif
-            @endif
+            <td><strong>{{ $ps['product_name'] }}</strong></td>
+            @if($showDeliveryDate)<td style="white-space:nowrap;">{{ $groupDate }}</td>@endif
             @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="r money-col">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
@@ -312,11 +311,11 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </tr>
         @endforeach
         @if($rowCount > 1)
-        {{-- Linha de subtotal por entrega (produto+data cobertos pelo rowspan acima) --}}
+        {{-- Sem rowspan: o DomPDF pode dividir o grupo entre páginas sem deslocar colunas. --}}
         <tr>
-            @unless($hideCustomerColumn)
-                <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
-            @endunless
+            <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
+            @if($showDeliveryDate)<td style="border-top:1px dashed #9ca3af;"></td>@endif
+            @unless($hideCustomerColumn)<td style="border-top:1px dashed #9ca3af;"></td>@endunless
             <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="money-col" style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
             @if($showGross)<td class="r money-col" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif

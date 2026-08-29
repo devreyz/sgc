@@ -2153,6 +2153,7 @@
     id="producerReceipts"
     data-tenant="{{ $tenantSlug }}"
     data-project="{{ $project->id }}"
+    data-document-path="Comprovantes/{{ now()->format('Y/m') }}/{{ \Illuminate\Support\Str::slug($project->title ?: 'projeto-'.$project->id) }}"
     data-list-url="{{ route('delivery.projects.producers-data', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
     data-preferences-url="{{ route('delivery.projects.receipt-print-preferences.update', ['tenant' => $tenantSlug, 'project' => $project->id]) }}"
 >
@@ -2915,7 +2916,7 @@
         const array = new Uint8Array(bytes.length);
         for (let index = 0; index < bytes.length; index++) array[index] = bytes.charCodeAt(index);
         const pdf = new Blob([array], { type:'application/pdf' });
-        if (window.SgcDocuments) return window.SgcDocuments.openPdf(pdf, data.filename, 'Comprovante SGC');
+        if (window.SgcDocuments) return window.SgcDocuments.openPdf(pdf, data.filename, 'Comprovante SGC', { relativePath: root.dataset.documentPath });
         const url = URL.createObjectURL(pdf); const link = document.createElement('a');
         link.href = url; link.download = data.filename; link.click(); URL.revokeObjectURL(url);
     }
@@ -3092,7 +3093,7 @@
                 .then(async () => {
                     const response = await fetch(preview.dataset.previewUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
                     if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC');
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', { relativePath: root.dataset.documentPath });
                 })
                 .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { preview.disabled = false; });
@@ -3109,7 +3110,7 @@
                 .then(async () => {
                     const response = await fetch(reprint.dataset.reprintUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
                     if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC');
+                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', { relativePath: root.dataset.documentPath });
                 })
                 .catch(error => { toast(error.message, 'error'); })
                 .finally(() => { reprint.disabled = false; });

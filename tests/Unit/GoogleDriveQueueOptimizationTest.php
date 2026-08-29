@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Facades\Artisan;
+use App\Support\NotificationEventCatalog;
 use Tests\TestCase;
 
 class GoogleDriveQueueOptimizationTest extends TestCase
@@ -36,5 +37,19 @@ class GoogleDriveQueueOptimizationTest extends TestCase
 
         self::assertStringContainsString('$syncChanged = $receipt->wasRecentlyCreated || $receipt->wasChanged([', $observer);
         self::assertStringContainsString("'delivery_ids', 'total_gross', 'total_fees', 'total_net'", $observer);
+    }
+
+    #[Test]
+    public function successful_drive_sync_notifies_administrators_and_treasurers_by_default(): void
+    {
+        $event = NotificationEventCatalog::get('drive.receipt_synced');
+
+        self::assertNotNull($event);
+        self::assertSame(['admin', 'tesoureiro'], $event['roles']);
+        self::assertTrue($event['pushDefault']);
+        self::assertStringContainsString(
+            "dispatchToConfiguredRoles('drive.receipt_synced'",
+            file_get_contents(base_path('app/Jobs/SyncAssociateReceiptToDrive.php')),
+        );
     }
 }
