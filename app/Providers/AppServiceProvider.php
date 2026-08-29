@@ -57,8 +57,13 @@ use App\Services\GoogleApiIdTokenVerifier;
 use App\Services\TenantIdentityService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Vite;
+use Illuminate\Queue\Events\JobExceptionOccurred;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -89,6 +94,24 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Queue::before(function (JobProcessing $event): void {
+            if ($event->job->getQueue() === 'notifications') {
+                Cache::put('system:notifications:last_job_started', now()->toIso8601String(), now()->addDays(2));
+            }
+        });
+        Queue::after(function (JobProcessed $event): void {
+            if ($event->job->getQueue() === 'notifications') {
+                Cache::put('system:notifications:last_job_processed', now()->toIso8601String(), now()->addDays(2));
+                Cache::add('system:notifications:processed_total', 0, now()->addDays(30));
+                Cache::increment('system:notifications:processed_total');
+            }
+        });
+        Queue::exceptionOccurred(function (JobExceptionOccurred $event): void {
+            if ($event->job->getQueue() === 'notifications') {
+                Cache::put('system:notifications:last_job_error', now()->toIso8601String(), now()->addDays(2));
+            }
+        });
+
         // Em producao, nunca aceite um public/hot copiado por engano do
         // ambiente local. Os assets devem vir exclusivamente do manifest.
         if (! app()->environment('local')) {

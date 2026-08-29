@@ -18,7 +18,6 @@ class FcmChannel
             $notifiable->id,
             $notification->tenantId(),
             (string) $notification->id,
-            $notification->payload(),
         )->afterCommit();
     }
 }

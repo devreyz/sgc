@@ -22,12 +22,32 @@ class CronStatus extends Command
             return self::SUCCESS;
         }
 
-        $waiting = DB::table('jobs')->where('queue', 'notifications')->count();
+        $jobs = DB::table('jobs')->where('queue', 'notifications');
+        $now = now()->timestamp;
+        $retryAfter = (int) config('queue.connections.database.retry_after', 180);
+        $total = (clone $jobs)->count();
+        $waiting = (clone $jobs)->whereNull('reserved_at')->where('available_at', '<=', $now)->count();
+        $scheduled = (clone $jobs)->whereNull('reserved_at')->where('available_at', '>', $now)->count();
+        $processing = (clone $jobs)->whereNotNull('reserved_at')->where('reserved_at', '>', $now - $retryAfter)->count();
+        $stale = (clone $jobs)->whereNotNull('reserved_at')->where('reserved_at', '<=', $now - $retryAfter)->count();
         $failed = Schema::hasTable('failed_jobs')
             ? DB::table('failed_jobs')->where('queue', 'notifications')->count()
             : 0;
 
-        $this->line("Fila notifications: {$waiting} aguardando; {$failed} falha(s).");
+        $this->newLine();
+        $this->info('Notificações');
+        $this->table(['Item', 'Valor'], [
+            ['Total', $total],
+            ['Disponíveis', $waiting],
+            ['Aguardando nova tentativa', $scheduled],
+            ['Em processamento', $processing],
+            ['Atrasadas/recuperáveis', $stale],
+            ['Falhas definitivas', $failed],
+            ['Última verificação do worker', Cache::get('system:notifications:last_worker_check', 'nunca')],
+            ['Última tarefa iniciada', Cache::get('system:notifications:last_job_started', 'nunca')],
+            ['Última tarefa concluída', Cache::get('system:notifications:last_job_processed', 'nunca')],
+            ['Total processado desde o último reset do cache', Cache::get('system:notifications:processed_total', 0)],
+        ]);
 
         return self::SUCCESS;
     }

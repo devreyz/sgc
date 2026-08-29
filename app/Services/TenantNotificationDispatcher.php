@@ -68,14 +68,20 @@ class TenantNotificationDispatcher
             $notificationId = (string) Str::uuid();
             // Todo push tambem fica registrado na central para manter historico e leitura.
             if ($databaseEnabled || $pushEnabled) {
-                $pushPayload = $payload;
+                $centralPayload = $payload + [
+                    'delivery_channels' => [
+                        'in_app' => true,
+                        'android_push' => $pushEnabled,
+                    ],
+                ];
+                $pushPayload = $centralPayload;
                 if ($tenantSlug) {
                     $pushPayload['url'] = route('notifications.open', [
                         'tenant' => $tenantSlug,
                         'notification' => $notificationId,
                     ], false);
                 }
-                $notification = new TenantEventNotification($payload, $pushEnabled, $pushPayload);
+                $notification = new TenantEventNotification($centralPayload, $pushEnabled, $pushPayload);
                 $notification->id = $notificationId;
                 $recipient->notify($notification);
             }

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PushDevice;
+use App\Models\Tenant;
 use App\Models\TenantUser;
 use App\Models\User;
 use App\Services\FcmHttpV1Client;
@@ -11,6 +12,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
 
@@ -25,7 +28,8 @@ class SendFcmNotification implements ShouldQueue
         public readonly int $userId,
         public readonly int $tenantId,
         public readonly string $notificationId,
-        public readonly array $payload,
+        /** @deprecated Mantido apenas para desserializar tarefas criadas por versões anteriores. */
+        public readonly array $payload = [],
     ) {
         $this->onQueue('notifications');
     }
@@ -56,12 +60,34 @@ class SendFcmNotification implements ShouldQueue
             return;
         }
 
+        $notification = DatabaseNotification::query()
+            ->whereKey($this->notificationId)
+            ->where('notifiable_type', (new User())->getMorphClass())
+            ->where('notifiable_id', $this->userId)
+            ->first();
+
+        if (! $notification || (int) data_get($notification->data, 'tenant_id') !== $this->tenantId) {
+            Log::warning('FCM delivery skipped because its central notification was not found.', [
+                'user_id' => $this->userId,
+                'tenant_id' => $this->tenantId,
+                'notification_id' => $this->notificationId,
+            ]);
+
+            return;
+        }
+
+        $centralPayload = (array) $notification->data;
+        $tenantSlug = Tenant::query()->whereKey($this->tenantId)->value('slug');
+        $openRoute = $tenantSlug
+            ? route('notifications.open', ['tenant' => $tenantSlug, 'notification' => $notification->id], false)
+            : '/';
+
         PushDevice::query()
             ->where('user_id', $this->userId)
             ->where('platform', 'android')
             ->where('notifications_enabled', true)
             ->whereNull('revoked_at')
-            ->eachById(function (PushDevice $device) use ($fcm): void {
+            ->eachById(function (PushDevice $device) use ($fcm, $centralPayload, $openRoute): void {
                 if (DB::table('push_delivery_receipts')
                     ->where('push_device_id', $device->id)
                     ->where('notification_id', $this->notificationId)
@@ -70,8 +96,19 @@ class SendFcmNotification implements ShouldQueue
                     return;
                 }
 
+                DB::table('push_delivery_receipts')->updateOrInsert(
+                    ['push_device_id' => $device->id, 'notification_id' => $this->notificationId],
+                    [
+                        'status' => 'pending',
+                        'response_code' => null,
+                        'delivered_at' => null,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ],
+                );
+
                 try {
-                    $response = $fcm->send($device->token, $this->message());
+                    $response = $fcm->send($device->token, $this->message($centralPayload, $openRoute));
                 } catch (Throwable $exception) {
                     Log::warning('FCM delivery attempt could not contact Firebase.', [
                         'push_device_id' => $device->id,
@@ -157,21 +194,21 @@ class SendFcmNotification implements ShouldQueue
         ]);
     }
 
-    private function message(): array
+    private function message(array $payload, string $openRoute): array
     {
-        $eventKey = (string) ($this->payload['event_key'] ?? 'manual.message');
-        $priority = (string) ($this->payload['priority'] ?? 'normal');
+        $eventKey = (string) ($payload['event_key'] ?? 'manual.message');
+        $priority = (string) ($payload['priority'] ?? 'normal');
 
         return [
             'notification' => [
-                'title' => NotificationEventCatalog::safePushTitle($eventKey),
-                'body' => NotificationEventCatalog::safePushBody($eventKey),
+                'title' => Str::limit(strip_tags((string) ($payload['title'] ?? 'Nova notificação')), 120, ''),
+                'body' => Str::limit(strip_tags((string) ($payload['body'] ?? '')), 320, ''),
             ],
             'data' => [
                 'notification_id' => $this->notificationId,
                 'tenant_id' => (string) $this->tenantId,
                 'event_key' => $eventKey,
-                'route' => (string) ($this->payload['url'] ?? '/'),
+                'route' => $openRoute,
             ],
             'android' => [
                 'priority' => in_array($priority, ['high', 'critical'], true) ? 'HIGH' : 'NORMAL',

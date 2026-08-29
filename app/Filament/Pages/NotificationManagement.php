@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Jobs\SendFcmNotification;
 use App\Models\NotificationEventPreference;
 use App\Models\PushDevice;
 use App\Models\TenantUser;
@@ -18,8 +19,10 @@ use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Notifications\DatabaseNotification;
 
 class NotificationManagement extends Page implements HasForms
 {
@@ -347,6 +350,8 @@ class NotificationManagement extends Page implements HasForms
         $pending = collect(app(QueueTaskInspector::class)->pendingForTenant($tenantId))
             ->where('queue', 'notifications')->count();
         $failures = 0;
+        $sent = 0;
+        $lastDeliveryAt = null;
 
         if (Schema::hasTable('push_delivery_receipts')) {
             $failures = DB::table('push_delivery_receipts')
@@ -355,7 +360,17 @@ class NotificationManagement extends Page implements HasForms
                 ->whereIn('push_delivery_receipts.status', ['failed', 'invalid_token'])
                 ->where('push_delivery_receipts.created_at', '>=', now()->subDay())
                 ->count();
+            $sentQuery = DB::table('push_delivery_receipts')
+                ->join('push_devices', 'push_devices.id', '=', 'push_delivery_receipts.push_device_id')
+                ->whereIn('push_devices.user_id', $userIds)
+                ->where('push_delivery_receipts.status', 'sent');
+            $sent = (clone $sentQuery)->where('push_delivery_receipts.created_at', '>=', now()->subDay())->count();
+            $lastDeliveryAt = (clone $sentQuery)->max('push_delivery_receipts.delivered_at');
         }
+
+        $lastWorkerCheck = Cache::get('system:notifications:last_worker_check');
+        $healthy = $this->pushConfigured
+            && ($pending === 0 || ($lastWorkerCheck && now()->diffInMinutes($lastWorkerCheck) <= 3));
 
         return [
             'configured' => $this->pushConfigured,
@@ -364,8 +379,88 @@ class NotificationManagement extends Page implements HasForms
             'revoked' => (clone $devices)->whereNotNull('revoked_at')->count(),
             'pending' => $pending,
             'failures_24h' => $failures,
+            'sent_24h' => $sent,
+            'last_delivery_at' => $lastDeliveryAt,
+            'last_worker_check' => $lastWorkerCheck,
+            'healthy' => $healthy,
             'last_bound_at' => (clone $devices)->max('bound_at'),
         ];
+    }
+
+    public function getProblemDeliveriesProperty(): array
+    {
+        $tenantId = (int) session('tenant_id');
+        if (! Schema::hasTable('push_delivery_receipts')) {
+            return [];
+        }
+
+        return DB::table('push_delivery_receipts')
+            ->join('push_devices', 'push_devices.id', '=', 'push_delivery_receipts.push_device_id')
+            ->join('notifications', 'notifications.id', '=', 'push_delivery_receipts.notification_id')
+            ->join('users', 'users.id', '=', 'push_devices.user_id')
+            ->where('notifications.data->tenant_id', $tenantId)
+            ->whereIn('push_delivery_receipts.status', ['failed', 'invalid_token'])
+            ->select([
+                'notifications.id',
+                'notifications.data',
+                'users.name as user_name',
+                DB::raw('COUNT(*) as failed_devices'),
+                DB::raw('MAX(push_delivery_receipts.updated_at) as last_attempt_at'),
+            ])
+            ->groupBy('notifications.id', 'notifications.data', 'users.name')
+            ->orderByDesc('last_attempt_at')
+            ->limit(25)
+            ->get()
+            ->map(function (object $row): array {
+                $data = json_decode((string) $row->data, true) ?: [];
+
+                return [
+                    'id' => (string) $row->id,
+                    'user' => (string) ($row->user_name ?: 'Usuário'),
+                    'title' => (string) ($data['title'] ?? 'Notificação'),
+                    'failed_devices' => (int) $row->failed_devices,
+                    'last_attempt_at' => $row->last_attempt_at,
+                ];
+            })->all();
+    }
+
+    public function retryPushDelivery(string $notificationId): void
+    {
+        abort_unless(static::canAccess(), 403);
+        $tenantId = (int) session('tenant_id');
+        /** @var DatabaseNotification|null $notification */
+        $notification = DatabaseNotification::query()
+            ->whereKey($notificationId)
+            ->where('notifiable_type', (new \App\Models\User())->getMorphClass())
+            ->where('data->tenant_id', $tenantId)
+            ->first();
+
+        abort_unless($notification, 404);
+        $userId = (int) $notification->notifiable_id;
+        abort_unless(TenantUser::query()->forTenant($tenantId)->active()->where('user_id', $userId)->exists(), 422);
+
+        $hasDevice = PushDevice::query()
+            ->where('user_id', $userId)
+            ->where('platform', 'android')
+            ->where('notifications_enabled', true)
+            ->whereNull('revoked_at')
+            ->exists();
+
+        if (! $hasDevice) {
+            Notification::make()->warning()->title('Nenhum dispositivo ativo para tentar novamente')->send();
+
+            return;
+        }
+
+        SendFcmNotification::dispatch($userId, $tenantId, (string) $notification->id)->afterCommit();
+
+        activity('notifications')->causedBy(Filament::auth()->user())->withProperties([
+            'tenant_id' => $tenantId,
+            'notification_id' => (string) $notification->id,
+            'target_user_id' => $userId,
+        ])->log('Nova tentativa de entrega Android solicitada');
+
+        Notification::make()->success()->title('Nova tentativa agendada')->send();
     }
 
     private function preferenceSchema(): array

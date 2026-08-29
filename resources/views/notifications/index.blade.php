@@ -9,6 +9,7 @@
         ->getCollection()
         ->whereNull('read_at')
         ->count();
+    $pageProblemCount = collect($deliveryStatuses ?? [])->whereIn('status', ['failed', 'no_device'])->count();
 @endphp
 
 @section('content')
@@ -517,6 +518,27 @@
         text-transform: uppercase;
     }
 
+    .notification-delivery {
+        padding: .16rem .34rem;
+        border-radius: 999px;
+        background: var(--notify-muted);
+    }
+
+    .notification-delivery.is-delivered { color: var(--notify-green-dark); }
+    .notification-delivery.is-failed,
+    .notification-delivery.is-no_device { color: var(--notify-danger); }
+    .notification-delivery.is-pending { color: var(--notify-warning); }
+
+    .notification-retry {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 800;
+        text-decoration: underline;
+    }
+
     .notification-open {
         display: inline-flex;
         min-height: 34px;
@@ -719,6 +741,19 @@
                 </span>
             </button>
 
+            @if($canManageDeliveries)
+                <button
+                    type="button"
+                    class="notification-filter"
+                    data-notification-filter="problem"
+                    aria-pressed="false"
+                >
+                    <i data-lucide="triangle-alert"></i>
+                    Com problema
+                    <span class="notification-filter-count">{{ $pageProblemCount }}</span>
+                </button>
+            @endif
+
             <button
                 type="button"
                 class="notification-filter"
@@ -776,6 +811,16 @@
             @forelse($notifications as $notification)
                 @php
                     $data = $notification->data ?? [];
+                    $delivery = $deliveryStatuses[$notification->id] ?? ['status' => 'not_applicable', 'sent' => 0, 'devices' => 0];
+                    $deliveryLabel = match ($delivery['status']) {
+                        'delivered' => $delivery['devices'] > 1
+                            ? "Entregue em {$delivery['sent']} de {$delivery['devices']} aparelhos"
+                            : 'Enviada ao celular',
+                        'pending' => 'Aguardando envio ao celular',
+                        'failed' => 'Falha no envio ao celular',
+                        'no_device' => 'Sem dispositivo disponível',
+                        default => null,
+                    };
 
                     $rawType = strtolower((string) (
                         $data['type']
@@ -841,6 +886,7 @@
                     "
                     data-notification-id="{{ $notification->id }}"
                     data-notification-state="{{ $notification->read_at ? 'read' : 'unread' }}"
+                    data-delivery-state="{{ $delivery['status'] }}"
                 >
                     <span class="notification-icon" aria-hidden="true">
                         <i data-lucide="{{ $data['display_icon'] ?? 'bell' }}"></i>
@@ -864,6 +910,20 @@
                             @if($priority !== 'normal')
                                 <span class="notification-priority">
                                     {{ $priorityLabel }}
+                                </span>
+                            @endif
+
+                            @if($deliveryLabel)
+                                <span class="notification-delivery is-{{ $delivery['status'] }}">
+                                    <i data-lucide="{{ $delivery['status'] === 'delivered' ? 'smartphone-check' : ($delivery['status'] === 'pending' ? 'clock-3' : 'triangle-alert') }}"></i>
+                                    {{ $deliveryLabel }}
+                                    @if($canManageDeliveries && in_array($delivery['status'], ['failed', 'no_device'], true))
+                                        <button
+                                            type="button"
+                                            class="notification-retry"
+                                            data-notification-retry="{{ route('notifications.retry', ['tenant' => $tenant, 'notification' => $notification->id]) }}"
+                                        >Tentar novamente</button>
+                                    @endif
                                 </span>
                             @endif
                         </div>
@@ -975,7 +1035,8 @@
             .forEach(item => {
                 const show =
                     filter === 'all'
-                    || item.dataset.notificationState === 'unread';
+                    || (filter === 'unread' && item.dataset.notificationState === 'unread')
+                    || (filter === 'problem' && ['failed', 'no_device'].includes(item.dataset.deliveryState));
 
                 item.hidden = !show;
 
@@ -1073,6 +1134,33 @@
             }
         }
     );
+
+    document.querySelectorAll('[data-notification-retry]').forEach(button => {
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            try {
+                const response = await fetch(button.dataset.notificationRetry, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                const body = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(body.message || 'Não foi possível tentar novamente.');
+                }
+                toast(body.message || 'Nova tentativa agendada.');
+                button.closest('.notification-delivery')?.classList.replace('is-failed', 'is-pending');
+                button.remove();
+            } catch (error) {
+                button.disabled = false;
+                toast(error.message, 'error');
+            }
+        });
+    });
 
     updateUnreadCount();
 })();

@@ -497,12 +497,34 @@ class NotificationSecurityTest extends TestCase
             'installation_hash' => str_repeat('d', 64), 'token_hash' => str_repeat('e', 64),
             'token' => str_repeat('valid-token-', 8), 'session_hash' => str_repeat('f', 64),
         ]);
+        DB::table('notifications')->insert([
+            'id' => '8813e6d2-eb54-4634-8165-a32f951cf675',
+            'type' => \App\Notifications\TenantEventNotification::class,
+            'notifiable_type' => $user->getMorphClass(),
+            'notifiable_id' => $user->id,
+            'data' => json_encode([
+                'tenant_id' => 1,
+                'event_key' => 'ledger.credit',
+                'priority' => 'high',
+                'title' => 'Crédito confirmado',
+                'body' => 'O lançamento está disponível na Central.',
+                'url' => '/tenant-a/notifications',
+                'delivery_channels' => ['in_app' => true, 'android_push' => true],
+            ]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $response = Mockery::mock(Response::class);
         $response->shouldReceive('successful')->once()->andReturnTrue();
         $response->shouldReceive('status')->once()->andReturn(200);
         $client = Mockery::mock(FcmHttpV1Client::class);
         $client->shouldReceive('configured')->twice()->andReturnTrue();
-        $client->shouldReceive('send')->once()->andReturn($response);
+        $client->shouldReceive('send')->once()->withArgs(function (string $token, array $message): bool {
+            return $token !== ''
+                && data_get($message, 'notification.title') === 'Crédito confirmado'
+                && data_get($message, 'notification.body') === 'O lançamento está disponível na Central.'
+                && data_get($message, 'data.notification_id') === '8813e6d2-eb54-4634-8165-a32f951cf675';
+        })->andReturn($response);
         $job = new SendFcmNotification($user->id, 1, '8813e6d2-eb54-4634-8165-a32f951cf675', [
             'event_key' => 'ledger.credit', 'priority' => 'high', 'url' => '/tenant-a/notifications/id/open',
         ]);
@@ -514,5 +536,76 @@ class NotificationSecurityTest extends TestCase
             'notification_id' => $job->notificationId, 'status' => 'sent', 'response_code' => 200,
         ]);
         $this->assertDatabaseCount('push_delivery_receipts', 1);
+    }
+
+    public function test_fcm_failure_keeps_the_same_central_notification_and_records_delivery_failure(): void
+    {
+        DB::table('tenants')->insert(['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'created_at' => now(), 'updated_at' => now()]);
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        DB::table('tenant_user')->insert([
+            'tenant_id' => 1, 'user_id' => $user->id, 'roles' => '[]', 'status' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        PushDevice::query()->create([
+            'user_id' => $user->id, 'platform' => 'android',
+            'installation_hash' => str_repeat('1', 64), 'token_hash' => str_repeat('2', 64),
+            'token' => str_repeat('rejected-token-', 8), 'session_hash' => str_repeat('3', 64),
+        ]);
+        $notificationId = '9813e6d2-eb54-4634-8165-a32f951cf675';
+        DB::table('notifications')->insert([
+            'id' => $notificationId,
+            'type' => \App\Notifications\TenantEventNotification::class,
+            'notifiable_type' => $user->getMorphClass(),
+            'notifiable_id' => $user->id,
+            'data' => json_encode([
+                'tenant_id' => 1, 'event_key' => 'manual.message', 'priority' => 'normal',
+                'title' => 'Aviso persistente', 'body' => 'Este aviso não pode desaparecer.', 'url' => '/',
+                'delivery_channels' => ['in_app' => true, 'android_push' => true],
+            ]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $response = Mockery::mock(Response::class);
+        $response->shouldReceive('successful')->once()->andReturnFalse();
+        $response->shouldReceive('json')->once()->andReturn(['error' => ['status' => 'INVALID_ARGUMENT']]);
+        $response->shouldReceive('status')->once()->andReturn(400);
+        $response->shouldReceive('tooManyRequests')->once()->andReturnFalse();
+        $client = Mockery::mock(FcmHttpV1Client::class);
+        $client->shouldReceive('configured')->once()->andReturnTrue();
+        $client->shouldReceive('send')->once()->andReturn($response);
+
+        (new SendFcmNotification($user->id, 1, $notificationId))->handle($client);
+
+        $this->assertDatabaseHas('notifications', ['id' => $notificationId]);
+        $this->assertDatabaseCount('notifications', 1);
+        $this->assertDatabaseHas('push_delivery_receipts', [
+            'notification_id' => $notificationId,
+            'status' => 'failed',
+            'response_code' => 400,
+        ]);
+    }
+
+    public function test_disabling_android_push_does_not_remove_the_central_notification(): void
+    {
+        Queue::fake();
+        DB::table('tenants')->insert(['id' => 1, 'name' => 'Tenant A', 'slug' => 'tenant-a', 'created_at' => now(), 'updated_at' => now()]);
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'A', 'email' => 'a@example.test', 'status' => true]));
+        DB::table('tenant_user')->insert([
+            'tenant_id' => 1, 'user_id' => $user->id, 'roles' => '[]', 'status' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('notification_event_preferences')->insert([
+            'tenant_id' => 1, 'event_key' => 'manual.message',
+            'database_enabled' => true, 'push_enabled' => false,
+            'priority' => 'normal', 'recipient_roles' => '[]',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        app(TenantNotificationDispatcher::class)->dispatch('manual.message', 1, [$user], [
+            'title' => 'Somente Central', 'body' => 'Persistente sem push.', 'url' => '/',
+        ]);
+
+        $this->assertCount(1, $user->fresh()->notifications);
+        Queue::assertNotPushed(SendFcmNotification::class);
     }
 }

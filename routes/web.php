@@ -208,6 +208,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/unread-count', [NotificationCenterController::class, 'unreadCount'])->name('unread-count');
         Route::post('/read-all', [NotificationCenterController::class, 'markAllRead'])->name('read-all');
         Route::post('/{notification}/read', [NotificationCenterController::class, 'markRead'])->name('read');
+        Route::post('/{notification}/retry', [NotificationCenterController::class, 'retryDelivery'])
+            ->middleware('throttle:10,1')->name('retry');
         Route::get('/{notification}/open', [NotificationCenterController::class, 'open'])->name('open');
     });
 

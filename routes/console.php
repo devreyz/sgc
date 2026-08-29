@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('queue:work', [
+$notificationWorker = Schedule::command('queue:work', [
     'database',
     '--queue' => 'notifications',
     '--stop-when-empty' => true,
@@ -18,6 +18,9 @@ Schedule::command('queue:work', [
     '--timeout' => 45,
     '--memory' => 128,
 ])->everyMinute()->withoutOverlapping(3);
+$notificationWorker->before(function (): void {
+    Cache::put('system:notifications:last_worker_check', now()->toIso8601String(), now()->addDays(2));
+});
 
 Schedule::call(function (): void {
     Cache::put('system:cron:last_heartbeat', now()->toIso8601String(), now()->addDays(2));
