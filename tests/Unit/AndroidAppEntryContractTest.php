@@ -54,22 +54,22 @@ class AndroidAppEntryContractTest extends TestCase
     {
         $viewer = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/PdfViewerActivity.java'));
         $plugin = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/NativeDocumentPlugin.java'));
-        $zoom = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/ZoomableImageView.java'));
+        $zoom = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/PdfScrollView.java'));
 
         self::assertStringContainsString('WindowInsetsCompat.Type.systemBars()', $viewer);
         self::assertStringContainsString('sharePdf()', $viewer);
         self::assertStringContainsString('printPdf()', $viewer);
         self::assertStringContainsString('EXTRA_RELATIVE_PATH', $viewer);
         self::assertStringContainsString('safeRelativePath', $plugin);
-        self::assertStringContainsString('GestureDetector', $zoom);
-        self::assertStringContainsString('setScrollOwnership', $zoom);
+        self::assertStringContainsString('ScaleGestureDetector', $zoom);
+        self::assertStringContainsString('dispatchTouchEvent', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $viewer);
         self::assertStringContainsString('Disponível no Google Drive', $viewer);
         self::assertStringContainsString('ic_pdf_download', $viewer);
-        self::assertStringContainsString('ownsGesture', $zoom);
+        self::assertStringContainsString('event.getPointerCount() > 1', $zoom);
         self::assertStringContainsString('EXTRA_ORIGIN', $plugin);
         self::assertStringContainsString('PdfScrollView', $viewer);
-        self::assertStringContainsString('setChildOwnsGesture', $zoom);
+        self::assertStringContainsString('setZoomListener', $viewer);
     }
 
     public function test_filament_panel_loads_native_push_registration_runtime(): void
