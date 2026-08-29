@@ -54,13 +54,14 @@ function ensureNavigationLoading() {
 }
 
 function showNavigationLoading(message = 'Carregando', detail = 'Preparando a próxima tela') {
+    if (isNativeAndroid()) {
+        window.Capacitor?.Plugins?.NativeNavigation?.show?.({ message }).catch?.(() => {});
+        return;
+    }
     const overlay = ensureNavigationLoading();
     overlay.querySelector('strong').textContent = message;
     overlay.querySelector('small').textContent = detail;
     overlay.hidden = false;
-    if (isNativeAndroid()) {
-        window.Capacitor?.Plugins?.NativeNavigation?.show?.({ message }).catch?.(() => {});
-    }
 }
 
 function hideNavigationLoading() {
@@ -275,6 +276,10 @@ document.addEventListener('submit', (event) => {
 }, true);
 
 window.addEventListener('pageshow', hideNavigationLoading);
+window.addEventListener('focus', hideNavigationLoading);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') hideNavigationLoading();
+});
 window.addEventListener('offline', hideNavigationLoading);
 
 // O Livewire/Filament transforma respostas de download em um link blob:
@@ -292,7 +297,8 @@ function installLivewirePdfDownloadBridge() {
     HTMLAnchorElement.prototype.click = function sgcPdfAwareClick() {
         const fileName = String(this.download || '');
         const isPdfBlob = this.href.startsWith('blob:') && /\.pdf$/i.test(fileName);
-        if (!isPdfBlob || this.dataset.sgcDirectDownload === 'true') {
+        const usesAppViewer = isNativeAndroid() || isInstalledPwa();
+        if (!usesAppViewer || !isPdfBlob || this.dataset.sgcDirectDownload === 'true') {
             return originalClick.call(this);
         }
 
@@ -350,6 +356,9 @@ document.addEventListener('click', async (event) => {
         || /\/(?:pdf|print|preview|reprint)(?:[/?]|$)/i.test(href.pathname)
         || (/\/download(?:[/?]|$)/i.test(href.pathname) && /pdf|comprovante|recibo|imprimir|visualizar/i.test(hint));
     if (href.origin !== window.location.origin || !looksLikePdf) return;
+    // No navegador tradicional preserva a resposta inline e o nome fornecido
+    // pelo próprio servidor. Android e PWA usam o visualizador unificado.
+    if (!isNativeAndroid() && !isInstalledPwa()) return;
 
     event.preventDefault();
     link.dataset.sgcPdfHandled = 'true';

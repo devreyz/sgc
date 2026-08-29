@@ -3095,16 +3095,20 @@
     $('pr-receipts').addEventListener('click', event => {
         const preview = event.target.closest('[data-preview-url]');
         if (preview) {
+            if (window.SgcPlatform?.kind === 'web') {
+                window.open(preview.dataset.previewUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
             preview.disabled = true;
             window.SgcNavigation?.show('Abrindo documento', 'Buscando o comprovante');
             savePrintPreferences(false)
                 .then(async () => {
-                    const response = await fetch(preview.dataset.previewUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
-                    if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
-                        relativePath: root.dataset.documentPath,
-                        origin: response.headers.get('X-SGC-Document-Origin') || '',
-                        documentTitle: response.headers.get('X-SGC-Document-Title') || '',
+                    const documentPdf = await window.SgcDocuments.fetchPdf(preview.dataset.previewUrl, `Comprovante · ${root.dataset.projectTitle}`);
+                    if (!documentPdf) throw new Error('Não foi possível abrir o comprovante.');
+                    await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, {
+                        relativePath: documentPdf.relativePath || root.dataset.documentPath,
+                        origin: documentPdf.origin,
+                        documentTitle: documentPdf.title,
                     });
                 })
                 .catch(error => { window.SgcNavigation?.hide(); toast(error.message, 'error'); })
@@ -3117,16 +3121,20 @@
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
+            if (window.SgcPlatform?.kind === 'web') {
+                window.open(reprint.dataset.reprintUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
             reprint.disabled = true;
             window.SgcNavigation?.show('Abrindo documento', 'Preparando a segunda via');
             savePrintPreferences(false)
                 .then(async () => {
-                    const response = await fetch(reprint.dataset.reprintUrl, {headers:{Accept:'application/pdf','X-Requested-With':'XMLHttpRequest'}});
-                    if (!response.ok) throw new Error('Não foi possível abrir o comprovante.');
-                    await window.SgcDocuments.openPdf(await response.blob(), 'comprovante-sgc.pdf', 'Comprovante SGC', {
-                        relativePath: root.dataset.documentPath,
-                        origin: response.headers.get('X-SGC-Document-Origin') || '',
-                        documentTitle: response.headers.get('X-SGC-Document-Title') || '',
+                    const documentPdf = await window.SgcDocuments.fetchPdf(reprint.dataset.reprintUrl, `Comprovante · ${root.dataset.projectTitle}`);
+                    if (!documentPdf) throw new Error('Não foi possível abrir o comprovante.');
+                    await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, {
+                        relativePath: documentPdf.relativePath || root.dataset.documentPath,
+                        origin: documentPdf.origin,
+                        documentTitle: documentPdf.title,
                     });
                 })
                 .catch(error => { window.SgcNavigation?.hide(); toast(error.message, 'error'); })

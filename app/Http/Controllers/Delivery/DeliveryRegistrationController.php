@@ -23,6 +23,7 @@ use App\Models\ProjectDemand;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateProjectLimitService;
+use App\Services\AssociateReceiptDriveState;
 use App\Services\AssociateReceiptService;
 use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryParentRecoveryService;
@@ -33,6 +34,7 @@ use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
+use App\Services\TenantGoogleDriveService;
 use App\Support\PortalNavigation;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -4431,6 +4433,13 @@ class DeliveryRegistrationController extends Controller
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant = $this->currentTenant();
+        $safeName = Str::slug($associate->display_name ?? 'associado');
+        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
+        $filename = "comprovante-{$receiptLabel}-{$safeName}.pdf";
+
+        if ($archivedResponse = $this->currentReceiptFromDrive($request, $receipt, $project, $filename)) {
+            return $archivedResponse;
+        }
 
         // Reimpressao deve reproduzir somente as distribuicoes vinculadas a este comprovante.
         $storedIds = collect($receipt->delivery_ids ?? [])
@@ -4490,21 +4499,69 @@ class DeliveryRegistrationController extends Controller
             (int) $tenant->id,
         ));
 
-        $safeName = Str::slug($associate->display_name ?? 'associado');
-        $receiptLabel = str_replace('/', '-', $receipt->formatted_number);
-
-        $filename = "comprovante-{$receiptLabel}-{$safeName}.pdf";
         if ($request->boolean('preview')) {
             return response($pdf->output(), 200, [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="'.$filename.'"',
                 'Cache-Control' => 'no-store, private',
+                'X-Content-Type-Options' => 'nosniff',
+                'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
+                'X-SGC-Document-Origin' => 'generated',
+                'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
             ]);
         }
 
         return response()->streamDownload(function () use ($pdf) {
             echo $pdf->output();
-        }, $filename, ['Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, private']);
+        }, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
+            'X-SGC-Document-Origin' => 'generated',
+            'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
+        ]);
+    }
+
+    private function currentReceiptFromDrive(
+        Request $request,
+        AssociateReceipt $receipt,
+        SalesProject $project,
+        string $filename,
+    ): ?\Illuminate\Http\Response {
+        $driveState = app(AssociateReceiptDriveState::class);
+        $fingerprint = $driveState->fingerprint($receipt);
+        if (! $driveState->alreadyHandled($receipt, $fingerprint)) {
+            return null;
+        }
+
+        $document = $driveState->document($receipt);
+        $contents = $document ? app(TenantGoogleDriveService::class)->contents($document) : null;
+        if (! is_string($contents) || $contents === '') {
+            return null;
+        }
+
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('preview') ? 'inline' : 'attachment').'; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, private',
+            'X-Content-Type-Options' => 'nosniff',
+            'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
+            'X-SGC-Document-Origin' => 'google_drive',
+            'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
+        ]);
+    }
+
+    private function receiptDocumentPath(AssociateReceipt $receipt, SalesProject $project): string
+    {
+        $date = $receipt->issued_at ?: now();
+
+        return 'Comprovantes/'.$date->format('Y/m').'/'.Str::slug($project->title ?: 'projeto-'.$project->id);
+    }
+
+    private function receiptDocumentTitle(AssociateReceipt $receipt, SalesProject $project): string
+    {
+        return 'Comprovante Nº '.$receipt->formatted_number.' · '.($project->title ?: 'Projeto');
     }
 
     /**

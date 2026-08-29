@@ -245,6 +245,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table thead { display: table-header-group; }
     table.receipt-data-table tfoot { display: table-row-group; }
     table.receipt-data-table tr { page-break-inside: avoid; }
+    table.receipt-data-table tbody.receipt-product-group { page-break-inside: avoid; }
 </style>
 @if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
@@ -277,10 +278,13 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @if($showNet)<th class="r" style="width:13%;">Vlr. Líquido</th>@endif
         </tr>
     </thead>
-    <tbody>
-        @foreach($productsSummary as $ps)
+    @foreach($productsSummary as $ps)
         @php
             $rowCount  = count($ps['distributions']);
+            // Mantém o agrupamento visual original por rowspan, mas limita o
+            // tamanho de cada bloco para o DomPDF nunca cortar um rowspan no
+            // meio da página. Grupos longos continuam no próximo bloco.
+            $distributionChunks = collect($ps['distributions'])->chunk(6)->values();
             $groupDate = '—';
             if (!empty($ps['delivery_date'])) {
                 $dv = $ps['delivery_date'];
@@ -293,10 +297,21 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                 }
             }
         @endphp
-        @foreach($ps['distributions'] as $di => $dist)
+        @foreach($distributionChunks as $chunkIndex => $distributionChunk)
+        @php
+            $isFinalChunk = $chunkIndex === $distributionChunks->count() - 1;
+            $spanCount = $distributionChunk->count() + ($isFinalChunk && $rowCount > 1 ? 1 : 0);
+        @endphp
+        <tbody class="receipt-product-group">
+        @foreach($distributionChunk as $di => $dist)
         <tr>
-            <td><strong>{{ $ps['product_name'] }}</strong></td>
-            @if($showDeliveryDate)<td style="white-space:nowrap;">{{ $groupDate }}</td>@endif
+            @if($loop->first)
+            <td rowspan="{{ $spanCount }}">
+                <strong>{{ $ps['product_name'] }}</strong>
+                @if($chunkIndex > 0)<br><small style="color:#6b7280;font-style:italic;">continuação</small>@endif
+            </td>
+            @if($showDeliveryDate)<td rowspan="{{ $spanCount }}" style="white-space:nowrap;">{{ $groupDate }}</td>@endif
+            @endif
             @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="r money-col">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
@@ -310,12 +325,12 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($dist['net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endforeach
-        @if($rowCount > 1)
-        {{-- Sem rowspan: o DomPDF pode dividir o grupo entre páginas sem deslocar colunas. --}}
+        @if($isFinalChunk && $rowCount > 1)
+        {{-- Produto e data permanecem agrupados pelo rowspan deste bloco. --}}
         <tr>
-            <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
-            @if($showDeliveryDate)<td style="border-top:1px dashed #9ca3af;"></td>@endif
-            @unless($hideCustomerColumn)<td style="border-top:1px dashed #9ca3af;"></td>@endunless
+            @unless($hideCustomerColumn)
+                <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
+            @endunless
             <td class="r" style="font-weight:700;font-size:8.5pt;padding:3px 6px;border-top:1px dashed #9ca3af;">{{ number_format($ps['total_quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="money-col" style="border-top:1px dashed #9ca3af;padding:3px 6px;"></td>@endif
             @if($showGross)<td class="r money-col" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_gross'], 2, ',', '.') }}</td>@endif
@@ -328,8 +343,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @if($showNet)<td class="r c-success" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endif
+        </tbody>
         @endforeach
-    </tbody>
+    @endforeach
     <tfoot>
         <tr>
             <td colspan="{{ $leadingColumnCount }}"><strong>TOTAL GERAL</strong></td>
