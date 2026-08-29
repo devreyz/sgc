@@ -263,28 +263,15 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 
 @if($showSection('deliveries'))
 <table class="tbl receipt-data-table">
-    <thead>
-        <tr>
-            <th>Produto</th>
-            @if($showDeliveryDate)<th style="width:11%;">Data</th>@endif
-            @unless($hideCustomerColumn)<th>Cliente</th>@endunless
-            <th class="r" style="width:9%;">Qtd.</th>
-            @if($showUnitPrice)<th class="r money-col">Vlr. Unit.</th>@endif
-            @if($showGross)<th class="r money-col">Vlr. Bruto</th>@endif
-            @if($showAdminFee)<th class="r fee-col">Taxa Adm.</th>@endif
-            @foreach($selectedFeeColumns as $fee)
-                <th class="r fee-col">{{ $fee['name'] }}</th>
-            @endforeach
-            @if($showNet)<th class="r" style="width:13%;">Vlr. Líquido</th>@endif
-        </tr>
-    </thead>
+    @include('pdf.partials.associate-receipt-table-head')
     @foreach($productsSummary as $ps)
         @php
             $rowCount  = count($ps['distributions']);
-            // Mantém o agrupamento visual original por rowspan, mas limita o
-            // tamanho de cada bloco para o DomPDF nunca cortar um rowspan no
-            // meio da página. Grupos longos continuam no próximo bloco.
-            $distributionChunks = collect($ps['distributions'])->chunk(6)->values();
+            // Mantém o agrupamento visual original por rowspan. O DomPDF não
+            // respeita page-break-inside em tbody; por isso cada bloco possui
+            // poucas linhas e uma quebra preventiva é aplicada antes de a
+            // página ficar cheia. Assim nenhum rowspan é quebrado ao meio.
+            $distributionChunks = collect($ps['distributions'])->chunk(4)->values();
             $groupDate = '—';
             if (!empty($ps['delivery_date'])) {
                 $dv = $ps['delivery_date'];
@@ -298,6 +285,12 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             }
         @endphp
         @foreach($distributionChunks as $chunkIndex => $distributionChunk)
+        @if($chunkIndex > 0 && $chunkIndex % 5 === 0)
+        </table>
+        <div style="page-break-before:always;"></div>
+        <table class="tbl receipt-data-table">
+            @include('pdf.partials.associate-receipt-table-head')
+        @endif
         @php
             $isFinalChunk = $chunkIndex === $distributionChunks->count() - 1;
             $spanCount = $distributionChunk->count() + ($isFinalChunk && $rowCount > 1 ? 1 : 0);

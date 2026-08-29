@@ -170,7 +170,6 @@ window.SgcDocuments = {
     async openPdf(blob, fileName, title = 'Documento SGC', options = {}) {
         const native = window.Capacitor?.Plugins?.NativeDocument;
         const resolvedTitle = documentTitle(fileName, options.documentTitle || title);
-        // showNavigationLoading('Abrindo documento', 'Preparando o visualizador');
         if (isNativeAndroid() && native?.openPdf) {
             try {
                 await native.openPdf({
@@ -183,6 +182,8 @@ window.SgcDocuments = {
                 throw error;
             }
             return;
+        } else {
+        showNavigationLoading("Abrindo documento", "Preparando o visualizador");
         }
         openInBrowser(blob, fileName, resolvedTitle);
     },

@@ -215,7 +215,7 @@
     async function json(url, options = {}) {
         const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, ...options });
         const body = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(body.message || 'NÃ£o foi possÃ­vel carregar os dados.');
+        if (!response.ok) throw new Error(body.message || 'Não foi possível carregar os dados.');
         return body;
     }
 
@@ -317,4 +317,3 @@
 })();
 </script>
 @endpush
-

@@ -60,6 +60,22 @@ class AssociateReceiptObserver
                 'associate' => $receipt->associate_id,
                 'name' => $receipt->associate?->display_name,
             ], false),
+            'role_urls' => [
+                'registrador_entregas' => route('delivery.projects.receipt-reprint', [
+                    'tenant' => $tenant->slug,
+                    'project' => $receipt->sales_project_id,
+                    'receipt' => $receipt->id,
+                ], false).'?preview=1',
+                'associado' => route('associate.projects.receipts.download', [
+                    'tenant' => $tenant->slug,
+                    'project' => $receipt->sales_project_id,
+                    'receipt' => $receipt->id,
+                ], false),
+                'visualizador_entregas' => route('delivery-viewer.projects.show', [
+                    'tenant' => $tenant->slug,
+                    'project' => $receipt->sales_project_id,
+                ], false).'#documents',
+            ],
             'icon' => $obsolete ? 'file-warning' : 'file-check-2',
             'action_label' => $obsolete ? 'Corrigir comprovante' : 'Ver comprovante',
             'action_icon' => 'file-text',
@@ -67,10 +83,6 @@ class AssociateReceiptObserver
         $this->notifications->dispatch($event, $tenant->id, $recipients, $message);
 
         if (in_array('associado', $configuredRoles, true) && $receipt->associate?->user) {
-            $message['url'] = route('associate.projects.show', [
-                'tenant' => $tenant->slug,
-                'project' => $receipt->sales_project_id,
-            ], false);
             $this->notifications->dispatch($event, $tenant->id, [$receipt->associate->user], $message);
         }
     }

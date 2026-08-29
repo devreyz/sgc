@@ -38,6 +38,7 @@ class NotificationService
             'title' => $label,
             'body' => sprintf('%s: %.3f %s de %s.', $delivery->associate->display_name, (float) $delivery->quantity, $delivery->product->unit, $delivery->product->name),
             'url' => $this->deliveryUrl($delivery),
+            'role_urls' => $this->deliveryRoleUrls($delivery),
             'icon' => $approved ? 'package-check' : 'package-x',
             'action_label' => 'Ver entrega',
             'action_icon' => 'truck',
@@ -69,6 +70,7 @@ class NotificationService
                 $createdCount > 1 ? ' em '.$createdCount.' destinos' : ''
             ),
             'url' => $this->deliveryUrl($reception),
+            'role_urls' => $this->deliveryRoleUrls($reception),
             'icon' => 'split',
             'action_label' => 'Ver distribuição',
             'action_icon' => 'split',
@@ -162,5 +164,19 @@ class NotificationService
         ], false);
 
         return $url.'?open_delivery='.(int) $delivery->getKey();
+    }
+
+    private function deliveryRoleUrls(ProductionDelivery $delivery): array
+    {
+        $tenant = Tenant::query()->find($delivery->tenant_id, ['id', 'slug']);
+        if (! $tenant || ! $delivery->sales_project_id) {
+            return [];
+        }
+
+        return [
+            'associado' => route('associate.projects.show', ['tenant' => $tenant->slug, 'project' => $delivery->sales_project_id], false),
+            'registrador_entregas' => $this->deliveryUrl($delivery),
+            'visualizador_entregas' => route('delivery-viewer.projects.show', ['tenant' => $tenant->slug, 'project' => $delivery->sales_project_id], false).'#deliveries',
+        ];
     }
 }

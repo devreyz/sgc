@@ -64,9 +64,11 @@ class TenantNotificationDispatcher
             }
 
             $notificationId = (string) Str::uuid();
+            $recipientPayload = $payload;
+            $recipientPayload['url'] = $this->recipientPath($message, $recipient, $tenantId, $payload['url']);
             // Todo push tambem fica registrado na central para manter historico e leitura.
             if ($databaseEnabled) {
-                $centralPayload = $payload + [
+                $centralPayload = $recipientPayload + [
                     'delivery_channels' => [
                         'in_app' => true,
                         'android_push' => $pushEnabled,
@@ -149,6 +151,34 @@ class TenantNotificationDispatcher
                 'url' => Str::startsWith((string) ($action['url'] ?? ''), '/') ? $action['url'] : $path,
             ])->values()->all(),
         ];
+    }
+
+    /**
+     * A mesma ocorrência pode levar cada papel a uma tela diferente. O destino
+     * é resolvido no momento da criação da notificação, ficando seguro e
+     * estável mesmo se o usuário trocar de papel posteriormente.
+     */
+    private function recipientPath(array $message, User $recipient, int $tenantId, string $fallback): string
+    {
+        $roleUrls = is_array($message['role_urls'] ?? null) ? $message['role_urls'] : [];
+        $membership = TenantUser::query()
+            ->forTenant($tenantId)
+            ->where('user_id', $recipient->id)
+            ->active()
+            ->first(['roles', 'is_admin']);
+        $roles = is_array($membership?->roles) ? $membership->roles : [];
+        if ($membership?->is_admin) {
+            $roles[] = 'admin';
+        }
+        foreach (['associado', 'registrador_entregas', 'visualizador_entregas', 'comprador', 'financeiro', 'tesoureiro', 'contador', 'admin'] as $role) {
+            $path = (string) ($roleUrls[$role] ?? '');
+            if ($path !== '' && in_array($role, $roles, true)
+                && Str::startsWith($path, '/') && ! Str::startsWith($path, '//')) {
+                return $path;
+            }
+        }
+
+        return $fallback;
     }
 
     private function preference(string $eventKey, int $tenantId): ?NotificationEventPreference

@@ -40,7 +40,7 @@
     <form class="fc-form open" id="fc-form" method="post" action="{{ route('delivery.conference-sheets.store', request()->route('tenant')) }}">
         @csrf
         <div class="fc-grid">
-            <div class="fc-field"><label for="fc-project">Projeto</label><select id="fc-project" name="sales_project_id" required><option value="">Selecione</option>@foreach($projects as $project)<option value="{{ $project->id }}" @selected(old('sales_project_id')==$project->id)>{{ $project->title }}</option>@endforeach</select></div>
+            <div class="fc-field"><label for="fc-project">Projeto</label><select id="fc-project" name="sales_project_id" required><option value="">Selecione</option>@foreach($projects as $project)<option value="{{ $project->id }}" @selected(old('sales_project_id', request()->integer('project'))==$project->id)>{{ $project->title }}</option>@endforeach</select></div>
             <div class="fc-field"><label for="fc-type">Destinatário</label><select id="fc-type" name="recipient_type" required><option value="customer" @selected(old('recipient_type') === 'customer')>Cliente</option><option value="organization" @selected(old('recipient_type') === 'organization')>Organização</option></select></div>
             <div class="fc-field"><label for="fc-recipient">Cliente / organização</label><select id="fc-recipient" name="recipient_id" required disabled><option value="">Escolha o projeto</option></select></div>
             <div class="fc-field"><label for="fc-start">De</label><input id="fc-start" type="date" name="period_start" value="{{ old('period_start', now()->startOfMonth()->format('Y-m-d')) }}" required></div>

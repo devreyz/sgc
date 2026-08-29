@@ -863,6 +863,17 @@
         padding: .78rem;
     }
 
+    .watch-delivery-table-wrap { overflow:auto; padding:.78rem; }
+    .watch-delivery-table { width:100%; min-width:840px; border-collapse:separate; border-spacing:0; font-size:.72rem; }
+    .watch-delivery-table th { padding:.62rem .58rem; text-align:left; color:var(--watch-secondary); background:var(--watch-soft); border-bottom:1px solid var(--watch-border-strong); font-size:.59rem; letter-spacing:.04em; text-transform:uppercase; }
+    .watch-delivery-table td { padding:.62rem .58rem; vertical-align:top; border-bottom:1px solid var(--watch-border); }
+    .watch-delivery-table .is-number { text-align:right; white-space:nowrap; }
+    .watch-distribution-row td { padding:.45rem .58rem .45rem 2.05rem; background:#f8fbf9; color:var(--watch-secondary); font-size:.68rem; }
+    .watch-resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.72rem; padding:.78rem; }
+    .watch-resource-card { min-width:0; padding:.78rem; border:1px solid var(--watch-border); border-radius:12px; background:var(--watch-surface); }
+    .watch-resource-card h3 { margin:0 0 .48rem; font-size:.78rem; }.watch-resource-item { display:flex; justify-content:space-between; gap:.5rem; padding:.5rem 0; border-top:1px solid var(--watch-border); font-size:.67rem; }.watch-resource-item:first-of-type{border-top:0}.watch-resource-item strong{display:block;color:var(--watch-text)}.watch-resource-link{color:var(--watch-green-dark);font-weight:800;text-decoration:none}
+    @media (min-width:769px) { .watch-deliveries { display:none; } }
+
     .watch-delivery {
         min-width: 0;
         overflow: hidden;
@@ -1262,6 +1273,8 @@
             gap: .58rem;
             padding: .65rem;
         }
+        .watch-resource-grid { grid-template-columns:1fr; padding:.65rem; }
+        .watch-delivery-table-wrap { display:none; }
 
         .watch-filter {
             grid-template-columns: 1fr;
@@ -1382,6 +1395,11 @@
             <i data-lucide="truck"></i>
             <span>Entregas</span>
             <span class="watch-tab-count" id="pendingTabCount">—</span>
+        </button>
+
+        <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-documents" data-panel="documents">
+            <i data-lucide="files"></i>
+            <span>Documentos</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-notes" data-panel="notes">
@@ -1570,6 +1588,13 @@
 
             <div class="watch-deliveries" id="deliveryList"></div>
 
+            <div class="watch-delivery-table-wrap">
+                <table class="watch-delivery-table" aria-label="Tabela de entregas e distribuições">
+                    <thead><tr><th>Entrega</th><th>Associado</th><th>Produto</th><th>Data</th><th class="is-number">Recebido</th><th class="is-number">Distribuído</th><th class="is-number">Saldo</th><th>Status / destino</th></tr></thead>
+                    <tbody id="deliveryTableBody"></tbody>
+                </table>
+            </div>
+
             <button
                 class="watch-button watch-more"
                 id="loadMoreDeliveries"
@@ -1578,6 +1603,13 @@
             >
                 Mostrar mais entregas
             </button>
+        </section>
+    </section>
+
+    <section class="watch-panel" id="watch-panel-documents" role="tabpanel" data-panel-content="documents" hidden>
+        <section class="watch-section" style="margin-top:0">
+            <header class="watch-section-head"><div class="watch-section-title"><span class="watch-section-icon"><i data-lucide="files"></i></span><div><h2>Documentos do projeto</h2><p>Comprovantes dos associados, cobranças ao cliente e folhas de conferência.</p></div></div><a class="watch-button" href="{{ route('delivery.conference-sheets.index', ['tenant' => $tenant->slug, 'project' => $project->id]) }}"><i data-lucide="clipboard-check"></i> Folhas de conferência</a></header>
+            <div class="watch-resource-grid" id="documentGrid"></div>
         </section>
     </section>
 
@@ -1664,6 +1696,8 @@
         deliverySearch: document.getElementById('deliverySearch'),
         deliveryStatus: document.getElementById('deliveryStatus'),
         deliveryList: document.getElementById('deliveryList'),
+        deliveryTableBody: document.getElementById('deliveryTableBody'),
+        documentGrid: document.getElementById('documentGrid'),
         loadMoreDeliveries: document.getElementById('loadMoreDeliveries'),
         noteForm: document.getElementById('noteForm'),
         noteContent: document.getElementById('noteContent'),
@@ -1676,6 +1710,7 @@
         'products',
         'associates',
         'deliveries',
+        'documents',
         'notes',
     ]);
 
@@ -1956,12 +1991,15 @@
             customers: asArray(data?.customers),
             products: asArray(data?.products),
             associates: asArray(data?.associates),
+            documents: data?.documents || {},
         };
     }
 
     function renderSummary(rawData) {
         const data = normalizeData(rawData);
         const { project, summary } = data;
+
+        renderDocuments(data.documents);
 
         const received = Number(summary.received || 0);
         const distributed = Number(summary.distributed || 0);
@@ -2095,6 +2133,15 @@
             );
 
         return data;
+    }
+
+    function renderDocuments(documents) {
+        const section = (title, icon, items, renderItem, emptyText) => `<article class="watch-resource-card"><h3><i data-lucide="${icon}"></i> ${esc(title)}</h3>${items.length ? items.map(renderItem).join('') : `<p class="watch-empty">${esc(emptyText)}</p>`}</article>`;
+        const receiptItems = asArray(documents?.receipts);
+        const billingItems = asArray(documents?.billings);
+        const sheetItems = asArray(documents?.sheets);
+        elements.documentGrid.innerHTML = section('Comprovantes', 'file-check-2', receiptItems, item => `<div class="watch-resource-item"><span><strong>N&ordm; ${esc(item.number)}</strong>${esc(item.associate)} · ${esc(item.date || '—')}</span><span>${money(item.total)}</span></div>`, 'Nenhum comprovante gerado.') + section('Cobranças ao cliente', 'receipt-text', billingItems, item => `<div class="watch-resource-item"><span><strong>N&ordm; ${esc(item.number)}</strong>${esc(item.recipient)} · ${esc(item.status)}</span><span>${money(item.total)}</span></div>`, 'Nenhuma cobrança criada.') + section('Folhas de conferência', 'clipboard-check', sheetItems, item => `<a class="watch-resource-item watch-resource-link" href="${esc(item.url)}"><span><strong>${esc(item.number)}</strong>${esc(item.status)} · ${fmt(item.distributions)} distribuições</span><i data-lucide="arrow-up-right"></i></a>`, 'Nenhuma folha criada.');
+        refreshIcons();
     }
 
     function productCard(product) {
@@ -2425,6 +2472,14 @@
         `;
     }
 
+    function renderDeliveryTableRows(delivery) {
+        const destinations = asArray(delivery?.destinations);
+        const unit = esc(delivery?.unit || '');
+        const main = `<tr><td><strong>#${Number(delivery?.id || 0)}</strong></td><td>${esc(delivery?.associate || 'Associado')}</td><td>${esc(delivery?.product || 'Produto')}</td><td>${esc(delivery?.date || '—')}</td><td class="is-number">${fmt(delivery?.quantity)} ${unit}</td><td class="is-number">${fmt(delivery?.distributed)} ${unit}</td><td class="is-number">${fmt(delivery?.balance)} ${unit}</td><td><span class="watch-badge ${safeClass(delivery?.status)}">${esc(delivery?.status_label || '—')}</span></td></tr>`;
+        const distributions = destinations.length ? destinations.map(item => `<tr class="watch-distribution-row"><td colspan="4">↳ Distribuição #${Number(item?.id || 0)} · ${esc(item?.customer || 'Destino')} · ${esc(item?.date || '—')} · ${esc(item?.status || '—')}</td><td colspan="2" class="is-number">${fmt(item?.quantity)} ${unit}</td><td colspan="2" class="is-number">${money(item?.gross_value)}</td></tr>`).join('') : `<tr class="watch-distribution-row"><td colspan="8">↳ Nenhuma distribuição registrada para esta entrega.</td></tr>`;
+        return main + distributions;
+    }
+
     async function loadDeliveries(reset = false) {
         if (state.deliveryLoading) {
             return;
@@ -2472,6 +2527,7 @@
             const cards = deliveries
                 .map(renderDelivery)
                 .join('');
+            const tableRows = deliveries.map(renderDeliveryTableRows).join('');
 
             elements.deliveryList.innerHTML = reset
                 ? (
@@ -2479,6 +2535,9 @@
                     || empty('Nenhuma entrega encontrada.')
                 )
                 : elements.deliveryList.innerHTML + cards;
+            elements.deliveryTableBody.innerHTML = reset
+                ? tableRows
+                : elements.deliveryTableBody.innerHTML + tableRows;
 
             elements.deliveryList.dataset.loaded = '1';
 

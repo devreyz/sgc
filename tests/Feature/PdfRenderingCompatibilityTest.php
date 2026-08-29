@@ -99,7 +99,7 @@ class PdfRenderingCompatibilityTest extends TestCase
 
         $html = view('pdf.project-associate-receipt', $data)->render();
         $this->assertStringContainsString('class="receipt-product-group"', $html);
-        $this->assertStringContainsString('rowspan="6"', $html);
+        $this->assertStringContainsString('rowspan="4"', $html);
         $this->assertStringContainsString('continuação', $html);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');

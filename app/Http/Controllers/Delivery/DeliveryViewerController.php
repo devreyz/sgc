@@ -6,6 +6,9 @@ use App\Enums\DeliveryStatus;
 use App\Enums\ProjectStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Associate;
+use App\Models\AssociateReceipt;
+use App\Models\CustomerBillingReceipt;
+use App\Models\DeliveryConferenceSheet;
 use App\Models\DeliveryProjectNote;
 use App\Models\Product;
 use App\Models\ProductionDelivery;
@@ -236,6 +239,16 @@ class DeliveryViewerController extends Controller
                 'quantity' => (float) $customer->quantity,
             ]);
         $budget = app(AssociateProjectLimitService::class)->simulatedBudgetSummary($project);
+        $receipts = AssociateReceipt::query()
+            ->where('tenant_id', $tenantId)->where('sales_project_id', $project->id)
+            ->with('associate:id,tenant_id,user_id')->latest('issued_at')->limit(8)->get();
+        $receiptNames = app(TenantIdentityService::class)->namesForUsers($tenantId, $receipts->pluck('associate.user_id'));
+        $billing = CustomerBillingReceipt::query()
+            ->where('tenant_id', $tenantId)->where('sales_project_id', $project->id)
+            ->with(['customer:id,name,trade_name', 'organization:id,name'])->latest('issued_at')->limit(8)->get();
+        $sheets = DeliveryConferenceSheet::query()
+            ->where('tenant_id', $tenantId)->where('sales_project_id', $project->id)
+            ->withCount('distributions')->latest('created_at')->limit(8)->get();
 
         return $this->privateJson([
             'project' => [
@@ -260,6 +273,28 @@ class DeliveryViewerController extends Controller
             'products' => $productSummary,
             'associates' => $associateSummary,
             'customers' => $customers,
+            'documents' => [
+                'receipts' => $receipts->map(fn (AssociateReceipt $receipt) => [
+                    'number' => $receipt->formatted_number,
+                    'associate' => $receiptNames[$receipt->associate?->user_id] ?? 'Associado não identificado',
+                    'date' => $receipt->issued_at?->format('d/m/Y'),
+                    'status' => $receipt->status?->getLabel() ?? '—',
+                    'total' => (float) $receipt->total_net,
+                ])->values(),
+                'billings' => $billing->map(fn (CustomerBillingReceipt $receipt) => [
+                    'number' => $receipt->formatted_number,
+                    'recipient' => $receipt->organization?->name ?: ($receipt->customer?->trade_name ?: $receipt->customer?->name ?: 'Cliente'),
+                    'date' => $receipt->issued_at?->format('d/m/Y'),
+                    'status' => $receipt->status?->getLabel() ?? '—',
+                    'total' => (float) $receipt->total_net,
+                ])->values(),
+                'sheets' => $sheets->map(fn (DeliveryConferenceSheet $sheet) => [
+                    'number' => $sheet->formatted_number,
+                    'status' => $sheet->status?->label() ?? '—',
+                    'distributions' => (int) $sheet->distributions_count,
+                    'url' => route('delivery.conference-sheets.show', ['tenant' => $request->route('tenant')->slug, 'sheet' => $sheet->id]),
+                ])->values(),
+            ],
         ]);
     }
 
@@ -319,10 +354,14 @@ class DeliveryViewerController extends Controller
                 'status' => $delivery->status->value,
                 'status_label' => $delivery->status->getLabel(),
                 'destinations' => $delivery->distributions->map(fn (ProductionDelivery $distribution) => [
+                    'id' => $distribution->id,
                     'customer' => $distribution->customer?->trade_name
                         ?: $distribution->customer?->name
                         ?: 'Cliente nao identificado',
                     'quantity' => (float) $distribution->quantity,
+                    'date' => $distribution->delivery_date?->format('d/m/Y'),
+                    'status' => $distribution->status?->getLabel() ?? '—',
+                    'gross_value' => (float) ($distribution->gross_value ?? 0),
                 ])->values(),
             ];
         });
