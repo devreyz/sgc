@@ -48,13 +48,11 @@ class TenantNotificationDispatcher
 
         $preference = $this->preference($eventKey, $tenantId);
 
-        $databaseEnabled = $preference?->database_enabled ?? $definition['databaseDefault'];
+        // A central do SGC é a fonte de verdade: push é somente transporte e
+        // nunca pode eliminar o histórico do destinatário.
+        $databaseEnabled = true;
         $pushEnabled = ($preference?->push_enabled ?? $definition['pushDefault'])
             && $definition['pushAllowed'];
-
-        if (! $databaseEnabled && ! $pushEnabled) {
-            return 0;
-        }
 
         $payload = $this->normalizePayload($eventKey, $tenantId, $message, $preference?->priority ?? $definition['priority']);
         $tenantSlug = $pushEnabled ? Tenant::query()->whereKey($tenantId)->value('slug') : null;
@@ -67,7 +65,7 @@ class TenantNotificationDispatcher
 
             $notificationId = (string) Str::uuid();
             // Todo push tambem fica registrado na central para manter historico e leitura.
-            if ($databaseEnabled || $pushEnabled) {
+            if ($databaseEnabled) {
                 $centralPayload = $payload + [
                     'delivery_channels' => [
                         'in_app' => true,

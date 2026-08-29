@@ -168,32 +168,16 @@
 
         <div class="validation-body">
             <div class="info-section">
-                <h2>Dados do Associado</h2>
+                <h2>Confirmação mínima</h2>
                 <div class="info-grid">
                     <div class="info-item">
-                        <span class="info-label">Nome Completo</span>
+                        <span class="info-label">Nome na carteirinha</span>
                         <span class="info-value">{{ $memberDisplayName }}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">Matrícula</span>
-                        <span class="info-value">{{ $associate->member_code ?? $associate->registration_number ?? str_pad($associate->id, 6, '0', STR_PAD_LEFT) }}</span>
+                        <span class="info-value">{{ $memberCode }}</span>
                     </div>
-                    @if($associate->cpf_cnpj)
-                    <div class="info-item">
-                        <span class="info-label">CPF/CNPJ</span>
-                        <span class="info-value">{{ $associate->cpf_cnpj }}</span>
-                    </div>
-                    @endif
-                    <div class="info-item">
-                        <span class="info-label">Membro Desde</span>
-                        <span class="info-value">{{ $associate->admission_date ? $associate->admission_date->format('d/m/Y') : $associate->created_at->format('d/m/Y') }}</span>
-                    </div>
-                    @if($associate->city)
-                    <div class="info-item">
-                        <span class="info-label">Município</span>
-                        <span class="info-value">{{ $associate->city }}/{{ $associate->state }}</span>
-                    </div>
-                    @endif
                 </div>
                 <span class="status-badge">✓ Associado Ativo</span>
             </div>
@@ -207,21 +191,8 @@
                     @endif
                     <div>
                         <h3 style="font-size: 16px; color: #1f2937; margin-bottom: 4px;">{{ $tenant->name }}</h3>
-                        @if($tenant->city)
-                            <p style="font-size: 12px; color: #6b7280;">{{ $tenant->city }}/{{ $tenant->state }}</p>
-                        @endif
                     </div>
                 </div>
-                @if($tenant->phone || $tenant->email)
-                <div style="margin-top: 12px; font-size: 13px; color: #6b7280;">
-                    @if($tenant->phone)
-                        <div>📞 {{ $tenant->phone }}</div>
-                    @endif
-                    @if($tenant->email)
-                        <div>✉️ {{ $tenant->email }}</div>
-                    @endif
-                </div>
-                @endif
             </div>
         </div>
 

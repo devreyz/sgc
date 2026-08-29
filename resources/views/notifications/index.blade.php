@@ -9,7 +9,6 @@
         ->getCollection()
         ->whereNull('read_at')
         ->count();
-    $pageProblemCount = collect($deliveryStatuses ?? [])->whereIn('status', ['failed', 'no_device'])->count();
 @endphp
 
 @section('content')
@@ -741,19 +740,6 @@
                 </span>
             </button>
 
-            @if($canManageDeliveries)
-                <button
-                    type="button"
-                    class="notification-filter"
-                    data-notification-filter="problem"
-                    aria-pressed="false"
-                >
-                    <i data-lucide="triangle-alert"></i>
-                    Com problema
-                    <span class="notification-filter-count">{{ $pageProblemCount }}</span>
-                </button>
-            @endif
-
             <button
                 type="button"
                 class="notification-filter"
@@ -769,6 +755,16 @@
                 >
                     {{ $pageUnreadCount }}
                 </span>
+            </button>
+
+            <button type="button" class="notification-filter" data-notification-filter="important" aria-pressed="false">
+                <i data-lucide="badge-alert"></i>
+                Importantes
+            </button>
+
+            <button type="button" class="notification-filter" data-notification-filter="read" aria-pressed="false">
+                <i data-lucide="mail-check"></i>
+                Lidas
             </button>
 
             @if($pageUnreadCount > 0)
@@ -811,17 +807,6 @@
             @forelse($notifications as $notification)
                 @php
                     $data = $notification->data ?? [];
-                    $delivery = $deliveryStatuses[$notification->id] ?? ['status' => 'not_applicable', 'sent' => 0, 'devices' => 0];
-                    $deliveryLabel = match ($delivery['status']) {
-                        'delivered' => $delivery['devices'] > 1
-                            ? "Entregue em {$delivery['sent']} de {$delivery['devices']} aparelhos"
-                            : 'Enviada ao celular',
-                        'pending' => 'Aguardando envio ao celular',
-                        'failed' => 'Falha no envio ao celular',
-                        'no_device' => 'Sem dispositivo disponível',
-                        default => null,
-                    };
-
                     $rawType = strtolower((string) (
                         $data['type']
                         ?? $data['category']
@@ -886,7 +871,7 @@
                     "
                     data-notification-id="{{ $notification->id }}"
                     data-notification-state="{{ $notification->read_at ? 'read' : 'unread' }}"
-                    data-delivery-state="{{ $delivery['status'] }}"
+                    data-notification-priority="{{ $priority }}"
                 >
                     <span class="notification-icon" aria-hidden="true">
                         <i data-lucide="{{ $data['display_icon'] ?? 'bell' }}"></i>
@@ -913,19 +898,6 @@
                                 </span>
                             @endif
 
-                            @if($deliveryLabel)
-                                <span class="notification-delivery is-{{ $delivery['status'] }}">
-                                    <i data-lucide="{{ $delivery['status'] === 'delivered' ? 'smartphone-check' : ($delivery['status'] === 'pending' ? 'clock-3' : 'triangle-alert') }}"></i>
-                                    {{ $deliveryLabel }}
-                                    @if($canManageDeliveries && in_array($delivery['status'], ['failed', 'no_device'], true))
-                                        <button
-                                            type="button"
-                                            class="notification-retry"
-                                            data-notification-retry="{{ route('notifications.retry', ['tenant' => $tenant, 'notification' => $notification->id]) }}"
-                                        >Tentar novamente</button>
-                                    @endif
-                                </span>
-                            @endif
                         </div>
                     </div>
 
@@ -1036,7 +1008,8 @@
                 const show =
                     filter === 'all'
                     || (filter === 'unread' && item.dataset.notificationState === 'unread')
-                    || (filter === 'problem' && ['failed', 'no_device'].includes(item.dataset.deliveryState));
+                    || (filter === 'read' && item.dataset.notificationState === 'read')
+                    || (filter === 'important' && ['high', 'critical'].includes(item.dataset.notificationPriority));
 
                 item.hidden = !show;
 
@@ -1058,7 +1031,7 @@
 
         if (filterEmpty) {
             filterEmpty.hidden =
-                filter !== 'unread'
+                !['unread', 'read', 'important'].includes(filter)
                 || visible > 0;
         }
     }
@@ -1134,33 +1107,6 @@
             }
         }
     );
-
-    document.querySelectorAll('[data-notification-retry]').forEach(button => {
-        button.addEventListener('click', async () => {
-            button.disabled = true;
-            try {
-                const response = await fetch(button.dataset.notificationRetry, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': csrf,
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                });
-                const body = await response.json().catch(() => ({}));
-                if (!response.ok) {
-                    throw new Error(body.message || 'Não foi possível tentar novamente.');
-                }
-                toast(body.message || 'Nova tentativa agendada.');
-                button.closest('.notification-delivery')?.classList.replace('is-failed', 'is-pending');
-                button.remove();
-            } catch (error) {
-                button.disabled = false;
-                toast(error.message, 'error');
-            }
-        });
-    });
 
     updateUnreadCount();
 })();

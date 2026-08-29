@@ -77,7 +77,10 @@ class NotificationManagement extends Page implements HasForms
             $preference = $stored->get($key);
             $events[$this->stateKey($key)] = [
                 'event_key' => $key,
-                'database_enabled' => $preference?->database_enabled ?? $definition['databaseDefault'],
+                // A central é a fonte de verdade da notificação. Ela nunca é
+                // desativada por tenant; o administrador decide apenas entrega,
+                // prioridade e público.
+                'database_enabled' => true,
                 'push_enabled' => $definition['pushAllowed']
                     && ($preference?->push_enabled ?? $definition['pushDefault']),
                 'priority' => $preference?->priority ?? $definition['priority'],
@@ -163,7 +166,7 @@ class NotificationManagement extends Page implements HasForms
                 NotificationEventPreference::query()->updateOrCreate(
                     ['tenant_id' => $tenantId, 'event_key' => $eventKey],
                     [
-                        'database_enabled' => (bool) ($values['database_enabled'] ?? false),
+                        'database_enabled' => true,
                         'push_enabled' => $definition['pushAllowed']
                             && (bool) ($values['push_enabled'] ?? false),
                         'priority' => in_array($values['priority'] ?? null, NotificationEventCatalog::PRIORITIES, true)
@@ -202,7 +205,7 @@ class NotificationManagement extends Page implements HasForms
 
         Notification::make()
             ->title('Padrões recomendados aplicados')
-            ->body('Central interna, Android, prioridades e destinatários foram reconfigurados.')
+            ->body('Entrega Android, prioridades e destinatários foram reconfigurados para esta organização.')
             ->success()
             ->send();
     }
@@ -283,6 +286,7 @@ class NotificationManagement extends Page implements HasForms
             ->first();
         $pushEnabled = $this->pushConfigured
             && PushDevice::query()->where('user_id', $membership->user_id)
+                ->where('platform', 'android')
                 ->where('notifications_enabled', true)->whereNull('revoked_at')->exists()
             && (bool) ($preference?->push_enabled ?? $definition['pushDefault']);
 
@@ -302,6 +306,7 @@ class NotificationManagement extends Page implements HasForms
         $tenantId = (int) session('tenant_id');
         $user = Filament::auth()->user();
         $hasDevice = PushDevice::query()->where('user_id', $user->id)
+            ->where('platform', 'android')
             ->where('notifications_enabled', true)->whereNull('revoked_at')->exists();
 
         $dispatcher->dispatch('manual.message', $tenantId, [$user], [
@@ -479,7 +484,10 @@ class NotificationManagement extends Page implements HasForms
                             Forms\Components\Hidden::make($prefix.'.event_key')
                                 ->default($eventKey),
                             Forms\Components\Toggle::make($prefix.'.database_enabled')
-                                ->label('Central interna'),
+                                ->label('Central interna')
+                                ->disabled()
+                                ->dehydrated()
+                                ->helperText('Sempre registrada para preservar o histórico do membro.'),
                             Forms\Components\Toggle::make($prefix.'.push_enabled')
                                 ->label('Notificacao Android')
                                 ->disabled(! $definition['pushAllowed'])

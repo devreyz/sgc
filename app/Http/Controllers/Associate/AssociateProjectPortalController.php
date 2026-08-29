@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\AssociateReceiptPayment;
+use App\Models\CloudDocument;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
@@ -16,6 +17,7 @@ use App\Services\AssociateProjectLimitService;
 use App\Services\ProjectDemandService;
 use App\Services\ReceiptDataBuilder;
 use App\Services\TemplatedPdfService;
+use App\Services\TenantGoogleDriveService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -82,6 +84,24 @@ class AssociateProjectPortalController extends Controller
 
         abort_if($receipt->status === ReceiptStatus::OBSOLETE, 409, 'Este comprovante esta obsoleto e nao pode ser usado como documento vigente.');
 
+        $filename = 'comprovante-'.str_replace('/', '-', $receipt->formatted_number).'-'.Str::slug($associate->display_name).'.pdf';
+        $archived = CloudDocument::query()
+            ->where('tenant_id', $project->tenant_id)
+            ->where('document_type', 'associate_receipt')
+            ->where('documentable_type', $receipt->getMorphClass())
+            ->where('documentable_id', $receipt->getKey())
+            ->where('status', 'synced')
+            ->first();
+        $contents = $archived ? app(TenantGoogleDriveService::class)->contents($archived) : null;
+        if (is_string($contents) && $contents !== '') {
+            return response($contents, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="'.$filename.'"',
+                'Cache-Control' => 'no-store, private',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        }
+
         $distributions = ProductionDelivery::query()
             ->where('tenant_id', $project->tenant_id)
             ->where('sales_project_id', $project->id)
@@ -121,8 +141,6 @@ class AssociateProjectPortalController extends Controller
             $project->type,
             (int) $project->tenant_id,
         ));
-
-        $filename = 'comprovante-'.str_replace('/', '-', $receipt->formatted_number).'-'.Str::slug($associate->display_name).'.pdf';
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',

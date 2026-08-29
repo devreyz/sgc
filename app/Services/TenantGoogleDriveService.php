@@ -168,6 +168,41 @@ class TenantGoogleDriveService
         ])->save();
     }
 
+    /**
+     * Obtém um arquivo já sincronizado sem expor URL pública do Drive. A
+     * autorização da aplicação continua sendo conferida pelo controlador.
+     */
+    public function contents(CloudDocument $document): ?string
+    {
+        if ($document->provider !== 'google_drive'
+            || $document->status !== 'synced'
+            || ! $document->remote_file_id) {
+            return null;
+        }
+
+        $connection = TenantCloudStorageConnection::query()
+            ->where('tenant_id', $document->tenant_id)
+            ->where('status', 'active')
+            ->first();
+        if (! $connection) {
+            return null;
+        }
+
+        try {
+            $response = $this->clients->forConnection($connection)
+                ->files
+                ->get($document->remote_file_id, ['alt' => 'media']);
+
+            return method_exists($response, 'getBody')
+                ? (string) $response->getBody()
+                : null;
+        } catch (Throwable) {
+            // A visualização pode regenerar o PDF quando o Drive estiver
+            // temporariamente indisponível; não vaza o diagnóstico ao membro.
+            return null;
+        }
+    }
+
     private function findOrCreateFolder(Drive $drive, string $parentId, string $name): string
     {
         $escaped = str_replace(["\\", "'"], ["\\\\", "\\'"], $name);

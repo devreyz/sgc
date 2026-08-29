@@ -195,7 +195,8 @@ Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])-
 Route::get('/qrcode/{hash}', [DocumentVerificationController::class, 'qrcode'])->name('document.qrcode');
 
 // Public Member Card Validation Route (no authentication required)
-Route::get('/validate-card/{token}', [MemberCardValidationController::class, 'verifyCard'])->name('member-card.validate');
+Route::get('/validate-card/{token}', [MemberCardValidationController::class, 'verifyCard'])
+    ->middleware('throttle:20,1')->name('member-card.validate');
 
 // ===========================================================================================
 // ROTAS COM PREFIXO DE TENANT (SLUG) - Portais Legados (Associate, Provider, Delivery)
@@ -208,8 +209,6 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/unread-count', [NotificationCenterController::class, 'unreadCount'])->name('unread-count');
         Route::post('/read-all', [NotificationCenterController::class, 'markAllRead'])->name('read-all');
         Route::post('/{notification}/read', [NotificationCenterController::class, 'markRead'])->name('read');
-        Route::post('/{notification}/retry', [NotificationCenterController::class, 'retryDelivery'])
-            ->middleware('throttle:10,1')->name('retry');
         Route::get('/{notification}/open', [NotificationCenterController::class, 'open'])->name('open');
     });
 
