@@ -36,6 +36,18 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
         });
     }
 
+    public function test_customer_billing_uses_the_canonical_delivery_project_relationship(): void
+    {
+        $resource = file_get_contents(app_path('Filament/Resources/CustomerBillingReceiptResource.php'));
+        $export = file_get_contents(app_path('Exports/CustomerBillingReceiptExport.php'));
+
+        $this->assertStringContainsString("with(['salesProject:id,title'", $resource);
+        $this->assertStringContainsString("with(['salesProject:id,title'", $export);
+        $this->assertStringNotContainsString('$d->project', $resource);
+        $this->assertStringNotContainsString('$d->project', $export);
+        $this->assertSame('sales_project_id', (new ProductionDelivery)->salesProject()->getForeignKeyName());
+    }
+
     public function test_it_calculates_each_project_with_its_own_customer_fees(): void
     {
         DB::table('customer_project_fees')->insert([

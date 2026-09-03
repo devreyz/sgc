@@ -330,7 +330,7 @@ class CustomerBillingReceiptResource extends Resource
             ->mapWithKeys(fn ($d) => [
                 $d->id => sprintf(
                     '%s — %s — %s — %s — %s %s × R$ %s',
-                    $d->project?->title ?? 'Projeto #'.$d->sales_project_id,
+                    $d->salesProject?->title ?? 'Projeto #'.$d->sales_project_id,
                     $d->delivery_date?->format('d/m/Y') ?? '—',
                     $d->customer?->name ?? '—',
                     $d->product?->name ?? 'Produto #'.$d->product_id,
@@ -385,7 +385,7 @@ class CustomerBillingReceiptResource extends Resource
             ->whereIn('sales_project_id', $projectIds)
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
-            ->with(['project:id,title', 'product', 'customer'])
+            ->with(['salesProject:id,title', 'product', 'customer'])
             ->orderBy('sales_project_id')->orderBy('delivery_date');
 
         if ($customerId) {
@@ -1122,11 +1122,11 @@ class CustomerBillingReceiptResource extends Resource
         $rows = [];
         if (! empty($receipt->delivery_ids)) {
             $rows = ProductionDelivery::whereIn('id', $receipt->delivery_ids)
-                ->with(['project:id,title', 'product', 'associate.user', 'customer'])->orderBy('delivery_date')->get()
+                ->with(['salesProject:id,title', 'product', 'associate.user', 'customer'])->orderBy('delivery_date')->get()
                 ->map(fn ($d) => [
                     'id' => $d->id,
                     'date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                    'project' => $d->project?->title ?? '—',
+                    'project' => $d->salesProject?->title ?? '—',
                     'product' => $d->product?->name ?? '—',
                     'customer' => $d->customer?->name ?? '—',
                     'associate' => $d->associate?->display_name ?? '—',

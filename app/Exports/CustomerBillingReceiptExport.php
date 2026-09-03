@@ -118,7 +118,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
         $distributions = empty($deliveryIds)
             ? collect()
             : ProductionDelivery::whereIn('id', $deliveryIds)
-                ->with(['project:id,title', 'product', 'customer', 'associate.user'])
+                ->with(['salesProject:id,title', 'product', 'customer', 'associate.user'])
                 ->orderBy('delivery_date')
                 ->get();
 
@@ -137,7 +137,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
                 $row[] = match ($col) {
                     'receipt_number' => $receipt->formatted_number,
                     'issued_at' => $receipt->issued_at?->format('d/m/Y') ?? '—',
-                    'project' => $d->project?->title ?? '—',
+                    'project' => $d->salesProject?->title ?? '—',
                     'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
                     'product' => $d->product?->name ?? '—',
                     'customer' => $d->customer?->name ?? '—',
