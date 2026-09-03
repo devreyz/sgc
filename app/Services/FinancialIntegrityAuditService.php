@@ -19,7 +19,14 @@ class FinancialIntegrityAuditService
             ->filter(fn ($row) => $row->deleted_at === null)
             ->keyBy('id');
         $associateReceipts = $this->rows('associate_receipts', $tenantId, $projectId)->keyBy('id');
-        $customerReceipts = $this->rows('customer_billing_receipts', $tenantId, $projectId)->keyBy('id');
+        $customerReceipts = $this->customerReceiptRows($tenantId, $projectId)->keyBy('id');
+        $customerReceiptProjects = Schema::hasTable('customer_billing_receipt_projects')
+            ? DB::table('customer_billing_receipt_projects')
+                ->when($tenantId !== null, fn ($query) => $query->where('tenant_id', $tenantId))
+                ->get(['customer_billing_receipt_id', 'sales_project_id'])
+                ->groupBy('customer_billing_receipt_id')
+                ->map(fn (Collection $rows): array => $rows->pluck('sales_project_id')->map(fn ($id): int => (int) $id)->all())
+            : collect();
 
         foreach ($distributions as $distribution) {
             $base = [
@@ -47,7 +54,15 @@ class FinancialIntegrityAuditService
             }
 
             $this->checkReceiptReference($issues, $base, $distribution, $associateReceipts, 'associate_receipt_id', 'associate_receipt');
-            $this->checkReceiptReference($issues, $base, $distribution, $customerReceipts, 'billing_receipt_id', 'customer_billing_receipt');
+            $this->checkReceiptReference(
+                $issues,
+                $base,
+                $distribution,
+                $customerReceipts,
+                'billing_receipt_id',
+                'customer_billing_receipt',
+                $customerReceiptProjects,
+            );
 
             if (($distribution->billing_status ?? null) === 'paid') {
                 $associatePaid = $distribution->associate_receipt_id
@@ -146,6 +161,7 @@ class FinancialIntegrityAuditService
         Collection $receipts,
         string $foreignKey,
         string $type,
+        ?Collection $receiptProjects = null,
     ): void {
         $receiptId = $distribution->{$foreignKey} ?? null;
         if (! $receiptId) {
@@ -159,10 +175,38 @@ class FinancialIntegrityAuditService
             return;
         }
 
+        $projectIds = collect($receiptProjects?->get((int) $receipt->id, []))
+            ->push((int) $receipt->sales_project_id)->unique();
         if ((int) $receipt->tenant_id !== (int) $distribution->tenant_id
-            || (int) $receipt->sales_project_id !== (int) $distribution->sales_project_id) {
+            || ! $projectIds->contains((int) $distribution->sales_project_id)) {
             $issues->push($this->issue($base, 'critical', "cross_tenant_{$type}", "Vinculo com {$type} cruza tenant ou projeto."));
         }
+    }
+
+    private function customerReceiptRows(?int $tenantId, ?int $projectId): Collection
+    {
+        if (! Schema::hasTable('customer_billing_receipts')) {
+            return collect();
+        }
+
+        $query = DB::table('customer_billing_receipts');
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
+        }
+        if ($projectId !== null) {
+            $query->where(function ($nested) use ($projectId): void {
+                $nested->where('sales_project_id', $projectId);
+                if (Schema::hasTable('customer_billing_receipt_projects')) {
+                    $nested->orWhereExists(fn ($pivot) => $pivot
+                        ->selectRaw('1')
+                        ->from('customer_billing_receipt_projects')
+                        ->whereColumn('customer_billing_receipt_projects.customer_billing_receipt_id', 'customer_billing_receipts.id')
+                        ->where('customer_billing_receipt_projects.sales_project_id', $projectId));
+                }
+            });
+        }
+
+        return $query->get();
     }
 
     private function auditReceipts(

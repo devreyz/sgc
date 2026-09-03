@@ -181,13 +181,24 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     @if($project && $showSection('project_info'))
     <div class="strip-cell" style="width:50%;">
         <span class="strip-label">Projeto / Referência</span>
-        <span class="strip-value">{{ $project->title }}</span>
+        <span class="strip-value">{{ !empty($isMultiProject) ? $project->type_label.' · '.count($projectPeriods).' projetos' : $project->title }}</span>
     </div>
     @endif
 </div>
 @endif
 
-{{-- ═══ TABELA PRODUTO × CLIENTE (agrupada por tabela de preço) ═══ --}}
+@if(!empty($isMultiProject) && $showSection('project_info'))
+<div style="margin:-2px 0 9px; border:1px solid #d1d5db; padding:5px 8px; font-size:8pt; page-break-inside:avoid;">
+    @foreach($projectPeriods as $item)
+        <div style="padding:2px 0;">
+            <strong>{{ $item['project']->title }}</strong>
+            <span style="color:#64748b;"> · Entregas de {{ $item['period'] }}</span>
+        </div>
+    @endforeach
+</div>
+@endif
+
+{{-- ═══ TABELA PRODUTO × COMPRADOR (agrupada por tabela de preço) ═══ --}}
 @if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
     'consentKind' => \App\Services\ReceiptConsentRenderer::ORGANIZATION,
@@ -229,11 +240,11 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 @foreach($priceGroups as $group)
 @php $groupCustomers = $group['customers']; @endphp
 
-@if($multiplePriceTables)
+@if($multiplePriceTables || !empty($isMultiProject))
 <div style="font-size:8.5pt; font-weight:700; background:#f1f5f9; padding:4px 8px; margin:10px 0 5px; border-left:3px solid {{ $primaryColor }}; color:#1e293b;">
-    Tabela de Preço: {{ $group['price_table_name'] }}
+    {{ $group['project_name'] }} &nbsp;·&nbsp; Tabela de Preço: {{ $group['price_table_name'] }}
     <span style="float:right; font-size:8pt; font-weight:400; color:#64748b;">
-        {{ $groupCustomers->count() }} cliente(s) &nbsp;·&nbsp; R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}
+        {{ $groupCustomers->count() }} comprador(es) &nbsp;·&nbsp; R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}
     </span>
 </div>
 @endif
@@ -285,7 +296,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ 1 + $groupCustomers->count() }}">{{ $multiplePriceTables ? 'Subtotal — '.$group['price_table_name'] : 'Total Geral' }}</td>
+            <td colspan="{{ 1 + $groupCustomers->count() }}">{{ ($multiplePriceTables || !empty($isMultiProject)) ? 'Subtotal — '.$group['project_name'] : 'Total Geral' }}</td>
             <td></td>
             @if($showUnitPrice)<td></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>@endif
@@ -297,7 +308,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </tfoot>
 </table>
 
-@if($multiplePriceTables && !$loop->last)
+@if(($multiplePriceTables || !empty($isMultiProject)) && !$loop->last)
 <div style="border-top:1px dashed #d1d5db; margin:6px 0 2px;"></div>
 @endif
 @endforeach

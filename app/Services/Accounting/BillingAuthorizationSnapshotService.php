@@ -29,10 +29,18 @@ class BillingAuthorizationSnapshotService
         $feeDefinitions = collect(data_get($receipt->fee_snapshot, 'fees', []))
             ->sortBy(fn (array $fee): string => sprintf('%010d:%s', (int) ($fee['id'] ?? 0), (string) ($fee['name'] ?? '')))
             ->values();
+        $projectSnapshots = collect(data_get($receipt->fee_snapshot, 'project_snapshots', []));
+        $projects = $receipt->includedProjects()->keyBy('id');
+        $isMultiProject = $projects->count() > 1;
 
-        $lines = $distributions->sortBy('id')->values()->map(function (ProductionDelivery $distribution) use ($feeDefinitions): array {
+        $lines = $distributions->sortBy('id')->values()->map(function (ProductionDelivery $distribution) use ($feeDefinitions, $projectSnapshots, $projects, $isMultiProject): array {
+            $lineFeeDefinitions = collect(data_get(
+                $projectSnapshots->get((string) $distribution->sales_project_id),
+                'fees',
+                $feeDefinitions->all(),
+            ))->values();
             $gross = $this->decimal($distribution->gross_value ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8));
-            $fees = $feeDefinitions->map(function (array $fee) use ($gross): array {
+            $fees = $lineFeeDefinitions->map(function (array $fee) use ($gross): array {
                 $rate = $this->decimal($fee['rate'] ?? 0);
                 $amount = ($fee['type'] ?? 'percentage') === 'fixed'
                     ? $rate
@@ -54,7 +62,7 @@ class BillingAuthorizationSnapshotService
                 fn (string $carry, array $fee): string => bcadd($carry, $fee['amount'], 4), '0.0000'
             );
 
-            return [
+            $line = [
                 'distribution_id' => (int) $distribution->id,
                 'parent_delivery_id' => (int) $distribution->parent_delivery_id,
                 'delivery_date' => $distribution->delivery_date?->format('Y-m-d'),
@@ -73,6 +81,14 @@ class BillingAuthorizationSnapshotService
                 'fees' => $fees,
                 'net' => $this->decimal(bcsub(bcadd($gross, $accruals, 4), $discounts, 4)),
             ];
+            if ($isMultiProject) {
+                $line['project'] = [
+                    'id' => (int) $distribution->sales_project_id,
+                    'name' => (string) ($projects->get((int) $distribution->sales_project_id)?->title ?? ''),
+                ];
+            }
+
+            return $line;
         })->all();
         $documents = Document::query()->where('tenant_id', $receipt->tenant_id)
             ->where('documentable_type', CustomerBillingReceipt::class)
@@ -108,26 +124,35 @@ class BillingAuthorizationSnapshotService
             ->values()->all();
         $frozenFees = $this->normalize($receipt->fee_snapshot ?? []);
         $frozenFees['calculated'] = $calculatedFees;
+        $identity = [
+            'tenant' => ['id' => (int) $receipt->tenant_id, 'name' => (string) $receipt->tenant?->name],
+            'project' => [
+                'id' => (int) $receipt->sales_project_id,
+                'name' => (string) $receipt->project?->title,
+                'code' => (string) ($receipt->project?->code ?? ''),
+            ],
+            'receipt' => [
+                'id' => (int) $receipt->id,
+                'number' => $receipt->formatted_number,
+                'issued_at' => $receipt->issued_at?->format('Y-m-d'),
+            ],
+            'period' => [
+                'from' => $receipt->from_date?->format('Y-m-d'),
+                'to' => $receipt->to_date?->format('Y-m-d'),
+            ],
+        ];
+        if ($isMultiProject) {
+            $identity['projects'] = $projects->values()->map(fn ($project): array => [
+                'id' => (int) $project->id,
+                'name' => (string) $project->title,
+                'code' => (string) ($project->code ?? ''),
+                'type' => (string) $project->type,
+            ])->all();
+        }
 
         return [
             'snapshot_version' => self::VERSION,
-            'identity' => [
-                'tenant' => ['id' => (int) $receipt->tenant_id, 'name' => (string) $receipt->tenant?->name],
-                'project' => [
-                    'id' => (int) $receipt->sales_project_id,
-                    'name' => (string) $receipt->project?->title,
-                    'code' => (string) ($receipt->project?->code ?? ''),
-                ],
-                'receipt' => [
-                    'id' => (int) $receipt->id,
-                    'number' => $receipt->formatted_number,
-                    'issued_at' => $receipt->issued_at?->format('Y-m-d'),
-                ],
-                'period' => [
-                    'from' => $receipt->from_date?->format('Y-m-d'),
-                    'to' => $receipt->to_date?->format('Y-m-d'),
-                ],
-            ],
+            'identity' => $identity,
             'recipient' => [
                 'organization_id' => (int) $organization->id,
                 'name' => (string) $organization->name,

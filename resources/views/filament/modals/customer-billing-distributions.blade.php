@@ -11,6 +11,7 @@
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Projeto</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Data</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Produto</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Associado</th>
@@ -23,6 +24,7 @@
                 <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     @foreach($rows as $row)
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $row['project'] ?? '—' }}</td>
                         <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $row['date'] }}</td>
                         <td class="px-3 py-2 text-gray-800 dark:text-gray-200">{{ $row['product'] }}</td>
                         <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ $row['associate'] }}</td>
@@ -47,7 +49,7 @@
                 </tbody>
                 <tfoot class="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                        <td colspan="5" class="px-3 py-2 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
+                        <td colspan="6" class="px-3 py-2 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
                             Total Bruto
                         </td>
                         <td class="px-3 py-2 text-right text-sm font-bold text-gray-900 dark:text-gray-100">

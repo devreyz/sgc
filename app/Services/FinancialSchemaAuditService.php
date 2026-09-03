@@ -25,6 +25,9 @@ class FinancialSchemaAuditService
         'customer_billing_receipts.sales_project_id' => ['target' => 'sales_projects.id', 'delete' => 'SET NULL', 'risk' => 'historical'],
         'customer_billing_receipts.customer_id' => ['target' => 'customers.id', 'delete' => 'SET NULL', 'risk' => 'historical'],
         'customer_billing_receipts.organization_id' => ['target' => 'organizations.id', 'delete' => 'SET NULL', 'risk' => 'historical'],
+        'customer_billing_receipt_projects.tenant_id' => ['target' => 'tenants.id', 'delete' => 'CASCADE', 'risk' => 'critical'],
+        'customer_billing_receipt_projects.customer_billing_receipt_id' => ['target' => 'customer_billing_receipts.id', 'delete' => 'CASCADE', 'risk' => 'critical'],
+        'customer_billing_receipt_projects.sales_project_id' => ['target' => 'sales_projects.id', 'delete' => 'CASCADE', 'risk' => 'critical'],
         'customer_receipt_payments.tenant_id' => ['target' => 'tenants.id', 'delete' => 'CASCADE', 'risk' => 'critical'],
         'customer_receipt_payments.customer_billing_receipt_id' => ['target' => 'customer_billing_receipts.id', 'delete' => 'CASCADE', 'risk' => 'critical'],
         'customer_receipt_payments.bank_account_id' => ['target' => 'bank_accounts.id', 'delete' => 'SET NULL', 'risk' => 'financial'],
@@ -131,6 +134,7 @@ class FinancialSchemaAuditService
                 $this->uniqueStatus($database, 'associate_receipt_payments', ['tenant_id', 'operation_key'], 'arp_tenant_operation_unique'),
                 $this->uniqueStatus($database, 'customer_receipt_payments', ['tenant_id', 'operation_key'], 'crp_tenant_operation_unique'),
                 $this->uniqueStatus($database, 'receipt_number_sequences', ['tenant_id', 'scope_key', 'receipt_type', 'receipt_year']),
+                $this->uniqueStatus($database, 'customer_billing_receipt_projects', ['customer_billing_receipt_id', 'sales_project_id'], 'customer_billing_receipt_project_unique'),
             ],
         ];
     }

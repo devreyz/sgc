@@ -18,6 +18,7 @@ class AccountingProcessIntegrityService
     public function inspect(CustomerBillingReceipt $receipt): array
     {
         $issues = collect();
+        $projectIds = collect($receipt->projectIds());
         $distributions = $receipt->relationLoaded('billingDistributions')
             ? $receipt->billingDistributions
             : $receipt->billingDistributions()->get([
@@ -51,7 +52,7 @@ class AccountingProcessIntegrityService
             ->whereIn('id', $distributions->pluck('parent_delivery_id')->filter()->unique())
             ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'deleted_at'])
             ->keyBy('id');
-        $this->inspectDistributions($receipt, $distributions, $parents, $issues);
+        $this->inspectDistributions($receipt, $distributions, $parents, $issues, $projectIds);
 
         return [
             'critical_count' => $issues->count(),
@@ -59,7 +60,7 @@ class AccountingProcessIntegrityService
         ];
     }
 
-    private function inspectDistributions(CustomerBillingReceipt $receipt, Collection $distributions, Collection $parents, Collection $issues): void
+    private function inspectDistributions(CustomerBillingReceipt $receipt, Collection $distributions, Collection $parents, Collection $issues, Collection $projectIds): void
     {
         foreach ($distributions as $distribution) {
             if (! $distribution instanceof ProductionDelivery) {
@@ -78,13 +79,13 @@ class AccountingProcessIntegrityService
                     $issues->push($this->issue('deleted_parent_delivery', $prefix.'a entrega-pai foi excluída e pode ser restaurada.'));
                 } elseif ($parent->parent_delivery_id !== null
                     || (int) $parent->tenant_id !== (int) $receipt->tenant_id
-                    || (int) $parent->sales_project_id !== (int) $receipt->sales_project_id) {
+                    || (int) $parent->sales_project_id !== (int) $distribution->sales_project_id) {
                     $issues->push($this->issue('invalid_parent_delivery', $prefix.'a entrega-pai pertence a outro contexto.'));
                 }
             }
 
             if ((int) $distribution->tenant_id !== (int) $receipt->tenant_id
-                || (int) $distribution->sales_project_id !== (int) $receipt->sales_project_id) {
+                || ! $projectIds->contains((int) $distribution->sales_project_id)) {
                 $issues->push($this->issue('cross_context_distribution', $prefix.'tenant ou projeto incompatível.'));
             }
 

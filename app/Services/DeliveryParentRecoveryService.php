@@ -21,23 +21,24 @@ class DeliveryParentRecoveryService
             ->whereIn('id', $distributions->pluck('parent_delivery_id')->filter()->unique())
             ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'deleted_at'])
             ->keyBy('id');
+        $projectIds = collect($receipt->projectIds());
 
-        $recoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt): bool {
+        $recoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $projectIds): bool {
             $parent = $parents->get($distribution->parent_delivery_id);
 
             return $parent?->trashed()
                 && $parent->parent_delivery_id === null
-                && (int) $distribution->sales_project_id === (int) $receipt->sales_project_id
-                && (int) $parent->sales_project_id === (int) $receipt->sales_project_id;
+                && $projectIds->contains((int) $distribution->sales_project_id)
+                && (int) $parent->sales_project_id === (int) $distribution->sales_project_id;
         })->count();
-        $unrecoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt): bool {
+        $unrecoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
             $parent = $parents->get($distribution->parent_delivery_id);
 
             return ! $parent
                 || $parent->parent_delivery_id !== null
-                || (int) $distribution->sales_project_id !== (int) $receipt->sales_project_id
+                || ! $projectIds->contains((int) $distribution->sales_project_id)
                 || (int) $parent->tenant_id !== (int) $receipt->tenant_id
-                || (int) $parent->sales_project_id !== (int) $receipt->sales_project_id;
+                || (int) $parent->sales_project_id !== (int) $distribution->sales_project_id;
         })->count() + $expectedIds->diff($distributions->pluck('id')->map(fn ($id): int => (int) $id))->count();
 
         return compact('recoverable', 'unrecoverable');
@@ -55,10 +56,11 @@ class DeliveryParentRecoveryService
             $missingIds = $this->receiptDistributionIds($lockedReceipt)
                 ->diff($distributions->pluck('id')->map(fn ($id): int => (int) $id))
                 ->values()->all();
+            $projectIds = collect($lockedReceipt->projectIds());
             $invalidContextIds = $distributions
-                ->where('sales_project_id', '!=', $lockedReceipt->sales_project_id)
+                ->reject(fn (ProductionDelivery $distribution): bool => $projectIds->contains((int) $distribution->sales_project_id))
                 ->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
-            $eligible = $distributions->where('sales_project_id', $lockedReceipt->sales_project_id);
+            $eligible = $distributions->filter(fn (ProductionDelivery $distribution): bool => $projectIds->contains((int) $distribution->sales_project_id));
             $result = $this->restoreParents($eligible, $actor, 'customer_billing_receipt', $lockedReceipt->id);
             $result['unresolved'] = collect($result['unresolved'])
                 ->merge($missingIds)->merge($invalidContextIds)->unique()->values()->all();

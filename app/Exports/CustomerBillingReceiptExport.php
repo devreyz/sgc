@@ -5,34 +5,34 @@ namespace App\Exports;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, ShouldAutoSize, WithEvents
+class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEvents, WithStyles, WithTitle
 {
     // ── Colunas disponíveis ───────────────────────────────────────────────────
     public const AVAILABLE_COLUMNS = [
-        'delivery_date'  => 'Data Entrega',
-        'product'        => 'Produto',
-        'customer'       => 'Cliente',
-        'associate'      => 'Produtor',
-        'quantity'       => 'Quantidade',
-        'unit'           => 'Unidade',
-        'unit_price'     => 'Preço Unit. (R$)',
-        'gross'          => 'Valor Bruto (R$)',
-        'fees'           => 'Deduções (R$)',
-        'net'            => 'Valor Líquido (R$)',
+        'delivery_date' => 'Data Entrega',
+        'product' => 'Produto',
+        'customer' => 'Comprador',
+        'associate' => 'Produtor',
+        'quantity' => 'Quantidade',
+        'unit' => 'Unidade',
+        'unit_price' => 'Preço Unit. (R$)',
+        'gross' => 'Valor Bruto (R$)',
+        'fees' => 'Deduções (R$)',
+        'net' => 'Valor Líquido (R$)',
         'receipt_number' => 'Nº Cobrança',
-        'issued_at'      => 'Data de Emissão',
-        'project'        => 'Projeto',
+        'issued_at' => 'Data de Emissão',
+        'project' => 'Projeto',
         'billing_status' => 'Status Dist.',
         'receipt_status' => 'Status Cobrança',
     ];
@@ -46,24 +46,33 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
     private const NUMERIC_COLS = ['quantity', 'unit_price', 'gross', 'fees', 'net'];
 
     protected CustomerBillingReceipt $receipt;
+
     protected array $selectedColumns;
+
     protected array $allRows = [];
 
     // Índices de linha (1-based)
-    protected int $titleRow  = 1;
-    protected int $metaRow   = 2;
+    protected int $titleRow = 1;
+
+    protected int $metaRow = 2;
+
     protected int $spacerRow = 3;
-    protected int $headRow   = 4;
+
+    protected int $headRow = 4;
+
     protected int $dataStart = 5;
+
     protected int $dataCount = 0;
+
     protected int $footerRow = 0;
-    protected int $colCount  = 0;
+
+    protected int $colCount = 0;
 
     public function __construct(CustomerBillingReceipt $receipt, array $selectedColumns)
     {
-        $this->receipt         = $receipt;
+        $this->receipt = $receipt;
         $this->selectedColumns = array_values($selectedColumns);
-        $this->colCount        = count($this->selectedColumns);
+        $this->colCount = count($this->selectedColumns);
         $this->build();
     }
 
@@ -73,26 +82,26 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
 
     protected function build(): void
     {
-        $receipt  = $this->receipt;
-        $cols     = $this->selectedColumns;
+        $receipt = $this->receipt;
+        $cols = $this->selectedColumns;
         $colCount = $this->colCount;
 
         $customerName = $receipt->customer?->name
             ?? $receipt->organization?->name
             ?? '—';
-        $projectName = $receipt->project?->title ?? '—';
-        $issuedAt    = $receipt->issued_at?->format('d/m/Y') ?? '—';
-        $totalNet    = 'R$ ' . number_format((float) ($receipt->total_net ?? 0), 2, ',', '.');
+        $projectName = $receipt->project_summary;
+        $issuedAt = $receipt->issued_at?->format('d/m/Y') ?? '—';
+        $totalNet = 'R$ '.number_format((float) ($receipt->total_net ?? 0), 2, ',', '.');
 
         // ── Linha de título (será mesclada) ──────────────────────────────────
         $pad = array_fill(0, max(0, $colCount - 1), null);
         $this->allRows[] = array_merge(
-            ['Comprovante de Cobrança — Nº ' . $receipt->formatted_number],
+            ['Comprovante de Cobrança — Nº '.$receipt->formatted_number],
             $pad
         );
 
         // ── Linha de metadados ───────────────────────────────────────────────
-        $meta = "Emissão: {$issuedAt}   |   Cliente/Org.: {$customerName}   |   Projeto: {$projectName}   |   Valor Líquido: {$totalNet}";
+        $meta = "Emissão: {$issuedAt}   |   Comprador/Org.: {$customerName}   |   Projeto: {$projectName}   |   Valor Líquido: {$totalNet}";
         $this->allRows[] = array_merge([$meta], $pad);
 
         // ── Spacer ───────────────────────────────────────────────────────────
@@ -105,20 +114,20 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
         );
 
         // ── Linhas de dados ──────────────────────────────────────────────────
-        $deliveryIds   = $receipt->delivery_ids ?? [];
+        $deliveryIds = $receipt->delivery_ids ?? [];
         $distributions = empty($deliveryIds)
             ? collect()
             : ProductionDelivery::whereIn('id', $deliveryIds)
-                ->with(['product', 'customer', 'associate.user'])
+                ->with(['project:id,title', 'product', 'customer', 'associate.user'])
                 ->orderBy('delivery_date')
                 ->get();
 
         $totalGross = $distributions->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
-        $totalFees  = (float) ($receipt->total_fees ?? 0);
+        $totalFees = (float) ($receipt->total_fees ?? 0);
 
         foreach ($distributions as $d) {
             $gross = (float) $d->quantity * (float) $d->unit_price;
-            $fees  = $totalGross > 0
+            $fees = $totalGross > 0
                 ? round($gross / $totalGross * $totalFees, 4)
                 : 0.0;
             $net = $gross - $fees;
@@ -127,21 +136,21 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
             foreach ($cols as $col) {
                 $row[] = match ($col) {
                     'receipt_number' => $receipt->formatted_number,
-                    'issued_at'      => $receipt->issued_at?->format('d/m/Y') ?? '—',
-                    'project'        => $receipt->project?->title ?? '—',
-                    'delivery_date'  => $d->delivery_date?->format('d/m/Y') ?? '—',
-                    'product'        => $d->product?->name ?? '—',
-                    'customer'       => $d->customer?->name ?? '—',
-                    'associate'      => $d->associate?->display_name ?? '—',
-                    'quantity'       => (float) $d->quantity,
-                    'unit'           => $d->product?->unit ?? 'kg',
-                    'unit_price'     => (float) $d->unit_price,
-                    'gross'          => $gross,
-                    'fees'           => $fees,
-                    'net'            => $net,
+                    'issued_at' => $receipt->issued_at?->format('d/m/Y') ?? '—',
+                    'project' => $d->project?->title ?? '—',
+                    'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
+                    'product' => $d->product?->name ?? '—',
+                    'customer' => $d->customer?->name ?? '—',
+                    'associate' => $d->associate?->display_name ?? '—',
+                    'quantity' => (float) $d->quantity,
+                    'unit' => $d->product?->unit ?? 'kg',
+                    'unit_price' => (float) $d->unit_price,
+                    'gross' => $gross,
+                    'fees' => $fees,
+                    'net' => $net,
                     'billing_status' => $d->billing_status?->getLabel() ?? '—',
                     'receipt_status' => $receipt->status?->getLabel() ?? '—',
-                    default          => '—',
+                    default => '—',
                 };
             }
             $this->allRows[] = $row;
@@ -151,9 +160,9 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
         $this->footerRow = $this->dataStart + $this->dataCount;
 
         // ── Linha de totais (rodapé) ─────────────────────────────────────────
-        $footer        = [];
-        $labelSet      = false;
-        $qtyTotal      = $distributions->sum(fn ($d) => (float) $d->quantity);
+        $footer = [];
+        $labelSet = false;
+        $qtyTotal = $distributions->sum(fn ($d) => (float) $d->quantity);
         $netFromReceipt = (float) ($receipt->total_net ?? ($totalGross - $totalFees));
 
         foreach ($cols as $col) {
@@ -194,7 +203,7 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
 
     public function title(): string
     {
-        return 'Cobrança ' . str_replace(['/', '\\', '?', '*', '[', ']', ':'], '-', $this->receipt->formatted_number ?? 'S-N');
+        return 'Cobrança '.str_replace(['/', '\\', '?', '*', '[', ']', ':'], '-', $this->receipt->formatted_number ?? 'S-N');
     }
 
     public function styles(Worksheet $sheet): array
@@ -206,7 +215,7 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0F172A']],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_LEFT,
-                    'vertical'   => Alignment::VERTICAL_CENTER,
+                    'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ],
             // Metadados
@@ -221,8 +230,8 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '1E293B']],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical'   => Alignment::VERTICAL_CENTER,
-                    'wrapText'   => true,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
                 ],
                 'borders' => [
                     'bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '475569']],
@@ -233,7 +242,7 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
                 'font' => ['bold' => true, 'size' => 10, 'color' => ['rgb' => '0F172A']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'E2E8F0']],
                 'borders' => [
-                    'top'    => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '64748B']],
+                    'top' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '64748B']],
                     'bottom' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['rgb' => '64748B']],
                 ],
             ],
@@ -244,9 +253,9 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
     {
         return [
             AfterSheet::class => function (AfterSheet $event) {
-                $sheet   = $event->sheet->getDelegate();
+                $sheet = $event->sheet->getDelegate();
                 $lastCol = Coordinate::stringFromColumnIndex($this->colCount);
-                $footer  = $this->footerRow;
+                $footer = $this->footerRow;
 
                 // ── Mesclar título e metadados ────────────────────────────────
                 if ($this->colCount > 1) {
@@ -262,7 +271,7 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
                 $sheet->getRowDimension($footer)->setRowHeight(22);
 
                 // ── Congelar painel abaixo do cabeçalho ────────────────────────
-                $sheet->freezePane('A' . ($this->headRow + 1));
+                $sheet->freezePane('A'.($this->headRow + 1));
 
                 // ── Cores alternadas nas linhas de dados ──────────────────────
                 for ($row = $this->dataStart; $row < $footer; $row++) {
@@ -281,7 +290,7 @@ class CustomerBillingReceiptExport implements FromArray, WithTitle, WithStyles, 
                 // ── Formatação numérica e alinhamento por coluna ─────────────
                 $colIdx = 1;
                 foreach ($this->selectedColumns as $col) {
-                    $letter    = Coordinate::stringFromColumnIndex($colIdx);
+                    $letter = Coordinate::stringFromColumnIndex($colIdx);
                     $dataRange = "{$letter}{$this->dataStart}:{$letter}{$footer}";
 
                     if ($col === 'quantity') {

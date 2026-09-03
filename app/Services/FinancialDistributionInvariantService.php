@@ -27,9 +27,29 @@ class FinancialDistributionInvariantService
         SalesProject $project,
         int $tenantId,
     ): void {
-        $invalid = $distributions->first(function (ProductionDelivery $distribution) use ($project, $tenantId): bool {
+        $this->assertCommonProjects($distributions, collect([$project]), $tenantId);
+    }
+
+    /**
+     * @param  Collection<int, ProductionDelivery>  $distributions
+     * @param  Collection<int, SalesProject>  $projects
+     */
+    public function assertCommonProjects(
+        Collection $distributions,
+        Collection $projects,
+        int $tenantId,
+    ): void {
+        $projectIds = $projects->map(function (SalesProject $project) use ($tenantId): int {
+            if ((int) $project->tenant_id !== $tenantId) {
+                throw new \RuntimeException('Um dos projetos não pertence ao tenant da cobrança.');
+            }
+
+            return (int) $project->getKey();
+        })->unique()->values();
+
+        $invalid = $distributions->first(function (ProductionDelivery $distribution) use ($projectIds, $tenantId): bool {
             return (int) $distribution->tenant_id !== $tenantId
-                || (int) $distribution->sales_project_id !== (int) $project->getKey()
+                || ! $projectIds->contains((int) $distribution->sales_project_id)
                 || is_null($distribution->parent_delivery_id)
                 || is_null($distribution->customer_id)
                 || is_null($distribution->product_id)
@@ -40,14 +60,14 @@ class FinancialDistributionInvariantService
 
         if ($invalid) {
             throw new \RuntimeException(
-                "A distribuicao #{$invalid->id} nao e um fato financeiro aprovado e valido para este projeto."
+                "A distribuicao #{$invalid->id} nao e um fato financeiro aprovado e valido para os projetos desta cobranca."
             );
         }
 
         $parentIds = $distributions->pluck('parent_delivery_id')->map(fn ($id) => (int) $id)->unique();
         $parents = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
-            ->where('sales_project_id', $project->getKey())
+            ->whereIn('sales_project_id', $projectIds)
             ->whereNull('parent_delivery_id')
             ->whereIn('id', $parentIds)
             ->lockForUpdate()
@@ -58,6 +78,7 @@ class FinancialDistributionInvariantService
             $parent = $parents->get((int) $distribution->parent_delivery_id);
 
             return ! $parent
+                || (int) $parent->sales_project_id !== (int) $distribution->sales_project_id
                 || (int) $parent->associate_id !== (int) $distribution->associate_id
                 || (int) $parent->product_id !== (int) $distribution->product_id
                 || $this->statusValue($parent) !== DeliveryStatus::APPROVED->value;
@@ -65,7 +86,7 @@ class FinancialDistributionInvariantService
 
         if ($invalidParent) {
             throw new \RuntimeException(
-                "A distribuicao #{$invalidParent->id} nao possui uma entrega-pai valida no mesmo tenant e projeto."
+                "A distribuicao #{$invalidParent->id} nao possui uma entrega-pai valida no mesmo tenant e projeto de origem."
             );
         }
     }

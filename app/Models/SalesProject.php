@@ -357,6 +357,17 @@ class SalesProject extends Model
         return $this->hasMany(CustomerBillingReceipt::class, 'sales_project_id');
     }
 
+    /** Cobranças em que este projeto participa, inclusive como projeto secundário. */
+    public function mixedCustomerBillingReceipts(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            CustomerBillingReceipt::class,
+            'customer_billing_receipt_projects',
+            'sales_project_id',
+            'customer_billing_receipt_id',
+        )->withPivot('tenant_id')->withTimestamps();
+    }
+
     public function fiscalProfiles(): HasMany
     {
         return $this->hasMany(FiscalProfile::class);

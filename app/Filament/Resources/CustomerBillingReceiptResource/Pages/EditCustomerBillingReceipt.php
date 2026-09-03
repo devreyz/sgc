@@ -3,8 +3,8 @@
 namespace App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 
 use App\Filament\Resources\CustomerBillingReceiptResource;
-use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
+use App\Services\CustomerBillingReceiptService;
 use App\Services\ProjectReceiptNumberingService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -30,10 +30,17 @@ class EditCustomerBillingReceipt extends EditRecord
         }
     }
 
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $data['project_ids'] = $this->record->projectIds();
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Nunca permite alterar campos de controle
-        unset($data['tenant_id'], $data['status']);
+        unset($data['tenant_id'], $data['status'], $data['project_ids']);
         $tenantDuplicate = $this->record->newQuery()
             ->where('tenant_id', $this->record->tenant_id)
             ->where('tenant_receipt_year', $data['tenant_receipt_year'])
@@ -75,14 +82,10 @@ class EditCustomerBillingReceipt extends EditRecord
         return [
             Actions\DeleteAction::make()
                 ->visible(fn () => $this->record->isEditable())
-                ->before(function () {
-                    // Desvincula distribuições ao excluir
-                    $r = $this->record;
-                    if (! empty($r->delivery_ids)) {
-                        ProductionDelivery::whereIn('id', $r->delivery_ids)
-                            ->where('billing_receipt_id', $r->id)
-                            ->update(['billing_receipt_id' => null]);
-                    }
+                ->using(function (): bool {
+                    app(CustomerBillingReceiptService::class)->discardDraftReceipt($this->record);
+
+                    return true;
                 }),
         ];
     }

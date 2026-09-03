@@ -11,8 +11,8 @@ use App\Models\SalesProject;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class PdfRenderingCompatibilityTest extends TestCase
@@ -306,6 +306,82 @@ class PdfRenderingCompatibilityTest extends TestCase
 
         $this->assertStringContainsString('<th class="r fee-col">Frete</th>', $html);
         $this->assertStringContainsString('-&nbsp;R$&nbsp;3,50', $html);
+    }
+
+    public function test_multi_project_customer_receipt_renders_one_table_per_project(): void
+    {
+        $project = function (int $id, string $title): SalesProject {
+            $model = new class extends SalesProject
+            {
+                public function getTypeLabelAttribute(): string
+                {
+                    return 'PNAE';
+                }
+            };
+            $model->id = $id;
+            $model->tenant_id = 1;
+            $model->title = $title;
+            $model->type = 'pnae';
+
+            return $model;
+        };
+        $january = $project(10, 'PNAE Janeiro');
+        $february = $project(20, 'PNAE Fevereiro');
+        $receipt = new CustomerBillingReceipt([
+            'receipt_year' => 2026,
+            'receipt_number' => 17,
+            'issued_at' => '2026-03-01',
+            'document_number' => 'NF-que-nao-deve-aparecer-no-resumo',
+            'notes' => 'Cobrança consolidada dos períodos de janeiro e fevereiro.',
+        ]);
+        $receipt->setRelation('project', $january);
+        $rows = [
+            ['project_id' => 10, 'project' => $january->title, 'product' => 'Alface', 'unit' => 'kg', 'quantity' => 10,
+                'unit_price' => 5, 'gross' => 50, 'net' => 45, 'fee_values' => ['fee:customer:1' => 5]],
+            ['project_id' => 20, 'project' => $february->title, 'product' => 'Cenoura', 'unit' => 'kg', 'quantity' => 10,
+                'unit_price' => 6, 'gross' => 60, 'net' => 48, 'fee_values' => ['fee:customer:2' => 12]],
+        ];
+        $projectGroups = [
+            ['project' => $january, 'period' => '01/01/2026 a 31/01/2026', 'rows' => [$rows[0]],
+                'fee_columns' => [['key' => 'fee:customer:1', 'name' => 'Taxa Jan.', 'nature' => 'discount']],
+                'fee_totals' => ['fee:customer:1' => 5], 'subtotal_gross' => 50, 'subtotal_net' => 45],
+            ['project' => $february, 'period' => '01/02/2026 a 28/02/2026', 'rows' => [$rows[1]],
+                'fee_columns' => [['key' => 'fee:customer:2', 'name' => 'Taxa Fev.', 'nature' => 'discount']],
+                'fee_totals' => ['fee:customer:2' => 12], 'subtotal_gross' => 60, 'subtotal_net' => 48],
+        ];
+
+        $html = view('pdf.customer-billing-receipt', [
+            'tenant' => new Tenant(['name' => 'Cooperativa Teste']),
+            'project' => $january,
+            'projects' => collect([$january, $february]),
+            'projectPeriods' => [
+                ['project' => $january, 'period' => '01/01/2026 a 31/01/2026'],
+                ['project' => $february, 'period' => '01/02/2026 a 28/02/2026'],
+            ],
+            'customer' => new Customer(['name' => 'Escola Central']),
+            'receipt' => $receipt,
+            'productRows' => $rows,
+            'projectGroups' => $projectGroups,
+            'isMultiProject' => true,
+            'totalGross' => 110,
+            'totalFees' => 17,
+            'totalNet' => 93,
+            'feeBreakdown' => [],
+            'feeColumns' => array_merge($projectGroups[0]['fee_columns'], $projectGroups[1]['fee_columns']),
+            'visibleColumns' => ['unit_price', 'gross', 'net', 'fee:customer:1', 'fee:customer:2'],
+            'visible_sections' => ['document_info', 'customer_info', 'project_info', 'deliveries', 'financial'],
+            'periodLabel' => '01/01/2026 a 28/02/2026',
+        ])->render();
+
+        $this->assertSame(2, substr_count($html, '<table class="tbl receipt-data-table">'));
+        $this->assertStringContainsString('PNAE Janeiro', $html);
+        $this->assertStringContainsString('PNAE Fevereiro', $html);
+        $this->assertStringContainsString('Taxa Jan.', $html);
+        $this->assertStringContainsString('Taxa Fev.', $html);
+        $this->assertStringNotContainsString('<th>Projeto</th>', $html);
+        $this->assertStringContainsString('Observações', $html);
+        $this->assertStringContainsString('Cobrança consolidada dos períodos de janeiro e fevereiro.', $html);
+        $this->assertStringNotContainsString('NF-que-nao-deve-aparecer-no-resumo', $html);
     }
 
     private function associateReceiptFixtures(): array

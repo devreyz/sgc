@@ -8,9 +8,12 @@ use App\Support\FinancialAmount;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 
 class CustomerBillingReceipt extends Model
 {
@@ -84,6 +87,16 @@ class CustomerBillingReceipt extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(SalesProject::class, 'sales_project_id');
+    }
+
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            SalesProject::class,
+            'customer_billing_receipt_projects',
+            'customer_billing_receipt_id',
+            'sales_project_id',
+        )->withPivot('tenant_id')->withTimestamps();
     }
 
     public function customer(): BelongsTo
@@ -163,6 +176,44 @@ class CustomerBillingReceipt extends Model
     public function getRemainingAmountAttribute(): float
     {
         return (float) FinancialAmount::remaining($this->total_net, $this->amount_paid);
+    }
+
+    /** @return list<int> */
+    public function projectIds(): array
+    {
+        $ids = collect();
+
+        if (Schema::hasTable('customer_billing_receipt_projects')) {
+            $ids = $this->relationLoaded('projects')
+                ? $this->projects->pluck('id')
+                : $this->projects()->pluck('sales_projects.id');
+        }
+
+        if ($this->sales_project_id) {
+            $ids->prepend((int) $this->sales_project_id);
+        }
+
+        return $ids->map(fn ($id): int => (int) $id)->filter()->unique()->values()->all();
+    }
+
+    /** @return Collection<int, SalesProject> */
+    public function includedProjects(): Collection
+    {
+        return SalesProject::withoutGlobalScopes()
+            ->where('tenant_id', $this->tenant_id)
+            ->whereIn('id', $this->projectIds())
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get();
+    }
+
+    public function getProjectSummaryAttribute(): string
+    {
+        $projects = $this->includedProjects();
+
+        return $projects->count() <= 1
+            ? (string) ($projects->first()?->title ?? '— Avulso —')
+            : $projects->first()->title.' + '.($projects->count() - 1).' projeto(s)';
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────

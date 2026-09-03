@@ -1,6 +1,6 @@
 @php
 /**
- * Comprovante de Cobrança — Cliente
+ * Comprovante de Cobrança — Comprador
  * $tenant, $project, $customer, $receipt,
  * $productRows  => [ product, unit, quantity, unit_price, gross ]
  * $totalGross, $totalFees, $totalNet, $feeBreakdown
@@ -118,7 +118,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         </div>
     </div>
     <div class="hdr-right">
-        <span class="doc-type">Distribuição de Produtos — Cliente</span>
+        <span class="doc-type">Distribuição de Produtos — Comprador</span>
         @if($showSection('document_info'))
         <span class="doc-num">Nº Documento: {{ $receiptLabel }}</span>
         @if(!empty($periodLabel))
@@ -136,21 +136,32 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
 </div>
 
-{{-- ═══ CLIENTE / PROJETO ═══ --}}
+{{-- ═══ COMPRADOR / PROJETO ═══ --}}
 @if($showSection('customer_info') || $showSection('project_info'))
 <div class="proj-strip">
     @if($showSection('customer_info'))
     <div class="proj-cell" style="width:50%;">
-        <span class="proj-label">Cliente</span>
+        <span class="proj-label">Comprador</span>
         <span class="proj-value">{{ $customer?->name ?? '—' }}</span>
     </div>
     @endif
     @if($project && $showSection('project_info'))
     <div class="proj-cell" style="width:50%;">
         <span class="proj-label">Referente</span>
-        <span class="proj-value">{{ $project->title }}</span>
+        <span class="proj-value">{{ !empty($isMultiProject) ? $project->type_label.' · '.count($projectPeriods).' agrupados' : $project->title }}</span>
     </div>
     @endif
+</div>
+@endif
+
+@if(!empty($isMultiProject) && $showSection('project_info'))
+<div style="margin:-2px 0 9px; border:1px solid #d1d5db; padding:5px 8px; font-size:8.5pt; page-break-inside:avoid;">
+    @foreach($projectPeriods as $item)
+        <div style="padding:2px 0;">
+            <strong>{{ $item['project']->title }}</strong>
+            <span style="color:#64748b;"> · Entregas de {{ $item['period'] }}</span>
+        </div>
+    @endforeach
 </div>
 @endif
 
@@ -179,6 +190,17 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         ? (int) ($table_scale ?? 100)
         : 100;
     $tableScaleRatio = $tableScale / 100;
+    $projectGroups = $projectGroups ?? [[
+        'project' => $project,
+        'period' => $periodLabel ?? null,
+        'rows' => $productRows ?? [],
+        'fee_columns' => $feeColumns ?? [],
+        'fee_totals' => collect($feeColumns ?? [])->mapWithKeys(fn ($fee) => [
+            $fee['key'] => collect($productRows ?? [])->sum(fn ($row) => $row['fee_values'][$fee['key']] ?? 0),
+        ])->all(),
+        'subtotal_gross' => collect($productRows ?? [])->sum('gross'),
+        'subtotal_net' => collect($productRows ?? [])->sum(fn ($row) => $row['net'] ?? $row['gross'] ?? 0),
+    ]];
 @endphp
 <style>
     table.receipt-data-table { font-size: {{ 8.5 * $tableScaleRatio }}pt; }
@@ -189,7 +211,21 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 {{-- ═══ TABELA DE PRODUTOS ═══ --}}
 @if($showSection('deliveries'))
-<div class="sec-label">Entregas por Produto</div>
+<div class="sec-label">{{ !empty($isMultiProject) ? 'Entregas por Projeto' : 'Entregas por Produto' }}</div>
+@foreach($projectGroups as $projectGroup)
+@php
+    $groupFeeColumns = collect($projectGroup['fee_columns'] ?? [])
+        ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
+        ->values();
+@endphp
+@if(!empty($isMultiProject))
+<div style="font-size:8.5pt; font-weight:700; background:#f1f5f9; padding:5px 8px; margin:9px 0 5px; border-left:3px solid {{ $primaryColor }}; color:#1e293b; page-break-after:avoid;">
+    {{ $projectGroup['project']->title }}
+    <span style="float:right; font-size:8pt; font-weight:400; color:#64748b;">
+        {{ $projectGroup['period'] }} &nbsp;·&nbsp; Subtotal R$ {{ number_format($projectGroup['subtotal_net'], 2, ',', '.') }}
+    </span>
+</div>
+@endif
 <table class="tbl receipt-data-table">
     <thead>
         <tr>
@@ -197,18 +233,18 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             <th class="r" style="width:18%;">Quantidade Total</th>
             @if($showUnitPrice)<th class="r">Vlr. Unit.</th>@endif
             @if($showGross)<th class="r">Vlr. Bruto</th>@endif
-            @foreach($selectedFeeColumns as $fee)<th class="r">{{ $fee['name'] }}</th>@endforeach
+            @foreach($groupFeeColumns as $fee)<th class="r">{{ $fee['name'] }}</th>@endforeach
             @if($showNet)<th class="r">Vlr. Líquido</th>@endif
         </tr>
     </thead>
     <tbody>
-        @foreach($productRows as $row)
+        @foreach($projectGroup['rows'] as $row)
         <tr>
             <td>{{ $row['product'] }}</td>
             <td class="r">{{ $fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$ {{ number_format($row['gross'], 2, ',', '.') }}</td>@endif
-            @foreach($selectedFeeColumns as $fee)
+            @foreach($groupFeeColumns as $fee)
                 <td class="r {{ $fee['nature'] === 'accrual' ? 'c-success' : 'c-danger' }}">
                     {{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$ {{ number_format($row['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}
                 </td>
@@ -219,16 +255,17 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="2"><strong>TOTAL</strong></td>
+            <td colspan="2"><strong>{{ !empty($isMultiProject) ? 'SUBTOTAL DO PROJETO' : 'TOTAL' }}</strong></td>
             @if($showUnitPrice)<td></td>@endif
-            @if($showGross)<td class="r">R$ {{ number_format($totalGross, 2, ',', '.') }}</td>@endif
-            @foreach($selectedFeeColumns as $fee)
-                <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$ {{ number_format(collect($productRows)->sum(fn ($row) => $row['fee_values'][$fee['key']] ?? 0), 2, ',', '.') }}</td>
+            @if($showGross)<td class="r">R$ {{ number_format($projectGroup['subtotal_gross'], 2, ',', '.') }}</td>@endif
+            @foreach($groupFeeColumns as $fee)
+                <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$ {{ number_format($projectGroup['fee_totals'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
             @endforeach
-            @if($showNet)<td class="r">R$ {{ number_format($totalNet, 2, ',', '.') }}</td>@endif
+            @if($showNet)<td class="r">R$ {{ number_format($projectGroup['subtotal_net'], 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
 </table>
+@endforeach
 @endif
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}
@@ -236,14 +273,11 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 <div class="sec-label">Resumo financeiro</div>
 <div class="fin-summary">
     <div class="fin-left">
-        <span class="fin-label">Nº do Documento</span>
+        <span class="fin-label">Observações</span>
         <div class="fin-cheque-box" style="border:1px solid #9ca3af; background:#fff; border-radius:2px;
-            padding:4px 8px; font-size:9pt; font-weight:700; min-height:22px;">
-            @if($receipt->document_number){{ $receipt->document_number }}@else&nbsp;@endif
+            padding:5px 8px; font-size:8pt; font-weight:400; line-height:1.4; min-height:28px; white-space:pre-line; color:#374151;">
+            {{ filled($receipt->notes) ? '' : '' }}
         </div>
-        @if($receipt->notes)
-        <div style="margin-top:8px; font-size:8pt; color:#555; line-height:1.4;">{{ $receipt->notes }}</div>
-        @endif
     </div>
     <div class="fin-right">
         <div class="fin-row">

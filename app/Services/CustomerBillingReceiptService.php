@@ -11,21 +11,22 @@ use App\Models\CustomerProjectFee;
 use App\Models\CustomerReceiptPayment;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
-use App\Support\FinancialAmount;
 use App\Services\Accounting\BillingAuthorizationValidityService;
+use App\Support\FinancialAmount;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
- * Serviço central do fluxo de contas a receber (cliente).
+ * Serviço central do fluxo de contas a receber (comprador).
  *
  * Fluxo: Distribuições → Comprovante (snapshot) → Recebimento → CashMovement INCOME
  *
  * Regra de unicidade:
- *   Uma distribuição pode estar em UM ÚNICO comprovante de cliente em status PAID.
+ *   Uma distribuição pode estar em UM ÚNICO comprovante de comprador em status PAID.
  *   Distribuições em rascunho/pendente podem ser realocadas.
  *
  * Responsabilidades:
@@ -38,11 +39,77 @@ class CustomerBillingReceiptService
 {
     private readonly FinancialDistributionInvariantService $integrity;
 
+    private readonly CustomerBillingProjectContextService $projectContext;
+
     public function __construct(
         private readonly ProjectFinancialCalculator $calculator,
         ?FinancialDistributionInvariantService $integrity = null,
+        ?CustomerBillingProjectContextService $projectContext = null,
     ) {
         $this->integrity = $integrity ?? new FinancialDistributionInvariantService;
+        $this->projectContext = $projectContext ?? new CustomerBillingProjectContextService;
+    }
+
+    /**
+     * Exclui com segurança um rascunho e libera suas distribuições para uma
+     * nova cobrança. A operação é atômica para nunca deixar uma distribuição
+     * liberada se a exclusão do comprovante falhar.
+     *
+     * @throws \DomainException quando o comprovante já possui efeito financeiro
+     *                          ou histórico de autorização.
+     */
+    public function discardDraftReceipt(CustomerBillingReceipt $receipt): void
+    {
+        DB::transaction(function () use ($receipt): void {
+            $lockedReceipt = CustomerBillingReceipt::withoutGlobalScopes()
+                ->whereKey($receipt->getKey())
+                ->where('tenant_id', $receipt->tenant_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedReceipt->isEditable()) {
+                throw new \DomainException('Somente cobranças em rascunho podem ser excluídas.');
+            }
+
+            if ((float) ($lockedReceipt->amount_paid ?? 0) > 0
+                || (Schema::hasTable('customer_receipt_payments')
+                    && DB::table('customer_receipt_payments')
+                        ->where('customer_billing_receipt_id', $lockedReceipt->id)
+                        ->exists())) {
+                throw new \DomainException('Esta cobrança possui recebimentos registrados e não pode ser excluída.');
+            }
+
+            if (Schema::hasTable('billing_authorizations')
+                && DB::table('billing_authorizations')
+                    ->where('customer_billing_receipt_id', $lockedReceipt->id)
+                    ->exists()) {
+                throw new \DomainException('Esta cobrança possui histórico de autorização e não pode ser excluída.');
+            }
+
+            // A fonte de verdade é o vínculo atual, não o snapshot delivery_ids.
+            // Assim, todo vínculo ativo é liberado, inclusive em registros legados.
+            ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('billing_receipt_id', $lockedReceipt->id)
+                ->lockForUpdate()
+                ->get(['id']);
+
+            ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('billing_receipt_id', $lockedReceipt->id)
+                ->update(['billing_receipt_id' => null]);
+
+            if (Schema::hasTable('customer_billing_receipt_projects')) {
+                DB::table('customer_billing_receipt_projects')
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->where('customer_billing_receipt_id', $lockedReceipt->id)
+                    ->delete();
+            }
+
+            if (! $lockedReceipt->delete()) {
+                throw new \RuntimeException('Não foi possível excluir a cobrança em rascunho.');
+            }
+        }, 5);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -80,7 +147,7 @@ class CustomerBillingReceiptService
         $totalNet = '0';
         $totalDiscounts = '0';
         $totalAccruals = '0';
-        $feeDetails = null;
+        $feeDetails = collect();
 
         foreach ($distributions as $dist) {
             $gross = $dist->gross_value ?? null;
@@ -111,13 +178,22 @@ class CustomerBillingReceiptService
             $totalDiscounts = bcadd($totalDiscounts, $discounts, 8);
             $totalAccruals = bcadd($totalAccruals, $accruals, 8);
 
-            if ($feeDetails === null) {
-                $feeDetails = $result['fees'];
+            foreach ($result['fees'] as $fee) {
+                $key = implode('|', [
+                    $fee['id'] ?? 'custom',
+                    $fee['name'] ?? '',
+                    $fee['type'] ?? '',
+                    $fee['nature'] ?? '',
+                    $fee['rate'] ?? '',
+                ]);
+                $existing = $feeDetails->get($key, array_merge($fee, ['amount' => '0']));
+                $existing['amount'] = bcadd((string) ($existing['amount'] ?? 0), (string) ($fee['amount'] ?? 0), 8);
+                $feeDetails->put($key, $existing);
             }
         }
 
         $feeSnapshot = [
-            'fees' => $feeDetails ?? [],
+            'fees' => $feeDetails->values()->all(),
             'total_discounts' => $totalDiscounts,
             'total_accruals' => $totalAccruals,
             'total_fee' => $totalFees,
@@ -130,6 +206,88 @@ class CustomerBillingReceiptService
             'total_fees' => $totalFees,
             'total_net' => $totalNet,
             'fee_snapshot' => $feeSnapshot,
+        ];
+    }
+
+    /**
+     * Calcula cada projeto com suas próprias regras de taxas e consolida o
+     * resultado em um único snapshot financeiro auditável.
+     *
+     * @param  Collection<int, ProductionDelivery>  $distributions
+     * @param  Collection<int, SalesProject>  $projects
+     */
+    public function computeSnapshotForProjects(Collection $distributions, Collection $projects): array
+    {
+        if ($projects->count() === 1) {
+            $snapshot = $this->computeSnapshot($distributions, $projects->first());
+            $snapshot['fee_snapshot']['project_ids'] = [(int) $projects->first()->id];
+
+            return $snapshot;
+        }
+
+        $totalGross = '0';
+        $totalFees = '0';
+        $totalNet = '0';
+        $totalDiscounts = '0';
+        $totalAccruals = '0';
+        $projectSnapshots = [];
+        $aggregatedFees = collect();
+
+        foreach ($projects as $project) {
+            $projectDistributions = $distributions->where('sales_project_id', $project->id)->values();
+            $calculated = $this->computeSnapshot($projectDistributions, $project);
+            $feeSnapshot = $calculated['fee_snapshot'];
+
+            $projectSnapshots[(string) $project->id] = [
+                'project_id' => (int) $project->id,
+                'title' => (string) $project->title,
+                'type' => (string) $project->type,
+                'period_from' => $projectDistributions->pluck('delivery_date')->filter()->min()?->format('Y-m-d'),
+                'period_to' => $projectDistributions->pluck('delivery_date')->filter()->max()?->format('Y-m-d'),
+                'total_gross' => $calculated['total_gross'],
+                'total_fees' => $calculated['total_fees'],
+                'total_net' => $calculated['total_net'],
+                'fees' => $feeSnapshot['fees'],
+                'total_discounts' => $feeSnapshot['total_discounts'],
+                'total_accruals' => $feeSnapshot['total_accruals'],
+                'distribution_count' => $projectDistributions->count(),
+            ];
+
+            foreach ($feeSnapshot['fees'] as $fee) {
+                $key = implode('|', [
+                    $fee['id'] ?? 'custom', $fee['name'] ?? '', $fee['type'] ?? '', $fee['nature'] ?? '', $fee['rate'] ?? '',
+                ]);
+                $existing = $aggregatedFees->get($key, array_merge($fee, [
+                    'amount' => '0',
+                    'project_ids' => [],
+                ]));
+                $existing['amount'] = bcadd((string) $existing['amount'], (string) ($fee['amount'] ?? 0), 8);
+                $existing['project_ids'] = collect($existing['project_ids'])
+                    ->push((int) $project->id)->unique()->values()->all();
+                $aggregatedFees->put($key, $existing);
+            }
+
+            $totalGross = bcadd($totalGross, $calculated['total_gross'], 8);
+            $totalFees = bcadd($totalFees, $calculated['total_fees'], 8);
+            $totalNet = bcadd($totalNet, $calculated['total_net'], 8);
+            $totalDiscounts = bcadd($totalDiscounts, $feeSnapshot['total_discounts'], 8);
+            $totalAccruals = bcadd($totalAccruals, $feeSnapshot['total_accruals'], 8);
+        }
+
+        return [
+            'total_gross' => $totalGross,
+            'total_fees' => $totalFees,
+            'total_net' => $totalNet,
+            'fee_snapshot' => [
+                'fees' => $aggregatedFees->values()->all(),
+                'total_discounts' => $totalDiscounts,
+                'total_accruals' => $totalAccruals,
+                'total_fee' => $totalFees,
+                'distribution_count' => $distributions->count(),
+                'fee_source' => 'customer_project_fees_by_project',
+                'project_ids' => $projects->pluck('id')->map(fn ($id): int => (int) $id)->values()->all(),
+                'project_snapshots' => $projectSnapshots,
+            ],
         ];
     }
 
@@ -176,6 +334,10 @@ class CustomerBillingReceiptService
                 (int) $lockedReceipt->tenant_id,
                 (int) $lockedReceipt->sales_project_id,
             );
+            $receiptProjectIds = $lockedReceipt->projectIds();
+            $projects = count($receiptProjectIds) === 1 && (int) $receiptProjectIds[0] === (int) $project->id
+                ? collect([$project])
+                : $this->projectContext->projectsForReceipt($lockedReceipt);
 
             // ── 1. Pessimistic lock: bloqueia as linhas para escrita exclusiva ──
             $locked = ProductionDelivery::withoutGlobalScopes()
@@ -191,6 +353,7 @@ class CustomerBillingReceiptService
                     'associate_id',
                     'customer_id',
                     'product_id',
+                    'delivery_date',
                     'quantity',
                     'unit_price',
                     'gross_value',
@@ -203,8 +366,15 @@ class CustomerBillingReceiptService
                 throw new \RuntimeException('Uma ou mais distribuicoes selecionadas nao existem neste tenant.');
             }
 
-            $this->integrity->assertCommon($locked, $project, (int) $receipt->tenant_id);
+            $this->integrity->assertCommonProjects($locked, $projects, (int) $receipt->tenant_id);
             $this->integrity->assertCustomerRecipient(
+                $locked,
+                (int) $receipt->tenant_id,
+                $lockedReceipt->customer_id ? (int) $lockedReceipt->customer_id : null,
+                $lockedReceipt->organization_id ? (int) $lockedReceipt->organization_id : null,
+            );
+            $this->projectContext->assertDistributionCoverage(
+                $projects,
                 $locked,
                 (int) $receipt->tenant_id,
                 $lockedReceipt->customer_id ? (int) $lockedReceipt->customer_id : null,
@@ -224,17 +394,25 @@ class CustomerBillingReceiptService
                 );
             }
 
-            $snapshot = $this->computeSnapshot($locked, $project);
+            $snapshot = $this->computeSnapshotForProjects($locked, $projects);
+            $dates = $locked->pluck('delivery_date')->filter()->sort();
 
             // ── 3. Snapshot no comprovante ─────────────────────────────────────
-            $lockedReceipt->updateQuietly([
+            $receiptUpdate = [
                 'total_gross' => $snapshot['total_gross'],
                 'total_fees' => $snapshot['total_fees'],
                 'total_net' => $snapshot['total_net'],
                 'fee_snapshot' => $snapshot['fee_snapshot'],
                 'delivery_ids' => $ids,
                 'status' => CustomerReceiptStatus::PENDING_PAYMENT->value,
-            ]);
+            ];
+            if (Schema::hasColumn('customer_billing_receipts', 'from_date')) {
+                $receiptUpdate['from_date'] = $dates->first()?->format('Y-m-d');
+            }
+            if (Schema::hasColumn('customer_billing_receipts', 'to_date')) {
+                $receiptUpdate['to_date'] = $dates->last()?->format('Y-m-d');
+            }
+            $lockedReceipt->updateQuietly($receiptUpdate);
 
             // ── 4. Vincular distribuições (apenas as que ainda não têm vínculo ativo) ─
             $freeIds = $locked
@@ -418,7 +596,7 @@ class CustomerBillingReceiptService
             $lockedReceipt->update($updateData);
 
             $recipientName = $lockedReceipt->recipient_name;
-            $projectTitle = optional($lockedReceipt->project)->title ?? 'Projeto';
+            $projectTitle = $this->projectContext->summary($lockedReceipt);
 
             // ── Movimento de caixa (entrada proporcional) ──────────────────
             if (! empty($data['bank_account_id'])) {
