@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant;
+use App\Models\TenantUser;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class NotificationCenterController extends Controller
         $notifications = $this->tenantNotifications($request, $tenant)
             ->latest()
             ->paginate(20);
+
         return view('notifications.index', compact('tenant', 'notifications'));
     }
 
@@ -52,7 +54,7 @@ class NotificationCenterController extends Controller
         $record = $this->findOwned($request, $tenant, $notification);
         $record->markAsRead();
 
-        return redirect()->to($this->safePath((string) data_get($record->data, 'url', '/')));
+        return redirect()->to($this->destinationPath($request, $tenant, (array) $record->data));
     }
 
     private function tenantNotifications(Request $request, Tenant $tenant)
@@ -80,5 +82,42 @@ class NotificationCenterController extends Controller
     private function safePath(string $path): string
     {
         return Str::startsWith($path, '/') && ! Str::startsWith($path, '//') ? $path : '/';
+    }
+
+    /**
+     * Push e Central passam por este mesmo resolvedor. Se o papel usado quando
+     * a notificação foi criada ainda estiver ativo, ele mantém seu destino;
+     * se mudou, escolhe outra URL compatível presente no payload.
+     */
+    private function destinationPath(Request $request, Tenant $tenant, array $data): string
+    {
+        $membership = TenantUser::query()
+            ->forTenant((int) $tenant->id)
+            ->active()
+            ->where('user_id', $request->user()->id)
+            ->first(['roles', 'is_admin']);
+        $roles = is_array($membership?->roles) ? $membership->roles : [];
+        if ($membership?->is_admin) {
+            $roles[] = 'admin';
+        }
+        $roles = array_values(array_unique($roles));
+        $roleUrls = is_array($data['role_urls'] ?? null) ? $data['role_urls'] : [];
+        $roleOrder = collect([(string) ($data['recipient_role'] ?? '')])
+            ->merge($roles)
+            ->filter()
+            ->unique();
+
+        foreach ($roleOrder as $role) {
+            if (! in_array($role, $roles, true)) {
+                continue;
+            }
+
+            $path = $this->safePath((string) ($roleUrls[$role] ?? '/'));
+            if ($path !== '/') {
+                return $path;
+            }
+        }
+
+        return $this->safePath((string) ($data['url'] ?? '/'));
     }
 }

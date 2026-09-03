@@ -120,4 +120,30 @@ class AndroidAppEntryContractTest extends TestCase
         self::assertStringContainsString('nativeTokenAlreadyBoundForSession()', $pushRuntime);
         self::assertStringContainsString('nativePushBindingScope', $pushRuntime);
     }
+
+    public function test_android_notification_channels_are_high_priority_and_cold_start_routes_are_handled(): void
+    {
+        $activity = file_get_contents(base_path('android/app/src/main/java/br/rzin/sgc/MainActivity.java'));
+        $manifest = file_get_contents(base_path('android/app/src/main/AndroidManifest.xml'));
+        $pushRuntime = file_get_contents(base_path('resources/js/pwa-notifications.js'));
+        $catalog = file_get_contents(app_path('Support/NotificationEventCatalog.php'));
+        $fcmJob = file_get_contents(app_path('Jobs/SendFcmNotification.php'));
+
+        foreach (['general_high_v2', 'operations_high_v2', 'documents_high_v2', 'financial_high_v2'] as $channel) {
+            self::assertStringContainsString($channel, $activity);
+            self::assertStringContainsString($channel, $pushRuntime);
+            self::assertStringContainsString($channel, $catalog);
+            self::assertMatchesRegularExpression(
+                "/\\['".preg_quote($channel, '/')."',\\s*'[^']+',\\s*'[^']+',\\s*4\\]/",
+                $pushRuntime,
+            );
+        }
+
+        self::assertStringContainsString('general_high_v2', $manifest);
+        self::assertStringContainsString('NotificationManager.IMPORTANCE_HIGH', $activity);
+        self::assertStringContainsString("'priority' => 'HIGH'", $fcmJob);
+        self::assertStringContainsString("'notification_priority' => 'PRIORITY_HIGH'", $fcmJob);
+        self::assertStringContainsString('openNotificationRoute(webView, getIntent())', $activity);
+        self::assertStringContainsString('onNewIntent(Intent intent)', $activity);
+    }
 }

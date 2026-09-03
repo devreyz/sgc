@@ -31,6 +31,7 @@ class BillingAuthorizationNotificationService
                 'tenant' => $authorization->receipt?->tenant?->slug ?? session('tenant_slug'),
                 'billingAuthorization' => $authorization->id,
             ], false),
+            'role_context' => 'comprador',
             'icon' => 'file-check-2',
         ]);
     }

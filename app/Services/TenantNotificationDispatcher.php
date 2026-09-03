@@ -47,6 +47,11 @@ class TenantNotificationDispatcher
         }
 
         $preference = $this->preference($eventKey, $tenantId);
+        $targetRoles = $preference?->recipient_roles ?? $definition['roles'];
+        if (is_string($targetRoles)) {
+            $targetRoles = json_decode($targetRoles, true) ?: [];
+        }
+        $targetRoles = is_array($targetRoles) ? $targetRoles : [];
 
         // A central do SGC é a fonte de verdade: push é somente transporte e
         // nunca pode eliminar o histórico do destinatário.
@@ -65,7 +70,15 @@ class TenantNotificationDispatcher
 
             $notificationId = (string) Str::uuid();
             $recipientPayload = $payload;
-            $recipientPayload['url'] = $this->recipientPath($message, $recipient, $tenantId, $payload['url']);
+            $destination = $this->recipientDestination(
+                $message,
+                $recipient,
+                $tenantId,
+                $payload['url'],
+                $targetRoles,
+            );
+            $recipientPayload['url'] = $destination['path'];
+            $recipientPayload['recipient_role'] = $destination['role'];
             // Todo push tambem fica registrado na central para manter historico e leitura.
             if ($databaseEnabled) {
                 $centralPayload = $recipientPayload + [
@@ -105,6 +118,8 @@ class TenantNotificationDispatcher
             $roles = json_decode($roles, true) ?: [];
         }
 
+        $message['role_priority'] ??= $roles;
+
         return $this->dispatch($eventKey, $tenantId, $this->usersForRoles($tenantId, $roles), $message);
     }
 
@@ -131,6 +146,12 @@ class TenantNotificationDispatcher
             $path = '/';
         }
 
+        $roleUrls = collect(is_array($message['role_urls'] ?? null) ? $message['role_urls'] : [])
+            ->only(array_keys(NotificationEventCatalog::roles()))
+            ->map(fn ($url): string => $this->safePath((string) $url, ''))
+            ->filter()
+            ->all();
+
         return [
             'format' => 'filament',
             'tenant_id' => $tenantId,
@@ -139,6 +160,7 @@ class TenantNotificationDispatcher
             'title' => Str::limit(strip_tags((string) ($message['title'] ?? 'Nova notificacao')), 120, ''),
             'body' => Str::limit(strip_tags((string) ($message['body'] ?? '')), 320, ''),
             'url' => $path,
+            'role_urls' => $roleUrls,
             'icon' => 'heroicon-o-bell',
             'display_icon' => (string) ($message['icon'] ?? 'bell'),
             'action_label' => Str::limit(strip_tags((string) ($message['action_label'] ?? '')), 40, ''),
@@ -148,7 +170,7 @@ class TenantNotificationDispatcher
             'actions' => [],
             'links' => collect($message['actions'] ?? [])->take(2)->map(fn ($action) => [
                 'label' => Str::limit(strip_tags((string) ($action['label'] ?? 'Abrir')), 30, ''),
-                'url' => Str::startsWith((string) ($action['url'] ?? ''), '/') ? $action['url'] : $path,
+                'url' => $this->safePath((string) ($action['url'] ?? ''), $path),
             ])->values()->all(),
         ];
     }
@@ -158,8 +180,13 @@ class TenantNotificationDispatcher
      * é resolvido no momento da criação da notificação, ficando seguro e
      * estável mesmo se o usuário trocar de papel posteriormente.
      */
-    private function recipientPath(array $message, User $recipient, int $tenantId, string $fallback): string
-    {
+    private function recipientDestination(
+        array $message,
+        User $recipient,
+        int $tenantId,
+        string $fallback,
+        array $targetRoles,
+    ): array {
         $roleUrls = is_array($message['role_urls'] ?? null) ? $message['role_urls'] : [];
         $membership = TenantUser::query()
             ->forTenant($tenantId)
@@ -170,15 +197,41 @@ class TenantNotificationDispatcher
         if ($membership?->is_admin) {
             $roles[] = 'admin';
         }
-        foreach (['associado', 'registrador_entregas', 'visualizador_entregas', 'comprador', 'financeiro', 'tesoureiro', 'contador', 'admin'] as $role) {
-            $path = (string) ($roleUrls[$role] ?? '');
-            if ($path !== '' && in_array($role, $roles, true)
-                && Str::startsWith($path, '/') && ! Str::startsWith($path, '//')) {
-                return $path;
+
+        $explicitRole = (string) ($message['role_context'] ?? '');
+        $messagePriority = is_array($message['role_priority'] ?? null) ? $message['role_priority'] : [];
+        if ($explicitRole !== ''
+            && array_key_exists($explicitRole, NotificationEventCatalog::roles())
+            && in_array($explicitRole, $roles, true)) {
+            return [
+                'path' => $this->safePath((string) ($roleUrls[$explicitRole] ?? ''), $fallback),
+                'role' => $explicitRole,
+            ];
+        }
+
+        $roleOrder = collect([$explicitRole])
+            ->merge($messagePriority)
+            ->merge($targetRoles)
+            ->merge(['registrador_entregas', 'visualizador_entregas', 'comprador', 'financeiro', 'tesoureiro', 'contador', 'admin', 'associado'])
+            ->filter(fn ($role): bool => is_string($role) && array_key_exists($role, NotificationEventCatalog::roles()))
+            ->unique()
+            ->values();
+
+        foreach ($roleOrder as $role) {
+            $path = $this->safePath((string) ($roleUrls[$role] ?? ''), '');
+            if ($path !== '' && in_array($role, $roles, true)) {
+                return ['path' => $path, 'role' => $role];
             }
         }
 
-        return $fallback;
+        return ['path' => $fallback, 'role' => null];
+    }
+
+    private function safePath(string $path, string $fallback = '/'): string
+    {
+        return Str::startsWith($path, '/') && ! Str::startsWith($path, '//')
+            ? $path
+            : $fallback;
     }
 
     private function preference(string $eventKey, int $tenantId): ?NotificationEventPreference

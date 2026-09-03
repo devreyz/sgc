@@ -8,6 +8,7 @@ use App\Models\ProductionDelivery;
 use App\Models\PushDevice;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Notifications\TenantEventNotification;
 use App\Services\FcmHttpV1Client;
 use App\Services\NotificationService;
 use App\Services\QueueTaskInspector;
@@ -228,6 +229,93 @@ class NotificationSecurityTest extends TestCase
         $this->assertCount(0, $second->notifications);
         $this->assertSame(1, $first->notifications->first()->data['tenant_id']);
         $this->assertSame('/', $first->notifications->first()->data['url']);
+    }
+
+    public function test_notification_destination_uses_the_role_context_in_push_and_central(): void
+    {
+        Queue::fake();
+        $tenant = Tenant::query()->create(['name' => 'Tenant A', 'slug' => 'tenant-a']);
+        $registrar = User::withoutEvents(fn () => User::query()->create([
+            'name' => 'Registrador e associado', 'email' => 'registrar@example.test', 'status' => true,
+        ]));
+        $associateAdmin = User::withoutEvents(fn () => User::query()->create([
+            'name' => 'Associado e administrador', 'email' => 'associado@example.test', 'status' => true,
+        ]));
+        DB::table('tenant_user')->insert([
+            [
+                'tenant_id' => $tenant->id, 'user_id' => $registrar->id, 'is_admin' => false,
+                'roles' => json_encode(['associado', 'registrador_entregas']), 'status' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ],
+            [
+                'tenant_id' => $tenant->id, 'user_id' => $associateAdmin->id, 'is_admin' => true,
+                'roles' => json_encode(['associado']), 'status' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ],
+        ]);
+
+        $registrarUrl = '/tenant-a/delivery/projects/30/deliveries?open_delivery=40';
+        $associateUrl = '/tenant-a/associate/projects/30';
+        $adminUrl = '/admin/production-deliveries/40';
+        $message = [
+            'title' => 'Entrega aprovada',
+            'body' => 'Abra a entrega no painel correspondente.',
+            'url' => $adminUrl,
+            'role_urls' => [
+                'registrador_entregas' => $registrarUrl,
+                'associado' => $associateUrl,
+                'admin' => $adminUrl,
+            ],
+        ];
+
+        app(TenantNotificationDispatcher::class)->dispatchToConfiguredRoles(
+            'delivery.approved',
+            $tenant->id,
+            $message,
+        );
+
+        $registrarNotification = $registrar->fresh()->notifications()->firstOrFail();
+        $this->assertSame($registrarUrl, $registrarNotification->data['url']);
+        $this->assertSame('registrador_entregas', $registrarNotification->data['recipient_role']);
+
+        $this->actingAs($registrar)
+            ->withSession(['tenant_id' => $tenant->id, 'tenant_slug' => $tenant->slug])
+            ->get(route('notifications.open', [
+                'tenant' => $tenant,
+                'notification' => $registrarNotification->id,
+            ]))
+            ->assertRedirect($registrarUrl);
+
+        $associateAdmin->notifications()->delete();
+        $message['role_context'] = 'associado';
+        app(TenantNotificationDispatcher::class)->dispatch(
+            'delivery.approved',
+            $tenant->id,
+            [$associateAdmin],
+            $message,
+        );
+
+        $associateNotification = $associateAdmin->fresh()->notifications()->firstOrFail();
+        $this->assertSame($associateUrl, $associateNotification->data['url']);
+        $this->assertSame('associado', $associateNotification->data['recipient_role']);
+
+        DB::table('tenant_user')->where('tenant_id', $tenant->id)->where('user_id', $registrar->id)->update([
+            'roles' => json_encode(['visualizador_entregas']),
+        ]);
+        $registrar->notifications()->delete();
+        $viewerUrl = '/tenant-a/delivery-viewer/projects/project-token#deliveries';
+        $message['role_urls']['visualizador_entregas'] = $viewerUrl;
+        $message['role_context'] = 'visualizador_entregas';
+        app(TenantNotificationDispatcher::class)->dispatch(
+            'delivery.approved',
+            $tenant->id,
+            [$registrar],
+            $message,
+        );
+
+        $viewerNotification = $registrar->fresh()->notifications()->latest()->firstOrFail();
+        $this->assertSame($viewerUrl, $viewerNotification->data['url']);
+        $this->assertSame('visualizador_entregas', $viewerNotification->data['recipient_role']);
     }
 
     public function test_new_tenant_receives_recommended_notification_preferences(): void
@@ -499,7 +587,7 @@ class NotificationSecurityTest extends TestCase
         ]);
         DB::table('notifications')->insert([
             'id' => '8813e6d2-eb54-4634-8165-a32f951cf675',
-            'type' => \App\Notifications\TenantEventNotification::class,
+            'type' => TenantEventNotification::class,
             'notifiable_type' => $user->getMorphClass(),
             'notifiable_id' => $user->id,
             'data' => json_encode([
@@ -554,7 +642,7 @@ class NotificationSecurityTest extends TestCase
         $notificationId = '9813e6d2-eb54-4634-8165-a32f951cf675';
         DB::table('notifications')->insert([
             'id' => $notificationId,
-            'type' => \App\Notifications\TenantEventNotification::class,
+            'type' => TenantEventNotification::class,
             'notifiable_type' => $user->getMorphClass(),
             'notifiable_id' => $user->id,
             'data' => json_encode([

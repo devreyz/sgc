@@ -80,14 +80,20 @@ class NotificationService
     public function notifyLowStock(Product $product): void
     {
         $tenantId = (int) $product->tenant_id;
-        if (! $tenantId) {
+        $tenant = $tenantId ? Tenant::query()->find($tenantId, ['id', 'slug']) : null;
+        if (! $tenant) {
             return;
         }
 
+        $adminUrl = '/admin/products/'.$product->getKey().'/edit';
         $this->dispatcher->dispatchToConfiguredRoles('stock.low', $tenantId, [
             'title' => 'Estoque baixo',
             'body' => sprintf('%s possui %.2f %s em estoque.', $product->name, (float) $product->current_stock, $product->unit),
-            'url' => '/admin/products/'.$product->getKey().'/edit',
+            'url' => $adminUrl,
+            'role_urls' => [
+                'comprador' => route('buyer.projects', ['tenant' => $tenant->slug], false),
+                'admin' => $adminUrl,
+            ],
             'icon' => 'triangle-alert',
         ]);
     }
@@ -110,14 +116,26 @@ class NotificationService
     public function notifyOverdueExpense(Expense $expense): void
     {
         $tenantId = (int) $expense->tenant_id;
-        if (! $tenantId) {
+        $tenant = $tenantId ? Tenant::query()->find($tenantId, ['id', 'slug']) : null;
+        if (! $tenant) {
             return;
         }
 
+        $adminUrl = '/admin/expenses/'.$expense->getKey().'/edit';
+        $financeUrl = route('finance.management.show', [
+            'tenant' => $tenant->slug,
+            'module' => 'expenses',
+            'record' => $expense->getKey(),
+        ], false);
         $this->dispatcher->dispatchToConfiguredRoles('expense.overdue', $tenantId, [
             'title' => 'Despesa vencida',
             'body' => sprintf('%s, R$ %s.', $expense->description, number_format((float) $expense->amount, 2, ',', '.')),
-            'url' => '/admin/expenses/'.$expense->getKey().'/edit',
+            'url' => $adminUrl,
+            'role_urls' => [
+                'financeiro' => $financeUrl,
+                'tesoureiro' => $financeUrl,
+                'admin' => $adminUrl,
+            ],
             'icon' => 'calendar-x',
         ]);
     }
@@ -147,6 +165,7 @@ class NotificationService
             'title' => $title,
             'body' => sprintf('R$ %s. %s', number_format((float) $entry->amount, 2, ',', '.'), $entry->description),
             'url' => $tenant ? route('associate.ledger', ['tenant' => $tenant->slug], false) : '/',
+            'role_context' => 'associado',
             'icon' => $icon,
         ]);
     }
@@ -177,6 +196,7 @@ class NotificationService
             'associado' => route('associate.projects.show', ['tenant' => $tenant->slug, 'project' => $delivery->sales_project_id], false),
             'registrador_entregas' => $this->deliveryUrl($delivery),
             'visualizador_entregas' => route('delivery-viewer.projects.show', ['tenant' => $tenant->slug, 'project' => $delivery->sales_project_id], false).'#deliveries',
+            'admin' => '/admin/production-deliveries/'.(int) $delivery->getKey(),
         ];
     }
 }

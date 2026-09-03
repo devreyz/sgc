@@ -698,6 +698,7 @@ class AssociateProjectController extends Controller
                 'project' => $project->id,
                 'associate' => $associate->id,
             ], false),
+            'role_priority' => $roles,
             'icon' => 'gauge',
         ]);
 
@@ -706,6 +707,7 @@ class AssociateProjectController extends Controller
                 'title' => $title,
                 'body' => $project->name.'. '.$body,
                 'url' => route('associate.projects', ['tenant' => request()->route('tenant')], false),
+                'role_context' => 'associado',
                 'icon' => 'gauge',
             ]);
         }

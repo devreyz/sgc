@@ -3,11 +3,11 @@
 namespace App\Jobs;
 
 use App\Models\AssociateReceipt;
+use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Services\AssociateReceiptArchiveService;
 use App\Services\AssociateReceiptDriveState;
 use App\Services\TenantNotificationDispatcher;
-use App\Models\Tenant;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -48,8 +48,7 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
         AssociateReceiptArchiveService $archive,
         AssociateReceiptDriveState $state,
         TenantNotificationDispatcher $notifications,
-    ): void
-    {
+    ): void {
         $receipt = AssociateReceipt::withoutGlobalScopes()->find($this->receiptId);
         if (! $receipt) {
             Log::notice('Google Drive receipt synchronization skipped because the receipt no longer exists.', [
@@ -158,6 +157,7 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
         }
 
         $receipt->loadMissing(['associate', 'project']);
+        $adminUrl = '/admin/associate-receipts/'.(int) $receipt->id.'/edit';
         $notifications->dispatchToConfiguredRoles('drive.receipt_synced', (int) $tenant->id, [
             'title' => 'Comprovante atualizado no Google Drive',
             'body' => 'O comprovante '.$receipt->formatted_number.' de '.($receipt->associate?->display_name ?: 'associado').' foi salvo na conta Google Drive da organização.',
@@ -167,6 +167,10 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
                 'associate' => $receipt->associate_id,
                 'name' => $receipt->associate?->display_name,
             ], false),
+            'role_urls' => [
+                'tesoureiro' => $adminUrl,
+                'admin' => $adminUrl,
+            ],
             'icon' => 'cloud-check',
             'action_label' => 'Abrir comprovante',
             'action_icon' => 'file-check-2',

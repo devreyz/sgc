@@ -44,6 +44,7 @@ class NotificationEventCatalog
             'tesoureiro' => 'Tesouraria',
             'contador' => 'Contabilidade',
             'registrador_entregas' => 'Registradores de entregas',
+            'visualizador_entregas' => 'Visualizadores de entregas',
             'associado' => 'Associados',
             'comprador' => 'Compradores',
         ];
@@ -74,10 +75,10 @@ class NotificationEventCatalog
         $group = self::get($key)['group'] ?? 'Administracao';
 
         return match ($group) {
-            'Financeiro', 'Autorizações' => 'financial',
-            'Comprovantes' => 'documents',
-            'Entregas', 'Estoque' => 'operations',
-            default => 'general',
+            'Financeiro', 'Autorizações' => 'financial_high_v2',
+            'Comprovantes' => 'documents_high_v2',
+            'Entregas', 'Estoque' => 'operations_high_v2',
+            default => 'general_high_v2',
         };
     }
 

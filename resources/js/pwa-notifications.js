@@ -115,10 +115,10 @@ function showForegroundNotification(notification) {
 
 async function createNativeChannels() {
     const channels = [
-        ['general', 'Geral', 'Avisos gerais do SGC', 3],
-        ['operations', 'Operações', 'Entregas, estoque e operações', 3],
-        ['documents', 'Documentos', 'Comprovantes e documentos', 3],
-        ['financial', 'Financeiro', 'Atualizações financeiras importantes', 4],
+        ['general_high_v2', 'Geral', 'Avisos gerais do SGC', 4],
+        ['operations_high_v2', 'Operações', 'Entregas, estoque e operações', 4],
+        ['documents_high_v2', 'Documentos', 'Comprovantes e documentos', 4],
+        ['financial_high_v2', 'Financeiro', 'Atualizações financeiras importantes', 4],
     ];
     await Promise.all(channels.map(([id, name, description, importance]) =>
         PushNotifications.createChannel({ id, name, description, importance, visibility: 0, vibration: true })

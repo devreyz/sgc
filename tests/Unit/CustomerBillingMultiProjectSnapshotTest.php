@@ -206,6 +206,16 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
         DB::table('sales_projects')->insert(['id' => 10]);
         DB::table('customer_billing_receipts')->insert(['id' => 70, 'tenant_id' => 1, 'sales_project_id' => 10]);
 
+        // Simula o estado deixado pelo MySQL quando a criação da tabela foi
+        // confirmada, mas uma FK falhou antes de a migration ser registrada.
+        Schema::create('customer_billing_receipt_projects', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('customer_billing_receipt_id');
+            $table->unsignedBigInteger('sales_project_id');
+            $table->timestamps();
+        });
+
         $migration = require database_path('migrations/2026_09_02_000001_create_customer_billing_receipt_projects_table.php');
         $migration->up();
 

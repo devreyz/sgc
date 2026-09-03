@@ -276,7 +276,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         <span class="fin-label">Observações</span>
         <div class="fin-cheque-box" style="border:1px solid #9ca3af; background:#fff; border-radius:2px;
             padding:5px 8px; font-size:8pt; font-weight:400; line-height:1.4; min-height:28px; white-space:pre-line; color:#374151;">
-            {{ filled($receipt->notes) ? '' : '' }}
+            {{ filled($receipt->notes) ? $receipt->notes : '—' }}
         </div>
     </div>
     <div class="fin-right">

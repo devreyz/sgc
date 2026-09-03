@@ -51,6 +51,7 @@ class AssociateReceiptObserver
         $recipients = $this->notifications->usersForRoles($tenant->id, $roles);
 
         $obsolete = $event === 'receipt.obsolete';
+        $adminUrl = '/admin/associate-receipts/'.(int) $receipt->id.'/edit';
         $message = [
             'title' => $obsolete ? 'Comprovante precisa ser regenerado' : 'Comprovante gerado',
             'body' => 'Comprovante '.$receipt->formatted_number.' de '.$receipt->associate?->display_name.'.',
@@ -75,15 +76,22 @@ class AssociateReceiptObserver
                     'tenant' => $tenant->slug,
                     'project' => $receipt->sales_project_id,
                 ], false).'#documents',
+                'financeiro' => $adminUrl,
+                'tesoureiro' => $adminUrl,
+                'admin' => $adminUrl,
             ],
             'icon' => $obsolete ? 'file-warning' : 'file-check-2',
             'action_label' => $obsolete ? 'Corrigir comprovante' : 'Ver comprovante',
             'action_icon' => 'file-text',
         ];
-        $this->notifications->dispatch($event, $tenant->id, $recipients, $message);
+        $staffMessage = $message;
+        $staffMessage['role_priority'] = $roles;
+        $this->notifications->dispatch($event, $tenant->id, $recipients, $staffMessage);
 
         if (in_array('associado', $configuredRoles, true) && $receipt->associate?->user) {
-            $this->notifications->dispatch($event, $tenant->id, [$receipt->associate->user], $message);
+            $associateMessage = $message;
+            $associateMessage['role_context'] = 'associado';
+            $this->notifications->dispatch($event, $tenant->id, [$receipt->associate->user], $associateMessage);
         }
     }
 }

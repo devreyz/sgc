@@ -10,9 +10,9 @@ use App\Services\FcmHttpV1Client;
 use App\Support\NotificationEventCatalog;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -22,6 +22,7 @@ class SendFcmNotification implements ShouldQueue
     use Queueable;
 
     public int $tries = 3;
+
     public int $timeout = 45;
 
     public function __construct(
@@ -62,7 +63,7 @@ class SendFcmNotification implements ShouldQueue
 
         $notification = DatabaseNotification::query()
             ->whereKey($this->notificationId)
-            ->where('notifiable_type', (new User())->getMorphClass())
+            ->where('notifiable_type', (new User)->getMorphClass())
             ->where('notifiable_id', $this->userId)
             ->first();
 
@@ -211,16 +212,18 @@ class SendFcmNotification implements ShouldQueue
                 'route' => $openRoute,
             ],
             'android' => [
-                'priority' => in_array($priority, ['high', 'critical'], true) ? 'HIGH' : 'NORMAL',
+                // Todos os avisos Android são entregues como alta prioridade.
+                // A prioridade de negócio continua separada no payload da central.
+                'priority' => 'HIGH',
                 'ttl' => $priority === 'critical' ? '86400s' : '14400s',
                 'restricted_package_name' => (string) config('notifications.fcm.android_package', 'br.rzin.sgc'),
                 'notification' => [
                     'channel_id' => NotificationEventCatalog::androidChannel($eventKey),
                     'tag' => 'sgc-'.$this->notificationId,
                     'visibility' => 'PRIVATE',
-                    'notification_priority' => in_array($priority, ['high', 'critical'], true)
-                        ? 'PRIORITY_HIGH'
-                        : 'PRIORITY_DEFAULT',
+                    'notification_priority' => 'PRIORITY_HIGH',
+                    'default_sound' => true,
+                    'default_vibrate_timings' => true,
                 ],
             ],
         ];
