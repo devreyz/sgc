@@ -29,6 +29,9 @@ use App\Models\Revenue;
 use App\Models\SalesProject;
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderPayment;
+use App\Models\ServiceExecution;
+use App\Models\ServiceObligation;
+use App\Models\ServicePaymentEvent;
 use App\Models\ServiceProvider as ServiceProviderModel;
 use App\Models\ServiceProviderLedger;
 use App\Models\Tenant;
@@ -52,6 +55,9 @@ use App\Policies\BillingAuthorizationPolicy;
 use App\Policies\DeliveryConferenceSheetPolicy;
 use App\Policies\FiscalProfilePolicy;
 use App\Policies\PasskeyPolicy;
+use App\Policies\ServiceExecutionPolicy;
+use App\Policies\ServiceObligationPolicy;
+use App\Policies\ServicePaymentEventPolicy;
 use App\Services\CustomerHierarchyService;
 use App\Services\GoogleApiIdTokenVerifier;
 use App\Services\TenantIdentityService;
@@ -124,6 +130,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(BillingAuthorization::class, BillingAuthorizationPolicy::class);
         Gate::policy(DeliveryConferenceSheet::class, DeliveryConferenceSheetPolicy::class);
         Gate::policy(FiscalProfile::class, FiscalProfilePolicy::class);
+        Gate::policy(ServiceExecution::class, ServiceExecutionPolicy::class);
+        Gate::policy(ServiceObligation::class, ServiceObligationPolicy::class);
+        Gate::policy(ServicePaymentEvent::class, ServicePaymentEventPolicy::class);
 
         RateLimiter::for('passkey-options', function (Request $request): array {
             $limit = (int) config('security.rates.webauthn_per_minute', 10);

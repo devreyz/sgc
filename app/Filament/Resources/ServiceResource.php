@@ -17,6 +17,18 @@ use Illuminate\Validation\Rules\Unique;
 
 class ServiceResource extends Resource
 {
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
+
+    public static function canCreate(): bool { return false; }
+    public static function canEdit($record): bool { return false; }
     use TenantScoped;
     protected static ?string $model = Service::class;
 

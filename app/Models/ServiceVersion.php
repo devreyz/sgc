@@ -1,0 +1,75 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
+
+class ServiceVersion extends Model
+{
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'service_id', 'version', 'status', 'category', 'unit', 'review_mode',
+        'allow_provider_create_order', 'customer_pricing_method', 'customer_rate',
+        'customer_percentage', 'receivable_enabled', 'provider_pricing_method',
+        'default_provider_rate', 'provider_percentage', 'payable_enabled',
+        'execution_config', 'financial_config', 'evidence_config', 'document_config',
+        'snapshot_hash', 'published_at', 'published_by', 'retired_at',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'allow_provider_create_order' => 'boolean', 'receivable_enabled' => 'boolean',
+            'payable_enabled' => 'boolean', 'customer_rate' => 'decimal:4',
+            'customer_percentage' => 'decimal:4', 'default_provider_rate' => 'decimal:4',
+            'provider_percentage' => 'decimal:4', 'execution_config' => 'array',
+            'financial_config' => 'array', 'evidence_config' => 'array',
+            'document_config' => 'array', 'published_at' => 'datetime', 'retired_at' => 'datetime',
+        ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function (self $version): void {
+            if ($version->getOriginal('status') === 'published') {
+                $allowed = ['status', 'retired_at', 'updated_at'];
+                if (array_diff(array_keys($version->getDirty()), $allowed)) {
+                    throw ValidationException::withMessages(['version' => 'Versão publicada é imutável. Duplique-a para alterar a configuração.']);
+                }
+            }
+        });
+        static::deleting(function (self $version): void {
+            if ($version->status !== 'draft') {
+                throw ValidationException::withMessages(['version' => 'Somente versões em rascunho podem ser excluídas.']);
+            }
+        });
+    }
+
+    public function service(): BelongsTo { return $this->belongsTo(Service::class); }
+    public function fields(): HasMany { return $this->hasMany(ServiceVersionField::class)->orderBy('sort_order'); }
+    public function providerRates(): HasMany { return $this->hasMany(ServiceProviderVersionRate::class); }
+    public function publisher(): BelongsTo { return $this->belongsTo(User::class, 'published_by'); }
+    public function isPublished(): bool { return $this->status === 'published'; }
+
+    public function snapshot(): array
+    {
+        $this->loadMissing('fields');
+        return [
+            'service_version_id' => $this->id, 'version' => $this->version,
+            'service' => ['id' => $this->service_id, 'name' => $this->service?->name, 'code' => $this->service?->code],
+            'category' => $this->category, 'unit' => $this->unit, 'review_mode' => $this->review_mode,
+            'customer_pricing_method' => $this->customer_pricing_method, 'customer_rate' => $this->customer_rate,
+            'customer_percentage' => $this->customer_percentage, 'receivable_enabled' => $this->receivable_enabled,
+            'provider_pricing_method' => $this->provider_pricing_method, 'default_provider_rate' => $this->default_provider_rate,
+            'provider_percentage' => $this->provider_percentage, 'payable_enabled' => $this->payable_enabled,
+            'execution_config' => $this->execution_config ?? [], 'financial_config' => $this->financial_config ?? [],
+            'evidence_config' => $this->evidence_config ?? [], 'document_config' => $this->document_config ?? [],
+            'fields' => $this->fields->map->snapshot()->values()->all(),
+        ];
+    }
+}

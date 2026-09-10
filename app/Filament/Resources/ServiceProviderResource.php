@@ -346,9 +346,7 @@ class ServiceProviderResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            RelationManagers\WorksRelationManager::class,
-        ];
+        return [];
     }
 
     public static function getPages(): array
@@ -371,7 +369,7 @@ class ServiceProviderResource extends Resource
 
     public static function getNavigationBadge(): ?string
     {
-        return static::getModel()::whereHas('works', fn ($q) => $q->where('payment_status', 'pendente'))->count() ?: null;
+        return null;
     }
 
     public static function getNavigationBadgeColor(): ?string

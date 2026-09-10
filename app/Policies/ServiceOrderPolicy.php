@@ -15,7 +15,7 @@ class ServiceOrderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_service::order');
+        return $user->checkPermissionTo('view_service_management') || $user->checkPermissionTo('view_own_service_orders');
     }
 
     /**
@@ -23,7 +23,8 @@ class ServiceOrderPolicy
      */
     public function view(User $user, ServiceOrder $serviceOrder): bool
     {
-        return $user->can('view_service::order');
+        return (int) $serviceOrder->tenant_id === (int) session('tenant_id')
+            && ($user->checkPermissionTo('view_service_management') || $serviceOrder->serviceProvider?->user_id === $user->id);
     }
 
     /**
@@ -31,7 +32,7 @@ class ServiceOrderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_service::order');
+        return $user->checkPermissionTo('create_service_order');
     }
 
     /**
@@ -39,7 +40,7 @@ class ServiceOrderPolicy
      */
     public function update(User $user, ServiceOrder $serviceOrder): bool
     {
-        return $user->can('update_service::order');
+        return (int) $serviceOrder->tenant_id === (int) session('tenant_id') && $user->checkPermissionTo('edit_service_order');
     }
 
     /**
@@ -47,7 +48,7 @@ class ServiceOrderPolicy
      */
     public function delete(User $user, ServiceOrder $serviceOrder): bool
     {
-        return $user->can('delete_service::order');
+        return false;
     }
 
     /**
@@ -55,7 +56,7 @@ class ServiceOrderPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_service::order');
+        return false;
     }
 
     /**
@@ -63,7 +64,7 @@ class ServiceOrderPolicy
      */
     public function forceDelete(User $user, ServiceOrder $serviceOrder): bool
     {
-        return $user->can('force_delete_service::order');
+        return false;
     }
 
     /**
@@ -71,7 +72,7 @@ class ServiceOrderPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_service::order');
+        return false;
     }
 
     /**

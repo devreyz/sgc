@@ -32,6 +32,7 @@ class Service extends Model
         'default_asset_id',
         'status',
         'notes',
+        'current_version_id',
     ];
 
     protected function casts(): array
@@ -81,6 +82,16 @@ class Service extends Model
     public function serviceOrders(): HasMany
     {
         return $this->hasMany(ServiceOrder::class);
+    }
+
+    public function versions(): HasMany
+    {
+        return $this->hasMany(ServiceVersion::class)->orderByDesc('version');
+    }
+
+    public function currentVersion(): BelongsTo
+    {
+        return $this->belongsTo(ServiceVersion::class, 'current_version_id');
     }
 
     /**

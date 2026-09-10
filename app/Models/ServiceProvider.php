@@ -73,6 +73,21 @@ class ServiceProvider extends Model
         return $this->hasMany(ServiceProviderWork::class);
     }
 
+    public function versionRates(): HasMany
+    {
+        return $this->hasMany(ServiceProviderVersionRate::class);
+    }
+
+    public function serviceObligations(): HasMany
+    {
+        return $this->hasMany(ServiceObligation::class);
+    }
+
+    public function payoutRequests(): HasMany
+    {
+        return $this->hasMany(ServicePayoutRequest::class);
+    }
+
     public function ledgers(): HasMany
     {
         return $this->hasMany(ServiceProviderLedger::class);
@@ -166,18 +181,17 @@ class ServiceProvider extends Model
             $providerRoles[] = 'service_provider';
         }
 
-        // Sincroniza apenas os roles de prestador (não mexe nos outros roles como admin)
-        $currentRoles = $this->user->roles()->pluck('name')->toArray();
-        $systemRoles = ['super_admin', 'admin', 'financeiro', 'associado'];
-        
-        // Mantém roles de sistema
-        $rolesToKeep = array_intersect($currentRoles, $systemRoles);
-        
-        // Adiciona os roles de prestador
-        $finalRoles = array_unique(array_merge($rolesToKeep, $providerRoles));
-        
-        // Sincroniza
-        $this->user->syncRoles($finalRoles);
+        $membership = TenantUser::query()
+            ->where('tenant_id', $this->tenant_id)
+            ->where('user_id', $this->user_id)
+            ->first();
+        if (! $membership) {
+            return;
+        }
+        $allProviderRoles = array_keys(self::getAvailableRoles());
+        $allProviderRoles[] = 'service_provider';
+        $current = array_values(array_diff($membership->roles ?? [], $allProviderRoles));
+        $membership->update(['roles' => array_values(array_unique(array_merge($current, $providerRoles)))]);
     }
 
     /**

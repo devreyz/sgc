@@ -15,7 +15,7 @@ class ServiceProviderPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_service::provider');
+        return $user->checkPermissionTo('manage_service_providers');
     }
 
     /**
@@ -23,7 +23,7 @@ class ServiceProviderPolicy
      */
     public function view(User $user, ServiceProvider $serviceProvider): bool
     {
-        return $user->can('view_service::provider');
+        return (int)$serviceProvider->tenant_id === (int)session('tenant_id') && $user->checkPermissionTo('manage_service_providers');
     }
 
     /**
@@ -31,7 +31,7 @@ class ServiceProviderPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_service::provider');
+        return $user->checkPermissionTo('manage_service_providers');
     }
 
     /**
@@ -39,7 +39,7 @@ class ServiceProviderPolicy
      */
     public function update(User $user, ServiceProvider $serviceProvider): bool
     {
-        return $user->can('update_service::provider');
+        return (int)$serviceProvider->tenant_id === (int)session('tenant_id') && $user->checkPermissionTo('manage_service_providers');
     }
 
     /**
@@ -47,7 +47,7 @@ class ServiceProviderPolicy
      */
     public function delete(User $user, ServiceProvider $serviceProvider): bool
     {
-        return $user->can('delete_service::provider');
+        return false;
     }
 
     /**
@@ -55,7 +55,7 @@ class ServiceProviderPolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_service::provider');
+        return false;
     }
 
     /**
@@ -63,7 +63,7 @@ class ServiceProviderPolicy
      */
     public function forceDelete(User $user, ServiceProvider $serviceProvider): bool
     {
-        return $user->can('force_delete_service::provider');
+        return false;
     }
 
     /**
@@ -71,7 +71,7 @@ class ServiceProviderPolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_service::provider');
+        return false;
     }
 
     /**

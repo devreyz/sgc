@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Tenant;
+use App\Models\TenantUser;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -31,6 +32,15 @@ class TenantFromSlugMiddleware
         }
 
         if ($tenant instanceof Tenant) {
+            $user = $request->user();
+            $hasMembership = $user && TenantUser::query()
+                ->where('tenant_id', $tenant->id)
+                ->where('user_id', $user->id)
+                ->where('status', true)
+                ->exists();
+
+            abort_unless($user?->hasRole('super_admin') || $hasMembership, 403, 'Acesso não autorizado a esta organização.');
+
             // Definir tenant_id na sessão
             session(['tenant_id' => $tenant->id, 'tenant_slug' => $tenant->slug]);
 

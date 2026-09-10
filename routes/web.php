@@ -34,17 +34,24 @@ use App\Http\Controllers\NotificationCenterController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\Pdv\PdvController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\Provider\ProviderDashboardController;
+use App\Http\Controllers\Provider\ServiceProviderPortalController;
 use App\Http\Controllers\PublicFormController;
 use App\Http\Controllers\PushDeviceController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
+use App\Http\Controllers\Services\ServiceCatalogController;
+use App\Http\Controllers\Services\ServiceManagementController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use App\Services\AuthenticationRedirector;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Models\Document;
+use App\Models\ProviderPaymentRequest;
+use App\Models\ServiceOrder;
+use App\Models\ServiceOrderPayment;
+use App\Models\TenantUser;
 
 Route::get('/storage/{path}', function (string $path) {
     $path = ltrim(str_replace('\\', '/', $path), '/');
@@ -55,8 +62,35 @@ Route::get('/storage/{path}', function (string $path) {
 
     abort_unless($disk->exists($path), 404);
 
+    $record = Document::withoutGlobalScopes()->where('disk', 'public')->where('path', $path)
+        ->whereIn('documentable_type', [ServiceOrder::class, ServiceOrderPayment::class, ProviderPaymentRequest::class, \App\Models\ServiceExecution::class])
+        ->first()
+        ?? ServiceOrderPayment::withoutGlobalScopes()->where('receipt_path', $path)->first()
+        ?? ProviderPaymentRequest::withoutGlobalScopes()->where('receipt_path', $path)->first()
+        ?? ServiceOrder::withoutGlobalScopes()->where('receipt_path', $path)->first();
+
+    if ($record) {
+        $user = auth()->user();
+        $tenantId = (int) $record->tenant_id;
+        abort_unless($user && (int) session('tenant_id') === $tenantId, 403);
+        abort_unless($user->hasRole('super_admin') || TenantUser::query()
+            ->where('tenant_id', $tenantId)->where('user_id', $user->id)->where('status', true)->exists(), 403);
+        $providerOwnsRecord = ServiceOrder::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('service_provider_id', function ($query) use ($tenantId, $user) {
+                $query->select('id')->from('service_providers')->where('tenant_id', $tenantId)->where('user_id', $user->id)->limit(1);
+            })
+            ->where(function ($query) use ($record) {
+                if ($record instanceof ServiceOrder) $query->whereKey($record->id);
+                elseif ($record instanceof ServiceOrderPayment) $query->whereKey($record->service_order_id);
+                elseif ($record instanceof ProviderPaymentRequest) $query->whereKey($record->service_order_id);
+                else $query->whereRaw('1 = 0');
+            })->exists();
+        abort_unless($providerOwnsRecord || $user->checkPermissionTo('view_service_management'), 403);
+    }
+
     return response()->file($disk->path($path), [
-        'Cache-Control' => 'public, max-age=86400',
+        'Cache-Control' => $record ? 'private, no-store' : 'public, max-age=86400',
     ]);
 })->where('path', '.*')->name('storage.public');
 
@@ -342,19 +376,50 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
     Route::get('/wallet/print-card', [WalletController::class, 'printCard'])->name('wallet.print-card');
 
     // Service Provider Portal Routes
+    Route::prefix('services-management')->name('services.')->group(function () {
+        Route::get('/', [ServiceManagementController::class, 'index'])->name('management.index');
+        Route::get('/orders/create', [ServiceManagementController::class, 'create'])->name('management.create');
+        Route::post('/orders', [ServiceManagementController::class, 'store'])->middleware('throttle:30,1')->name('management.store');
+        Route::get('/orders/{order}', [ServiceManagementController::class, 'show'])->whereNumber('order')->name('management.show');
+        Route::post('/orders/{order}/approve', [ServiceManagementController::class, 'approve'])->middleware('throttle:20,1')->whereNumber('order')->name('management.approve');
+        Route::post('/orders/{order}/correction', [ServiceManagementController::class, 'correction'])->middleware('throttle:20,1')->whereNumber('order')->name('management.correction');
+        Route::post('/obligations/{obligation}/payments', [ServiceManagementController::class, 'payment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.payments.store');
+        Route::post('/payments/{payment}/reverse', [ServiceManagementController::class, 'reverse'])->middleware('throttle:10,1')->whereNumber('payment')->name('management.payments.reverse');
+        Route::post('/orders/{order}/resources', [ServiceManagementController::class, 'resource'])->middleware('throttle:20,1')->whereNumber('order')->name('management.resources.store');
+        Route::post('/obligations/{obligation}/adjustments', [ServiceManagementController::class, 'adjustment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.adjustments.store');
+        Route::get('/reports', [ServiceManagementController::class, 'reports'])->name('management.reports');
+        Route::post('/reports/document', [ServiceManagementController::class, 'generateReport'])->middleware('throttle:10,1')->name('management.reports.document');
+        Route::get('/agreements', [ServiceManagementController::class, 'agreements'])->name('management.agreements');
+        Route::post('/agreements', [ServiceManagementController::class, 'negotiate'])->middleware('throttle:10,1')->name('management.agreements.store');
+        Route::post('/orders/{order}/documents', [ServiceManagementController::class, 'generateOrderDocument'])->middleware('throttle:10,1')->whereNumber('order')->name('management.documents.generate');
+        Route::get('/documents/{document}', [ServiceManagementController::class, 'document'])->whereNumber('document')->name('management.documents.download');
+        Route::get('/evidences/{evidence}', [ServiceManagementController::class, 'evidence'])->whereNumber('evidence')->name('management.evidences.download');
+        Route::get('/catalog', [ServiceCatalogController::class, 'index'])->name('catalog.index');
+        Route::get('/catalog/create', [ServiceCatalogController::class, 'create'])->name('catalog.create');
+        Route::post('/catalog', [ServiceCatalogController::class, 'store'])->middleware('throttle:20,1')->name('catalog.store');
+        Route::get('/catalog/versions/{version}', [ServiceCatalogController::class, 'show'])->whereNumber('version')->name('catalog.show');
+        Route::put('/catalog/versions/{version}', [ServiceCatalogController::class, 'update'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.update');
+        Route::post('/catalog/versions/{version}/fields', [ServiceCatalogController::class, 'field'])->middleware('throttle:30,1')->whereNumber('version')->name('catalog.fields.store');
+        Route::delete('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'deleteField'])->middleware('throttle:20,1')->whereNumber(['version','field'])->name('catalog.fields.delete');
+        Route::post('/catalog/versions/{version}/publish', [ServiceCatalogController::class, 'publish'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.publish');
+        Route::post('/catalog/versions/{version}/clone', [ServiceCatalogController::class, 'clone'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.clone');
+        Route::post('/catalog/versions/{version}/rates', [ServiceCatalogController::class, 'rate'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.rates.store');
+        Route::get('/catalog/versions/{version}/preview', [ServiceCatalogController::class, 'preview'])->whereNumber('version')->name('catalog.preview');
+    });
+
     Route::prefix('provider')->name('provider.')->middleware(['any.role:service_provider,tratorista,motorista,diarista,tecnico'])->group(function () {
-        Route::get('/dashboard', [ProviderDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/orders', [ProviderDashboardController::class, 'orders'])->name('orders');
-        Route::get('/orders/create', [ProviderDashboardController::class, 'createOrder'])->name('orders.create');
-        Route::post('/orders', [ProviderDashboardController::class, 'storeOrder'])->name('orders.store');
-        Route::get('/orders/{order}', [ProviderDashboardController::class, 'showOrder'])->name('orders.show');
-        Route::post('/orders/{order}/start', [ProviderDashboardController::class, 'startExecution'])->name('orders.start');
-        Route::post('/orders/{order}/complete', [ProviderDashboardController::class, 'completeOrder'])->name('orders.complete');
-        Route::get('/financial', [ProviderDashboardController::class, 'financial'])->name('financial');
-        Route::get('/orders/{order}/register-payment', [ProviderDashboardController::class, 'registerClientPayment'])->name('orders.register-payment');
-        Route::post('/orders/{order}/register-payment', [ProviderDashboardController::class, 'storeClientPayment'])->name('orders.store-payment');
-        Route::get('/financial/request-payment/{order}', [ProviderDashboardController::class, 'requestPayment'])->name('financial.request-payment');
-        Route::post('/financial/request-payment/{order}', [ProviderDashboardController::class, 'storePaymentRequest'])->name('financial.store-request');
+        Route::get('/dashboard', [ServiceProviderPortalController::class, 'index'])->name('dashboard');
+        Route::get('/orders', [ServiceProviderPortalController::class, 'orders'])->name('orders');
+        Route::get('/orders/create', [ServiceProviderPortalController::class, 'create'])->name('orders.create');
+        Route::post('/orders', [ServiceProviderPortalController::class, 'store'])->middleware('throttle:30,1')->name('orders.store');
+        Route::get('/orders/{order}', [ServiceProviderPortalController::class, 'show'])->whereNumber('order')->name('orders.show');
+        Route::post('/orders/{order}/start', [ServiceProviderPortalController::class, 'start'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.start');
+        Route::put('/orders/{order}/draft', [ServiceProviderPortalController::class, 'draft'])->middleware('throttle:60,1')->whereNumber('order')->name('orders.draft');
+        Route::post('/orders/{order}/submit', [ServiceProviderPortalController::class, 'submit'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.submit');
+        Route::post('/orders/{order}/evidences', [ServiceProviderPortalController::class, 'upload'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.evidences.store');
+        Route::get('/evidences/{evidence}', [ServiceProviderPortalController::class, 'evidence'])->whereNumber('evidence')->name('evidences.download');
+        Route::get('/financial', [ServiceProviderPortalController::class, 'financial'])->name('financial');
+        Route::post('/financial/payout-requests', [ServiceProviderPortalController::class, 'payout'])->middleware('throttle:10,1')->name('financial.payout');
     });
 
     // Associate Portal Routes

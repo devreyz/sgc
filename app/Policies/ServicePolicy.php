@@ -15,7 +15,7 @@ class ServicePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_service');
+        return $user->checkPermissionTo('manage_service_catalog');
     }
 
     /**
@@ -23,7 +23,7 @@ class ServicePolicy
      */
     public function view(User $user, Service $service): bool
     {
-        return $user->can('view_service');
+        return (int)$service->tenant_id === (int)session('tenant_id') && $user->checkPermissionTo('manage_service_catalog');
     }
 
     /**
@@ -31,7 +31,7 @@ class ServicePolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_service');
+        return $user->checkPermissionTo('manage_service_catalog');
     }
 
     /**
@@ -39,7 +39,7 @@ class ServicePolicy
      */
     public function update(User $user, Service $service): bool
     {
-        return $user->can('update_service');
+        return (int)$service->tenant_id === (int)session('tenant_id') && $user->checkPermissionTo('manage_service_catalog');
     }
 
     /**
@@ -47,7 +47,7 @@ class ServicePolicy
      */
     public function delete(User $user, Service $service): bool
     {
-        return $user->can('delete_service');
+        return false;
     }
 
     /**
@@ -55,7 +55,7 @@ class ServicePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_service');
+        return false;
     }
 
     /**
@@ -63,7 +63,7 @@ class ServicePolicy
      */
     public function forceDelete(User $user, Service $service): bool
     {
-        return $user->can('force_delete_service');
+        return false;
     }
 
     /**
@@ -71,7 +71,7 @@ class ServicePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_service');
+        return false;
     }
 
     /**

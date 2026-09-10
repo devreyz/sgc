@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DocumentTemplate;
+use App\Models\GeneratedDocument;
 use App\Models\PdfLayoutTemplate;
 use App\Models\Tenant;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -24,6 +25,23 @@ class TemplatedPdfService
         private readonly SystemPdfConfigurationResolver $systemPdfConfiguration,
     ) {
         $this->varService = $varService;
+    }
+
+    public function generateFrozenDocument(GeneratedDocument $document): DomPDF
+    {
+        $document->loadMissing('template');
+        $template = $document->template;
+        $tenant = Tenant::withoutGlobalScopes()->find($document->tenant_id);
+        $theme = $this->resolveThemeColors($template, $tenant);
+        $html = $this->buildHtmlPage(
+            content: $document->content,
+            template: $template,
+            title: $document->title,
+            themeColors: $theme,
+            tenant: $tenant,
+            allVars: [],
+        );
+        return Pdf::loadHTML($html)->setPaper($template->paper_size ?? 'a4', $template->paper_orientation ?? 'portrait');
     }
 
     /**

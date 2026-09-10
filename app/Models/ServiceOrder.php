@@ -22,6 +22,7 @@ class ServiceOrder extends Model
         'number',
         'associate_id',
         'service_id',
+        'service_version_id',
         'asset_id',
         'scheduled_date',
         'execution_date',
@@ -38,6 +39,15 @@ class ServiceOrder extends Model
         'location',
         'distance_km',
         'status',
+        'operational_status',
+        'scheduled_at',
+        'order_data',
+        'beneficiary_snapshot',
+        'provider_snapshot',
+        'lock_version',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
         'payment_status',
         'paid',
         'paid_date',
@@ -82,6 +92,11 @@ class ServiceOrder extends Model
             'distance_km' => 'decimal:2',
             'fuel_used' => 'decimal:2',
             'paid' => 'boolean',
+            'scheduled_at' => 'datetime',
+            'order_data' => 'array',
+            'beneficiary_snapshot' => 'array',
+            'provider_snapshot' => 'array',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -127,6 +142,16 @@ class ServiceOrder extends Model
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function serviceVersion(): BelongsTo
+    {
+        return $this->belongsTo(ServiceVersion::class);
+    }
+
+    public function execution(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ServiceExecution::class);
     }
 
     /**

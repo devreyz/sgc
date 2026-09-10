@@ -132,6 +132,11 @@ class Associate extends Model
         return $this->display_name.$registration;
     }
 
+    public function serviceObligations(): HasMany
+    {
+        return $this->hasMany(ServiceObligation::class);
+    }
+
     public function getDisplayNameAttribute(): string
     {
         return app(\App\Services\TenantIdentityService::class)->displayNameForAssociate($this);

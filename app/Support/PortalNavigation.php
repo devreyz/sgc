@@ -31,6 +31,13 @@ class PortalNavigation
                 ['key' => 'orders', 'label' => 'Ordens', 'route' => 'provider.orders'],
                 ['key' => 'financial', 'label' => 'Financeiro', 'route' => 'provider.financial'],
             ],
+            'services' => [
+                ['key' => 'queue', 'label' => 'Fila', 'route' => 'services.management.index'],
+                ['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create'],
+                ['key' => 'catalog', 'label' => 'Catálogo', 'route' => 'services.catalog.index'],
+                ['key' => 'agreements', 'label' => 'Acordos', 'route' => 'services.management.agreements'],
+                ['key' => 'reports', 'label' => 'Prestação', 'route' => 'services.management.reports'],
+            ],
             'cashier' => [
                 ['key' => 'dashboard', 'label' => 'Caixa', 'route' => 'pdv.index'],
                 ['key' => 'create', 'label' => 'Nova venda', 'route' => 'pdv.index'],

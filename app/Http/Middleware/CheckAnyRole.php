@@ -26,13 +26,8 @@ class CheckAnyRole
 
         $user = $request->user();
 
-        // Super admins e admins globais (Spatie) passam sempre
-        if ($user->hasAnyRole(['super_admin', 'admin'])) {
-            return $next($request);
-        }
-
-        // Verifica roles globais (Spatie)
-        if ($user->hasAnyRole($roles)) {
+        // Somente super_admin é global. Papéis operacionais nunca atravessam tenants.
+        if ($user->hasRole('super_admin')) {
             return $next($request);
         }
 

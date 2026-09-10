@@ -1,0 +1,4 @@
+@extends('layouts.bento')
+@section('title','Prévia') @section('page-title','Como o prestador verá') @section('user-role','Prévia do catálogo')
+@php($tenantSlug=request()->route('tenant')->slug) @php($bentoNavigation=\App\Support\PortalNavigation::make('services','catalog',$tenantSlug))
+@section('content')<section class="bento-card col-span-full" style="max-width:42rem"><h2>{{$version->service->name}}</h2><p>Somente os campos necessários aparecem em cada etapa.</p>@foreach(['order'=>'Ao criar','start'=>'Ao iniciar','execution'=>'Durante','finish'=>'Ao finalizar','review'=>'Na conferência'] as $phase=>$label) @php($fields=$version->fields->where('phase',$phase)->where('visible_to_provider',true)) @if($fields->isNotEmpty())<h3>{{$label}}</h3>@foreach($fields as $field)<label style="display:grid;margin:.75rem 0">{{$field->label}} @if($field->required)*@endif<input disabled placeholder="{{$field->placeholder}}"></label>@endforeach @endif @endforeach</section>@endsection
