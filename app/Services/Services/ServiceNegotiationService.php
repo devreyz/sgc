@@ -48,7 +48,7 @@ class ServiceNegotiationService
                 $supersedes->update(['status' => 'superseded']);
             }
 
-return $negotiation->fresh('plan.installments');
+            return $negotiation->fresh('plan.installments');
         }, 3);
     }
 }

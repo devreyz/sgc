@@ -118,6 +118,7 @@ class ServiceProviderCompensationTest extends TestCase
             $t->string('status')->default('scheduled');
             $t->date('execution_date')->nullable();
             $t->decimal('actual_quantity', 18, 4)->nullable();
+            $t->decimal('unit_price', 14, 2)->default(0);
             $t->decimal('provider_payment', 14, 2)->nullable();
             $t->decimal('total_price', 14, 2)->default(0);
             $t->decimal('final_price', 14, 2)->default(0);
@@ -353,6 +354,19 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame('reimbursement', $result['payable'][1]['type']);
     }
 
+    public function test_customer_percentage_uses_the_configured_financial_base(): void
+    {
+        [$execution,, $version] = $this->execution(1, 1000, 300);
+        $version->forceFill([
+            'customer_pricing_method' => 'percent_of_base',
+            'customer_percentage' => 10,
+        ])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution);
+
+        $this->assertSame(100.0, $result['receivable_total']);
+    }
+
     public function test_missing_provider_rate_blocks_payable_generation(): void
     {
         [$execution] = $this->execution(3, 150, null);
@@ -407,6 +421,99 @@ class ServiceProviderCompensationTest extends TestCase
         $retry = $workflow->submit($result, ['hours' => 3], $finish, $actor);
         $this->assertSame($result->id, $retry->id);
         $this->assertSame(2, ServiceObligation::count());
+    }
+
+    public function test_customer_hours_and_provider_days_use_independent_quantities(): void
+    {
+        [$execution,, $version] = $this->execution(3, 150, 300);
+        $execution->forceFill(['values' => ['hours' => 3, 'days' => 2]])->saveQuietly();
+        $version->forceFill(['execution_config' => [
+            'customer_quantity_field' => 'hours',
+            'provider_quantity_field' => 'days',
+            'provider_unit' => 'dia',
+        ]])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+
+        $this->assertSame(450.0, $result['receivable_total']);
+        $this->assertSame(600.0, $result['payable_total']);
+        $this->assertSame('dia', $result['payable'][0]['unit']);
+    }
+
+    public function test_internal_service_can_pay_provider_without_charging_beneficiary(): void
+    {
+        [$execution,, $version] = $this->execution(1, 150, 200);
+        $version->forceFill([
+            'receivable_enabled' => false,
+            'provider_pricing_method' => 'fixed',
+            'default_provider_rate' => 200,
+        ])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution);
+
+        $this->assertSame(0.0, $result['receivable_total']);
+        $this->assertSame(200.0, $result['payable_total']);
+        $this->assertCount(0, $result['receivable']);
+    }
+
+    public function test_controlled_fees_and_discounts_do_not_compound_each_other(): void
+    {
+        [$execution,, $version] = $this->execution(2, 100, 50);
+        $version->forceFill(['financial_config' => ['rules' => [
+            ['description' => 'Taxa administrativa', 'direction' => 'receivable', 'method' => 'percent_addition', 'percentage' => 10],
+            ['description' => 'Desconto social', 'direction' => 'receivable', 'method' => 'percent_deduction', 'percentage' => 5],
+            ['description' => 'Bônus', 'direction' => 'payable', 'method' => 'fixed_addition', 'value' => 25],
+        ]]])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution);
+
+        $this->assertSame(210.0, $result['receivable_total']);
+        $this->assertSame(125.0, $result['payable_total']);
+        $this->assertSame(200.0, $result['receivable'][1]['rule_snapshot']['calculation_base']);
+        $this->assertSame(200.0, $result['receivable'][2]['rule_snapshot']['calculation_base']);
+    }
+
+    public function test_resource_cannot_create_receivable_for_internal_service(): void
+    {
+        [$execution,, $version] = $this->execution(1, 100, 50);
+        $version->forceFill(['receivable_enabled' => false])->saveQuietly();
+        $resource = new ServiceExecutionResource([
+            'service_execution_id' => $execution->id,
+            'resource_key' => 'fee',
+            'description' => 'Taxa indevida',
+            'effect' => 'add_to_receivable',
+            'amount' => 10,
+            'operation_key' => (string) Str::uuid(),
+        ]);
+        $resource->tenant_id = 1;
+        $resource->save();
+
+        $this->expectException(ValidationException::class);
+        app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+    }
+
+    public function test_published_version_financial_rules_are_immutable(): void
+    {
+        [,, $version] = $this->execution(1, 100, 50);
+
+        $this->expectException(ValidationException::class);
+        $version->update(['customer_rate' => 999]);
+    }
+
+    public function test_published_version_cannot_be_deleted(): void
+    {
+        [,, $version] = $this->execution(1, 100, 50);
+
+        $this->expectException(ValidationException::class);
+        $version->delete();
+    }
+
+    public function test_payment_without_cash_or_bank_account_is_blocked(): void
+    {
+        [$obligation,, $actor] = $this->payable();
+
+        $this->expectException(ValidationException::class);
+        app(ServicePaymentService::class)->record($obligation, 100, 'pix', '2026-09-09', null, (string) Str::uuid(), $actor);
     }
 
     private function execution(float $quantity, float $customerRate, ?float $providerRate): array

@@ -56,7 +56,9 @@ return [
         'pages' => true,
         'widgets' => true,
         'resources' => true,
-        'custom_permissions' => false,
+        // Exibe permissões de domínio (ex.: núcleo de serviços) para que o
+        // superadministrador possa atribuí-las aos papéis no editor do Shield.
+        'custom_permissions' => true,
     ],
 
     'generator' => [

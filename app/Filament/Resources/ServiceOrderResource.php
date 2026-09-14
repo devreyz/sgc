@@ -2,25 +2,18 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\CashMovementType;
-use App\Enums\ExpenseStatus;
-use App\Enums\LedgerType;
-use App\Enums\PaymentMethod;
-use App\Enums\ProviderLedgerCategory;
-use App\Enums\ServiceOrderPaymentStatus;
-use App\Enums\ServiceOrderStatus;
 use App\Filament\Resources\ServiceOrderResource\Pages;
-use App\Filament\Resources\ServiceOrderResource\RelationManagers;
+use App\Filament\Support\ServiceExecutionForm;
 use App\Filament\Traits\TenantScoped;
 use App\Models\BankAccount;
-use App\Models\CashMovement;
-use App\Models\ChartAccount;
-use App\Models\Expense;
+use App\Models\Service;
+use App\Models\ServiceObligation;
 use App\Models\ServiceOrder;
-use App\Models\ServiceOrderAddition;
-use App\Models\ServiceOrderPayment;
 use App\Models\ServiceProvider;
-use App\Models\ServiceProviderLedger;
+use App\Models\ServiceVersion;
+use App\Services\Services\ServiceEvidenceService;
+use App\Services\Services\ServiceExecutionWorkflow;
+use App\Services\Services\ServicePaymentService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -28,973 +21,171 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ServiceOrderResource extends Resource
 {
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
-
-    public static function canViewAny(): bool
-    {
-        return false;
-    }
-
-    public static function canCreate(): bool { return false; }
-    public static function canEdit($record): bool { return false; }
     use TenantScoped;
 
     protected static ?string $model = ServiceOrder::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
     protected static ?string $navigationGroup = 'Serviços';
 
-    protected static ?string $modelLabel = 'Ordem de Serviço';
+    protected static ?string $modelLabel = 'Ordem de serviço';
 
-    protected static ?string $pluralModelLabel = 'Ordens de Serviço';
+    protected static ?string $pluralModelLabel = 'Ordens de serviço';
 
     protected static ?int $navigationSort = 1;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->checkPermissionTo('view_service_management') ?? false;
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->checkPermissionTo('view_service_management') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->checkPermissionTo('create_service_order') ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return false;
+    }
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-
-            Forms\Components\Section::make('Dados da Ordem')
+            Forms\Components\Section::make('Solicitação')
+                ->description('A versão publicada fixa as regras operacionais e financeiras desta ordem.')
                 ->schema([
-                    Forms\Components\TextInput::make('number')
-                        ->label('Número')
-                        ->disabled()
-                        ->dehydrated(false)
-                        ->visibleOn('edit'),
-
+                    Forms\Components\TextInput::make('number')->label('Número')->disabled()->visibleOn(['view', 'edit']),
                     Forms\Components\Select::make('service_id')
                         ->label('Serviço')
-                        ->relationship('service', 'name')
-                        ->searchable()->preload()->required()
-                        ->reactive()
-                        ->afterStateUpdated(function ($state, callable $set) {
-                            if ($state) {
-                                $service = \App\Models\Service::find($state);
-                                if ($service) {
-                                    $set('unit', $service->unit);
-                                    $set('unit_price', $service->associate_price ?? $service->base_price);
-                                }
-                            }
+                        ->options(fn () => Service::query()->where('status', true)->whereHas('currentVersion', fn ($query) => $query->where('status', 'published'))->orderBy('name')->pluck('name', 'id'))
+                        ->live()->searchable()->preload()->required()
+                        ->afterStateUpdated(function ($state, callable $set): void {
+                            $service = $state ? Service::query()->find($state) : null;
+                            $set('service_version_id', $service?->current_version_id);
+                            $set('service_provider_id', null);
                         }),
-
-                    Forms\Components\Select::make('associate_id')
-                        ->label('Associado (cliente)')
-                        ->relationship('associate', 'id')
-                        ->getOptionLabelFromRecordUsing(fn ($record) => optional($record->user)->name ?? $record->property_name ?? "#{$record->id}")
-                        ->searchable()->preload()
-                        ->helperText('Deixe vazio para pessoa avulsa'),
-
+                    Forms\Components\Hidden::make('service_version_id')->required(),
                     Forms\Components\Select::make('service_provider_id')
-                        ->label('Prestador de Serviço')
-                        ->reactive()
-                        ->options(fn (callable $get) => ($get('service_id'))
-                                ? \App\Models\ServiceProvider::whereHas('services', fn ($q) => $q->where('services.id', $get('service_id')))->where('status', true)->pluck('name', 'id')
-                                : \App\Models\ServiceProvider::where('status', true)->pluck('name', 'id')
-                        )
-                        ->searchable()->preload()->required(),
+                        ->label('Prestador habilitado')
+                        ->options(fn (callable $get) => $get('service_id')
+                            ? ServiceProvider::query()->where('status', true)->whereHas('services', fn ($query) => $query->whereKey($get('service_id')))->orderBy('name')->pluck('name', 'id')
+                            : collect())
+                        ->searchable()->preload()->required(fn (callable $get) => ServiceVersion::query()->find($get('service_version_id'))?->payable_enabled ?? false),
+                    Forms\Components\Select::make('associate_id')->label('Associado/beneficiário')->relationship('associate', 'id')->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? "Associado #{$record->id}")->searchable()->preload(),
+                    Forms\Components\TextInput::make('beneficiary_name')->label('Nome ou apelido do beneficiário')->helperText('Para serviço interno, informe a organização ou setor atendido.')->required()->maxLength(191)->afterStateHydrated(fn ($component, $record) => $component->state(data_get($record, 'beneficiary_snapshot.name'))),
+                    Forms\Components\Select::make('asset_id')->label('Equipamento/recurso')->relationship('asset', 'name')->searchable()->preload(),
+                    Forms\Components\DateTimePicker::make('scheduled_at')->label('Agendamento')->seconds(false)->default(now())->required(),
+                    Forms\Components\TextInput::make('location')->label('Local')->maxLength(191)->columnSpanFull(),
+                    Forms\Components\Textarea::make('work_description')->label('Descrição ou instruções')->rows(3)->columnSpanFull(),
+                    Forms\Components\Textarea::make('notes')->label('Observações internas')->rows(2)->columnSpanFull(),
+                ])->columns(2),
+            Forms\Components\Section::make('Dados solicitados pelo serviço')->schema(function (Forms\Get $get): array {
+                $version = ServiceVersion::query()->find($get('service_version_id'));
 
-                    Forms\Components\Select::make('asset_id')
-                        ->label('Equipamento')
-                        ->relationship('asset', 'name')
-                        ->searchable()->preload(),
-
-                    Forms\Components\Select::make('status')
-                        ->label('Status')
-                        ->options(ServiceOrderStatus::class)
-                        ->required()
-                        ->default(ServiceOrderStatus::SCHEDULED)
-                        ->disabled()
-                        ->dehydrated(fn (string $context): bool => $context === 'create')
-                        ->helperText('Status só pode ser alterado por ações específicas'),
-                ])->columns(3),
-
-            Forms\Components\Section::make('Agendamento e Local')
-                ->schema([
-                    Forms\Components\DatePicker::make('scheduled_date')
-                        ->label('Data Agendada')->required(),
-                    Forms\Components\DatePicker::make('execution_date')
-                        ->label('Data de Execução'),
-                    Forms\Components\TextInput::make('location')
-                        ->label('Local')->maxLength(255),
-                    Forms\Components\TextInput::make('distance_km')
-                        ->label('Distância (km)')->numeric()->suffix('km'),
-                ])->columns(4),
-
-            Forms\Components\Section::make('Valores')
-                ->schema([
-                    Forms\Components\TextInput::make('quantity')
-                        ->label('Qtd. Estimada')->numeric(),
-                    Forms\Components\TextInput::make('actual_quantity')
-                        ->label('Qtd. Executada')->numeric(),
-                    Forms\Components\TextInput::make('unit')
-                        ->label('Unidade')->disabled()->dehydrated(true),
-                    Forms\Components\TextInput::make('unit_price')
-                        ->label('Preço Unitário (Cliente)')->numeric()->prefix('R$'),
-                    Forms\Components\TextInput::make('final_price')
-                        ->label('Total Cliente')->numeric()->prefix('R$'),
-                    Forms\Components\TextInput::make('provider_payment')
-                        ->label('Total Prestador')->numeric()->prefix('R$')
-                        ->helperText('Qtd × Taxa do prestador'),
-                ])->columns(3),
-
-            Forms\Components\Section::make('Medidores')
-                ->schema([
-                    Forms\Components\TextInput::make('horimeter_start')->label('Horímetro Ini')->numeric(),
-                    Forms\Components\TextInput::make('horimeter_end')->label('Horímetro Fim')->numeric(),
-                    Forms\Components\TextInput::make('odometer_start')->label('Odômetro Ini')->numeric(),
-                    Forms\Components\TextInput::make('odometer_end')->label('Odômetro Fim')->numeric(),
-                    Forms\Components\TextInput::make('fuel_used')->label('Combustível (L)')->numeric()->suffix('L'),
-                ])->columns(5)->collapsed(),
-
-            Forms\Components\Section::make('Descrição')
-                ->schema([
-                    Forms\Components\Textarea::make('work_description')
-                        ->label('Descrição do Serviço')->rows(3)->columnSpanFull(),
-                    Forms\Components\Textarea::make('notes')
-                        ->label('Observações')->rows(2)->columnSpanFull(),
-                ]),
+                return $version ? ServiceExecutionForm::fields($version->snapshot(), ['order'], 'order_data') : [];
+            }),
         ]);
     }
 
     public static function table(Table $table): Table
     {
-        return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('number')
-                    ->label('Número')->searchable()->sortable(),
-
-                Tables\Columns\TextColumn::make('scheduled_date')
-                    ->label('Data')->date('d/m/Y')->sortable(),
-
-                Tables\Columns\TextColumn::make('service.name')
-                    ->label('Serviço')->searchable()->limit(20),
-
-                Tables\Columns\TextColumn::make('associate.user.display_name')
-                    ->label('Cliente')->searchable()->limit(20)
-                    ->default('Avulso'),
-
-                Tables\Columns\TextColumn::make('serviceProvider.name')
-                    ->label('Prestador')->searchable()->limit(15)
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('actual_quantity')
-                    ->label('Qtd.')
-                    ->formatStateUsing(fn ($state, $record) => $state ? number_format($state, 1, ',', '.').' '.$record->unit : '-'),
-
-                Tables\Columns\TextColumn::make('final_price')
-                    ->label('Valor Cliente')->money('BRL')
-                    ->tooltip('Valor cobrado do cliente'),
-
-                Tables\Columns\TextColumn::make('provider_payment')
-                    ->label('Valor Prestador')->money('BRL')
-                    ->tooltip('Valor a pagar ao prestador')
-                    ->color('success'),
-
-                Tables\Columns\TextColumn::make('associate_payment_status')
-                    ->label('Pgto Cliente')->badge()
-                    ->formatStateUsing(fn ($state) => $state?->getLabel() ?? 'N/A')
-                    ->color(fn ($state) => $state?->getColor() ?? 'gray'),
-
-                Tables\Columns\TextColumn::make('provider_payment_status')
-                    ->label('Pgto Prestador')->badge()
-                    ->formatStateUsing(fn ($state) => $state?->getLabel() ?? 'N/A')
-                    ->color(fn ($state) => $state?->getColor() ?? 'gray'),
-
-                Tables\Columns\TextColumn::make('status')
-                    ->label('Status')->badge()
-                    ->formatStateUsing(fn (ServiceOrderStatus $state) => $state->getLabel())
-                    ->color(fn (ServiceOrderStatus $state) => $state->getColor()),
-            ])
-            ->defaultSort('created_at', 'desc')
-            ->filters([
-                Tables\Filters\TrashedFilter::make(),
-                Tables\Filters\SelectFilter::make('status')
-                    ->label('Status')->options(ServiceOrderStatus::class),
-                Tables\Filters\SelectFilter::make('associate_payment_status')
-                    ->label('Pgto Cliente')
-                    ->options(ServiceOrderPaymentStatus::class),
-                Tables\Filters\SelectFilter::make('provider_payment_status')
-                    ->label('Pgto Prestador')
-                    ->options(ServiceOrderPaymentStatus::class),
-                Tables\Filters\SelectFilter::make('service_provider_id')
-                    ->label('Prestador')
-                    ->options(fn () => ServiceProvider::where('status', true)->pluck('name', 'id')),
-            ])
-            ->actions([
-
-                // ── INICIAR EXECUÇÃO ──
-                Tables\Actions\Action::make('startExecution')
-                    ->label('Iniciar Execução')
-                    ->icon('heroicon-o-play')
-                    ->color('info')
-                    ->requiresConfirmation()
-                    ->modalHeading('Iniciar Execução')
-                    ->modalDescription('Alterar status para Em Execução?')
-                    ->action(function (ServiceOrder $record): void {
-                        $record->update(['status' => ServiceOrderStatus::IN_PROGRESS]);
-                        Notification::make()->success()->title('Execução iniciada')->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => $record->status === ServiceOrderStatus::SCHEDULED),
-
-                // ── FINALIZAR EXECUÇÃO ──
-                Tables\Actions\Action::make('finishExecution')
-                    ->label('Finalizar Execução')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->modalHeading('Finalizar Execução')
-                    ->modalWidth('4xl')
-                    ->form([
-                        Forms\Components\Section::make('Dados da Execução')
-                            ->schema([
-                                Forms\Components\DatePicker::make('execution_date')
-                                    ->label('Data de Execução')->required()->default(now()),
-                                Forms\Components\TextInput::make('actual_quantity')
-                                    ->label('Quantidade Executada')->numeric()->required()->minValue(0.1),
-                                Forms\Components\TextInput::make('horimeter_start')
-                                    ->label('Horímetro Inicial')->numeric(),
-                                Forms\Components\TextInput::make('horimeter_end')
-                                    ->label('Horímetro Final')->numeric(),
-                                Forms\Components\TextInput::make('fuel_used')
-                                    ->label('Combustível (L)')->numeric(),
-                                Forms\Components\Textarea::make('work_description')
-                                    ->label('Descrição do Trabalho')->required()->rows(3)->columnSpanFull(),
-                            ])->columns(3),
-
-                        Forms\Components\Section::make('Despesas, Taxas e Descontos')
-                            ->description('Adicione despesas extras, taxas ou descontos à ordem de serviço. Despesas são registradas como custo (não alteram valor do cliente). Taxas são somadas e descontos subtraídos do valor final.')
-                            ->schema([
-                                Forms\Components\Repeater::make('additions')
-                                    ->label('')
-                                    ->schema([
-                                        Forms\Components\Select::make('type')
-                                            ->label('Tipo')
-                                            ->options([
-                                                'expense' => '💰 Despesa (custo)',
-                                                'fee' => '📈 Taxa (soma ao valor)',
-                                                'discount' => '📉 Desconto (subtrai do valor)',
-                                            ])
-                                            ->required()
-                                            ->reactive()
-                                            ->columnSpan(1),
-                                        Forms\Components\TextInput::make('description')
-                                            ->label('Descrição')
-                                            ->required()
-                                            ->maxLength(255)
-                                            ->columnSpan(2),
-                                        Forms\Components\TextInput::make('amount')
-                                            ->label('Valor (R$)')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0.01)
-                                            ->prefix('R$')
-                                            ->columnSpan(1),
-                                        Forms\Components\Select::make('chart_account_id')
-                                            ->label('Plano de Contas')
-                                            ->options(fn () => ChartAccount::where('allows_entries', true)->where('status', true)->pluck('name', 'id'))
-                                            ->searchable()
-                                            ->preload()
-                                            ->columnSpan(2),
-                                    ])
-                                    ->columns(6)
-                                    ->addActionLabel('Adicionar item')
-                                    ->defaultItems(0)
-                                    ->reorderable(false)
-                                    ->collapsible()
-                                    ->itemLabel(fn (array $state): ?string => ($state['type'] ?? null)
-                                            ? match ($state['type']) {
-                                                'expense' => '💰 Despesa',
-                                                'fee' => '📈 Taxa',
-                                                'discount' => '📉 Desconto',
-                                                default => 'Item',
-                                            }.': '.($state['description'] ?? '').' — R$ '.number_format((float) ($state['amount'] ?? 0), 2, ',', '.')
-                                            : null
-                                    ),
-                            ])->collapsed(),
-                    ])
-                    ->action(function (ServiceOrder $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            $providerService = \App\Models\ServiceProviderService::where('service_provider_id', $record->service_provider_id)
-                                ->where('service_id', $record->service_id)->first();
-
-                            if (! $providerService) {
-                                Notification::make()->danger()
-                                    ->title('Erro')->body('Taxa do prestador não configurada.')
-                                    ->send();
-
-                                return;
-                            }
-
-                            $providerRate = match ($record->unit) {
-                                'hora' => (float) ($providerService->provider_hourly_rate ?? 0),
-                                'diaria', 'dia' => (float) ($providerService->provider_daily_rate ?? 0),
-                                default => (float) ($providerService->provider_unit_rate ?? 0),
-                            };
-
-                            $service = $record->service;
-                            $clientRate = $record->associate_id
-                                ? ($service->associate_price ?? $service->base_price ?? 0)
-                                : ($service->non_associate_price ?? $service->base_price ?? 0);
-
-                            $qty = (float) $data['actual_quantity'];
-                            $totalClient = round($qty * $clientRate, 2);
-                            $totalProvider = round($qty * $providerRate, 2);
-
-                            // Processar adições (taxas e descontos alteram o valor final)
-                            $totalFees = 0;
-                            $totalDiscounts = 0;
-                            $additions = $data['additions'] ?? [];
-
-                            foreach ($additions as $addition) {
-                                $amount = (float) ($addition['amount'] ?? 0);
-                                if ($addition['type'] === 'fee') {
-                                    $totalFees += $amount;
-                                } elseif ($addition['type'] === 'discount') {
-                                    $totalDiscounts += $amount;
-                                }
-                            }
-
-                            $finalPrice = max(0, $totalClient + $totalFees - $totalDiscounts);
-
-                            $record->update([
-                                'status' => ServiceOrderStatus::AWAITING_PAYMENT,
-                                'execution_date' => $data['execution_date'],
-                                'actual_quantity' => $qty,
-                                'unit_price' => $clientRate,
-                                'total_price' => $totalClient,
-                                'final_price' => $finalPrice,
-                                'discount' => $totalDiscounts,
-                                'provider_payment' => $totalProvider,
-                                'work_description' => $data['work_description'],
-                                'horimeter_start' => $data['horimeter_start'] ?? null,
-                                'horimeter_end' => $data['horimeter_end'] ?? null,
-                                'fuel_used' => $data['fuel_used'] ?? null,
-                                'associate_payment_status' => ServiceOrderPaymentStatus::PENDING,
-                                'provider_payment_status' => ServiceOrderPaymentStatus::PENDING,
-                            ]);
-
-                            // Criar registros de adições + despesas vinculadas
-                            foreach ($additions as $addition) {
-                                $expenseId = null;
-
-                                if ($addition['type'] === 'expense') {
-                                    $expense = Expense::create([
-                                        'description' => $addition['description'],
-                                        'amount' => $addition['amount'],
-                                        'date' => $data['execution_date'],
-                                        'due_date' => $data['execution_date'],
-                                        'chart_account_id' => $addition['chart_account_id'] ?? null,
-                                        'status' => ExpenseStatus::PENDING,
-                                        'expenseable_type' => ServiceOrder::class,
-                                        'expenseable_id' => $record->id,
-                                        'notes' => "Despesa vinculada à OS {$record->number} na finalização",
-                                        'created_by' => auth()->id(),
-                                        'tenant_id' => session('tenant_id'),
-                                    ]);
-                                    $expenseId = $expense->id;
-                                }
-
-                                ServiceOrderAddition::create([
-                                    'service_order_id' => $record->id,
-                                    'type' => $addition['type'],
-                                    'description' => $addition['description'],
-                                    'amount' => $addition['amount'],
-                                    'chart_account_id' => $addition['chart_account_id'] ?? null,
-                                    'expense_id' => $expenseId,
-                                    'created_by' => auth()->id(),
-                                    'tenant_id' => session('tenant_id'),
-                                ]);
-                            }
-                        });
-                        Notification::make()->success()->title('Execução finalizada')->body('Aguardando pagamento do cliente')->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => $record->status === ServiceOrderStatus::IN_PROGRESS),
-
-                // ── REGISTRAR E FATURAR PAGAMENTO DO CLIENTE (SIMPLIFICADO) ──
-                Tables\Actions\Action::make('registerClientPayment')
-                    ->label('Receber do Cliente')
-                    ->icon('heroicon-o-banknotes')
-                    ->color('warning')
-                    ->modalHeading('Receber Pagamento do Cliente')
-                    ->modalDescription(fn (ServiceOrder $record) => sprintf(
-                        'Ordem %s · Total: R$ %s · Já pago: R$ %s · Restante: R$ %s',
-                        $record->number,
-                        number_format($record->final_price, 2, ',', '.'),
-                        number_format($record->total_client_paid, 2, ',', '.'),
-                        number_format($record->client_remaining, 2, ',', '.')
-                    ))
-                    ->form([
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->label('Data do Pagamento')->required()->default(now()),
-                        Forms\Components\TextInput::make('amount')
-                            ->label('Valor (R$)')->numeric()->required()->minValue(0.01)
-                            ->default(fn (ServiceOrder $record) => $record->client_remaining),
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Método')->options(PaymentMethod::class)->required()->default('dinheiro'),
-                        Forms\Components\Select::make('bank_account_id')
-                            ->label('Conta Bancária')
-                            ->options(fn () => BankAccount::pluck('name', 'id'))
-                            ->searchable()->preload()
-                            ->required()
-                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
-                            ->helperText('Conta onde o valor será creditado'),
-                        Forms\Components\FileUpload::make('receipt_path')
-                            ->label('Comprovante')
-                            ->disk('public')->directory('receipts/payments')
-                            ->acceptedFileTypes(['application/pdf', 'image/*'])
-                            ->maxSize(5120),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Observações')->rows(2),
-                    ])
-                    ->action(function (ServiceOrder $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            // Criar pagamento já BILLED (faturado automaticamente)
-                            $payment = ServiceOrderPayment::create([
-                                'service_order_id' => $record->id,
-                                'type' => 'client',
-                                'status' => ServiceOrderPaymentStatus::BILLED,
-                                'payment_date' => $data['payment_date'],
-                                'amount' => $data['amount'],
-                                'payment_method' => $data['payment_method'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'receipt_path' => $data['receipt_path'] ?? null,
-                                'notes' => $data['notes'] ?? null,
-                                'registered_by' => auth()->id(),
-                            ]);
-
-                            // Criar movimentação de caixa
-                            CashMovement::create([
-                                'type' => CashMovementType::INCOME,
-                                'amount' => $data['amount'],
-                                'description' => "Recebimento OS {$record->number}".
-                                    ($record->associate ? ' - '.(optional($record->associate->user)->name ?? '') : ' - Avulso'),
-                                'movement_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'payment_method' => $data['payment_method'],
-                                'reference_type' => ServiceOrder::class,
-                                'reference_id' => $record->id,
-                                'notes' => $data['notes'] ?? 'Recebimento e faturamento automático',
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            // Verificar se cliente pagou tudo
-                            $record->refresh();
-                            $totalBilled = ServiceOrderPayment::where('service_order_id', $record->id)
-                                ->where('type', 'client')
-                                ->where('status', ServiceOrderPaymentStatus::BILLED)
-                                ->sum('amount');
-
-                            if ($totalBilled >= $record->final_price) {
-                                $record->update([
-                                    'associate_payment_status' => ServiceOrderPaymentStatus::BILLED,
-                                    'associate_paid_at' => now(),
-                                ]);
-                            }
-                        });
-
-                        Notification::make()->success()
-                            ->title('Pagamento recebido e faturado')
-                            ->body('Movimentação de caixa registrada automaticamente!')
-                            ->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
-                        $record->client_remaining > 0
-                    ),
-
-                // ── GERAR PARCELAS COM DESCONTO DE ARREDONDAMENTO ──
-                Tables\Actions\Action::make('generateInstallments')
-                    ->label('Gerar Parcelas')
-                    ->icon('heroicon-o-calculator')
-                    ->color('info')
-                    ->modalHeading('Gerar Parcelas com Desconto de Arredondamento')
-                    ->form(function (ServiceOrder $record) {
-                        $remaining = $record->client_remaining;
-
-                        return [
-                            Forms\Components\TextInput::make('num_installments')
-                                ->label('Número de Parcelas')
-                                ->numeric()
-                                ->required()
-                                ->minValue(2)
-                                ->maxValue(60)
-                                ->default(2)
-                                ->live()
-                                ->helperText(sprintf('Saldo a parcelar: R$ %s', number_format($remaining, 2, ',', '.'))),
-
-                            Forms\Components\DatePicker::make('first_due_date')
-                                ->label('Vencimento da 1ª Parcela')
-                                ->required()
-                                ->default(now()->addDays(30)),
-
-                            Forms\Components\Select::make('payment_method')
-                                ->label('Forma de Pagamento')
-                                ->options(PaymentMethod::class)
-                                ->required()
-                                ->default('boleto'),
-
-                            Forms\Components\Placeholder::make('preview')
-                                ->label('Prévia do Parcelamento')
-                                ->content(function (callable $get) use ($remaining) {
-                                    $n = max(1, (int) ($get('num_installments') ?? 2));
-                                    $perInstallment = floor(($remaining / $n) * 100) / 100;
-                                    $discount = round($remaining - ($perInstallment * $n), 2);
-                                    $lines = [
-                                        'Valor original: R$ '.number_format($remaining, 2, ',', '.'),
-                                        'Parcela base: R$ '.number_format($perInstallment, 2, ',', '.')." × {$n}",
-                                        'Desconto de arredondamento: R$ '.number_format($discount, 2, ',', '.'),
-                                        'Total final: R$ '.number_format($perInstallment * $n, 2, ',', '.'),
-                                    ];
-
-                                    return implode("\n", $lines);
-                                }),
-                        ];
-                    })
-                    ->action(function (ServiceOrder $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            $remaining = $record->client_remaining;
-                            $n = max(1, (int) $data['num_installments']);
-                            $perInstallment = floor(($remaining / $n) * 100) / 100;
-                            $roundoffDiscount = round($remaining - ($perInstallment * $n), 2);
-                            $firstDate = \Carbon\Carbon::parse($data['first_due_date']);
-
-                            for ($i = 0; $i < $n; $i++) {
-                                ServiceOrderPayment::create([
-                                    'service_order_id' => $record->id,
-                                    'type' => 'client',
-                                    'status' => ServiceOrderPaymentStatus::PENDING,
-                                    'payment_date' => $firstDate->copy()->addMonths($i),
-                                    'amount' => $perInstallment,
-                                    'payment_method' => $data['payment_method'],
-                                    'notes' => sprintf(
-                                        'Parcela %d/%d | Desconto arredondamento: R$ %s',
-                                        $i + 1,
-                                        $n,
-                                        number_format($roundoffDiscount, 2, ',', '.')
-                                    ),
-                                    'registered_by' => auth()->id(),
-                                ]);
-                            }
-
-                            // Registrar desconto no histórico financeiro
-                            if ($roundoffDiscount > 0) {
-                                $record->update([
-                                    'discount' => (float) ($record->discount ?? 0) + $roundoffDiscount,
-                                    'final_price' => $record->final_price - $roundoffDiscount,
-                                ]);
-                            }
-
-                            // Log auditável
-                            activity()
-                                ->causedBy(auth()->user())
-                                ->performedOn($record)
-                                ->withProperties([
-                                    'tenant_id' => session('tenant_id'),
-                                    'num_installments' => $n,
-                                    'per_installment' => $perInstallment,
-                                    'roundoff_discount' => $roundoffDiscount,
-                                    'total_original' => $remaining,
-                                    'total_final' => $perInstallment * $n,
-                                ])
-                                ->log('service.apply_discount');
-                        });
-
-                        Notification::make()->success()
-                            ->title('Parcelas geradas')
-                            ->body(sprintf(
-                                '%d parcelas geradas. Desconto de arredondamento registrado nos logs.',
-                                $data['num_installments']
-                            ))
-                            ->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
-                        $record->client_remaining > 0
-                    ),
-
-                // ── FATURAR PAGAMENTO DO CLIENTE ──
-                Tables\Actions\Action::make('billClientPayment')
-                    ->label('Faturar Pagamento')
-                    ->icon('heroicon-o-document-check')
-                    ->color('info')
-                    ->modalHeading('Faturar Pagamento Pendente')
-                    ->modalDescription(fn (ServiceOrder $record) => sprintf(
-                        'Ordem %s · Selecione o pagamento para faturar',
-                        $record->number
-                    ))
-                    ->form(function (ServiceOrder $record) {
-                        $pendingPayments = ServiceOrderPayment::where('service_order_id', $record->id)
-                            ->where('type', 'client')
-                            ->where('status', ServiceOrderPaymentStatus::PENDING)
-                            ->get();
-
-                        return [
-                            Forms\Components\Select::make('payment_id')
-                                ->label('Pagamento')
-                                ->options($pendingPayments->mapWithKeys(function ($payment) {
-                                    return [$payment->id => sprintf(
-                                        'R$ %s - %s - %s',
-                                        number_format($payment->amount, 2, ',', '.'),
-                                        $payment->payment_method->getLabel(),
-                                        $payment->payment_date->format('d/m/Y')
-                                    )];
-                                }))
-                                ->required()
-                                ->reactive(),
-
-                            Forms\Components\Select::make('bank_account_id')
-                                ->label('Conta Bancária')
-                                ->options(fn () => BankAccount::pluck('name', 'id'))
-                                ->searchable()->preload()
-                                ->required()
-                                ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
-                                ->helperText('Conta onde o valor será creditado'),
-                        ];
-                    })
-                    ->action(function (ServiceOrder $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            $payment = ServiceOrderPayment::findOrFail($data['payment_id']);
-
-                            // Criar movimentação de caixa
-                            CashMovement::create([
-                                'type' => CashMovementType::INCOME,
-                                'amount' => $payment->amount,
-                                'description' => "Recebimento OS {$record->number}".
-                                    ($record->associate ? ' - '.(optional($record->associate->user)->name ?? '') : ' - Avulso'),
-                                'movement_date' => $payment->payment_date,
-                                'bank_account_id' => $data['bank_account_id'],
-                                'payment_method' => $payment->payment_method,
-                                'reference_type' => ServiceOrder::class,
-                                'reference_id' => $record->id,
-                                'notes' => 'Faturamento do pagamento #'.$payment->id,
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            // Atualizar status do pagamento para faturado
-                            $payment->update([
-                                'status' => ServiceOrderPaymentStatus::BILLED,
-                                'bank_account_id' => $data['bank_account_id'],
-                            ]);
-
-                            // Verificar se cliente pagou tudo e está tudo faturado
-                            $record->refresh();
-                            $totalBilled = ServiceOrderPayment::where('service_order_id', $record->id)
-                                ->where('type', 'client')
-                                ->where('status', ServiceOrderPaymentStatus::BILLED)
-                                ->sum('amount');
-
-                            if ($totalBilled >= $record->final_price) {
-                                $record->update([
-                                    'associate_payment_status' => ServiceOrderPaymentStatus::BILLED,
-                                    'associate_paid_at' => now(),
-                                ]);
-                            }
-                        });
-
-                        Notification::make()->success()
-                            ->title('Pagamento faturado')
-                            ->body('Movimentação de caixa registrada!')
-                            ->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => ServiceOrderPayment::where('service_order_id', $record->id)
-                        ->where('type', 'client')
-                        ->where('status', ServiceOrderPaymentStatus::PENDING)
-                        ->exists()
-                    ),
-
-                // ── CONCLUIR ORDEM ──
-                Tables\Actions\Action::make('completeOrder')
-                    ->label('Concluir Ordem')
-                    ->icon('heroicon-o-check-badge')
-                    ->color('success')
-                    ->requiresConfirmation()
-                    ->modalHeading('Concluir Ordem')
-                    ->modalDescription('Cliente pagou tudo e está tudo faturado. Marcar ordem como concluída?')
-                    ->action(function (ServiceOrder $record): void {
-                        $record->update(['status' => ServiceOrderStatus::COMPLETED]);
-                        Notification::make()->success()
-                            ->title('Ordem concluída')
-                            ->body('Ordem de serviço concluída com sucesso.')
-                            ->send();
-                    })
-                    ->visible(function (ServiceOrder $record): bool {
-                        if ($record->status !== ServiceOrderStatus::AWAITING_PAYMENT) {
-                            return false;
-                        }
-
-                        // Verificar se cliente pagou tudo
-                        $totalBilled = ServiceOrderPayment::where('service_order_id', $record->id)
-                            ->where('type', 'client')
-                            ->where('status', ServiceOrderPaymentStatus::BILLED)
-                            ->sum('amount');
-
-                        // Verificar se não tem pagamentos pendentes
-                        $hasPending = ServiceOrderPayment::where('service_order_id', $record->id)
-                            ->where('type', 'client')
-                            ->where('status', ServiceOrderPaymentStatus::PENDING)
-                            ->exists();
-
-                        return $totalBilled >= $record->final_price && ! $hasPending;
-                    }),
-
-                // ── REGISTRAR PAGAMENTO AO PRESTADOR ──
-                Tables\Actions\Action::make('registerProviderPayment')
-                    ->label('Pagar Prestador')
-                    ->icon('heroicon-o-credit-card')
-                    ->color('success')
-                    ->modalHeading('Registrar Pagamento ao Prestador')
-                    ->modalDescription(fn (ServiceOrder $record) => sprintf(
-                        'Ordem %s · Prestador: %s · Total: R$ %s · Já pago: R$ %s · Restante: R$ %s',
-                        $record->number,
-                        optional($record->serviceProvider)->name ?? '-',
-                        number_format($record->provider_payment ?? 0, 2, ',', '.'),
-                        number_format($record->total_provider_paid, 2, ',', '.'),
-                        number_format($record->provider_remaining, 2, ',', '.')
-                    ))
-                    ->form([
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->label('Data do Pagamento')->required()->default(now()),
-                        Forms\Components\TextInput::make('amount')
-                            ->label('Valor (R$)')->numeric()->required()->minValue(0.01)
-                            ->default(fn (ServiceOrder $record) => $record->provider_remaining),
-                        Forms\Components\Select::make('payment_method')
-                            ->label('Método')->options(PaymentMethod::class)->required()->default('pix'),
-                        Forms\Components\Select::make('bank_account_id')
-                            ->label('Conta Bancária')
-                            ->options(fn () => BankAccount::pluck('name', 'id'))
-                            ->searchable()->preload()
-                            ->required()
-                            ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
-                            ->helperText('Conta de onde sai o dinheiro'),
-                        Forms\Components\FileUpload::make('receipt_path')
-                            ->label('Comprovante')
-                            ->disk('public')->directory('receipts/payments')
-                            ->acceptedFileTypes(['application/pdf', 'image/*'])
-                            ->maxSize(5120),
-                        Forms\Components\Textarea::make('notes')
-                            ->label('Observações')->rows(2),
-                    ])
-                    ->action(function (ServiceOrder $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            // Criar registro de pagamento com status BILLED (pago diretamente)
-                            ServiceOrderPayment::create([
-                                'service_order_id' => $record->id,
-                                'type' => 'provider',
-                                'status' => ServiceOrderPaymentStatus::BILLED,
-                                'payment_date' => $data['payment_date'],
-                                'amount' => $data['amount'],
-                                'payment_method' => $data['payment_method'],
-                                'bank_account_id' => $data['bank_account_id'] ?? null,
-                                'receipt_path' => $data['receipt_path'] ?? null,
-                                'notes' => $data['notes'] ?? null,
-                                'registered_by' => auth()->id(),
-                            ]);
-
-                            // Registrar saída de caixa
-                            $providerName = optional($record->serviceProvider)->name ?? 'Prestador';
-                            CashMovement::create([
-                                'type' => CashMovementType::EXPENSE,
-                                'amount' => $data['amount'],
-                                'description' => "Pagamento OS {$record->number} - {$providerName}",
-                                'movement_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'] ?? null,
-                                'payment_method' => $data['payment_method'],
-                                'reference_type' => ServiceOrder::class,
-                                'reference_id' => $record->id,
-                                'notes' => $data['notes'] ?? null,
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            // Registrar no ledger do prestador
-                            if ($record->service_provider_id) {
-                                ServiceProviderLedger::create([
-                                    'service_provider_id' => $record->service_provider_id,
-                                    'type' => LedgerType::CREDIT,
-                                    'category' => ProviderLedgerCategory::PAGAMENTO_RECEBIDO,
-                                    'amount' => $data['amount'],
-                                    'description' => "Pagamento OS {$record->number}",
-                                    'transaction_date' => $data['payment_date'],
-                                    'reference_type' => ServiceOrder::class,
-                                    'reference_id' => $record->id,
-                                    'notes' => $data['notes'] ?? null,
-                                    'created_by' => auth()->id(),
-                                ]);
-                            }
-
-                            // Marcar pedidos de saque relacionados como aprovados
-                            \App\Models\ProviderPaymentRequest::where('service_order_id', $record->id)
-                                ->where('service_provider_id', $record->service_provider_id)
-                                ->where('status', 'pending')
-                                ->update([
-                                    'status' => 'approved',
-                                    'approved_by' => auth()->id(),
-                                    'approved_at' => now(),
-                                ]);
-
-                            // Verificar se prestador já recebeu tudo
-                            $record->refresh();
-                            if ($record->isProviderFullyPaid()) {
-                                $record->update([
-                                    'provider_payment_status' => ServiceOrderPaymentStatus::BILLED,
-                                    'provider_paid_at' => now(),
-                                ]);
-                            }
-                        });
-
-                        Notification::make()->success()
-                            ->title('Pagamento registrado')
-                            ->body('Pagamento ao prestador registrado com sucesso.')
-                            ->send();
-                    })
-                    ->visible(fn (ServiceOrder $record): bool => in_array($record->status, [ServiceOrderStatus::AWAITING_PAYMENT, ServiceOrderStatus::COMPLETED]) &&
-                        $record->provider_remaining > 0
-                    ),
-
-                // ── GERAR PDF ──
-                Tables\Actions\Action::make('generatePdf')
-                    ->label('PDF')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('gray')
-                    ->action(function (ServiceOrder $record) {
-                        $record->load(['associate.user', 'service', 'serviceProvider', 'asset', 'additions']);
-                        $tenant = \App\Models\Tenant::find(session('tenant_id'));
-                        $pdfService = app(\App\Services\TemplatedPdfService::class);
-                        $pdf = $pdfService->generateSystemPdf('pdf.service-order', [
-                            'order' => $record,
-                            'tenant' => $tenant,
-                        ], $pdfService->systemPdfOptions('pdf.service-order', 'Ordem de Servico', null, (int) $tenant?->id));
-                        return response()->streamDownload(
-                            fn () => print($pdf->output()),
-                            "OS-{$record->number}.pdf"
-                        );
-                    }),
-
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    // PAGAR MÚLTIPLOS PRESTADORES
-                    Tables\Actions\BulkAction::make('payProviders')
-                        ->label('Pagar Prestadores')
-                        ->icon('heroicon-o-banknotes')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->modalHeading('Pagar Prestadores')
-                        ->modalDescription(fn ($records) => sprintf(
-                            'Pagar %d ordens selecionadas. Total: R$ %s',
-                            $records->count(),
-                            number_format($records->sum('provider_remaining'), 2, ',', '.')
-                        ))
-                        ->form([
-                            Forms\Components\DatePicker::make('payment_date')
-                                ->label('Data do Pagamento')->required()->default(now()),
-                            Forms\Components\Select::make('payment_method')
-                                ->label('Método')->options(PaymentMethod::class)->required()->default('pix'),
-                            Forms\Components\Select::make('bank_account_id')
-                                ->label('Conta Bancária')
-                                ->options(fn () => BankAccount::pluck('name', 'id'))
-                                ->searchable()->preload()
-                                ->required()
-                                ->default(fn () => BankAccount::where('is_default', true)->first()?->id)
-                                ->helperText('Conta de onde sai o dinheiro'),
-                            Forms\Components\Textarea::make('notes')
-                                ->label('Observações')->rows(2),
-                        ])
-                        ->action(function ($records, array $data): void {
-                            DB::transaction(function () use ($records, $data) {
-                                foreach ($records as $order) {
-                                    if ($order->provider_remaining <= 0) {
-                                        continue;
-                                    }
-
-                                    $amount = $order->provider_remaining;
-
-                                    ServiceOrderPayment::create([
-                                        'service_order_id' => $order->id,
-                                        'type' => 'provider',
-                                        'status' => ServiceOrderPaymentStatus::BILLED,
-                                        'payment_date' => $data['payment_date'],
-                                        'amount' => $amount,
-                                        'payment_method' => $data['payment_method'],
-                                        'bank_account_id' => $data['bank_account_id'] ?? null,
-                                        'notes' => $data['notes'] ?? null,
-                                        'registered_by' => auth()->id(),
-                                    ]);
-
-                                    $providerName = optional($order->serviceProvider)->name ?? 'Prestador';
-                                    CashMovement::create([
-                                        'type' => CashMovementType::EXPENSE,
-                                        'amount' => $amount,
-                                        'description' => "Pagamento OS {$order->number} - {$providerName}",
-                                        'movement_date' => $data['payment_date'],
-                                        'bank_account_id' => $data['bank_account_id'] ?? null,
-                                        'payment_method' => $data['payment_method'],
-                                        'reference_type' => ServiceOrder::class,
-                                        'reference_id' => $order->id,
-                                        'notes' => $data['notes'] ?? null,
-                                        'created_by' => auth()->id(),
-                                    ]);
-
-                                    // Registrar no ledger do prestador
-                                    if ($order->service_provider_id) {
-                                        ServiceProviderLedger::create([
-                                            'service_provider_id' => $order->service_provider_id,
-                                            'type' => LedgerType::CREDIT,
-                                            'category' => ProviderLedgerCategory::PAGAMENTO_RECEBIDO,
-                                            'amount' => $amount,
-                                            'description' => "Pagamento OS {$order->number}",
-                                            'transaction_date' => $data['payment_date'],
-                                            'reference_type' => ServiceOrder::class,
-                                            'reference_id' => $order->id,
-                                            'notes' => $data['notes'] ?? null,
-                                            'created_by' => auth()->id(),
-                                        ]);
-                                    }
-
-                                    // Marcar pedidos de saque relacionados como aprovados
-                                    \App\Models\ProviderPaymentRequest::where('service_order_id', $order->id)
-                                        ->where('service_provider_id', $order->service_provider_id)
-                                        ->where('status', 'pending')
-                                        ->update([
-                                            'status' => 'approved',
-                                            'approved_by' => auth()->id(),
-                                            'approved_at' => now(),
-                                        ]);
-
-                                    $order->refresh();
-                                    if ($order->isProviderFullyPaid()) {
-                                        $order->update([
-                                            'provider_payment_status' => ServiceOrderPaymentStatus::BILLED,
-                                            'provider_paid_at' => now(),
-                                        ]);
-                                    }
-                                }
-                            });
-
-                            Notification::make()->success()
-                                ->title('Pagamentos registrados')
-                                ->body(sprintf('%d prestadores pagos com sucesso.', $records->count()))
-                                ->send();
-                        }),
-
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
-                ]),
-            ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            RelationManagers\ExpensesRelationManager::class,
-        ];
+        return $table->columns([
+            Tables\Columns\TextColumn::make('number')->label('OS')->searchable()->sortable()->weight('semibold'),
+            Tables\Columns\TextColumn::make('scheduled_at')->label('Agendada')->dateTime('d/m/Y H:i')->sortable(),
+            Tables\Columns\TextColumn::make('service.name')->label('Serviço')->searchable(),
+            Tables\Columns\TextColumn::make('beneficiary_snapshot.name')->label('Beneficiário'),
+            Tables\Columns\TextColumn::make('serviceProvider.name')->label('Prestador')->searchable(),
+            Tables\Columns\TextColumn::make('operational_status')->label('Execução')->badge(),
+            Tables\Columns\TextColumn::make('financial_summary')->label('Financeiro')->getStateUsing(function (ServiceOrder $record): string {
+                $obligations = $record->execution?->obligations ?? collect();
+                $open = $obligations->sum('balance');
+
+                return $obligations->isEmpty() ? 'Ainda não gerado' : 'Saldo R$ '.number_format((float) $open, 2, ',', '.');
+            }),
+        ])->filters([
+            Tables\Filters\SelectFilter::make('operational_status')->label('Execução')->options(['scheduled' => 'Agendada', 'in_progress' => 'Em execução', 'submitted' => 'Aguardando conferência', 'rejected' => 'Correção solicitada', 'validated' => 'Validada']),
+        ])->actions([
+            Tables\Actions\ViewAction::make(),
+            Tables\Actions\Action::make('beneficiary')
+                ->label('Informar beneficiário')->icon('heroicon-o-user-plus')->color('warning')
+                ->visible(fn (ServiceOrder $record) => blank(data_get($record->beneficiary_snapshot, 'name')) && (auth()->user()?->checkPermissionTo('edit_service_order') ?? false))
+                ->form([Forms\Components\TextInput::make('name')->label('Nome ou apelido do beneficiário')->required()->maxLength(191)])
+                ->action(function (ServiceOrder $record, array $data): void {
+                    abort_unless(auth()->user()->checkPermissionTo('edit_service_order'), 403);
+                    $record = ServiceOrder::query()->where('tenant_id', session('tenant_id'))->whereKey($record->id)->firstOrFail();
+                    $record->update(['beneficiary_snapshot' => array_replace($record->beneficiary_snapshot ?? [], ['name' => trim($data['name'])])]);
+                    activity('service_order')->performedOn($record)->causedBy(auth()->user())->withProperties(['tenant_id' => $record->tenant_id])->log('Beneficiário da ordem informado');
+                    Notification::make()->success()->title('Beneficiário informado')->send();
+                }),
+            Tables\Actions\Action::make('start')->label('Iniciar execução')->visible(fn ($record) => in_array($record->execution?->status, ['draft', 'rejected'], true) && auth()->user()->checkPermissionTo('edit_service_order'))
+                ->form(fn ($record) => array_merge([Forms\Components\Hidden::make('operation_key')->default(fn () => (string) Str::uuid())], ServiceExecutionForm::fields($record->execution->catalog_snapshot, ['start'])))
+                ->action(function ($record, array $data): void {
+                    abort_unless(auth()->user()->checkPermissionTo('edit_service_order'), 403);
+                    app(ServiceExecutionWorkflow::class)->start($record->execution, $data['values'] ?? [], $data['operation_key'], auth()->user());
+                }),
+            Tables\Actions\Action::make('finish')->label('Finalizar execução')->visible(fn ($record) => $record->execution?->status === 'in_progress' && auth()->user()->checkPermissionTo('edit_service_order'))
+                ->form(fn ($record) => array_merge([Forms\Components\Hidden::make('operation_key')->default(fn () => (string) Str::uuid())], ServiceExecutionForm::fields($record->execution->catalog_snapshot, ['execution', 'finish'])))
+                ->action(function ($record, array $data): void {
+                    abort_unless(auth()->user()->checkPermissionTo('edit_service_order'), 403);
+                    app(ServiceExecutionWorkflow::class)->submit($record->execution, $data['values'] ?? [], $data['operation_key'], auth()->user());
+                }),
+            Tables\Actions\Action::make('evidence')->label('Anexar evidência')->visible(fn ($record) => ! $record->execution?->isFrozen() && auth()->user()->checkPermissionTo('edit_service_order'))
+                ->form(fn ($record) => [Forms\Components\Select::make('field_key')->label('Evidência')->options(collect($record->execution->catalog_snapshot['fields'] ?? [])->whereIn('type', ['image', 'file', 'signature'])->pluck('label', 'key'))->required(), Forms\Components\FileUpload::make('file')->label('Arquivo')->storeFiles(false)->maxSize(12288)->required()])
+                ->action(function ($record, array $data): void {
+                    abort_unless(auth()->user()->checkPermissionTo('edit_service_order'), 403);
+                    app(ServiceEvidenceService::class)->upload($record->execution, $data['field_key'], $data['file'], auth()->user());
+                }),
+            Tables\Actions\Action::make('approve')
+                ->label('Aprovar execução')->icon('heroicon-o-check-circle')->color('success')
+                ->visible(fn (ServiceOrder $record) => $record->execution?->status === 'submitted' && (auth()->user()?->checkPermissionTo('approve_service_execution') ?? false))
+                ->requiresConfirmation()
+                ->action(function (ServiceOrder $record): void {
+                    app(ServiceExecutionWorkflow::class)->approve($record->execution, (string) Str::uuid(), auth()->user());
+                    Notification::make()->success()->title('Execução aprovada e obrigações geradas')->send();
+                }),
+            Tables\Actions\Action::make('correction')
+                ->label('Solicitar correção')->icon('heroicon-o-arrow-uturn-left')->color('warning')
+                ->visible(fn (ServiceOrder $record) => $record->execution?->status === 'submitted' && (auth()->user()?->checkPermissionTo('review_service_execution') ?? false))
+                ->form([Forms\Components\Textarea::make('reason')->label('Motivo e orientação')->required()])
+                ->action(function (ServiceOrder $record, array $data): void {
+                    app(ServiceExecutionWorkflow::class)->requestCorrection($record->execution, $data['reason'], (string) Str::uuid(), auth()->user());
+                    Notification::make()->success()->title('Correção solicitada')->send();
+                }),
+            Tables\Actions\Action::make('payment')
+                ->label('Registrar pagamento')->icon('heroicon-o-banknotes')->color('primary')
+                ->visible(fn (ServiceOrder $record) => $record->execution?->obligations->contains(fn ($obligation) => $obligation->balance > 0) && (auth()->user()?->checkPermissionTo('record_service_payment') ?? false))
+                ->form(fn (ServiceOrder $record) => [
+                    Forms\Components\Hidden::make('operation_key')->default(fn () => (string) Str::uuid())->required(),
+                    Forms\Components\Select::make('obligation_id')->label('Obrigação')->options($record->execution->obligations->filter(fn ($obligation) => $obligation->balance > 0)->mapWithKeys(fn (ServiceObligation $obligation) => [$obligation->id => ($obligation->direction === 'payable' ? 'Pagar prestador' : 'Receber do cliente').' — '.$obligation->number.' — saldo R$ '.number_format((float) $obligation->balance, 2, ',', '.')]))->required(),
+                    Forms\Components\TextInput::make('amount')->label('Valor')->numeric()->prefix('R$')->minValue(0.01)->required(),
+                    Forms\Components\Select::make('payment_method')->label('Forma')->options(['dinheiro' => 'Dinheiro', 'pix' => 'PIX', 'transferencia' => 'Transferência', 'cheque' => 'Cheque', 'cartao' => 'Cartão', 'boleto' => 'Boleto'])->required(),
+                    Forms\Components\DatePicker::make('payment_date')->label('Data')->default(today())->required(),
+                    Forms\Components\Select::make('bank_account_id')->label('Conta bancária/caixa')->helperText('Obrigatória para gerar a movimentação financeira correspondente.')->options(BankAccount::query()->where('status', true)->orderBy('name')->pluck('name', 'id'))->searchable()->required(),
+                ])
+                ->action(function (ServiceOrder $record, array $data): void {
+                    abort_unless(auth()->user()->checkPermissionTo('record_service_payment'), 403);
+                    $obligation = $record->execution->obligations()->where('tenant_id', session('tenant_id'))->whereKey($data['obligation_id'])->firstOrFail();
+                    abort_unless(auth()->user()->checkPermissionTo($obligation->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'), 403);
+                    app(ServicePaymentService::class)->record($obligation, (float) $data['amount'], $data['payment_method'], $data['payment_date'], $data['bank_account_id'] ?? null, $data['operation_key'], auth()->user());
+                    Notification::make()->success()->title('Pagamento registrado com movimentação financeira')->send();
+                }),
+        ])->bulkActions([]);
     }
 
     public static function getPages(): array
@@ -1003,13 +194,11 @@ class ServiceOrderResource extends Resource
             'index' => Pages\ListServiceOrders::route('/'),
             'create' => Pages\CreateServiceOrder::route('/create'),
             'view' => Pages\ViewServiceOrder::route('/{record}'),
-            'edit' => Pages\EditServiceOrder::route('/{record}/edit'),
         ];
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([SoftDeletingScope::class]);
+        return parent::getEloquentQuery()->whereNotNull('service_version_id')->with(['execution.obligations', 'service', 'serviceProvider']);
     }
 }

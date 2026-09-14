@@ -25,13 +25,19 @@ class HubController extends Controller
         // Verificar se usuário tem tenants antes de mostrar hub
         $userTenants = $user->tenants()->wherePivot('status', true)->get();
 
-        // Se não tem nenhum tenant, mostrar erro
+        // Superadministradores são globais e não precisam pertencer a um tenant.
         if ($userTenants->isEmpty()) {
-            return view('hub', [
+            $response = view('hub', [
                 'user' => $user,
                 'roles' => [],
                 'tenants' => collect(),
-            ])->with('error', 'Você não está vinculado a nenhuma organização. Contate o administrador.');
+                'currentTenant' => null,
+                'unreadNotifications' => 0,
+            ]);
+
+            return $user->isSuperAdmin()
+                ? $response
+                : $response->with('error', 'Você não está vinculado a nenhuma organização. Contate o administrador.');
         }
 
         // Se não há tenant na sessão, mostrar seleção de tenant
@@ -175,7 +181,7 @@ class HubController extends Controller
         if (count($roles) === 0) {
             $notice = 'Seu usuário não possui painéis atribuídos nesta organização. Contate o administrador para atribuir permissões.';
 
-            return view('hub', compact('roles', 'user'))->with('error', $notice);
+            return view('hub', compact('roles', 'user', 'currentTenant', 'unreadNotifications'))->with('error', $notice);
         }
 
         // Mostrar hub de seleção com tenant context

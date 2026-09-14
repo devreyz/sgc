@@ -49,14 +49,18 @@ class ServiceExecutionWorkflow
                 throw ValidationException::withMessages(['status' => 'Somente execução em andamento pode ser finalizada.']);
             }$values = array_replace($execution->values ?? [], $values);
             $this->validator->validate($execution, 'finish', $values);
+            $this->validator->validate($execution, 'order', $values);
+            $this->validator->validate($execution, 'start', $values);
+            $this->validator->validate($execution, 'execution', $values);
             $quantity = $this->deriveQuantity($execution, $values);
+            app(ServiceCalculationRules::class)->number($quantity, 'quantity');
             $execution->forceFill(['values' => $values, 'quantity' => $quantity, 'submitted_at' => now(), 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
             $execution->order->update(['operational_status' => 'submitted']);
             if (data_get($execution->catalog_snapshot, 'review_mode') === 'automatic') {
                 return $this->validateLocked($execution, $actor, $operationKey);
             }
 
-return $execution->fresh();
+            return $execution->fresh();
         }, 3);
     }
 
@@ -70,7 +74,7 @@ return $execution->fresh();
                 throw ValidationException::withMessages(['status' => 'Somente execução enviada pode ser aprovada.']);
             }
 
-return $this->validateLocked($execution, $actor, $operationKey);
+            return $this->validateLocked($execution, $actor, $operationKey);
         }, 3);
     }
 
@@ -112,9 +116,9 @@ return $this->validateLocked($execution, $actor, $operationKey);
         if (! empty($config['quantity_field'])) {
             return round((float) data_get($values, $config['quantity_field'], 0), 4);
         }if (! empty($config['meter_start_field']) && ! empty($config['meter_end_field'])) {
-            return round((float) data_get($values,$config['meter_end_field'],0) - (float) data_get($values,$config['meter_start_field'],0),4);
+            return round((float) data_get($values, $config['meter_end_field'], 0) - (float) data_get($values, $config['meter_start_field'], 0), 4);
         }
 
-return round((float) ($execution->quantity ?? data_get($values,'quantity',1)),4);
+        return round((float) ($execution->quantity ?? data_get($values, 'quantity', 1)), 4);
     }
 }

@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources\ServiceProviderResource\Pages;
 
+use App\Filament\Pages\ServiceOrdersPaymentReport;
 use App\Filament\Resources\ServiceProviderResource;
 use Filament\Actions;
-use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
+use Filament\Resources\Pages\ViewRecord;
 
 class ViewServiceProvider extends ViewRecord
 {
@@ -17,45 +18,11 @@ class ViewServiceProvider extends ViewRecord
         return [
             Actions\EditAction::make(),
 
-            Actions\Action::make('generate_statement')
-                ->label('Extrato de Serviços')
-                ->icon('heroicon-o-document-text')
-                ->color('info')
-                ->form([
-                    \Filament\Forms\Components\DatePicker::make('start_date')
-                        ->label('Data Início')
-                        ->required()
-                        ->default(now()->startOfMonth()),
-                    \Filament\Forms\Components\DatePicker::make('end_date')
-                        ->label('Data Fim')
-                        ->required()
-                        ->default(now()->endOfMonth()),
-                ])
-                ->action(function (array $data) {
-                    $record = $this->record;
-                    $works = $record->works()
-                        ->whereBetween('work_date', [$data['start_date'], $data['end_date']])
-                        ->with(['serviceOrder', 'associate'])
-                        ->orderBy('work_date')
-                        ->get();
-
-                    $svc = app(\App\Services\TemplatedPdfService::class);
-                    $pdf = $svc->generateSystemPdf('pdf.service-provider-statement', [
-                        'provider' => $record,
-                        'works' => $works,
-                        'start_date' => \Carbon\Carbon::parse($data['start_date'])->format('d/m/Y'),
-                        'end_date' => \Carbon\Carbon::parse($data['end_date'])->format('d/m/Y'),
-                        'total' => $works->sum('total_value'),
-                        'total_pending' => $works->where('payment_status', 'pendente')->sum('total_value'),
-                        'total_paid' => $works->where('payment_status', 'pago')->sum('total_value'),
-                        'generated_at' => now()->format('d/m/Y H:i'),
-                        'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                    ], $svc->systemPdfOptions('pdf.service-provider-statement', 'Extrato de Serviços'));
-
-                    return response()->streamDownload(function () use ($pdf) {
-                        echo $pdf->output();
-                    }, 'extrato-' . \Illuminate\Support\Str::slug($record->name) . '-' . now()->format('Y-m') . '.pdf', ['Content-Type' => 'application/pdf']);
-                }),
+            Actions\Action::make('accountability')
+                ->label('Prestação de contas')
+                ->icon('heroicon-o-document-chart-bar')
+                ->url(fn (): string => ServiceOrdersPaymentReport::getUrl())
+                ->visible(fn (): bool => auth()->user()?->checkPermissionTo('view_service_reports') ?? false),
         ];
     }
 
@@ -76,7 +43,7 @@ class ViewServiceProvider extends ViewRecord
                                 Infolists\Components\TextEntry::make('type')
                                     ->label('Função')
                                     ->badge()
-                                    ->formatStateUsing(fn ($state) => match($state) {
+                                    ->formatStateUsing(fn ($state) => match ($state) {
                                         'tratorista' => 'Tratorista',
                                         'motorista' => 'Motorista',
                                         'diarista' => 'Diarista',
@@ -102,22 +69,18 @@ class ViewServiceProvider extends ViewRecord
                     ->schema([
                         Infolists\Components\Grid::make(4)
                             ->schema([
-                                Infolists\Components\TextEntry::make('hourly_rate')
-                                    ->label('Valor/Hora')
-                                    ->money('BRL'),
-                                Infolists\Components\TextEntry::make('daily_rate')
-                                    ->label('Valor/Diária')
-                                    ->money('BRL'),
-                                Infolists\Components\TextEntry::make('total_pending_value')
-                                    ->label('Total Pendente')
-                                    ->state(fn ($record) => 'R$ ' . number_format($record->total_pending, 2, ',', '.'))
-                                    ->color('danger')
-                                    ->weight('bold')
-                                    ->size('lg'),
-                                Infolists\Components\TextEntry::make('total_paid_value')
-                                    ->label('Total Pago')
-                                    ->state(fn ($record) => 'R$ ' . number_format($record->total_paid, 2, ',', '.'))
-                                    ->color('success')
+                                Infolists\Components\TextEntry::make('remuneration_help')
+                                    ->label('Como a remuneração é definida')
+                                    ->state('Por versão do serviço, com valor fixo, quantidade × tarifa ou percentual. A forma de pagamento é escolhida somente na baixa.')
+                                    ->columnSpan(2),
+                                Infolists\Components\TextEntry::make('service_due')
+                                    ->label('Devido em serviços')
+                                    ->state(fn ($record) => 'R$ '.number_format((float) $record->serviceObligations()->where('direction', 'payable')->get()->sum('total_amount'), 2, ',', '.'))
+                                    ->weight('bold'),
+                                Infolists\Components\TextEntry::make('service_balance')
+                                    ->label('Saldo a pagar')
+                                    ->state(fn ($record) => 'R$ '.number_format((float) $record->serviceObligations()->where('direction', 'payable')->get()->sum('balance'), 2, ',', '.'))
+                                    ->color('warning')
                                     ->weight('bold'),
                             ]),
                     ]),

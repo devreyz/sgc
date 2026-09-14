@@ -7,6 +7,7 @@ use App\Models\Asset;
 use App\Models\Associate;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider;
+use App\Models\ServiceProviderService;
 use App\Models\ServiceVersion;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,9 @@ class CreateServiceOrder
             if (! $version) {
                 throw ValidationException::withMessages(['service_version_id' => 'A versão publicada não pertence à organização.']);
             }
+            if (! $version->service?->status) {
+                throw ValidationException::withMessages(['service_version_id' => 'O serviço está inativo.']);
+            }
             $associate = ! empty($data['associate_id']) ? Associate::query()->whereKey($data['associate_id'])->where('tenant_id', $tenantId)->first() : null;
             $provider = ! empty($data['service_provider_id']) ? ServiceProvider::query()->whereKey($data['service_provider_id'])->where('tenant_id', $tenantId)->first() : null;
             $asset = ! empty($data['asset_id']) ? Asset::query()->whereKey($data['asset_id'])->where('tenant_id', $tenantId)->first() : null;
@@ -39,6 +43,31 @@ class CreateServiceOrder
             if ($version->payable_enabled && ! $provider) {
                 throw ValidationException::withMessages(['service_provider_id' => 'Este serviço exige um prestador para calcular sua remuneração.']);
             }
+            if ($provider && ! ServiceProviderService::query()
+                ->where('tenant_id', $tenantId)
+                ->where('service_provider_id', $provider->id)
+                ->where('service_id', $version->service_id)
+                ->where('status', true)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'service_provider_id' => 'Este prestador não está habilitado para executar o serviço selecionado.',
+                ]);
+            }
+            $beneficiaryName = trim((string) ($data['beneficiary_name'] ?? $associate?->display_name ?? data_get($data, 'beneficiary_snapshot.name', '')));
+            if ($beneficiaryName === '' || mb_strlen($beneficiaryName) > 191) {
+                throw ValidationException::withMessages(['beneficiary_name' => 'Informe o nome ou apelido do beneficiário (até 191 caracteres), mesmo que não seja associado.']);
+            }
+            if ($provider && ! $provider->status) {
+                throw ValidationException::withMessages(['service_provider_id' => 'O prestador está inativo.']);
+            }
+            $allowedOrderKeys = $version->fields()->where('phase', 'order')->pluck('key')->all();
+            $submittedOrderData = (array) ($data['order_data'] ?? []);
+            $orderData = array_intersect_key($submittedOrderData, array_flip(array_merge($allowedOrderKeys, ['description', 'notes'])));
+            $orderData = array_replace($orderData, array_filter([
+                'location' => $data['location'] ?? null,
+                'description' => $data['description'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ], fn ($value) => $value !== null));
             $scheduled = isset($data['scheduled_at']) ? Carbon::parse($data['scheduled_at']) : now();
             $order = new ServiceOrder([
                 'number' => $this->numbers->next($tenantId, (int) $scheduled->format('Y')),
@@ -46,9 +75,10 @@ class CreateServiceOrder
                 'associate_id' => $associate?->id, 'service_provider_id' => $provider?->id,
                 'asset_id' => $asset?->id, 'scheduled_at' => $scheduled,
                 'scheduled_date' => $scheduled->toDateString(), 'location' => $data['location'] ?? null,
-                'order_data' => array_replace($data['order_data'] ?? [], array_filter(['location' => $data['location'] ?? null], fn ($value) => $value !== null)), 'operational_status' => 'scheduled',
+                'unit' => $version->unit, 'unit_price' => 0,
+                'order_data' => $orderData, 'operational_status' => 'scheduled',
                 'status' => ServiceOrderStatus::SCHEDULED, 'total_price' => 0, 'final_price' => 0,
-                'beneficiary_snapshot' => $associate ? ['id' => $associate->id, 'name' => $associate->display_name, 'document' => $associate->cpf_cnpj] : ($data['beneficiary_snapshot'] ?? null),
+                'beneficiary_snapshot' => ['id' => $associate?->id, 'name' => $beneficiaryName, 'document' => $associate?->cpf_cnpj],
                 'provider_snapshot' => $provider ? ['id' => $provider->id, 'name' => $provider->name, 'document' => $provider->cpf] : null,
                 'created_by' => $actor->id,
             ]);

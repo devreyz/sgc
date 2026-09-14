@@ -33,7 +33,7 @@ class ServiceFieldValidator
             if ($value === null || $value === '') {
                 continue;
             }
-            if (in_array($field['type'], ['integer', 'decimal', 'money', 'quantity', 'meter'], true) && ! is_numeric($value)) {
+            if (in_array($field['type'], ['integer', 'decimal', 'money', 'quantity', 'meter'], true) && (! is_numeric($value) || ! is_finite((float) $value) || (float) $value < 0)) {
                 $errors[$key] = "O campo {$field['label']} deve ser numérico.";
             }
             if (isset($field['minimum']) && is_numeric($value) && (float) $value < (float) $field['minimum']) {

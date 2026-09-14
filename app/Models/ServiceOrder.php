@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -123,6 +124,7 @@ class ServiceOrder extends Model
             }
 
             // Defaults para campos obrigatórios no DB
+            $model->unit_price = $model->unit_price ?? 0;
             $model->total_price = $model->total_price ?? 0;
             $model->final_price = $model->final_price ?? 0;
         });
@@ -149,7 +151,7 @@ class ServiceOrder extends Model
         return $this->belongsTo(ServiceVersion::class);
     }
 
-    public function execution(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function execution(): HasOne
     {
         return $this->hasOne(ServiceExecution::class);
     }
@@ -239,14 +241,14 @@ class ServiceOrder extends Model
     public function getTotalClientPaidAttribute(): float
     {
         return (float) $this->clientPayments()
-            ->where('status', \App\Enums\ServiceOrderPaymentStatus::BILLED)
+            ->where('status', ServiceOrderPaymentStatus::BILLED)
             ->sum('amount');
     }
 
     public function getTotalProviderPaidAttribute(): float
     {
         return (float) $this->providerPayments()
-            ->where('status', \App\Enums\ServiceOrderPaymentStatus::BILLED)
+            ->where('status', ServiceOrderPaymentStatus::BILLED)
             ->sum('amount');
     }
 

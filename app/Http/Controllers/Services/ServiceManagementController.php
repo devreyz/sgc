@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Services;
 
 use App\Http\Controllers\Controller;
+use App\Models\Asset;
 use App\Models\Associate;
 use App\Models\BankAccount;
 use App\Models\GeneratedDocument;
+use App\Models\Service;
 use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceNegotiation;
 use App\Models\ServiceObligation;
@@ -24,6 +26,7 @@ use App\Services\Services\ServicePaymentService;
 use App\Services\Services\ServiceReportService;
 use App\Services\Services\ServiceResourceService;
 use App\Services\TemplatedPdfService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -44,15 +47,16 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'create_service_order');
 
-        return view('services.management-create', ['versions' => ServiceVersion::query()->where('tenant_id', $tenant->id)->where('status', 'published')->with('service')->get(), 'providers' => ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get(), 'associates' => Associate::query()->where('tenant_id', $tenant->id)->orderBy('id')->get()]);
+        return view('services.management-create', ['versions' => ServiceVersion::query()->where('tenant_id', $tenant->id)->where('status', 'published')->whereHas('service', fn ($query) => $query->where('status', true))->with(['service', 'fields'])->get(), 'providers' => ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->with('services:id')->orderBy('name')->get(), 'associates' => Associate::query()->where('tenant_id', $tenant->id)->orderBy('id')->get()]);
     }
 
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
     {
+        $request->validate(['beneficiary_name' => 'required|string|max:191', 'order_data' => 'nullable|array']);
         $this->allow($request, 'create_service_order');
         $data = $request->validate(['service_version_id' => 'required|integer', 'associate_id' => 'nullable|integer', 'service_provider_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191']);
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($data['service_version_id'])->firstOrFail();
-        $order = $creator->handle($tenant->id, $version, $data, $request->user());
+        $order = $creator->handle($tenant->id, $version, $data + ['beneficiary_name' => $request->input('beneficiary_name'), 'order_data' => $request->input('order_data', [])], $request->user());
 
         return redirect()->route('services.management.show', [$tenant, $order]);
     }
@@ -129,20 +133,23 @@ class ServiceManagementController extends Controller
     public function reports(Request $request, Tenant $tenant, ServiceReportService $reports): View
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer']);
-        $summary = $reports->summary($tenant->id, Carbon::parse($data['from'] ?? now()->startOfMonth()), Carbon::parse($data['to'] ?? now()->endOfMonth()), $data['provider_id'] ?? null, $data['service_id'] ?? null);
+        $data = $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer']);
+        $summary = $reports->summary($tenant->id, Carbon::parse($data['from'] ?? now()->startOfMonth()), Carbon::parse($data['to'] ?? now()->endOfMonth()), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
 
-        return view('services.reports', compact('summary'));
+        $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
+        $services = Service::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
+        $assets = Asset::query()->where('tenant_id', $tenant->id)->orderBy('name')->get(['id', 'name']);
+
+        return view('services.reports', compact('summary', 'providers', 'services', 'assets'));
     }
 
-    public function generateReport(Request $request, Tenant $tenant, ServiceReportService $reports, ServiceDocumentService $documents): RedirectResponse
+    public function generateReport(Request $request, Tenant $tenant, ServiceReportService $reports)
     {
         $this->allow($request, 'view_service_reports');
-        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date']);
-        $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']));
-        $document = $documents->generate($tenant, 'service_report', 'Prestação de contas '.$summary['from'].' a '.$summary['to'], ['period' => $summary['from'].' a '.$summary['to'], 'executions' => $summary['executions'], 'service_value' => 'R$ '.number_format($summary['service_value'], 2, ',', '.'), 'received' => 'R$ '.number_format($summary['received'], 2, ',', '.'), 'provider_due' => 'R$ '.number_format($summary['provider_due'], 2, ',', '.'), 'provider_paid' => 'R$ '.number_format($summary['provider_paid'], 2, ',', '.')], $request->user());
+        $data = $request->validate(['from' => 'required|date', 'to' => 'required|date|after_or_equal:from', 'provider_id' => 'nullable|integer', 'service_id' => 'nullable|integer', 'asset_id' => 'nullable|integer']);
+        $summary = $reports->summary($tenant->id, Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
 
-        return redirect()->route('services.management.documents.download', [$tenant, $document]);
+        return Pdf::loadView('pdf.service-accountability', compact('summary'))->setPaper('a4', 'landscape')->download('prestacao-servicos.pdf');
     }
 
     public function agreements(Request $request, Tenant $tenant): View
@@ -188,18 +195,18 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'view_service_management');
         $record = ServiceExecutionEvidence::query()->where('tenant_id', $tenant->id)->whereKey($evidence)->with('document')->firstOrFail();
-        abort_unless($record->document->tenant_id === $tenant->id && $record->document->disk === 'local',403);
+        abort_unless($record->document->tenant_id === $tenant->id && $record->document->disk === 'local', 403);
 
-        return Storage::disk('local')->download($record->document->path,$record->document->original_name);
+        return Storage::disk('local')->download($record->document->path, $record->document->original_name);
     }
 
-    private function order(Tenant $tenant,int $id): ServiceOrder
+    private function order(Tenant $tenant, int $id): ServiceOrder
     {
-        return ServiceOrder::query()->where('tenant_id',$tenant->id)->whereNotNull('service_version_id')->whereKey($id)->with(['service', 'serviceVersion', 'serviceProvider', 'associate', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations.allocations.paymentEvent'])->firstOrFail();
+        return ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->whereKey($id)->with(['service', 'serviceVersion', 'serviceProvider', 'associate', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations.allocations.paymentEvent'])->firstOrFail();
     }
 
-    private function allow(Request $request,string $permission): void
+    private function allow(Request $request, string $permission): void
     {
-        abort_unless($request->user()->checkPermissionTo($permission),403);
+        abort_unless($request->user()->checkPermissionTo($permission), 403);
     }
 }

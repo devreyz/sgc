@@ -7,6 +7,7 @@ use App\Models\Expense;
 use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionResource;
 use App\Models\User;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -16,6 +17,10 @@ class ServiceResourceService
     {
         return DB::transaction(function () use ($execution, $data, $operationKey, $actor): ServiceExecutionResource {
             if ($existing = ServiceExecutionResource::query()->where('tenant_id', $execution->tenant_id)->where('operation_key', $operationKey)->first()) {
+                if ((int) $existing->service_execution_id !== (int) $execution->id) {
+                    throw ValidationException::withMessages(['operation_key' => 'A operação pertence a outra execução.']);
+                }
+
                 return $existing;
             }
             $execution = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
@@ -27,7 +32,8 @@ class ServiceResourceService
                 throw ValidationException::withMessages(['effect' => 'Efeito de recurso inválido.']);
             }
             $amount = round((float) ($data['amount'] ?? ((float) ($data['quantity'] ?? 0) * (float) ($data['unit_price'] ?? 0))), 2);
-            $resource = new ServiceExecutionResource($data + ['operation_key' => $operationKey, 'amount' => $amount, 'created_by' => $actor->id]);
+            app(ServiceCalculationRules::class)->number($amount, 'amount');
+            $resource = new ServiceExecutionResource(array_replace(Arr::only($data, ['resource_key', 'description', 'provided_by', 'quantity', 'unit', 'unit_price']), ['effect' => $effect, 'operation_key' => $operationKey, 'amount' => $amount, 'created_by' => $actor->id]));
             $resource->tenant_id = $execution->tenant_id;
             $resource->service_execution_id = $execution->id;
             $resource->save();

@@ -36,7 +36,10 @@ class ServiceVersion extends Model
     protected static function booted(): void
     {
         static::updating(function (self $version): void {
-            if ($version->getOriginal('status') === 'published') {
+            if ($version->getOriginal('status') !== 'draft') {
+                if (! in_array($version->status, ['published', 'retired'], true)) {
+                    throw ValidationException::withMessages(['status' => 'Uma versão publicada nunca volta a rascunho.']);
+                }
                 $allowed = ['status', 'retired_at', 'updated_at'];
                 if (array_diff(array_keys($version->getDirty()), $allowed)) {
                     throw ValidationException::withMessages(['version' => 'Versão publicada é imutável. Duplique-a para alterar a configuração.']);
@@ -50,15 +53,35 @@ class ServiceVersion extends Model
         });
     }
 
-    public function service(): BelongsTo { return $this->belongsTo(Service::class); }
-    public function fields(): HasMany { return $this->hasMany(ServiceVersionField::class)->orderBy('sort_order'); }
-    public function providerRates(): HasMany { return $this->hasMany(ServiceProviderVersionRate::class); }
-    public function publisher(): BelongsTo { return $this->belongsTo(User::class, 'published_by'); }
-    public function isPublished(): bool { return $this->status === 'published'; }
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function fields(): HasMany
+    {
+        return $this->hasMany(ServiceVersionField::class)->orderBy('sort_order');
+    }
+
+    public function providerRates(): HasMany
+    {
+        return $this->hasMany(ServiceProviderVersionRate::class);
+    }
+
+    public function publisher(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'published_by');
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->status !== 'draft';
+    }
 
     public function snapshot(): array
     {
         $this->loadMissing('fields');
+
         return [
             'service_version_id' => $this->id, 'version' => $this->version,
             'service' => ['id' => $this->service_id, 'name' => $this->service?->name, 'code' => $this->service?->code],

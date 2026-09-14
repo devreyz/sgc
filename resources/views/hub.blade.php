@@ -3,6 +3,8 @@
 @section('title', 'Central da organização')
 
 @php
+    // O superadministrador opera em contexto global e pode não ter organização.
+    $currentTenant = $currentTenant ?? null;
     $displayName = session('tenant_id')
         && method_exists($user, 'getTenantName')
             ? ($user->getTenantName(session('tenant_id')) ?: 'Membro')
@@ -10,6 +12,7 @@
 
     $rolesCollection = collect($roles ?? []);
     $hasSuperAdmin = $user->hasRole('super_admin');
+    $isSystemContext = $hasSuperAdmin && ! $currentTenant;
     $availablePanelsCount = $rolesCollection->count() + ($hasSuperAdmin ? 1 : 0);
 
     $phosphorIcons = [
@@ -222,7 +225,9 @@
         'about',
         'hub.description',
         'institutional.description',
-    ]) ?: 'Central de serviços, comunicação e acesso da organização.';
+    ]) ?: ($isSystemContext
+        ? 'Administração global do SGC, independente de organização.'
+        : 'Central de serviços, comunicação e acesso da organização.');
 
     $tenantDocument = $tenantValue(['cnpj', 'document', 'tax_id']);
     $tenantCity = $tenantValue(['city', 'address.city', 'contact.city']);
@@ -393,10 +398,12 @@
     }
 @endphp
 
-@section('page-title', 'Central da organização')
+@section('page-title', $isSystemContext ? 'Administração do SGC' : 'Central da organização')
 @section(
     'page-subtitle',
-    ($currentTenant->name ?? 'Sua organização') . ' · Portais, recursos e comunicação.'
+    $isSystemContext
+        ? 'Contexto global · gestão do sistema e das organizações.'
+        : (($currentTenant?->name ?? 'Sua organização') . ' · Portais, recursos e comunicação.')
 )
 @section('user-role', 'Hub institucional')
 
@@ -2140,10 +2147,10 @@
         </span>
 
         <div class="hub-context-copy">
-            <div class="hub-context-kicker">Organização atual</div>
+            <div class="hub-context-kicker">{{ $isSystemContext ? 'Contexto global' : 'Organização atual' }}</div>
 
             <h2 class="hub-context-name" id="hub-title">
-                {{ $currentTenant->name ?? 'Sua organização' }}
+                {{ $isSystemContext ? 'SGC' : ($currentTenant?->name ?? 'Sua organização') }}
             </h2>
 
             <div class="hub-context-meta">

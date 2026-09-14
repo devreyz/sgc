@@ -43,17 +43,18 @@ class ServiceProviderPortalController extends Controller
     public function create(Request $request, Tenant $tenant): View
     {
         $provider = $this->provider($request, $tenant);
-        $versions = ServiceVersion::query()->where('tenant_id', $tenant->id)->where('status', 'published')->where('allow_provider_create_order', true)->with('service')->orderBy('service_id')->get();
+        $versions = $this->availableVersions($tenant, $provider)->get();
 
         return view('provider.services-create', compact('provider', 'versions'));
     }
 
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
     {
+        $request->validate(['beneficiary_name' => 'required|string|max:191']);
         $provider = $this->provider($request, $tenant);
         $data = $request->validate(['service_version_id' => 'required|integer', 'associate_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'array']);
-        $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($data['service_version_id'])->where('allow_provider_create_order', true)->firstOrFail();
-        $order = $creator->handle($tenant->id, $version, $data + ['service_provider_id' => $provider->id], $request->user());
+        $version = $this->availableVersions($tenant, $provider)->whereKey($data['service_version_id'])->firstOrFail();
+        $order = $creator->handle($tenant->id, $version, $data + ['service_provider_id' => $provider->id, 'beneficiary_name' => $request->input('beneficiary_name')], $request->user());
 
         return redirect()->route('provider.orders.show', [$tenant, $order]);
     }
@@ -71,7 +72,7 @@ class ServiceProviderPortalController extends Controller
         $provider = $this->provider($request, $tenant);
         $order = $this->order($tenant, $provider, $order);
         $data = $request->validate(['operation_key' => 'required|uuid', 'values' => 'array']);
-        $workflow->start($order->execution, $data['values'] ?? [], $data['operation_key'], $request->user());
+        $workflow->start($order->execution, $this->providerValues($order, $data['values'] ?? [], ['start']), $data['operation_key'], $request->user());
 
         return back()->with('success', 'Serviço iniciado.');
     }
@@ -81,7 +82,7 @@ class ServiceProviderPortalController extends Controller
         $provider = $this->provider($request, $tenant);
         $order = $this->order($tenant, $provider, $order);
         $data = $request->validate(['values' => 'array']);
-        $workflow->saveDraft($order->execution, $data['values'] ?? [], $request->user());
+        $workflow->saveDraft($order->execution, $this->providerValues($order, $data['values'] ?? [], ['start', 'execution', 'finish']), $request->user());
 
         return back()->with('success', 'Rascunho salvo.');
     }
@@ -91,7 +92,7 @@ class ServiceProviderPortalController extends Controller
         $provider = $this->provider($request, $tenant);
         $order = $this->order($tenant, $provider, $order);
         $data = $request->validate(['operation_key' => 'required|uuid', 'values' => 'array']);
-        $execution = $workflow->submit($order->execution, $data['values'] ?? [], $data['operation_key'], $request->user());
+        $execution = $workflow->submit($order->execution, $this->providerValues($order, $data['values'] ?? [], ['execution', 'finish']), $data['operation_key'], $request->user());
 
         return back()->with('success', $execution->status === 'validated' ? 'Serviço validado e obrigações geradas.' : 'Serviço enviado para conferência.');
     }
@@ -101,6 +102,11 @@ class ServiceProviderPortalController extends Controller
         $provider = $this->provider($request, $tenant);
         $order = $this->order($tenant, $provider, $order);
         $data = $request->validate(['field_key' => 'required|string|max:80', 'file' => 'required|file|max:12288']);
+        $allowed = collect(data_get($order->execution->catalog_snapshot, 'fields', []))->contains(fn (array $field) => $field['key'] === $data['field_key']
+            && in_array($field['type'] ?? null, ['image', 'file', 'signature'], true)
+            && ($field['visible_to_provider'] ?? false)
+            && ($field['editable_by_provider'] ?? false));
+        abort_unless($allowed, 422, 'Esta evidência não pode ser enviada pelo prestador.');
         $evidence->upload($order->execution, $data['field_key'], $data['file'], $request->user());
 
         return back()->with('success', 'Evidência anexada.');
@@ -135,14 +141,37 @@ class ServiceProviderPortalController extends Controller
 
     private function provider(Request $request, Tenant $tenant): ServiceProvider
     {
-        $provider = ServiceProvider::query()->where('tenant_id', $tenant->id)->where('user_id', $request->user()->id)->where('status',true)->first();
-        abort_unless($provider,403,'Seu acesso não está vinculado a um prestador ativo.');
+        $provider = ServiceProvider::query()->where('tenant_id', $tenant->id)->where('user_id', $request->user()->id)->where('status', true)->first();
+        abort_unless($provider, 403, 'Seu acesso não está vinculado a um prestador ativo.');
 
         return $provider;
     }
 
-    private function order(Tenant $tenant,ServiceProvider $provider,int $id): ServiceOrder
+    private function order(Tenant $tenant, ServiceProvider $provider, int $id): ServiceOrder
     {
-        return ServiceOrder::query()->where('tenant_id',$tenant->id)->where('service_provider_id',$provider->id)->whereKey($id)->with(['service', 'serviceVersion', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations'])->firstOrFail();
+        return ServiceOrder::query()->where('tenant_id', $tenant->id)->where('service_provider_id', $provider->id)->whereKey($id)->with(['service', 'serviceVersion', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations'])->firstOrFail();
+    }
+
+    private function availableVersions(Tenant $tenant, ServiceProvider $provider)
+    {
+        return ServiceVersion::query()
+            ->where('tenant_id', $tenant->id)
+            ->where('status', 'published')
+            ->where('allow_provider_create_order', true)
+            ->whereHas('service', fn ($query) => $query->where('status', true))
+            ->whereHas('service.serviceProviders', fn ($query) => $query->whereKey($provider->id))
+            ->with(['service', 'fields'])
+            ->orderBy('service_id');
+    }
+
+    private function providerValues(ServiceOrder $order, array $values, array $phases): array
+    {
+        $keys = collect(data_get($order->execution->catalog_snapshot, 'fields', []))
+            ->filter(fn (array $field) => in_array($field['phase'] ?? null, $phases, true)
+                && ($field['visible_to_provider'] ?? false)
+                && ($field['editable_by_provider'] ?? false))
+            ->pluck('key')->all();
+
+        return array_intersect_key($values, array_flip($keys));
     }
 }

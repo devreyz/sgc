@@ -2,222 +2,69 @@
 
 namespace App\Filament\Pages;
 
-use App\Models\ServiceOrder;
-use App\Enums\ServiceOrderStatus;
+use App\Models\Asset;
+use App\Models\Service;
+use App\Models\ServiceProvider;
+use App\Services\Services\ServiceReportService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Filament\Forms;
+use Filament\Forms\Form;
 use Filament\Pages\Page;
-use Filament\Tables\Table;
-use Filament\Tables\Concerns\InteractsWithTable;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
-use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\DatePicker;
-use Filament\Facades\Filament;
-use Illuminate\Support\Facades\DB;
-use BezhanSalleh\FilamentShield\Traits\HasPageShield;
+use Illuminate\Support\Carbon;
 
-class ServiceOrdersPaymentReport extends Page implements HasTable
+class ServiceOrdersPaymentReport extends Page
 {
-    use InteractsWithTable;
-    use HasPageShield;
-
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
 
     protected static string $view = 'filament.pages.service-orders-payment-report';
 
     protected static ?string $navigationGroup = 'Serviços';
 
-    protected static ?string $navigationLabel = 'Relatório de Pagamentos';
+    protected static ?string $navigationLabel = 'Prestação de contas';
 
-    protected static ?string $title = 'Relatório de Pagamentos de Ordens de Serviço';
+    protected static ?string $title = 'Prestação de contas de serviços';
 
-    protected static ?int $navigationSort = 10;
+    public ?array $data = [];
 
     public static function canAccess(array $parameters = []): bool
     {
-        $user = Filament::auth()->user();
-
-        return $user ? $user->can(static::getPermissionName()) : false;
+        return (bool) session('tenant_id') && (auth()->user()?->checkPermissionTo('view_service_reports') ?? false);
     }
 
-    public function table(Table $table): Table
+    public function mount(): void
     {
-        $tenantId = session('tenant_id');
-        
-        return $table
-            ->query(
-                ServiceOrder::query()
-                    ->where('tenant_id', $tenantId)
-                    ->where('status', ServiceOrderStatus::COMPLETED)
-                    ->with(['associate.user', 'service', 'serviceProvider', 'works.serviceProvider'])
-                    ->latest('execution_date')
-            )
-            ->columns([
-                TextColumn::make('number')
-                    ->label('Número')
-                    ->searchable()
-                    ->sortable(),
-
-                TextColumn::make('execution_date')
-                    ->label('Data Execução')
-                    ->date('d/m/Y')
-                    ->sortable(),
-
-                TextColumn::make('associate.user.display_name')
-                    ->label('Associado')
-                    ->searchable()
-                    ->limit(20),
-
-                TextColumn::make('service.name')
-                    ->label('Serviço')
-                    ->searchable()
-                    ->limit(20),
-
-                TextColumn::make('serviceProvider.name')
-                    ->label('Prestador')
-                    ->searchable()
-                    ->limit(20),
-
-                TextColumn::make('final_price')
-                    ->label('Valor Associado')
-                    ->money('BRL')
-                    ->sortable()
-                    ->summarize([
-                        \Filament\Tables\Columns\Summarizers\Sum::make()
-                            ->money('BRL')
-                            ->label('Total'),
-                    ]),
-
-                TextColumn::make('provider_payment')
-                    ->label('Pagto Prestador')
-                    ->money('BRL')
-                    ->sortable()
-                    ->summarize([
-                        \Filament\Tables\Columns\Summarizers\Sum::make()
-                            ->money('BRL')
-                            ->label('Total'),
-                    ]),
-
-                TextColumn::make('cooperative_profit')
-                    ->label('Lucro Cooperativa')
-                    ->money('BRL')
-                    ->state(function (ServiceOrder $record): float {
-                        return (float) $record->final_price - (float) $record->provider_payment;
-                    })
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query->orderByRaw("(final_price - COALESCE(provider_payment, 0)) {$direction}");
-                    })
-                    ->summarize([
-                        \Filament\Tables\Columns\Summarizers\Summarizer::make()
-                            ->using(fn (\Illuminate\Database\Query\Builder $query): float => (float) $query->sum(DB::raw('final_price - COALESCE(provider_payment, 0)')))
-                            ->money('BRL')
-                            ->label('Total'),
-                    ]),
-
-                TextColumn::make('associate_payment_status')
-                    ->label('Status Pgto Associado')
-                    ->badge()
-                    ->formatStateUsing(fn ($state): string => match($state) {
-                        'paid' => 'Pago',
-                        'pending' => 'Pendente',
-                        'cancelled' => 'Cancelado',
-                        default => 'N/A'
-                    })
-                    ->color(fn ($state): string => match($state) {
-                        'paid' => 'success',
-                        'pending' => 'warning',
-                        'cancelled' => 'danger',
-                        default => 'gray'
-                    }),
-
-                TextColumn::make('provider_payment_status')
-                    ->label('Status Pgto Prestador')
-                    ->badge()
-                    ->formatStateUsing(fn ($state): string => match($state) {
-                        'paid' => 'Pago',
-                        'pending' => 'Pendente',
-                        'cancelled' => 'Cancelado',
-                        default => 'N/A'
-                    })
-                    ->color(fn ($state): string => match($state) {
-                        'paid' => 'success',
-                        'pending' => 'warning',
-                        'cancelled' => 'danger',
-                        default => 'gray'
-                    }),
-
-                TextColumn::make('associate_paid_at')
-                    ->label('Pago em (Assoc.)')
-                    ->dateTime('d/m/Y H:i')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('provider_paid_at')
-                    ->label('Pago em (Prest.)')
-                    ->dateTime('d/m/Y H:i')
-                    ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                SelectFilter::make('associate_payment_status')
-                    ->label('Status Pgto Associado')
-                    ->options([
-                        'pending' => 'Pendente',
-                        'paid' => 'Pago',
-                        'cancelled' => 'Cancelado',
-                    ]),
-
-                SelectFilter::make('provider_payment_status')
-                    ->label('Status Pgto Prestador')
-                    ->options([
-                        'pending' => 'Pendente',
-                        'paid' => 'Pago',
-                        'cancelled' => 'Cancelado',
-                    ]),
-
-                Filter::make('execution_date')
-                    ->form([
-                        DatePicker::make('executed_from')
-                            ->label('Executado de'),
-                        DatePicker::make('executed_until')
-                            ->label('Executado até'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['executed_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('execution_date', '>=', $date),
-                            )
-                            ->when(
-                                $data['executed_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('execution_date', '<=', $date),
-                            );
-                    }),
-
-                SelectFilter::make('associate_id')
-                    ->label('Associado')
-                    ->relationship('associate.user', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                SelectFilter::make('service_id')
-                    ->label('Serviço')
-                    ->relationship('service', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                SelectFilter::make('service_provider_id')
-                    ->label('Prestador')
-                    ->relationship('serviceProvider', 'name')
-                    ->searchable()
-                    ->preload(),
-            ])
-            ->defaultSort('execution_date', 'desc')
-            ->striped()
-            ->poll('30s');
+        $this->form->fill(['from' => now()->startOfMonth()->toDateString(), 'to' => now()->endOfMonth()->toDateString()]);
     }
 
-    public function getTableRecordKey($record): string
+    public function form(Form $form): Form
     {
-        return (string) $record->id;
+        return $form->statePath('data')->schema([
+            Forms\Components\DatePicker::make('from')->label('De')->required(),
+            Forms\Components\DatePicker::make('to')->label('Até')->required()->afterOrEqual('from'),
+            Forms\Components\Select::make('provider_id')->label('Prestador')->options(fn () => ServiceProvider::query()->pluck('name', 'id'))->searchable(),
+            Forms\Components\Select::make('service_id')->label('Serviço')->options(fn () => Service::query()->pluck('name', 'id'))->searchable(),
+            Forms\Components\Select::make('asset_id')->label('Equipamento')->options(fn () => Asset::query()->pluck('name', 'id'))->searchable(),
+        ])->columns(['default' => 1, 'md' => 3]);
+    }
+
+    public function report(): array
+    {
+        abort_unless(static::canAccess(), 403);
+        $data = $this->form->getState();
+
+        return app(ServiceReportService::class)->summary((int) session('tenant_id'), Carbon::parse($data['from']), Carbon::parse($data['to']), $data['provider_id'] ?? null, $data['service_id'] ?? null, $data['asset_id'] ?? null);
+    }
+
+    public function generate(): void
+    {
+        $this->report();
+    }
+
+    public function download()
+    {
+        $summary = $this->report();
+        $pdf = Pdf::loadView('pdf.service-accountability', compact('summary'))->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(fn () => print ($pdf->output()), 'prestacao-servicos.pdf', ['Content-Type' => 'application/pdf']);
     }
 }

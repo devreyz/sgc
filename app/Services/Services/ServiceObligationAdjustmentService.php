@@ -18,7 +18,7 @@ class ServiceObligationAdjustmentService
                     throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada com outro conteúdo.']);
                 }
 
-return $existing;
+                return $existing;
             }$obligation = ServiceObligation::query()->where('tenant_id', $obligation->tenant_id)->whereKey($obligation->id)->lockForUpdate()->firstOrFail();
             $amount = round($amount, 2);
             if ($amount == 0) {

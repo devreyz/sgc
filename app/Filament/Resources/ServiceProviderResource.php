@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Pages\ServiceOrdersPaymentReport;
 use App\Filament\Resources\ServiceProviderResource\Pages;
-use App\Filament\Resources\ServiceProviderResource\RelationManagers;
 use App\Filament\Traits\TenantScoped;
 use App\Models\ServiceProvider;
 use App\Models\User;
@@ -146,20 +146,8 @@ class ServiceProviderResource extends Resource
                     ])
                     ->columns(4),
 
-                Forms\Components\Section::make('Valores e Status')
+                Forms\Components\Section::make('Status')->description('Configure a remuneração em Versões e preços do serviço. O cadastro bancário informa onde pagar.')
                     ->schema([
-                        Forms\Components\TextInput::make('hourly_rate')
-                            ->label('Valor por Hora')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->helperText('Valor cobrado por hora de trabalho'),
-
-                        Forms\Components\TextInput::make('daily_rate')
-                            ->label('Valor por Diária')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->helperText('Valor cobrado por dia de trabalho'),
-
                         Forms\Components\Toggle::make('status')
                             ->label('Ativo')
                             ->default(true),
@@ -220,43 +208,7 @@ class ServiceProviderResource extends Resource
                     ->searchable()
                     ->icon('heroicon-o-phone'),
 
-                Tables\Columns\TextColumn::make('hourly_rate')
-                    ->label('Valor/Hora')
-                    ->money('BRL')
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('daily_rate')
-                    ->label('Valor/Diária')
-                    ->money('BRL')
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('pending_receivable')
-                    ->label('Saldo a Receber')
-                    ->state(fn (ServiceProvider $record): float => $record->pending_receivable)
-                    ->money('BRL')
-                    ->color(fn ($state): string => $state > 0 ? 'warning' : 'success')
-                    ->weight('bold')
-                    ->sortable(query: function (Builder $query, string $direction): Builder {
-                        return $query; // Não ordena porque é calculado
-                    }),
-
-                Tables\Columns\TextColumn::make('ledger_balance')
-                    ->label('Saldo Ledger')
-                    ->state(fn (ServiceProvider $record): float => $record->current_balance)
-                    ->money('BRL')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('pending_total')
-                    ->label('Total Pendente (Legado)')
-                    ->state(fn (ServiceProvider $record): float => $record->total_pending)
-                    ->money('BRL')
-                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'gray')
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('works_count')
-                    ->label('Serviços')
-                    ->counts('works')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('service_balance')->label('A pagar')->state(fn (ServiceProvider $record) => $record->serviceObligations()->where('direction', 'payable')->get()->sum('balance'))->money('BRL'),
 
                 Tables\Columns\IconColumn::make('status')
                     ->label('Ativo')
@@ -278,7 +230,7 @@ class ServiceProviderResource extends Resource
                     ->label('Ativo'),
                 Tables\Filters\Filter::make('has_pending')
                     ->label('Com Pagamento Pendente')
-                    ->query(fn (Builder $query) => $query->whereHas('works', fn ($q) => $q->where('payment_status', 'pendente'))),
+                    ->query(fn (Builder $query) => $query->whereHas('serviceObligations', fn ($q) => $q->where('direction', 'payable')->whereIn('status', ['open', 'partially_paid']))),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -290,58 +242,7 @@ class ServiceProviderResource extends Resource
                     Tables\Actions\RestoreBulkAction::make(),
                 ]),
             ])
-            ->headerActions([
-                Tables\Actions\Action::make('payment_report')
-                    ->label('Relatório de Pagamentos')
-                    ->icon('heroicon-o-document-chart-bar')
-                    ->color('info')
-                    ->form([
-                        Forms\Components\DatePicker::make('start_date')
-                            ->label('Data Início')
-                            ->required()
-                            ->default(now()->startOfMonth()),
-                        Forms\Components\DatePicker::make('end_date')
-                            ->label('Data Fim')
-                            ->required()
-                            ->default(now()->endOfMonth()),
-                        Forms\Components\Select::make('payment_status')
-                            ->label('Status Pagamento')
-                            ->options([
-                                'all' => 'Todos',
-                                'pendente' => 'Pendentes',
-                                'pago' => 'Pagos',
-                            ])
-                            ->default('all'),
-                    ])
-                    ->action(function (array $data) {
-                        $query = \App\Models\ServiceProviderWork::with(['serviceProvider', 'serviceOrder', 'associate'])
-                            ->whereBetween('work_date', [$data['start_date'], $data['end_date']]);
-
-                        if ($data['payment_status'] !== 'all') {
-                            $query->where('payment_status', $data['payment_status']);
-                        }
-
-                        $works = $query->orderBy('service_provider_id')->orderBy('work_date')->get();
-                        $grouped = $works->groupBy('service_provider_id');
-
-                        $svc = app(\App\Services\TemplatedPdfService::class);
-                        $pdf = $svc->generateSystemPdf('pdf.service-providers-report', [
-                            'grouped' => $grouped,
-                            'start_date' => \Carbon\Carbon::parse($data['start_date'])->format('d/m/Y'),
-                            'end_date' => \Carbon\Carbon::parse($data['end_date'])->format('d/m/Y'),
-                            'payment_status' => $data['payment_status'],
-                            'total' => $works->sum('total_value'),
-                            'total_pending' => $works->where('payment_status', 'pendente')->sum('total_value'),
-                            'total_paid' => $works->where('payment_status', 'pago')->sum('total_value'),
-                            'generated_at' => now()->format('d/m/Y H:i'),
-                            'tenant' => \App\Models\Tenant::find(session('tenant_id')),
-                        ], $svc->systemPdfOptions('pdf.service-providers-report', 'Rel. Prestadores de Serviço'));
-
-                        return response()->streamDownload(function () use ($pdf) {
-                            echo $pdf->output();
-                        }, 'relatorio-prestadores-'.now()->format('Y-m-d').'.pdf', ['Content-Type' => 'application/pdf']);
-                    }),
-            ]);
+            ->headerActions([Tables\Actions\Action::make('report')->label('Prestação de contas')->url(fn () => ServiceOrdersPaymentReport::getUrl())->visible(fn () => auth()->user()->checkPermissionTo('view_service_reports'))]);
     }
 
     public static function getRelations(): array

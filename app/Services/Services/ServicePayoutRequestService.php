@@ -40,7 +40,7 @@ class ServicePayoutRequestService
                 ServicePayoutRequestItem::create(['service_payout_request_id' => $request->id, 'service_obligation_id' => $obligation->id, 'amount' => $amount]);
             }
 
-return $request->fresh('items');
+            return $request->fresh('items');
         }, 3);
     }
 }

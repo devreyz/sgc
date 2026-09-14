@@ -3,41 +3,47 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ServiceProviderServiceResource\Pages;
-use App\Filament\Resources\ServiceProviderServiceResource\RelationManagers;
+use App\Filament\Traits\TenantScoped;
 use App\Models\ServiceProviderService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use App\Filament\Traits\TenantScoped;
 
 class ServiceProviderServiceResource extends Resource
 {
-    public static function shouldRegisterNavigation(): bool
-    {
-        return false;
-    }
-
     public static function canViewAny(): bool
     {
+        return auth()->user()?->checkPermissionTo('manage_service_providers') ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canViewAny() && (int) $record->tenant_id === (int) session('tenant_id');
+    }
+
+    public static function canDelete($record): bool
+    {
         return false;
     }
 
-    public static function canCreate(): bool { return false; }
-    public static function canEdit($record): bool { return false; }
     use TenantScoped;
+
     protected static ?string $model = ServiceProviderService::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-wrench-screwdriver';
 
     protected static ?string $navigationGroup = 'Serviços';
 
-    protected static ?string $modelLabel = 'Serviço de Prestador';
+    protected static ?string $modelLabel = 'Habilitação de Prestador';
 
-    protected static ?string $pluralModelLabel = 'Serviços de Prestadores';
+    protected static ?string $pluralModelLabel = 'Habilitações de Serviços';
 
     protected static ?int $navigationSort = 3;
 
@@ -58,39 +64,16 @@ class ServiceProviderServiceResource extends Resource
                             ->relationship('service', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->unique('service_provider_services', 'service_id', ignoreRecord: true, modifyRuleUsing: fn ($rule, $get) => $rule->where('tenant_id', session('tenant_id'))->where('service_provider_id', $get('service_provider_id'))),
                     ])
                     ->columns(2),
-                
-                Forms\Components\Section::make('Valores do Prestador')
-                    ->description('Valores que o prestador receberá por unidade de trabalho')
-                    ->schema([
-                        Forms\Components\TextInput::make('provider_hourly_rate')
-                            ->label('Valor por Hora')
-                            ->helperText('Quanto o prestador recebe por hora trabalhada')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->nullable(),
-                        Forms\Components\TextInput::make('provider_daily_rate')
-                            ->label('Valor por Diária')
-                            ->helperText('Quanto o prestador recebe por dia trabalhado')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->nullable(),
-                        Forms\Components\TextInput::make('provider_unit_rate')
-                            ->label('Valor por Unidade')
-                            ->helperText('Quanto o prestador recebe por unidade (km, kg, etc)')
-                            ->numeric()
-                            ->prefix('R$')
-                            ->nullable(),
-                    ])
-                    ->columns(3),
-                
+
                 Forms\Components\Section::make('Status e Observações')
                     ->schema([
                         Forms\Components\Toggle::make('status')
                             ->label('Ativo')
-                            ->helperText('Prestador ainda oferece este serviço?')
+                            ->helperText('Somente habilitações ativas permitem atribuir ou criar ordens deste serviço.')
                             ->default(true)
                             ->required(),
                         Forms\Components\Textarea::make('notes')
@@ -112,18 +95,6 @@ class ServiceProviderServiceResource extends Resource
                 Tables\Columns\TextColumn::make('service.name')
                     ->label('Serviço')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('provider_hourly_rate')
-                    ->label('Valor/Hora')
-                    ->money('BRL')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('provider_daily_rate')
-                    ->label('Valor/Diária')
-                    ->money('BRL')
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('provider_unit_rate')
-                    ->label('Valor/Unidade')
-                    ->money('BRL')
                     ->sortable(),
                 Tables\Columns\IconColumn::make('status')
                     ->label('Ativo')
@@ -157,15 +128,9 @@ class ServiceProviderServiceResource extends Resource
                     ->preload(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
-            ]);
+            ->bulkActions([]);
     }
 
     public static function getRelations(): array

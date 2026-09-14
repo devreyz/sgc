@@ -3,6 +3,7 @@
 namespace App\Services\Services;
 
 use App\Enums\CashMovementType;
+use App\Enums\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\ServiceObligation;
@@ -17,15 +18,22 @@ class ServicePaymentService
     public function record(ServiceObligation $obligation, float $amount, string $method, string $date, ?int $bankAccountId, string $operationKey, User $actor, array $metadata = []): ServicePaymentEvent
     {
         return DB::transaction(function () use ($obligation, $amount, $method, $date, $bankAccountId, $operationKey, $actor, $metadata): ServicePaymentEvent {
+            if (! is_finite($amount) || ! in_array($method, array_column(PaymentMethod::cases(), 'value'), true)) {
+                throw ValidationException::withMessages(['amount' => 'Valor ou forma de pagamento inválida.']);
+            }
+            if (! $bankAccountId) {
+                throw ValidationException::withMessages(['bank_account_id' => 'Selecione uma conta bancária ou caixa para registrar a movimentação.']);
+            }
+            $obligation = ServiceObligation::query()->whereKey($obligation->id)->where('tenant_id', $obligation->tenant_id)->lockForUpdate()->firstOrFail();
             $existing = ServicePaymentEvent::query()->where('tenant_id', $obligation->tenant_id)->where('operation_key', $operationKey)->first();
             if ($existing) {
                 $existing->load('allocations');
                 $allocation = $existing->allocations->first();
-                if (! $allocation || $allocation->service_obligation_id !== $obligation->id || abs((float) $existing->amount - round($amount, 2)) > .0001) {
+                if (! $allocation || $allocation->service_obligation_id !== $obligation->id || abs((float) $existing->amount - round($amount, 2)) > .0001 || $existing->payment_method !== $method || (int) $existing->bank_account_id !== $bankAccountId || $existing->payment_date->toDateString() !== $date) {
                     throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada com outro pagamento.']);
                 }
 
-return $existing;
+                return $existing;
             }
             $obligation = ServiceObligation::query()->whereKey($obligation->id)->where('tenant_id', $obligation->tenant_id)->lockForUpdate()->firstOrFail();
             $amount = round($amount, 2);
@@ -69,12 +77,13 @@ return $existing;
     public function reverse(ServicePaymentEvent $payment, string $reason, string $operationKey, User $actor): ServicePaymentEvent
     {
         return DB::transaction(function () use ($payment, $reason, $operationKey, $actor): ServicePaymentEvent {
+            $payment = ServicePaymentEvent::query()->whereKey($payment->id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
             if ($existing = ServicePaymentEvent::query()->where('tenant_id', $payment->tenant_id)->where('operation_key', $operationKey)->first()) {
                 if ($existing->reversal_of_id !== $payment->id) {
                     throw ValidationException::withMessages(['operation_key' => 'A chave de operação já foi usada em outro estorno.']);
                 }
 
-return $existing->load('allocations');
+                return $existing->load('allocations');
             }
             $payment = ServicePaymentEvent::query()->whereKey($payment->id)->where('tenant_id', $payment->tenant_id)->lockForUpdate()->firstOrFail();
             if ($payment->event_type !== 'payment' || $payment->status !== 'confirmed' || $payment->reversal_of_id) {
