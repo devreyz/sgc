@@ -30,6 +30,7 @@ class PortalNavigation
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'provider.dashboard'],
                 ['key' => 'orders', 'label' => 'Ordens', 'route' => 'provider.orders'],
                 ['key' => 'financial', 'label' => 'Financeiro', 'route' => 'provider.financial'],
+                ...((auth()->user()?->checkPermissionTo('manage_service_expenses') ?? false) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'provider.expenses']] : []),
             ],
             'services' => [
                 ['key' => 'queue', 'label' => 'Fila', 'route' => 'services.management.index'],

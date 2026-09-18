@@ -2,18 +2,17 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\CashMovementType;
 use App\Enums\ExpenseStatus;
 use App\Enums\PaymentMethod;
 use App\Filament\Resources\ExpenseResource\Pages;
 use App\Models\Asset;
 use App\Models\BankAccount;
-use App\Models\CashMovement;
 use App\Models\Equipment;
 use App\Models\Expense;
 use App\Models\SalesProject;
 use App\Models\ServiceOrder;
 use App\Models\User;
+use App\Services\ExpensePaymentService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -22,7 +21,6 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Illuminate\Support\Facades\DB;
 use App\Filament\Traits\TenantScoped;
 
 class ExpenseResource extends Resource
@@ -304,46 +302,14 @@ class ExpenseResource extends Resource
                             ->helperText('Calculado: Valor - Desconto + Juros + Multa'),
                     ])
                     ->action(function (Expense $record, array $data): void {
-                        DB::transaction(function () use ($record, $data) {
-                            // Atualizar despesa
-                            $record->update([
-                                'paid_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'payment_method' => $data['payment_method'],
-                                'paid_amount' => $data['paid_amount'],
-                                'status' => ExpenseStatus::PAID,
-                                'paid_by' => auth()->id(),
-                            ]);
-
-                            // Registrar movimento de caixa (saída)
-                            $bankAccount = BankAccount::find($data['bank_account_id']);
-                            $newBalance = $bankAccount->current_balance - $data['paid_amount'];
-
-                            CashMovement::create([
-                                'type' => CashMovementType::EXPENSE,
-                                'amount' => $data['paid_amount'],
-                                'balance_after' => $newBalance,
-                                'description' => 'Despesa: '.$record->description,
-                                'movement_date' => $data['payment_date'],
-                                'bank_account_id' => $data['bank_account_id'],
-                                'reference_type' => Expense::class,
-                                'reference_id' => $record->id,
-                                'chart_account_id' => $record->chart_account_id,
-                                'payment_method' => $data['payment_method'],
-                                'document_number' => $record->document_number,
-                                'created_by' => auth()->id(),
-                            ]);
-
-                            // Atualizar saldo da conta
-                            $bankAccount->update(['current_balance' => $newBalance]);
-                        });
+                        app(ExpensePaymentService::class)->pay($record, $data, auth()->user());
 
                         Notification::make()
                             ->success()
                             ->title('Despesa paga com sucesso')
                             ->send();
                     })
-                    ->visible(fn (Expense $record): bool => $record->status === ExpenseStatus::PENDING),
+                    ->visible(fn (Expense $record): bool => in_array($record->status, [ExpenseStatus::PENDING, ExpenseStatus::OVERDUE], true)),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])

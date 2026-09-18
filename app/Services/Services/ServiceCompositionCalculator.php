@@ -8,21 +8,34 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceCompositionCalculator
 {
-    public function calculate(ServiceExecution $execution): array
+    public function calculate(ServiceExecution $execution, bool $validateEvidences = true): array
     {
         $execution->loadMissing(['version', 'provider', 'resources']);
         $version = $execution->version;
         $quantity = round((float) ($execution->quantity ?? 0), 4);
         $engine = app(ServiceCalculationRules::class);
-        $customerQuantity = $engine->quantity($version->execution_config ?? [], 'customer', $execution->values ?? [], $quantity);
-        $providerQuantity = $engine->quantity($version->execution_config ?? [], 'provider', $execution->values ?? [], $quantity);
+        $derived = $execution->derived_values ?: $engine->quantities(
+            (array) data_get($execution->catalog_snapshot, 'execution_config', $version->execution_config ?? []),
+            (array) data_get($execution->catalog_snapshot, 'fields', $version->fields?->map->snapshot()->all() ?? []),
+            $execution->values ?? [],
+            $quantity ?: 1
+        );
+        $customerQuantity = (float) ($derived['customer_quantity'] ?? $quantity);
+        $providerQuantity = (float) ($derived['provider_quantity'] ?? $quantity);
+        $executionConfig = (array) data_get($execution->catalog_snapshot, 'execution_config', $version->execution_config ?? []);
         $receivable = [];
         $payable = [];
         if ($version->receivable_enabled) {
             $configuredCustomerRate = (float) ($version->customer_rate ?? 0);
             $customerCalculationBase = $version->customer_pricing_method === 'percent_of_base' ? $configuredCustomerRate : 0;
             $base = $this->amount($version->customer_pricing_method, $customerQuantity, $configuredCustomerRate, (float) ($version->customer_percentage ?? 0), $customerCalculationBase);
-            $receivable[] = $this->line('receivable', 'base', 'catalog', 'customer_base', 'Serviço executado', $customerQuantity, $version->unit, (float) ($version->customer_rate ?? $base), $base, 'add', ['method' => $version->customer_pricing_method, 'version' => $version->version]);
+            $customerRate = (float) ($version->customer_rate ?? $base);
+            $receivable[] = $this->line('receivable', 'base', 'catalog', 'customer_base', 'Serviço executado', $customerQuantity, $executionConfig['customer_unit'] ?? $version->unit, $customerRate, $base, 'add', [
+                'method' => $version->customer_pricing_method,
+                'version' => $version->version,
+                'quantity_source' => data_get($derived, 'calculation.customer'),
+                'formula' => $this->formula($version->customer_pricing_method, $customerQuantity, $customerRate, (float) ($version->customer_percentage ?? 0), $customerCalculationBase),
+            ]);
         }
         $customerBase = round(collect($receivable)->sum('amount'), 2);
         if ($version->payable_enabled) {
@@ -37,7 +50,15 @@ class ServiceCompositionCalculator
                 throw ValidationException::withMessages(['provider_rate' => 'Não existe remuneração válida para este prestador. Cadastre um override ou tarifa padrão da versão.']);
             }
             $amount = $this->amount($method, $providerQuantity, $rate, $percentage, $customerBase);
-            $payable[] = $this->line('payable', 'base', $override ? 'provider_override' : 'catalog', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, data_get($version->execution_config, 'provider_unit') ?: $version->unit, $rate, $amount, 'add', ['method' => $method, 'rate' => $rate, 'percentage' => $percentage, 'precedence' => $override ? 'provider_service_version' : 'service_version_default', 'version' => $version->version]);
+            $payable[] = $this->line('payable', 'base', $override ? 'provider_override' : 'catalog', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, $executionConfig['provider_unit'] ?? $version->unit, $rate, $amount, 'add', [
+                'method' => $method,
+                'rate' => $rate,
+                'percentage' => $percentage,
+                'precedence' => $override ? 'provider_service_version' : 'service_version_default',
+                'version' => $version->version,
+                'quantity_source' => data_get($derived, 'calculation.provider'),
+                'formula' => $this->formula($method, $providerQuantity, $rate, $percentage, $customerBase),
+            ]);
         }
         foreach ($execution->resources as $resource) {
             if ((! $version->receivable_enabled && in_array($resource->effect, ['deduct_from_receivable', 'add_to_receivable'], true))
@@ -56,7 +77,11 @@ class ServiceCompositionCalculator
             }
         }
         $bases = ['receivable' => $customerBase, 'payable' => (float) collect($payable)->where('type', 'base')->sum('amount')];
-        foreach ($engine->adjustments((array) data_get($version->financial_config, 'rules', []), $execution->values ?? [], $bases, $quantity) as $line) {
+        $rules = (array) data_get($execution->catalog_snapshot, 'financial_config.rules', $version->financial_config['rules'] ?? []);
+        if ($validateEvidences) {
+            $this->validateRuleEvidences($execution, $rules);
+        }
+        foreach ($engine->adjustments($rules, $execution->values ?? [], $bases, $quantity) as $line) {
             if (($line['direction'] === 'receivable' && ! $version->receivable_enabled) || ($line['direction'] === 'payable' && ! $version->payable_enabled)) {
                 throw ValidationException::withMessages(['financial_config' => 'Regra financeira incompatível com esta versão.']);
             }
@@ -74,8 +99,37 @@ class ServiceCompositionCalculator
         return app(ServiceCalculationRules::class)->amount($method, $quantity, $rate, $percentage, $base);
     }
 
+    private function formula(string $method, float $quantity, float $rate, float $percentage, float $base): string
+    {
+        return match ($method) {
+            'quantity_x_rate' => "{$quantity} × {$rate}",
+            'percent_of_base' => "{$base} × {$percentage}%",
+            default => (string) $rate,
+        };
+    }
+
     private function line(string $direction, string $type, string $sourceType, string $sourceKey, string $description, mixed $quantity, mixed $unit, mixed $unitPrice, float $amount, string $effect, array $rule): array
     {
         return compact('direction', 'type', 'description', 'quantity', 'unit', 'amount') + ['source_type' => $sourceType, 'source_key' => $sourceKey, 'unit_price' => $unitPrice, 'financial_effect' => $effect, 'rule_snapshot' => $rule];
+    }
+
+    public function validateRuleEvidences(ServiceExecution $execution, array $rules, ?array $values = null): void
+    {
+        $values ??= $execution->values ?? [];
+        foreach ($rules as $rule) {
+            $evidenceField = $rule['evidence_field'] ?? (($rule['evidence_required'] ?? false) ? ($rule['evidence_key'] ?? null) : null);
+            if (! $evidenceField) continue;
+
+            $activationField = $rule['quantity_field'] ?? $rule['value_field'] ?? $rule['input_key'] ?? null;
+            $active = $activationField
+                ? (float) data_get($values, $activationField, 0) > 0
+                : (float) ($rule['value'] ?? $rule['percentage'] ?? 0) > 0;
+
+            if ($active && ! $execution->evidences()->where('field_key', $evidenceField)->exists()) {
+                throw ValidationException::withMessages([
+                    $evidenceField => 'Anexe o comprovante exigido pela regra “'.($rule['description'] ?? 'financeira').'”.',
+                ]);
+            }
+        }
     }
 }

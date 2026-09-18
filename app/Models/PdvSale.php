@@ -23,6 +23,7 @@ class PdvSale extends Model
     protected $fillable = [
         'code',
         'pdv_customer_id',
+        'price_table_id',
         'customer_name',
         'subtotal',
         'discount_amount',
@@ -62,6 +63,11 @@ class PdvSale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(PdvCustomer::class, 'pdv_customer_id');
+    }
+
+    public function priceTable(): BelongsTo
+    {
+        return $this->belongsTo(PriceTable::class);
     }
 
     public function items(): HasMany

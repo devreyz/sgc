@@ -4,6 +4,8 @@ namespace App\Services\Services;
 
 use App\Models\ServiceExecution;
 use App\Models\ServicePaymentAllocation;
+use App\Models\Expense;
+use App\Models\ServiceOrder;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -60,6 +62,21 @@ class ServiceReportService
                     ->when($serviceId, fn ($e) => $e->whereHas('order', fn ($o) => $o->where('service_id', $serviceId)))
                     ->when($assetId, fn ($e) => $e->whereHas('order', fn ($o) => $o->where('asset_id', $assetId)));
             })->with(['obligation', 'paymentEvent'])->get();
+        $serviceExpenses = Expense::query()->where('tenant_id', $tenantId)->where('origin_module', 'services')
+            ->whereBetween('date', [$from->toDateString(), $to->toDateString()])
+            ->when($providerId, fn ($query) => $query->where(function ($scope) use ($providerId): void {
+                $scope->whereHasMorph('expenseable', [ServiceOrder::class], fn ($order) => $order->where('service_provider_id', $providerId))
+                    ->orWhereHasMorph('expenseable', [ServiceExecution::class], fn ($execution) => $execution->where('service_provider_id', $providerId));
+            }))
+            ->when($serviceId, fn ($query) => $query->where(function ($scope) use ($serviceId): void {
+                $scope->whereHasMorph('expenseable', [ServiceOrder::class], fn ($order) => $order->where('service_id', $serviceId))
+                    ->orWhereHasMorph('expenseable', [ServiceExecution::class], fn ($execution) => $execution->whereHas('order', fn ($order) => $order->where('service_id', $serviceId)));
+            }))
+            ->when($assetId, fn ($query) => $query->where(function ($scope) use ($assetId): void {
+                $scope->whereHasMorph('expenseable', [ServiceOrder::class], fn ($order) => $order->where('asset_id', $assetId))
+                    ->orWhereHasMorph('expenseable', [ServiceExecution::class], fn ($execution) => $execution->whereHas('order', fn ($order) => $order->where('asset_id', $assetId)));
+            }))
+            ->with(['expenseable', 'chartAccount'])->orderBy('date')->get();
 
         return $totals + [
             'from' => $from->toDateString(), 'to' => $to->toDateString(), 'details' => $details, 'rows' => $executions,
@@ -68,6 +85,17 @@ class ServiceReportService
             'cash_received_period' => round((float) $periodPayments->filter(fn ($a) => $a->obligation->direction === 'receivable')->sum('amount'), 2),
             'cash_paid_period' => round((float) $periodPayments->filter(fn ($a) => $a->obligation->direction === 'payable')->sum('amount'), 2),
             'payments_without_cash' => $periodPayments->filter(fn ($a) => ! $a->paymentEvent->cash_movement_id)->count(),
+            'service_expense_total' => round((float) $serviceExpenses->sum(fn (Expense $expense) => $expense->total_amount), 2),
+            'service_expense_paid' => round((float) $serviceExpenses->sum('paid_amount'), 2),
+            'service_expenses' => $serviceExpenses->map(fn (Expense $expense) => [
+                'date' => $expense->date?->format('d/m/Y'),
+                'origin' => $expense->expenseable?->number ?? $expense->expenseable?->order?->number ?? 'Serviços gerais',
+                'description' => $expense->description,
+                'category' => $expense->chartAccount?->name ?? '—',
+                'amount' => $expense->total_amount,
+                'paid' => (float) $expense->paid_amount,
+                'status' => $expense->status->getLabel(),
+            ])->all(),
         ];
     }
 

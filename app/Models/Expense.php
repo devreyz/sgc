@@ -34,6 +34,7 @@ class Expense extends Model
         'supplier_id',
         'expenseable_type',
         'expenseable_id',
+        'origin_module',
         'status',
         'payment_method',
         'is_recurring',

@@ -54,47 +54,78 @@ class ServiceVersionResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Section::make('Identificação')
+            Forms\Components\Section::make('1. Dados gerais e medição operacional')
+                ->description('DADOS COLETADOS NÃO ALTERAM VALORES FINANCEIROS por conta própria. Eles registram o que aconteceu e podem ser escolhidos como entradas das fórmulas abaixo. Somente uma fórmula ou termo que cite o campo produz efeito financeiro.')
                 ->schema([
                     Forms\Components\Select::make('service_id')->label('Serviço')->relationship('service', 'name')->disabled()->dehydrated(),
                     Forms\Components\TextInput::make('version')->label('Versão')->disabled(),
                     Forms\Components\TextInput::make('unit')->label('Unidade de medição')->required()->maxLength(30),
                     Forms\Components\Select::make('review_mode')->label('Conferência')->options(['automatic' => 'Automática', 'manual' => 'Manual'])->required(),
                     Forms\Components\Toggle::make('allow_provider_create_order')->label('Prestador habilitado pode criar ordem'),
-                    Forms\Components\Select::make('execution_config.quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo que informa a quantidade principal')->helperText('Selecione um campo numérico obrigatório. Ex.: horas, dias ou km. Vazio: quantidade padrão.'),
-                    Forms\Components\Select::make('execution_config.meter_start_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo da medição inicial')->helperText('Para calcular pela diferença de medidores, selecione os dois campos e deixe a quantidade principal vazia.'),
-                    Forms\Components\Select::make('execution_config.meter_end_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo da medição final'),
+                    Forms\Components\Toggle::make('members_only')->label('Somente para membros')->helperText('Quando ativo, a ordem só pode ser criada com um membro/associado selecionado.'),
+                    Forms\Components\Select::make('execution_config.quantity_mode')->label('Como obter a quantidade executada')->options([
+                        'fixed_one' => 'Uma unidade por execução',
+                        'field' => 'Valor informado em um campo',
+                        'meter_difference' => 'Diferença entre medição final e inicial',
+                    ])->required()->live()->helperText('Define a quantidade operacional registrada na OS; não obriga cobrança e prestador a usarem a mesma fórmula.'),
+                    Forms\Components\Select::make('execution_config.quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo da quantidade operacional')->visible(fn (Get $get) => $get('execution_config.quantity_mode') === 'field'),
+                    Forms\Components\Select::make('execution_config.meter_start_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição operacional inicial')->visible(fn (Get $get) => $get('execution_config.quantity_mode') === 'meter_difference'),
+                    Forms\Components\Select::make('execution_config.meter_end_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição operacional final')->visible(fn (Get $get) => $get('execution_config.quantity_mode') === 'meter_difference'),
                 ])->columns(2),
-            Forms\Components\Section::make('Cobrança da organização')
-                ->description('Serviço interno: desative a cobrança. A remuneração do prestador continua independente.')
+            Forms\Components\Section::make('2. Fórmula do valor a receber')
+                ->description('Define somente o que o beneficiário deve à organização. Exemplo: (horímetro final − inicial) × tarifa. Não interfere na remuneração do prestador.')
                 ->schema([
                     Forms\Components\Toggle::make('receivable_enabled')->label('Gerar conta a receber')->live(),
-                    Forms\Components\Select::make('execution_config.customer_quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Quantidade para cobrar')->helperText('Selecione o campo, por exemplo horas. Vazio: usa a quantidade principal.'),
-                    Forms\Components\Select::make('customer_pricing_method')->label('Cálculo')->options(['fixed' => 'Valor fixo', 'quantity_x_rate' => 'Quantidade × tarifa', 'percent_of_base' => 'Percentual da base']),
+                    Forms\Components\Select::make('customer_pricing_method')->label('Fórmula base')->options(['fixed' => 'Valor fixo por execução', 'quantity_x_rate' => 'Quantidade calculada × tarifa', 'percent_of_base' => 'Percentual de um valor base'])->live(),
+                    Forms\Components\Select::make('execution_config.customer_quantity_mode')->label('Fonte da quantidade da cobrança')->options([
+                        'primary' => 'Usar a medição operacional', 'fixed_one' => 'Uma unidade', 'field' => 'Usar um campo numérico', 'meter_difference' => 'Diferença entre duas medições',
+                    ])->default('primary')->live()->visible(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'quantity_x_rate')->helperText('Esta fonte é exclusiva da cobrança.'),
+                    Forms\Components\Select::make('execution_config.customer_quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo usado na quantidade da cobrança')->visible(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'quantity_x_rate' && $get('execution_config.customer_quantity_mode') === 'field'),
+                    Forms\Components\Select::make('execution_config.customer_meter_start_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição inicial da cobrança')->visible(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'quantity_x_rate' && $get('execution_config.customer_quantity_mode') === 'meter_difference'),
+                    Forms\Components\Select::make('execution_config.customer_meter_end_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição final da cobrança')->visible(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'quantity_x_rate' && $get('execution_config.customer_quantity_mode') === 'meter_difference'),
+                    Forms\Components\TextInput::make('execution_config.customer_unit')->label('Unidade exibida na cobrança')->placeholder('hora, dia, km, unidade')->maxLength(30)->visible(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'quantity_x_rate'),
                     Forms\Components\TextInput::make('customer_rate')->label('Valor, tarifa ou base')->numeric()->prefix('R$')->minValue(0.0001)->required(fn (Get $get) => $get('receivable_enabled')),
                     Forms\Components\TextInput::make('customer_percentage')->label('Percentual')->numeric()->suffix('%')->minValue(0.0001)->maxValue(100)->required(fn (Get $get) => $get('receivable_enabled') && $get('customer_pricing_method') === 'percent_of_base'),
                 ])->columns(2),
-            Forms\Components\Section::make('Remuneração do prestador')
-                ->description('Por hora: quantidade horas × tarifa/hora. Por diária: campo dias × tarifa/dia. Valor fixo: uma quantia por execução. PIX ou dinheiro é escolhido ao registrar o pagamento.')
+            Forms\Components\Section::make('3. Fórmula da remuneração do prestador')
+                ->description('Calculada separadamente. Pode usar horas, diárias, quilômetros, outra diferença de medidores, valor fixo ou percentual da cobrança.')
                 ->schema([
                     Forms\Components\Toggle::make('payable_enabled')->label('Gerar conta a pagar ao prestador')->live(),
-                    Forms\Components\Select::make('execution_config.provider_quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Quantidade para remunerar')->helperText('Selecione a quantidade. Pode ser dias enquanto a cobrança usa horas. Vazio: quantidade principal.'),
-                    Forms\Components\TextInput::make('execution_config.provider_unit')->label('Unidade da remuneração')->placeholder('hora, dia, km, unidade')->maxLength(30),
-                    Forms\Components\Select::make('provider_pricing_method')->label('Cálculo padrão')->options(['fixed' => 'Valor fixo', 'quantity_x_rate' => 'Quantidade × tarifa', 'percent_of_base' => 'Percentual da cobrança']),
+                    Forms\Components\Select::make('provider_pricing_method')->label('Fórmula base')->options(['fixed' => 'Valor fixo por execução', 'quantity_x_rate' => 'Quantidade calculada × tarifa', 'percent_of_base' => 'Percentual do valor base da cobrança'])->live(),
+                    Forms\Components\Select::make('execution_config.provider_quantity_mode')->label('Fonte da quantidade da remuneração')->options([
+                        'primary' => 'Usar a medição operacional', 'fixed_one' => 'Uma unidade', 'field' => 'Usar um campo numérico', 'meter_difference' => 'Diferença entre duas medições',
+                    ])->default('primary')->live()->visible(fn (Get $get) => $get('payable_enabled') && $get('provider_pricing_method') === 'quantity_x_rate')->helperText('Esta fonte é exclusiva da remuneração do prestador.'),
+                    Forms\Components\Select::make('execution_config.provider_quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo usado na remuneração')->visible(fn (Get $get) => $get('payable_enabled') && $get('provider_pricing_method') === 'quantity_x_rate' && $get('execution_config.provider_quantity_mode') === 'field'),
+                    Forms\Components\Select::make('execution_config.provider_meter_start_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição inicial da remuneração')->visible(fn (Get $get) => $get('payable_enabled') && $get('provider_pricing_method') === 'quantity_x_rate' && $get('execution_config.provider_quantity_mode') === 'meter_difference'),
+                    Forms\Components\Select::make('execution_config.provider_meter_end_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Medição final da remuneração')->visible(fn (Get $get) => $get('payable_enabled') && $get('provider_pricing_method') === 'quantity_x_rate' && $get('execution_config.provider_quantity_mode') === 'meter_difference'),
+                    Forms\Components\TextInput::make('execution_config.provider_unit')->label('Unidade exibida na remuneração')->placeholder('hora, dia, km, unidade')->maxLength(30)->visible(fn (Get $get) => $get('payable_enabled') && $get('provider_pricing_method') === 'quantity_x_rate'),
                     Forms\Components\TextInput::make('default_provider_rate')->label('Valor/tarifa padrão')->numeric()->prefix('R$')->minValue(0),
                     Forms\Components\TextInput::make('provider_percentage')->label('Percentual padrão')->numeric()->suffix('%')->minValue(0)->maxValue(100),
                 ])->columns(2),
-            Forms\Components\Section::make('Taxas, descontos e adicionais')->description('Cada regra usa um valor configurado ou uma variável numérica obrigatória do fluxo. Percentuais usam o valor base, sem juros sobre outras taxas.')->collapsed()->schema([
-                Forms\Components\Repeater::make('financial_config.rules')->label('Regras financeiras')->default([])->schema([
+            Forms\Components\Section::make('4. Termos adicionais das fórmulas')
+                ->description('ESTES TERMOS ALTERAM O FINANCEIRO. O total de cada lado será: fórmula base + adicionais − descontos. Cada termo pertence somente à cobrança OU à remuneração. O modo simples cria automaticamente o campo que aparecerá para preenchimento na execução e nos documentos.')
+                ->schema([
+                Forms\Components\Placeholder::make('formula_help')->label('Como funciona')->content('Exemplo do óleo: escolha “Cobrança do beneficiário”, “Quantidade informada × tarifa”, “Descontar”, tarifa por litro e crie o campo automático “Litros de óleo fornecido”. Resultado: total a receber = serviço − (litros × tarifa).'),
+                Forms\Components\Repeater::make('financial_config.rules')->label('Termos adicionais')->default([])->schema([
                     Forms\Components\TextInput::make('description')->label('Descrição')->required()->maxLength(191),
-                    Forms\Components\Select::make('direction')->label('Aplicar em')->options(['receivable' => 'Cobrança do beneficiário', 'payable' => 'Remuneração do prestador'])->required(),
-                    Forms\Components\Select::make('method')->label('Como calcular')->options(['fixed_addition' => 'Valor adicional', 'fixed_deduction' => 'Desconto em valor', 'percent_addition' => 'Taxa percentual', 'percent_deduction' => 'Desconto percentual', 'quantity_x_rate' => 'Quantidade × valor'])->required(),
+                    Forms\Components\Select::make('direction')->label('Este termo altera')->options(['receivable' => 'Valor a receber pela organização', 'payable' => 'Valor a pagar ao prestador'])->required(),
+                    Forms\Components\Select::make('method')->label('Fórmula deste termo')->options(['fixed_addition' => 'Valor fixo ou informado', 'fixed_deduction' => 'Valor fixo ou informado', 'percent_addition' => 'Percentual do valor base', 'percent_deduction' => 'Percentual do valor base', 'quantity_x_rate' => 'Quantidade informada × tarifa'])->required()->live()->afterStateUpdated(fn ($state, callable $set) => $set('input_role', $state === 'quantity_x_rate' ? 'quantity' : 'value')),
                     Forms\Components\Select::make('effect')->label('Efeito')->options(['add' => 'Acrescentar', 'subtract' => 'Descontar'])->default('add')->required(),
-                    Forms\Components\TextInput::make('value')->label('Valor ou tarifa configurada')->numeric()->minValue(0)->default(0),
+                    Forms\Components\TextInput::make('value')->label('Valor fixo ou tarifa por unidade')->numeric()->minValue(0)->default(0)->helperText('Para quantidade × tarifa, informe aqui o preço de cada unidade.'),
                     Forms\Components\TextInput::make('percentage')->label('Percentual configurado')->numeric()->minValue(0)->maxValue(100)->default(0),
                     Forms\Components\Select::make('value_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Ou usar o valor do campo')->helperText('Chave de um campo numérico obrigatório. Ex.: desconto, litros. Substitui o valor/percentual configurado.'),
                     Forms\Components\Select::make('quantity_field')->options(fn (?ServiceVersion $record) => static::numericFieldOptions($record))->searchable()->label('Campo da quantidade')->helperText('Opcional, para quantidade × valor. Ex.: litros ou km.'),
-                ])->columns(2)->addActionLabel('Adicionar taxa ou desconto')->itemLabel(fn ($state) => $state['description'] ?? 'Nova regra')->collapsible(),
+                    Forms\Components\TextInput::make('input_key')->label('Campo que aparecerá na execução — chave')->alphaDash()->maxLength(80)->placeholder('litros_oleo')->helperText('Cria automaticamente o campo, sem precisar cadastrá-lo novamente em Campos do fluxo.'),
+                    Forms\Components\TextInput::make('input_label')->label('Nome do campo automático')->maxLength(160)->placeholder('Litros de óleo fornecido')->required(fn (Get $get) => filled($get('input_key'))),
+                    Forms\Components\Select::make('input_role')->label('O campo informa')->options(['quantity' => 'Quantidade que será multiplicada pela tarifa', 'value' => 'Valor monetário ou percentual'])->default('quantity')->required(fn (Get $get) => filled($get('input_key'))),
+                    Forms\Components\TextInput::make('input_unit')->label('Unidade do campo')->placeholder('litro, km, hora'),
+                    Forms\Components\Select::make('input_phase')->label('Quando preencher')->options(['start' => 'Ao iniciar', 'execution' => 'Durante a execução', 'finish' => 'Ao finalizar'])->default('finish'),
+                    Forms\Components\Toggle::make('input_required')->label('Entrada obrigatória')->default(true),
+                    Forms\Components\Toggle::make('evidence_required')->label('Exigir comprovante quando a regra for usada')->live(),
+                    Forms\Components\TextInput::make('evidence_key')->label('Chave do comprovante automático')->alphaDash()->maxLength(80)->placeholder('comprovante_oleo')->required(fn (Get $get) => (bool) $get('evidence_required')),
+                    Forms\Components\TextInput::make('evidence_label')->label('Nome do comprovante')->maxLength(160)->placeholder('Nota ou foto do óleo')->required(fn (Get $get) => (bool) $get('evidence_required')),
+                    Forms\Components\Select::make('evidence_field')->options(fn (?ServiceVersion $record) => static::evidenceFieldOptions($record))->searchable()->label('Comprovante obrigatório')->helperText('Quando a regra produzir valor, exige esta foto, nota ou arquivo antes da validação.'),
+                ])->columns(2)->addActionLabel('Adicionar termo à fórmula')->itemLabel(fn ($state) => $state['description'] ?? 'Novo termo')->collapsible(),
             ]),
         ]);
     }
@@ -102,6 +133,11 @@ class ServiceVersionResource extends Resource
     public static function numericFieldOptions(?ServiceVersion $record): array
     {
         return $record?->fields()->whereIn('type', ['integer', 'decimal', 'quantity', 'money', 'meter'])->where('required', true)->pluck('label', 'key')->all() ?? [];
+    }
+
+    public static function evidenceFieldOptions(?ServiceVersion $record): array
+    {
+        return $record?->fields()->whereIn('type', ['image', 'file', 'signature'])->pluck('label', 'key')->all() ?? [];
     }
 
     public static function table(Table $table): Table
@@ -114,6 +150,7 @@ class ServiceVersionResource extends Resource
             Tables\Columns\TextColumn::make('customer_rate')->label('Cobrança')->money('BRL')->placeholder('—'),
             Tables\Columns\TextColumn::make('default_provider_rate')->label('Prestador')->money('BRL')->placeholder('—'),
             Tables\Columns\IconColumn::make('allow_provider_create_order')->label('Cria OS')->boolean(),
+            Tables\Columns\IconColumn::make('members_only')->label('Só membros')->boolean(),
         ])->filters([
             Tables\Filters\SelectFilter::make('status')->options(['draft' => 'Rascunho', 'published' => 'Publicada', 'retired' => 'Encerrada']),
         ])->actions([

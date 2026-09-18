@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#16803d">
     <style>
@@ -1711,6 +1712,756 @@
             }
         }
 
+
+        /* ============================================================
+           SGC PDV — REDESIGN 2026
+           Mais colorido, profissional e deliberadamente mais quadrado
+           que as telas comuns do app para manter a sensação de caixa.
+           ============================================================ */
+        :root {
+            --primary: #1f9d57;
+            --primary-hover: #178247;
+            --primary-soft: #edf9f2;
+            --primary-border: #b9e2c8;
+
+            --blue: #3978d8;
+            --blue-soft: #eef4ff;
+            --blue-border: #cbdcf7;
+
+            --purple: #8b4bd8;
+            --purple-soft: #f5effd;
+            --purple-border: #e1d1f5;
+
+            --amber: #c48318;
+            --amber-soft: #fff7e8;
+            --amber-border: #f0d8aa;
+
+            --cyan: #168eae;
+            --cyan-soft: #edf9fc;
+            --cyan-border: #c8e8f0;
+
+            --danger: #cc4b4b;
+            --danger-soft: #fff1f1;
+            --danger-border: #f0c5c5;
+
+            --warning: var(--amber);
+            --warning-soft: var(--amber-soft);
+            --success: var(--primary);
+            --success-soft: var(--primary-soft);
+            --info: var(--blue);
+            --info-soft: var(--blue-soft);
+
+            --bg: #eef5f0;
+            --surface: #ffffff;
+            --surface-2: #f7faf8;
+            --surface-3: #eef4f0;
+            --border: #d6e1d9;
+            --border-strong: #bccbc1;
+            --text: #17251c;
+            --text-muted: #58685e;
+            --text-light: #859188;
+
+            --shadow-sm: 0 1px 3px rgba(20, 58, 35, .06);
+            --shadow-md: 0 10px 28px rgba(20, 58, 35, .10);
+            --shadow-lg: 0 24px 60px rgba(11, 36, 22, .20);
+
+            --radius: 9px;
+            --radius-sm: 7px;
+            --header-height: 64px;
+        }
+
+        body {
+            background:
+                radial-gradient(circle at 15% 0%, rgba(52, 199, 105, .07), transparent 28rem),
+                linear-gradient(180deg, #eef7f1 0%, #edf3ef 100%);
+        }
+
+        /* Header: mantém a identidade verde do SGC, mas com desenho de PDV */
+        .pdv-header {
+            min-height: var(--header-height);
+            border-bottom: 0;
+            background:
+                radial-gradient(circle at 82% -80%, rgba(255,255,255,.20), transparent 42%),
+                linear-gradient(112deg, #31c66a 0%, #1bb457 54%, #19a951 100%);
+            box-shadow: 0 7px 22px rgba(21, 122, 61, .18);
+            color: #fff;
+        }
+
+        .pdv-brand-mark {
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(255,255,255,.92);
+            border-radius: 10px;
+            background: #fff;
+            color: var(--primary);
+            box-shadow: 0 5px 14px rgba(11, 91, 42, .16);
+        }
+
+        .pdv-brand-mark i { font-size: 20px; }
+        .pdv-brand-copy strong { color:#fff; font-size:.93rem; }
+        .pdv-brand-copy span { color:rgba(255,255,255,.78); font-size:.61rem; }
+
+        .pdv-tabs {
+            border-color: rgba(255,255,255,.20);
+            border-radius: 9px;
+            background: rgba(6, 93, 40, .15);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+        }
+
+        .pdv-tab-btn {
+            min-height: 36px;
+            border-radius: 7px;
+            color: rgba(255,255,255,.86);
+        }
+
+        .pdv-tab-btn:hover {
+            background: rgba(255,255,255,.12);
+            color: #fff;
+        }
+
+        .pdv-tab-btn.active {
+            background: #fff;
+            color: var(--primary);
+            box-shadow: 0 3px 10px rgba(10, 79, 36, .14);
+        }
+
+        #tabBtnFiado.active { background:#fffaf0; color:var(--amber); }
+        #tabBtnClientes.active { background:#f3f7ff; color:var(--blue); }
+        #tabBtnHistorico.active { background:#f8f3ff; color:var(--purple); }
+
+        .pdv-tab-badge {
+            border-radius: 5px;
+            background: #fff;
+            color: var(--amber);
+            box-shadow: 0 1px 4px rgba(78,55,16,.12);
+        }
+
+        .pdv-stats-bar { gap:.4rem; }
+
+        .stat-chip {
+            border-color: rgba(255,255,255,.20);
+            border-radius: 7px;
+            background: rgba(255,255,255,.12);
+            color: rgba(255,255,255,.82);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
+
+        .stat-chip .val,
+        .stat-chip.success i,
+        .stat-chip.success .val,
+        .stat-chip.warning i,
+        .stat-chip.warning .val {
+            color:#fff;
+        }
+
+        .pdv-header-actions .header-icon-btn,
+        .pdv-header-actions .nav-link {
+            min-height: 36px;
+            border-color: rgba(255,255,255,.22);
+            border-radius: 8px;
+            background: rgba(255,255,255,.11);
+            color: #fff;
+        }
+
+        .pdv-header-actions .header-icon-btn:hover,
+        .pdv-header-actions .nav-link:hover {
+            border-color: rgba(255,255,255,.48);
+            background: rgba(255,255,255,.20);
+            color:#fff;
+        }
+
+        /* Busca e ferramentas */
+        .search-section {
+            gap:.55rem;
+            padding:.62rem .72rem;
+            border-bottom-color: var(--border);
+            background: rgba(255,255,255,.96);
+            box-shadow: 0 2px 10px rgba(27,67,42,.04);
+        }
+
+        .search-wrapper > i { color:var(--blue); }
+
+        .search-input {
+            min-height: 44px;
+            border-color: var(--border-strong);
+            border-radius: 9px;
+            background:#fff;
+            font-size:.84rem;
+        }
+
+        .search-input:focus {
+            border-color:var(--blue);
+            box-shadow:0 0 0 3px rgba(57,120,216,.12);
+        }
+
+        .search-shortcut {
+            border-color:var(--blue-border);
+            border-radius:6px;
+            background:var(--blue-soft);
+            color:var(--blue);
+        }
+
+        .product-toolbar {
+            min-width:0;
+            justify-content:flex-end;
+            gap:.42rem;
+        }
+
+        .price-table-control {
+            display:flex;
+            min-width:190px;
+            max-width:270px;
+            align-items:center;
+            gap:.45rem;
+            padding:.32rem .42rem;
+            border:1px solid var(--purple-border);
+            border-radius:8px;
+            background:var(--purple-soft);
+            color:var(--purple);
+        }
+
+        .price-table-icon {
+            display:grid;
+            width:28px;
+            height:28px;
+            flex:0 0 auto;
+            place-items:center;
+            border-radius:7px;
+            background:#fff;
+            color:var(--purple);
+        }
+
+        .price-table-copy {
+            display:block;
+            min-width:0;
+            flex:1;
+        }
+
+        .price-table-copy small {
+            display:block;
+            margin-bottom:1px;
+            color:#7e6a98;
+            font-size:.53rem;
+            font-weight:800;
+            letter-spacing:.04em;
+            text-transform:uppercase;
+        }
+
+        .price-table-control select {
+            width:100%;
+            min-width:0;
+            max-width:220px;
+            border:0;
+            outline:0;
+            background:transparent;
+            color:#54337c;
+            font-size:.66rem;
+            font-weight:800;
+            cursor:pointer;
+        }
+
+        .price-table-control select:focus-visible {
+            outline:2px solid rgba(139,75,216,.28);
+            outline-offset:2px;
+        }
+
+        .scan-status {
+            border-color:var(--primary-border);
+            border-radius:7px;
+            background:var(--primary-soft);
+            color:#3e7050;
+        }
+
+        .scan-status i { color:var(--primary); }
+
+        .product-counter {
+            border-color:var(--blue-border);
+            border-radius:7px;
+            background:var(--blue-soft);
+            color:#59708f;
+        }
+
+        .product-counter i,
+        .product-counter strong { color:var(--blue); }
+
+        /* Tabela de produtos: "quadrada" de propósito, com hierarquia tipo documento */
+        .product-table-shell {
+            border-color:#cbd8cf;
+            border-radius:9px;
+            box-shadow:0 6px 20px rgba(25,62,39,.06);
+        }
+
+        .product-table-head {
+            min-height:40px;
+            border-bottom-color:#c6d4ca;
+            background:linear-gradient(180deg,#f4f8f5,#eef4f0);
+            color:#68776d;
+        }
+
+        .product-row {
+            min-height:56px;
+            transition:background .12s ease, box-shadow .12s ease;
+        }
+
+        .product-row:hover { background:#f7fbf8; }
+
+        .product-row.is-selected {
+            background:linear-gradient(90deg, #edf9f2 0%, #f8fcf9 75%);
+            box-shadow:inset 4px 0 0 var(--primary);
+        }
+
+        .product-icon {
+            width:34px;
+            height:34px;
+            border-color:var(--blue-border);
+            border-radius:8px;
+            background:var(--blue-soft);
+            color:var(--blue);
+        }
+
+        .product-card-name { font-size:.77rem; }
+        .product-card-price { color:#177547; font-size:.84rem; }
+
+        .product-add {
+            border-color:var(--primary-border);
+            border-radius:7px;
+            background:var(--primary-soft);
+            color:var(--primary);
+        }
+
+        .product-row:hover .product-add,
+        .product-row.is-selected .product-add {
+            border-color:var(--primary);
+            background:var(--primary);
+            color:#fff;
+        }
+
+        .stock-ok { border-color:#b8e0c6; background:#eff9f3; color:#187948; }
+        .stock-low { border-color:var(--amber-border); background:var(--amber-soft); color:#9b6511; }
+        .stock-out { border-color:var(--danger-border); background:var(--danger-soft); color:var(--danger); }
+
+        /* Atalhos clicáveis */
+        .shortcut-strip {
+            gap:.4rem;
+            padding:.46rem .65rem;
+            border-top-color:var(--border);
+            background:#fbfdfb;
+        }
+
+        .shortcut-item {
+            min-height:32px;
+            padding:.34rem .48rem;
+            border:1px solid var(--border);
+            border-radius:7px;
+            background:#fff;
+            color:var(--text-muted);
+            cursor:pointer;
+            transition:transform .12s ease, border-color .12s ease, background .12s ease;
+        }
+
+        .shortcut-item:hover { transform:translateY(-1px); }
+        .shortcut-item i { font-size:14px; }
+
+        .shortcut-item.tone-blue { border-color:var(--blue-border); background:var(--blue-soft); color:var(--blue); }
+        .shortcut-item.tone-green { border-color:var(--primary-border); background:var(--primary-soft); color:var(--primary); }
+        .shortcut-item.tone-cyan { border-color:var(--cyan-border); background:var(--cyan-soft); color:var(--cyan); }
+        .shortcut-item.tone-amber { border-color:var(--amber-border); background:var(--amber-soft); color:var(--amber); }
+        .shortcut-item.tone-purple { border-color:var(--purple-border); background:var(--purple-soft); color:var(--purple); }
+        .shortcut-item.tone-red { border-color:var(--danger-border); background:var(--danger-soft); color:var(--danger); }
+        .shortcut-item.tone-neutral { background:#f4f6f5; color:#647169; }
+
+        .shortcut-item .key {
+            margin-left:.1rem;
+            border-color:currentColor;
+            border-bottom-width:2px;
+            background:rgba(255,255,255,.68);
+            color:inherit;
+            opacity:.86;
+        }
+
+        /* Carrinho */
+        .cart-panel {
+            border-left-color:#c7d5cc;
+            background:#fff;
+            box-shadow:-8px 0 24px rgba(28,58,39,.035);
+        }
+
+        .cart-header {
+            min-height:58px;
+            padding:.55rem .65rem;
+            background:linear-gradient(90deg,#f4fbf6 0%,#fbfdfb 100%);
+        }
+
+        .cart-title {
+            gap:.45rem;
+            font-size:.78rem;
+        }
+
+        .cart-title-icon {
+            display:grid;
+            width:34px;
+            height:34px;
+            flex:0 0 auto;
+            place-items:center;
+            border:1px solid var(--primary-border);
+            border-radius:8px;
+            background:var(--primary-soft);
+            color:var(--primary);
+        }
+
+        .cart-title-icon i { font-size:18px; }
+
+        .cart-title-copy {
+            min-width:0;
+            display:flex;
+            flex-direction:column;
+            line-height:1.12;
+        }
+
+        .cart-title-copy strong { font-size:.76rem; color:var(--text); }
+        .cart-title-copy small { margin-top:2px; color:var(--text-light); font-size:.55rem; font-weight:650; }
+
+        .cart-count {
+            border-radius:6px;
+            background:var(--primary);
+            color:#fff;
+        }
+
+        .cart-empty i {
+            display:grid;
+            width:56px;
+            height:56px;
+            place-items:center;
+            border:1px solid var(--primary-border);
+            border-radius:10px;
+            background:var(--primary-soft);
+            color:var(--primary);
+            font-size:27px;
+            opacity:1;
+        }
+
+        .cart-item {
+            min-height:62px;
+            padding:.5rem .28rem;
+        }
+
+        .cart-item:hover { background:#f7faf8; }
+
+        .qty-btn,
+        .qty-val {
+            border-color:#c3d0c7;
+        }
+
+        .qty-btn:hover {
+            border-color:var(--blue);
+            background:var(--blue-soft);
+            color:var(--blue);
+        }
+
+        #discountSection {
+            background:linear-gradient(90deg,#fffaf0,#fffdf8) !important;
+        }
+
+        .discount-row > span { color:#8c641e !important; }
+
+        .discount-input:focus,
+        .payment-entry-amount:focus {
+            border-color:var(--amber);
+            box-shadow:0 0 0 2px rgba(196,131,24,.11);
+        }
+
+        .discount-type-btn.active {
+            border-color:var(--amber);
+            background:var(--amber-soft);
+            color:var(--amber);
+        }
+
+        .cart-footer {
+            background:#fff;
+            box-shadow:0 -6px 18px rgba(30,65,42,.035);
+        }
+
+        .total-row.grand {
+            padding:.62rem .65rem;
+            border:1px solid var(--primary-border);
+            border-radius:8px;
+            background:var(--primary-soft);
+        }
+
+        .total-row.grand span:last-child {
+            color:#10743f;
+            font-size:1.28rem;
+        }
+
+        .btn-pdv,
+        .btn-sm,
+        .btn-new-sale {
+            border-radius:7px;
+        }
+
+        .btn-pay,
+        .btn-sm.primary,
+        .btn-new-sale {
+            border-color:var(--primary);
+            background:linear-gradient(180deg,#24ab60,#1d9854);
+            box-shadow:0 4px 10px rgba(31,157,87,.12);
+        }
+
+        .btn-warning {
+            border-color:var(--amber);
+            background:var(--amber);
+            color:#fff;
+        }
+
+        .btn-warning:hover { background:#ab7114; }
+
+        .cart-fab {
+            border-color:#167d45;
+            border-radius:10px;
+            background:linear-gradient(180deg,#24aa60,#1b914e);
+        }
+
+        /* Painéis auxiliares */
+        .panel-searchbar {
+            background:#fff;
+            box-shadow:0 2px 10px rgba(27,67,42,.035);
+        }
+
+        #panelFiado .panel-searchbar input:focus,
+        #panelFiado .panel-searchbar select:focus {
+            border-color:var(--amber) !important;
+            box-shadow:0 0 0 3px rgba(196,131,24,.10);
+        }
+
+        #panelClientes .panel-searchbar input:focus {
+            border-color:var(--blue) !important;
+            box-shadow:0 0 0 3px rgba(57,120,216,.10);
+        }
+
+        #panelHistorico .panel-searchbar input:focus,
+        #panelHistorico .panel-searchbar select:focus {
+            border-color:var(--purple) !important;
+            box-shadow:0 0 0 3px rgba(139,75,216,.10);
+        }
+
+        .fiado-card,
+        .client-card,
+        .hist-sale-card {
+            border-radius:8px;
+            box-shadow:0 3px 12px rgba(26,61,39,.045);
+        }
+
+        .fiado-card { border-left:3px solid var(--amber); }
+        .client-card { border-left:3px solid var(--blue); }
+        .hist-sale-card { border-left:3px solid var(--purple); }
+
+        .client-avatar {
+            border-color:var(--blue-border);
+            background:var(--blue-soft);
+            color:var(--blue);
+        }
+
+        /* Modais: sem blur excessivo, bordas firmes e aspecto operacional */
+        .modal-overlay,
+        .success-overlay {
+            background:rgba(13,31,20,.54);
+            backdrop-filter:none;
+        }
+
+        .modal,
+        .success-card {
+            border-color:#c8d5cc;
+            border-radius:10px;
+        }
+
+        .modal-header {
+            background:linear-gradient(180deg,#fbfdfb,#f5f9f6);
+        }
+
+        .modal-header h2 {
+            display:flex;
+            align-items:center;
+            gap:.4rem;
+        }
+
+        .modal-header h2 > i { color:var(--primary); }
+
+        .payment-method-btn {
+            border-radius:8px;
+        }
+
+        .payment-method-btn[data-method="dinheiro"] { border-color:var(--primary-border); background:var(--primary-soft); color:var(--primary); }
+        .payment-method-btn[data-method="pix"] { border-color:var(--cyan-border); background:var(--cyan-soft); color:var(--cyan); }
+        .payment-method-btn[data-method="cartao"] { border-color:var(--blue-border); background:var(--blue-soft); color:var(--blue); }
+        .payment-method-btn[data-method="transferencia"] { border-color:var(--purple-border); background:var(--purple-soft); color:var(--purple); }
+        .payment-method-btn[data-method="boleto"] { border-color:var(--amber-border); background:var(--amber-soft); color:var(--amber); }
+
+        .payment-method-btn:hover {
+            filter:brightness(.985);
+            box-shadow:inset 0 0 0 1px currentColor;
+        }
+
+        .payment-summary {
+            border-color:var(--primary-border);
+            background:linear-gradient(90deg,#f3fbf6,#f9fcfa);
+        }
+
+        .modal-confirm { width:min(100%,470px); }
+
+        .modal-title-with-icon {
+            display:flex;
+            align-items:center;
+            gap:.65rem;
+        }
+
+        .modal-title-icon {
+            display:grid;
+            width:38px;
+            height:38px;
+            flex:0 0 auto;
+            place-items:center;
+            border:1px solid var(--amber-border);
+            border-radius:8px;
+            background:var(--amber-soft);
+            color:var(--amber);
+        }
+
+        .modal-title-with-icon h2 { margin:0; }
+        .modal-subtitle { margin-top:2px; color:var(--text-muted); font-size:.64rem; }
+
+        .confirm-notice {
+            display:flex;
+            align-items:flex-start;
+            gap:.65rem;
+            padding:.78rem;
+            border:1px solid var(--amber-border);
+            border-radius:8px;
+            background:var(--amber-soft);
+            color:#7b5617;
+        }
+
+        .confirm-notice > i {
+            margin-top:1px;
+            color:var(--amber);
+            font-size:22px;
+        }
+
+        .confirm-notice strong,
+        .confirm-notice span { display:block; }
+        .confirm-notice strong { color:#684711; font-size:.76rem; }
+        .confirm-notice span { margin-top:.18rem; font-size:.67rem; line-height:1.45; }
+
+        .success-icon {
+            border-color:var(--primary-border);
+            border-radius:10px;
+        }
+
+        .toast { border-radius:8px; }
+
+        /* Foco acessível */
+        .pdv-layout button:focus-visible,
+        .pdv-layout a:focus-visible,
+        .pdv-layout input:focus-visible,
+        .pdv-layout select:focus-visible {
+            outline:2px solid rgba(57,120,216,.72);
+            outline-offset:2px;
+        }
+
+        /* Desktop grande: mais área útil, sem cara de dashboard de cards */
+        @media (min-width: 1280px) {
+            .product-table-shell { margin:.7rem .75rem; }
+            .search-section { padding-left:.78rem; padding-right:.78rem; }
+            .cart-panel { min-width:0; }
+        }
+
+        @media (max-width: 1180px) {
+            .price-table-control { min-width:170px; max-width:215px; }
+            .price-table-copy small { display:none; }
+        }
+
+        @media (max-width: 1023px) {
+            :root { --header-height:60px; }
+
+            .pdv-header {
+                padding-right:.55rem;
+                padding-left:.55rem;
+            }
+
+            .price-table-control {
+                flex:1 1 210px;
+                max-width:none;
+            }
+
+            .product-toolbar {
+                flex-wrap:wrap;
+                justify-content:flex-start;
+            }
+
+            .cart-panel {
+                background:#fff;
+                box-shadow:0 -18px 50px rgba(10,36,21,.20);
+            }
+        }
+
+        @media (max-width: 720px) {
+            .pdv-header {
+                background:linear-gradient(112deg,#2bc265,#1caf53);
+            }
+
+            .pdv-tabs { flex:1; }
+            .pdv-tab-btn { min-width:36px; }
+
+            .search-section { padding:.48rem; }
+
+            .price-table-control {
+                min-width:0;
+                flex:1;
+            }
+
+            .price-table-icon { width:26px; height:26px; }
+            .price-table-control select { font-size:.63rem; }
+
+            .product-counter { margin-left:auto; }
+
+            .shortcut-strip {
+                padding:.4rem .5rem;
+                overflow-x:auto;
+            }
+
+            .shortcut-item { min-height:31px; }
+
+            .modal {
+                border-radius:10px 10px 0 0;
+            }
+        }
+
+        @media (max-width: 430px) {
+            .pdv-header-actions { gap:.25rem; }
+            .pdv-header-actions .header-icon-btn,
+            .pdv-header-actions .nav-link { width:32px; min-height:32px; }
+
+            .product-toolbar {
+                display:grid;
+                grid-template-columns:minmax(0,1fr) auto;
+                width:100%;
+            }
+
+            .price-table-control { min-width:0; width:100%; }
+            .product-counter { justify-self:end; }
+            .scan-status { display:none; }
+
+            .shortcut-strip {
+                display:flex;
+                padding-bottom:max(.4rem, env(safe-area-inset-bottom));
+            }
+
+            .shortcut-item span:not(.key) { display:none; }
+            .shortcut-item { padding:.34rem .42rem; }
+            .shortcut-item .key { margin-left:0; }
+
+            .cart-actions { grid-template-columns:42px minmax(0,1fr); }
+        }
+
     </style>
 </head>
 <body>
@@ -1719,31 +2470,31 @@
         <header class="pdv-header">
             <div class="pdv-brand">
                 <span class="pdv-brand-mark" aria-hidden="true">
-                    <i class="ph ph-storefront"></i>
+                    <i class="ph-fill ph-storefront"></i>
                 </span>
                 <span class="pdv-brand-copy">
-                    <strong>PDV</strong>
-                    <span>{{ config('app.name', 'SGC') }}</span>
+                    <strong>PDV de Vendas</strong>
+                    <span>{{ config('app.name', 'SGC') }} · Caixa</span>
                 </span>
             </div>
 
             <div class="pdv-header-center">
                 <div class="pdv-tabs" id="mainTabs" role="tablist" aria-label="Áreas do PDV">
-                    <button class="pdv-tab-btn active" type="button" onclick="switchTab('venda')" id="tabBtnVenda">
-                        <i class="ph ph-shopping-cart-simple"></i>
+                    <button class="pdv-tab-btn active tone-sale" type="button" onclick="switchTab('venda')" id="tabBtnVenda" role="tab" aria-selected="true" aria-controls="panelVenda" title="Venda (F1)">
+                        <i class="ph-fill ph-shopping-cart-simple"></i>
                         <span class="hide-sm">Venda</span>
                     </button>
-                    <button class="pdv-tab-btn" type="button" onclick="switchTab('fiado')" id="tabBtnFiado">
-                        <i class="ph ph-clock-counter-clockwise"></i>
+                    <button class="pdv-tab-btn tone-credit" type="button" onclick="switchTab('fiado')" id="tabBtnFiado" role="tab" aria-selected="false" aria-controls="panelFiado" title="A prazo (F4)">
+                        <i class="ph-fill ph-clock-counter-clockwise"></i>
                         <span class="hide-sm">A prazo</span>
                         <span class="pdv-tab-badge" id="fiadoBadge" style="display:none">0</span>
                     </button>
-                    <button class="pdv-tab-btn" type="button" onclick="switchTab('clientes')" id="tabBtnClientes">
-                        <i class="ph ph-users-three"></i>
+                    <button class="pdv-tab-btn tone-client" type="button" onclick="switchTab('clientes')" id="tabBtnClientes" role="tab" aria-selected="false" aria-controls="panelClientes" title="Clientes (F3)">
+                        <i class="ph-fill ph-users-three"></i>
                         <span class="hide-sm">Clientes</span>
                     </button>
-                    <button class="pdv-tab-btn" type="button" onclick="switchTab('historico')" id="tabBtnHistorico">
-                        <i class="ph ph-receipt"></i>
+                    <button class="pdv-tab-btn tone-history" type="button" onclick="switchTab('historico')" id="tabBtnHistorico" role="tab" aria-selected="false" aria-controls="panelHistorico" title="Histórico (F6)">
+                        <i class="ph-fill ph-receipt"></i>
                         <span class="hide-sm">Histórico</span>
                     </button>
                 </div>
@@ -1765,6 +2516,7 @@
             </div>
 
             <div class="pdv-header-actions">
+
                 <button class="header-icon-btn" type="button" onclick="openShortcutHelp()" title="Atalhos do teclado (F10)">
                     <i class="ph ph-keyboard"></i>
                     <span>Atalhos</span>
@@ -1792,13 +2544,28 @@
                                 id="searchInput"
                                 placeholder="Buscar por nome, código ou escanear código de barras"
                                 autocomplete="off"
-                                autofocus
                             >
                             <span class="search-shortcut"><span class="key">F1</span> buscar</span>
                             <div class="search-results" id="searchResults"></div>
                         </div>
 
                         <div class="product-toolbar">
+
+                            <label class="price-table-control" title="Tabela de preços usada nesta venda">
+                                <span class="price-table-icon" aria-hidden="true"><i class="ph-fill ph-tag"></i></span>
+                                <span class="price-table-copy">
+                                    <small>Tabela de preços</small>
+                                    <select id="priceTableSelect" onchange="changePriceTable(this.value)" aria-label="Tabela de preços">
+                        @if ($defaultPdvPriceTable)
+                            @foreach ($pdvPriceTables as $priceTable)
+                                <option value="{{ $priceTable->id }}" @selected($priceTable->id === $defaultPdvPriceTable->id)>{{ $priceTable->name }}{{ $priceTable->is_pdv_default ? ' (padrão)' : '' }}</option>
+                            @endforeach
+                        @else
+                            <option value="">Configure uma tabela padrão</option>
+                        @endif
+                                    </select>
+                                </span>
+                            </label>
                             <span class="scan-status">
                                 <i class="ph ph-barcode"></i>
                                 Leitor pronto
@@ -1831,16 +2598,31 @@
                         </div>
                     </div>
 
-                    <div class="shortcut-strip" aria-label="Atalhos rápidos">
-                        <span class="shortcut-item"><span class="key">↑↓</span> navegar</span>
-                        <span class="shortcut-item"><span class="key">Enter</span> adicionar</span>
-                        <span class="shortcut-item"><span class="key">F2</span> pagamento</span>
-                        <span class="shortcut-item"><span class="key">F3</span> clientes</span>
-                        <span class="shortcut-item"><span class="key">F4</span> a prazo</span>
-                        <span class="shortcut-item"><span class="key">F6</span> histórico</span>
-                        <span class="shortcut-item"><span class="key">F7</span> desconto</span>
-                        <span class="shortcut-item"><span class="key">Ctrl+Del</span> limpar</span>
-                        <span class="shortcut-item"><span class="key">F10</span> ajuda</span>
+                    <div class="shortcut-strip" aria-label="Ações e atalhos rápidos">
+                        <button class="shortcut-item tone-blue" type="button" onclick="document.getElementById('searchInput')?.focus()" title="Buscar produto (F1)">
+                            <i class="ph ph-magnifying-glass"></i><span>Buscar</span><span class="key">F1</span>
+                        </button>
+                        <button class="shortcut-item tone-green" type="button" onclick="openPayment()" title="Finalizar pagamento (F2)">
+                            <i class="ph ph-credit-card"></i><span>Pagamento</span><span class="key">F2</span>
+                        </button>
+                        <button class="shortcut-item tone-cyan" type="button" onclick="switchTab('clientes')" title="Clientes (F3)">
+                            <i class="ph ph-users-three"></i><span>Clientes</span><span class="key">F3</span>
+                        </button>
+                        <button class="shortcut-item tone-amber" type="button" onclick="switchTab('fiado')" title="Vendas a prazo (F4)">
+                            <i class="ph ph-clock-counter-clockwise"></i><span>A prazo</span><span class="key">F4</span>
+                        </button>
+                        <button class="shortcut-item tone-purple" type="button" onclick="switchTab('historico')" title="Histórico (F6)">
+                            <i class="ph ph-receipt"></i><span>Histórico</span><span class="key">F6</span>
+                        </button>
+                        <button class="shortcut-item tone-amber" type="button" onclick="focusDiscount()" title="Desconto (F7)">
+                            <i class="ph ph-percent"></i><span>Desconto</span><span class="key">F7</span>
+                        </button>
+                        <button class="shortcut-item tone-red" type="button" onclick="clearCart()" title="Limpar carrinho (Ctrl+Delete)">
+                            <i class="ph ph-trash"></i><span>Limpar</span><span class="key">Ctrl+Del</span>
+                        </button>
+                        <button class="shortcut-item tone-neutral" type="button" onclick="openShortcutHelp()" title="Ver todos os atalhos (F10)">
+                            <i class="ph ph-keyboard"></i><span>Atalhos</span><span class="key">F10</span>
+                        </button>
                     </div>
                 </section>
 
@@ -1857,8 +2639,11 @@
                 <aside class="cart-panel" id="cartPanel" aria-label="Carrinho da venda">
                     <div class="cart-header">
                         <div class="cart-title">
-                            <i class="ph ph-shopping-cart-simple"></i>
-                            Carrinho
+                            <span class="cart-title-icon" aria-hidden="true"><i class="ph-fill ph-shopping-cart-simple"></i></span>
+                            <span class="cart-title-copy">
+                                <strong>Venda atual</strong>
+                                <small>Itens selecionados</small>
+                            </span>
                             <span class="cart-count" id="cartCount">0</span>
                         </div>
 
@@ -1962,7 +2747,7 @@
         <div class="tab-panel" id="panelHistorico">
             <div class="panel-searchbar" style="flex-wrap:wrap;gap:0.5rem;">
                 <i class="ph ph-magnifying-glass"></i>
-                <input type="text" id="histSearch" placeholder="Buscar por código ou cliente..." oninput="filterHistorico()" style="flex:1;min-width:120px">
+                <input type="text" id="histSearch" placeholder="Buscar nesta página por código ou cliente..." oninput="filterHistorico()" style="flex:1;min-width:120px">
                 <input type="date" id="histDate" onchange="filterHistorico()" style="padding:0.5rem 0.65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.8125rem;background:var(--surface)">
                 <select id="histStatus" onchange="filterHistorico()" style="padding:0.5rem 0.65rem;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:0.8125rem;background:var(--surface)">
                     <option value="">Todos</option>
@@ -1988,7 +2773,7 @@
         <div class="modal shortcut-modal">
             <div class="modal-header">
                 <div>
-                    <h2>Atalhos do PDV</h2>
+                    <h2><i class="ph-fill ph-keyboard"></i> Atalhos do PDV</h2>
                     <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px">Operação mais rápida pelo teclado</div>
                 </div>
                 <button class="modal-close" type="button" onclick="closeShortcutHelp()" aria-label="Fechar">
@@ -2054,7 +2839,7 @@
     <div class="modal-overlay" id="paymentModal">
         <div class="modal">
             <div class="modal-header">
-                <h2>Finalizar Venda</h2>
+                <h2><i class="ph-fill ph-credit-card"></i> Finalizar venda</h2>
                 <button class="modal-close" onclick="closePayment()"><i class="ph ph-x"></i></button>
             </div>
 
@@ -2145,6 +2930,41 @@
         </div>
     </div>
 
+
+    <!-- PRICE TABLE CHANGE CONFIRMATION -->
+    <div class="modal-overlay" id="priceTableConfirmModal" aria-hidden="true">
+        <div class="modal modal-confirm" role="dialog" aria-modal="true" aria-labelledby="priceTableConfirmTitle">
+            <div class="modal-header">
+                <div class="modal-title-with-icon tone-amber">
+                    <span class="modal-title-icon"><i class="ph-fill ph-tag"></i></span>
+                    <div>
+                        <h2 id="priceTableConfirmTitle">Trocar tabela de preços?</h2>
+                        <div class="modal-subtitle">A tabela atual define os valores dos itens da venda.</div>
+                    </div>
+                </div>
+                <button class="modal-close" type="button" onclick="closePriceTableConfirm()" aria-label="Fechar">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-notice">
+                    <i class="ph-fill ph-warning-circle"></i>
+                    <div>
+                        <strong>O carrinho atual será limpo.</strong>
+                        <span>Isso evita misturar produtos com preços de tabelas diferentes.</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-pdv" type="button" onclick="closePriceTableConfirm()">Manter tabela atual</button>
+                <button class="btn-pdv btn-warning" type="button" onclick="confirmPriceTableChange()">
+                    <i class="ph ph-arrows-clockwise"></i>
+                    Trocar e limpar carrinho
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- SUCCESS OVERLAY -->
     <div class="success-overlay" id="successOverlay">
         <div class="success-card">
@@ -2164,7 +2984,7 @@
     <div class="modal-overlay" id="newCustomerModal">
         <div class="modal" style="max-width: 420px;">
             <div class="modal-header">
-                <h2>Novo Cliente</h2>
+                <h2><i class="ph-fill ph-user-plus"></i> Novo cliente</h2>
                 <button class="modal-close" onclick="closeNewCustomer()"><i class="ph ph-x"></i></button>
             </div>
             <div class="modal-body">
@@ -2197,9 +3017,11 @@
     const TENANT_SLUG = @json(request()->route('tenant') instanceof \App\Models\Tenant ? request()->route('tenant')->slug : request()->route('tenant'));
     const BASE = `/${TENANT_SLUG}/pdv`;
     const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+    const DEFAULT_PRICE_TABLE_ID = @json($defaultPdvPriceTable?->id);
 
     let cart = [];
     let products = [];
+    let currentPriceTableId = DEFAULT_PRICE_TABLE_ID;
     let customers = [];
     let discountType = 'value'; // 'value' or 'percent'
     let isFiado = false;
@@ -2212,10 +3034,20 @@
     // INIT
     // ============================================================
     document.addEventListener('DOMContentLoaded', () => {
-        loadProducts();
+        if (currentPriceTableId) {
+            loadProducts();
+        } else {
+            document.getElementById('productsGrid').innerHTML = '<div class="products-empty"><div><i class="ph ph-warning-circle"></i> Configure uma tabela de preços padrão do PDV antes de iniciar vendas.</div></div>';
+            document.getElementById('priceTableSelect').disabled = true;
+        }
         loadStats();
         loadCustomers();
         initResizablePanels();
+
+        // Não abre o teclado automaticamente em celular/tablet.
+        if (window.innerWidth >= 1024 && window.matchMedia('(pointer: fine)').matches) {
+            window.setTimeout(() => document.getElementById('searchInput')?.focus(), 80);
+        }
 
         const closeButton = document.getElementById('cartCloseBtn');
 
@@ -2272,15 +3104,7 @@
 
         if (event.key === 'F7') {
             event.preventDefault();
-            switchTab('venda');
-
-            window.setTimeout(() => {
-                const discount = document.getElementById('discountInput');
-                if (cart.length > 0 && discount) {
-                    discount.focus();
-                    discount.select();
-                }
-            }, 0);
+            focusDiscount();
             return;
         }
 
@@ -2306,6 +3130,7 @@
             closeClienteDetail?.();
             closeEditCliente?.();
             closeCancelModal?.();
+            closePriceTableConfirm?.();
             document.getElementById('searchResults')?.classList.remove('active');
             return;
         }
@@ -2354,6 +3179,20 @@
 
     function closeShortcutHelp() {
         document.getElementById('shortcutModal')?.classList.remove('active');
+    }
+
+    function focusDiscount() {
+        switchTab('venda');
+        window.setTimeout(() => {
+            const discount = document.getElementById('discountInput');
+            if (!cart.length || !discount) {
+                document.getElementById('searchInput')?.focus();
+                showToast('Adicione um produto antes de aplicar desconto');
+                return;
+            }
+            discount.focus();
+            discount.select();
+        }, 0);
     }
 
     function initResizablePanels() {
@@ -2496,12 +3335,58 @@
     // PRODUCTS
     // ============================================================
     async function loadProducts() {
+        if (!currentPriceTableId) return;
         try {
-            products = await api('/products');
+            products = await api(`/products?price_table_id=${encodeURIComponent(currentPriceTableId)}`);
             renderProducts(products);
         } catch (e) {
             showToast('Erro ao carregar produtos');
         }
+    }
+
+    let pendingPriceTableId = null;
+
+    function changePriceTable(priceTableId) {
+        if (!priceTableId || Number(priceTableId) === Number(currentPriceTableId)) return;
+
+        if (cart.length) {
+            pendingPriceTableId = Number(priceTableId);
+            document.getElementById('priceTableSelect').value = String(currentPriceTableId);
+            const modal = document.getElementById('priceTableConfirmModal');
+            modal?.classList.add('active');
+            modal?.setAttribute('aria-hidden', 'false');
+            return;
+        }
+
+        applyPriceTableChange(Number(priceTableId));
+    }
+
+    function applyPriceTableChange(priceTableId) {
+        currentPriceTableId = Number(priceTableId);
+        pendingPriceTableId = null;
+        cart = [];
+        document.getElementById('discountInput').value = '0';
+        document.getElementById('priceTableSelect').value = String(currentPriceTableId);
+        renderCart();
+        loadProducts();
+        showToast('Tabela de preços alterada', 'success');
+    }
+
+    function confirmPriceTableChange() {
+        if (!pendingPriceTableId) return closePriceTableConfirm();
+        const nextId = pendingPriceTableId;
+        closePriceTableConfirm(false);
+        applyPriceTableChange(nextId);
+    }
+
+    function closePriceTableConfirm(resetSelect = true) {
+        const modal = document.getElementById('priceTableConfirmModal');
+        modal?.classList.remove('active');
+        modal?.setAttribute('aria-hidden', 'true');
+        if (resetSelect && currentPriceTableId) {
+            document.getElementById('priceTableSelect').value = String(currentPriceTableId);
+        }
+        pendingPriceTableId = null;
     }
 
     function renderProducts(list) {
@@ -2658,14 +3543,22 @@
     }
 
     function updateQty(index, delta) {
-        cart[index].quantity = Math.max(0.001, cart[index].quantity + delta);
+        if (!cart[index]) return;
+        const next = Math.max(0.001, Number(cart[index].quantity || 0) + Number(delta || 0));
+        cart[index].quantity = Math.round(next * 1000) / 1000;
         renderCart();
     }
 
     function setQty(index, val) {
-        const n = parseFloat(val);
-        if (n > 0) cart[index].quantity = n;
-        updateTotals();
+        if (!cart[index]) return;
+        const n = Number.parseFloat(String(val).replace(',', '.'));
+        if (!Number.isFinite(n) || n <= 0) {
+            renderCart();
+            showToast('Informe uma quantidade maior que zero');
+            return;
+        }
+        cart[index].quantity = Math.round(n * 1000) / 1000;
+        renderCart();
     }
 
     function clearCart() {
@@ -2715,7 +3608,8 @@
                                 type="number"
                                 value="${item.quantity}"
                                 min="0.001"
-                                step="1"
+                                step="0.001"
+                                inputmode="decimal"
                                 onchange="setQty(${index}, this.value)"
                                 aria-label="Quantidade de ${esc(item.name)}"
                             >
@@ -2739,7 +3633,6 @@
     }
 
     function updateTotals() {
-        const subtotal = cart.reduce((sum, item) => sum + (item.quantity * item.unit_price) - item.discount, 0);
         const discInput = parseFloat(document.getElementById('discountInput').value) || 0;
 
         let discountAmt = discountType === 'percent' ? (subtotal * discInput / 100) : discInput;
@@ -2759,12 +3652,12 @@
     }
 
     function updateCartBadge() {
-        const count = cart.reduce((s, i) => s + i.quantity, 0);
+        const count = cart.length;
         const cartCount = document.getElementById('cartCount');
         const fabCount = document.getElementById('cartFabCount');
 
-        if (cartCount) cartCount.textContent = Math.round(count);
-        if (fabCount) fabCount.textContent = Math.round(count);
+        if (cartCount) cartCount.textContent = String(count);
+        if (fabCount) fabCount.textContent = String(count);
     }
 
     function setDiscountType(type) {
@@ -2891,8 +3784,9 @@
             remainingRow.style.display = 'none';
         }
 
-        // Enable confirm button
-        const canConfirm = isFiado || paid >= total;
+        // Venda a prazo precisa identificar o cliente; evita gerar crédito sem referência.
+        const customerReady = document.getElementById('customerSearch').value.trim().length >= 2;
+        const canConfirm = isFiado ? customerReady : paid >= total;
         document.getElementById('btnConfirmSale').disabled = !canConfirm;
     }
 
@@ -2908,6 +3802,10 @@
             // Clear payment entries — fiado means no immediate payment
             paymentEntries = [];
             renderPaymentEntries();
+
+            if (!document.getElementById('customerSearch').value.trim()) {
+                window.setTimeout(() => document.getElementById('customerSearch')?.focus(), 80);
+            }
         }
         updatePaymentSummary();
     }
@@ -2915,23 +3813,33 @@
     // ============================================================
     // CUSTOMERS
     // ============================================================
+    let newCustomerContext = 'payment';
+
     async function loadCustomers() {
         try { customers = await api('/customers'); } catch(e) { customers = []; }
     }
 
     function searchCustomers(q) {
         const dropdown = document.getElementById('customerDropdown');
+
+        // Se o usuário editar o texto depois de selecionar alguém,
+        // remove o ID antigo para não vincular a venda ao cliente errado.
+        document.getElementById('selectedCustomerId').value = '';
+        updatePaymentSummary();
         if (!q || q.length < 1) {
             dropdown.classList.remove('active');
             return;
         }
 
         const filtered = customers.filter(c => c.name.toLowerCase().includes(q.toLowerCase()));
-        let html = filtered.slice(0, 8).map(c => `
-            <div class="customer-option" onclick="selectCustomer(${c.id}, '${esc(c.name)}')">
+        let html = filtered.slice(0, 8).map(c => {
+            const safeNameArg = inlineArg(c.name);
+            return `
+            <div class="customer-option" onclick="selectCustomer(${c.id}, decodeURIComponent('${safeNameArg}'))">
                 <div class="name">${esc(c.name)}</div>
-                <div class="meta">${c.cpf_cnpj || ''} ${c.phone ? '· ' + c.phone : ''}</div>
-            </div>`).join('');
+                <div class="meta">${esc(c.cpf_cnpj || '')} ${c.phone ? '· ' + esc(c.phone) : ''}</div>
+            </div>`;
+        }).join('');
 
         html += `<div class="customer-option" onclick="openNewCustomer()" style="color:var(--primary);font-weight:600;">
             + Cadastrar novo cliente
@@ -2945,9 +3853,11 @@
         document.getElementById('customerSearch').value = name;
         document.getElementById('selectedCustomerId').value = id;
         document.getElementById('customerDropdown').classList.remove('active');
+        updatePaymentSummary();
     }
 
     function openNewCustomer() {
+        newCustomerContext = 'payment';
         document.getElementById('newCustomerModal').classList.add('active');
         document.getElementById('customerDropdown').classList.remove('active');
         document.getElementById('newCustName').value = document.getElementById('customerSearch').value;
@@ -2971,9 +3881,16 @@
 
             if (res.success) {
                 customers.push(res.customer);
-                selectCustomer(res.customer.id, res.customer.name);
-                closeNewCustomer();
-                showToast('Cliente cadastrado!');
+
+                if (newCustomerContext === 'clients') {
+                    closeNewCustomer();
+                    await loadClientesPanel();
+                    showToast('Cliente cadastrado!', 'success');
+                } else {
+                    selectCustomer(res.customer.id, res.customer.name);
+                    closeNewCustomer();
+                    showToast('Cliente cadastrado!', 'success');
+                }
             }
         } catch(e) {
             showToast('Erro ao salvar cliente');
@@ -2993,7 +3910,16 @@
         const discountAmount = discountType === 'value' ? discInput : 0;
         const discountPercent = discountType === 'percent' ? discInput : 0;
 
+        if (isFiado && document.getElementById('customerSearch').value.trim().length < 2) {
+            showToast('Informe o cliente para registrar uma venda a prazo', 'danger');
+            document.getElementById('customerSearch').focus();
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ph ph-check"></i> Confirmar venda';
+            return;
+        }
+
         const payload = {
+            price_table_id: currentPriceTableId,
             items: cart.map(c => ({
                 product_id: c.product_id,
                 quantity: c.quantity,
@@ -3080,6 +4006,46 @@
         return 'R$ ' + Number(val || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function formatQty(val) {
+        return Number(val || 0).toLocaleString('pt-BR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3,
+        });
+    }
+
+    function inlineArg(value) {
+        return encodeURIComponent(String(value ?? '')).replace(/'/g, '%27');
+    }
+
+    function parseLocalDate(value) {
+        if (!value) return null;
+        const raw = String(value);
+        const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+        if (match) {
+            return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+        }
+
+        const parsed = new Date(raw);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    function formatLocalDate(value) {
+        const date = parseLocalDate(value);
+        return date ? date.toLocaleDateString('pt-BR') : '—';
+    }
+
+    function isPastLocalDate(value) {
+        const date = parseLocalDate(value);
+        if (!date) return false;
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        date.setHours(0, 0, 0, 0);
+
+        return date < today;
+    }
+
     function esc(str) {
         const d = document.createElement('div');
         d.textContent = str || '';
@@ -3102,9 +4068,17 @@
     function switchTab(tab) {
         currentTab = tab;
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.pdv-tab-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
-        document.getElementById('tabBtn' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+        document.querySelectorAll('.pdv-tab-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-selected', 'false');
+        });
+
+        const panel = document.getElementById('panel' + tab.charAt(0).toUpperCase() + tab.slice(1));
+        const button = document.getElementById('tabBtn' + tab.charAt(0).toUpperCase() + tab.slice(1));
+
+        panel?.classList.add('active');
+        button?.classList.add('active');
+        button?.setAttribute('aria-selected', 'true');
 
         if (tab === 'fiado') loadFiado();
         if (tab === 'clientes') loadClientesPanel();
@@ -3139,9 +4113,8 @@
                 s.code.toLowerCase().includes(lq)
             );
         }
-        const today = new Date().toDateString();
         if (f === 'pending') list = list.filter(s => (s.fiado_remaining > 0));
-        if (f === 'overdue') list = list.filter(s => s.fiado_remaining > 0 && s.fiado_due_date && new Date(s.fiado_due_date) < new Date());
+        if (f === 'overdue') list = list.filter(s => s.fiado_remaining > 0 && isPastLocalDate(s.fiado_due_date));
         if (f === 'paid') list = list.filter(s => s.fiado_remaining <= 0);
         renderFiado(list);
     }
@@ -3156,10 +4129,10 @@
         list.innerHTML = sales.map(s => {
             const remaining = parseFloat(s.fiado_remaining) || 0;
             const isPaid = remaining <= 0;
-            const isOverdue = !isPaid && s.fiado_due_date && new Date(s.fiado_due_date) < new Date();
+            const isOverdue = !isPaid && isPastLocalDate(s.fiado_due_date);
             const color = isPaid ? 'var(--success)' : isOverdue ? 'var(--danger)' : 'var(--warning)';
             const label = isPaid ? 'Quitado' : isOverdue ? 'Vencido' : 'Pendente';
-            const due = s.fiado_due_date ? new Date(s.fiado_due_date).toLocaleDateString('pt-BR') : '—';
+            const due = s.fiado_due_date ? formatLocalDate(s.fiado_due_date) : '—';
             return `
             <div class="fiado-card">
                 <div class="fiado-card-header">
@@ -3182,7 +4155,7 @@
                         Ver Detalhes
                     </button>
                     ${!isPaid ? `
-                    <button class="btn-sm primary" onclick="openPayFiado(${s.id}, '${esc(s.display_name || s.customer_name || 'Consumidor')}', ${remaining}, '${s.code}')">
+                    <button class="btn-sm primary" onclick="openPayFiado(${s.id}, decodeURIComponent('${inlineArg(s.display_name || s.customer_name || 'Consumidor')}'), ${remaining}, decodeURIComponent('${inlineArg(s.code)}'))">
                         <i class="ph ph-currency-circle-dollar"></i> Receber pagamento
                     </button>` : ''}
                     <a href="${BASE}/sale/${s.id}/receipt" target="_blank" class="btn-sm">
@@ -3411,6 +4384,7 @@
     }
 
     function openNewCustomerDirect() {
+        newCustomerContext = 'clients';
         document.getElementById('newCustName').value = '';
         document.getElementById('newCustDoc').value = '';
         document.getElementById('newCustPhone').value = '';
@@ -3640,7 +4614,7 @@
 
         document.getElementById('saleDetailActions').innerHTML = `
             <a href="${BASE}/sale/${s.id}/receipt" target="_blank" class="btn-sm"><i class="ph ph-printer"></i> Imprimir Comprovante</a>
-            ${s.is_fiado && remaining > 0 ? `<button class="btn-sm primary" onclick="closeSaleDetail();openPayFiado(${s.id},'${esc(s.display_name||'Consumidor')}',${remaining},'${s.code}')"><i class="ph ph-currency-circle-dollar"></i> Receber a prazo</button>` : ''}
+            ${s.is_fiado && remaining > 0 ? `<button class="btn-sm primary" onclick="closeSaleDetail();openPayFiado(${s.id},decodeURIComponent('${inlineArg(s.display_name||'Consumidor')}'),${remaining},decodeURIComponent('${inlineArg(s.code)}'))"><i class="ph ph-currency-circle-dollar"></i> Receber a prazo</button>` : ''}
             ${s.status === 'completed' ? `<button class="btn-sm danger" onclick="cancelSaleAction(${s.id})"><i class="ph ph-x"></i> Cancelar venda</button>` : ''}
         `;
 
@@ -3649,6 +4623,7 @@
                 <div>
                     <div style="font-size:1.25rem;font-weight:800">${esc(s.code)}</div>
                     <div style="font-size:0.8125rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})} · ${esc(s.display_name||s.customer_name||'Consumidor')}</div>
+                    ${s.price_table_name ? `<div style="font-size:0.75rem;color:var(--text-muted)">Tabela: ${esc(s.price_table_name)}</div>` : ''}
                     ${s.creator ? `<div style="font-size:0.75rem;color:var(--text-muted)">Operador: ${esc(s.creator.display_name)}</div>` : ''}
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.25rem">
@@ -3670,7 +4645,7 @@
                 ${items.map(item => `
                     <tr style="border-bottom:1px solid var(--border)">
                         <td style="padding:0.5rem 0.5rem">${esc(item.product ? item.product.name : 'Produto')}</td>
-                        <td style="text-align:right;padding:0.5rem">${parseFloat(item.quantity).toFixed(0)} ${item.product ? item.product.unit||'' : ''}</td>
+                        <td style="text-align:right;padding:0.5rem">${formatQty(item.quantity)} ${item.product ? esc(item.product.unit||'') : ''}</td>
                         <td style="text-align:right;padding:0.5rem">${money(item.unit_price)}</td>
                         <td style="text-align:right;padding:0.5rem;font-weight:700">${money(item.total)}</td>
                     </tr>`).join('')}

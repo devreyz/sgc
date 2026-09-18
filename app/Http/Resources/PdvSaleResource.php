@@ -13,6 +13,8 @@ class PdvSaleResource extends JsonResource
             'id' => $this->id,
             'code' => $this->code,
             'pdv_customer_id' => $this->pdv_customer_id,
+            'price_table_id' => $this->price_table_id,
+            'price_table_name' => $this->whenLoaded('priceTable', fn () => $this->priceTable?->name),
             'customer_name' => $this->customer_name,
             'subtotal' => $this->subtotal,
             'discount_amount' => $this->discount_amount,

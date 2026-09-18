@@ -38,7 +38,7 @@ class ServiceResourceService
             $resource->service_execution_id = $execution->id;
             $resource->save();
             if ($effect === 'create_association_expense') {
-                $expense = new Expense(['description' => 'Recurso de serviço: '.$resource->description, 'amount' => $amount, 'discount' => 0, 'interest' => 0, 'fine' => 0, 'date' => now()->toDateString(), 'due_date' => now()->toDateString(), 'status' => ExpenseStatus::PENDING, 'expenseable_type' => ServiceExecution::class, 'expenseable_id' => $execution->id, 'notes' => 'Origem idempotente: service_resource/'.$resource->id, 'created_by' => $actor->id]);
+                $expense = new Expense(['description' => 'Recurso de serviço: '.$resource->description, 'amount' => $amount, 'discount' => 0, 'interest' => 0, 'fine' => 0, 'date' => now()->toDateString(), 'due_date' => now()->toDateString(), 'status' => ExpenseStatus::PENDING, 'expenseable_type' => ServiceExecution::class, 'expenseable_id' => $execution->id, 'origin_module' => 'services', 'notes' => 'Origem idempotente: service_resource/'.$resource->id, 'created_by' => $actor->id]);
                 $expense->tenant_id = $execution->tenant_id;
                 $expense->save();
                 $resource->update(['expense_id' => $expense->id]);

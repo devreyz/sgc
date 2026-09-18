@@ -13,108 +13,116 @@
 @endphp
 
 @section('content')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+<link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 <style>
     .watch-shell {
-        --watch-green: var(--color-primary, #22c55e);
-        --watch-green-dark: var(--color-primary-dark, #16a34a);
-        --watch-green-deep: var(--color-primary-deep, #15803d);
-        --watch-surface: var(--color-surface, #ffffff);
-        --watch-soft: var(--color-surface-soft, #f8faf9);
+        --watch-green: #219653;
+        --watch-green-deep: #177c43;
+        --watch-green-soft: #edf8f1;
+        --watch-green-border: #cde8d6;
+        --watch-blue: #3478d4;
+        --watch-blue-soft: #eef4ff;
+        --watch-blue-border: #d4e2f8;
+        --watch-sky: #168eae;
+        --watch-sky-soft: #edf8fb;
+        --watch-violet: #8a4bd2;
+        --watch-violet-soft: #f5effc;
+        --watch-amber: #c38418;
+        --watch-amber-soft: #fff7e8;
+        --watch-amber-border: #efdcb8;
+        --watch-red: #cf5050;
+        --watch-red-soft: #fff1f1;
+        --watch-red-border: #f1cccc;
+        --watch-slate: #64748b;
+        --watch-slate-soft: #f2f5f7;
+        --watch-surface: var(--color-surface, #fff);
+        --watch-soft: var(--color-surface-soft, #f7faf8);
         --watch-muted: var(--color-surface-muted, #eef4f0);
-        --watch-border: var(--color-border, #dce6df);
-        --watch-border-strong: var(--color-border-strong, #c8d6cd);
-        --watch-text: var(--color-text, #102018);
-        --watch-secondary: var(--color-text-secondary, #52645a);
-        --watch-faded: var(--color-text-muted, #809087);
-        --watch-danger: var(--color-danger, #dc2626);
-        --watch-warning: var(--color-warning, #d97706);
-        --watch-info: var(--color-info, #0284c7);
-        --watch-shadow-sm: 0 5px 18px rgba(15, 35, 24, .055);
-        --watch-shadow: 0 12px 34px rgba(15, 35, 24, .075);
-
+        --watch-border: var(--color-border, #d7e2da);
+        --watch-border-strong: var(--color-border-strong, #becdc3);
+        --watch-text: var(--color-text, #17251c);
+        --watch-secondary: var(--color-text-secondary, #58685e);
+        --watch-faded: var(--color-text-muted, #87938b);
+        --watch-shadow: 0 5px 18px rgba(25, 61, 39, .055);
         display: grid;
-        width: min(100%, 1320px);
+        width: min(100%, 1420px);
         min-width: 0;
         grid-column: 1 / -1;
-        gap: .85rem;
+        gap: .78rem;
         margin: 0 auto;
-        padding-bottom: 1.25rem;
+        padding-bottom: 1rem;
         color: var(--watch-text);
     }
 
     .watch-shell *,
     .watch-shell *::before,
-    .watch-shell *::after {
-        box-sizing: border-box;
-    }
+    .watch-shell *::after { box-sizing: border-box; }
 
+    /* Cabeçalho compacto */
     .watch-projectbar {
-        position: relative;
         display: grid;
         min-width: 0;
         grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .8rem;
+        gap: .65rem;
         align-items: center;
-        overflow: visible;
-        padding: .78rem .85rem;
+        min-height: 70px;
+        padding: .66rem .72rem;
         border: 1px solid var(--watch-border);
-        border-left: 4px solid var(--watch-green-dark);
-        border-radius: 14px;
+        border-radius: 12px;
         background:
-            linear-gradient(90deg, rgba(236, 253, 245, .75), rgba(255, 255, 255, .96) 36%),
-            var(--watch-surface);
-        box-shadow: var(--watch-shadow-sm);
+            radial-gradient(circle at 100% 0, rgba(33,150,83,.08), transparent 18rem),
+            linear-gradient(180deg, var(--watch-soft), var(--watch-surface));
+        box-shadow: var(--watch-shadow);
     }
 
-    .watch-back {
+    .watch-back,
+    .watch-icon-btn {
         display: grid;
-        width: 42px;
-        height: 42px;
+        width: 38px;
+        height: 38px;
         place-items: center;
         border: 1px solid var(--watch-border);
-        border-radius: 11px;
-        background: var(--watch-surface);
+        border-radius: 8px;
+        background: #fff;
         color: var(--watch-secondary);
         text-decoration: none;
-        transition: border-color 150ms ease, color 150ms ease, transform 150ms ease;
+        cursor: pointer;
+        transition: .14s ease;
     }
 
-    .watch-back:hover {
-        border-color: rgba(34, 197, 94, .48);
-        color: var(--watch-green-dark);
-        transform: translateX(-1px);
+    .watch-back:hover,
+    .watch-back:focus-visible,
+    .watch-icon-btn:hover,
+    .watch-icon-btn:focus-visible {
+        border-color: var(--watch-green-border);
+        background: var(--watch-green-soft);
+        color: var(--watch-green-deep);
+        outline: none;
     }
 
-    .watch-back svg {
-        width: 18px;
-        height: 18px;
-    }
+    .watch-back > i,
+    .watch-icon-btn > i { font-size: 1rem; line-height: 1; }
 
-    .watch-project-copy {
-        min-width: 0;
-    }
+    .watch-project-copy { min-width: 0; }
 
     .watch-project-kicker {
-        display: flex;
+        display: inline-flex;
+        gap: .28rem;
         align-items: center;
-        gap: .38rem;
-        color: var(--watch-green-dark);
-        font-size: .62rem;
+        color: var(--watch-green-deep);
+        font-size: .6rem;
         font-weight: 820;
-        letter-spacing: .065em;
+        letter-spacing: .055em;
         text-transform: uppercase;
     }
 
-    .watch-project-kicker svg {
-        width: 13px;
-        height: 13px;
-    }
-
     .watch-project-title {
-        margin: .14rem 0 0;
+        margin: .08rem 0 0;
         overflow: hidden;
         color: var(--watch-text);
-        font-size: clamp(1.02rem, 2vw, 1.35rem);
+        font-size: clamp(1rem, 2vw, 1.22rem);
         font-weight: 860;
         letter-spacing: -.03em;
         line-height: 1.2;
@@ -125,161 +133,109 @@
     .watch-project-meta {
         display: flex;
         flex-wrap: wrap;
+        gap: .28rem .6rem;
         align-items: center;
-        gap: .35rem .65rem;
-        margin-top: .34rem;
-        color: var(--watch-secondary);
-        font-size: .68rem;
+        margin-top: .22rem;
+        color: var(--watch-faded);
+        font-size: .66rem;
         font-weight: 650;
     }
 
     .watch-project-meta > span {
         display: inline-flex;
+        gap: .22rem;
         align-items: center;
-        gap: .3rem;
     }
 
-    .watch-project-meta svg {
-        width: 13px;
-        height: 13px;
-        color: var(--watch-faded);
-    }
-
-    .watch-status {
+    .watch-status,
+    .watch-badge {
         display: inline-flex;
-        min-height: 28px;
+        width: max-content;
+        min-height: 24px;
+        gap: .25rem;
         align-items: center;
-        gap: .3rem;
-        padding: .3rem .55rem;
-        border: 1px solid var(--watch-border);
+        padding: .18rem .38rem;
         border-radius: 999px;
-        background: var(--watch-surface);
+        background: var(--watch-slate-soft);
         color: var(--watch-secondary);
-        font-size: .61rem;
-        font-weight: 820;
+        font-size: .58rem;
+        font-weight: 800;
         white-space: nowrap;
     }
 
     .watch-status::before {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: var(--watch-faded);
+        background: currentColor;
         content: "";
     }
 
-    .watch-status.is-active {
-        border-color: rgba(22, 163, 74, .24);
-        background: #ecfdf5;
-        color: #047857;
-    }
+    .watch-status.is-active,
+    .watch-badge.approved,
+    .watch-badge.paid,
+    .watch-badge.active { background: var(--watch-green-soft); color: var(--watch-green-deep); }
+    .watch-status.is-warning,
+    .watch-badge.pending { background: var(--watch-amber-soft); color: #8a570d; }
+    .watch-status.is-closed { background: var(--watch-slate-soft); color: #596979; }
+    .watch-badge.rejected,
+    .watch-badge.cancelled { background: var(--watch-red-soft); color: #a43434; }
 
-    .watch-status.is-active::before {
-        background: #10b981;
-    }
+    .watch-project-actions { display: flex; gap: .32rem; }
 
-    .watch-status.is-warning {
-        border-color: rgba(217, 119, 6, .25);
-        background: #fffbeb;
-        color: #92400e;
-    }
-
-    .watch-status.is-warning::before {
-        background: #f59e0b;
-    }
-
-    .watch-status.is-closed {
-        border-color: rgba(100, 116, 139, .24);
-        background: #f1f5f9;
-        color: #475569;
-    }
-
-    .watch-status.is-closed::before {
-        background: #64748b;
-    }
-
-    .watch-project-actions {
-        display: flex;
-        align-items: center;
-        gap: .4rem;
-    }
-
-    .watch-icon-btn {
-        position: relative;
-        display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border: 1px solid var(--watch-border);
-        border-radius: 10px;
-        background: var(--watch-surface);
-        color: var(--watch-secondary);
-        cursor: help;
-    }
-
-    .watch-icon-btn:hover,
-    .watch-icon-btn:focus-visible {
-        border-color: rgba(34, 197, 94, .42);
-        color: var(--watch-green-dark);
-        outline: none;
-    }
-
-    .watch-icon-btn svg {
-        width: 17px;
-        height: 17px;
-    }
-
+    /* Abas */
     .watch-tabs {
         position: sticky;
-        z-index: 20;
-        top: .45rem;
+        z-index: 30;
+        top: .25rem;
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: .3rem;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: .28rem;
         padding: .34rem;
         border: 1px solid var(--watch-border);
-        border-radius: 12px;
-        background: color-mix(in srgb, var(--watch-surface) 94%, transparent);
-        box-shadow: 0 7px 22px rgba(15, 35, 24, .055);
-        backdrop-filter: blur(12px);
+        border-radius: 11px;
+        background: rgba(255,255,255,.97);
+        box-shadow: var(--watch-shadow);
+        backdrop-filter: blur(10px);
     }
 
     .watch-tab {
+        --tab-tone: var(--watch-slate);
+        --tab-soft: var(--watch-slate-soft);
         display: flex;
         min-width: 0;
-        min-height: 44px;
+        min-height: 40px;
+        gap: .3rem;
         align-items: center;
         justify-content: center;
-        gap: .38rem;
-        padding: .48rem .55rem;
+        padding: .38rem .48rem;
         border: 1px solid transparent;
-        border-radius: 9px;
+        border-radius: 8px;
         background: transparent;
         color: var(--watch-secondary);
         cursor: pointer;
         font: inherit;
-        font-size: .69rem;
-        font-weight: 790;
-        transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+        font-size: .66rem;
+        font-weight: 780;
+        white-space: nowrap;
+        transition: .14s ease;
     }
 
-    .watch-tab svg {
-        width: 16px;
-        height: 16px;
-        flex: 0 0 auto;
-    }
+    .watch-tab[data-panel="overview"] { --tab-tone: var(--watch-green); --tab-soft: var(--watch-green-soft); }
+    .watch-tab[data-panel="products"] { --tab-tone: var(--watch-violet); --tab-soft: var(--watch-violet-soft); }
+    .watch-tab[data-panel="associates"] { --tab-tone: var(--watch-sky); --tab-soft: var(--watch-sky-soft); }
+    .watch-tab[data-panel="deliveries"] { --tab-tone: var(--watch-amber); --tab-soft: var(--watch-amber-soft); }
+    .watch-tab[data-panel="documents"] { --tab-tone: var(--watch-blue); --tab-soft: var(--watch-blue-soft); }
 
-    .watch-tab:hover {
-        border-color: var(--watch-border);
-        background: var(--watch-soft);
-        color: var(--watch-text);
-    }
+    .watch-tab > i { color: var(--tab-tone); font-size: .9rem; }
 
+    .watch-tab:hover,
+    .watch-tab:focus-visible,
     .watch-tab.active {
-        border-color: var(--watch-green-dark);
-        background: linear-gradient(135deg, var(--watch-green), var(--watch-green-dark));
-        color: #fff;
-        box-shadow: 0 6px 16px rgba(22, 163, 74, .16);
+        border-color: color-mix(in srgb, var(--tab-tone) 18%, var(--watch-border));
+        background: var(--tab-soft);
+        color: var(--tab-tone);
+        outline: none;
     }
 
     .watch-tab-count {
@@ -287,1038 +243,439 @@
         min-width: 20px;
         height: 20px;
         place-items: center;
-        padding: 0 .25rem;
+        padding: 0 .24rem;
         border-radius: 999px;
-        background: var(--watch-muted);
-        color: var(--watch-secondary);
-        font-size: .54rem;
+        background: #fff;
+        color: var(--tab-tone);
+        font-size: .53rem;
         font-weight: 850;
     }
 
-    .watch-tab.active .watch-tab-count {
-        background: rgba(255, 255, 255, .18);
-        color: #fff;
-    }
+    .watch-panel[hidden] { display: none !important; }
+    .watch-panel { min-width: 0; }
 
-    .watch-panel[hidden] {
-        display: none !important;
-    }
-
-    .watch-panel {
-        min-width: 0;
-    }
-
-    .watch-loading {
-        display: grid;
-        min-height: 250px;
-        place-items: center;
-        border: 1px solid var(--watch-border);
-        border-radius: 14px;
-        background: var(--watch-surface);
-        color: var(--watch-secondary);
-        font-size: .74rem;
-        text-align: center;
-    }
-
-    .watch-spinner {
-        width: 29px;
-        height: 29px;
-        margin: 0 auto .65rem;
-        border: 3px solid var(--watch-border);
-        border-top-color: var(--watch-green-dark);
-        border-radius: 50%;
-        animation: watch-spin .72s linear infinite;
-    }
-
-    @keyframes watch-spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .watch-error {
-        padding: .85rem;
-        border: 1px solid #fecaca;
-        border-radius: 11px;
-        background: #fff7f7;
-        color: #991b1b;
-        font-size: .72rem;
-        font-weight: 650;
-    }
-
+    /* Superfícies */
+    .watch-section,
     .watch-summary {
-        display: grid;
-        grid-template-columns: minmax(285px, .85fr) minmax(0, 1.65fr);
-        gap: .75rem;
-        align-items: stretch;
-    }
-
-    .watch-progress-card,
-    .watch-number,
-    .watch-card,
-    .watch-delivery,
-    .watch-note-form,
-    .watch-note {
+        min-width: 0;
+        overflow: hidden;
         border: 1px solid var(--watch-border);
+        border-radius: 12px;
         background: var(--watch-surface);
-        box-shadow: var(--watch-shadow-sm);
-    }
-
-    .watch-progress-card {
-        position: relative;
-        display: flex;
-        min-width: 0;
-        justify-content: space-between;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 1rem;
-        border-radius: 15px;
-    }
-
-    .watch-progress-card::before {
-        position: absolute;
-        top: 0;
-        right: 0;
-        left: 0;
-        height: 4px;
-        background: linear-gradient(90deg, var(--watch-green), var(--watch-green-dark));
-        content: "";
-    }
-
-    .watch-progress-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: .75rem;
-    }
-
-    .watch-progress-label {
-        display: flex;
-        align-items: center;
-        gap: .35rem;
-        color: var(--watch-secondary);
-        font-size: .67rem;
-        font-weight: 750;
-    }
-
-    .watch-progress-label svg {
-        width: 15px;
-        height: 15px;
-        color: var(--watch-green-dark);
-    }
-
-    .watch-tip {
-        display: inline-grid;
-        width: 20px;
-        height: 20px;
-        place-items: center;
-        border: 0;
-        border-radius: 50%;
-        background: var(--watch-muted);
-        color: var(--watch-secondary);
-        cursor: help;
-        font: inherit;
-    }
-
-    .watch-tip svg {
-        width: 12px;
-        height: 12px;
-    }
-
-    .watch-progress-percent {
-        color: var(--watch-text);
-        font-size: clamp(1.45rem, 3vw, 2.1rem);
-        font-weight: 880;
-        letter-spacing: -.05em;
-        line-height: 1;
-    }
-
-    .watch-main-meter {
-        height: 13px;
-        margin: 1.1rem 0 .65rem;
-        overflow: hidden;
-        border-radius: 999px;
-        background: var(--watch-muted);
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, .12);
-    }
-
-    .watch-main-meter span {
-        display: block;
-        width: 0;
-        height: 100%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, #4ade80, var(--watch-green-dark));
-        transition: width 350ms ease;
-    }
-
-    .watch-progress-message {
-        margin: 0;
-        color: var(--watch-secondary);
-        font-size: .7rem;
-        line-height: 1.55;
-    }
-
-    .watch-numbers {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .65rem;
-    }
-
-    .watch-number {
-        position: relative;
-        min-width: 0;
-        overflow: hidden;
-        padding: .82rem;
-        border-radius: 14px;
-    }
-
-    .watch-number::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 3px;
-        background: var(--metric-tone, var(--watch-border));
-        content: "";
-    }
-
-    .watch-number.is-green {
-        --metric-tone: linear-gradient(90deg, #4ade80, var(--watch-green-dark));
-    }
-
-    .watch-number.is-blue {
-        --metric-tone: linear-gradient(90deg, #38bdf8, var(--watch-info));
-    }
-
-    .watch-number.is-warning {
-        --metric-tone: linear-gradient(90deg, #fbbf24, var(--watch-warning));
-    }
-
-    .watch-number-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .4rem;
-    }
-
-    .watch-number-icon {
-        display: grid;
-        width: 36px;
-        height: 36px;
-        place-items: center;
-        border-radius: 11px;
-        background: var(--watch-muted);
-        color: var(--watch-green-dark);
-    }
-
-    .watch-number-icon svg {
-        width: 17px;
-        height: 17px;
-    }
-
-    .watch-number-label {
-        margin-top: .62rem;
-        color: var(--watch-secondary);
-        font-size: .62rem;
-        font-weight: 720;
-    }
-
-    .watch-number-value {
-        margin-top: .18rem;
-        overflow: hidden;
-        color: var(--watch-text);
-        font-size: clamp(.92rem, 2vw, 1.15rem);
-        font-weight: 850;
-        letter-spacing: -.03em;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .watch-number-hint {
-        margin-top: .18rem;
-        overflow: hidden;
-        color: var(--watch-faded);
-        font-size: .58rem;
-        line-height: 1.4;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .watch-section {
-        margin-top: .85rem;
-        overflow: hidden;
-        border: 1px solid var(--watch-border);
-        border-radius: 15px;
-        background: rgba(255, 255, 255, .95);
         box-shadow: var(--watch-shadow);
     }
 
+    .watch-section { margin-top: .78rem; }
+
     .watch-section-head {
         display: flex;
-        min-height: 66px;
+        min-width: 0;
+        min-height: 60px;
+        gap: .6rem;
         align-items: center;
         justify-content: space-between;
-        gap: .75rem;
-        padding: .72rem .82rem;
+        padding: .62rem .7rem;
         border-bottom: 1px solid var(--watch-border);
-        background: linear-gradient(180deg, var(--watch-soft), var(--watch-surface));
+        background: linear-gradient(180deg, #fafcfb, #fff);
     }
 
     .watch-section-title {
         display: flex;
         min-width: 0;
+        gap: .5rem;
         align-items: center;
-        gap: .62rem;
     }
 
     .watch-section-icon {
         display: grid;
-        width: 38px;
-        height: 38px;
+        width: 36px;
+        height: 36px;
         flex: 0 0 auto;
         place-items: center;
-        border-radius: 11px;
-        background: #ecfdf5;
-        color: var(--watch-green-dark);
+        border-radius: 8px;
+        background: var(--watch-green-soft);
+        color: var(--watch-green-deep);
     }
 
-    .watch-section-icon svg {
-        width: 18px;
-        height: 18px;
-    }
+    .watch-section-icon.products { background: var(--watch-violet-soft); color: var(--watch-violet); }
+    .watch-section-icon.associates { background: var(--watch-sky-soft); color: var(--watch-sky); }
+    .watch-section-icon.deliveries { background: var(--watch-amber-soft); color: var(--watch-amber); }
+    .watch-section-icon.documents { background: var(--watch-blue-soft); color: var(--watch-blue); }
+    .watch-section-icon.notes { background: var(--watch-slate-soft); color: var(--watch-slate); }
 
-    .watch-section-head h2 {
-        margin: 0;
-        color: var(--watch-text);
-        font-size: .94rem;
-        font-weight: 840;
-        letter-spacing: -.02em;
-    }
+    .watch-section-head h2,
+    .watch-section-head p { margin: 0; }
+    .watch-section-head h2 { font-size: .88rem; font-weight: 840; letter-spacing: -.02em; }
+    .watch-section-head p { margin-top: .06rem; color: var(--watch-faded); font-size: .64rem; line-height: 1.35; }
 
-    .watch-section-head p {
-        margin: .16rem 0 0;
-        color: var(--watch-faded);
-        font-size: .62rem;
-        line-height: 1.35;
-    }
-
-    .watch-search-wrap {
-        position: relative;
-        width: min(310px, 100%);
-    }
-
-    .watch-search-wrap > svg {
-        position: absolute;
-        top: 50%;
-        left: .7rem;
-        width: 15px;
-        height: 15px;
-        color: var(--watch-faded);
-        transform: translateY(-50%);
-        pointer-events: none;
-    }
-
-    .watch-search,
-    .watch-control {
-        width: 100%;
-        min-height: 42px;
-        border: 1px solid var(--watch-border-strong);
-        border-radius: 10px;
-        outline: none;
-        background: var(--watch-surface);
-        color: var(--watch-text);
-        font: inherit;
-        font-size: .74rem;
-        font-weight: 600;
-        transition: border-color 150ms ease, box-shadow 150ms ease;
-    }
-
-    .watch-search {
-        padding: .55rem .68rem .55rem 2.15rem;
-    }
-
-    .watch-control {
-        padding: .55rem .68rem;
-    }
-
-    .watch-search:focus,
-    .watch-control:focus {
-        border-color: var(--watch-green);
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-    }
-
-    .watch-grid {
+    /* Visão geral sem vários cards */
+    .watch-summary {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: .72rem;
-        padding: .78rem;
+        grid-template-columns: minmax(280px, .72fr) minmax(0, 1.28fr);
     }
 
-    .watch-card {
-        position: relative;
+    .watch-progress-card {
+        display: grid;
         min-width: 0;
-        overflow: hidden;
+        align-content: center;
         padding: .85rem;
-        border-radius: 14px;
-        transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+        border-right: 1px solid var(--watch-border);
+        background:
+            radial-gradient(circle at 100% 0, rgba(33,150,83,.10), transparent 14rem),
+            linear-gradient(145deg, #fff, var(--watch-green-soft));
     }
 
-    .watch-card::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 3px;
-        background: var(--watch-border);
-        content: "";
-    }
-
-    .watch-card:hover {
-        border-color: rgba(34, 197, 94, .38);
-        box-shadow: 0 11px 26px rgba(15, 35, 24, .085);
-        transform: translateY(-1px);
-    }
-
-    .watch-card:hover::after {
-        background: linear-gradient(90deg, var(--watch-green), var(--watch-green-dark));
-    }
-
-    .watch-card-top {
+    .watch-progress-head {
         display: flex;
-        min-width: 0;
-        align-items: flex-start;
-        justify-content: space-between;
         gap: .65rem;
+        align-items: center;
+        justify-content: space-between;
     }
 
-    .watch-card-heading {
-        min-width: 0;
+    .watch-progress-label {
+        display: flex;
+        gap: .3rem;
+        align-items: center;
+        color: var(--watch-green-deep);
+        font-size: .7rem;
+        font-weight: 800;
     }
 
-    .watch-card h3 {
-        margin: 0;
-        overflow: hidden;
+    .watch-progress-percent {
         color: var(--watch-text);
-        font-size: .86rem;
-        font-weight: 820;
-        line-height: 1.35;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        font-size: clamp(1.45rem, 3vw, 2rem);
+        font-weight: 880;
+        letter-spacing: -.045em;
     }
 
-    .watch-card-sub {
-        margin-top: .18rem;
-        color: var(--watch-faded);
-        font-size: .63rem;
-        line-height: 1.45;
-    }
-
-    .watch-card-icon {
-        display: grid;
-        width: 35px;
-        height: 35px;
-        flex: 0 0 auto;
-        place-items: center;
-        border-radius: 10px;
-        background: var(--watch-muted);
-        color: var(--watch-green-dark);
-    }
-
-    .watch-card-icon svg {
-        width: 16px;
-        height: 16px;
-    }
-
-    .watch-meter {
-        height: 9px;
-        margin: .72rem 0 .4rem;
+    .watch-main-meter,
+    .watch-meter,
+    .watch-row-progress {
         overflow: hidden;
         border-radius: 999px;
-        background: var(--watch-muted);
+        background: #e8eeea;
     }
 
-    .watch-meter span {
+    .watch-main-meter { height: 10px; margin: .65rem 0 .42rem; }
+    .watch-main-meter > span,
+    .watch-meter > span,
+    .watch-row-progress > span {
         display: block;
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, #4ade80, var(--watch-green-dark));
-        transition: width 300ms ease;
+        background: var(--watch-green);
     }
 
-    .watch-meter.warn span {
-        background: linear-gradient(90deg, #fbbf24, var(--watch-warning));
-    }
+    .watch-progress-message { margin: 0; color: var(--watch-secondary); font-size: .7rem; line-height: 1.45; }
 
-    .watch-meter.done span {
-        background: linear-gradient(90deg, #34d399, #047857);
-    }
+    .watch-summary-table-wrap { min-width: 0; padding: .52rem .62rem; }
+    .watch-summary-table { width: 100%; border-collapse: collapse; }
+    .watch-summary-table tr + tr { border-top: 1px solid var(--watch-border); }
+    .watch-summary-table td { padding: .48rem .36rem; vertical-align: middle; }
+    .watch-summary-table td:first-child { width: 42%; }
+    .summary-label { display: flex; min-width: 0; gap: .38rem; align-items: center; color: var(--watch-secondary); font-size: .65rem; font-weight: 760; }
+    .summary-label-icon { display:grid; width:28px; height:28px; flex:0 0 auto; place-items:center; border-radius:7px; background:var(--watch-slate-soft); color:var(--watch-slate); }
+    .summary-value { color: var(--watch-text); font-size: .72rem; font-weight: 850; text-align: right; white-space: nowrap; }
+    .summary-hint { color: var(--watch-faded); font-size: .59rem; text-align: right; }
 
-    .watch-values {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .38rem;
-        margin-top: .62rem;
-    }
-
-    .watch-value {
-        min-width: 0;
-        padding: .46rem;
-        border: 1px solid var(--watch-border);
-        border-radius: 9px;
-        background: var(--watch-soft);
-    }
-
-    .watch-value span {
-        display: block;
-        overflow: hidden;
-        color: var(--watch-secondary);
-        font-size: .57rem;
-        font-weight: 680;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .watch-value strong {
-        display: block;
-        margin-top: .16rem;
-        overflow: hidden;
+    /* Controles */
+    .watch-search-wrap { position: relative; width: min(300px, 100%); }
+    .watch-search-wrap > i { position:absolute; top:50%; left:.65rem; transform:translateY(-50%); color:var(--watch-faded); font-size:.86rem; pointer-events:none; }
+    .watch-search,
+    .watch-control {
+        width: 100%;
+        min-height: 39px;
+        border: 1px solid var(--watch-border-strong);
+        border-radius: 8px;
+        outline: none;
+        background: #fff;
         color: var(--watch-text);
-        font-size: .72rem;
-        font-weight: 820;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        font: inherit;
+        font-size: .7rem;
     }
-
-    .watch-link-card {
-        display: block;
-        color: inherit;
-        text-decoration: none;
-    }
-
-    .watch-open {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .6rem;
-        margin-top: .72rem;
-        padding-top: .62rem;
-        border-top: 1px solid var(--watch-border);
-        color: var(--watch-green-dark);
-        font-size: .66rem;
-        font-weight: 820;
-    }
-
-    .watch-open svg {
-        width: 14px;
-        height: 14px;
-    }
+    .watch-search { padding: .46rem .58rem .46rem 2rem; }
+    .watch-control { padding: .46rem .58rem; }
+    .watch-search:focus,
+    .watch-control:focus { border-color: var(--watch-green); box-shadow: 0 0 0 3px rgba(33,150,83,.10); }
 
     .watch-filter {
         display: grid;
-        grid-template-columns: minmax(170px, 1fr) minmax(150px, 205px) auto;
-        gap: .5rem;
-        padding: .75rem .78rem;
+        grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) auto;
+        gap: .42rem;
+        padding: .58rem .65rem;
         border-bottom: 1px solid var(--watch-border);
         background: var(--watch-soft);
     }
 
     .watch-button {
         display: inline-flex;
-        min-height: 42px;
-        align-items: center;
-        justify-content: center;
-        gap: .38rem;
-        padding: .54rem .74rem;
-        border: 1px solid var(--watch-green-dark);
-        border-radius: 10px;
-        background: linear-gradient(135deg, var(--watch-green), var(--watch-green-dark));
-        color: #fff;
-        cursor: pointer;
-        font: inherit;
-        font-size: .68rem;
-        font-weight: 810;
-        box-shadow: 0 7px 16px rgba(22, 163, 74, .14);
-        transition: transform 140ms ease, box-shadow 140ms ease;
-    }
-
-    .watch-button:hover {
-        box-shadow: 0 10px 20px rgba(22, 163, 74, .18);
-        transform: translateY(-1px);
-    }
-
-    .watch-button:disabled {
-        cursor: not-allowed;
-        opacity: .48;
-        transform: none;
-    }
-
-    .watch-button svg {
-        width: 15px;
-        height: 15px;
-    }
-
-    .watch-deliveries {
-        display: grid;
-        gap: .65rem;
-        padding: .78rem;
-    }
-
-    .watch-delivery-table-wrap { overflow:auto; padding:.78rem; }
-    .watch-delivery-table { width:100%; min-width:840px; border-collapse:separate; border-spacing:0; font-size:.72rem; }
-    .watch-delivery-table th { padding:.62rem .58rem; text-align:left; color:var(--watch-secondary); background:var(--watch-soft); border-bottom:1px solid var(--watch-border-strong); font-size:.59rem; letter-spacing:.04em; text-transform:uppercase; }
-    .watch-delivery-table td { padding:.62rem .58rem; vertical-align:top; border-bottom:1px solid var(--watch-border); }
-    .watch-delivery-table .is-number { text-align:right; white-space:nowrap; }
-    .watch-distribution-row td { padding:.45rem .58rem .45rem 2.05rem; background:#f8fbf9; color:var(--watch-secondary); font-size:.68rem; }
-    .watch-resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.72rem; padding:.78rem; }
-    .watch-resource-card { min-width:0; padding:.78rem; border:1px solid var(--watch-border); border-radius:12px; background:var(--watch-surface); }
-    .watch-resource-card h3 { margin:0 0 .48rem; font-size:.78rem; }.watch-resource-item { display:flex; justify-content:space-between; gap:.5rem; padding:.5rem 0; border-top:1px solid var(--watch-border); font-size:.67rem; }.watch-resource-item:first-of-type{border-top:0}.watch-resource-item strong{display:block;color:var(--watch-text)}.watch-resource-link{color:var(--watch-green-dark);font-weight:800;text-decoration:none}
-    @media (min-width:769px) { .watch-deliveries { display:none; } }
-
-    .watch-delivery {
-        min-width: 0;
-        overflow: hidden;
-        border-radius: 14px;
-    }
-
-    .watch-delivery-main {
-        display: grid;
-        grid-template-columns: minmax(190px, 1.1fr) minmax(260px, .9fr) auto;
-        gap: .75rem;
-        align-items: center;
-        padding: .78rem;
-    }
-
-    .watch-delivery h3 {
-        margin: 0;
-        overflow: hidden;
-        color: var(--watch-text);
-        font-size: .82rem;
-        font-weight: 820;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .watch-delivery p {
-        margin: .2rem 0 0;
-        color: var(--watch-faded);
-        font-size: .62rem;
-        line-height: 1.4;
-    }
-
-    .watch-badge {
-        display: inline-flex;
-        min-height: 25px;
-        align-items: center;
-        padding: .22rem .48rem;
-        border-radius: 999px;
-        background: var(--watch-muted);
-        color: var(--watch-secondary);
-        font-size: .57rem;
-        font-weight: 820;
-        white-space: nowrap;
-    }
-
-    .watch-badge.approved {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .watch-badge.pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .watch-badge.rejected {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .watch-destinations {
-        display: flex;
-        flex-wrap: wrap;
-        gap: .35rem;
-        padding: .62rem .78rem;
-        border-top: 1px solid var(--watch-border);
-        background: var(--watch-soft);
-    }
-
-    .watch-destination {
-        display: inline-flex;
-        align-items: center;
-        gap: .25rem;
-        padding: .3rem .44rem;
-        border: 1px solid var(--watch-border);
-        border-radius: 8px;
-        background: var(--watch-surface);
-        color: var(--watch-secondary);
-        font-size: .58rem;
-    }
-
-    .delivery-note-trigger {
-        display: inline-flex;
-        min-height: 32px;
-        align-items: center;
-        justify-content: center;
+        min-height: 39px;
         gap: .3rem;
-        margin: 0 .78rem .7rem;
-        padding: .38rem .52rem;
-        border: 1px solid var(--watch-border);
+        align-items: center;
+        justify-content: center;
+        padding: .44rem .62rem;
+        border: 1px solid var(--watch-green-deep);
         border-radius: 8px;
-        background: var(--watch-surface);
-        color: var(--watch-secondary);
-        cursor: pointer;
-        font: inherit;
-        font-size: .6rem;
-        font-weight: 760;
-    }
-
-    .watch-more {
-        width: calc(100% - 1.56rem);
-        margin: 0 .78rem .78rem;
-    }
-
-    .watch-empty {
-        grid-column: 1 / -1;
-        padding: 1.8rem .9rem;
-        border: 1px dashed var(--watch-border-strong);
-        border-radius: 12px;
-        background: var(--watch-soft);
-        color: var(--watch-secondary);
-        font-size: .68rem;
-        line-height: 1.5;
-        text-align: center;
-    }
-
-    .watch-filter-empty {
-        margin: 0 .78rem .78rem;
-    }
-
-    .watch-notes {
-        display: grid;
-        grid-template-columns: minmax(250px, .72fr) minmax(0, 1.28fr);
-        gap: .7rem;
-        padding: .78rem;
-    }
-
-    .watch-note-form,
-    .watch-note {
-        padding: .78rem;
-        border-radius: 13px;
-    }
-
-    .watch-note-form textarea {
-        min-height: 125px;
-        resize: vertical;
-    }
-
-    .watch-note-list {
-        display: grid;
-        align-content: start;
-        gap: .6rem;
-    }
-
-    .watch-note-meta {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: .6rem;
-        color: var(--watch-faded);
-        font-size: .58rem;
-        line-height: 1.35;
-    }
-
-    .watch-note p {
-        margin: .5rem 0 0;
-        color: var(--watch-text);
-        font-size: .68rem;
-        line-height: 1.55;
-        white-space: pre-wrap;
-    }
-
-    .watch-delete {
-        flex: 0 0 auto;
-        border: 0;
-        background: transparent;
-        color: #b91c1c;
-        cursor: pointer;
-        font: inherit;
-        font-size: .58rem;
-        font-weight: 820;
-    }
-
-
-    /*
-     * Tooltip global:
-     * o elemento é movido para document.body e usa position:fixed.
-     * Assim não é cortado por cards, seções ou modais com overflow.
-     */
-    .watch-floating-tooltip {
-        position: fixed;
-        z-index: 99999;
-        top: 0;
-        left: 0;
-        display: none;
-        width: max-content;
-        max-width: min(300px, calc(100vw - 24px));
-        padding: .52rem .64rem;
-        border: 1px solid rgba(255, 255, 255, .10);
-        border-radius: 8px;
-        background: #142219;
+        background: linear-gradient(135deg, var(--watch-green), var(--watch-green-deep));
         color: #fff;
-        box-shadow: 0 12px 30px rgba(15, 35, 24, .24);
-        font-size: .64rem;
-        font-weight: 650;
-        line-height: 1.48;
-        pointer-events: none;
+        cursor: pointer;
+        font: inherit;
+        font-size: .66rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+    .watch-button:hover,
+    .watch-button:focus-visible { box-shadow: 0 7px 16px rgba(33,150,83,.16); outline: none; }
+    .watch-button:disabled { cursor:not-allowed; opacity:.48; }
+
+    /* Tabelas principais */
+    .watch-table-wrap,
+    .watch-delivery-table-wrap { min-width:0; overflow:auto; padding:.62rem .68rem .68rem; }
+    .watch-data-table,
+    .watch-delivery-table {
+        width: 100%;
+        min-width: 760px;
+        border: 1px solid var(--watch-border);
+        border-radius: 9px;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+        background: #fff;
+        font-size: .68rem;
+    }
+
+    .watch-data-table thead th,
+    .watch-delivery-table thead th {
+        padding: .48rem .5rem;
+        border-bottom: 1px solid var(--watch-border-strong);
+        background: linear-gradient(180deg, #f7f9f8, #eef4f1);
+        color: #6d7b72;
+        font-size: .56rem;
+        font-weight: 830;
+        letter-spacing: .04em;
         text-align: left;
-        opacity: 0;
-        transform: translateY(4px);
-        transition: opacity 120ms ease, transform 120ms ease;
+        text-transform: uppercase;
+        white-space: nowrap;
     }
 
-    .watch-floating-tooltip.is-visible {
-        display: block;
-        opacity: 1;
-        transform: translateY(0);
+    .watch-data-table tbody tr,
+    .watch-delivery-table tbody tr { transition: background .12s ease; }
+    .watch-data-table tbody tr:hover,
+    .watch-delivery-table tbody tr:not(.watch-distribution-row):hover { background:#fafcfb; }
+
+    .watch-data-table td,
+    .watch-delivery-table td {
+        padding: .48rem .5rem;
+        border-bottom: 1px solid var(--watch-border);
+        vertical-align: middle;
+        color: var(--watch-secondary);
     }
 
-    .watch-floating-tooltip::after {
-        position: absolute;
-        left: var(--tooltip-arrow-left, 50%);
-        width: 9px;
-        height: 9px;
-        background: #142219;
-        content: "";
-        transform: translateX(-50%) rotate(45deg);
+    .watch-data-table tbody tr:last-child td,
+    .watch-delivery-table tbody tr:last-child td { border-bottom: 0; }
+
+    .is-number { text-align:right !important; white-space:nowrap; font-variant-numeric: tabular-nums; }
+    .table-primary { color:var(--watch-text); font-weight:820; }
+    .table-secondary { display:block; margin-top:.05rem; color:var(--watch-faded); font-size:.58rem; line-height:1.3; }
+    .table-link { color:var(--watch-text); text-decoration:none; }
+    .table-link:hover { color:var(--watch-green-deep); }
+    .table-action { display:inline-grid; width:29px; height:29px; place-items:center; border-radius:7px; background:var(--watch-green-soft); color:var(--watch-green-deep); text-decoration:none; }
+    .table-action:hover { background:var(--watch-green); color:#fff; }
+
+    .watch-meter { width:100%; height:6px; margin-top:.22rem; }
+    .watch-meter.warn > span { background:var(--watch-amber); }
+    .watch-meter.done > span { background:var(--watch-green-deep); }
+    .watch-progress-text { display:flex; justify-content:space-between; gap:.3rem; color:var(--watch-faded); font-size:.55rem; white-space:nowrap; }
+
+    .watch-distribution-row td {
+        padding: .38rem .5rem .38rem 1.75rem;
+        background: #f8fbf9;
+        color: var(--watch-secondary);
+        font-size: .62rem;
     }
 
-    .watch-floating-tooltip.is-above::after {
-        bottom: -4px;
+    .watch-distribution-mark { color:var(--watch-sky); font-weight:800; }
+
+    .watch-table-note {
+        display:inline-flex;
+        gap:.24rem;
+        align-items:center;
+        margin-left:.3rem;
+        padding:.2rem .34rem;
+        border:1px solid var(--watch-border);
+        border-radius:6px;
+        background:#fff;
+        color:var(--watch-secondary);
+        cursor:pointer;
+        font:inherit;
+        font-size:.56rem;
+        font-weight:750;
     }
 
-    .watch-floating-tooltip.is-below::after {
-        top: -4px;
+    /* Entregas mobile - desktop usa tabela */
+    .watch-deliveries { display:none; padding:.62rem; }
+    .watch-delivery { overflow:hidden; margin-bottom:.5rem; border:1px solid var(--watch-border); border-left:3px solid var(--watch-blue); border-radius:9px; background:#fff; }
+    .watch-delivery-main { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.48rem; padding:.58rem; align-items:start; }
+    .watch-delivery h3 { margin:0; overflow:hidden; color:var(--watch-text); font-size:.74rem; font-weight:820; text-overflow:ellipsis; white-space:nowrap; }
+    .watch-delivery p { margin:.08rem 0 0; color:var(--watch-faded); font-size:.58rem; }
+    .watch-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; grid-column:1/-1; }
+    .watch-value { min-width:0; padding:.38rem .42rem; border-radius:7px; background:var(--watch-soft); }
+    .watch-value span { display:block; color:var(--watch-faded); font-size:.55rem; }
+    .watch-value strong { display:block; margin-top:.04rem; color:var(--watch-text); font-size:.65rem; font-weight:820; }
+    .watch-destinations { display:flex; flex-wrap:wrap; gap:.28rem; padding:.5rem .58rem; border-top:1px solid var(--watch-border); background:var(--watch-soft); }
+    .watch-destination { display:inline-flex; gap:.2rem; align-items:center; padding:.22rem .32rem; border:1px solid var(--watch-border); border-radius:6px; background:#fff; color:var(--watch-secondary); font-size:.56rem; }
+    .delivery-note-trigger { display:inline-flex; min-height:30px; gap:.25rem; align-items:center; margin:0 .58rem .52rem; padding:.34rem .46rem; border:1px solid var(--watch-border); border-radius:7px; background:#fff; color:var(--watch-secondary); cursor:pointer; font:inherit; font-size:.58rem; font-weight:760; }
+
+    /* Documentos em uma única tabela */
+    .document-type { display:inline-flex; gap:.28rem; align-items:center; font-weight:790; color:var(--watch-text); }
+    .document-type.receipt { color:var(--watch-green-deep); }
+    .document-type.billing { color:var(--watch-blue); }
+    .document-type.sheet { color:var(--watch-violet); }
+
+    /* Anotações: um formulário + lista contínua */
+    .watch-notes { display:grid; grid-template-columns:minmax(260px,.6fr) minmax(0,1.4fr); gap:.65rem; padding:.65rem; }
+    .watch-note-form { padding:.62rem; border:1px solid var(--watch-border); border-radius:9px; background:var(--watch-soft); }
+    .watch-note-form textarea { min-height:120px; resize:vertical; }
+    .watch-note-list { overflow:hidden; border:1px solid var(--watch-border); border-radius:9px; background:#fff; }
+    .watch-note { padding:.62rem .68rem; }
+    .watch-note + .watch-note { border-top:1px solid var(--watch-border); }
+    .watch-note-meta { display:flex; gap:.5rem; align-items:flex-start; justify-content:space-between; color:var(--watch-faded); font-size:.57rem; }
+    .watch-note p { margin:.34rem 0 0; color:var(--watch-text); font-size:.66rem; line-height:1.5; white-space:pre-wrap; }
+    .watch-delete { border:0; background:transparent; color:var(--watch-red); cursor:pointer; font:inherit; font-size:.57rem; font-weight:820; }
+
+    /* Estados */
+    .watch-loading { display:grid; min-height:220px; place-items:center; border:1px solid var(--watch-border); border-radius:12px; background:#fff; color:var(--watch-secondary); font-size:.7rem; text-align:center; }
+    .watch-spinner { width:28px; height:28px; margin:0 auto .58rem; border:3px solid var(--watch-border); border-top-color:var(--watch-green); border-radius:50%; animation:watch-spin .72s linear infinite; }
+    @keyframes watch-spin { to { transform:rotate(360deg); } }
+    .watch-error { padding:.68rem; border:1px solid var(--watch-red-border); border-radius:8px; background:var(--watch-red-soft); color:#9f3434; font-size:.66rem; font-weight:650; }
+    .watch-empty { padding:1rem .7rem; color:var(--watch-secondary); font-size:.64rem; line-height:1.45; text-align:center; }
+    .watch-table-empty td { padding:1.1rem .7rem !important; color:var(--watch-faded); text-align:center; }
+    .watch-filter-empty { margin:0 .68rem .68rem; border:1px dashed var(--watch-border-strong); border-radius:8px; background:var(--watch-soft); }
+    .watch-more { width:calc(100% - 1.36rem); margin:0 .68rem .68rem; }
+    .watch-tip { display:inline-grid; width:20px; height:20px; place-items:center; border:0; border-radius:50%; background:var(--watch-muted); color:var(--watch-secondary); cursor:help; font:inherit; }
+
+    /* Tooltip */
+    .watch-floating-tooltip {
+        position:fixed;
+        z-index:99999;
+        top:0;
+        left:0;
+        display:none;
+        width:max-content;
+        max-width:min(300px,calc(100vw - 24px));
+        padding:.48rem .58rem;
+        border:1px solid rgba(255,255,255,.10);
+        border-radius:7px;
+        background:#142219;
+        color:#fff;
+        box-shadow:0 12px 30px rgba(15,35,24,.24);
+        font-size:.62rem;
+        font-weight:650;
+        line-height:1.45;
+        pointer-events:none;
+        text-align:left;
+        opacity:0;
+        transform:translateY(4px);
+        transition:opacity 120ms ease,transform 120ms ease;
+    }
+    .watch-floating-tooltip.is-visible { display:block; opacity:1; transform:translateY(0); }
+    .watch-floating-tooltip::after { position:absolute; left:var(--tooltip-arrow-left,50%); width:9px; height:9px; background:#142219; content:""; transform:translateX(-50%) rotate(45deg); }
+    .watch-floating-tooltip.is-above::after { bottom:-4px; }
+    .watch-floating-tooltip.is-below::after { top:-4px; }
+
+    @media (max-width: 980px) {
+        .watch-summary { grid-template-columns:1fr; }
+        .watch-progress-card { border-right:0; border-bottom:1px solid var(--watch-border); }
+        .watch-tabs { display:flex; overflow-x:auto; scrollbar-width:none; }
+        .watch-tabs::-webkit-scrollbar { display:none; }
+        .watch-tab { min-width:110px; flex:0 0 auto; }
+        .watch-notes { grid-template-columns:1fr; }
     }
 
-    @media (max-width: 1050px) {
-        .watch-summary {
-            grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr);
-        }
-
-        .watch-numbers {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .watch-number:last-child {
-            grid-column: span 2;
-        }
-
-        .watch-delivery-main {
-            grid-template-columns: minmax(180px, 1fr) minmax(250px, 1fr);
-        }
-
-        .watch-delivery-main > .watch-badge {
-            grid-column: 1 / -1;
-            width: max-content;
-        }
-    }
-
-    @media (max-width: 780px) {
-        .watch-projectbar {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .watch-project-actions {
-            position: absolute;
-            top: .72rem;
-            right: .72rem;
-        }
-
-        .watch-project-copy {
-            padding-right: 2.8rem;
-        }
-
-        .watch-tabs {
-            display: flex;
-            overflow-x: auto;
-            scrollbar-width: none;
-        }
-
-        .watch-tabs::-webkit-scrollbar {
-            display: none;
-        }
-
-        .watch-tab {
-            min-width: 104px;
-            flex: 1 0 104px;
-        }
-
-        .watch-summary,
-        .watch-notes {
-            grid-template-columns: 1fr;
-        }
-
-        .watch-numbers {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
-
-        .watch-number:last-child {
-            grid-column: auto;
-        }
-
-        .watch-section-head {
-            align-items: stretch;
-            flex-direction: column;
-        }
-
-        .watch-search-wrap {
-            width: 100%;
-        }
-
-        .watch-filter {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .watch-filter .watch-button {
-            grid-column: 1 / -1;
-        }
-
-        .watch-delivery-main {
-            grid-template-columns: 1fr;
-        }
-
-        .watch-delivery-main > .watch-badge {
-            grid-column: auto;
-        }
-    }
-
-    @media (max-width: 600px) {
-        .watch-shell {
-            gap: .7rem;
-        }
-
-        .watch-projectbar {
-            padding: .68rem;
-            border-radius: 12px;
-        }
-
-        .watch-back {
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-        }
-
-        .watch-project-title {
-            font-size: 1rem;
-        }
-
-        .watch-project-meta {
-            gap: .28rem .5rem;
-            font-size: .62rem;
-        }
-
-        .watch-tabs {
-            top: .25rem;
-            border-radius: 11px;
-        }
-
-        .watch-tab {
-            min-width: 88px;
-            flex-basis: 88px;
-            min-height: 42px;
-            padding: .45rem .5rem;
-        }
-
-        .watch-tab span:not(.watch-tab-count) {
-            display: none;
-        }
-
-        .watch-summary {
-            gap: .62rem;
-        }
-
-        .watch-progress-card {
-            padding: .82rem;
-            border-radius: 13px;
-        }
-
-        .watch-numbers {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .52rem;
-        }
-
-        .watch-number,
-        .watch-card {
-            padding: .72rem;
-            border-radius: 12px;
-        }
-
-        .watch-number:last-child {
-            grid-column: span 2;
-        }
-
-        .watch-section {
-            border-radius: 13px;
-        }
-
-        .watch-section-head {
-            min-height: 0;
-            padding: .65rem;
-        }
-
-        .watch-grid,
-        .watch-deliveries,
-        .watch-notes {
-            grid-template-columns: 1fr;
-            gap: .58rem;
-            padding: .65rem;
-        }
-        .watch-resource-grid { grid-template-columns:1fr; padding:.65rem; }
+    @media (max-width: 760px) {
+        .watch-projectbar { grid-template-columns:auto minmax(0,1fr) auto; }
+        .watch-project-title { font-size:.98rem; }
+        .watch-tab { min-width:88px; }
+        .watch-tab span:not(.watch-tab-count) { display:none; }
+        .watch-section-head { align-items:stretch; flex-direction:column; }
+        .watch-search-wrap { width:100%; }
+        .watch-filter { grid-template-columns:1fr 1fr; }
+        .watch-filter .watch-button { grid-column:1/-1; }
         .watch-delivery-table-wrap { display:none; }
+        .watch-deliveries { display:block; }
 
-        .watch-filter {
-            grid-template-columns: 1fr;
-            padding: .65rem;
+        .watch-table-wrap { overflow:visible; padding:.56rem; }
+        .watch-data-table { min-width:0; border:0; background:transparent; }
+        .watch-data-table thead { display:none; }
+        .watch-data-table tbody,
+        .watch-data-table tr,
+        .watch-data-table td { display:block; width:100%; }
+        .watch-data-table tr {
+            position:relative;
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:.35rem .5rem;
+            margin-bottom:.5rem;
+            padding:.55rem;
+            border:1px solid var(--watch-border);
+            border-left:3px solid var(--watch-green);
+            border-radius:8px;
+            background:#fff;
         }
+        .watch-data-table tr:last-child { margin-bottom:0; }
+        .watch-data-table tr[hidden] { display:none !important; }
+        .watch-data-table td {
+            min-width:0;
+            padding:.24rem 0;
+            border:0 !important;
+            text-align:left !important;
+            white-space:normal !important;
+        }
+        .watch-data-table td::before {
+            display:block;
+            margin-bottom:.04rem;
+            color:var(--watch-faded);
+            content:attr(data-label);
+            font-size:.52rem;
+            font-weight:780;
+            letter-spacing:.035em;
+            text-transform:uppercase;
+        }
+        .watch-data-table td.table-main-cell,
+        .watch-data-table td.table-progress-cell { grid-column:1/-1; }
+        .watch-data-table td.table-action-cell { position:absolute; top:.48rem; right:.48rem; width:auto; }
+        .watch-data-table td.table-action-cell::before { display:none; }
+        .watch-data-table .watch-table-empty { display:block; }
+        .watch-data-table .watch-table-empty td { display:block; }
+        .watch-data-table .watch-table-empty td::before { display:none; }
+    }
 
-        .watch-filter .watch-button {
-            grid-column: auto;
-        }
-
-        .watch-values {
-            gap: .3rem;
-        }
-
-        .watch-value {
-            padding: .4rem;
-        }
-
-        .watch-delivery {
-            border-radius: 12px;
-        }
-
-        .watch-delivery-main {
-            padding: .68rem;
-        }
-
-        .watch-destinations {
-            padding: .55rem .68rem;
-        }
-
-        .watch-more {
-            width: calc(100% - 1.3rem);
-            margin: 0 .65rem .65rem;
-        }
+    @media (max-width: 520px) {
+        .watch-shell { gap:.65rem; }
+        .watch-projectbar { padding:.58rem; }
+        .watch-icon-btn { display:none; }
+        .watch-project-meta { font-size:.59rem; }
+        .watch-summary-table-wrap { padding:.42rem .5rem; }
+        .watch-summary-table td { padding:.42rem .22rem; }
+        .summary-hint { display:none; }
+        .watch-filter { grid-template-columns:1fr; padding:.56rem; }
+        .watch-filter .watch-button { grid-column:auto; }
+        .watch-values { grid-template-columns:1fr 1fr; }
+        .watch-values .watch-value:last-child { grid-column:1/-1; }
+        .watch-data-table tr { grid-template-columns:1fr; }
+        .watch-data-table td.table-main-cell,
+        .watch-data-table td.table-progress-cell { grid-column:1; }
+        .watch-notes { padding:.56rem; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
+        .watch-shell *,
+        .watch-shell *::before,
+        .watch-shell *::after {
+            animation-duration:.01ms !important;
+            animation-iteration-count:1 !important;
+            scroll-behavior:auto !important;
+            transition-duration:.01ms !important;
         }
     }
 </style>
@@ -1338,13 +695,13 @@
             aria-label="Voltar aos projetos"
             title="Voltar aos projetos"
         >
-            <i data-lucide="arrow-left"></i>
+            <i class="ph ph-arrow-left" aria-hidden="true"></i>
         </a>
 
         <div class="watch-project-copy">
             <div class="watch-project-kicker">
-                <i data-lucide="folder-kanban"></i>
-                Acompanhamento
+                <i class="ph-fill ph-folder-open" aria-hidden="true"></i>
+                Acompanhamento do projeto
             </div>
 
             <h1 class="watch-project-title" title="{{ $project->title }}">
@@ -1353,7 +710,7 @@
 
             <div class="watch-project-meta">
                 <span>
-                    <i data-lucide="calendar-days"></i>
+                    <i class="ph ph-calendar-dots" aria-hidden="true"></i>
                     <span id="projectPeriod">Carregando período...</span>
                 </span>
 
@@ -1366,44 +723,44 @@
                 class="watch-icon-btn"
                 type="button"
                 aria-label="Ajuda sobre esta página"
-                data-tooltip="Use as abas para consultar o resumo, produtos, associados, entregas e anotações deste projeto."
+                data-tooltip="Use as abas para consultar o resumo, produtos, associados, entregas, documentos e anotações deste projeto."
             >
-                <i data-lucide="circle-help"></i>
+                <i class="ph ph-question" aria-hidden="true"></i>
             </button>
         </div>
     </header>
 
     <nav class="watch-tabs" role="tablist" aria-label="Dados do projeto">
         <button class="watch-tab active" type="button" role="tab" aria-selected="true" aria-controls="watch-panel-overview" data-panel="overview">
-            <i data-lucide="layout-dashboard"></i>
+            <i class="ph-fill ph-chart-donut" aria-hidden="true"></i>
             <span>Visão geral</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-products" data-panel="products">
-            <i data-lucide="package"></i>
+            <i class="ph-fill ph-package" aria-hidden="true"></i>
             <span>Produtos</span>
             <span class="watch-tab-count" id="productTabCount">—</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-associates" data-panel="associates">
-            <i data-lucide="users-round"></i>
+            <i class="ph-fill ph-users-three" aria-hidden="true"></i>
             <span>Associados</span>
             <span class="watch-tab-count" id="associateTabCount">—</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-deliveries" data-panel="deliveries">
-            <i data-lucide="truck"></i>
+            <i class="ph-fill ph-truck" aria-hidden="true"></i>
             <span>Entregas</span>
             <span class="watch-tab-count" id="pendingTabCount">—</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-documents" data-panel="documents">
-            <i data-lucide="files"></i>
+            <i class="ph-fill ph-files" aria-hidden="true"></i>
             <span>Documentos</span>
         </button>
 
         <button class="watch-tab" type="button" role="tab" aria-selected="false" aria-controls="watch-panel-notes" data-panel="notes">
-            <i data-lucide="notebook-pen"></i>
+            <i class="ph-fill ph-note-pencil" aria-hidden="true"></i>
             <span>Anotações</span>
         </button>
     </nav>
@@ -1422,7 +779,7 @@
             <article class="watch-progress-card">
                 <div class="watch-progress-head">
                     <div class="watch-progress-label">
-                        <i data-lucide="route"></i>
+                        <i class="ph-fill ph-arrows-split" aria-hidden="true"></i>
                         Distribuição do recebido
 
                         <button
@@ -1431,7 +788,7 @@
                             aria-label="Como o percentual é calculado"
                             data-tooltip="Percentual calculado pela quantidade distribuída dividida pela quantidade recebida."
                         >
-                            <i data-lucide="info"></i>
+                            <i class="ph ph-info" aria-hidden="true"></i>
                         </button>
                     </div>
 
@@ -1455,24 +812,37 @@
                 </p>
             </article>
 
-            <div class="watch-numbers" id="summaryNumbers"></div>
+            <div class="watch-summary-table-wrap">
+                <table class="watch-summary-table" aria-label="Indicadores principais do projeto">
+                    <tbody id="summaryNumbers"></tbody>
+                </table>
+            </div>
         </div>
 
         <section class="watch-section">
             <header class="watch-section-head">
                 <div class="watch-section-title">
                     <span class="watch-section-icon">
-                        <i data-lucide="building-2"></i>
+                        <i class="ph-fill ph-buildings" aria-hidden="true"></i>
                     </span>
-
                     <div>
                         <h2>Destinos dos produtos</h2>
-                        <p>Quantidade já distribuída por cliente.</p>
+                        <p>Quantidade já distribuída para cada cliente.</p>
                     </div>
                 </div>
             </header>
 
-            <div class="watch-grid" id="customerGrid"></div>
+            <div class="watch-table-wrap">
+                <table class="watch-data-table" aria-label="Distribuição por cliente">
+                    <thead>
+                        <tr>
+                            <th>Cliente / destino</th>
+                            <th class="is-number">Quantidade distribuída</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customerGrid"></tbody>
+                </table>
+            </div>
         </section>
     </section>
 
@@ -1480,18 +850,17 @@
         <section class="watch-section" style="margin-top:0">
             <header class="watch-section-head">
                 <div class="watch-section-title">
-                    <span class="watch-section-icon">
-                        <i data-lucide="package"></i>
+                    <span class="watch-section-icon products">
+                        <i class="ph-fill ph-package" aria-hidden="true"></i>
                     </span>
-
                     <div>
                         <h2>Produtos</h2>
-                        <p>Meta, recebido, distribuído e saldo.</p>
+                        <p>Meta, recebido, distribuído, saldo e progresso.</p>
                     </div>
                 </div>
 
                 <label class="watch-search-wrap">
-                    <i data-lucide="search"></i>
+                    <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
                     <input
                         class="watch-search"
                         id="productSearch"
@@ -1503,7 +872,22 @@
                 </label>
             </header>
 
-            <div class="watch-grid" id="productGrid"></div>
+            <div class="watch-table-wrap">
+                <table class="watch-data-table" aria-label="Produtos do projeto">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th class="is-number">Meta</th>
+                            <th class="is-number">Recebido</th>
+                            <th class="is-number">Distribuído</th>
+                            <th class="is-number">Saldo</th>
+                            <th>Progresso</th>
+                            <th aria-label="Ações"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="productGrid"></tbody>
+                </table>
+            </div>
 
             <div class="watch-empty watch-filter-empty" id="productFilterEmpty" hidden>
                 Nenhum produto corresponde à busca.
@@ -1515,18 +899,17 @@
         <section class="watch-section" style="margin-top:0">
             <header class="watch-section-head">
                 <div class="watch-section-title">
-                    <span class="watch-section-icon">
-                        <i data-lucide="users-round"></i>
+                    <span class="watch-section-icon associates">
+                        <i class="ph-fill ph-users-three" aria-hidden="true"></i>
                     </span>
-
                     <div>
                         <h2>Associados</h2>
-                        <p>Participação, limites e movimentação.</p>
+                        <p>Participação, entregas, limites e movimentação.</p>
                     </div>
                 </div>
 
                 <label class="watch-search-wrap">
-                    <i data-lucide="search"></i>
+                    <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
                     <input
                         class="watch-search"
                         id="associateSearch"
@@ -1538,7 +921,22 @@
                 </label>
             </header>
 
-            <div class="watch-grid" id="associateGrid"></div>
+            <div class="watch-table-wrap">
+                <table class="watch-data-table" aria-label="Associados participantes">
+                    <thead>
+                        <tr>
+                            <th>Associado</th>
+                            <th class="is-number">Entregas</th>
+                            <th class="is-number">Recebido</th>
+                            <th class="is-number">Distribuído</th>
+                            <th class="is-number">Produtos c/ limite</th>
+                            <th>Uso dos limites</th>
+                            <th aria-label="Ações"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="associateGrid"></tbody>
+                </table>
+            </div>
 
             <div class="watch-empty watch-filter-empty" id="associateFilterEmpty" hidden>
                 Nenhum associado corresponde à busca.
@@ -1550,13 +948,12 @@
         <section class="watch-section" style="margin-top:0">
             <header class="watch-section-head">
                 <div class="watch-section-title">
-                    <span class="watch-section-icon">
-                        <i data-lucide="truck"></i>
+                    <span class="watch-section-icon deliveries">
+                        <i class="ph-fill ph-truck" aria-hidden="true"></i>
                     </span>
-
                     <div>
                         <h2>Entregas</h2>
-                        <p>Registros, quantidades e destinos.</p>
+                        <p>Registros físicos e respectivas distribuições.</p>
                     </div>
                 </div>
             </header>
@@ -1572,7 +969,6 @@
 
                 <select class="watch-control" id="deliveryStatus">
                     <option value="">Todos os status</option>
-
                     @foreach(\App\Enums\DeliveryStatus::cases() as $status)
                         <option value="{{ $status->value }}">
                             {{ $status->getLabel() }}
@@ -1581,7 +977,7 @@
                 </select>
 
                 <button class="watch-button" type="submit">
-                    <i data-lucide="search"></i>
+                    <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
                     Buscar
                 </button>
             </form>
@@ -1590,17 +986,24 @@
 
             <div class="watch-delivery-table-wrap">
                 <table class="watch-delivery-table" aria-label="Tabela de entregas e distribuições">
-                    <thead><tr><th>Entrega</th><th>Associado</th><th>Produto</th><th>Data</th><th class="is-number">Recebido</th><th class="is-number">Distribuído</th><th class="is-number">Saldo</th><th>Status / destino</th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th>Entrega</th>
+                            <th>Associado</th>
+                            <th>Produto</th>
+                            <th>Data</th>
+                            <th class="is-number">Recebido</th>
+                            <th class="is-number">Distribuído</th>
+                            <th class="is-number">Saldo</th>
+                            <th>Status / observação</th>
+                        </tr>
+                    </thead>
                     <tbody id="deliveryTableBody"></tbody>
                 </table>
             </div>
 
-            <button
-                class="watch-button watch-more"
-                id="loadMoreDeliveries"
-                type="button"
-                hidden
-            >
+            <button class="watch-button watch-more" id="loadMoreDeliveries" type="button" hidden>
+                <i class="ph ph-caret-down" aria-hidden="true"></i>
                 Mostrar mais entregas
             </button>
         </section>
@@ -1608,8 +1011,38 @@
 
     <section class="watch-panel" id="watch-panel-documents" role="tabpanel" data-panel-content="documents" hidden>
         <section class="watch-section" style="margin-top:0">
-            <header class="watch-section-head"><div class="watch-section-title"><span class="watch-section-icon"><i data-lucide="files"></i></span><div><h2>Documentos do projeto</h2><p>Comprovantes dos associados, cobranças ao cliente e folhas de conferência.</p></div></div><a class="watch-button" href="{{ route('delivery.conference-sheets.index', ['tenant' => $tenant->slug, 'project' => $project->id]) }}"><i data-lucide="clipboard-check"></i> Folhas de conferência</a></header>
-            <div class="watch-resource-grid" id="documentGrid"></div>
+            <header class="watch-section-head">
+                <div class="watch-section-title">
+                    <span class="watch-section-icon documents">
+                        <i class="ph-fill ph-files" aria-hidden="true"></i>
+                    </span>
+                    <div>
+                        <h2>Documentos do projeto</h2>
+                        <p>Comprovantes, cobranças e folhas de conferência em uma única visão.</p>
+                    </div>
+                </div>
+
+                <a class="watch-button" href="{{ route('delivery.conference-sheets.index', ['tenant' => $tenant->slug, 'project' => $project->id]) }}">
+                    <i class="ph ph-clipboard-text" aria-hidden="true"></i>
+                    Folhas de conferência
+                </a>
+            </header>
+
+            <div class="watch-table-wrap">
+                <table class="watch-data-table" aria-label="Documentos do projeto">
+                    <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Documento</th>
+                            <th>Referência</th>
+                            <th>Status</th>
+                            <th class="is-number">Valor / quantidade</th>
+                            <th aria-label="Ações"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentGrid"></tbody>
+                </table>
+            </div>
         </section>
     </section>
 
@@ -1617,18 +1050,17 @@
         <section class="watch-section" style="margin-top:0">
             <header class="watch-section-head">
                 <div class="watch-section-title">
-                    <span class="watch-section-icon">
-                        <i data-lucide="notebook-pen"></i>
+                    <span class="watch-section-icon notes">
+                        <i class="ph-fill ph-note-pencil" aria-hidden="true"></i>
                     </span>
-
                     <div>
                         <h2>Anotações</h2>
-                        <p>Registros internos sobre o andamento.</p>
+                        <p>Registros internos sobre o andamento do projeto.</p>
                     </div>
                 </div>
             </header>
 
-            <div class="watch-error" id="noteFeedback" hidden style="margin:.78rem .78rem 0"></div>
+            <div class="watch-error" id="noteFeedback" hidden style="margin:.65rem .65rem 0"></div>
 
             <div class="watch-notes">
                 <form class="watch-note-form" id="noteForm">
@@ -1640,8 +1072,8 @@
                         placeholder="Escreva uma anotação..."
                     ></textarea>
 
-                    <button class="watch-button" style="width:100%;margin-top:.5rem" type="submit">
-                        <i data-lucide="plus"></i>
+                    <button class="watch-button" style="width:100%;margin-top:.45rem" type="submit">
+                        <i class="ph ph-plus" aria-hidden="true"></i>
                         Adicionar anotação
                     </button>
                 </form>
@@ -1650,15 +1082,9 @@
             </div>
         </section>
     </section>
-
 </div>
 
-<div
-    class="watch-floating-tooltip"
-    id="watchFloatingTooltip"
-    role="tooltip"
-    aria-hidden="true"
-></div>
+<div class="watch-floating-tooltip" id="watchFloatingTooltip" role="tooltip" aria-hidden="true"></div>
 
 <x-delivery.notes-modal />
 @endsection
@@ -1757,6 +1183,12 @@
 
     const empty = message => `
         <div class="watch-empty">${esc(message)}</div>
+    `;
+
+    const tableEmpty = (message, colspan = 1) => `
+        <tr class="watch-table-empty">
+            <td colspan="${Number(colspan)}">${esc(message)}</td>
+        </tr>
     `;
 
     const refreshIcons = () => window.lucide?.createIcons();
@@ -1942,45 +1374,39 @@
         tooltip = '',
         tone = '',
     }) {
+        const iconMap = {
+            'package-check': 'ph-package',
+            'route': 'ph-arrows-split',
+            'users-round': 'ph-users-three',
+            'boxes': 'ph-package',
+            'calculator': 'ph-calculator',
+        };
+
+        const phIcon = iconMap[icon] || 'ph-circle';
+
         return `
-            <article class="watch-number ${tone}">
-                <div class="watch-number-head">
-                    <span class="watch-number-icon">
-                        <i data-lucide="${icon}"></i>
+            <tr class="${esc(tone)}">
+                <td>
+                    <span class="summary-label">
+                        <span class="summary-label-icon">
+                            <i class="ph-fill ${phIcon}" aria-hidden="true"></i>
+                        </span>
+                        <span>${esc(label)}</span>
+                        ${tooltip ? `
+                            <button
+                                class="watch-tip"
+                                type="button"
+                                aria-label="${esc(tooltip)}"
+                                data-tooltip="${esc(tooltip)}"
+                            >
+                                <i class="ph ph-info" aria-hidden="true"></i>
+                            </button>
+                        ` : ''}
                     </span>
-
-                    ${tooltip ? `
-                        <button
-                            class="watch-tip"
-                            type="button"
-                            aria-label="${esc(tooltip)}"
-                            data-tooltip="${esc(tooltip)}"
-                        >
-                            <i data-lucide="info"></i>
-                        </button>
-                    ` : ''}
-                </div>
-
-                <div class="watch-number-label">
-                    ${esc(label)}
-                </div>
-
-                <div
-                    class="watch-number-value"
-                    title="${esc(value)}"
-                >
-                    ${esc(value)}
-                </div>
-
-                ${hint ? `
-                    <div
-                        class="watch-number-hint"
-                        title="${esc(hint)}"
-                    >
-                        ${esc(hint)}
-                    </div>
-                ` : ''}
-            </article>
+                </td>
+                <td class="summary-value">${esc(value)}</td>
+                <td class="summary-hint">${esc(hint)}</td>
+            </tr>
         `;
     }
 
@@ -2100,48 +1526,90 @@
 
         elements.customerGrid.innerHTML = data.customers.length
             ? data.customers.map(customer => `
-                <article class="watch-card">
-                    <div class="watch-card-top">
-                        <div class="watch-card-heading">
-                            <h3 title="${esc(customer?.name || 'Cliente')}">
-                                ${esc(customer?.name || 'Cliente')}
-                            </h3>
-
-                            <div class="watch-card-sub">
-                                Quantidade distribuída no projeto
-                            </div>
-                        </div>
-
-                        <span class="watch-card-icon">
-                            <i data-lucide="building-2"></i>
-                        </span>
-                    </div>
-
-                    <div class="watch-values">
-                        <div
-                            class="watch-value"
-                            style="grid-column:1/-1"
-                        >
-                            <span>Distribuído</span>
-                            <strong>${fmt(customer?.quantity)}</strong>
-                        </div>
-                    </div>
-                </article>
+                <tr>
+                    <td class="table-main-cell" data-label="Cliente / destino">
+                        <span class="table-primary">${esc(customer?.name || 'Cliente')}</span>
+                        <span class="table-secondary">Destino com distribuição confirmada</span>
+                    </td>
+                    <td class="is-number" data-label="Quantidade distribuída">
+                        <span class="table-primary">${fmt(customer?.quantity)}</span>
+                    </td>
+                </tr>
             `).join('')
-            : empty(
-                'Nenhuma distribuição aprovada até o momento.'
+            : tableEmpty(
+                'Nenhuma distribuição aprovada até o momento.',
+                2
             );
 
         return data;
     }
 
     function renderDocuments(documents) {
-        const section = (title, icon, items, renderItem, emptyText) => `<article class="watch-resource-card"><h3><i data-lucide="${icon}"></i> ${esc(title)}</h3>${items.length ? items.map(renderItem).join('') : `<p class="watch-empty">${esc(emptyText)}</p>`}</article>`;
         const receiptItems = asArray(documents?.receipts);
         const billingItems = asArray(documents?.billings);
         const sheetItems = asArray(documents?.sheets);
-        elements.documentGrid.innerHTML = section('Comprovantes', 'file-check-2', receiptItems, item => `<div class="watch-resource-item"><span><strong>N&ordm; ${esc(item.number)}</strong>${esc(item.associate)} · ${esc(item.date || '—')}</span><span>${money(item.total)}</span></div>`, 'Nenhum comprovante gerado.') + section('Cobranças ao cliente', 'receipt-text', billingItems, item => `<div class="watch-resource-item"><span><strong>N&ordm; ${esc(item.number)}</strong>${esc(item.recipient)} · ${esc(item.status)}</span><span>${money(item.total)}</span></div>`, 'Nenhuma cobrança criada.') + section('Folhas de conferência', 'clipboard-check', sheetItems, item => `<a class="watch-resource-item watch-resource-link" href="${esc(item.url)}"><span><strong>${esc(item.number)}</strong>${esc(item.status)} · ${fmt(item.distributions)} distribuições</span><i data-lucide="arrow-up-right"></i></a>`, 'Nenhuma folha criada.');
-        refreshIcons();
+
+        const rows = [
+            ...receiptItems.map(item => `
+                <tr>
+                    <td data-label="Tipo">
+                        <span class="document-type receipt">
+                            <i class="ph-fill ph-file-check"></i>
+                            Comprovante
+                        </span>
+                    </td>
+                    <td class="table-main-cell" data-label="Documento">
+                        <span class="table-primary">Nº ${esc(item.number)}</span>
+                        <span class="table-secondary">${esc(item.date || 'Data não informada')}</span>
+                    </td>
+                    <td data-label="Referência">${esc(item.associate || 'Associado')}</td>
+                    <td data-label="Status"><span class="watch-badge approved">Gerado</span></td>
+                    <td class="is-number" data-label="Valor / quantidade"><span class="table-primary">${money(item.total)}</span></td>
+                    <td class="table-action-cell" data-label="Ação"></td>
+                </tr>
+            `),
+            ...billingItems.map(item => `
+                <tr>
+                    <td data-label="Tipo">
+                        <span class="document-type billing">
+                            <i class="ph-fill ph-receipt"></i>
+                            Cobrança
+                        </span>
+                    </td>
+                    <td class="table-main-cell" data-label="Documento">
+                        <span class="table-primary">Nº ${esc(item.number)}</span>
+                    </td>
+                    <td data-label="Referência">${esc(item.recipient || 'Cliente')}</td>
+                    <td data-label="Status"><span class="watch-badge ${safeClass(item.status)}">${esc(item.status || '—')}</span></td>
+                    <td class="is-number" data-label="Valor / quantidade"><span class="table-primary">${money(item.total)}</span></td>
+                    <td class="table-action-cell" data-label="Ação"></td>
+                </tr>
+            `),
+            ...sheetItems.map(item => `
+                <tr>
+                    <td data-label="Tipo">
+                        <span class="document-type sheet">
+                            <i class="ph-fill ph-clipboard-text"></i>
+                            Conferência
+                        </span>
+                    </td>
+                    <td class="table-main-cell" data-label="Documento">
+                        <span class="table-primary">${esc(item.number)}</span>
+                    </td>
+                    <td data-label="Referência">Folha de conferência</td>
+                    <td data-label="Status"><span class="watch-badge ${safeClass(item.status)}">${esc(item.status || '—')}</span></td>
+                    <td class="is-number" data-label="Valor / quantidade"><span class="table-primary">${fmt(item.distributions)} distribuições</span></td>
+                    <td class="table-action-cell" data-label="Ação">
+                        <a class="table-action" href="${esc(item.url)}" aria-label="Abrir folha ${esc(item.number)}" title="Abrir folha">
+                            <i class="ph ph-arrow-up-right"></i>
+                        </a>
+                    </td>
+                </tr>
+            `),
+        ].join('');
+
+        elements.documentGrid.innerHTML = rows
+            || tableEmpty('Nenhum documento gerado para este projeto.', 6);
     }
 
     function productCard(product) {
@@ -2149,202 +1617,84 @@
         const unit = String(product?.unit || '');
         const target = product?.target;
         const hasTarget = target !== null && target !== undefined;
-
         const received = Number(product?.received || 0);
         const distributed = Number(product?.distributed || 0);
 
         const progress = hasTarget
             ? Number(product?.progress || 0)
-            : (
-                received > 0
-                    ? Math.min(
-                        100,
-                        distributed / received * 100
-                    )
-                    : 0
-            );
+            : (received > 0 ? Math.min(100, distributed / received * 100) : 0);
 
-        const safeProgress = Math.min(
-            100,
-            Math.max(0, Number(progress || 0))
-        );
-
-        const progressLabel = hasTarget
-            ? 'da meta recebida'
-            : 'do recebido distribuído';
-
-        const meterTone = safeProgress >= 100
-            ? 'done'
-            : safeProgress >= 80
-                ? 'warn'
-                : '';
-
-        const url = product?.url
-            ? String(product.url)
-            : '#';
+        const safeProgress = Math.min(100, Math.max(0, Number(progress || 0)));
+        const meterTone = safeProgress >= 100 ? 'done' : (safeProgress >= 80 ? 'warn' : '');
+        const url = product?.url ? String(product.url) : '#';
+        const balance = hasTarget ? product?.remaining_target : product?.physical_balance;
 
         return `
-            <a
-                class="watch-card watch-link-card"
-                href="${esc(url)}"
-                data-search="${esc(name.toLocaleLowerCase('pt-BR'))}"
-            >
-                <div class="watch-card-top">
-                    <div class="watch-card-heading">
-                        <h3 title="${esc(name)}">${esc(name)}</h3>
-
-                        <div class="watch-card-sub">
-                            ${hasTarget
-                                ? `Meta: ${fmt(target)} ${esc(unit)}`
-                                : 'Sem meta geral definida'}
-                        </div>
+            <tr data-search="${esc(name.toLocaleLowerCase('pt-BR'))}">
+                <td class="table-main-cell" data-label="Produto">
+                    <a class="table-link" href="${esc(url)}">
+                        <span class="table-primary">${esc(name)}</span>
+                        <span class="table-secondary">${esc(unit || 'Unidade não informada')}</span>
+                    </a>
+                </td>
+                <td class="is-number" data-label="Meta">
+                    ${hasTarget ? `${fmt(target)} ${esc(unit)}` : '<span class="table-secondary">Sem meta</span>'}
+                </td>
+                <td class="is-number" data-label="Recebido"><span class="table-primary">${fmt(received)} ${esc(unit)}</span></td>
+                <td class="is-number" data-label="Distribuído"><span class="table-primary">${fmt(distributed)} ${esc(unit)}</span></td>
+                <td class="is-number" data-label="Saldo"><span class="table-primary">${fmt(balance)} ${esc(unit)}</span></td>
+                <td class="table-progress-cell" data-label="Progresso">
+                    <div class="watch-progress-text">
+                        <span>${hasTarget ? 'Meta recebida' : 'Recebido distribuído'}</span>
+                        <strong>${Math.round(safeProgress)}%</strong>
                     </div>
-
-                    <span class="watch-card-icon">
-                        <i data-lucide="package"></i>
-                    </span>
-                </div>
-
-                <div
-                    class="watch-meter ${meterTone}"
-                    role="progressbar"
-                    aria-label="Progresso de ${esc(name)}"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    aria-valuenow="${Math.round(safeProgress)}"
-                >
-                    <span style="width:${safeProgress}%"></span>
-                </div>
-
-                <div class="watch-card-sub">
-                    ${Math.round(safeProgress)}% ${progressLabel}
-                </div>
-
-                <div class="watch-values">
-                    <div class="watch-value">
-                        <span>Recebido</span>
-                        <strong>${fmt(received)}</strong>
+                    <div class="watch-meter ${meterTone}" role="progressbar" aria-label="Progresso de ${esc(name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(safeProgress)}">
+                        <span style="width:${safeProgress}%"></span>
                     </div>
-
-                    <div class="watch-value">
-                        <span>Distribuído</span>
-                        <strong>${fmt(distributed)}</strong>
-                    </div>
-
-                    <div class="watch-value">
-                        <span>${hasTarget ? 'Pode receber' : 'Saldo'}</span>
-                        <strong>
-                            ${fmt(
-                                hasTarget
-                                    ? product?.remaining_target
-                                    : product?.physical_balance
-                            )}
-                        </strong>
-                    </div>
-                </div>
-
-                <div class="watch-open">
-                    <span>Ver produto</span>
-                    <i data-lucide="arrow-right"></i>
-                </div>
-            </a>
+                </td>
+                <td class="table-action-cell" data-label="Ação">
+                    <a class="table-action" href="${esc(url)}" aria-label="Ver ${esc(name)}" title="Ver produto">
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
+                </td>
+            </tr>
         `;
     }
 
     function associateCard(associate) {
         const name = String(associate?.name || 'Associado');
-
-        const subtitle =
-            associate?.nickname
-            || associate?.registration
-            || `${Number(associate?.deliveries_count || 0)} entrega(s)`;
-
-        const progress = Math.min(
-            100,
-            Math.max(0, Number(associate?.progress || 0))
-        );
-
-        const meterTone = progress >= 100
-            ? 'done'
-            : progress >= 80
-                ? 'warn'
-                : '';
-
-        const url = associate?.url
-            ? String(associate.url)
-            : '#';
+        const subtitle = associate?.nickname || associate?.registration || 'Sem identificação complementar';
+        const progress = Math.min(100, Math.max(0, Number(associate?.progress || 0)));
+        const meterTone = progress >= 100 ? 'done' : (progress >= 80 ? 'warn' : '');
+        const url = associate?.url ? String(associate.url) : '#';
+        const hasLimits = Number(associate?.maximum || 0) > 0;
 
         return `
-            <a
-                class="watch-card watch-link-card"
-                href="${esc(url)}"
-                data-search="${esc(
-                    `${name} ${associate?.nickname || ''} `
-                    + `${associate?.registration || ''}`
-                .toLocaleLowerCase('pt-BR'))}"
-            >
-                <div class="watch-card-top">
-                    <div class="watch-card-heading">
-                        <h3 title="${esc(name)}">${esc(name)}</h3>
-                        <div class="watch-card-sub">${esc(subtitle)}</div>
-                    </div>
-
-                    <span class="watch-card-icon">
-                        <i data-lucide="user-round"></i>
-                    </span>
-                </div>
-
-                ${Number(associate?.maximum || 0) > 0
-                    ? `
-                        <div
-                            class="watch-meter ${meterTone}"
-                            role="progressbar"
-                            aria-label="Uso dos limites do associado"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                            aria-valuenow="${Math.round(progress)}"
-                        >
+            <tr data-search="${esc(`${name} ${associate?.nickname || ''} ${associate?.registration || ''}`.toLocaleLowerCase('pt-BR'))}">
+                <td class="table-main-cell" data-label="Associado">
+                    <a class="table-link" href="${esc(url)}">
+                        <span class="table-primary">${esc(name)}</span>
+                        <span class="table-secondary">${esc(subtitle)}</span>
+                    </a>
+                </td>
+                <td class="is-number" data-label="Entregas"><span class="table-primary">${Number(associate?.deliveries_count || 0)}</span></td>
+                <td class="is-number" data-label="Recebido"><span class="table-primary">${fmt(associate?.received)}</span></td>
+                <td class="is-number" data-label="Distribuído"><span class="table-primary">${fmt(associate?.distributed)}</span></td>
+                <td class="is-number" data-label="Produtos c/ limite"><span class="table-primary">${Number(associate?.limited_products || 0)}</span></td>
+                <td class="table-progress-cell" data-label="Uso dos limites">
+                    ${hasLimits ? `
+                        <div class="watch-progress-text"><span>Utilizado</span><strong>${Math.round(progress)}%</strong></div>
+                        <div class="watch-meter ${meterTone}" role="progressbar" aria-label="Uso dos limites de ${esc(name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}">
                             <span style="width:${progress}%"></span>
                         </div>
-
-                        <div class="watch-card-sub">
-                            ${Math.round(progress)}% dos limites utilizados
-                        </div>
-                    `
-                    : `
-                        <div
-                            class="watch-card-sub"
-                            style="margin-top:.65rem"
-                        >
-                            Sem limites individuais de produto
-                        </div>
-                    `
-                }
-
-                <div class="watch-values">
-                    <div class="watch-value">
-                        <span>Recebido</span>
-                        <strong>${fmt(associate?.received)}</strong>
-                    </div>
-
-                    <div class="watch-value">
-                        <span>Distribuído</span>
-                        <strong>${fmt(associate?.distributed)}</strong>
-                    </div>
-
-                    <div class="watch-value">
-                        <span>Produtos</span>
-                        <strong>
-                            ${Number(associate?.limited_products || 0)}
-                        </strong>
-                    </div>
-                </div>
-
-                <div class="watch-open">
-                    <span>Ver associado</span>
-                    <i data-lucide="arrow-right"></i>
-                </div>
-            </a>
+                    ` : '<span class="table-secondary">Sem limites individuais</span>'}
+                </td>
+                <td class="table-action-cell" data-label="Ação">
+                    <a class="table-action" href="${esc(url)}" aria-label="Ver ${esc(name)}" title="Ver associado">
+                        <i class="ph ph-arrow-right"></i>
+                    </a>
+                </td>
+            </tr>
         `;
     }
 
@@ -2462,7 +1812,7 @@
                                 + ` · ${delivery?.date || ''}`
                             )}"
                         >
-                            <i data-lucide="notebook-text"></i>
+                            <i class="ph ph-note-pencil"></i>
                             Observações
                         </button>
                     `
@@ -2475,8 +1825,54 @@
     function renderDeliveryTableRows(delivery) {
         const destinations = asArray(delivery?.destinations);
         const unit = esc(delivery?.unit || '');
-        const main = `<tr><td><strong>#${Number(delivery?.id || 0)}</strong></td><td>${esc(delivery?.associate || 'Associado')}</td><td>${esc(delivery?.product || 'Produto')}</td><td>${esc(delivery?.date || '—')}</td><td class="is-number">${fmt(delivery?.quantity)} ${unit}</td><td class="is-number">${fmt(delivery?.distributed)} ${unit}</td><td class="is-number">${fmt(delivery?.balance)} ${unit}</td><td><span class="watch-badge ${safeClass(delivery?.status)}">${esc(delivery?.status_label || '—')}</span></td></tr>`;
-        const distributions = destinations.length ? destinations.map(item => `<tr class="watch-distribution-row"><td colspan="4">↳ Distribuição #${Number(item?.id || 0)} · ${esc(item?.customer || 'Destino')} · ${esc(item?.date || '—')} · ${esc(item?.status || '—')}</td><td colspan="2" class="is-number">${fmt(item?.quantity)} ${unit}</td><td colspan="2" class="is-number">${money(item?.gross_value)}</td></tr>`).join('') : `<tr class="watch-distribution-row"><td colspan="8">↳ Nenhuma distribuição registrada para esta entrega.</td></tr>`;
+        const status = safeClass(delivery?.status);
+        const noteButton = delivery?.notes
+            ? `
+                <button
+                    type="button"
+                    class="watch-table-note"
+                    data-delivery-notes="${esc(delivery.notes)}"
+                    data-delivery-notes-title="Observações da entrega"
+                    data-delivery-notes-meta="${esc(`${delivery?.product || 'Produto'} · ${delivery?.date || ''}`)}"
+                >
+                    <i class="ph ph-note-pencil"></i>
+                    Observação
+                </button>
+            `
+            : '';
+
+        const main = `
+            <tr>
+                <td><span class="table-primary">#${Number(delivery?.id || 0)}</span></td>
+                <td><span class="table-primary">${esc(delivery?.associate || 'Associado')}</span></td>
+                <td>${esc(delivery?.product || 'Produto')}</td>
+                <td>${esc(delivery?.date || '—')}</td>
+                <td class="is-number">${fmt(delivery?.quantity)} ${unit}</td>
+                <td class="is-number">${fmt(delivery?.distributed)} ${unit}</td>
+                <td class="is-number">${fmt(delivery?.balance)} ${unit}</td>
+                <td><span class="watch-badge ${status}">${esc(delivery?.status_label || '—')}</span>${noteButton}</td>
+            </tr>
+        `;
+
+        const distributions = destinations.length
+            ? destinations.map(item => `
+                <tr class="watch-distribution-row">
+                    <td colspan="4">
+                        <span class="watch-distribution-mark">↳ Distribuição #${Number(item?.id || 0)}</span>
+                        · ${esc(item?.customer || 'Destino')}
+                        · ${esc(item?.date || '—')}
+                        · ${esc(item?.status || '—')}
+                    </td>
+                    <td colspan="2" class="is-number">${fmt(item?.quantity)} ${unit}</td>
+                    <td colspan="2" class="is-number">${money(item?.gross_value)}</td>
+                </tr>
+            `).join('')
+            : `
+                <tr class="watch-distribution-row">
+                    <td colspan="8">↳ Nenhuma distribuição registrada para esta entrega.</td>
+                </tr>
+            `;
+
         return main + distributions;
     }
 
@@ -2504,6 +1900,9 @@
                     </div>
                 </div>
             `;
+
+            elements.deliveryTableBody.innerHTML =
+                tableEmpty('Carregando entregas...', 8);
         }
 
         const params = new URLSearchParams({
@@ -2536,7 +1935,10 @@
                 )
                 : elements.deliveryList.innerHTML + cards;
             elements.deliveryTableBody.innerHTML = reset
-                ? tableRows
+                ? (
+                    tableRows
+                    || tableEmpty('Nenhuma entrega encontrada.', 8)
+                )
                 : elements.deliveryTableBody.innerHTML + tableRows;
 
             elements.deliveryList.dataset.loaded = '1';
@@ -2571,6 +1973,14 @@
             elements.deliveryList.innerHTML = reset
                 ? errorMarkup
                 : elements.deliveryList.innerHTML + errorMarkup;
+
+            if (reset) {
+                elements.deliveryTableBody.innerHTML = `
+                    <tr class="watch-table-empty">
+                        <td colspan="8">${esc(error.message)}</td>
+                    </tr>
+                `;
+            }
         } finally {
             state.deliveryLoading = false;
             elements.loadMoreDeliveries.disabled = false;
@@ -3176,13 +2586,14 @@
 
             elements.productGrid.innerHTML = data.products.length
                 ? data.products.map(productCard).join('')
-                : empty('Nenhum produto movimentado.');
+                : tableEmpty('Nenhum produto movimentado.', 7);
 
             elements.associateGrid.innerHTML =
                 data.associates.length
                     ? data.associates.map(associateCard).join('')
-                    : empty(
-                        'Nenhum associado vinculado ao projeto.'
+                    : tableEmpty(
+                        'Nenhum associado vinculado ao projeto.',
+                        7
                     );
 
             elements.loading.hidden = true;

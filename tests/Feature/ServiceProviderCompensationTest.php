@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BankAccount;
 use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionResource;
+use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceObligation;
 use App\Models\ServicePaymentEvent;
 use App\Models\ServiceProvider;
@@ -12,6 +13,7 @@ use App\Models\ServiceProviderVersionRate;
 use App\Models\ServiceVersion;
 use App\Models\User;
 use App\Services\Services\ServiceCompositionCalculator;
+use App\Services\Services\ServiceCatalogService;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServicePaymentService;
 use Illuminate\Database\Schema\Blueprint;
@@ -61,9 +63,11 @@ class ServiceProviderCompensationTest extends TestCase
             $t->unsignedBigInteger('service_id');
             $t->unsignedInteger('version');
             $t->string('status')->default('published');
+            $t->string('category')->nullable();
             $t->string('unit')->default('hora');
             $t->string('review_mode')->default('automatic');
             $t->boolean('allow_provider_create_order')->default(false);
+            $t->boolean('members_only')->default(false);
             $t->string('customer_pricing_method')->default('quantity_x_rate');
             $t->decimal('customer_rate', 14, 4)->nullable();
             $t->decimal('customer_percentage', 8, 4)->nullable();
@@ -89,8 +93,23 @@ class ServiceProviderCompensationTest extends TestCase
             $t->string('label');
             $t->string('type');
             $t->string('phase');
+            $t->string('section')->nullable();
             $t->boolean('required')->default(false);
+            $t->boolean('visible_to_provider')->default(true);
+            $t->boolean('editable_by_provider')->default(true);
+            $t->boolean('visible_to_management')->default(true);
+            $t->boolean('include_in_documents')->default(false);
+            $t->boolean('reportable')->default(false);
             $t->unsignedInteger('sort_order')->default(0);
+            $t->string('unit')->nullable();
+            $t->unsignedTinyInteger('decimal_places')->nullable();
+            $t->decimal('minimum', 18, 4)->nullable();
+            $t->decimal('maximum', 18, 4)->nullable();
+            $t->json('default_value')->nullable();
+            $t->json('options')->nullable();
+            $t->json('conditional_rule')->nullable();
+            $t->string('placeholder')->nullable();
+            $t->string('help')->nullable();
         });
         Schema::create('service_provider_version_rates', function (Blueprint $t) {
             $this->base($t);
@@ -313,6 +332,25 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame('service_version_default', $result['payable'][0]['rule_snapshot']['precedence']);
     }
 
+    public function test_cloning_version_preserves_json_configs_as_arrays(): void
+    {
+        [,, $version] = $this->execution(1, 150, 30);
+        $version->forceFill([
+            'execution_config' => ['quantity_mode' => 'meter_difference', 'meter_start_field' => 'start', 'meter_end_field' => 'end'],
+            'financial_config' => ['rules' => [['description' => 'Taxa', 'direction' => 'receivable', 'method' => 'fixed_addition', 'value' => 10]]],
+            'evidence_config' => ['retention_days' => 365],
+            'document_config' => ['include_values' => true],
+        ])->saveQuietly();
+
+        $clone = app(ServiceCatalogService::class)->clone($version->fresh());
+
+        $this->assertSame('draft', $clone->status);
+        $this->assertSame('meter_difference', data_get($clone->execution_config, 'quantity_mode'));
+        $this->assertSame('Taxa', data_get($clone->financial_config, 'rules.0.description'));
+        $this->assertSame(365, data_get($clone->evidence_config, 'retention_days'));
+        $this->assertTrue(data_get($clone->document_config, 'include_values'));
+    }
+
     public function test_provider_specific_version_override_has_precedence(): void
     {
         [$execution,$provider,$version] = $this->execution(3, 150, 300);
@@ -423,6 +461,43 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(2, ServiceObligation::count());
     }
 
+    public function test_meter_difference_is_the_quantity_used_for_customer_and_provider(): void
+    {
+        [$execution] = $this->execution(1, 150, 30);
+        $execution->forceFill([
+            'status' => 'draft',
+            'quantity' => null,
+            'values' => [],
+            'catalog_snapshot' => [
+                'review_mode' => 'automatic',
+                'customer_pricing_method' => 'quantity_x_rate',
+                'provider_pricing_method' => 'quantity_x_rate',
+                'execution_config' => [
+                    'quantity_mode' => 'meter_difference',
+                    'meter_start_field' => 'hourmeter_start',
+                    'meter_end_field' => 'hourmeter_end',
+                ],
+                'fields' => [
+                    ['key' => 'hourmeter_start', 'label' => 'Horímetro inicial', 'type' => 'meter', 'phase' => 'start', 'required' => true],
+                    ['key' => 'hourmeter_end', 'label' => 'Horímetro final', 'type' => 'meter', 'phase' => 'finish', 'required' => true],
+                ],
+            ],
+        ])->saveQuietly();
+        $actor = new User;
+        $actor->id = 1;
+        $actor->exists = true;
+
+        $workflow = app(ServiceExecutionWorkflow::class);
+        $workflow->start($execution, ['hourmeter_start' => 2000], (string) Str::uuid(), $actor);
+        $result = $workflow->submit($execution->fresh(), ['hourmeter_end' => 2020], (string) Str::uuid(), $actor);
+
+        $this->assertSame(20.0, (float) $result->quantity);
+        $this->assertSame(20.0, (float) data_get($result->derived_values, 'customer_quantity'));
+        $this->assertSame(20.0, (float) data_get($result->derived_values, 'provider_quantity'));
+        $this->assertSame(3000.0, (float) $result->obligations()->where('direction', 'receivable')->value('principal_amount'));
+        $this->assertSame(600.0, (float) $result->obligations()->where('direction', 'payable')->value('principal_amount'));
+    }
+
     public function test_customer_hours_and_provider_days_use_independent_quantities(): void
     {
         [$execution,, $version] = $this->execution(3, 150, 300);
@@ -438,6 +513,35 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(450.0, $result['receivable_total']);
         $this->assertSame(600.0, $result['payable_total']);
         $this->assertSame('dia', $result['payable'][0]['unit']);
+    }
+
+    public function test_customer_can_use_meter_difference_while_provider_uses_an_additional_field(): void
+    {
+        [$execution,, $version] = $this->execution(1, 150, 300);
+        $execution->forceFill(['values' => [
+            'hourmeter_start' => 2000,
+            'hourmeter_end' => 2020,
+            'worked_days' => 2,
+        ]])->saveQuietly();
+        $version->forceFill(['execution_config' => [
+            'quantity_mode' => 'fixed_one',
+            'customer_quantity_mode' => 'meter_difference',
+            'customer_meter_start_field' => 'hourmeter_start',
+            'customer_meter_end_field' => 'hourmeter_end',
+            'customer_unit' => 'hora',
+            'provider_quantity_mode' => 'field',
+            'provider_quantity_field' => 'worked_days',
+            'provider_unit' => 'dia',
+        ]])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+
+        $this->assertSame(3000.0, $result['receivable_total']);
+        $this->assertSame(600.0, $result['payable_total']);
+        $this->assertSame('20 × 150', $result['receivable'][0]['rule_snapshot']['formula']);
+        $this->assertSame('2 × 300', $result['payable'][0]['rule_snapshot']['formula']);
+        $this->assertSame('meter_difference', $result['receivable'][0]['rule_snapshot']['quantity_source']['mode']);
+        $this->assertSame('field', $result['payable'][0]['rule_snapshot']['quantity_source']['mode']);
     }
 
     public function test_internal_service_can_pay_provider_without_charging_beneficiary(): void
@@ -471,6 +575,92 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(125.0, $result['payable_total']);
         $this->assertSame(200.0, $result['receivable'][1]['rule_snapshot']['calculation_base']);
         $this->assertSame(200.0, $result['receivable'][2]['rule_snapshot']['calculation_base']);
+    }
+
+    public function test_financial_rule_injects_input_requires_evidence_and_uses_the_input(): void
+    {
+        [$execution,, $version] = $this->execution(2, 100, 50);
+        $rule = [
+            'description' => 'Desconto de óleo fornecido',
+            'direction' => 'receivable',
+            'method' => 'quantity_x_rate',
+            'effect' => 'subtract',
+            'value' => 5,
+            'input_key' => 'oil_liters',
+            'input_label' => 'Litros de óleo fornecido',
+            'input_role' => 'quantity',
+            'input_unit' => 'litro',
+            'input_phase' => 'finish',
+            'input_required' => true,
+            'evidence_required' => true,
+            'evidence_key' => 'oil_receipt',
+            'evidence_label' => 'Nota ou foto do óleo',
+        ];
+        $version->forceFill(['financial_config' => ['rules' => [$rule]]])->saveQuietly();
+        $execution->forceFill(['values' => ['oil_liters' => 10]])->saveQuietly();
+
+        $snapshotFields = collect($version->snapshot()['fields']);
+        $this->assertSame('quantity', $snapshotFields->firstWhere('key', 'oil_liters')['type']);
+        $this->assertSame('file', $snapshotFields->firstWhere('key', 'oil_receipt')['type']);
+
+        try {
+            app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+            $this->fail('A regra deveria exigir comprovante.');
+        } catch (ValidationException) {
+            $this->assertTrue(true);
+        }
+
+        $evidence = new ServiceExecutionEvidence([
+            'service_execution_id' => $execution->id,
+            'document_id' => 1,
+            'field_key' => 'oil_receipt',
+        ]);
+        $evidence->tenant_id = 1;
+        $evidence->save();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+        $this->assertSame(150.0, $result['receivable_total']);
+        $this->assertSame(-50.0, $result['receivable'][1]['amount']);
+    }
+
+    public function test_automatic_field_can_supply_percentage_and_optional_empty_rule_is_ignored(): void
+    {
+        [$execution,, $version] = $this->execution(2, 100, 50);
+        $version->forceFill(['financial_config' => ['rules' => [
+            [
+                'description' => 'Desconto informado', 'direction' => 'receivable',
+                'method' => 'percent_deduction', 'input_key' => 'discount_percent',
+                'input_label' => 'Percentual de desconto', 'input_role' => 'value',
+                'input_required' => true, 'value' => 0, 'percentage' => 0,
+            ],
+            [
+                'description' => 'Bônus opcional', 'direction' => 'payable',
+                'method' => 'fixed_addition', 'input_key' => 'optional_bonus',
+                'input_label' => 'Bônus', 'input_role' => 'value',
+                'input_required' => false, 'value' => 0, 'percentage' => 0,
+            ],
+        ]]])->saveQuietly();
+        $execution->forceFill(['values' => ['discount_percent' => 10]])->saveQuietly();
+
+        $result = app(ServiceCompositionCalculator::class)->calculate($execution->fresh());
+
+        $this->assertSame(180.0, $result['receivable_total']);
+        $this->assertSame(100.0, $result['payable_total']);
+        $this->assertSame('200 × 10%', $result['receivable'][1]['rule_snapshot']['formula']);
+        $this->assertCount(1, $result['payable']);
+    }
+
+    public function test_optional_evidence_does_not_block_execution_field_validation(): void
+    {
+        [$execution] = $this->execution(1, 100, 50);
+        $execution->forceFill(['catalog_snapshot' => ['fields' => [
+            ['key' => 'notes', 'label' => 'Observação', 'type' => 'text', 'phase' => 'finish', 'required' => false],
+            ['key' => 'optional_photo', 'label' => 'Foto opcional', 'type' => 'image', 'phase' => 'finish', 'required' => false],
+        ]]])->saveQuietly();
+
+        $validated = app(\App\Services\Services\ServiceFieldValidator::class)->validate($execution->fresh(), 'finish', []);
+
+        $this->assertSame([], $validated);
     }
 
     public function test_resource_cannot_create_receivable_for_internal_service(): void

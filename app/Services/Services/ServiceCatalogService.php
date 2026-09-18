@@ -15,10 +15,17 @@ class ServiceCatalogService
 
     public function createDraft(Service $service, array $attributes, array $fields = []): ServiceVersion
     {
-        if ($fields === [] && (in_array('quantity_x_rate', [$attributes['customer_pricing_method'] ?? null, $attributes['provider_pricing_method'] ?? null], true))) {
-            $attributes['execution_config'] = array_replace($attributes['execution_config'] ?? [], ['quantity_field' => 'quantity']);
+        foreach (['execution_config', 'financial_config', 'evidence_config', 'document_config'] as $configKey) {
+            $attributes[$configKey] = $this->arrayConfig($attributes[$configKey] ?? []);
+        }
+
+        if ($fields === []
+            && blank(data_get($attributes, 'execution_config.quantity_mode'))
+            && in_array('quantity_x_rate', [$attributes['customer_pricing_method'] ?? null, $attributes['provider_pricing_method'] ?? null], true)) {
+            $attributes['execution_config'] = array_replace($attributes['execution_config'] ?? [], ['quantity_mode' => 'field', 'quantity_field' => 'quantity']);
             $fields = [['key' => 'quantity', 'label' => 'Quantidade executada', 'type' => 'quantity', 'phase' => 'finish', 'required' => true, 'minimum' => 0.0001, 'unit' => $attributes['unit'] ?? 'un', 'visible_to_provider' => true, 'editable_by_provider' => true, 'reportable' => true]];
         }
+        $attributes['execution_config'] = array_replace(['quantity_mode' => 'fixed_one'], $attributes['execution_config'] ?? []);
 
         return DB::transaction(function () use ($service, $attributes, $fields): ServiceVersion {
             $service = Service::query()->whereKey($service->id)->where('tenant_id', $service->tenant_id)->lockForUpdate()->firstOrFail();
@@ -44,7 +51,16 @@ class ServiceCatalogService
         return DB::transaction(function () use ($source): ServiceVersion {
             $source->loadMissing(['fields', 'providerRates']);
 
-            $version = $this->createDraft($source->service, collect($source->getAttributes())->except(['id', 'tenant_id', 'service_id', 'version', 'status', 'snapshot_hash', 'published_at', 'published_by', 'retired_at', 'created_at', 'updated_at'])->all(), $source->fields->map(fn ($field) => collect($field->getAttributes())->except(['id', 'tenant_id', 'service_version_id', 'created_at', 'updated_at'])->all())->all());
+            $versionAttributes = collect($source->getFillable())
+                ->reject(fn (string $key) => in_array($key, ['service_id', 'version', 'status', 'snapshot_hash', 'published_at', 'published_by', 'retired_at'], true))
+                ->mapWithKeys(fn (string $key) => [$key => $source->getAttribute($key)])
+                ->all();
+            $fieldAttributes = $source->fields->map(fn ($field) => collect($field->getFillable())
+                ->reject(fn (string $key) => $key === 'service_version_id')
+                ->mapWithKeys(fn (string $key) => [$key => $field->getAttribute($key)])
+                ->all())->all();
+
+            $version = $this->createDraft($source->service, $versionAttributes, $fieldAttributes);
 
             foreach ($source->providerRates as $sourceRate) {
                 $rate = $version->providerRates()->make(collect($sourceRate->getAttributes())->except(['id', 'tenant_id', 'service_version_id', 'created_at', 'updated_at'])->all());
@@ -123,6 +139,26 @@ class ServiceCatalogService
             'percent_of_base' => (float) $percentage > 0,
             default => false,
         };
+    }
+
+    private function arrayConfig(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'configuration' => 'A configuração da versão anterior está inválida. Revise os campos JSON antes de criar uma nova versão.',
+        ]);
     }
 
     public function setActive(ServiceVersion $version, bool $active): void

@@ -16,6 +16,9 @@ class ExpenseObserver
      */
     public function creating(Expense $expense): void
     {
+        if (in_array($expense->expenseable_type, [\App\Models\ServiceOrder::class, \App\Models\ServiceExecution::class], true)) {
+            $expense->origin_module = 'services';
+        }
         // Set created_by if not set
         if (!$expense->created_by) {
             $expense->created_by = auth()->id();

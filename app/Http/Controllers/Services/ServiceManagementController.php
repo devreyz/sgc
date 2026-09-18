@@ -18,6 +18,7 @@ use App\Models\ServiceVersion;
 use App\Models\Tenant;
 use App\Services\Services\CreateServiceOrder;
 use App\Services\Services\ServiceDocumentService;
+use App\Services\Services\ServiceEvidenceService;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServiceHumanStatusResolver;
 use App\Services\Services\ServiceNegotiationService;
@@ -30,7 +31,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class ServiceManagementController extends Controller
@@ -47,7 +47,7 @@ class ServiceManagementController extends Controller
     {
         $this->allow($request, 'create_service_order');
 
-        return view('services.management-create', ['versions' => ServiceVersion::query()->where('tenant_id', $tenant->id)->where('status', 'published')->whereHas('service', fn ($query) => $query->where('status', true))->with(['service', 'fields'])->get(), 'providers' => ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->with('services:id')->orderBy('name')->get(), 'associates' => Associate::query()->where('tenant_id', $tenant->id)->orderBy('id')->get()]);
+        return view('services.management-create', ['versions' => ServiceVersion::query()->where('tenant_id', $tenant->id)->where('status', 'published')->whereHas('service', fn ($query) => $query->where('status', true))->with(['service', 'fields'])->get(), 'providers' => ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->with('services:id')->orderBy('name')->get(), 'associates' => Associate::query()->where('tenant_id', $tenant->id)->active()->orderBy('id')->get()]);
     }
 
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
@@ -177,7 +177,8 @@ class ServiceManagementController extends Controller
         $order = $this->order($tenant, $order);
         $type = $request->validate(['type' => 'required|in:order,execution'])['type'];
         $subject = $type === 'order' ? $order : $order->execution;
-        $variables = ['order_number' => $order->number, 'service_name' => $order->service->name, 'provider_name' => $order->provider_snapshot['name'] ?? '', 'beneficiary_name' => $order->beneficiary_snapshot['name'] ?? '', 'scheduled_at' => $order->scheduled_at?->format('d/m/Y H:i'), 'location' => $order->location, 'status' => $order->operational_status, 'quantity' => $order->execution->quantity, 'unit' => $order->execution->unit, 'validated_at' => $order->execution->validated_at?->format('d/m/Y H:i')];
+        $variables = ['order_number' => $order->number, 'service_name' => $order->service->name, 'provider_name' => $order->provider_snapshot['name'] ?? '', 'beneficiary_name' => $order->beneficiary_snapshot['name'] ?? '', 'scheduled_at' => $order->scheduled_at?->format('d/m/Y H:i'), 'location' => $order->location, 'status' => $order->operational_status, 'quantity' => $order->execution->quantity, 'unit' => $order->execution->unit, 'validated_at' => $order->execution->validated_at?->format('d/m/Y H:i')]
+            + $this->executionDocumentVariables($order);
         $document = $documents->generate($subject, $type === 'order' ? 'service_order' : 'service_execution', $type === 'order' ? 'Ordem '.$order->number : 'Execução '.$order->number, $variables, $request->user());
 
         return redirect()->route('services.management.documents.download', [$tenant, $document]);
@@ -191,18 +192,61 @@ class ServiceManagementController extends Controller
         return $pdf->generateFrozenDocument($record)->download(str($record->title)->slug().'.pdf');
     }
 
-    public function evidence(Request $request, Tenant $tenant, int $evidence)
+    public function evidence(Request $request, Tenant $tenant, int $evidence, ServiceEvidenceService $files)
     {
         $this->allow($request, 'view_service_management');
         $record = ServiceExecutionEvidence::query()->where('tenant_id', $tenant->id)->whereKey($evidence)->with('document')->firstOrFail();
-        abort_unless($record->document->tenant_id === $tenant->id && $record->document->disk === 'local', 403);
+        abort_unless($record->document->tenant_id === $tenant->id, 403);
 
-        return Storage::disk('local')->download($record->document->path, $record->document->original_name);
+        return response($files->contents($record->document), 200, ['Content-Type' => $record->document->mime_type, 'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $record->document->original_name).'"']);
     }
 
     private function order(Tenant $tenant, int $id): ServiceOrder
     {
         return ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->whereKey($id)->with(['service', 'serviceVersion', 'serviceProvider', 'associate', 'execution.evidences.document', 'execution.resources', 'execution.compositionLines', 'execution.obligations.allocations.paymentEvent'])->firstOrFail();
+    }
+
+    private function executionDocumentVariables(ServiceOrder $order): array
+    {
+        $execution = $order->execution;
+        $variables = [];
+        $fieldRows = '';
+
+        foreach ((array) data_get($execution->catalog_snapshot, 'fields', []) as $field) {
+            if (! ($field['include_in_documents'] ?? false)) {
+                continue;
+            }
+            $key = (string) ($field['key'] ?? '');
+            $value = data_get($execution->values, $key);
+            if (($field['type'] ?? null) === 'file') {
+                $value = $execution->evidences->where('field_key', $key)->pluck('document.original_name')->filter()->join(', ');
+            } elseif (is_bool($value)) {
+                $value = $value ? 'Sim' : 'Não';
+            } elseif (is_array($value)) {
+                $value = implode(', ', $value);
+            }
+            $value = filled($value) ? (string) $value : '—';
+            $variables['campo.'.$key] = $value;
+            $fieldRows .= '<tr><td>'.e($field['label'] ?? $key).'</td><td>'.e($value).'</td><td>'.e($field['unit'] ?? '').'</td></tr>';
+        }
+
+        $composition = ['receivable' => '', 'payable' => ''];
+        foreach ($execution->compositionLines as $line) {
+            $formula = data_get($line->rule_snapshot, 'formula') ?: trim(($line->quantity ?? '').' × '.($line->unit_price ?? ''));
+            $composition[$line->direction] .= '<tr><td>'.e($line->description).'</td><td>'.e($formula).'</td><td style="text-align:right">'.($line->amount < 0 ? '− ' : '').'R$ '.number_format(abs((float) $line->amount), 2, ',', '.').'</td></tr>';
+        }
+
+        $table = static fn (string $rows): string => $rows === ''
+            ? '<p>Nenhum item.</p>'
+            : '<table style="width:100%;border-collapse:collapse"><thead><tr><th>Descrição</th><th>Fórmula</th><th>Total</th></tr></thead><tbody>'.$rows.'</tbody></table>';
+
+        return $variables + [
+            'campos_execucao' => $fieldRows === '' ? '<p>Nenhum campo adicional informado.</p>' : '<table style="width:100%;border-collapse:collapse"><thead><tr><th>Campo</th><th>Valor</th><th>Unidade</th></tr></thead><tbody>'.$fieldRows.'</tbody></table>',
+            'composicao_receber' => $table($composition['receivable']),
+            'composicao_pagar' => $table($composition['payable']),
+            'total_receber' => 'R$ '.number_format((float) $execution->compositionLines->where('direction', 'receivable')->sum('amount'), 2, ',', '.'),
+            'total_pagar' => 'R$ '.number_format((float) $execution->compositionLines->where('direction', 'payable')->sum('amount'), 2, ',', '.'),
+        ];
     }
 
     private function allow(Request $request, string $permission): void

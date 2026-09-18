@@ -15,7 +15,7 @@ class ServiceVersionField extends Model
 
     public const PHASES = ['order', 'start', 'execution', 'finish', 'review'];
 
-    protected $fillable = ['service_version_id', 'key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'placeholder', 'help'];
+    protected $fillable = ['service_version_id', 'key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'placeholder', 'help'];
 
     protected function casts(): array
     {
@@ -43,6 +43,6 @@ class ServiceVersionField extends Model
 
     public function snapshot(): array
     {
-        return $this->only(['key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'placeholder', 'help']);
+        return $this->only(['key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'placeholder', 'help']);
     }
 }

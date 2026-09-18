@@ -52,9 +52,20 @@ class ServiceExecutionWorkflow
             $this->validator->validate($execution, 'order', $values);
             $this->validator->validate($execution, 'start', $values);
             $this->validator->validate($execution, 'execution', $values);
-            $quantity = $this->deriveQuantity($execution, $values);
-            app(ServiceCalculationRules::class)->number($quantity, 'quantity');
-            $execution->forceFill(['values' => $values, 'quantity' => $quantity, 'submitted_at' => now(), 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
+            $this->calculator->validateRuleEvidences(
+                $execution,
+                (array) data_get($execution->catalog_snapshot, 'financial_config.rules', []),
+                $values,
+            );
+            $derived = app(ServiceCalculationRules::class)->quantities(
+                (array) data_get($execution->catalog_snapshot, 'execution_config', []),
+                (array) data_get($execution->catalog_snapshot, 'fields', []),
+                $values,
+                (float) ($execution->quantity ?? 1)
+            );
+            $quantity = $derived['primary_quantity'];
+            $this->validateFinancialQuantities($execution, $derived);
+            $execution->forceFill(['values' => $values, 'derived_values' => $derived, 'quantity' => $quantity, 'submitted_at' => now(), 'submitted_by' => $actor->id, 'submit_operation_key' => $operationKey, 'status' => 'submitted', 'lock_version' => $execution->lock_version + 1])->save();
             $execution->order->update(['operational_status' => 'submitted']);
             if (data_get($execution->catalog_snapshot, 'review_mode') === 'automatic') {
                 return $this->validateLocked($execution, $actor, $operationKey);
@@ -110,15 +121,17 @@ class ServiceExecutionWorkflow
         return ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
     }
 
-    private function deriveQuantity(ServiceExecution $execution, array $values): float
+    private function validateFinancialQuantities(ServiceExecution $execution, array $derived): void
     {
-        $config = data_get($execution->catalog_snapshot, 'execution_config', []);
-        if (! empty($config['quantity_field'])) {
-            return round((float) data_get($values, $config['quantity_field'], 0), 4);
-        }if (! empty($config['meter_start_field']) && ! empty($config['meter_end_field'])) {
-            return round((float) data_get($values, $config['meter_end_field'], 0) - (float) data_get($values, $config['meter_start_field'], 0), 4);
+        if (data_get($execution->catalog_snapshot, 'receivable_enabled')
+            && data_get($execution->catalog_snapshot, 'customer_pricing_method') === 'quantity_x_rate'
+            && (float) ($derived['customer_quantity'] ?? 0) <= 0) {
+            throw ValidationException::withMessages(['quantity' => 'A quantidade usada na cobrança deve ser maior que zero.']);
         }
-
-        return round((float) ($execution->quantity ?? data_get($values, 'quantity', 1)), 4);
+        if (data_get($execution->catalog_snapshot, 'payable_enabled')
+            && data_get($execution->catalog_snapshot, 'provider_pricing_method') === 'quantity_x_rate'
+            && (float) ($derived['provider_quantity'] ?? 0) <= 0) {
+            throw ValidationException::withMessages(['quantity' => 'A quantidade usada na remuneração do prestador deve ser maior que zero.']);
+        }
     }
 }

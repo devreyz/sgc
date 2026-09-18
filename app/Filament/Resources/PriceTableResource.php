@@ -114,6 +114,10 @@ class PriceTableResource extends Resource
                     ->label('Ativa')
                     ->boolean(),
 
+                Tables\Columns\IconColumn::make('is_pdv_default')
+                    ->label('Padrão PDV')
+                    ->boolean(),
+
                 Tables\Columns\TextColumn::make('updated_at')
                     ->label('Atualizado')
                     ->since()
@@ -130,6 +134,13 @@ class PriceTableResource extends Resource
                         ->toArray()),
             ])
             ->actions([
+                Tables\Actions\Action::make('set_pdv_default')
+                    ->label('Definir como padrão do PDV')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (PriceTable $record) => $record->active && ! $record->is_pdv_default)
+                    ->requiresConfirmation()
+                    ->action(fn (PriceTable $record) => PriceTable::setPdvDefault((int) $record->tenant_id, (int) $record->id)),
                 Tables\Actions\Action::make('manage_items')
                     ->label('Preços')
                     ->icon('heroicon-o-table-cells')

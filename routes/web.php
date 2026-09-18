@@ -407,7 +407,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/catalog/versions/{version}/preview', [ServiceCatalogController::class, 'preview'])->whereNumber('version')->name('catalog.preview');
     });
 
-    Route::prefix('provider')->name('provider.')->middleware(['any.role:service_provider,tratorista,motorista,diarista,tecnico'])->group(function () {
+    Route::prefix('provider')->name('provider.')->group(function () {
         Route::get('/dashboard', [ServiceProviderPortalController::class, 'index'])->name('dashboard');
         Route::get('/orders', [ServiceProviderPortalController::class, 'orders'])->name('orders');
         Route::get('/orders/create', [ServiceProviderPortalController::class, 'create'])->name('orders.create');
@@ -416,10 +416,13 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/orders/{order}/start', [ServiceProviderPortalController::class, 'start'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.start');
         Route::put('/orders/{order}/draft', [ServiceProviderPortalController::class, 'draft'])->middleware('throttle:60,1')->whereNumber('order')->name('orders.draft');
         Route::post('/orders/{order}/submit', [ServiceProviderPortalController::class, 'submit'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.submit');
+        Route::post('/orders/{order}/approve', [ServiceProviderPortalController::class, 'approve'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.approve');
         Route::post('/orders/{order}/evidences', [ServiceProviderPortalController::class, 'upload'])->middleware('throttle:20,1')->whereNumber('order')->name('orders.evidences.store');
         Route::get('/evidences/{evidence}', [ServiceProviderPortalController::class, 'evidence'])->whereNumber('evidence')->name('evidences.download');
         Route::get('/financial', [ServiceProviderPortalController::class, 'financial'])->name('financial');
         Route::post('/financial/payout-requests', [ServiceProviderPortalController::class, 'payout'])->middleware('throttle:10,1')->name('financial.payout');
+        Route::get('/expenses', [ServiceProviderPortalController::class, 'expenses'])->name('expenses');
+        Route::post('/expenses', [ServiceProviderPortalController::class, 'storeExpense'])->middleware('throttle:20,1')->name('expenses.store');
     });
 
     // Associate Portal Routes

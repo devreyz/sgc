@@ -83,10 +83,16 @@
 
         {{-- Info da venda --}}
         <div class="section">
-            <div class="row">
-                <span class="label">Comprovante:</span>
-                <span class="value">{{ $sale->code }}</span>
-            </div>
+              <div class="row">
+                  <span class="label">Comprovante:</span>
+                  <span class="value">{{ $sale->code }}</span>
+              </div>
+              @if($sale->priceTable)
+              <div class="row">
+                  <span class="label">Tabela de preços:</span>
+                  <span class="value">{{ $sale->priceTable->name }}</span>
+              </div>
+              @endif
             <div class="row">
                 <span class="label">Data/Hora:</span>
                 <span class="value">{{ $sale->created_at->format('d/m/Y H:i') }}</span>

@@ -28,11 +28,14 @@ class CreateServiceOrder
             if (! $version->service?->status) {
                 throw ValidationException::withMessages(['service_version_id' => 'O serviço está inativo.']);
             }
-            $associate = ! empty($data['associate_id']) ? Associate::query()->whereKey($data['associate_id'])->where('tenant_id', $tenantId)->first() : null;
+            $associate = ! empty($data['associate_id']) ? Associate::query()->whereKey($data['associate_id'])->where('tenant_id', $tenantId)->active()->first() : null;
             $provider = ! empty($data['service_provider_id']) ? ServiceProvider::query()->whereKey($data['service_provider_id'])->where('tenant_id', $tenantId)->first() : null;
             $asset = ! empty($data['asset_id']) ? Asset::query()->whereKey($data['asset_id'])->where('tenant_id', $tenantId)->first() : null;
             if (! empty($data['associate_id']) && ! $associate) {
                 throw ValidationException::withMessages(['associate_id' => 'Beneficiário inválido para esta organização.']);
+            }
+            if ($version->members_only && ! $associate) {
+                throw ValidationException::withMessages(['associate_id' => 'Este serviço é exclusivo para membros. Selecione um membro ativo como beneficiário.']);
             }
             if (! empty($data['service_provider_id']) && ! $provider) {
                 throw ValidationException::withMessages(['service_provider_id' => 'Prestador inválido para esta organização.']);

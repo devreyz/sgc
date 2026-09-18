@@ -9,6 +9,7 @@ use App\Http\Resources\PdvSaleResource;
 use App\Models\PdvCustomer;
 use App\Models\PdvSale;
 use App\Models\Product;
+use App\Models\PriceTable;
 use App\Services\PdvService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,8 +56,10 @@ class PdvController extends Controller
 
         $stats = $this->pdvService->getStats($this->tenantId());
         $paymentMethods = PaymentMethod::cases();
+        $pdvPriceTables = $this->pdvService->pdvPriceTables($this->tenantId());
+        $defaultPdvPriceTable = $pdvPriceTables->firstWhere('is_pdv_default', true);
 
-        return view('pdv.index', compact('stats', 'paymentMethods'));
+        return view('pdv.index', compact('stats', 'paymentMethods', 'pdvPriceTables', 'defaultPdvPriceTable'));
     }
 
     // ─── API: BUSCAR PRODUTOS ─────────────────────────────
@@ -67,20 +70,19 @@ class PdvController extends Controller
             return response()->json([]);
         }
 
-        $products = $this->pdvService->searchProducts($query, $this->tenantId());
+        $products = $this->pdvService->productsForPriceTable($this->tenantId(), $request->integer('price_table_id'), $query, 20);
 
         return response()->json($products);
     }
 
     // ─── API: LISTAR PRODUTOS (carregamento inicial) ──────
-    public function products(): JsonResponse
+    public function products(Request $request): JsonResponse
     {
-        $products = Product::where('tenant_id', $this->tenantId())
-            ->where('status', true)
-            ->select('id', 'name', 'sku', 'current_stock', 'unit')
-            ->orderBy('name')
-            ->limit(100)
-            ->get();
+        $priceTableId = $request->integer('price_table_id');
+        if (! PriceTable::query()->where('tenant_id', $this->tenantId())->where('id', $priceTableId)->where('active', true)->exists()) {
+            return response()->json(['message' => 'Selecione uma tabela de preços ativa.'], 422);
+        }
+        $products = $this->pdvService->productsForPriceTable($this->tenantId(), $priceTableId);
 
         return response()->json($products);
     }
@@ -93,6 +95,7 @@ class PdvController extends Controller
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'price_table_id' => 'required|integer',
             'items.*.discount' => 'nullable|numeric|min:0',
             'payments' => 'nullable|array',
             'payments.*.payment_method' => 'required|string',
@@ -114,7 +117,7 @@ class PdvController extends Controller
 
         try {
             $sale = $this->pdvService->completeSale($validator->validated(), $this->tenantId());
-            $sale->load('items.product', 'payments');
+            $sale->load('items.product', 'payments', 'priceTable');
 
             return response()->json([
                 'success' => true,
@@ -163,7 +166,7 @@ class PdvController extends Controller
         }
 
         $query = PdvSale::where('tenant_id', $this->tenantId())
-            ->with('customer', 'items.product', 'payments', 'creator')
+            ->with('customer', 'items.product', 'payments', 'creator', 'priceTable')
             ->latest();
 
         if ($request->filled('status')) {
@@ -185,7 +188,7 @@ class PdvController extends Controller
     public function historyApi(Request $request)
     {
         $query = PdvSale::where('tenant_id', $this->tenantId())
-            ->with(['customer', 'items.product', 'payments', 'fiadoPayments', 'creator'])
+            ->with(['customer', 'items.product', 'payments', 'fiadoPayments', 'creator', 'priceTable'])
             ->latest();
 
         if ($request->filled('status')) {
@@ -297,7 +300,7 @@ class PdvController extends Controller
             ->where('tenant_id', $this->tenantId())
             ->firstOrFail();
 
-        $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator']);
+        $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator', 'priceTable']);
         $tenant = \App\Models\Tenant::find($this->tenantId());
 
         return view('pdv.receipt', ['sale' => $model, 'tenant' => $tenant]);
@@ -312,7 +315,7 @@ class PdvController extends Controller
                         ->where('tenant_id', $this->tenantId())
                         ->firstOrFail();
 
-        $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator']);
+        $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator', 'priceTable']);
 
         return response()->json(new PdvSaleResource($model));
     }

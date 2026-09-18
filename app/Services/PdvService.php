@@ -13,6 +13,7 @@ use App\Models\PdvSale;
 use App\Models\PdvSaleItem;
 use App\Models\PdvSalePayment;
 use App\Models\Product;
+use App\Models\PriceTable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -30,9 +31,26 @@ class PdvService
         $tenantId = $tenantId ?? session('tenant_id');
 
         return DB::transaction(function () use ($data, $tenantId) {
+            $priceTable = PriceTable::query()->where('tenant_id', $tenantId)->where('id', $data['price_table_id'] ?? null)->where('active', true)->first();
+            if (! $priceTable) {
+                throw new \InvalidArgumentException('Selecione uma tabela de preços ativa para concluir a venda.');
+            }
+            if (! PriceTable::query()->where('tenant_id', $tenantId)->where('active', true)->where('is_pdv_default', true)->exists()) {
+                throw new \InvalidArgumentException('Configure uma tabela de preços padrão do PDV antes de vender.');
+            }
+
+            // O preço é sempre recalculado no servidor, nunca aceito do navegador.
+            $items = collect($data['items'])->map(function (array $item) use ($priceTable, $tenantId) {
+                $product = Product::where('tenant_id', $tenantId)->findOrFail($item['product_id']);
+                $price = $priceTable->items()->where('product_id', $product->id)->value('sale_price');
+                if ($price === null) throw new \InvalidArgumentException("O produto {$product->name} não possui preço na tabela {$priceTable->name}.");
+                $item['unit_price'] = (float) $price;
+                return $item;
+            })->all();
+
             // Calcular totais
             $subtotal = 0;
-            foreach ($data['items'] as $item) {
+            foreach ($items as $item) {
                 $lineTotal = ($item['quantity'] * $item['unit_price']) - ($item['discount'] ?? 0);
                 $subtotal += $lineTotal;
             }
@@ -73,6 +91,7 @@ class PdvService
                 'tenant_id' => $tenantId,
                 'code' => PdvSale::generateCode($tenantId),
                 'pdv_customer_id' => $data['pdv_customer_id'] ?? null,
+                'price_table_id' => $priceTable->id,
                 'customer_name' => $data['customer_name'] ?? null,
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
@@ -90,7 +109,7 @@ class PdvService
             ]);
 
             // Criar itens e dar baixa no estoque
-            foreach ($data['items'] as $item) {
+            foreach ($items as $item) {
                 $product = Product::where('tenant_id', $tenantId)->findOrFail($item['product_id']);
                 $lineDiscount = $item['discount'] ?? 0;
                 $lineTotal = round(($item['quantity'] * $item['unit_price']) - $lineDiscount, 2);
@@ -295,16 +314,33 @@ class PdvService
      */
     public function searchProducts(string $query, int $tenantId, int $limit = 20): \Illuminate\Support\Collection
     {
-        return Product::where('tenant_id', $tenantId)
-            ->where('status', true)
-            ->where(function ($q) use ($query) {
-                $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('sku', 'like', "%{$query}%");
+        return $this->productsForPriceTable($tenantId, null, $query, $limit);
+    }
+
+    public function productsForPriceTable(int $tenantId, ?int $priceTableId, string $query = '', int $limit = 100): \Illuminate\Support\Collection
+    {
+        return Product::query()
+            ->join('price_table_items', function ($join) use ($priceTableId) {
+                $join->on('price_table_items.product_id', '=', 'products.id')
+                    ->where('price_table_items.price_table_id', $priceTableId)
+                    ->whereNull('price_table_items.deleted_at');
             })
-            ->select('id', 'name', 'sku', 'current_stock', 'unit')
-            ->orderBy('name')
+            ->where('products.tenant_id', $tenantId)
+            ->where('products.status', true)
+            ->where(function ($q) use ($query) {
+                $q->where('products.name', 'like', "%{$query}%")
+                  ->orWhere('products.sku', 'like', "%{$query}%");
+            })
+            ->select('products.id', 'products.name', 'products.sku', 'products.current_stock', 'products.unit', 'price_table_items.sale_price')
+            ->orderBy('products.name')
             ->limit($limit)
             ->get();
+    }
+
+    public function pdvPriceTables(int $tenantId): \Illuminate\Support\Collection
+    {
+        return PriceTable::query()->where('tenant_id', $tenantId)->where('active', true)
+            ->orderByDesc('is_pdv_default')->orderBy('name')->get(['id', 'name', 'code', 'is_pdv_default']);
     }
 
     /**
