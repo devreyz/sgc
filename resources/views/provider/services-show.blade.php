@@ -50,10 +50,26 @@
                     === (int) $order->service_provider_id
         );
 
-    $providerConfiguredRate =
-        $providerOverride?->rate
-        ?? $providerOverride?->fixed_amount
-        ?? $order->serviceVersion?->default_provider_rate;
+    $snapshottedCompensation = data_get(
+        $execution->catalog_snapshot,
+        'provider_compensation'
+    );
+
+    $providerPricingMethod = is_array($snapshottedCompensation)
+        ? data_get($snapshottedCompensation, 'method')
+        : data_get($execution->catalog_snapshot, 'provider_pricing_method', $order->serviceVersion?->provider_pricing_method);
+
+    $providerConfiguredRate = is_array($snapshottedCompensation)
+        ? data_get($snapshottedCompensation, $providerPricingMethod === 'percent_of_base' ? 'percentage' : 'rate')
+        : ($providerPricingMethod === 'fixed'
+            ? ($providerOverride?->fixed_amount ?? $providerOverride?->rate ?? $order->serviceVersion?->default_provider_rate)
+            : ($providerPricingMethod === 'percent_of_base'
+                ? ($providerOverride?->percentage ?? $order->serviceVersion?->provider_percentage)
+                : ($providerOverride?->rate ?? $providerOverride?->fixed_amount ?? $order->serviceVersion?->default_provider_rate)));
+
+    $providerPricingSource = is_array($snapshottedCompensation)
+        ? data_get($snapshottedCompensation, 'source')
+        : ($providerOverride ? 'provider_override' : 'service_version_default');
 
     $statusLabels = [
         'draft' => 'Aguardando início',
@@ -151,18 +167,13 @@
     $customerPricingMethod =
         $order->serviceVersion?->customer_pricing_method;
 
-    $providerPricingMethod =
-        $providerOverride?->calculation_method
-        ?? $order->serviceVersion?->provider_pricing_method;
-
     $formatMethod = static function ($method): string {
-        if (!$method) {
-            return '—';
-        }
-
-        return \Illuminate\Support\Str::headline(
-            str_replace('_', ' ', (string) $method)
-        );
+        return match ($method) {
+            'fixed' => 'Valor fixo por execução',
+            'quantity_x_rate' => 'Quantidade × tarifa',
+            'percent_of_base' => 'Percentual da cobrança',
+            default => '—',
+        };
     };
 
     $formatMoney = static fn ($value): string =>
@@ -1351,6 +1362,12 @@
 </style>
 
 <main class="service-execution">
+    @if($errors->any())
+        <div class="svc-alert danger" role="alert" tabindex="-1" id="form-errors">
+            <span class="svc-alert-icon" aria-hidden="true"><i class="ph-fill ph-warning-circle"></i></span>
+            <div><strong>Não foi possível concluir a ordem.</strong><ul style="margin:.35rem 0 0;padding-left:1.15rem">@foreach($errors->all() as $message)<li>{{$message}}</li>@endforeach</ul><small>Os dados preenchidos permanecem na tela. Corrija somente os itens indicados e envie novamente.</small></div>
+        </div>
+    @endif
     {{-- =========================================================
          CABEÇALHO + FLUXO
          ========================================================= --}}
@@ -1415,10 +1432,7 @@
                 class="svc-steps"
                 aria-label="Etapas da execução"
             >
-                @foreach(
-                    $workflowSteps
-                    as $index => $step
-                )
+                @foreach($workflowSteps as $index => $step)
                     @php
                         $stepDone =
                             $index < $stepIndex;
@@ -1661,10 +1675,12 @@
 
                                 @if($providerConfiguredRate)
                                     ·
-                                    {{ $formatMoney(
-                                        $providerConfiguredRate
-                                    ) }}
+                                    {{ $providerPricingMethod === 'percent_of_base'
+                                        ? number_format((float) $providerConfiguredRate, 2, ',', '.') . '%'
+                                        : $formatMoney($providerConfiguredRate) }}
                                 @endif
+                                <br>
+                                <strong>{{ in_array($providerPricingSource, ['provider_override', 'provider_service_version'], true) ? 'Exceção individual deste prestador' : 'Regra padrão da versão' }}</strong>
                             </span>
                         </th>
 
@@ -1694,6 +1710,20 @@
             </table>
         </section>
     </div>
+
+    @if(collect($execution->values)->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty())
+        <section class="svc-panel">
+            <header class="svc-panel-head" style="--panel-tone:var(--svc-blue);--panel-soft:var(--svc-blue-soft)">
+                <div class="svc-panel-title"><span class="svc-panel-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><div class="svc-panel-copy"><h2>Dados já registrados</h2><p>Valores salvos anteriormente nesta execução.</p></div></div>
+            </header>
+            <table class="svc-info-table"><tbody>
+                @foreach(collect($execution->values)->filter(fn ($value) => $value !== null && $value !== '') as $key => $value)
+                    @php($savedField = $fields->firstWhere('key', $key))
+                    <tr><th>{{$savedField['label'] ?? \Illuminate\Support\Str::headline($key)}}</th><td>{{is_bool($value) ? ($value ? 'Sim' : 'Não') : (is_array($value) ? implode(', ', $value) : $value)}} @if(data_get($savedField, 'unit')) {{data_get($savedField, 'unit')}} @endif</td></tr>
+                @endforeach
+            </tbody></table>
+        </section>
+    @endif
 
     {{-- =========================================================
          INÍCIO / CORREÇÃO
@@ -2011,10 +2041,7 @@
                     </thead>
 
                     <tbody>
-                        @foreach(
-                            $execution->evidences
-                            as $evidence
-                        )
+                        @foreach($execution->evidences as $evidence)
                             <tr>
                                 <td>
                                     <div class="evidence-name">
@@ -2048,9 +2075,10 @@
                                                 $evidence,
                                             ]
                                         ) }}"
+                                        target="_blank"
                                     >
-                                        <i class="ph ph-download-simple"></i>
-                                        Baixar
+                                        <i class="ph ph-eye"></i>
+                                        Visualizar
                                     </a>
                                 </td>
                             </tr>
@@ -2123,29 +2151,11 @@
                             aria-label="Cálculos da execução"
                         >
                             <tbody>
-                                @foreach(
-                                    [
-                                        'customer' => 'Cobrança',
-                                        'provider' => 'Remuneração',
-                                    ]
-                                    as $direction => $label
-                                )
-                                    @php
-                                        $calculation = data_get(
-                                            $execution->derived_values,
-                                            "calculation.$direction",
-                                            []
-                                        );
-
-                                        $calculationMode =
-                                            data_get(
-                                                $calculation,
-                                                'mode'
-                                            );
-                                    @endphp
+                                @foreach(['customer' => 'Cobrança', 'provider' => 'Remuneração'] as $direction => $label)
+                                    @php($calculation = data_get($execution->derived_values, "calculation.$direction", []))
 
                                     @if(
-                                        $calculationMode ===
+                                        data_get($calculation, 'mode') ===
                                         'meter_difference'
                                     )
                                         <tr>
@@ -2175,7 +2185,7 @@
                                             </td>
                                         </tr>
                                     @elseif(
-                                        $calculationMode ===
+                                        data_get($calculation, 'mode') ===
                                         'field'
                                     )
                                         <tr>

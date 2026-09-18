@@ -32,7 +32,8 @@ function installationId() {
 
 async function registration() {
     if (!('serviceWorker' in navigator)) return null;
-    await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' });
+    const version = document.querySelector('meta[name="app-version"]')?.content || 'dev';
+    await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(version)}`, { scope: '/', updateViaCache: 'none' });
     return navigator.serviceWorker.ready;
 }
 

@@ -8,6 +8,7 @@ use App\Models\Associate;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider;
 use App\Models\ServiceProviderService;
+use App\Models\ServiceProviderVersionRate;
 use App\Models\ServiceVersion;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -88,6 +89,26 @@ class CreateServiceOrder
             $order->tenant_id = $tenantId;
             $order->save();
             $snapshot = $version->snapshot();
+            if ($provider && $version->payable_enabled) {
+                $override = ServiceProviderVersionRate::query()
+                    ->where('tenant_id', $tenantId)
+                    ->where('service_version_id', $version->id)
+                    ->where('service_provider_id', $provider->id)
+                    ->where('active', true)
+                    ->first();
+                // A fórmula pertence à versão. A configuração individual só
+                // substitui o valor da tarifa/percentual, nunca a fórmula.
+                $method = $version->provider_pricing_method;
+                $snapshot['provider_compensation'] = [
+                    'source' => $override ? 'provider_service_version' : 'service_version_default',
+                    'provider_rate_id' => $override?->id,
+                    'method' => $method,
+                    'rate' => $method === 'fixed'
+                        ? ($override?->fixed_amount ?? $override?->rate ?? $version->default_provider_rate)
+                        : ($override?->rate ?? $override?->fixed_amount ?? $version->default_provider_rate),
+                    'percentage' => $override?->percentage ?? $version->provider_percentage,
+                ];
+            }
             $execution = $order->execution()->make(['service_version_id' => $version->id, 'service_provider_id' => $provider?->id, 'associate_id' => $associate?->id, 'status' => 'draft', 'unit' => $version->unit, 'values' => [], 'derived_values' => [], 'catalog_snapshot' => $snapshot]);
             $execution->tenant_id = $tenantId;
             $execution->save();

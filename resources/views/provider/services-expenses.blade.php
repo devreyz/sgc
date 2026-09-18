@@ -13,7 +13,7 @@
         <label>Valor<input type="number" name="amount" min="0.01" step="0.01" required value="{{old('amount')}}"></label>
         <label>Data<input type="date" name="date" required value="{{old('date',now()->toDateString())}}"></label>
         <label>Vencimento<input type="date" name="due_date" required value="{{old('due_date',now()->toDateString())}}"></label>
-        <label>Ordem de serviço (opcional)<select name="service_order_id"><option value="">Despesa geral de serviços</option>@foreach($orders as $order)<option value="{{$order->id}}" @selected(old('service_order_id')==$order->id)>{{$order->number}}</option>@endforeach</select></label>
+        <label>Ordem de serviço (opcional)<select name="service_order_id"><option value="">Despesa geral de serviços</option>@foreach($orders as $order)<option value="{{$order->id}}" @selected(old('service_order_id')==$order->id)>{{$order->number}} · {{$order->beneficiary_snapshot['name']??'Sem beneficiário'}} · {{$order->scheduled_at?->format('d/m/Y')??'sem data'}}</option>@endforeach</select></label>
         <label>Plano de contas (opcional)<select name="chart_account_id"><option value="">Não informado</option>@foreach($accounts as $account)<option value="{{$account->id}}" @selected(old('chart_account_id')==$account->id)>{{$account->name}}</option>@endforeach</select></label>
         <label>Nº documento<input name="document_number" maxlength="80" value="{{old('document_number')}}"></label>
         <label style="grid-column:1/-1">Observações<textarea name="notes" maxlength="2000">{{old('notes')}}</textarea></label>

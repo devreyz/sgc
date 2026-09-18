@@ -41,6 +41,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
 use App\Http\Controllers\Services\ServiceCatalogController;
 use App\Http\Controllers\Services\ServiceManagementController;
+use App\Http\Controllers\Services\ServiceSimulationController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
 use App\Services\AuthenticationRedirector;
@@ -377,6 +378,10 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
 
     // Service Provider Portal Routes
     Route::prefix('services-management')->name('services.')->group(function () {
+        Route::get('/simulations', [ServiceSimulationController::class, 'index'])->name('simulations.index');
+        Route::post('/simulations', [ServiceSimulationController::class, 'store'])->middleware('throttle:30,1')->name('simulations.store');
+        Route::get('/simulations/{simulation}', [ServiceSimulationController::class, 'show'])->whereNumber('simulation')->name('simulations.show');
+        Route::delete('/simulations/{simulation}', [ServiceSimulationController::class, 'destroy'])->middleware('throttle:30,1')->whereNumber('simulation')->name('simulations.destroy');
         Route::get('/', [ServiceManagementController::class, 'index'])->name('management.index');
         Route::get('/orders/create', [ServiceManagementController::class, 'create'])->name('management.create');
         Route::post('/orders', [ServiceManagementController::class, 'store'])->middleware('throttle:30,1')->name('management.store');

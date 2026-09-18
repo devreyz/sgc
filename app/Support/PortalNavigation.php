@@ -33,11 +33,12 @@ class PortalNavigation
                 ...((auth()->user()?->checkPermissionTo('manage_service_expenses') ?? false) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'provider.expenses']] : []),
             ],
             'services' => [
-                ['key' => 'queue', 'label' => 'Fila', 'route' => 'services.management.index'],
-                ['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create'],
-                ['key' => 'catalog', 'label' => 'Catálogo', 'route' => 'services.catalog.index'],
-                ['key' => 'agreements', 'label' => 'Acordos', 'route' => 'services.management.agreements'],
-                ['key' => 'reports', 'label' => 'Prestação', 'route' => 'services.management.reports'],
+                ...((auth()->user()?->checkPermissionTo('view_service_management') ?? false) ? [['key' => 'queue', 'label' => 'Fila', 'route' => 'services.management.index']] : []),
+                ...((auth()->user()?->checkPermissionTo('create_service_order') ?? false) ? [['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create']] : []),
+                ...((auth()->user()?->checkPermissionTo('manage_service_catalog') ?? false) ? [['key' => 'catalog', 'label' => 'Catálogo', 'route' => 'services.catalog.index']] : []),
+                ...((auth()->user()?->checkPermissionTo('simulate_services') ?? false) ? [['key' => 'simulations', 'label' => 'Simulador', 'route' => 'services.simulations.index']] : []),
+                ...((auth()->user()?->checkPermissionTo('manage_service_agreements') ?? false) ? [['key' => 'agreements', 'label' => 'Acordos', 'route' => 'services.management.agreements']] : []),
+                ...((auth()->user()?->checkPermissionTo('view_service_reports') ?? false) ? [['key' => 'reports', 'label' => 'Prestação', 'route' => 'services.management.reports']] : []),
             ],
             'cashier' => [
                 ['key' => 'dashboard', 'label' => 'Caixa', 'route' => 'pdv.index'],

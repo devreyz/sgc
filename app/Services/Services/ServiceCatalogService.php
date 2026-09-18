@@ -63,7 +63,21 @@ class ServiceCatalogService
             $version = $this->createDraft($source->service, $versionAttributes, $fieldAttributes);
 
             foreach ($source->providerRates as $sourceRate) {
-                $rate = $version->providerRates()->make(collect($sourceRate->getAttributes())->except(['id', 'tenant_id', 'service_version_id', 'created_at', 'updated_at'])->all());
+                $attributes = collect($sourceRate->getAttributes())->except(['id', 'tenant_id', 'service_version_id', 'created_at', 'updated_at'])->all();
+                $attributes['calculation_method'] = $version->provider_pricing_method;
+                if ($version->provider_pricing_method === 'quantity_x_rate') {
+                    $attributes['rate'] = $sourceRate->rate ?? $sourceRate->fixed_amount;
+                    $attributes['fixed_amount'] = null;
+                    $attributes['percentage'] = null;
+                } elseif ($version->provider_pricing_method === 'fixed') {
+                    $attributes['fixed_amount'] = $sourceRate->fixed_amount ?? $sourceRate->rate;
+                    $attributes['rate'] = null;
+                    $attributes['percentage'] = null;
+                } else {
+                    $attributes['rate'] = null;
+                    $attributes['fixed_amount'] = null;
+                }
+                $rate = $version->providerRates()->make($attributes);
                 $rate->tenant_id = $version->tenant_id;
                 $rate->save();
             }
@@ -104,7 +118,11 @@ class ServiceCatalogService
                 if (! $eligible) {
                     throw ValidationException::withMessages(['provider_rates' => 'Existe tarifa individual para um prestador que não está habilitado neste serviço.']);
                 }
-                $valid = $this->pricingIsValid($rate->calculation_method, $rate->calculation_method === 'fixed' ? ($rate->fixed_amount ?? $rate->rate) : $rate->rate, $rate->percentage);
+                $effectiveMethod = $version->provider_pricing_method;
+                $effectiveRate = $effectiveMethod === 'fixed'
+                    ? ($rate->fixed_amount ?? $rate->rate)
+                    : ($rate->rate ?? $rate->fixed_amount);
+                $valid = $this->pricingIsValid($effectiveMethod, $effectiveRate, $rate->percentage);
                 if (! $valid) {
                     throw ValidationException::withMessages(['provider_rates' => 'Revise as tarifas individuais: o valor exigido pelo método de cálculo deve ser maior que zero.']);
                 }

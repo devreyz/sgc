@@ -9,7 +9,7 @@
     },
     "devDependencies": {
         "@capacitor/assets": "^3.0.5",
-        "@capacitor/cli": "^8.5.0",
+        "@capacitor/cli": "^8.4.3",
         "@tailwindcss/vite": "^4.0.0",
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",

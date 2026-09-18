@@ -25,44 +25,62 @@ class ServiceCompositionCalculator
         $executionConfig = (array) data_get($execution->catalog_snapshot, 'execution_config', $version->execution_config ?? []);
         $receivable = [];
         $payable = [];
-        if ($version->receivable_enabled) {
-            $configuredCustomerRate = (float) ($version->customer_rate ?? 0);
-            $customerCalculationBase = $version->customer_pricing_method === 'percent_of_base' ? $configuredCustomerRate : 0;
-            $base = $this->amount($version->customer_pricing_method, $customerQuantity, $configuredCustomerRate, (float) ($version->customer_percentage ?? 0), $customerCalculationBase);
-            $customerRate = (float) ($version->customer_rate ?? $base);
+        $receivableEnabled = (bool) data_get($execution->catalog_snapshot, 'receivable_enabled', $version->receivable_enabled);
+        $payableEnabled = (bool) data_get($execution->catalog_snapshot, 'payable_enabled', $version->payable_enabled);
+        if ($receivableEnabled) {
+            $customerMethod = (string) data_get($execution->catalog_snapshot, 'customer_pricing_method', $version->customer_pricing_method);
+            $configuredCustomerRate = (float) data_get($execution->catalog_snapshot, 'customer_rate', $version->customer_rate ?? 0);
+            $customerPercentage = (float) data_get($execution->catalog_snapshot, 'customer_percentage', $version->customer_percentage ?? 0);
+            $customerCalculationBase = $customerMethod === 'percent_of_base' ? $configuredCustomerRate : 0;
+            $base = $this->amount($customerMethod, $customerQuantity, $configuredCustomerRate, $customerPercentage, $customerCalculationBase);
+            $customerRate = $configuredCustomerRate ?: $base;
             $receivable[] = $this->line('receivable', 'base', 'catalog', 'customer_base', 'Serviço executado', $customerQuantity, $executionConfig['customer_unit'] ?? $version->unit, $customerRate, $base, 'add', [
-                'method' => $version->customer_pricing_method,
+                'method' => $customerMethod,
                 'version' => $version->version,
                 'quantity_source' => data_get($derived, 'calculation.customer'),
-                'formula' => $this->formula($version->customer_pricing_method, $customerQuantity, $customerRate, (float) ($version->customer_percentage ?? 0), $customerCalculationBase),
+                'formula' => $this->formula($customerMethod, $customerQuantity, $customerRate, $customerPercentage, $customerCalculationBase),
             ]);
         }
         $customerBase = round(collect($receivable)->sum('amount'), 2);
-        if ($version->payable_enabled) {
+        if ($payableEnabled) {
             if (! $execution->service_provider_id) {
                 throw ValidationException::withMessages(['service_provider_id' => 'A execução exige prestador para gerar a obrigação a pagar.']);
             }
-            $override = ServiceProviderVersionRate::query()->where('tenant_id', $execution->tenant_id)->where('service_version_id', $version->id)->where('service_provider_id', $execution->service_provider_id)->where('active', true)->first();
-            $method = $override?->calculation_method ?: $version->provider_pricing_method;
-            $rate = (float) (($method === 'fixed' ? ($override?->fixed_amount ?? $override?->rate) : $override?->rate) ?? $version->default_provider_rate ?? 0);
-            $percentage = (float) ($override?->percentage ?? $version->provider_percentage ?? 0);
+            $snapshottedCompensation = data_get($execution->catalog_snapshot, 'provider_compensation');
+            $override = null;
+            if (is_array($snapshottedCompensation)) {
+                $method = $snapshottedCompensation['method'] ?? null;
+                $rate = (float) ($snapshottedCompensation['rate'] ?? 0);
+                $percentage = (float) ($snapshottedCompensation['percentage'] ?? 0);
+                $compensationSource = $snapshottedCompensation['source'] ?? 'service_version_default';
+            } else {
+                // Compatibilidade para ordens criadas antes do snapshot da remuneração efetiva.
+                $override = ServiceProviderVersionRate::query()->where('tenant_id', $execution->tenant_id)->where('service_version_id', $version->id)->where('service_provider_id', $execution->service_provider_id)->where('active', true)->first();
+                $method = data_get($execution->catalog_snapshot, 'provider_pricing_method', $version->provider_pricing_method);
+                $rate = (float) (($method === 'fixed'
+                    ? ($override?->fixed_amount ?? $override?->rate)
+                    : ($override?->rate ?? $override?->fixed_amount))
+                    ?? data_get($execution->catalog_snapshot, 'default_provider_rate', $version->default_provider_rate) ?? 0);
+                $percentage = (float) ($override?->percentage ?? data_get($execution->catalog_snapshot, 'provider_percentage', $version->provider_percentage) ?? 0);
+                $compensationSource = $override ? 'provider_service_version' : 'service_version_default';
+            }
             if (! $method || (($method !== 'percent_of_base') && $rate <= 0) || ($method === 'percent_of_base' && $percentage <= 0)) {
                 throw ValidationException::withMessages(['provider_rate' => 'Não existe remuneração válida para este prestador. Cadastre um override ou tarifa padrão da versão.']);
             }
             $amount = $this->amount($method, $providerQuantity, $rate, $percentage, $customerBase);
-            $payable[] = $this->line('payable', 'base', $override ? 'provider_override' : 'catalog', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, $executionConfig['provider_unit'] ?? $version->unit, $rate, $amount, 'add', [
+            $payable[] = $this->line('payable', 'base', $compensationSource === 'provider_service_version' ? 'provider_override' : 'catalog', 'provider_compensation', 'Remuneração do prestador', $providerQuantity, $executionConfig['provider_unit'] ?? $version->unit, $rate, $amount, 'add', [
                 'method' => $method,
                 'rate' => $rate,
                 'percentage' => $percentage,
-                'precedence' => $override ? 'provider_service_version' : 'service_version_default',
+                'precedence' => $compensationSource,
                 'version' => $version->version,
                 'quantity_source' => data_get($derived, 'calculation.provider'),
                 'formula' => $this->formula($method, $providerQuantity, $rate, $percentage, $customerBase),
             ]);
         }
         foreach ($execution->resources as $resource) {
-            if ((! $version->receivable_enabled && in_array($resource->effect, ['deduct_from_receivable', 'add_to_receivable'], true))
-                || (! $version->payable_enabled && $resource->effect === 'reimburse_provider')) {
+            if ((! $receivableEnabled && in_array($resource->effect, ['deduct_from_receivable', 'add_to_receivable'], true))
+                || (! $payableEnabled && $resource->effect === 'reimburse_provider')) {
                 throw ValidationException::withMessages(['resources' => 'O recurso afeta uma cobrança ou remuneração desativada nesta versão.']);
             }
             $amount = round((float) $resource->amount, 2);
@@ -82,7 +100,7 @@ class ServiceCompositionCalculator
             $this->validateRuleEvidences($execution, $rules);
         }
         foreach ($engine->adjustments($rules, $execution->values ?? [], $bases, $quantity) as $line) {
-            if (($line['direction'] === 'receivable' && ! $version->receivable_enabled) || ($line['direction'] === 'payable' && ! $version->payable_enabled)) {
+            if (($line['direction'] === 'receivable' && ! $receivableEnabled) || ($line['direction'] === 'payable' && ! $payableEnabled)) {
                 throw ValidationException::withMessages(['financial_config' => 'Regra financeira incompatível com esta versão.']);
             }
             ${$line['direction']}[] = $line;

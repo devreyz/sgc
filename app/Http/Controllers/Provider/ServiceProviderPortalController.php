@@ -59,14 +59,23 @@ class ServiceProviderPortalController extends Controller
 
     public function store(Request $request, Tenant $tenant, CreateServiceOrder $creator): RedirectResponse
     {
-        $request->validate(['beneficiary_name' => 'required|string|max:191']);
         [$provider, $operator] = $this->access($request, $tenant);
-        $data = $request->validate(['service_version_id' => 'required|integer', 'service_provider_id' => $operator ? 'required|integer' : 'nullable', 'associate_id' => 'nullable|integer', 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'array']);
+        $data = $request->validate(['service_version_id' => 'required|integer', 'service_provider_id' => $operator ? 'required|integer' : 'nullable', 'associate_id' => 'nullable|integer', 'beneficiary_name' => 'nullable|string|max:191', 'asset_id' => 'nullable|integer', 'scheduled_at' => 'required|date', 'location' => 'nullable|string|max:191', 'order_data' => 'array']);
         if ($operator) {
             $provider = ServiceProvider::query()->where('tenant_id', $tenant->id)->where('status', true)->whereKey($data['service_provider_id'])->firstOrFail();
         }
         $version = $this->availableVersions($tenant, $provider, $operator)->whereKey($data['service_version_id'])->firstOrFail();
-        $order = $creator->handle($tenant->id, $version, $data + ['service_provider_id' => $provider->id, 'beneficiary_name' => $request->input('beneficiary_name')], $request->user());
+        $associate = filled($data['associate_id'] ?? null)
+            ? Associate::query()->where('tenant_id', $tenant->id)->active()->find($data['associate_id'])
+            : null;
+        $beneficiaryName = trim((string) ($data['beneficiary_name'] ?? ''));
+        if ($beneficiaryName === '' && $associate) {
+            $beneficiaryName = trim((string) ($associate->nickname ?: $associate->display_name));
+        }
+        if ($beneficiaryName === '') {
+            throw ValidationException::withMessages(['beneficiary_name' => 'Informe o nome/apelido ou selecione um membro.']);
+        }
+        $order = $creator->handle($tenant->id, $version, $data + ['service_provider_id' => $provider->id, 'beneficiary_name' => $beneficiaryName], $request->user());
 
         return redirect()->route('provider.orders.show', [$tenant, $order]);
     }
@@ -152,9 +161,11 @@ class ServiceProviderPortalController extends Controller
     public function financial(Request $request, Tenant $tenant): View
     {
         [$provider, $operator] = $this->access($request, $tenant);
-        $obligations = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable')->with('execution.order.service')->latest()->paginate(20);
+        $query = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable');
+        $summary = ['due' => (clone $query)->sum('total_amount'), 'paid' => (clone $query)->sum('paid_amount'), 'balance' => (clone $query)->sum('balance')];
+        $obligations = $query->with(['execution.order.service', 'provider'])->latest()->paginate(20);
 
-        return view('provider.services-financial', compact('provider', 'operator', 'obligations'));
+        return view('provider.services-financial', compact('provider', 'operator', 'obligations', 'summary'));
     }
 
     public function payout(Request $request, Tenant $tenant, ServicePayoutRequestService $service): RedirectResponse
@@ -180,7 +191,7 @@ class ServiceProviderPortalController extends Controller
         [, $operator] = $this->access($request, $tenant);
         abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
         $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')->with('expenseable')->latest('date')->paginate(25);
-        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->latest()->limit(200)->get(['id', 'number']);
+        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->latest()->limit(200)->get(['id', 'number', 'beneficiary_snapshot', 'scheduled_at']);
         $accounts = ChartAccount::query()->where('tenant_id', $tenant->id)->where('type', 'despesa')->orderBy('name')->get(['id', 'name']);
 
         return view('provider.services-expenses', compact('operator', 'expenses', 'orders', 'accounts'));

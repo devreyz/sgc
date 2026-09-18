@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="pt-BR" class="scroll-smooth">
 <head>
+  <meta name="app-version" content="{{ config('app.version') }}">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101923">

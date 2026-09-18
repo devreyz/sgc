@@ -142,8 +142,14 @@ class ServiceCatalogController extends Controller
         $this->allow($request, 'manage_service_catalog');
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
         abort_unless($version->status === 'draft', 422, 'Duplique a versão publicada para alterar tarifas.');
-        $data = $request->validate(['service_provider_id' => 'required|integer', 'calculation_method' => 'required|in:fixed,quantity_x_rate,percent_of_base', 'rate' => 'nullable|numeric|min:0', 'fixed_amount' => 'nullable|numeric|min:0', 'percentage' => 'nullable|numeric|min:0|max:100']);
+        $data = $request->validate([
+            'service_provider_id' => 'required|integer',
+            'rate' => $version->provider_pricing_method === 'quantity_x_rate' ? 'required|numeric|min:0.0001' : 'nullable|numeric|min:0',
+            'fixed_amount' => $version->provider_pricing_method === 'fixed' ? 'required|numeric|min:0.01' : 'nullable|numeric|min:0',
+            'percentage' => $version->provider_pricing_method === 'percent_of_base' ? 'required|numeric|min:0.0001|max:100' : 'nullable|numeric|min:0|max:100',
+        ]);
         $provider = ServiceProvider::query()->where('tenant_id', $tenant->id)->whereKey($data['service_provider_id'])->firstOrFail();
+        $data['calculation_method'] = $version->provider_pricing_method;
         ServiceProviderVersionRate::query()->updateOrCreate(['tenant_id' => $tenant->id, 'service_version_id' => $version->id, 'service_provider_id' => $provider->id], $data + ['active' => true]);
 
         return back()->with('success', 'Remuneração específica salva.');
