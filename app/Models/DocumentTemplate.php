@@ -388,7 +388,7 @@ class DocumentTemplate extends Model
                     'project_info' => 'Dados do Projeto',
                     'deliveries' => 'Distribuicoes',
                     'financial' => 'Resumo Financeiro',
-                    'signature' => 'Consentimento e Assinatura',
+                    'signature' => 'Declaração e assinatura',
                 ],
                 'columns' => [
                     'unit_price' => 'Valor Unitario',
@@ -409,7 +409,7 @@ class DocumentTemplate extends Model
                     'project_info' => 'Dados do Projeto',
                     'deliveries' => 'Distribuicoes',
                     'financial' => 'Resumo Financeiro',
-                    'signature' => 'Consentimento e Assinatura',
+                    'signature' => 'Declaração e assinatura',
                 ],
                 'columns' => [
                     'unit_price' => 'Valor Unitario',

@@ -251,6 +251,10 @@ class AssociateReceiptService
             }
         }, 5);
 
+        app(FinancialDocumentIdentityService::class)->ensure(
+            AssociateReceipt::withoutGlobalScopes()->findOrFail($receipt->id),
+            Auth::user(),
+        );
         SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
     }
 

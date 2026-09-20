@@ -33,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webauthn.config' => \App\Http\Middleware\EnsureWebAuthnConfiguration::class,
             'invitation.headers' => \App\Http\Middleware\InvitationSecurityHeaders::class,
             'public.headers' => \App\Http\Middleware\PublicPageSecurityHeaders::class,
+            'financial.headers' => \App\Http\Middleware\FinancialDocumentSecurityHeaders::class,
             'auth.failures' => \App\Http\Middleware\AuditAuthenticationFailures::class,
         ]);
 

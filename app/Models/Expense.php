@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -16,7 +17,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Expense extends Model
 {
-    use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
+    use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'description',
@@ -104,6 +105,11 @@ class Expense extends Model
         return $this->morphTo();
     }
 
+    public function documents(): MorphMany
+    {
+        return $this->morphMany(Document::class, 'documentable');
+    }
+
     /**
      * Get the parent expense (for installments).
      */
@@ -149,8 +155,8 @@ class Expense extends Model
      */
     public function isOverdue(): bool
     {
-        return $this->status !== ExpenseStatus::PAID 
-            && $this->due_date 
+        return $this->status !== ExpenseStatus::PAID
+            && $this->due_date
             && $this->due_date->isPast();
     }
 

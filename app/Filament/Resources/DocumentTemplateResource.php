@@ -100,11 +100,11 @@ class DocumentTemplateResource extends Resource
                 ->visible(fn (Get $get) => $get('template_category') === 'system')
                 ->columns(1),
 
-            Forms\Components\Section::make('Consentimento e Assinaturas')
-                ->description('Personalize o texto por tipo de projeto usando as variaveis permitidas.')
+            Forms\Components\Section::make('Declaração e assinaturas')
+                ->description('Personalize a declaração do comprovante. Este texto confirma o fato documentado e não é um consentimento geral de tratamento de dados.')
                 ->schema([
                     Forms\Components\Toggle::make('consent_enabled')
-                        ->label('Exibir consentimento e assinaturas')
+                        ->label('Exibir declaração e assinaturas')
                         ->default(true),
                     Forms\Components\Toggle::make('show_recipient_signature')
                         ->label(fn (Get $get): string => match ($get('system_template_key')) {

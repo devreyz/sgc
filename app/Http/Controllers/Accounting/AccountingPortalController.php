@@ -67,41 +67,22 @@ class AccountingPortalController extends Controller
         $this->authorizePortal($request);
         $base = CustomerBillingReceipt::query()->where('tenant_id', $tenant->id);
 
-        $critical = (clone $base)
-            ->where(function (Builder $query): void {
-                $query->whereNull('sales_project_id')
-                    ->orWhere(function (Builder $recipient): void {
-                        $recipient->whereNull('customer_id')->whereNull('organization_id');
-                    })
-                    ->orWhere(function (Builder $recipient): void {
-                        $recipient->whereNotNull('customer_id')->whereNotNull('organization_id');
-                    })
-                    ->orWhereDoesntHave('billingDistributions')
-                    ->orWhereHas('billingDistributions', fn (Builder $distribution) => $this->invalidDistributionQuery($distribution))
-                    ->orWhere(function (Builder $snapshot): void {
-                        $snapshot->whereIn('status', [
-                            CustomerReceiptStatus::PENDING_PAYMENT->value,
-                            CustomerReceiptStatus::PARTIALLY_PAID->value,
-                            CustomerReceiptStatus::PAID->value,
-                        ])->where('total_net', '<=', 0);
-                    });
-            })
-            ->count();
+        $critical = $this->criticalProcessQuery(clone $base)->count();
 
         $validBase = $this->structurallyValidQuery(clone $base);
-        $drafts = (clone $validBase)->where('status', CustomerReceiptStatus::DRAFT->value)->count();
+        $drafts = $this->draftPreparationQuery(clone $base)->count();
         $closed = (clone $validBase)->where('status', CustomerReceiptStatus::PENDING_PAYMENT->value)
             ->whereDoesntHave('authorizationRounds')->count();
         $partial = (clone $validBase)->where('status', CustomerReceiptStatus::PARTIALLY_PAID->value)->count();
 
         $items = collect([
-            $this->queueItem('critical', 'Inconsistências críticas', $critical, 'alert-triangle', 'danger', [
+            $this->queueItem('critical', 'Erros de integridade', $critical, 'alert-triangle', 'danger', [
                 'pending' => 'review_inconsistency',
             ]),
-            $this->queueItem('drafts', 'Cobranças em preparação', $drafts, 'file-pen-line', 'neutral', [
+            $this->queueItem('drafts', 'Rascunhos para completar', $drafts, 'file-pen-line', 'neutral', [
                 'financial_status' => CustomerReceiptStatus::DRAFT->value,
             ]),
-            $this->queueItem('closed', 'Prontas para envio', $closed, 'clipboard-check', 'warning', [
+            $this->queueItem('closed', 'Aguardando envio para autorização', $closed, 'clipboard-check', 'warning', [
                 'financial_status' => CustomerReceiptStatus::PENDING_PAYMENT->value,
             ]),
             $this->queueItem('awaiting_authorization', 'Aguardando organização', (clone $validBase)
@@ -116,7 +97,7 @@ class AccountingPortalController extends Controller
                 ->whereHas('latestAuthorizationRound', fn (Builder $query) => $query->where('status', BillingAuthorizationStatus::INVALIDATED->value))->count(), 'shield-alert', 'danger', [
                     'authorization_status' => BillingAuthorizationStatus::INVALIDATED->value,
                 ]),
-            $this->queueItem('authorized', 'Autorizações concluídas', (clone $validBase)
+            $this->queueItem('authorized', 'Autorizadas — preparar emissão', (clone $validBase)
                 ->whereHas('latestAuthorizationRound', fn (Builder $query) => $query->where('status', BillingAuthorizationStatus::AUTHORIZED->value))->count(), 'badge-check', 'success', [
                     'authorization_status' => BillingAuthorizationStatus::AUTHORIZED->value,
                 ]),
@@ -138,7 +119,7 @@ class AccountingPortalController extends Controller
             'summary' => [
                 'open_processes' => $closed + $partial,
                 'open_amount' => $openAmount,
-                'legacy_state' => 'Processos anteriores ao fluxo contábil',
+                'workflow_label' => 'Preparação → autorização → emissão → recebimento → prestação de contas',
             ],
             'empty' => $items->isEmpty(),
         ]);
@@ -196,17 +177,7 @@ class AccountingPortalController extends Controller
         }
 
         if (($filters['pending'] ?? null) === 'review_inconsistency') {
-            $query->where(function (Builder $query): void {
-                $query->whereNull('sales_project_id')
-                    ->orWhere(function (Builder $recipient): void {
-                        $recipient->whereNull('customer_id')->whereNull('organization_id');
-                    })
-                    ->orWhere(function (Builder $recipient): void {
-                        $recipient->whereNotNull('customer_id')->whereNotNull('organization_id');
-                    })
-                    ->orWhereDoesntHave('billingDistributions')
-                    ->orWhereHas('billingDistributions', fn (Builder $distribution) => $this->invalidDistributionQuery($distribution));
-            });
+            $this->criticalProcessQuery($query);
         } elseif ($pending = $filters['pending'] ?? null) {
             $status = match ($pending) {
                 'review_draft' => CustomerReceiptStatus::DRAFT->value,
@@ -266,7 +237,13 @@ class AccountingPortalController extends Controller
         $fiscal = $latestRound?->status === BillingAuthorizationStatus::AUTHORIZED
             ? $fiscalGate->evaluate($receipt, $tenant->id)
             : null;
-        $state = $resolver->resolve($receipt->status, $integrityResult['critical_count'], $authorization['state'], $fiscal);
+        $state = $resolver->resolve(
+            $receipt->status,
+            $integrityResult['critical_count'],
+            $authorization['state'],
+            $fiscal,
+            $integrityResult['preparation_count'],
+        );
         $distributions = $receipt->billingDistributions()
             ->with([
                 'product:id,tenant_id,name,unit',
@@ -465,6 +442,8 @@ class AccountingPortalController extends Controller
             ->withCount('billingDistributions')
             ->withCount([
                 'billingDistributions as invalid_distributions_count' => fn (Builder $query) => $this->invalidDistributionQuery($query),
+                'billingDistributions as structural_distributions_count' => fn (Builder $query) => $query->whereNull('parent_delivery_id'),
+                'billingDistributions as incomplete_distributions_count' => fn (Builder $query) => $this->incompleteDistributionQuery($query),
             ]);
     }
 
@@ -477,6 +456,53 @@ class AccountingPortalController extends Controller
                 ->orWhere('unit_price', '<=', 0)
                 ->orWhere('status', '!=', DeliveryStatus::APPROVED->value);
         });
+    }
+
+    private function incompleteDistributionQuery(Builder $query): Builder
+    {
+        return $query->where(function (Builder $incomplete): void {
+            $incomplete->whereNull('customer_id')
+                ->orWhere('quantity', '<=', 0)
+                ->orWhere('unit_price', '<=', 0)
+                ->orWhere('status', '!=', DeliveryStatus::APPROVED->value);
+        });
+    }
+
+    private function criticalProcessQuery(Builder $query): Builder
+    {
+        return $query->where(function (Builder $critical): void {
+            $critical->whereNull('sales_project_id')
+                ->orWhere(function (Builder $recipient): void {
+                    $recipient->whereNull('customer_id')->whereNull('organization_id');
+                })
+                ->orWhere(function (Builder $recipient): void {
+                    $recipient->whereNotNull('customer_id')->whereNotNull('organization_id');
+                })
+                ->orWhereHas('billingDistributions', fn (Builder $distribution) => $distribution->whereNull('parent_delivery_id'))
+                ->orWhere(function (Builder $closed): void {
+                    $closed->where('status', '!=', CustomerReceiptStatus::DRAFT->value)
+                        ->where(function (Builder $invalid): void {
+                            $invalid->whereDoesntHave('billingDistributions')
+                                ->orWhereHas('billingDistributions', fn (Builder $distribution) => $this->invalidDistributionQuery($distribution))
+                                ->orWhere('total_net', '<=', 0);
+                        });
+                });
+        });
+    }
+
+    private function draftPreparationQuery(Builder $query): Builder
+    {
+        return $query
+            ->where('status', CustomerReceiptStatus::DRAFT->value)
+            ->whereNotNull('sales_project_id')
+            ->where(function (Builder $recipient): void {
+                $recipient->where(function (Builder $customer): void {
+                    $customer->whereNotNull('customer_id')->whereNull('organization_id');
+                })->orWhere(function (Builder $organization): void {
+                    $organization->whereNull('customer_id')->whereNotNull('organization_id');
+                });
+            })
+            ->whereDoesntHave('billingDistributions', fn (Builder $distribution) => $distribution->whereNull('parent_delivery_id'));
     }
 
     private function structurallyValidQuery(Builder $query): Builder
@@ -504,16 +530,21 @@ class AccountingPortalController extends Controller
         FiscalGateService $fiscalGate,
         string $tenantSlug,
     ): array {
-        $critical = (int) $receipt->invalid_distributions_count;
-        $critical += $receipt->billing_distributions_count < 1 ? 1 : 0;
+        $isDraft = $receipt->status === CustomerReceiptStatus::DRAFT;
+        $critical = (int) $receipt->structural_distributions_count;
         $critical += ! $receipt->sales_project_id ? 1 : 0;
         $critical += (($receipt->customer_id && $receipt->organization_id) || (! $receipt->customer_id && ! $receipt->organization_id)) ? 1 : 0;
-        $critical += $receipt->status?->isLocked() && (float) $receipt->total_net <= 0 ? 1 : 0;
+        $critical += ! $isDraft && $receipt->billing_distributions_count < 1 ? 1 : 0;
+        $critical += ! $isDraft ? (int) $receipt->incomplete_distributions_count : 0;
+        $critical += ! $isDraft && (float) $receipt->total_net <= 0 ? 1 : 0;
+        $preparation = $isDraft
+            ? (int) $receipt->incomplete_distributions_count + ($receipt->billing_distributions_count < 1 ? 1 : 0)
+            : 0;
         $authorization = $this->authorizationPayload($receipt->latestAuthorizationRound);
         $fiscal = $authorization['state'] === BillingAuthorizationStatus::AUTHORIZED->value
             ? $fiscalGate->evaluate($receipt, (int) $receipt->tenant_id)
             : null;
-        $state = $resolver->resolve($receipt->status, $critical, $authorization['state'], $fiscal);
+        $state = $resolver->resolve($receipt->status, $critical, $authorization['state'], $fiscal, $preparation);
 
         return [
             'id' => $receipt->id,
@@ -531,6 +562,7 @@ class AccountingPortalController extends Controller
             'remaining' => $receipt->remaining_amount,
             'distributions' => (int) $receipt->billing_distributions_count,
             'critical_issues' => $critical,
+            'preparation_issues' => $preparation,
             'state' => $state,
             'authorization' => $authorization,
             'fiscal' => $this->fiscalPayload($fiscal, $tenantSlug, $receipt->id),

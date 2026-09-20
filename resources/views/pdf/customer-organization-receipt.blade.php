@@ -358,6 +358,8 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 ])
 @endif
 
+@include('pdf.partials.financial-document-qr')
+
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}

@@ -81,6 +81,7 @@
     @if($showSection('financial'))<div class="details"><div class="details-col"><div class="detail-row"><span class="label">Conta de entrada</span><span class="detail-text">{{ $receipt->bankAccount?->name ?? 'Conta nao identificada' }}</span></div><div class="detail-row"><span class="label">Classificacao</span><span class="detail-text">{{ $receipt->chartAccount ? $receipt->chartAccount->code.' - '.$receipt->chartAccount->name : 'Nao informada' }}</span></div></div><div class="details-col"><div class="detail-row"><span class="label">Observacoes</span><span class="detail-text">{{ $receipt->notes ?: 'Sem observacoes.' }}</span></div>@if ($documentStatus === 'cancelled')<div class="detail-row"><span class="label">Motivo do cancelamento</span><span class="detail-text">{{ $receipt->cancellation_reason }}</span></div>@endif</div></div>@endif
 
     @if($showSection('signature'))<div class="signatures"><div class="signature"><div class="signature-line">{{ $receiverName ?: 'Membro nao identificado' }}</div><div class="signature-role">Recebedor</div></div><div class="signature"><div class="signature-line">{{ $receipt->payer_name }}</div><div class="signature-role">Pagador</div></div></div>@endif
+    @include('pdf.partials.financial-document-qr')
     <div class="footer">Emitido em {{ $receipt->issued_at?->format('d/m/Y H:i') }} - registro interno #{{ $receipt->id }}</div>
 </body>
 </html>

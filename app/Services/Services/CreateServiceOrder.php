@@ -57,7 +57,9 @@ class CreateServiceOrder
                     'service_provider_id' => 'Este prestador não está habilitado para executar o serviço selecionado.',
                 ]);
             }
-            $beneficiaryName = trim((string) ($data['beneficiary_name'] ?? $associate?->display_name ?? data_get($data, 'beneficiary_snapshot.name', '')));
+            $beneficiaryName = trim((string) (filled($data['beneficiary_name'] ?? null)
+                ? $data['beneficiary_name']
+                : ($associate?->nickname ?: $associate?->display_name ?: data_get($data, 'beneficiary_snapshot.name', ''))));
             if ($beneficiaryName === '' || mb_strlen($beneficiaryName) > 191) {
                 throw ValidationException::withMessages(['beneficiary_name' => 'Informe o nome ou apelido do beneficiário (até 191 caracteres), mesmo que não seja associado.']);
             }

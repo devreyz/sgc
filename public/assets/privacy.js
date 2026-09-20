@@ -1,6 +1,7 @@
 (() => {
-  const CONFIG_KEY = 'sgc_consent_v1';
-  const VERSION = 1;
+  const CONFIG_KEY = 'sgc_consent_v2';
+  const LEGACY_CONFIG_KEY = 'sgc_consent_v1';
+  const VERSION = 2;
 
   const defaults = {
     version: VERSION,
@@ -18,7 +19,12 @@
   const storage = {
     get() { try { return localStorage.getItem(CONFIG_KEY); } catch { return null; } },
     set(value) { try { localStorage.setItem(CONFIG_KEY, value); return true; } catch { return false; } },
-    remove() { try { storage.remove(); } catch {} }
+    remove() {
+      try {
+        localStorage.removeItem(CONFIG_KEY);
+        localStorage.removeItem(LEGACY_CONFIG_KEY);
+      } catch {}
+    }
   };
 
   const readConsent = () => {

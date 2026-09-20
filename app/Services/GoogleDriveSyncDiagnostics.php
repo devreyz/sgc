@@ -16,6 +16,7 @@ class GoogleDriveSyncDiagnostics
     {
         $connection = TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenantId)
+            ->where('provider', 'google_drive')
             ->first();
         $pendingJobs = collect($this->queues->pendingForTenant($tenantId, 500));
         $failedJobs = collect($this->queues->failedForTenant($tenantId, 500));

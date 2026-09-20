@@ -33,14 +33,20 @@ class TemplatedPdfService
         $template = $document->template;
         $tenant = Tenant::withoutGlobalScopes()->find($document->tenant_id);
         $theme = $this->resolveThemeColors($template, $tenant);
+        $allVars = $this->resolveSystemVariables($tenant);
+        $allVars['{{cor.primaria}}'] = $theme['primary'] ?? '#475569';
+        $allVars['{{cor.destaque}}'] = $theme['accent'] ?? '#64748b';
+        $allVars['{{documento.titulo}}'] = $document->title;
+        $allVars['{{documento.tipo}}'] = $template->name;
         $html = $this->buildHtmlPage(
             content: $document->content,
             template: $template,
             title: $document->title,
             themeColors: $theme,
             tenant: $tenant,
-            allVars: [],
+            allVars: $allVars,
         );
+
         return Pdf::loadHTML($html)->setPaper($template->paper_size ?? 'a4', $template->paper_orientation ?? 'portrait');
     }
 
@@ -325,6 +331,7 @@ HTML;
 
         $orgName = $tenant?->name ?? config('app.name', 'SGC');
         $orgCnpj = $tenant?->cnpj ?? '';
+        $logoHtml = (string) ($allVars['{{cooperativa.logo_img}}'] ?? '');
 
         if ($type === 'footer') {
             $generated = $this->today();
@@ -332,7 +339,7 @@ HTML;
 
             return <<<HTML
 <div class="pdf-footer-custom" style="text-align:center;font-family:Arial, sans-serif;">
-    <div style="font-weight:700;color:{$primaryColor};font-size:11px;">{$orgName}</div>
+    <div style="font-weight:700;color:#334155;font-size:11px;">{$orgName}</div>
     <div style="font-size:9px;color:#6b7280;margin-top:3px;">Gerado em: {$generated}{$cnpjLine}</div>
     <div style="font-size:9px;color:#9ca3af;margin-top:2px;">Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span></div>
 </div>
@@ -340,13 +347,14 @@ HTML;
         }
 
         return <<<HTML
-<div class="pdf-header-custom" style="display:table;width:100%;">
-    <div style="display:table-cell;vertical-align:middle;">
-        <div style="font-size:16px;font-weight:bold;color:{$primaryColor};">{$orgName}</div>
+<div class="pdf-header-custom" style="display:table;width:100%;border-bottom:2px solid {$primaryColor};padding-bottom:7px;">
+    <div style="display:table-cell;width:58px;vertical-align:middle;">{$logoHtml}</div>
+    <div style="display:table-cell;width:58%;vertical-align:middle;">
+        <div style="font-size:14px;font-weight:bold;color:#1f2937;">{$orgName}</div>
         <div style="font-size:8px;color:#6b7280;">{$orgCnpj}</div>
     </div>
-    <div style="display:table-cell;text-align:right;vertical-align:middle;">
-        <div style="font-size:13px;font-weight:bold;color:{$primaryColor};text-transform:uppercase;">{$docTitle}</div>
+    <div style="display:table-cell;width:34%;text-align:right;vertical-align:middle;">
+        <div style="font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;">{$docTitle}</div>
         <div style="font-size:8px;color:#9ca3af;">Gerado em: {$this->today()}</div>
     </div>
 </div>
@@ -651,23 +659,7 @@ HTMLDOC;
             $address = implode(', ', $parts);
         }
 
-        // Build logo HTML tag (local file URI for DomPDF rendering)
-        $logoImg = '';
-        if ($tenant?->logo) {
-            $logoPath = public_path('storage/'.$tenant->logo);
-            if (file_exists($logoPath)) {
-                $extension = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
-                $mime = match ($extension) {
-                    'jpg', 'jpeg' => 'image/jpeg',
-                    'gif' => 'image/gif',
-                    'svg' => 'image/svg+xml',
-                    'webp' => 'image/webp',
-                    default => 'image/png',
-                };
-                $b64 = base64_encode(file_get_contents($logoPath));
-                $logoImg = '<img src="data:'.$mime.';base64,'.$b64.'" alt="'.e($tenant->name ?? '').'" style="max-height:50px;max-width:150px;">';
-            }
-        }
+        $logoImg = $this->tenantLogoHtml($tenant);
 
         $base = [
             '{{cooperativa.nome}}' => $tenant?->name ?? config('app.name', 'SGC'),
@@ -698,6 +690,40 @@ HTMLDOC;
             $this->resolveFinancialVariables($contextVars),
             $this->resolveProjectExtensiveVariables($contextVars),
         );
+    }
+
+    private function tenantLogoHtml(?Tenant $tenant): string
+    {
+        if (! $tenant) {
+            return '';
+        }
+        foreach (array_filter([$tenant->logo, $tenant->logo_dark]) as $logo) {
+            $paths = [public_path('storage/'.$logo), storage_path('app/public/'.$logo), public_path($logo)];
+            foreach ($paths as $logoPath) {
+                if (! is_file($logoPath)) {
+                    continue;
+                }
+                $extension = strtolower(pathinfo($logoPath, PATHINFO_EXTENSION));
+                $mime = match ($extension) {
+                    'jpg', 'jpeg' => 'image/jpeg',
+                    'gif' => 'image/gif',
+                    'svg' => 'image/svg+xml',
+                    'webp' => 'image/webp',
+                    default => 'image/png',
+                };
+
+                return '<img src="data:'.$mime.';base64,'.base64_encode(file_get_contents($logoPath)).'" alt="'.e($tenant->name).'" style="max-height:50px;max-width:150px;">';
+            }
+        }
+
+        $ignored = ['da', 'de', 'do', 'das', 'dos', 'e'];
+        $initials = collect(preg_split('/\s+/u', trim((string) $tenant->name)))
+            ->filter(fn (string $word): bool => $word !== '' && ! in_array(mb_strtolower($word), $ignored, true))
+            ->take(3)->map(fn (string $word): string => mb_strtoupper(mb_substr($word, 0, 1)))->implode('');
+        $initials = $initials !== '' ? $initials : 'ORG';
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54"><rect width="54" height="54" rx="9" fill="#e2e8f0"/><text x="27" y="33" text-anchor="middle" font-family="Arial" font-size="16" font-weight="700" fill="#334155">'.htmlspecialchars($initials, ENT_QUOTES, 'UTF-8').'</text></svg>';
+
+        return '<img src="data:image/svg+xml;base64,'.base64_encode($svg).'" alt="'.e($tenant->name).'" style="max-height:50px;max-width:54px;">';
     }
 
     /**

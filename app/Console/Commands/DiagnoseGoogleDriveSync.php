@@ -17,7 +17,7 @@ class DiagnoseGoogleDriveSync extends Command
     {
         $tenantIds = $this->option('tenant')
             ? collect([(int) $this->option('tenant')])
-            : TenantCloudStorageConnection::query()->pluck('tenant_id');
+            : TenantCloudStorageConnection::query()->where('provider', 'google_drive')->pluck('tenant_id');
 
         if ($tenantIds->isEmpty()) {
             $this->warn('Nenhuma conexão com o Google Drive foi encontrada.');

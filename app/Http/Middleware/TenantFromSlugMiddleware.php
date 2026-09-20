@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Tenant;
 use App\Models\TenantUser;
+use App\Models\OrganizationAuthorizedEmail;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,8 +39,19 @@ class TenantFromSlugMiddleware
                 ->where('user_id', $user->id)
                 ->where('status', true)
                 ->exists();
+            $hasBuyerAccess = $user
+                && $request->routeIs('buyer.*')
+                && OrganizationAuthorizedEmail::withoutGlobalScope('tenant')
+                    ->where('tenant_id', $tenant->id)
+                    ->whereRaw('LOWER(email) = ?', [mb_strtolower((string) $user->email)])
+                    ->where('active', true)
+                    ->whereHas('organization', fn ($query) => $query
+                        ->withoutGlobalScope('tenant')
+                        ->where('tenant_id', $tenant->id)
+                        ->where('active', true))
+                    ->exists();
 
-            abort_unless($user?->hasRole('super_admin') || $hasMembership, 403, 'Acesso não autorizado a esta organização.');
+            abort_unless($hasMembership || $hasBuyerAccess || $user?->hasRole('super_admin'), 403, 'Acesso não autorizado a esta organização.');
 
             // Definir tenant_id na sessão
             session(['tenant_id' => $tenant->id, 'tenant_slug' => $tenant->slug]);

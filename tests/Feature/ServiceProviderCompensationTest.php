@@ -4,17 +4,20 @@ namespace Tests\Feature;
 
 use App\Models\BankAccount;
 use App\Models\ServiceExecution;
-use App\Models\ServiceExecutionResource;
 use App\Models\ServiceExecutionEvidence;
+use App\Models\ServiceExecutionResource;
 use App\Models\ServiceObligation;
 use App\Models\ServicePaymentEvent;
+use App\Models\ServicePaymentPlan;
+use App\Models\ServicePaymentPlanInstallment;
 use App\Models\ServiceProvider;
 use App\Models\ServiceProviderVersionRate;
 use App\Models\ServiceVersion;
 use App\Models\User;
-use App\Services\Services\ServiceCompositionCalculator;
 use App\Services\Services\ServiceCatalogService;
+use App\Services\Services\ServiceCompositionCalculator;
 use App\Services\Services\ServiceExecutionWorkflow;
+use App\Services\Services\ServiceFieldValidator;
 use App\Services\Services\ServicePaymentService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -27,7 +30,7 @@ class ServiceProviderCompensationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['activity_log', 'service_payment_allocations', 'service_payment_events', 'cash_movements', 'bank_accounts', 'service_obligations', 'service_obligation_sequences', 'service_execution_resources', 'service_execution_evidences', 'service_composition_lines', 'service_executions', 'service_provider_version_rates', 'service_version_fields', 'service_versions', 'service_orders', 'service_providers', 'services', 'tenants'] as $table) {
+        foreach (['activity_log', 'service_payment_plan_installments', 'service_payment_plan_obligations', 'service_payment_plans', 'service_payment_allocations', 'service_payment_events', 'cash_movements', 'bank_accounts', 'service_obligations', 'service_obligation_sequences', 'service_execution_resources', 'service_execution_evidences', 'service_composition_lines', 'service_executions', 'service_provider_version_rates', 'service_version_fields', 'service_versions', 'service_orders', 'service_providers', 'services', 'tenants'] as $table) {
             Schema::dropIfExists($table);
         }
         Schema::create('tenants', fn (Blueprint $t) => $this->base($t));
@@ -299,6 +302,30 @@ class ServiceProviderCompensationTest extends TestCase
             $t->unsignedBigInteger('service_obligation_id');
             $t->decimal('amount', 14, 2);
         });
+        Schema::create('service_payment_plans', function (Blueprint $t) {
+            $this->base($t);
+            $t->unsignedBigInteger('tenant_id');
+            $t->string('status')->default('active');
+            $t->string('description')->nullable();
+            $t->unsignedBigInteger('created_by')->nullable();
+        });
+        Schema::create('service_payment_plan_obligations', function (Blueprint $t) {
+            $t->unsignedBigInteger('service_payment_plan_id');
+            $t->unsignedBigInteger('service_obligation_id');
+            $t->decimal('included_amount', 14, 2);
+        });
+        Schema::create('service_payment_plan_installments', function (Blueprint $t) {
+            $this->base($t);
+            $t->unsignedBigInteger('tenant_id');
+            $t->unsignedBigInteger('service_payment_plan_id');
+            $t->unsignedInteger('number');
+            $t->string('kind')->default('installment');
+            $t->date('due_date');
+            $t->decimal('amount', 14, 2);
+            $t->string('status')->default('scheduled');
+            $t->unsignedBigInteger('service_payment_event_id')->nullable();
+            $t->timestamp('paid_at')->nullable();
+        });
         Schema::create('activity_log', function (Blueprint $t) {
             $t->id();
             $t->unsignedBigInteger('tenant_id')->nullable();
@@ -438,6 +465,46 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(900.0, (float) $account->fresh()->current_balance);
         $this->expectException(ValidationException::class);
         $service->record($obligation->fresh(), 901, 'pix', '2026-09-09', $account->id, (string) Str::uuid(), $actor);
+    }
+
+    public function test_custom_negotiation_installment_allocates_and_reverses_across_obligations(): void
+    {
+        [$execution] = $this->execution(1, 100, null);
+        $first = $this->receivableObligation($execution, 'REC-1', 60);
+        $second = $this->receivableObligation($execution, 'REC-2', 60);
+        $plan = new ServicePaymentPlan(['status' => 'active', 'description' => 'Teste']);
+        $plan->tenant_id = 1;
+        $plan->save();
+        $plan->obligations()->attach($first->id, ['included_amount' => 60]);
+        $plan->obligations()->attach($second->id, ['included_amount' => 60]);
+        $installment = new ServicePaymentPlanInstallment([
+            'service_payment_plan_id' => $plan->id,
+            'number' => 1,
+            'kind' => 'entry',
+            'due_date' => '2026-09-19',
+            'amount' => 75,
+            'status' => 'scheduled',
+        ]);
+        $installment->tenant_id = 1;
+        $installment->save();
+        $account = new BankAccount(['name' => 'Caixa', 'initial_balance' => 0, 'current_balance' => 0, 'status' => true]);
+        $account->tenant_id = 1;
+        $account->save();
+        $actor = new User;
+        $service = app(ServicePaymentService::class);
+
+        $payment = $service->recordInstallment($installment, 'pix', '2026-09-19', $account->id, (string) Str::uuid(), $actor);
+
+        $this->assertSame(2, $payment->allocations->count());
+        $this->assertSame('paid', $installment->fresh()->status);
+        $this->assertSame(0.0, $first->fresh()->balance);
+        $this->assertSame(45.0, $second->fresh()->balance);
+
+        $service->reverse($payment, 'Recebimento lançado incorretamente', (string) Str::uuid(), $actor);
+
+        $this->assertSame('scheduled', $installment->fresh()->status);
+        $this->assertSame(60.0, $first->fresh()->balance);
+        $this->assertSame(60.0, $second->fresh()->balance);
     }
 
     public function test_automatic_review_freezes_execution_and_generates_independent_obligations_once(): void
@@ -658,7 +725,7 @@ class ServiceProviderCompensationTest extends TestCase
             ['key' => 'optional_photo', 'label' => 'Foto opcional', 'type' => 'image', 'phase' => 'finish', 'required' => false],
         ]]])->saveQuietly();
 
-        $validated = app(\App\Services\Services\ServiceFieldValidator::class)->validate($execution->fresh(), 'finish', []);
+        $validated = app(ServiceFieldValidator::class)->validate($execution->fresh(), 'finish', []);
 
         $this->assertSame([], $validated);
     }
@@ -738,6 +805,27 @@ class ServiceProviderCompensationTest extends TestCase
         $actor->exists = true;
 
         return [$obligation, $account, $actor];
+    }
+
+    private function receivableObligation(ServiceExecution $execution, string $number, float $amount): ServiceObligation
+    {
+        $obligation = new ServiceObligation([
+            'number' => $number,
+            'service_execution_id' => $execution->id,
+            'direction' => 'receivable',
+            'principal_amount' => $amount,
+            'adjustment_amount' => 0,
+            'status' => 'open',
+            'party_snapshot' => ['name' => 'Beneficiário'],
+            'composition_snapshot' => [],
+            'snapshot_hash' => hash('sha256', $number),
+            'operation_key' => (string) Str::uuid(),
+            'frozen_at' => now(),
+        ]);
+        $obligation->tenant_id = 1;
+        $obligation->save();
+
+        return $obligation;
     }
 
     private function base(Blueprint $table): void

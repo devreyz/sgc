@@ -18,6 +18,7 @@ use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\CustomerBillingReceiptService;
 use App\Services\DeliveryParentRecoveryService;
+use App\Services\FinancialDocumentIdentityService;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
 use Filament\Forms;
@@ -780,6 +781,18 @@ class CustomerBillingReceiptResource extends Resource
                     }),
 
                 // ── Registrar Recebimento (PENDING_PAYMENT / PARTIALLY_PAID) ─────
+                Tables\Actions\Action::make('openVerifiedReceipt')
+                    ->label('Abrir comprovante e QR')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('info')
+                    ->url(function (CustomerBillingReceipt $record): string {
+                        $identity = app(FinancialDocumentIdentityService::class)
+                            ->ensure($record, auth()->user());
+
+                        return $identity ? route('financial-documents.show', $identity->public_id) : '#';
+                    })
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\Action::make('addPayment')
                     ->label(fn (CustomerBillingReceipt $r) => $r->status === CustomerReceiptStatus::PARTIALLY_PAID
                         ? 'Registrar Parcela'
@@ -810,13 +823,16 @@ class CustomerBillingReceiptResource extends Resource
                                 ->default(today())->required()->native(false),
                             Forms\Components\Select::make('payment_method')->label('Forma de Recebimento')
                                 ->options(collect(PaymentMethod::cases())
+                                    ->reject(fn ($m) => $m === PaymentMethod::CHEQUE)
                                     ->mapWithKeys(fn ($m) => [$m->value => $m->getLabel()])->toArray())
+                                ->helperText('Para cheque, use “Abrir comprovante e QR”; a emissão não liquida até a entrega.')
                                 ->required(),
                             Forms\Components\Select::make('bank_account_id')->label('Conta Bancária')
                                 ->options(fn () => BankAccount::where('tenant_id', session('tenant_id'))
                                     ->where('status', true)->pluck('name', 'id')->toArray())
-                                ->placeholder('— Nenhuma —')
-                                ->helperText('Se informada, registra entrada no caixa.'),
+                                ->placeholder('Selecione')
+                                ->required()
+                                ->helperText('Registra a entrada correspondente no caixa da organização.'),
                             Forms\Components\TextInput::make('document_number')->label('Nº Documento')->placeholder('Opcional'),
                             Forms\Components\Textarea::make('notes')->label('Observações')->rows(2),
                         ];

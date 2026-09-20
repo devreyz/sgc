@@ -14,6 +14,7 @@ class AccountingNextActionResolver
         int $criticalIssues = 0,
         string $authorizationState = 'legacy_unsubmitted',
         ?array $fiscalGate = null,
+        int $preparationIssues = 0,
     ): array {
         if ($criticalIssues > 0) {
             return [
@@ -26,6 +27,16 @@ class AccountingNextActionResolver
         }
 
         $status = $status instanceof CustomerReceiptStatus ? $status : CustomerReceiptStatus::tryFrom((string) $status);
+
+        if (($status === CustomerReceiptStatus::DRAFT || $status === null) && $preparationIssues > 0) {
+            return [
+                'state' => 'preparation_required',
+                'label' => 'Dados a completar',
+                'tone' => 'warning',
+                'next_action' => 'Completar os itens e valores da cobrança',
+                'next_action_key' => 'review_draft',
+            ];
+        }
 
         if ($status !== CustomerReceiptStatus::DRAFT) {
             $authorization = match ($authorizationState) {

@@ -27,6 +27,7 @@ use App\Http\Controllers\Delivery\DeliveryViewerController;
 use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\Finance\FinanceManagementController;
 use App\Http\Controllers\Finance\FinancialPortalController;
+use App\Http\Controllers\FinancialDocumentController;
 use App\Http\Controllers\FinancialReceiptController;
 use App\Http\Controllers\HubController;
 use App\Http\Controllers\MemberCardValidationController;
@@ -41,18 +42,20 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Secretary\SecretaryPortalController;
 use App\Http\Controllers\Services\ServiceCatalogController;
 use App\Http\Controllers\Services\ServiceManagementController;
+use App\Http\Controllers\Services\ServiceProviderManagementController;
 use App\Http\Controllers\Services\ServiceSimulationController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\WalletController;
+use App\Models\Document;
+use App\Models\ProviderPaymentRequest;
+use App\Models\ServiceExecution;
+use App\Models\ServiceOrder;
+use App\Models\ServiceOrderPayment;
+use App\Models\TenantUser;
 use App\Services\AuthenticationRedirector;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use App\Models\Document;
-use App\Models\ProviderPaymentRequest;
-use App\Models\ServiceOrder;
-use App\Models\ServiceOrderPayment;
-use App\Models\TenantUser;
 
 Route::get('/storage/{path}', function (string $path) {
     $path = ltrim(str_replace('\\', '/', $path), '/');
@@ -64,7 +67,7 @@ Route::get('/storage/{path}', function (string $path) {
     abort_unless($disk->exists($path), 404);
 
     $record = Document::withoutGlobalScopes()->where('disk', 'public')->where('path', $path)
-        ->whereIn('documentable_type', [ServiceOrder::class, ServiceOrderPayment::class, ProviderPaymentRequest::class, \App\Models\ServiceExecution::class])
+        ->whereIn('documentable_type', [ServiceOrder::class, ServiceOrderPayment::class, ProviderPaymentRequest::class, ServiceExecution::class])
         ->first()
         ?? ServiceOrderPayment::withoutGlobalScopes()->where('receipt_path', $path)->first()
         ?? ProviderPaymentRequest::withoutGlobalScopes()->where('receipt_path', $path)->first()
@@ -82,10 +85,15 @@ Route::get('/storage/{path}', function (string $path) {
                 $query->select('id')->from('service_providers')->where('tenant_id', $tenantId)->where('user_id', $user->id)->limit(1);
             })
             ->where(function ($query) use ($record) {
-                if ($record instanceof ServiceOrder) $query->whereKey($record->id);
-                elseif ($record instanceof ServiceOrderPayment) $query->whereKey($record->service_order_id);
-                elseif ($record instanceof ProviderPaymentRequest) $query->whereKey($record->service_order_id);
-                else $query->whereRaw('1 = 0');
+                if ($record instanceof ServiceOrder) {
+                    $query->whereKey($record->id);
+                } elseif ($record instanceof ServiceOrderPayment) {
+                    $query->whereKey($record->service_order_id);
+                } elseif ($record instanceof ProviderPaymentRequest) {
+                    $query->whereKey($record->service_order_id);
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
             })->exists();
         abort_unless($providerOwnsRecord || $user->checkPermissionTo('view_service_management'), 403);
     }
@@ -226,8 +234,22 @@ Route::middleware('auth')->group(function () {
 });
 
 // Public Document Verification Routes (no authentication required)
-Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])->name('document.verify');
-Route::get('/qrcode/{hash}', [DocumentVerificationController::class, 'qrcode'])->name('document.qrcode');
+Route::get('/verify/{hash}', [DocumentVerificationController::class, 'verify'])->middleware('throttle:30,1')->name('document.verify');
+Route::get('/qrcode/{hash}', [DocumentVerificationController::class, 'qrcode'])->middleware('throttle:60,1')->name('document.qrcode');
+Route::get('/receipt/{publicId}', [FinancialDocumentController::class, 'show'])
+    ->middleware(['throttle:30,1', 'financial.headers'])->whereUuid('publicId')->name('financial-documents.show');
+Route::get('/receipt/{publicId}/qr.svg', [FinancialDocumentController::class, 'qr'])
+    ->middleware(['throttle:60,1', 'financial.headers'])->whereUuid('publicId')->name('financial-documents.qr');
+Route::middleware(['auth', 'throttle:10,1'])->group(function (): void {
+    Route::post('/receipt/{publicId}/payments', [FinancialDocumentController::class, 'pay'])
+        ->whereUuid('publicId')->name('financial-documents.pay');
+    Route::post('/receipt/{publicId}/checks', [FinancialDocumentController::class, 'issueCheck'])
+        ->whereUuid('publicId')->name('financial-documents.checks.issue');
+    Route::post('/receipt/{publicId}/checks/{check}/deliver', [FinancialDocumentController::class, 'deliverCheck'])
+        ->whereUuid('publicId')->whereNumber('check')->name('financial-documents.checks.deliver');
+    Route::post('/receipt/{publicId}/checks/{check}/cancel', [FinancialDocumentController::class, 'cancelCheck'])
+        ->whereUuid('publicId')->whereNumber('check')->name('financial-documents.checks.cancel');
+});
 
 // Public Member Card Validation Route (no authentication required)
 Route::get('/validate-card/{token}', [MemberCardValidationController::class, 'verifyCard'])
@@ -396,6 +418,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/reports/document', [ServiceManagementController::class, 'generateReport'])->middleware('throttle:10,1')->name('management.reports.document');
         Route::get('/agreements', [ServiceManagementController::class, 'agreements'])->name('management.agreements');
         Route::post('/agreements', [ServiceManagementController::class, 'negotiate'])->middleware('throttle:10,1')->name('management.agreements.store');
+        Route::post('/agreements/{agreement}/document', [ServiceManagementController::class, 'regenerateAgreementDocument'])->middleware('throttle:10,1')->whereNumber('agreement')->name('management.agreements.document');
+        Route::post('/agreements/{agreement}/installments/{installment}/payment', [ServiceManagementController::class, 'payAgreementInstallment'])->middleware('throttle:20,1')->whereNumber('agreement')->whereNumber('installment')->name('management.agreements.installments.payment');
         Route::post('/orders/{order}/documents', [ServiceManagementController::class, 'generateOrderDocument'])->middleware('throttle:10,1')->whereNumber('order')->name('management.documents.generate');
         Route::get('/documents/{document}', [ServiceManagementController::class, 'document'])->whereNumber('document')->name('management.documents.download');
         Route::get('/evidences/{evidence}', [ServiceManagementController::class, 'evidence'])->whereNumber('evidence')->name('management.evidences.download');
@@ -405,11 +429,17 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/catalog/versions/{version}', [ServiceCatalogController::class, 'show'])->whereNumber('version')->name('catalog.show');
         Route::put('/catalog/versions/{version}', [ServiceCatalogController::class, 'update'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.update');
         Route::post('/catalog/versions/{version}/fields', [ServiceCatalogController::class, 'field'])->middleware('throttle:30,1')->whereNumber('version')->name('catalog.fields.store');
-        Route::delete('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'deleteField'])->middleware('throttle:20,1')->whereNumber(['version','field'])->name('catalog.fields.delete');
+        Route::delete('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'deleteField'])->middleware('throttle:20,1')->whereNumber(['version', 'field'])->name('catalog.fields.delete');
         Route::post('/catalog/versions/{version}/publish', [ServiceCatalogController::class, 'publish'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.publish');
+        Route::post('/catalog/versions/{version}/active', [ServiceCatalogController::class, 'active'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.active');
         Route::post('/catalog/versions/{version}/clone', [ServiceCatalogController::class, 'clone'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.clone');
         Route::post('/catalog/versions/{version}/rates', [ServiceCatalogController::class, 'rate'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.rates.store');
         Route::get('/catalog/versions/{version}/preview', [ServiceCatalogController::class, 'preview'])->whereNumber('version')->name('catalog.preview');
+        Route::get('/providers', [ServiceProviderManagementController::class, 'index'])->name('providers.index');
+        Route::get('/providers/create', [ServiceProviderManagementController::class, 'create'])->name('providers.create');
+        Route::post('/providers', [ServiceProviderManagementController::class, 'store'])->middleware('throttle:20,1')->name('providers.store');
+        Route::get('/providers/{provider}/edit', [ServiceProviderManagementController::class, 'edit'])->whereNumber('provider')->name('providers.edit');
+        Route::put('/providers/{provider}', [ServiceProviderManagementController::class, 'update'])->middleware('throttle:20,1')->whereNumber('provider')->name('providers.update');
     });
 
     Route::prefix('provider')->name('provider.')->group(function () {
@@ -428,6 +458,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/financial/payout-requests', [ServiceProviderPortalController::class, 'payout'])->middleware('throttle:10,1')->name('financial.payout');
         Route::get('/expenses', [ServiceProviderPortalController::class, 'expenses'])->name('expenses');
         Route::post('/expenses', [ServiceProviderPortalController::class, 'storeExpense'])->middleware('throttle:20,1')->name('expenses.store');
+        Route::get('/expenses/documents/{document}', [ServiceProviderPortalController::class, 'expenseDocument'])->whereNumber('document')->name('expenses.documents.show');
     });
 
     // Associate Portal Routes

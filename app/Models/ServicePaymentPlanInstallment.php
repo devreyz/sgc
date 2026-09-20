@@ -9,7 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ServicePaymentPlanInstallment extends Model
 {
     use BelongsToTenant;
-    protected $fillable = ['service_payment_plan_id','number','due_date','amount','status'];
-    protected function casts(): array { return ['due_date'=>'date','amount'=>'decimal:2']; }
-    public function plan(): BelongsTo { return $this->belongsTo(ServicePaymentPlan::class, 'service_payment_plan_id'); }
+
+    protected $fillable = ['service_payment_plan_id', 'number', 'kind', 'due_date', 'amount', 'status', 'service_payment_event_id', 'paid_at'];
+
+    protected function casts(): array
+    {
+        return ['due_date' => 'date', 'amount' => 'decimal:2', 'paid_at' => 'datetime'];
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(ServicePaymentPlan::class, 'service_payment_plan_id');
+    }
+
+    public function paymentEvent(): BelongsTo
+    {
+        return $this->belongsTo(ServicePaymentEvent::class, 'service_payment_event_id');
+    }
 }

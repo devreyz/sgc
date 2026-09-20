@@ -79,13 +79,18 @@ class GoogleAccountService
                 'last_used_at' => now(),
             ])->save();
 
+            if ($emailAuthoritative && blank($user->email_verified_at)) {
+                $user->forceFill(['email_verified_at' => now()])->saveQuietly();
+            }
+
             return [$user, $account];
         });
     }
 
     /**
      * Resolves the first Google sign-in only when the organization has already
-     * authorized the exact account through an active TenantUser membership.
+     * authorized the exact account through an active TenantUser membership or
+     * through the global super administrator role.
      *
      * The verified Google e-mail is an identifier here, never an authorization
      * on its own: an unrelated global User with the same e-mail remains blocked.
@@ -125,7 +130,7 @@ class GoogleAccountService
             throw new AccountProofRequiredException('Google account already belongs to another identity.');
         }
 
-        $authorized = TenantUser::query()
+        $authorized = $user->isSuperAdmin() || TenantUser::query()
             ->where('user_id', $user->id)
             ->where('status', true)
             ->lockForUpdate()

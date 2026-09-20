@@ -9,6 +9,21 @@ use PHPUnit\Framework\TestCase;
 
 class AccountingNextActionResolverTest extends TestCase
 {
+    public function test_incomplete_draft_is_reported_as_preparation_instead_of_critical(): void
+    {
+        $result = (new AccountingNextActionResolver)->resolve(
+            CustomerReceiptStatus::DRAFT,
+            0,
+            'legacy_unsubmitted',
+            null,
+            1,
+        );
+
+        self::assertSame('preparation_required', $result['state']);
+        self::assertSame('Dados a completar', $result['label']);
+        self::assertSame('review_draft', $result['next_action_key']);
+    }
+
     #[DataProvider('financialStates')]
     public function test_resolves_human_state_and_next_action(
         CustomerReceiptStatus $status,

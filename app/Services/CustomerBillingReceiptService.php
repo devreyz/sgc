@@ -434,6 +434,11 @@ class CustomerBillingReceiptService
             }
         }, 5);
 
+        app(FinancialDocumentIdentityService::class)->ensure(
+            CustomerBillingReceipt::withoutGlobalScopes()->findOrFail($receipt->id),
+            Auth::user(),
+        );
+
         try {
             $freshReceipt = CustomerBillingReceipt::withoutGlobalScopes()
                 ->where('tenant_id', $receipt->tenant_id)

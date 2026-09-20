@@ -82,6 +82,18 @@ class PortalNavigationTest extends TestCase
         $view->assertSee('data-nav-event="open-filters"', false);
     }
 
+    public function test_every_visible_portal_navigation_item_defines_a_phosphor_icon(): void
+    {
+        foreach (['associate', 'delivery', 'delivery-viewer', 'provider', 'cashier', 'finance', 'accounting', 'secretary', 'buyer'] as $portal) {
+            $items = PortalNavigation::make($portal, null, 'organizacao-principal')['items'];
+
+            $this->assertNotEmpty($items, "O portal {$portal} deve possuir navegação.");
+            foreach ($items as $item) {
+                $this->assertNotEmpty($item['icon'] ?? null, "O item {$portal}.{$item['key']} está sem ícone.");
+            }
+        }
+    }
+
     public function test_accounting_navigation_keeps_reads_separate_from_protected_authorization_commands(): void
     {
         $navigation = PortalNavigation::make('accounting', 'processes', 'organizacao-principal');

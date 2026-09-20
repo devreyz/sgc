@@ -2,13 +2,13 @@
 
 namespace App\Filament\Resources\ServiceVersionResource\RelationManagers;
 
-use App\Models\ServiceVersionField;
+use App\Support\ServiceConfigurationLabels;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Forms\Get;
 
 class FieldsRelationManager extends RelationManager
 {
@@ -20,10 +20,10 @@ class FieldsRelationManager extends RelationManager
     {
         return $form->schema([
             Forms\Components\Placeholder::make('purpose')->label('Para que servem estes campos?')->content('Cadastre aqui medições, datas, locais e outros dados da execução. Um campo numérico obrigatório pode ser escolhido como variável nas fórmulas da cobrança ou do prestador. Campos criados dentro de um termo financeiro não precisam ser repetidos aqui.')->columnSpanFull(),
-            Forms\Components\TextInput::make('key')->label('Chave')->required()->alphaDash()->maxLength(80),
+            Forms\Components\TextInput::make('key')->label('Identificador técnico')->helperText('Sem espaços ou acentos. Usado somente pelo sistema e pelas fórmulas.')->required()->alphaDash()->maxLength(80),
             Forms\Components\TextInput::make('label')->label('Nome exibido')->required()->maxLength(191),
-            Forms\Components\Select::make('type')->label('Tipo')->options(array_combine(ServiceVersionField::TYPES, ServiceVersionField::TYPES))->required()->live(),
-            Forms\Components\Select::make('phase')->label('Etapa')->options(['order' => 'Criação da ordem', 'start' => 'Início', 'execution' => 'Execução', 'finish' => 'Conclusão', 'review' => 'Conferência'])->required(),
+            Forms\Components\Select::make('type')->label('Formato do dado')->options(ServiceConfigurationLabels::fieldTypes())->required()->live(),
+            Forms\Components\Select::make('phase')->label('Quando preencher')->options(ServiceConfigurationLabels::phases())->required(),
             Forms\Components\TextInput::make('section')->label('Seção')->maxLength(80),
             Forms\Components\TextInput::make('unit')->label('Unidade')->maxLength(30),
             Forms\Components\Toggle::make('required')->label('Obrigatório'),
@@ -44,8 +44,8 @@ class FieldsRelationManager extends RelationManager
     {
         return $table->columns([
             Tables\Columns\TextColumn::make('label')->label('Campo')->searchable(),
-            Tables\Columns\TextColumn::make('type')->label('Tipo')->badge(),
-            Tables\Columns\TextColumn::make('phase')->label('Etapa')->badge(),
+            Tables\Columns\TextColumn::make('type')->label('Formato')->formatStateUsing(fn (?string $state): string => ServiceConfigurationLabels::fieldType($state))->badge(),
+            Tables\Columns\TextColumn::make('phase')->label('Quando preencher')->formatStateUsing(fn (?string $state): string => ServiceConfigurationLabels::phase($state))->badge(),
             Tables\Columns\IconColumn::make('required')->label('Obrigatório')->boolean(),
         ])->headerActions([
             Tables\Actions\CreateAction::make()->visible(fn () => $this->getOwnerRecord()->status === 'draft'),

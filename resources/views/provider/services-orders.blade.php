@@ -1,8 +1,7 @@
 @extends('layouts.bento')
 
 @section('title', 'Serviços')
-@section('page-title', 'Histórico de serviços')
-@section('page-subtitle', 'Acompanhe as ordens de serviço, responsáveis, beneficiários e situação operacional.')
+@section('page-title', 'Ordens de serviço')
 @section('user-role', ($operator ?? false) ? 'Operação de serviços' : 'Prestador')
 
 @php
@@ -18,10 +17,8 @@
         $tenantSlug
     );
 
-    /*
-     * Mantém o valor original da situação para a lógica da aplicação,
-     * usando apenas label/classe para apresentação.
-     */
+    $isOperator = (bool) ($operator ?? false);
+
     $orderStatusMeta = static function ($status): array {
         $value = is_object($status)
             ? ($status->value ?? (string) $status)
@@ -37,12 +34,9 @@
             'waiting',
             'awaiting',
             'draft' => [
-                'label' => match ($normalized) {
-                    'draft' => 'Rascunho',
-                    default => 'Pendente',
-                },
+                'label' => $normalized === 'draft' ? 'Rascunho' : 'Pendente',
                 'class' => 'is-pending',
-                'icon' => 'ph-clock-countdown',
+                'icon' => $normalized === 'draft' ? 'ph-note-pencil' : 'ph-clock-countdown',
             ],
 
             'scheduled',
@@ -57,9 +51,18 @@
             'processing',
             'started',
             'em_andamento' => [
-                'label' => 'Em andamento',
+                'label' => 'Em execução',
                 'class' => 'is-progress',
                 'icon' => 'ph-play-circle',
+            ],
+
+            'submitted',
+            'awaiting_review',
+            'under_review',
+            'em_conferencia' => [
+                'label' => 'Em conferência',
+                'class' => 'is-review',
+                'icon' => 'ph-clipboard-text',
             ],
 
             'completed',
@@ -82,16 +85,19 @@
                 'icon' => 'ph-seal-check',
             ],
 
+            'rejected',
+            'correction_requested',
+            'correcao_solicitada' => [
+                'label' => 'Correção solicitada',
+                'class' => 'is-rejected',
+                'icon' => 'ph-warning-circle',
+            ],
+
             'cancelled',
             'canceled',
-            'rejected',
             'cancelada',
             'cancelado' => [
-                'label' => in_array(
-                    $normalized,
-                    ['rejected'],
-                    true
-                ) ? 'Rejeitada' : 'Cancelada',
+                'label' => 'Cancelada',
                 'class' => 'is-cancelled',
                 'icon' => 'ph-x-circle',
             ],
@@ -111,257 +117,223 @@
         : $orders->count();
 
     $ordersOnPage = $orders->count();
+
+    $currentPage = method_exists($orders, 'currentPage')
+        ? $orders->currentPage()
+        : 1;
+
+    $lastPage = method_exists($orders, 'lastPage')
+        ? $orders->lastPage()
+        : 1;
 @endphp
 
 @section('content')
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
->
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css"
->
+
+@once
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
+    >
+@endonce
 
 <style>
-    .service-orders {
-        --orders-green: #219653;
-        --orders-green-dark: #177c43;
-        --orders-green-soft: #edf8f1;
-        --orders-green-border: #cde8d6;
-
-        --orders-blue: #3478d4;
-        --orders-blue-soft: #eef4ff;
-        --orders-blue-border: #d4e2f8;
-
-        --orders-violet: #8a4bd2;
-        --orders-violet-soft: #f5effc;
-        --orders-violet-border: #e5d8f5;
-
-        --orders-cyan: #168eae;
-        --orders-cyan-soft: #edf8fb;
-
-        --orders-amber: #c38418;
-        --orders-amber-soft: #fff7e8;
-        --orders-amber-border: #efdcb8;
-
-        --orders-red: #cf5050;
-        --orders-red-soft: #fff1f1;
-        --orders-red-border: #f1cccc;
-
-        --orders-slate: #64748b;
-        --orders-slate-soft: #f2f5f7;
-
-        --orders-text: var(--color-text, #17251c);
-        --orders-text-2: var(--color-text-secondary, #58685e);
-        --orders-muted: var(--color-text-muted, #87938b);
-        --orders-border: var(--color-border, #d7e2da);
-        --orders-border-strong: var(--color-border-strong, #becdc3);
-        --orders-surface: var(--color-surface, #ffffff);
-        --orders-soft: var(--color-surface-soft, #f7faf8);
-        --orders-shadow: 0 5px 18px rgba(25, 61, 39, .055);
-
+    .orders-page {
+        --ow-green: var(--ws-green, #219653);
+        --ow-green-soft: #edf8f2;
+        --ow-green-border: #cce8d7;
+        --ow-blue: var(--ws-blue, #3478d4);
+        --ow-blue-soft: #edf4ff;
+        --ow-blue-border: #cfe0f7;
+        --ow-violet: var(--ws-purple, #8a4bd2);
+        --ow-violet-soft: #f5efff;
+        --ow-violet-border: #e1d2f4;
+        --ow-cyan: #168eae;
+        --ow-cyan-soft: #ecf8fb;
+        --ow-cyan-border: #cae8ef;
+        --ow-amber: var(--ws-amber, #c38418);
+        --ow-amber-soft: #fff7e8;
+        --ow-amber-border: #f0dcae;
+        --ow-red: var(--ws-red, #cf5050);
+        --ow-red-soft: #fff0f0;
+        --ow-red-border: #efcaca;
+        --ow-text: #17211d;
+        --ow-text-2: #59655f;
+        --ow-muted: #89938e;
+        --ow-border: #dde5e0;
+        --ow-soft: #f7faf8;
         display: grid;
-        width: min(100%, 1380px);
-        min-width: 0;
         grid-column: 1 / -1;
+        width: min(100%, 1280px);
+        min-width: 0;
         gap: .72rem;
         margin: 0 auto;
-        padding-bottom: 1rem;
-        color: var(--orders-text);
+        color: var(--ow-text);
     }
 
-    .service-orders *,
-    .service-orders *::before,
-    .service-orders *::after {
+    .orders-page *,
+    .orders-page *::before,
+    .orders-page *::after {
         box-sizing: border-box;
     }
 
-    .orders-panel {
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--orders-border);
-        border-radius: 12px;
-        background: var(--orders-surface);
-        box-shadow: var(--orders-shadow);
+    .orders-page a {
+        text-decoration: none;
     }
-
-    /* =========================================================
-       CABEÇALHO
-       ========================================================= */
 
     .orders-head {
-        display: flex;
-        min-width: 0;
-        min-height: 68px;
-        gap: .7rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .8rem;
         align-items: center;
-        justify-content: space-between;
-        padding: .68rem .74rem;
-        border-bottom: 1px solid var(--orders-border);
-        background:
-            radial-gradient(
-                circle at 100% 0,
-                rgba(138, 75, 210, .08),
-                transparent 17rem
-            ),
-            linear-gradient(
-                180deg,
-                #fafcfb,
-                #fff
-            );
+        min-width: 0;
+        padding: .76rem .84rem;
+        border: 1px solid var(--ow-border);
+        border-radius: 12px;
+        background: #fff;
     }
 
-    .orders-title {
-        display: flex;
+    .orders-head-main {
+        display: grid;
         min-width: 0;
+        grid-template-columns: 40px minmax(0, 1fr);
         gap: .58rem;
         align-items: center;
     }
 
-    .orders-title-icon {
+    .orders-head-icon {
         display: grid;
         width: 40px;
         height: 40px;
-        flex: 0 0 auto;
         place-items: center;
         border-radius: 9px;
-        background: var(--orders-violet-soft);
-        color: var(--orders-violet);
+        background: var(--ow-violet-soft);
+        color: var(--ow-violet);
+        font-size: 1rem;
     }
 
-    .orders-title-icon > i {
-        display: block;
-        font-size: 1.08rem;
-        line-height: 1;
-    }
-
-    .orders-title-copy {
+    .orders-head-copy {
         min-width: 0;
     }
 
-    .orders-title-copy h2,
-    .orders-title-copy p {
-        margin: 0;
+    .orders-head-copy small {
+        display: block;
+        color: var(--ow-muted);
+        font-size: .61rem;
+        font-weight: 750;
+        letter-spacing: .025em;
+        text-transform: uppercase;
     }
 
-    .orders-title-copy h2 {
-        color: var(--orders-text);
-        font-size: .94rem;
-        font-weight: 850;
-        letter-spacing: -.02em;
+    .orders-head-copy h1 {
+        margin: .06rem 0 0;
+        color: var(--ow-text);
+        font-size: clamp(1.02rem, 2vw, 1.22rem);
+        font-weight: 860;
+        line-height: 1.15;
     }
 
-    .orders-title-copy p {
-        margin-top: .08rem;
-        color: var(--orders-muted);
-        font-size: .69rem;
-        line-height: 1.4;
-    }
-
-    .orders-head-actions {
+    .orders-head-meta {
         display: flex;
-        gap: .36rem;
+        min-width: 0;
+        gap: .4rem;
         align-items: center;
+        margin-top: .14rem;
+        color: var(--ow-muted);
+        font-size: .66rem;
+        line-height: 1.35;
     }
 
-    .orders-count {
-        display: inline-flex;
-        min-height: 31px;
-        gap: .28rem;
-        align-items: center;
-        padding: .28rem .48rem;
-        border-radius: 999px;
-        background: var(--orders-slate-soft);
-        color: var(--orders-text-2);
-        font-size: .65rem;
-        font-weight: 780;
-        white-space: nowrap;
+    .orders-head-meta strong {
+        color: var(--ow-text-2);
+        font-weight: 760;
     }
 
-    .orders-count > i {
-        color: var(--orders-violet);
-        font-size: .78rem;
+    .orders-head-dot {
+        width: 3px;
+        height: 3px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: #b6c0ba;
     }
 
     .orders-create {
         display: inline-flex;
-        min-height: 39px;
-        gap: .34rem;
+        min-height: 40px;
+        gap: .32rem;
         align-items: center;
         justify-content: center;
-        padding: .44rem .64rem;
-        border: 1px solid var(--orders-green-dark);
+        padding: .44rem .68rem;
+        border: 1px solid var(--ow-green);
         border-radius: 8px;
-        background:
-            linear-gradient(
-                180deg,
-                #25a95f,
-                #1d914f
-            );
+        background: var(--ow-green);
         color: #fff;
         font-size: .7rem;
-        font-weight: 800;
-        text-decoration: none;
-        box-shadow: 0 6px 14px rgba(33, 150, 83, .14);
-        transition:
-            box-shadow 140ms ease,
-            transform 140ms ease;
+        font-weight: 810;
+        white-space: nowrap;
     }
 
-    .orders-create:hover,
     .orders-create:focus-visible {
-        color: #fff;
-        outline: none;
-        box-shadow: 0 9px 20px rgba(33, 150, 83, .2);
-        transform: translateY(-1px);
+        outline: 2px solid var(--ow-green);
+        outline-offset: 2px;
     }
 
-    /* =========================================================
-       FAIXA DE CONTEXTO
-       ========================================================= */
+    .orders-list {
+        min-width: 0;
+        overflow: hidden;
+        border: 1px solid var(--ow-border);
+        border-radius: 12px;
+        background: #fff;
+    }
 
-    .orders-context {
+    .orders-list-head {
         display: flex;
         min-width: 0;
-        gap: .55rem;
+        gap: .65rem;
         align-items: center;
         justify-content: space-between;
-        padding: .5rem .7rem;
-        border-bottom: 1px solid var(--orders-border);
-        background: var(--orders-soft);
+        min-height: 49px;
+        padding: .52rem .64rem;
+        border-bottom: 1px solid var(--ow-border);
     }
 
-    .orders-context-copy {
+    .orders-list-title {
         display: flex;
         min-width: 0;
         gap: .38rem;
         align-items: center;
-        color: var(--orders-text-2);
-        font-size: .66rem;
-        line-height: 1.4;
     }
 
-    .orders-context-copy > i {
+    .orders-list-title-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
         flex: 0 0 auto;
-        color: var(--orders-blue);
-        font-size: .85rem;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--ow-blue-soft);
+        color: var(--ow-blue);
+        font-size: .75rem;
     }
 
-    .orders-context-copy strong {
-        color: var(--orders-text);
+    .orders-list-title strong {
+        color: var(--ow-text);
+        font-size: .72rem;
+        font-weight: 820;
     }
 
-    .orders-page-count {
-        color: var(--orders-muted);
-        font-size: .62rem;
+    .orders-page-info {
+        display: inline-flex;
+        min-height: 28px;
+        gap: .24rem;
+        align-items: center;
+        padding: .24rem .4rem;
+        border-radius: 7px;
+        background: var(--ow-soft);
+        color: var(--ow-muted);
+        font-size: .58rem;
         font-weight: 720;
         white-space: nowrap;
     }
-
-    /* =========================================================
-       TABELA
-       ========================================================= */
 
     .orders-table-wrap {
         min-width: 0;
@@ -370,37 +342,37 @@
 
     .orders-table {
         width: 100%;
-        min-width: 980px;
-        border-collapse: separate;
-        border-spacing: 0;
-        background: #fff;
-        font-size: .7rem;
+        min-width: 930px;
+        border-collapse: collapse;
+        table-layout: fixed;
     }
 
     .orders-table th {
-        min-height: 38px;
-        padding: .56rem .62rem;
-        border-bottom: 1px solid var(--orders-border-strong);
-        background:
-            linear-gradient(
-                180deg,
-                #f5f8f6,
-                #eff4f1
-            );
-        color: #6f7c74;
-        font-size: .58rem;
-        font-weight: 820;
-        letter-spacing: .045em;
+        padding: .48rem .58rem;
+        border-bottom: 1px solid var(--ow-border);
+        background: #f7faf8;
+        color: var(--ow-muted);
+        font-size: .53rem;
+        font-weight: 790;
+        letter-spacing: .03em;
         text-align: left;
         text-transform: uppercase;
         white-space: nowrap;
     }
 
+    .orders-table th:nth-child(1) { width: 90px; }
+    .orders-table th:nth-child(2) { width: 25%; }
+    .orders-table th:nth-child(3) { width: 27%; }
+    .orders-table th:nth-child(4) { width: 150px; }
+    .orders-table th:nth-child(5) { width: 145px; }
+    .orders-table th:nth-child(6) { width: 82px; text-align: right; }
+
     .orders-table td {
         min-width: 0;
-        padding: .58rem .62rem;
-        border-bottom: 1px solid var(--orders-border);
-        color: var(--orders-text-2);
+        padding: .56rem .58rem;
+        border-bottom: 1px solid var(--ow-border);
+        color: var(--ow-text-2);
+        font-size: .66rem;
         vertical-align: middle;
     }
 
@@ -409,342 +381,455 @@
     }
 
     .orders-table tbody tr {
-        transition: background 130ms ease;
+        --row-tone: var(--ow-violet);
+        position: relative;
     }
 
-    .orders-table tbody tr:hover {
-        background: #fafcfb;
+    .orders-table tbody tr.is-pending { --row-tone: var(--ow-amber); }
+    .orders-table tbody tr.is-scheduled { --row-tone: var(--ow-blue); }
+    .orders-table tbody tr.is-progress { --row-tone: var(--ow-cyan); }
+    .orders-table tbody tr.is-review { --row-tone: var(--ow-amber); }
+    .orders-table tbody tr.is-completed,
+    .orders-table tbody tr.is-approved { --row-tone: var(--ow-green); }
+    .orders-table tbody tr.is-rejected,
+    .orders-table tbody tr.is-cancelled { --row-tone: var(--ow-red); }
+
+    @media (hover: hover) and (pointer: fine) {
+        .orders-table tbody tr:hover td {
+            background: #fbfdfc;
+        }
     }
 
     .order-number {
         display: inline-flex;
-        min-height: 29px;
-        gap: .28rem;
+        min-height: 28px;
+        gap: .2rem;
         align-items: center;
-        padding: .26rem .4rem;
+        padding: .22rem .34rem;
         border-radius: 7px;
-        background: var(--orders-violet-soft);
-        color: var(--orders-violet);
-        font-size: .67rem;
+        background: var(--ow-violet-soft);
+        color: var(--ow-violet);
+        font-size: .63rem;
         font-weight: 840;
         white-space: nowrap;
     }
 
-    .order-number > i {
+    .order-service {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: .4rem;
+        align-items: center;
+    }
+
+    .order-service-icon {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--ow-blue-soft);
+        color: var(--ow-blue);
         font-size: .76rem;
     }
 
-    .order-primary {
-        display: flex;
+    .order-service-copy,
+    .order-person-copy,
+    .order-date-copy {
         min-width: 0;
-        gap: .42rem;
+    }
+
+    .order-service-copy strong,
+    .order-service-copy small,
+    .order-person-copy strong,
+    .order-person-copy small,
+    .order-date-copy strong,
+    .order-date-copy small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .order-service-copy strong {
+        color: var(--ow-text);
+        font-size: .69rem;
+        font-weight: 800;
+    }
+
+    .order-service-copy small {
+        margin-top: .03rem;
+        color: var(--ow-muted);
+        font-size: .56rem;
+    }
+
+    .order-people {
+        display: grid;
+        min-width: 0;
+        gap: .3rem;
+    }
+
+    .order-person {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 24px minmax(0, 1fr);
+        gap: .3rem;
         align-items: center;
     }
 
-    .order-primary-icon {
+    .order-person-icon {
         display: grid;
-        width: 31px;
-        height: 31px;
-        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
         place-items: center;
-        border-radius: 7px;
-        background: var(--orders-blue-soft);
-        color: var(--orders-blue);
+        border-radius: 6px;
+        background: var(--ow-violet-soft);
+        color: var(--ow-violet);
+        font-size: .61rem;
     }
 
-    .order-primary-copy {
-        min-width: 0;
+    .order-person.beneficiary .order-person-icon {
+        background: var(--ow-green-soft);
+        color: var(--ow-green);
     }
 
-    .order-primary-copy strong,
-    .order-primary-copy span {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+    .order-person-copy small {
+        color: var(--ow-muted);
+        font-size: .5rem;
+        font-weight: 680;
     }
 
-    .order-primary-copy strong {
-        color: var(--orders-text);
-        font-size: .71rem;
-        font-weight: 820;
-    }
-
-    .order-primary-copy span {
-        margin-top: .05rem;
-        color: var(--orders-muted);
-        font-size: .58rem;
-    }
-
-    .person-cell {
-        min-width: 0;
-    }
-
-    .person-cell strong,
-    .person-cell span {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .person-cell strong {
-        color: var(--orders-text);
-        font-size: .68rem;
+    .order-person-copy strong {
+        margin-top: .01rem;
+        color: var(--ow-text);
+        font-size: .62rem;
         font-weight: 760;
     }
 
-    .person-cell span {
-        margin-top: .05rem;
-        color: var(--orders-muted);
-        font-size: .58rem;
-    }
-
-    .schedule-cell {
-        display: inline-flex;
-        gap: .28rem;
+    .order-date {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: .34rem;
         align-items: center;
-        color: var(--orders-text-2);
+    }
+
+    .order-date-icon {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--ow-cyan-soft);
+        color: var(--ow-cyan);
+        font-size: .68rem;
+    }
+
+    .order-date-copy strong {
+        color: var(--ow-text);
+        font-size: .63rem;
+        font-weight: 770;
         font-variant-numeric: tabular-nums;
-        font-size: .66rem;
-        white-space: nowrap;
     }
 
-    .schedule-cell > i {
-        color: var(--orders-cyan);
-        font-size: .78rem;
+    .order-date-copy small {
+        margin-top: .02rem;
+        color: var(--ow-muted);
+        font-size: .54rem;
     }
 
-    .schedule-cell.is-empty {
-        color: var(--orders-muted);
+    .order-date.empty .order-date-icon {
+        background: var(--ow-soft);
+        color: var(--ow-muted);
+    }
+
+    .order-date.empty .order-date-copy strong {
+        color: var(--ow-muted);
     }
 
     .order-status {
-        --status-tone: var(--orders-slate);
-        --status-soft: var(--orders-slate-soft);
-        --status-border: var(--orders-border);
-
+        --tone: #64748b;
+        --soft: #f2f5f7;
+        --border: #dfe5e9;
         display: inline-flex;
         width: max-content;
-        min-height: 25px;
-        gap: .25rem;
+        min-height: 28px;
+        gap: .24rem;
         align-items: center;
-        padding: .2rem .4rem;
-        border: 1px solid var(--status-border);
-        border-radius: 999px;
-        background: var(--status-soft);
-        color: var(--status-tone);
-        font-size: .59rem;
-        font-weight: 810;
+        padding: .22rem .38rem;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--soft);
+        color: var(--tone);
+        font-size: .57rem;
+        font-weight: 800;
         white-space: nowrap;
     }
 
-    .order-status.is-pending {
-        --status-tone: #98630d;
-        --status-soft: var(--orders-amber-soft);
-        --status-border: var(--orders-amber-border);
-    }
-
-    .order-status.is-scheduled {
-        --status-tone: var(--orders-blue);
-        --status-soft: var(--orders-blue-soft);
-        --status-border: var(--orders-blue-border);
-    }
-
-    .order-status.is-progress {
-        --status-tone: var(--orders-cyan);
-        --status-soft: var(--orders-cyan-soft);
-        --status-border: #d2eaf0;
-    }
-
+    .order-status.is-pending { --tone: #95620f; --soft: var(--ow-amber-soft); --border: var(--ow-amber-border); }
+    .order-status.is-scheduled { --tone: var(--ow-blue); --soft: var(--ow-blue-soft); --border: var(--ow-blue-border); }
+    .order-status.is-progress { --tone: var(--ow-cyan); --soft: var(--ow-cyan-soft); --border: var(--ow-cyan-border); }
+    .order-status.is-review { --tone: var(--ow-amber); --soft: var(--ow-amber-soft); --border: var(--ow-amber-border); }
     .order-status.is-completed,
-    .order-status.is-approved {
-        --status-tone: var(--orders-green);
-        --status-soft: var(--orders-green-soft);
-        --status-border: var(--orders-green-border);
-    }
+    .order-status.is-approved { --tone: var(--ow-green); --soft: var(--ow-green-soft); --border: var(--ow-green-border); }
+    .order-status.is-rejected,
+    .order-status.is-cancelled { --tone: var(--ow-red); --soft: var(--ow-red-soft); --border: var(--ow-red-border); }
 
-    .order-status.is-cancelled {
-        --status-tone: var(--orders-red);
-        --status-soft: var(--orders-red-soft);
-        --status-border: var(--orders-red-border);
+    .order-action-cell {
+        text-align: right;
     }
 
     .order-open {
-        display: inline-flex;
-        min-height: 33px;
-        gap: .28rem;
-        align-items: center;
-        justify-content: center;
-        padding: .34rem .48rem;
-        border: 1px solid var(--orders-border);
-        border-radius: 7px;
-        background: #fff;
-        color: var(--orders-text-2);
-        font-size: .64rem;
-        font-weight: 780;
-        text-decoration: none;
-        transition: .13s ease;
-        white-space: nowrap;
+        display: inline-grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid var(--ow-blue-border);
+        border-radius: 8px;
+        background: var(--ow-blue-soft);
+        color: var(--ow-blue);
+        font-size: .78rem;
     }
 
-    .order-open:hover,
     .order-open:focus-visible {
-        border-color: var(--orders-violet-border);
-        background: var(--orders-violet-soft);
-        color: var(--orders-violet);
-        outline: none;
+        outline: 2px solid var(--ow-blue);
+        outline-offset: 2px;
     }
 
     .orders-empty {
         display: grid;
-        min-height: 230px;
+        min-height: 220px;
         place-items: center;
         padding: 1.2rem;
         text-align: center;
     }
 
-    .orders-empty-icon {
+    .orders-empty-inner {
         display: grid;
-        width: 52px;
-        height: 52px;
-        place-items: center;
-        margin: 0 auto .55rem;
-        border-radius: 11px;
-        background: var(--orders-violet-soft);
-        color: var(--orders-violet);
+        max-width: 330px;
+        gap: .3rem;
+        justify-items: center;
     }
 
-    .orders-empty strong,
-    .orders-empty span {
-        display: block;
+    .orders-empty-icon {
+        display: grid;
+        width: 46px;
+        height: 46px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--ow-violet-soft);
+        color: var(--ow-violet);
+        font-size: 1.02rem;
     }
 
     .orders-empty strong {
-        color: var(--orders-text);
-        font-size: .79rem;
+        color: var(--ow-text);
+        font-size: .78rem;
         font-weight: 830;
     }
 
-    .orders-empty span {
-        max-width: 370px;
-        margin: .2rem auto 0;
-        color: var(--orders-muted);
-        font-size: .68rem;
+    .orders-empty p {
+        margin: 0;
+        color: var(--ow-muted);
+        font-size: .66rem;
         line-height: 1.45;
     }
 
-    /* =========================================================
-       PAGINAÇÃO
-       ========================================================= */
+    .orders-empty .orders-create {
+        margin-top: .3rem;
+    }
 
     .orders-pagination {
-        padding: .65rem .7rem;
-        border-top: 1px solid var(--orders-border);
-        background: var(--orders-soft);
+        padding: .58rem .66rem;
+        border-top: 1px solid var(--ow-border);
+        background: var(--ow-soft);
     }
 
     .orders-pagination nav {
         margin: 0;
     }
 
-    /* =========================================================
-       MOBILE — tabela vira registros, sem scroll obrigatório
-       ========================================================= */
+    .orders-mobile {
+        display: none;
+    }
 
-    @media (max-width: 760px) {
-        .orders-head {
-            align-items: flex-start;
-        }
-
-        .orders-title-copy p {
-            display: none;
-        }
-
-        .orders-count {
-            display: none;
-        }
-
+    @media (max-width: 820px) {
         .orders-table-wrap {
-            overflow: visible;
-            padding: .58rem;
+            display: none;
         }
 
-        .orders-table {
+        .orders-mobile {
+            display: grid;
+        }
+
+        .orders-mobile-item {
+            --row-tone: var(--ow-violet);
+            display: grid;
+            min-width: 0;
+            gap: .5rem;
+            padding: .62rem .66rem;
+            border-bottom: 1px solid var(--ow-border);
+            border-left: 3px solid var(--row-tone);
+            background: #fff;
+        }
+
+        .orders-mobile-item:last-child { border-bottom: 0; }
+        .orders-mobile-item.is-pending { --row-tone: var(--ow-amber); }
+        .orders-mobile-item.is-scheduled { --row-tone: var(--ow-blue); }
+        .orders-mobile-item.is-progress { --row-tone: var(--ow-cyan); }
+        .orders-mobile-item.is-review { --row-tone: var(--ow-amber); }
+        .orders-mobile-item.is-completed,
+        .orders-mobile-item.is-approved { --row-tone: var(--ow-green); }
+        .orders-mobile-item.is-rejected,
+        .orders-mobile-item.is-cancelled { --row-tone: var(--ow-red); }
+
+        .orders-mobile-top {
+            display: flex;
+            min-width: 0;
+            gap: .5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .orders-mobile-service {
+            display: grid;
+            min-width: 0;
+            grid-template-columns: 34px minmax(0, 1fr);
+            gap: .42rem;
+            align-items: center;
+        }
+
+        .orders-mobile-service-icon {
+            display: grid;
+            width: 34px;
+            height: 34px;
+            place-items: center;
+            border-radius: 8px;
+            background: var(--ow-blue-soft);
+            color: var(--ow-blue);
+            font-size: .8rem;
+        }
+
+        .orders-mobile-service-copy {
+            min-width: 0;
+        }
+
+        .orders-mobile-service-copy strong,
+        .orders-mobile-service-copy small {
             display: block;
             min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .orders-table thead {
-            display: none;
+        .orders-mobile-service-copy strong {
+            color: var(--ow-text);
+            font-size: .72rem;
+            font-weight: 800;
         }
 
-        .orders-table tbody {
+        .orders-mobile-service-copy small {
+            margin-top: .03rem;
+            color: var(--ow-muted);
+            font-size: .56rem;
+        }
+
+        .orders-mobile-meta {
             display: grid;
-            gap: .45rem;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .42rem;
         }
 
-        .orders-table tr {
-            display: grid;
-            grid-template-columns:
-                repeat(2, minmax(0, 1fr));
-            gap: .4rem;
-            padding: .56rem;
-            border: 1px solid var(--orders-border);
-            border-left: 3px solid var(--orders-violet);
-            border-radius: 9px;
-            background: #fff;
-        }
-
-        .orders-table tbody tr:hover {
-            background: #fff;
-        }
-
-        .orders-table td {
-            display: grid;
+        .orders-mobile-fact {
+            display: flex;
             min-width: 0;
-            gap: .05rem;
-            padding: 0;
-            border: 0;
+            gap: .26rem;
+            align-items: center;
+            color: var(--ow-text-2);
+            font-size: .6rem;
         }
 
-        .orders-table td::before {
-            color: var(--orders-muted);
-            content: attr(data-label);
-            font-size: .54rem;
+        .orders-mobile-fact i {
+            flex: 0 0 auto;
+            color: var(--ow-muted);
+            font-size: .68rem;
+        }
+
+        .orders-mobile-fact span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .orders-mobile-bottom {
+            display: flex;
+            min-width: 0;
+            gap: .5rem;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: .42rem;
+            border-top: 1px solid var(--ow-border);
+        }
+
+        .orders-mobile-date {
+            display: inline-flex;
+            min-width: 0;
+            gap: .26rem;
+            align-items: center;
+            color: var(--ow-text-2);
+            font-size: .61rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .orders-mobile-date i {
+            color: var(--ow-cyan);
+            font-size: .7rem;
+        }
+
+        .orders-mobile-open {
+            display: inline-flex;
+            min-height: 34px;
+            gap: .24rem;
+            align-items: center;
+            justify-content: center;
+            padding: .3rem .46rem;
+            border: 1px solid var(--ow-blue-border);
+            border-radius: 7px;
+            background: var(--ow-blue-soft);
+            color: var(--ow-blue);
+            font-size: .61rem;
             font-weight: 780;
-            letter-spacing: .025em;
-            text-transform: uppercase;
-        }
-
-        .orders-table td.order-main-cell {
-            grid-column: 1 / -1;
-        }
-
-        .orders-table td.order-main-cell::before {
-            display: none;
-        }
-
-        .orders-table td.order-action-cell {
-            align-self: end;
-        }
-
-        .order-open {
-            width: max-content;
         }
     }
 
-    @media (max-width: 520px) {
+    @media (max-width: 560px) {
         .orders-head {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            padding: .62rem .66rem;
+        }
+
+        .orders-head-main {
+            grid-template-columns: 36px minmax(0, 1fr);
+        }
+
+        .orders-head-icon {
+            width: 36px;
+            height: 36px;
+        }
+
+        .orders-head-meta {
+            font-size: .61rem;
+        }
+
+        .orders-head-meta .desktop-only {
+            display: none;
         }
 
         .orders-create {
-            width: 38px;
-            min-width: 38px;
+            width: 39px;
+            min-width: 39px;
             padding: 0;
         }
 
@@ -752,149 +837,121 @@
             display: none;
         }
 
-        .orders-context {
-            align-items: flex-start;
-            flex-direction: column;
+        .orders-list-head {
+            min-height: 45px;
         }
 
-        .orders-table tr {
+        .orders-mobile-meta {
             grid-template-columns: 1fr;
-        }
-
-        .orders-table td.order-main-cell {
-            grid-column: 1;
+            gap: .28rem;
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .service-orders *,
-        .service-orders *::before,
-        .service-orders *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
+        .orders-page *,
+        .orders-page *::before,
+        .orders-page *::after {
             scroll-behavior: auto !important;
             transition-duration: .01ms !important;
+            animation-duration: .01ms !important;
+            animation-iteration-count: 1 !important;
         }
     }
 </style>
 
-<main class="service-orders">
-    <section class="orders-panel">
-        <header class="orders-head">
-            <div class="orders-title">
-                <span
-                    class="orders-title-icon"
-                    aria-hidden="true"
-                >
-                    <i class="ph-fill ph-wrench"></i>
-                </span>
+<main class="orders-page">
+    <header class="orders-head">
+        <div class="orders-head-main">
+            <span class="orders-head-icon" aria-hidden="true">
+                <i class="ph-fill ph-clipboard-text"></i>
+            </span>
 
-                <div class="orders-title-copy">
-                    <h2>Ordens de serviço</h2>
+            <div class="orders-head-copy">
+                <small>
+                    {{ $isOperator ? 'Operação de serviços' : 'Meus serviços' }}
+                </small>
 
-                    <p>
-                        Consulte agendamentos, responsáveis,
-                        beneficiários e situação operacional.
-                    </p>
-                </div>
-            </div>
+                <h1>Ordens de serviço</h1>
 
-            <div class="orders-head-actions">
-                <span class="orders-count">
-                    <i class="ph-fill ph-list-checks"></i>
-
-                    {{ $ordersTotal }}
-                    {{ $ordersTotal === 1
-                        ? 'ordem'
-                        : 'ordens' }}
-                </span>
-
-                <a
-                    class="orders-create"
-                    href="{{ route(
-                        'provider.orders.create',
-                        $tenantSlug
-                    ) }}"
-                >
-                    <i class="ph ph-plus"></i>
-                    <span>Nova ordem</span>
-                </a>
-            </div>
-        </header>
-
-        <div class="orders-context">
-            <div class="orders-context-copy">
-                <i
-                    class="ph-fill ph-info"
-                    aria-hidden="true"
-                ></i>
-
-                <span>
+                <div class="orders-head-meta">
                     <strong>
-                        {{ ($operator ?? false)
-                            ? 'Operação de serviços'
-                            : 'Histórico do prestador' }}
+                        {{ $ordersTotal }}
+                        {{ $ordersTotal === 1 ? 'ordem' : 'ordens' }}
                     </strong>
 
-                    · abra uma ordem para consultar
-                    seus dados e movimentações.
+                    @if($lastPage > 1)
+                        <span class="orders-head-dot"></span>
+                        <span class="desktop-only">
+                            Página {{ $currentPage }} de {{ $lastPage }}
+                        </span>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <a
+            class="orders-create"
+            href="{{ route('provider.orders.create', $tenantSlug) }}"
+            aria-label="Nova ordem"
+        >
+            <i class="ph-fill ph-plus-circle"></i>
+            <span>Nova ordem</span>
+        </a>
+    </header>
+
+    <section class="orders-list">
+        <header class="orders-list-head">
+            <div class="orders-list-title">
+                <span class="orders-list-title-icon" aria-hidden="true">
+                    <i class="ph-fill ph-list-checks"></i>
                 </span>
+                <strong>Histórico</strong>
             </div>
 
             @if($ordersTotal > 0)
-                <span class="orders-page-count">
-                    {{ $ordersOnPage }}
-                    {{ $ordersOnPage === 1
-                        ? 'registro nesta página'
-                        : 'registros nesta página' }}
+                <span class="orders-page-info">
+                    {{ $ordersOnPage }} nesta página
                 </span>
             @endif
-        </div>
+        </header>
 
         @if($orders->isEmpty())
             <div class="orders-empty">
-                <div>
-                    <span
-                        class="orders-empty-icon"
-                        aria-hidden="true"
-                    >
+                <div class="orders-empty-inner">
+                    <span class="orders-empty-icon" aria-hidden="true">
                         <i class="ph-fill ph-clipboard-text"></i>
                     </span>
 
-                    <strong>
-                        Nenhuma ordem de serviço
-                    </strong>
+                    <strong>Nenhuma ordem</strong>
+                    <p>As ordens criadas aparecerão aqui.</p>
 
-                    <span>
-                        As ordens registradas aparecerão aqui.
-                        Use “Nova ordem” para iniciar um novo atendimento.
-                    </span>
+                    <a
+                        class="orders-create"
+                        href="{{ route('provider.orders.create', $tenantSlug) }}"
+                    >
+                        <i class="ph-fill ph-plus-circle"></i>
+                        <span>Nova ordem</span>
+                    </a>
                 </div>
             </div>
         @else
             <div class="orders-table-wrap">
-                <table
-                    class="orders-table"
-                    aria-label="Ordens de serviço"
-                >
+                <table class="orders-table" aria-label="Ordens de serviço">
                     <thead>
                         <tr>
                             <th>OS</th>
                             <th>Serviço</th>
-                            <th>Prestador</th>
-                            <th>Beneficiário</th>
+                            <th>Pessoas</th>
                             <th>Agendamento</th>
                             <th>Situação</th>
-                            <th aria-label="Ações"></th>
+                            <th aria-label="Abrir"></th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach($orders as $order)
                             @php
-                                $status = $orderStatusMeta(
-                                    $order->operational_status
-                                );
+                                $status = $orderStatusMeta($order->operational_status);
 
                                 $providerName =
                                     $order->provider_snapshot['name']
@@ -910,122 +967,95 @@
                                     ?? 'Serviço não informado';
                             @endphp
 
-                            <tr>
-                                <td data-label="OS">
+                            <tr class="{{ $status['class'] }}">
+                                <td>
                                     <span class="order-number">
                                         <i class="ph-fill ph-hash"></i>
                                         {{ $order->number }}
                                     </span>
                                 </td>
 
-                                <td
-                                    class="order-main-cell"
-                                    data-label="Serviço"
-                                >
-                                    <div class="order-primary">
-                                        <span
-                                            class="order-primary-icon"
-                                            aria-hidden="true"
-                                        >
+                                <td>
+                                    <div class="order-service">
+                                        <span class="order-service-icon" aria-hidden="true">
                                             <i class="ph-fill ph-wrench"></i>
                                         </span>
 
-                                        <div class="order-primary-copy">
-                                            <strong
-                                                title="{{ $serviceName }}"
-                                            >
+                                        <span class="order-service-copy">
+                                            <strong title="{{ $serviceName }}">
                                                 {{ $serviceName }}
                                             </strong>
+                                            <small>OS {{ $order->number }}</small>
+                                        </span>
+                                    </div>
+                                </td>
 
-                                            <span>
-                                                Ordem de serviço
-                                                {{ $order->number }}
+                                <td>
+                                    <div class="order-people">
+                                        <div class="order-person">
+                                            <span class="order-person-icon" aria-hidden="true">
+                                                <i class="ph-fill ph-user-gear"></i>
+                                            </span>
+                                            <span class="order-person-copy">
+                                                <small>Prestador</small>
+                                                <strong title="{{ $providerName }}">
+                                                    {{ $providerName }}
+                                                </strong>
+                                            </span>
+                                        </div>
+
+                                        <div class="order-person beneficiary">
+                                            <span class="order-person-icon" aria-hidden="true">
+                                                <i class="ph-fill ph-user-circle"></i>
+                                            </span>
+                                            <span class="order-person-copy">
+                                                <small>Beneficiário</small>
+                                                <strong title="{{ $beneficiaryName }}">
+                                                    {{ $beneficiaryName }}
+                                                </strong>
                                             </span>
                                         </div>
                                     </div>
                                 </td>
 
-                                <td data-label="Prestador">
-                                    <div class="person-cell">
-                                        <strong
-                                            title="{{ $providerName }}"
-                                        >
-                                            {{ $providerName }}
-                                        </strong>
-
-                                        <span>Responsável</span>
-                                    </div>
-                                </td>
-
-                                <td data-label="Beneficiário">
-                                    <div class="person-cell">
-                                        <strong
-                                            title="{{ $beneficiaryName }}"
-                                        >
-                                            {{ $beneficiaryName }}
-                                        </strong>
-
-                                        <span>Atendido</span>
-                                    </div>
-                                </td>
-
-                                <td data-label="Agendamento">
+                                <td>
                                     @if($order->scheduled_at)
-                                        <span class="schedule-cell">
-                                            <i class="ph ph-calendar-dots"></i>
-
-                                            {{ $order->scheduled_at
-                                                ->format('d/m/Y H:i') }}
-                                        </span>
+                                        <div class="order-date">
+                                            <span class="order-date-icon" aria-hidden="true">
+                                                <i class="ph-fill ph-calendar-check"></i>
+                                            </span>
+                                            <span class="order-date-copy">
+                                                <strong>{{ $order->scheduled_at->format('d/m/Y') }}</strong>
+                                                <small>{{ $order->scheduled_at->format('H:i') }}</small>
+                                            </span>
+                                        </div>
                                     @else
-                                        <span
-                                            class="
-                                                schedule-cell
-                                                is-empty
-                                            "
-                                        >
-                                            <i class="ph ph-calendar-x"></i>
-                                            Não agendada
-                                        </span>
+                                        <div class="order-date empty">
+                                            <span class="order-date-icon" aria-hidden="true">
+                                                <i class="ph-fill ph-calendar-x"></i>
+                                            </span>
+                                            <span class="order-date-copy">
+                                                <strong>Sem data</strong>
+                                            </span>
+                                        </div>
                                     @endif
                                 </td>
 
-                                <td data-label="Situação">
-                                    <span
-                                        class="
-                                            order-status
-                                            {{ $status['class'] }}
-                                        "
-                                    >
-                                        <i
-                                            class="
-                                                ph-fill
-                                                {{ $status['icon'] }}
-                                            "
-                                            aria-hidden="true"
-                                        ></i>
-
+                                <td>
+                                    <span class="order-status {{ $status['class'] }}">
+                                        <i class="ph-fill {{ $status['icon'] }}" aria-hidden="true"></i>
                                         {{ $status['label'] }}
                                     </span>
                                 </td>
 
-                                <td
-                                    class="order-action-cell"
-                                    data-label="Ação"
-                                >
+                                <td class="order-action-cell">
                                     <a
                                         class="order-open"
-                                        href="{{ route(
-                                            'provider.orders.show',
-                                            [
-                                                $tenantSlug,
-                                                $order,
-                                            ]
-                                        ) }}"
+                                        href="{{ route('provider.orders.show', [$tenantSlug, $order]) }}"
                                         aria-label="Abrir ordem {{ $order->number }}"
+                                        title="Abrir ordem"
                                     >
-                                        <span>Abrir</span>
-                                        <i class="ph ph-arrow-right"></i>
+                                        <i class="ph-fill ph-arrow-right"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -1034,10 +1064,82 @@
                 </table>
             </div>
 
-            @if(
-                method_exists($orders, 'hasPages')
-                && $orders->hasPages()
-            )
+            <div class="orders-mobile">
+                @foreach($orders as $order)
+                    @php
+                        $status = $orderStatusMeta($order->operational_status);
+
+                        $providerName =
+                            $order->provider_snapshot['name']
+                            ?? $order->serviceProvider?->name
+                            ?? 'Não informado';
+
+                        $beneficiaryName =
+                            $order->beneficiary_snapshot['name']
+                            ?? 'Não informado';
+
+                        $serviceName =
+                            $order->service?->name
+                            ?? 'Serviço não informado';
+                    @endphp
+
+                    <article class="orders-mobile-item {{ $status['class'] }}">
+                        <div class="orders-mobile-top">
+                            <div class="orders-mobile-service">
+                                <span class="orders-mobile-service-icon" aria-hidden="true">
+                                    <i class="ph-fill ph-wrench"></i>
+                                </span>
+
+                                <span class="orders-mobile-service-copy">
+                                    <strong>{{ $serviceName }}</strong>
+                                    <small>OS {{ $order->number }}</small>
+                                </span>
+                            </div>
+
+                            <span class="order-status {{ $status['class'] }}">
+                                <i class="ph-fill {{ $status['icon'] }}"></i>
+                                {{ $status['label'] }}
+                            </span>
+                        </div>
+
+                        <div class="orders-mobile-meta">
+                            <span class="orders-mobile-fact">
+                                <i class="ph-fill ph-user-gear"></i>
+                                <span>{{ $providerName }}</span>
+                            </span>
+
+                            <span class="orders-mobile-fact">
+                                <i class="ph-fill ph-user-circle"></i>
+                                <span>{{ $beneficiaryName }}</span>
+                            </span>
+                        </div>
+
+                        <div class="orders-mobile-bottom">
+                            @if($order->scheduled_at)
+                                <span class="orders-mobile-date">
+                                    <i class="ph-fill ph-calendar-check"></i>
+                                    {{ $order->scheduled_at->format('d/m/Y H:i') }}
+                                </span>
+                            @else
+                                <span class="orders-mobile-date">
+                                    <i class="ph-fill ph-calendar-x"></i>
+                                    Sem data
+                                </span>
+                            @endif
+
+                            <a
+                                class="orders-mobile-open"
+                                href="{{ route('provider.orders.show', [$tenantSlug, $order]) }}"
+                            >
+                                Abrir
+                                <i class="ph-fill ph-arrow-right"></i>
+                            </a>
+                        </div>
+                    </article>
+                @endforeach
+            </div>
+
+            @if(method_exists($orders, 'hasPages') && $orders->hasPages())
                 <div class="orders-pagination">
                     {{ $orders->links() }}
                 </div>

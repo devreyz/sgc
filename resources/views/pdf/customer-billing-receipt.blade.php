@@ -342,6 +342,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 @endif
 
 {{-- ═══ RODAPÉ ═══ --}}
+@include('pdf.partials.financial-document-qr')
+
+{{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
     &nbsp;|&nbsp; Emitido em {{ now()->format('d/m/Y H:i') }}

@@ -25,7 +25,7 @@ class FiscalGateService
         };
         $add($expectedTenantId === null || (int) $receipt->tenant_id === $expectedTenantId, 'tenant_mismatch', 'A cobrança não pertence à organização atual.');
         $inspection = $this->integrity->inspect($receipt);
-        $add($inspection['critical_count'] === 0, 'financial_integrity_error', 'A cobrança possui inconsistências financeiras que precisam ser corrigidas.');
+        $add($inspection['blocking_count'] === 0, 'financial_integrity_error', 'A cobrança ainda possui dados financeiros que precisam ser concluídos ou corrigidos.');
         $authorization = BillingAuthorization::withoutGlobalScopes()->where('tenant_id', $receipt->tenant_id)
             ->where('customer_billing_receipt_id', $receipt->id)->where('active_marker', true)->latest('sequence')->first();
         $add((bool) $authorization, 'authorization_missing', 'Esta cobrança ainda não possui autorização ativa.');

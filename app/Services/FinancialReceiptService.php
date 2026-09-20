@@ -139,6 +139,8 @@ class FinancialReceiptService
                 'cash_movement_id' => $movement->id,
             ])->save();
 
+            app(FinancialDocumentIdentityService::class)->ensure($receipt, $user);
+
             activity('financial_receipt')->performedOn($receipt)->causedBy($user)
                 ->withProperties(['tenant_id' => $receipt->tenant_id, 'action' => 'issued', 'cash_movement_id' => $movement->id])
                 ->log('Recibo de recebimento emitido');

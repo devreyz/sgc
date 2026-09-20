@@ -6,6 +6,7 @@ use App\Models\ServiceCompositionLine;
 use App\Models\ServiceExecution;
 use App\Models\ServiceObligation;
 use App\Models\User;
+use App\Services\FinancialDocumentIdentityService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -46,6 +47,7 @@ class GenerateServiceObligations
                 $obligation = new ServiceObligation(['number' => sprintf('OB-%d-%06d', $year, $number), 'service_execution_id' => $execution->id, 'direction' => $direction, 'associate_id' => $direction === 'receivable' ? $execution->associate_id : null, 'service_provider_id' => $direction === 'payable' ? $execution->service_provider_id : null, 'principal_amount' => $total, 'adjustment_amount' => 0, 'status' => 'open', 'due_date' => now()->toDateString(), 'party_snapshot' => $party, 'composition_snapshot' => $snapshot, 'snapshot_hash' => $this->snapshots->hash($snapshot), 'operation_key' => (string) Str::uuid(), 'frozen_at' => now(), 'created_by' => $actor->id]);
                 $obligation->tenant_id = $execution->tenant_id;
                 $obligation->save();
+                app(FinancialDocumentIdentityService::class)->ensure($obligation, $actor);
                 $created[$direction] = $obligation;
             }
 

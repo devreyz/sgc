@@ -46,51 +46,61 @@
 <x-delivery.notes-modal />
 
 @section('content')
+@once
 <link
     rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css"
+    href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
 >
-<link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/duotone/style.css"
->
+@endonce
+
 
 <style>
     .pr,
     .pr-overlay,
     .pr-dialog,
     .pr-toast-wrap {
-        --pr-green: #168a4d;
-        --pr-green-soft: #eaf8ef;
-        --pr-blue: #2563eb;
-        --pr-blue-soft: #eef4ff;
-        --pr-sky: #0284c7;
-        --pr-sky-soft: #edf8fe;
-        --pr-violet: #7c3aed;
-        --pr-violet-soft: #f4f0ff;
-        --pr-amber: #c87408;
-        --pr-amber-soft: #fff7e8;
-        --pr-red: #cf3f3f;
-        --pr-red-soft: #fff0f0;
-        --pr-slate: #64748b;
-        --pr-slate-soft: #f1f5f9;
+        --pr-blue: #3478d4;
+        --pr-blue-soft: #edf4ff;
+        --pr-blue-border: #cfe0f7;
 
-        --pr-text: var(--color-text, #102018);
-        --pr-secondary: var(--color-text-secondary, #52645a);
-        --pr-muted-text: var(--color-text-muted, #809087);
-        --pr-border: var(--color-border, #dce6df);
-        --pr-border-strong: var(--color-border-strong, #c8d6cd);
-        --pr-surface: var(--color-surface, #fff);
-        --pr-soft: var(--color-surface-soft, #f8faf9);
-        --pr-muted: var(--color-surface-muted, #eef4f0);
+        --pr-violet: #8a4bd2;
+        --pr-violet-soft: #f5efff;
+        --pr-violet-border: #e1d2f4;
+
+        --pr-green: #219653;
+        --pr-green-soft: #edf8f2;
+        --pr-green-border: #cce8d7;
+
+        --pr-amber: #c38418;
+        --pr-amber-soft: #fff7e8;
+        --pr-amber-border: #f0dcae;
+
+        --pr-red: #cf5050;
+        --pr-red-soft: #fff0f0;
+        --pr-red-border: #efcaca;
+
+        --pr-cyan: #168eae;
+        --pr-cyan-soft: #ecf8fb;
+        --pr-cyan-border: #cae8ef;
+
+        --pr-slate: #66756d;
+        --pr-slate-soft: #f1f5f3;
+
+        --pr-text: #17211d;
+        --pr-secondary: #59655f;
+        --pr-muted-text: #89938e;
+        --pr-border: #dde5e0;
+        --pr-border-strong: #ccd8d1;
+        --pr-surface: #fff;
+        --pr-soft: #f7faf8;
     }
 
     .pr {
         display: grid;
-        width: min(100%, 1280px);
+        width: min(100%, 1320px);
         min-width: 0;
         grid-column: 1 / -1;
-        gap: .82rem;
+        gap: .72rem;
         margin: 0 auto;
         padding-bottom: 1rem;
         color: var(--pr-text);
@@ -104,8 +114,23 @@
     .pr-overlay *::after,
     .pr-dialog *,
     .pr-dialog *::before,
-    .pr-dialog *::after {
+    .pr-dialog *::after,
+    .pr-toast-wrap *,
+    .pr-toast-wrap *::before,
+    .pr-toast-wrap *::after {
         box-sizing: border-box;
+    }
+
+    .pr a {
+        text-decoration: none;
+    }
+
+    .pr button,
+    .pr input,
+    .pr select,
+    .pr textarea,
+    .pr-dialog button {
+        font: inherit;
     }
 
     /* =========================================================
@@ -115,40 +140,35 @@
     .pr-head {
         --head-tone: var(--pr-blue);
         --head-soft: var(--pr-blue-soft);
+        --head-border: var(--pr-blue-border);
 
         display: grid;
         min-width: 0;
-        grid-template-columns: auto auto minmax(0, 1fr) auto;
-        gap: .62rem;
+        grid-template-columns: 40px 40px minmax(0, 1fr) auto;
+        gap: .55rem;
         align-items: center;
-        min-height: 72px;
-        padding: .7rem .76rem;
-        overflow: hidden;
+        padding: .72rem .8rem;
         border: 1px solid var(--pr-border);
-        border-radius: 15px;
-        background:
-            radial-gradient(
-                circle at 100% 0,
-                color-mix(in srgb, var(--head-tone) 8%, transparent),
-                transparent 17rem
-            ),
-            linear-gradient(180deg, var(--pr-soft), var(--pr-surface));
-        box-shadow: var(--shadow-sm);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .pr-head.status-draft {
         --head-tone: var(--pr-amber);
         --head-soft: var(--pr-amber-soft);
+        --head-border: var(--pr-amber-border);
     }
 
     .pr-head.status-completed {
         --head-tone: var(--pr-green);
         --head-soft: var(--pr-green-soft);
+        --head-border: var(--pr-green-border);
     }
 
     .pr-head.status-cancelled {
         --head-tone: var(--pr-red);
         --head-soft: var(--pr-red-soft);
+        --head-border: var(--pr-red-border);
     }
 
     .pr-back,
@@ -158,45 +178,30 @@
         width: 40px;
         height: 40px;
         place-items: center;
-        border-radius: 11px;
+        border-radius: 9px;
     }
 
-    .pr-back {
+    .pr-back,
+    .pr-head-action {
         border: 1px solid var(--pr-border);
         background: #fff;
         color: var(--pr-secondary);
-        text-decoration: none;
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            color 150ms ease,
-            transform 150ms ease;
     }
 
     .pr-back:hover,
-    .pr-back:focus-visible {
-        border-color: rgba(37, 99, 235, .24);
+    .pr-back:focus-visible,
+    .pr-head-action:hover,
+    .pr-head-action:focus-visible {
+        border-color: var(--pr-blue-border);
+        outline: none;
         background: var(--pr-blue-soft);
         color: var(--pr-blue);
-        outline: none;
-        transform: translateX(-1px);
     }
 
     .pr-head-icon {
         background: var(--head-soft);
         color: var(--head-tone);
-    }
-
-    .pr-back > i,
-    .pr-head-icon > i,
-    .pr-head-action > i {
-        display: block;
         font-size: 1rem;
-        line-height: 1;
-    }
-
-    .pr-head-icon > i {
-        font-size: 1.16rem;
     }
 
     .pr-head-copy {
@@ -205,23 +210,24 @@
 
     .pr-head-copy h1 {
         margin: 0;
+        overflow: hidden;
         color: var(--pr-text);
-        font-size: clamp(1rem, 2vw, 1.18rem);
-        font-weight: 860;
-        letter-spacing: -.03em;
-        line-height: 1.28;
-        overflow-wrap: anywhere;
+        font-size: clamp(1.04rem, 2vw, 1.2rem);
+        font-weight: 850;
+        line-height: 1.2;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pr-head-meta {
         display: flex;
         min-width: 0;
-        gap: .48rem;
+        gap: .3rem .52rem;
         align-items: center;
         flex-wrap: wrap;
         margin-top: .16rem;
         color: var(--pr-muted-text);
-        font-size: .72rem;
+        font-size: .78rem;
         line-height: 1.4;
     }
 
@@ -233,131 +239,81 @@
     }
 
     .pr-head-meta i {
-        display: block;
+        color: var(--pr-blue);
         font-size: .78rem;
-        line-height: 1;
     }
 
     .pr-head-side {
         display: flex;
-        gap: .38rem;
+        gap: .4rem;
         align-items: center;
     }
 
     .pr-project-status {
         display: inline-flex;
         min-height: 30px;
-        gap: .28rem;
+        gap: .26rem;
         align-items: center;
-        padding: .28rem .46rem;
-        border-radius: 999px;
+        padding: .25rem .42rem;
+        border: 1px solid var(--head-border);
+        border-radius: 7px;
         background: var(--head-soft);
         color: var(--head-tone);
-        font-size: .68rem;
-        font-weight: 800;
+        font-size: .73rem;
+        font-weight: 780;
         white-space: nowrap;
     }
 
-    .pr-project-status i {
-        font-size: .78rem;
-    }
-
-    .pr-head-action {
-        border: 1px solid var(--pr-border);
-        background: #fff;
-        color: var(--pr-secondary);
-        cursor: pointer;
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            color 150ms ease;
-    }
-
-    .pr-head-action:hover,
-    .pr-head-action:focus-visible {
-        border-color: rgba(124, 58, 237, .22);
-        background: var(--pr-violet-soft);
-        color: var(--pr-violet);
-        outline: none;
-    }
-
     /* =========================================================
-       AÇÕES / BOTÕES
+       BOTÕES
        ========================================================= */
 
     .pr-btn {
+        --button-tone: var(--pr-secondary);
+        --button-bg: #fff;
+        --button-border: var(--pr-border-strong);
+
         display: inline-flex;
-        min-height: 40px;
+        min-height: 39px;
+        gap: .32rem;
         align-items: center;
         justify-content: center;
-        gap: .34rem;
-        padding: .46rem .64rem;
-        border: 1px solid var(--pr-border-strong);
-        border-radius: 9px;
-        background: #fff;
-        color: var(--pr-text);
+        padding: .42rem .6rem;
+        border: 1px solid var(--button-border);
+        border-radius: 8px;
+        background: var(--button-bg);
+        color: var(--button-tone);
         cursor: pointer;
-        font: inherit;
-        font-size: .73rem;
-        font-weight: 780;
-        text-decoration: none;
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            color 150ms ease,
-            box-shadow 150ms ease,
-            transform 150ms ease;
+        font-size: .8rem;
+        font-weight: 760;
+        white-space: nowrap;
     }
 
     .pr-btn > i {
-        display: block;
-        font-size: .88rem;
-        line-height: 1;
+        font-size: .84rem;
     }
 
     .pr-btn:hover:not(:disabled),
     .pr-btn:focus-visible:not(:disabled) {
-        border-color: rgba(34, 197, 94, .28);
-        background: var(--color-primary-50);
-        color: var(--color-primary-deep);
         outline: none;
+        filter: brightness(.985);
     }
 
     .pr-btn.primary {
-        border-color: var(--color-primary-dark);
-        background:
-            linear-gradient(
-                135deg,
-                var(--color-primary),
-                var(--color-primary-dark)
-            );
-        color: #fff;
-        box-shadow: 0 7px 16px rgba(22, 163, 74, .14);
-    }
-
-    .pr-btn.primary:hover:not(:disabled),
-    .pr-btn.primary:focus-visible:not(:disabled) {
-        color: #fff;
-        box-shadow: 0 10px 20px rgba(22, 163, 74, .20);
-        transform: translateY(-1px);
+        --button-tone: #fff;
+        --button-bg: var(--pr-blue);
+        --button-border: var(--pr-blue);
     }
 
     .pr-btn.danger {
-        border-color: color-mix(in srgb, var(--pr-red) 20%, var(--pr-border));
-        background: var(--pr-red-soft);
-        color: #a82929;
-    }
-
-    .pr-btn.danger:hover:not(:disabled),
-    .pr-btn.danger:focus-visible:not(:disabled) {
-        border-color: rgba(207, 63, 63, .34);
-        background: #ffe8e8;
-        color: #991b1b;
+        --button-tone: var(--pr-red);
+        --button-bg: var(--pr-red-soft);
+        --button-border: var(--pr-red-border);
     }
 
     .pr-btn.icon {
-        width: 38px;
-        min-width: 38px;
+        width: 39px;
+        min-width: 39px;
         padding: 0;
     }
 
@@ -372,7 +328,7 @@
     .pr-receipt-actions,
     .pr-modal-actions {
         display: flex;
-        gap: .42rem;
+        gap: .4rem;
         align-items: center;
         flex-wrap: wrap;
     }
@@ -385,42 +341,42 @@
         min-width: 0;
         overflow: hidden;
         border: 1px solid var(--pr-border);
-        border-radius: 15px;
-        background: var(--pr-surface);
-        box-shadow: var(--shadow-sm);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .pr-overview-head {
         display: flex;
         min-width: 0;
+        min-height: 54px;
+        gap: .7rem;
         align-items: center;
         justify-content: space-between;
-        gap: .62rem;
-        padding: .62rem .72rem;
+        padding: .58rem .66rem;
         border-bottom: 1px solid var(--pr-border);
-        background: linear-gradient(180deg, var(--pr-soft), #fff);
     }
 
     .pr-overview-title {
-        display: flex;
+        display: grid;
         min-width: 0;
-        gap: .52rem;
+        grid-template-columns: 31px minmax(0, 1fr);
+        gap: .42rem;
         align-items: center;
     }
 
     .pr-overview-icon {
         display: grid;
-        width: 36px;
-        height: 36px;
-        flex: none;
+        width: 31px;
+        height: 31px;
         place-items: center;
-        border-radius: 10px;
+        border-radius: 8px;
         background: var(--pr-violet-soft);
         color: var(--pr-violet);
+        font-size: .78rem;
     }
 
-    .pr-overview-icon i {
-        font-size: .98rem;
+    .pr-overview-copy {
+        min-width: 0;
     }
 
     .pr-overview-copy h2,
@@ -429,36 +385,30 @@
     }
 
     .pr-overview-copy h2 {
-        font-size: .88rem;
-        font-weight: 830;
-        letter-spacing: -.015em;
+        color: var(--pr-text);
+        font-size: .9rem;
+        font-weight: 820;
     }
 
     .pr-overview-copy p {
-        margin-top: .06rem;
+        margin-top: .03rem;
         color: var(--pr-muted-text);
-        font-size: .69rem;
-        line-height: 1.35;
+        font-size: .76rem;
+        line-height: 1.4;
     }
 
     .pr-overview-action {
-        color: var(--pr-violet);
-        font-size: .69rem;
-        font-weight: 770;
-        text-decoration: none;
+        color: var(--pr-blue);
+        font-size: .76rem;
+        font-weight: 760;
         white-space: nowrap;
-    }
-
-    .pr-overview-action:hover {
-        text-decoration: underline;
     }
 
     .pr-summary {
         display: grid;
         min-width: 0;
         grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: .42rem;
-        padding: .62rem;
+        background: var(--pr-soft);
     }
 
     .pr-stat {
@@ -467,21 +417,21 @@
 
         display: grid;
         min-width: 0;
-        min-height: 76px;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .48rem;
+        min-height: 68px;
+        grid-template-columns: 32px minmax(0, 1fr);
+        gap: .42rem;
         align-items: center;
-        padding: .58rem;
-        border: 1px solid transparent;
-        border-radius: 11px;
-        background: var(--stat-soft);
+        padding: .52rem .58rem;
+        border: 0;
+        border-right: 1px solid var(--pr-border);
+        background: #fff;
         color: var(--pr-text);
         text-align: left;
         cursor: pointer;
-        transition:
-            border-color 150ms ease,
-            box-shadow 150ms ease,
-            transform 150ms ease;
+    }
+
+    .pr-stat:last-child {
+        border-right: 0;
     }
 
     .pr-stat[data-summary-filter="all"] {
@@ -512,37 +462,23 @@
     .pr-stat:hover,
     .pr-stat:focus-visible,
     .pr-stat.active {
-        border-color:
-            color-mix(
-                in srgb,
-                var(--stat-tone) 22%,
-                var(--pr-border)
-            );
-        box-shadow: inset 3px 0 var(--stat-tone);
         outline: none;
+        background: var(--stat-soft);
     }
 
     .pr-stat.active {
-        transform: translateY(-1px);
+        box-shadow: inset 0 -2px var(--stat-tone);
     }
 
     .pr-stat-icon {
         display: grid;
-        width: 34px;
-        height: 34px;
+        width: 32px;
+        height: 32px;
         place-items: center;
-        border-radius: 10px;
-        background:
-            color-mix(
-                in srgb,
-                var(--stat-tone) 10%,
-                #fff
-            );
+        border-radius: 8px;
+        background: var(--stat-soft);
         color: var(--stat-tone);
-    }
-
-    .pr-stat-icon i {
-        font-size: .96rem;
+        font-size: .76rem;
     }
 
     .pr-stat-copy {
@@ -556,22 +492,21 @@
 
     .pr-stat-copy strong {
         color: var(--stat-tone);
-        font-size: 1rem;
-        font-weight: 870;
+        font-size: .94rem;
+        font-weight: 840;
         line-height: 1;
     }
 
     .pr-stat-copy small {
-        margin-top: .18rem;
+        margin-top: .1rem;
         color: var(--pr-secondary);
-        font-size: .64rem;
-        font-weight: 730;
-        line-height: 1.28;
-        overflow-wrap: anywhere;
+        font-size: .7rem;
+        font-weight: 700;
+        line-height: 1.3;
     }
 
     /* =========================================================
-       FERRAMENTAS
+       BUSCA / FILTROS
        ========================================================= */
 
     .pr-tools-shell {
@@ -580,17 +515,16 @@
         grid-template-columns: minmax(0, 1fr) auto;
         gap: .5rem;
         align-items: center;
-        padding: .52rem;
+        padding: .6rem;
         border: 1px solid var(--pr-border);
-        border-radius: 13px;
-        background: var(--pr-surface);
-        box-shadow: var(--shadow-sm);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .pr-tools {
         display: grid;
         min-width: 0;
-        grid-template-columns: minmax(230px, 1fr) minmax(190px, 250px);
+        grid-template-columns: minmax(240px, 1fr) minmax(210px, 280px);
         gap: .5rem;
     }
 
@@ -603,6 +537,7 @@
         position: absolute;
         top: 50%;
         left: .68rem;
+        z-index: 1;
         color: var(--pr-muted-text);
         font-size: .88rem;
         pointer-events: none;
@@ -611,55 +546,67 @@
 
     .pr-control {
         width: 100%;
+        min-width: 0;
         min-height: 42px;
         border: 1px solid var(--pr-border-strong);
-        border-radius: 10px;
+        border-radius: 8px;
         outline: none;
         background: #fff;
         color: var(--pr-text);
-        font: inherit;
-        font-size: .75rem;
+        font-size: .84rem;
     }
 
     input.pr-control {
-        padding: .5rem .66rem;
+        padding: .5rem .6rem;
     }
 
     .pr-search .pr-control {
-        padding-left: 2.08rem;
+        padding-left: 2.05rem;
     }
 
     select.pr-control {
-        padding: .5rem 1.9rem .5rem .64rem;
+        padding: .5rem 1.9rem .5rem .6rem;
         cursor: pointer;
     }
 
     .pr-control:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, .10);
+        border-color: var(--pr-blue);
+        box-shadow: 0 0 0 3px var(--pr-blue-soft);
     }
 
     /* =========================================================
-       CARDS DOS ASSOCIADOS / PRODUTORES
+       LISTA DOS MEMBROS
        ========================================================= */
 
     .pr-grid {
         display: grid;
         min-width: 0;
-        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-        gap: .62rem;
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid var(--pr-border);
+        border-radius: 12px;
+        background: #fff;
     }
 
     .pr-card {
         --card-tone: var(--pr-slate);
         --card-soft: var(--pr-slate-soft);
 
+        display: grid;
         min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--pr-border);
-        border-radius: 13px;
-        background: var(--pr-surface);
-        box-shadow: var(--shadow-sm);
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, .9fr) auto;
+        grid-template-areas:
+            "head values actions"
+            "progress values actions";
+        gap: .5rem .72rem;
+        align-items: center;
+        padding: .66rem .7rem;
+        border-bottom: 1px solid var(--pr-border);
+        background: #fff;
+    }
+
+    .pr-card:last-child {
+        border-bottom: 0;
     }
 
     .pr-card.is-warning {
@@ -688,89 +635,103 @@
     }
 
     .pr-card-head {
+        grid-area: head;
         display: flex;
         min-width: 0;
-        align-items: flex-start;
+        gap: .55rem;
+        align-items: center;
         justify-content: space-between;
-        gap: .58rem;
-        padding: .72rem .72rem .54rem;
     }
 
     .pr-person {
-        display: flex;
+        display: grid;
         min-width: 0;
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: .48rem;
         align-items: center;
-        gap: .58rem;
     }
 
     .pr-avatar {
         display: grid;
-        width: 40px;
-        height: 40px;
-        flex: none;
+        width: 36px;
+        height: 36px;
         place-items: center;
-        border-radius: 11px;
+        border-radius: 9px;
         background: var(--card-soft);
         color: var(--card-tone);
-        font-size: .74rem;
-        font-weight: 860;
+        font-size: .72rem;
+        font-weight: 830;
     }
 
     .pr-card h2 {
         margin: 0;
+        overflow: hidden;
         color: var(--pr-text);
         font-size: .86rem;
-        font-weight: 830;
-        line-height: 1.32;
-        overflow-wrap: anywhere;
+        font-weight: 810;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pr-sub {
-        margin-top: .08rem;
+        margin-top: .04rem;
+        overflow: hidden;
         color: var(--pr-muted-text);
-        font-size: .68rem;
+        font-size: .72rem;
         line-height: 1.4;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pr-badge {
+        --badge-tone: var(--pr-secondary);
+        --badge-soft: var(--pr-soft);
+        --badge-border: var(--pr-border);
+
         display: inline-flex;
         width: max-content;
-        min-height: 23px;
-        flex: none;
+        max-width: 100%;
+        min-height: 26px;
+        gap: .22rem;
         align-items: center;
-        gap: .24rem;
-        padding: .18rem .36rem;
-        border-radius: 999px;
-        background: var(--pr-muted);
-        color: var(--pr-secondary);
-        font-size: .61rem;
-        font-weight: 800;
+        padding: .2rem .36rem;
+        border: 1px solid var(--badge-border);
+        border-radius: 7px;
+        background: var(--badge-soft);
+        color: var(--badge-tone);
+        font-size: .68rem;
+        font-weight: 760;
         white-space: nowrap;
     }
 
     .pr-badge.green {
-        background: var(--pr-green-soft);
-        color: var(--pr-green);
+        --badge-tone: var(--pr-green);
+        --badge-soft: var(--pr-green-soft);
+        --badge-border: var(--pr-green-border);
     }
 
     .pr-badge.yellow {
-        background: var(--pr-amber-soft);
-        color: #92400e;
+        --badge-tone: var(--pr-amber);
+        --badge-soft: var(--pr-amber-soft);
+        --badge-border: var(--pr-amber-border);
     }
 
     .pr-badge.red {
-        background: var(--pr-red-soft);
-        color: #991b1b;
+        --badge-tone: var(--pr-red);
+        --badge-soft: var(--pr-red-soft);
+        --badge-border: var(--pr-red-border);
     }
 
     .pr-badge.blue {
-        background: var(--pr-blue-soft);
-        color: var(--pr-blue);
+        --badge-tone: var(--pr-blue);
+        --badge-soft: var(--pr-blue-soft);
+        --badge-border: var(--pr-blue-border);
     }
 
     .pr-meter {
-        height: 7px;
-        margin: 0 .72rem;
+        grid-area: progress;
+        height: 6px;
         overflow: hidden;
         border-radius: 999px;
         background: #e6ece8;
@@ -780,43 +741,44 @@
         display: block;
         height: 100%;
         border-radius: inherit;
-        background:
-            linear-gradient(
-                90deg,
-                color-mix(in srgb, var(--card-tone) 58%, #fff),
-                var(--card-tone)
-            );
+        background: var(--card-tone);
     }
 
     .pr-progress-label {
+        grid-area: progress;
         display: flex;
-        justify-content: space-between;
         gap: .5rem;
-        margin-top: .34rem;
-        padding: 0 .72rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 18px;
         color: var(--pr-muted-text);
-        font-size: .66rem;
+        font-size: .69rem;
         line-height: 1.3;
     }
 
     .pr-progress-label strong {
         color: var(--card-tone);
-        font-weight: 820;
+        font-weight: 800;
     }
 
     .pr-values {
+        grid-area: values;
         display: grid;
         min-width: 0;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .34rem;
-        margin: .58rem .72rem 0;
-        padding: .48rem;
-        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--pr-border);
+        border-radius: 8px;
         background: var(--pr-soft);
     }
 
     .pr-value {
         min-width: 0;
+        padding: .48rem .5rem;
+    }
+
+    .pr-value + .pr-value {
+        border-left: 1px solid var(--pr-border);
     }
 
     .pr-value span,
@@ -826,17 +788,19 @@
 
     .pr-value span {
         color: var(--pr-muted-text);
-        font-size: .62rem;
+        font-size: .67rem;
         font-weight: 680;
     }
 
     .pr-value strong {
         margin-top: .04rem;
+        overflow: hidden;
         color: var(--pr-text);
-        font-size: .73rem;
-        font-weight: 820;
+        font-size: .78rem;
+        font-weight: 800;
         line-height: 1.3;
-        overflow-wrap: anywhere;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pr-value:nth-child(2) strong {
@@ -848,43 +812,31 @@
     }
 
     .pr-card-actions {
+        grid-area: actions;
         display: grid;
-        grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
-        gap: .4rem;
-        margin-top: .62rem;
-        padding: .58rem .72rem .72rem;
-        border-top: 1px solid var(--pr-border);
-        background:
-            linear-gradient(
-                180deg,
-                rgba(248, 250, 249, .5),
-                var(--pr-soft)
-            );
+        grid-template-columns: 1fr;
+        min-width: 155px;
+        gap: .38rem;
     }
 
     .pr-card-actions .pr-btn {
         width: 100%;
-        min-width: 0;
     }
 
     /* =========================================================
-       ESTADOS E PAGINAÇÃO
+       CARREGAMENTO / EMPTY / PAGINAÇÃO
        ========================================================= */
 
     .pr-loading,
     .pr-empty {
-        grid-column: 1 / -1;
         display: grid;
-        min-height: 220px;
+        min-height: 160px;
         place-items: center;
-        padding: 1.2rem;
-        border: 1px solid var(--pr-border);
-        border-radius: 13px;
-        background: var(--pr-surface);
-        color: var(--pr-secondary);
-        text-align: center;
-        font-size: .74rem;
+        padding: 1rem;
+        color: var(--pr-muted-text);
+        font-size: .8rem;
         line-height: 1.5;
+        text-align: center;
     }
 
     .pr-loading-ring {
@@ -897,34 +849,33 @@
         animation: pr-spin .7s linear infinite;
     }
 
-    .pr-footer {
-        display: flex;
-        min-width: 0;
-        align-items: center;
-        justify-content: space-between;
-        gap: .65rem;
-        padding: .42rem .48rem;
-        border: 1px solid var(--pr-border);
-        border-radius: 11px;
-        background: var(--pr-soft);
-    }
-
-    .pr-page-info {
-        min-width: 0;
-        padding-left: .2rem;
-        color: var(--pr-secondary);
-        font-size: .69rem;
-        font-weight: 690;
-    }
-
     @keyframes pr-spin {
         to {
             transform: rotate(360deg);
         }
     }
 
+    .pr-footer {
+        display: flex;
+        min-width: 0;
+        gap: .65rem;
+        align-items: center;
+        justify-content: space-between;
+        padding: .5rem .58rem;
+        border: 1px solid var(--pr-border);
+        border-radius: 10px;
+        background: var(--pr-soft);
+    }
+
+    .pr-page-info {
+        min-width: 0;
+        color: var(--pr-secondary);
+        font-size: .76rem;
+        font-weight: 680;
+    }
+
     /* =========================================================
-       MODAL / SHEET
+       SHEET
        ========================================================= */
 
     .pr-overlay {
@@ -932,14 +883,9 @@
         z-index: 100000;
         inset: 0;
         display: grid;
-        place-items: center;
-        padding:
-            max(.75rem, env(safe-area-inset-top))
-            max(.75rem, env(safe-area-inset-right))
-            max(.75rem, env(safe-area-inset-bottom))
-            max(.75rem, env(safe-area-inset-left));
-        background: rgba(11, 28, 18, .34);
-        backdrop-filter: none;
+        place-items: stretch end;
+        padding: 0;
+        background: rgba(10, 22, 14, .46);
     }
 
     .pr-overlay[hidden] {
@@ -948,32 +894,26 @@
 
     .pr-sheet {
         display: flex;
-        width: min(820px, 100%);
-        max-height: min(92dvh, 880px);
+        width: min(720px, 100dvw);
+        height: 100dvh;
+        max-height: 100dvh;
         min-width: 0;
         flex-direction: column;
         overflow: hidden;
-        border: 1px solid var(--pr-border);
-        border-radius: 16px;
-        background: #f3f7f4;
+        border-left: 1px solid var(--pr-border);
+        background: var(--pr-soft);
         color: var(--pr-text);
-        isolation: isolate;
-        box-shadow: -12px 0 38px rgba(8, 24, 15, .16);
-        animation:
-            pr-sheet-enter
-            180ms
-            cubic-bezier(.2, .8, .2, 1)
-            both;
+        animation: pr-sheet-desktop-enter 180ms ease both;
     }
 
     .pr-sheet-head {
         display: grid;
         flex: none;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .58rem;
+        grid-template-columns: 38px minmax(0, 1fr) auto;
+        gap: .5rem;
         align-items: center;
-        padding: .72rem;
-        border-bottom: 1px solid #d8e4dc;
+        padding: .72rem .78rem;
+        border-bottom: 1px solid var(--pr-border);
         background: #fff;
     }
 
@@ -982,46 +922,46 @@
         width: 38px;
         height: 38px;
         place-items: center;
-        border-radius: 11px;
+        border-radius: 9px;
         background: var(--pr-blue-soft);
         color: var(--pr-blue);
-    }
-
-    .pr-sheet-icon i {
-        font-size: 1.04rem;
+        font-size: .9rem;
     }
 
     .pr-sheet-head h2 {
         margin: 0;
-        font-size: .86rem;
-        font-weight: 840;
+        color: var(--pr-text);
+        font-size: .9rem;
+        font-weight: 820;
     }
 
     .pr-sheet-head p {
-        margin: .07rem 0 0;
+        margin: .04rem 0 0;
         color: var(--pr-muted-text);
-        font-size: .68rem;
-        line-height: 1.35;
+        font-size: .74rem;
+        line-height: 1.4;
     }
 
     .pr-sheet-body {
-        min-height: 210px;
-        overflow: auto;
-        padding: .74rem;
+        min-height: 0;
+        flex: 1;
+        overflow-y: auto;
+        padding: .72rem;
         overscroll-behavior: contain;
+        background: var(--pr-soft);
     }
 
     .pr-sheet-footer {
         display: flex;
         flex: none;
+        gap: .65rem;
         align-items: center;
         justify-content: space-between;
-        gap: .65rem;
         padding:
             .62rem
-            .74rem
+            .72rem
             calc(.62rem + env(safe-area-inset-bottom));
-        border-top: 1px solid #d8e4dc;
+        border-top: 1px solid var(--pr-border);
         background: #fff;
     }
 
@@ -1036,15 +976,15 @@
 
     .pr-sheet-summary span {
         color: var(--pr-muted-text);
-        font-size: .64rem;
+        font-size: .7rem;
         font-weight: 670;
     }
 
     .pr-sheet-summary strong {
-        margin-top: .04rem;
+        margin-top: .03rem;
         color: var(--pr-text);
-        font-size: .78rem;
-        font-weight: 820;
+        font-size: .8rem;
+        font-weight: 800;
         overflow-wrap: anywhere;
     }
 
@@ -1053,85 +993,134 @@
         min-height: 230px;
         place-items: center;
         color: var(--pr-secondary);
+        font-size: .8rem;
         text-align: center;
-        font-size: .74rem;
+    }
+
+    @keyframes pr-sheet-desktop-enter {
+        from {
+            opacity: .6;
+            transform: translateX(28px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes pr-sheet-mobile-enter {
+        from {
+            opacity: .7;
+            transform: translateY(24px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     /* =========================================================
-       CONFIGURAÇÕES DE IMPRESSÃO
+       CONFIGURAÇÃO PDF / INTEGRIDADE
        ========================================================= */
 
-    .pr-columns {
-        margin-bottom: .7rem;
+    .pr-columns,
+    .pr-issues,
+    .pr-receipt,
+    .pr-dist {
         overflow: hidden;
         border: 1px solid var(--pr-border);
-        border-radius: 11px;
+        border-radius: 9px;
         background: #fff;
     }
 
-    .pr-columns summary {
-        display: flex;
-        min-height: 40px;
-        align-items: center;
-        gap: .38rem;
-        padding: .5rem .6rem;
-        cursor: pointer;
-        color: var(--pr-secondary);
-        font-size: .7rem;
-        font-weight: 790;
-        list-style: none;
-        background: var(--pr-soft);
+    .pr-columns {
+        margin-bottom: .68rem;
     }
 
-    .pr-columns summary::-webkit-details-marker {
+    .pr-columns summary,
+    .pr-issues > summary {
+        display: flex;
+        min-height: 42px;
+        gap: .38rem;
+        align-items: center;
+        padding: .5rem .58rem;
+        cursor: pointer;
+        color: var(--pr-secondary);
+        font-size: .76rem;
+        font-weight: 780;
+        list-style: none;
+        background: #fff;
+    }
+
+    .pr-columns summary::-webkit-details-marker,
+    .pr-issues > summary::-webkit-details-marker {
         display: none;
     }
 
     .pr-columns summary::before {
         color: var(--pr-violet);
-        content: "⚙";
-        font-size: .75rem;
+        content: "\e3c8";
+        font-family: "Phosphor-Fill";
+        font-size: .8rem;
+    }
+
+    .pr-columns summary::after,
+    .pr-issues > summary::after {
+        margin-left: auto;
+        color: var(--pr-muted-text);
+        content: "\e136";
+        font-family: "Phosphor-Fill";
+        font-size: .8rem;
+        transition: transform 150ms ease;
+    }
+
+    .pr-columns[open] summary::after,
+    .pr-issues[open] > summary::after {
+        transform: rotate(180deg);
     }
 
     .pr-column-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .32rem .5rem;
-        padding: .58rem .64rem .46rem;
+        gap: .38rem .5rem;
+        padding: .58rem;
+        border-top: 1px solid var(--pr-border);
     }
 
     .pr-column-grid label {
         display: flex;
         min-width: 0;
+        gap: .34rem;
         align-items: center;
-        gap: .36rem;
         color: var(--pr-secondary);
-        font-size: .69rem;
-        line-height: 1.35;
+        font-size: .76rem;
+        line-height: 1.4;
     }
 
     .pr-column-grid input,
     .pr-dist input {
-        accent-color: var(--color-primary);
+        accent-color: var(--pr-blue);
     }
 
     .pr-scale-wrap {
-        padding: .12rem .64rem .48rem;
+        padding: .1rem .58rem .5rem;
     }
 
     .pr-scale-wrap label {
         display: block;
-        margin-bottom: .26rem;
+        margin-bottom: .24rem;
         color: var(--pr-secondary);
-        font-size: .66rem;
-        font-weight: 790;
+        font-size: .74rem;
+        font-weight: 740;
     }
 
     .pr-print-status {
         min-height: 1rem;
-        padding: 0 .64rem .58rem;
+        padding: 0 .58rem .55rem;
         color: var(--pr-muted-text);
-        font-size: .64rem;
+        font-size: .7rem;
         line-height: 1.4;
     }
 
@@ -1143,106 +1132,73 @@
         color: var(--pr-red);
     }
 
-    /* =========================================================
-       INTEGRIDADE / PENDÊNCIAS
-       ========================================================= */
-
     .pr-ready {
         display: flex;
+        gap: .38rem;
         align-items: center;
-        gap: .42rem;
-        margin-bottom: .68rem;
-        padding: .58rem .62rem;
-        border: 1px solid
-            color-mix(
-                in srgb,
-                var(--pr-green) 18%,
-                var(--pr-border)
-            );
-        border-radius: 10px;
+        margin-bottom: .62rem;
+        padding: .5rem .56rem;
+        border: 1px solid var(--pr-green-border);
+        border-radius: 8px;
         background: var(--pr-green-soft);
         color: var(--pr-green);
-        font-size: .7rem;
-        font-weight: 760;
+        font-size: .76rem;
+        font-weight: 740;
         line-height: 1.4;
     }
 
     .pr-issues {
-        margin-bottom: .7rem;
-        overflow: hidden;
-        border: 1px solid var(--pr-border);
-        border-radius: 11px;
-        background: #fff;
-    }
-
-    .pr-issues > summary {
-        display: flex;
-        min-height: 42px;
-        align-items: center;
-        gap: .42rem;
-        padding: .54rem .62rem;
-        background: var(--pr-soft);
-        cursor: pointer;
-        color: var(--pr-secondary);
-        font-size: .72rem;
-        font-weight: 800;
-        list-style: none;
-    }
-
-    .pr-issues > summary::-webkit-details-marker {
-        display: none;
+        margin-bottom: .68rem;
     }
 
     .pr-issues > summary i {
         color: var(--pr-amber);
-        font-size: .9rem;
+        font-size: .86rem;
     }
 
     .pr-issue-list {
         display: grid;
-        gap: .44rem;
+        gap: .45rem;
         padding: .5rem;
+        border-top: 1px solid var(--pr-border);
     }
 
     .pr-issue {
         --issue-tone: var(--pr-amber);
         --issue-soft: var(--pr-amber-soft);
+        --issue-border: var(--pr-amber-border);
 
-        padding: .58rem;
-        border: 1px solid
-            color-mix(
-                in srgb,
-                var(--issue-tone) 16%,
-                var(--pr-border)
-            );
-        border-radius: 10px;
+        padding: .56rem;
+        border: 1px solid var(--issue-border);
+        border-radius: 8px;
         background: var(--issue-soft);
     }
 
     .pr-issue.critical {
         --issue-tone: var(--pr-red);
         --issue-soft: var(--pr-red-soft);
+        --issue-border: var(--pr-red-border);
     }
 
     .pr-issue-title {
         display: flex;
+        gap: .45rem;
         align-items: center;
         justify-content: space-between;
-        gap: .45rem;
         color: var(--pr-text);
-        font-size: .73rem;
-        font-weight: 830;
+        font-size: .78rem;
+        font-weight: 800;
     }
 
     .pr-issue p {
-        margin: .24rem 0 0;
+        margin: .22rem 0 0;
         color: var(--pr-secondary);
-        font-size: .68rem;
+        font-size: .74rem;
         line-height: 1.5;
     }
 
     .pr-issue-action {
-        margin-top: .46rem;
+        margin-top: .45rem;
     }
 
     /* =========================================================
@@ -1251,10 +1207,10 @@
 
     .pr-section-head {
         display: flex;
+        gap: .7rem;
         align-items: end;
         justify-content: space-between;
-        gap: .7rem;
-        margin-bottom: .52rem;
+        margin-bottom: .48rem;
     }
 
     .pr-section-head h3,
@@ -1263,14 +1219,15 @@
     }
 
     .pr-section-head h3 {
-        font-size: .8rem;
-        font-weight: 830;
+        color: var(--pr-text);
+        font-size: .84rem;
+        font-weight: 810;
     }
 
     .pr-section-head p {
-        margin-top: .06rem;
+        margin-top: .04rem;
         color: var(--pr-muted-text);
-        font-size: .65rem;
+        font-size: .72rem;
     }
 
     .pr-receipts {
@@ -1279,22 +1236,19 @@
     }
 
     .pr-receipt {
-        padding: .62rem;
-        border: 1px solid var(--pr-border);
-        border-radius: 11px;
-        background: #fff;
+        padding: .58rem;
     }
 
     .pr-receipt-top {
         display: flex;
+        gap: .55rem;
         align-items: flex-start;
         justify-content: space-between;
-        gap: .56rem;
     }
 
     .pr-receipt h4 {
         margin: 0;
-        font-size: .8rem;
+        font-size: .82rem;
     }
 
     .pr-receipt-link {
@@ -1304,40 +1258,37 @@
         color: var(--pr-blue);
         cursor: pointer;
         font: inherit;
-        font-weight: 830;
+        font-weight: 800;
         text-align: left;
-    }
-
-    .pr-receipt-link:hover {
-        text-decoration: underline;
     }
 
     .pr-receipt-meta {
         display: flex;
-        gap: .48rem;
+        gap: .3rem .5rem;
         flex-wrap: wrap;
         margin-top: .18rem;
         color: var(--pr-muted-text);
-        font-size: .66rem;
-        line-height: 1.35;
+        font-size: .72rem;
+        line-height: 1.4;
     }
 
     .pr-receipt-meta strong {
-        color: var(--pr-green);
+        color: var(--pr-text);
     }
 
     .pr-receipt-note {
         margin-top: .42rem;
-        padding: .44rem .5rem;
-        border-radius: 8px;
+        padding: .42rem .48rem;
+        border: 1px solid var(--pr-red-border);
+        border-radius: 7px;
         background: var(--pr-red-soft);
-        color: #991b1b;
-        font-size: .64rem;
-        line-height: 1.42;
+        color: #9e3636;
+        font-size: .72rem;
+        line-height: 1.45;
     }
 
     .pr-receipt-actions {
-        margin-top: .5rem;
+        margin-top: .48rem;
     }
 
     /* =========================================================
@@ -1346,57 +1297,43 @@
 
     .pr-selection-tools {
         display: flex;
+        gap: .55rem;
         align-items: center;
         justify-content: space-between;
-        gap: .55rem;
-        margin-bottom: .52rem;
+        margin-bottom: .5rem;
+        padding: .56rem;
+        border: 1px solid var(--pr-border);
+        border-radius: 9px;
+        background: #fff;
     }
 
     .pr-selection-tools strong {
         color: var(--pr-text);
-        font-size: .78rem;
-        font-weight: 830;
+        font-size: .82rem;
+        font-weight: 810;
     }
 
     .pr-selection-list {
         display: grid;
-        gap: .44rem;
+        gap: .45rem;
     }
 
     .pr-dist {
-        --dist-tone: var(--pr-sky);
-        --dist-soft: var(--pr-sky-soft);
+        --dist-tone: var(--pr-blue);
+        --dist-soft: var(--pr-blue-soft);
+        --dist-border: var(--pr-blue-border);
 
-        position: relative;
         display: grid;
         min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: .58rem;
-        padding: .62rem;
-        border: 1px solid var(--pr-border);
-        border-radius: 11px;
-        background: #fff;
+        grid-template-columns: 20px minmax(0, 1fr);
+        gap: .52rem;
+        padding: .58rem;
         cursor: pointer;
-        transition:
-            border-color 150ms ease,
-            background 150ms ease,
-            box-shadow 150ms ease;
     }
 
     .pr-dist:has(input:checked) {
-        border-color:
-            color-mix(
-                in srgb,
-                var(--dist-tone) 24%,
-                var(--pr-border)
-            );
-        background:
-            linear-gradient(
-                135deg,
-                #fff,
-                var(--dist-soft)
-            );
-        box-shadow: inset 3px 0 var(--dist-tone);
+        border-color: var(--dist-border);
+        background: var(--dist-soft);
     }
 
     .pr-dist.disabled {
@@ -1413,40 +1350,45 @@
     .pr-dist-head {
         display: flex;
         min-width: 0;
+        gap: .5rem;
         align-items: flex-start;
         justify-content: space-between;
-        gap: .5rem;
     }
 
     .pr-dist h4 {
         margin: 0;
         color: var(--pr-text);
-        font-size: .79rem;
-        font-weight: 820;
+        font-size: .8rem;
+        font-weight: 800;
         line-height: 1.35;
         overflow-wrap: anywhere;
     }
 
     .pr-dist-client {
-        margin-top: .08rem;
+        margin-top: .05rem;
         color: var(--pr-muted-text);
-        font-size: .67rem;
-        line-height: 1.35;
+        font-size: .72rem;
+        line-height: 1.4;
     }
 
     .pr-dist-values {
         display: grid;
         min-width: 0;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: .32rem;
-        margin-top: .5rem;
-        padding: .44rem;
-        border-radius: 9px;
+        overflow: hidden;
+        margin-top: .46rem;
+        border: 1px solid var(--pr-border);
+        border-radius: 7px;
         background: var(--pr-soft);
     }
 
     .pr-dist-value {
         min-width: 0;
+        padding: .4rem .44rem;
+    }
+
+    .pr-dist-value + .pr-dist-value {
+        border-left: 1px solid var(--pr-border);
     }
 
     .pr-dist-value span,
@@ -1456,71 +1398,78 @@
 
     .pr-dist-value span {
         color: var(--pr-muted-text);
-        font-size: .61rem;
+        font-size: .66rem;
     }
 
     .pr-dist-value strong {
-        margin-top: .04rem;
+        margin-top: .03rem;
+        overflow: hidden;
         color: var(--pr-text);
-        font-size: .68rem;
-        font-weight: 800;
+        font-size: .73rem;
+        font-weight: 780;
         line-height: 1.3;
-        overflow-wrap: anywhere;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .pr-dist-error {
-        margin-top: .42rem;
-        color: #b91c1c;
-        font-size: .67rem;
-        font-weight: 750;
+        margin-top: .4rem;
+        color: var(--pr-red);
+        font-size: .72rem;
+        font-weight: 720;
         line-height: 1.4;
     }
 
     /* =========================================================
-       CONFIRMAÇÃO E TOASTS
+       CONFIRMAÇÃO
        ========================================================= */
 
     .pr-dialog {
         width: min(430px, calc(100vw - 1rem));
+        margin: auto;
         padding: 0;
         overflow: hidden;
-        border: 1px solid var(--pr-border);
-        border-radius: 14px;
-        background: var(--pr-surface);
+        border: 0;
+        border-radius: 12px;
+        background: #fff;
         color: var(--pr-text);
-        box-shadow: 0 24px 68px rgba(8, 24, 15, .24);
+        box-shadow: 0 24px 68px rgba(8, 24, 15, .22);
     }
 
     .pr-dialog::backdrop {
-        background: rgba(11, 28, 18, .34);
-        backdrop-filter: none;
+        background: rgba(10, 22, 14, .48);
     }
 
     .pr-dialog-body {
-        padding: .82rem;
+        padding: .76rem;
     }
 
     .pr-dialog h3 {
         margin: 0;
-        font-size: .84rem;
-        font-weight: 840;
+        color: var(--pr-text);
+        font-size: .88rem;
+        font-weight: 820;
     }
 
     .pr-dialog p {
-        margin: .28rem 0 0;
+        margin: .25rem 0 0;
         color: var(--pr-secondary);
-        font-size: .7rem;
+        font-size: .8rem;
         line-height: 1.5;
     }
 
     .pr-dialog-actions {
         display: flex;
         justify-content: flex-end;
-        gap: .42rem;
-        padding: .62rem .82rem;
+        gap: .4rem;
+        padding: .6rem .76rem;
         border-top: 1px solid var(--pr-border);
         background: var(--pr-soft);
     }
+
+    /* =========================================================
+       TOAST
+       ========================================================= */
 
     .pr-toast-wrap {
         position: fixed;
@@ -1528,81 +1477,50 @@
         right: 1rem;
         bottom: calc(1rem + var(--app-bottom-nav-height, 0px));
         display: grid;
+        width: min(360px, calc(100% - 2rem));
         gap: .42rem;
     }
 
     .pr-toast {
-        max-width: 360px;
-        padding: .62rem .72rem;
-        border: 1px solid var(--pr-border);
-        border-left: 3px solid var(--pr-green);
-        border-radius: 10px;
-        background: var(--pr-surface);
-        box-shadow: 0 12px 30px rgba(15, 23, 42, .15);
+        padding: .6rem .68rem;
+        border: 1px solid var(--pr-green-border);
+        border-radius: 9px;
+        background: #fff;
         color: var(--pr-secondary);
-        font-size: .7rem;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, .12);
+        font-size: .78rem;
         line-height: 1.45;
     }
 
     .pr-toast.error {
-        border-left-color: var(--pr-red);
-    }
-
-    @keyframes pr-sheet-enter {
-        from {
-            opacity: 0;
-            transform: translateY(8px) scale(.985);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
+        border-color: var(--pr-red-border);
     }
 
     /* =========================================================
        RESPONSIVO
        ========================================================= */
 
-    @media (max-width: 980px) {
-        .pr-summary {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+    @media (max-width: 1080px) {
+        .pr-card {
+            grid-template-columns: minmax(0, 1fr) minmax(280px, .85fr);
+            grid-template-areas:
+                "head actions"
+                "values actions"
+                "progress actions";
         }
     }
 
-    @media (max-width: 760px) {
-        .pr-head {
-            grid-template-columns: auto minmax(0, 1fr) auto;
-        }
-
-        .pr-head-icon {
-            display: none;
-        }
-
-        .pr-head-side {
-            grid-column: 2 / -1;
-            grid-row: 2;
-            justify-content: flex-start;
-        }
-
-        .pr-overview-copy p {
-            display: none;
-        }
-
+    @media (max-width: 820px) {
         .pr-summary {
-            display: flex;
-            overflow-x: auto;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .pr-summary::-webkit-scrollbar {
-            display: none;
+        .pr-stat:nth-child(3) {
+            border-right: 0;
         }
 
-        .pr-stat {
-            min-width: 154px;
-            scroll-snap-align: start;
+        .pr-stat:nth-child(n + 4) {
+            border-top: 1px solid var(--pr-border);
         }
 
         .pr-tools-shell,
@@ -1614,38 +1532,155 @@
             width: 100%;
         }
 
-        .pr-grid {
+        .pr-card {
             grid-template-columns: 1fr;
+            grid-template-areas:
+                "head"
+                "values"
+                "progress"
+                "actions";
         }
 
-        .pr-overlay {
-            align-items: end;
-            padding: 0;
+        .pr-card-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            min-width: 0;
         }
 
         .pr-sheet {
             width: 100%;
-            max-height: 94dvh;
-            border-right: 0;
-            border-bottom: 0;
+            height: min(96dvh, 920px);
+            max-height: 96dvh;
+            align-self: end;
+            border-top: 1px solid var(--pr-border);
             border-left: 0;
-            border-radius: 16px 16px 0 0;
+            border-radius: 14px 14px 0 0;
             animation-name: pr-sheet-mobile-enter;
         }
+    }
 
-        .pr-sheet-body {
+    @media (max-width: 620px) {
+        .pr {
+            gap: .58rem;
+        }
+
+        .pr-head {
+            grid-template-columns: 36px minmax(0, 1fr) auto;
             padding: .62rem;
         }
 
-        .pr-sheet-head {
-            padding: .66rem;
+        .pr-back {
+            width: 36px;
+            height: 36px;
+        }
+
+        .pr-head-icon {
+            display: none;
+        }
+
+        .pr-head-copy h1 {
+            font-size: 1.04rem;
+        }
+
+        .pr-head-meta {
+            font-size: .74rem;
+        }
+
+        .pr-head-side {
+            grid-column: 2 / -1;
+            justify-content: flex-start;
+        }
+
+        .pr-overview-copy p,
+        .pr-overview-action {
+            display: none;
+        }
+
+        .pr-summary {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pr-stat,
+        .pr-stat:nth-child(3),
+        .pr-stat:nth-child(n + 4) {
+            min-height: 62px;
+            border-top: 0;
+            border-right: 0;
+        }
+
+        .pr-stat:nth-child(even) {
+            border-left: 1px solid var(--pr-border);
+        }
+
+        .pr-stat:nth-child(n + 3) {
+            border-top: 1px solid var(--pr-border);
+        }
+
+        .pr-stat:last-child {
+            grid-column: 1 / -1;
+            border-left: 0;
+        }
+
+        .pr-tools-shell {
+            padding: .5rem;
+        }
+
+        .pr-control {
+            min-height: 46px;
+            font-size: 16px;
+        }
+
+        .pr-grid {
+            border-radius: 10px;
+        }
+
+        .pr-card {
+            padding: .62rem;
+        }
+
+        .pr-card-head {
+            align-items: flex-start;
+        }
+
+        .pr-person {
+            grid-template-columns: 34px minmax(0, 1fr);
+        }
+
+        .pr-avatar {
+            width: 34px;
+            height: 34px;
+        }
+
+        .pr-card h2 {
+            white-space: normal;
+        }
+
+        .pr-values {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .pr-value:nth-child(1) {
+            grid-column: 1 / -1;
+            border-bottom: 1px solid var(--pr-border);
+        }
+
+        .pr-value:nth-child(2) {
+            border-left: 0;
+        }
+
+        .pr-card-actions {
+            grid-template-columns: 1fr;
+        }
+
+        .pr-sheet-head,
+        .pr-sheet-body,
+        .pr-sheet-footer {
+            padding-right: .62rem;
+            padding-left: .62rem;
         }
 
         .pr-sheet-footer {
             align-items: stretch;
             flex-direction: column;
-            padding-right: .62rem;
-            padding-left: .62rem;
         }
 
         .pr-modal-actions {
@@ -1656,101 +1691,43 @@
 
         .pr-modal-actions .pr-btn {
             width: 100%;
-        }
-
-        .pr-receipt-top {
-            flex-direction: column;
-        }
-
-        .pr-dist-values {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .pr-toast-wrap {
-            right: .6rem;
-            left: .6rem;
-        }
-
-        .pr-toast {
-            max-width: none;
-        }
-    }
-
-    @media (max-width: 560px) {
-        .pr {
-            gap: .7rem;
-        }
-
-        .pr-head {
-            padding: .62rem;
-        }
-
-        .pr-head-copy h1 {
-            font-size: .98rem;
-        }
-
-        .pr-head-meta {
-            gap: .2rem .44rem;
-            font-size: .67rem;
-        }
-
-        .pr-project-status {
-            min-height: 27px;
-            font-size: .63rem;
-        }
-
-        .pr-overview-head {
-            padding: .56rem .62rem;
-        }
-
-        .pr-summary {
-            padding: .5rem;
-        }
-
-        .pr-stat {
-            min-width: 146px;
-            min-height: 70px;
-        }
-
-        .pr-tools-shell {
-            padding: .44rem;
-        }
-
-        .pr-card-head {
-            padding: .64rem .62rem .5rem;
-        }
-
-        .pr-meter {
-            margin-right: .62rem;
-            margin-left: .62rem;
-        }
-
-        .pr-progress-label {
-            padding-right: .62rem;
-            padding-left: .62rem;
-        }
-
-        .pr-values {
-            margin-right: .62rem;
-            margin-left: .62rem;
-        }
-
-        .pr-card-actions {
-            padding-right: .62rem;
-            padding-left: .62rem;
+            min-height: 44px;
         }
 
         .pr-column-grid {
             grid-template-columns: 1fr;
         }
 
+        .pr-receipt-top,
         .pr-selection-tools {
             align-items: stretch;
             flex-direction: column;
         }
 
+        .pr-receipt-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .pr-receipt-actions .pr-btn,
         .pr-selection-tools .pr-btn {
             width: 100%;
+        }
+
+        .pr-dist-values {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pr-dist-value + .pr-dist-value {
+            border-left: 0;
+        }
+
+        .pr-dist-value:nth-child(even) {
+            border-left: 1px solid var(--pr-border);
+        }
+
+        .pr-dist-value:nth-child(n + 3) {
+            border-top: 1px solid var(--pr-border);
         }
 
         .pr-footer {
@@ -1759,7 +1736,6 @@
         }
 
         .pr-page-info {
-            padding-left: 0;
             text-align: center;
         }
 
@@ -1772,16 +1748,27 @@
         .pr-pager .pr-btn {
             width: 100%;
         }
-    }
 
-    @media (max-width: 400px) {
-        .pr-head {
-            grid-template-columns: 36px minmax(0, 1fr);
+        .pr-dialog-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
         }
 
-        .pr-back {
-            width: 36px;
-            height: 36px;
+        .pr-dialog-actions .pr-btn {
+            width: 100%;
+            min-height: 44px;
+        }
+
+        .pr-toast-wrap {
+            right: .62rem;
+            left: .62rem;
+            width: auto;
+        }
+    }
+
+    @media (max-width: 380px) {
+        .pr-head {
+            grid-template-columns: 36px minmax(0, 1fr);
         }
 
         .pr-head-action {
@@ -1792,345 +1779,9 @@
             grid-column: 2;
         }
 
-        .pr-overview-action {
-            display: none;
-        }
-
-        .pr-values {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .pr-value:first-child {
-            grid-column: 1 / -1;
-        }
-
-        .pr-card-actions {
+        .pr-modal-actions,
+        .pr-dialog-actions {
             grid-template-columns: 1fr;
-        }
-
-        .pr-receipt-actions {
-            display: grid;
-            grid-template-columns: 1fr;
-        }
-
-        .pr-receipt-actions .pr-btn {
-            width: 100%;
-        }
-    }
-
-    @keyframes pr-sheet-mobile-enter {
-        from {
-            opacity: 0;
-            transform: translateY(22px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* =========================================================
-       COMPOSIÇÃO WORKSPACE — LISTA + RESUMO OPERACIONAL
-       ========================================================= */
-
-    .pr-card {
-        transition:
-            border-color 150ms ease,
-            box-shadow 150ms ease,
-            transform 150ms ease;
-    }
-
-    .pr-card:hover {
-        border-color:
-            color-mix(
-                in srgb,
-                var(--card-tone) 18%,
-                var(--pr-border)
-            );
-        box-shadow:
-            inset 3px 0 var(--card-tone),
-            0 8px 20px rgba(15, 35, 23, .06);
-    }
-
-    .pr-columns summary::after,
-    .pr-issues > summary::after {
-        margin-left: auto;
-        color: var(--pr-muted-text);
-        content: "\e136";
-        font-family: "Phosphor";
-        font-size: .8rem;
-        transition: transform 150ms ease;
-    }
-
-    .pr-columns[open] summary::after,
-    .pr-issues[open] > summary::after {
-        transform: rotate(180deg);
-    }
-
-    .pr-sheet-body {
-        background: #f3f7f4;
-        scrollbar-gutter: stable;
-    }
-
-    .pr-receipt,
-    .pr-dist,
-    .pr-columns,
-    .pr-issues {
-        background: #fff;
-        box-shadow: 0 1px 2px rgba(15, 35, 23, .025);
-    }
-
-    .pr-receipt {
-        border-left: 3px solid var(--pr-blue);
-    }
-
-    .pr-selection-tools {
-        padding: .62rem;
-        border: 1px solid var(--pr-border);
-        border-radius: 11px;
-        background: #fff;
-    }
-
-    @media (min-width: 1024px) {
-        .pr {
-            grid-template-columns: minmax(0, 1fr) 292px;
-            align-items: start;
-        }
-
-        .pr-head {
-            grid-column: 1 / -1;
-        }
-
-        .pr-overview {
-            position: sticky;
-            top: .75rem;
-            grid-column: 2;
-            grid-row: 2 / span 3;
-        }
-
-        .pr-overview-head {
-            align-items: flex-start;
-            flex-direction: column;
-        }
-
-        .pr-overview-action {
-            margin-left: 2.75rem;
-        }
-
-        .pr-summary {
-            grid-template-columns: 1fr;
-        }
-
-        .pr-stat {
-            min-height: 58px;
-            padding: .48rem .52rem;
-        }
-
-        .pr-stat-icon {
-            width: 32px;
-            height: 32px;
-        }
-
-        .pr-tools-shell,
-        .pr-grid,
-        .pr-footer {
-            grid-column: 1;
-        }
-
-        .pr-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .pr-card {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 228px;
-            grid-template-rows: auto auto auto auto;
-            box-shadow:
-                inset 3px 0 var(--card-tone),
-                var(--shadow-sm);
-        }
-
-        .pr-card-head {
-            grid-column: 1;
-            grid-row: 1;
-            padding: .72rem .8rem .54rem .88rem;
-        }
-
-        .pr-meter {
-            grid-column: 1;
-            grid-row: 2;
-            margin-right: .8rem;
-            margin-left: .88rem;
-        }
-
-        .pr-progress-label {
-            grid-column: 1;
-            grid-row: 3;
-            padding-right: .8rem;
-            padding-left: .88rem;
-        }
-
-        .pr-values {
-            grid-column: 1;
-            grid-row: 4;
-            margin: .56rem .8rem .72rem .88rem;
-        }
-
-        .pr-card-actions {
-            display: flex;
-            grid-column: 2;
-            grid-row: 1 / 5;
-            align-items: stretch;
-            justify-content: center;
-            flex-direction: column;
-            margin-top: 0;
-            padding: .72rem;
-            border-top: 0;
-            border-left: 1px solid var(--pr-border);
-        }
-
-        .pr-card-actions .pr-btn {
-            min-height: 42px;
-        }
-
-        .pr-overlay {
-            place-items: stretch end;
-            padding: 0;
-        }
-
-        .pr-sheet {
-            width: min(720px, 100dvw);
-            height: 100dvh;
-            max-height: 100dvh;
-            border-top: 0;
-            border-right: 0;
-            border-bottom: 0;
-            border-radius: 18px 0 0 18px;
-            animation-name: pr-sheet-desktop-enter;
-        }
-
-        .pr-sheet-head {
-            padding: .82rem .9rem;
-        }
-
-        .pr-sheet-body {
-            padding: .86rem .9rem;
-        }
-
-        .pr-sheet-footer {
-            padding-right: .9rem;
-            padding-left: .9rem;
-            box-shadow: 0 -5px 16px rgba(15, 35, 23, .035);
-        }
-    }
-
-    @media (max-width: 1023px) {
-        .pr-summary {
-            grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
-        }
-
-        .pr-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 760px) {
-        .pr-summary {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            overflow: visible;
-            scroll-snap-type: none;
-        }
-
-        .pr-stat {
-            min-width: 0;
-            min-height: 62px;
-        }
-
-        .pr-stat:last-child {
-            grid-column: 1 / -1;
-        }
-
-        .pr-card {
-            box-shadow:
-                inset 3px 0 var(--card-tone),
-                var(--shadow-sm);
-        }
-
-        .pr-sheet {
-            height: min(96dvh, 900px);
-            max-height: 96dvh;
-        }
-
-        .pr-sheet-head {
-            position: relative;
-            padding-top: .82rem;
-        }
-
-        .pr-columns summary,
-        .pr-issues > summary {
-            min-height: 44px;
-        }
-
-        .pr-receipt-actions {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .pr-receipt-actions .pr-btn {
-            width: 100%;
-        }
-    }
-
-    @media (max-width: 520px) {
-        .pr-summary {
-            gap: .36rem;
-            padding: .44rem;
-        }
-
-        .pr-stat {
-            grid-template-columns: 30px minmax(0, 1fr);
-            gap: .4rem;
-            padding: .46rem;
-        }
-
-        .pr-stat-icon {
-            width: 30px;
-            height: 30px;
-        }
-
-        .pr-card-head {
-            flex-direction: column;
-        }
-
-        .pr-card-head > .pr-badge {
-            margin-left: 3rem;
-        }
-
-        .pr-card-actions,
-        .pr-receipt-actions {
-            grid-template-columns: 1fr;
-        }
-
-        .pr-selection-tools {
-            padding: .54rem;
-        }
-
-        .pr-sheet-footer {
-            gap: .5rem;
-        }
-    }
-
-    @keyframes pr-sheet-desktop-enter {
-        from {
-            opacity: .72;
-            transform: translateX(28px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateX(0);
         }
     }
 
@@ -2139,7 +1790,11 @@
         .pr *::before,
         .pr *::after,
         .pr-overlay *,
-        .pr-dialog * {
+        .pr-overlay *::before,
+        .pr-overlay *::after,
+        .pr-dialog *,
+        .pr-dialog *::before,
+        .pr-dialog *::after {
             animation-duration: .01ms !important;
             animation-iteration-count: 1 !important;
             scroll-behavior: auto !important;
@@ -2147,6 +1802,7 @@
         }
     }
 </style>
+
 
 <main
     class="pr"
@@ -2168,11 +1824,11 @@
             aria-label="Voltar às entregas do projeto"
             title="Voltar às entregas"
         >
-            <i class="ph ph-arrow-left" aria-hidden="true"></i>
+            <i class="ph-fill ph-arrow-left" aria-hidden="true"></i>
         </a>
 
         <span class="pr-head-icon" aria-hidden="true">
-            <i class="ph-duotone ph-receipt"></i>
+            <i class="ph-fill ph-receipt"></i>
         </span>
 
         <div class="pr-head-copy">
@@ -2180,13 +1836,13 @@
 
             <div class="pr-head-meta">
                 <span>
-                    <i class="ph ph-users-three" aria-hidden="true"></i>
+                    <i class="ph-fill ph-users-three" aria-hidden="true"></i>
                     Comprovantes de {{ $memberTermPluralLower }}
                 </span>
 
                 @if($projectPeriod)
                     <span>
-                        <i class="ph ph-calendar-dots" aria-hidden="true"></i>
+                        <i class="ph-fill ph-calendar-dots" aria-hidden="true"></i>
                         {{ $projectPeriod }}
                     </span>
                 @endif
@@ -2195,7 +1851,7 @@
 
         <div class="pr-head-side">
             <span class="pr-project-status">
-                <i class="ph {{ $projectStatusIcon }}" aria-hidden="true"></i>
+                <i class="ph-fill {{ $projectStatusIcon }}" aria-hidden="true"></i>
                 {{ $projectStatusLabel }}
             </span>
 
@@ -2205,7 +1861,7 @@
                 aria-label="Participação e limites"
                 title="Participação e limites"
             >
-                <i class="ph ph-sliders-horizontal" aria-hidden="true"></i>
+                <i class="ph-fill ph-sliders-horizontal" aria-hidden="true"></i>
             </a>
         </div>
     </header>
@@ -2214,12 +1870,12 @@
         <header class="pr-overview-head">
             <div class="pr-overview-title">
                 <span class="pr-overview-icon" aria-hidden="true">
-                    <i class="ph-duotone ph-chart-donut"></i>
+                    <i class="ph-fill ph-chart-donut"></i>
                 </span>
 
                 <div class="pr-overview-copy">
                     <h2 id="pr-overview-title">Situação dos comprovantes</h2>
-                    <p>Toque em um indicador para filtrar a lista.</p>
+                    <p>Use os indicadores para filtrar a lista.</p>
                 </div>
             </div>
 
@@ -2241,7 +1897,7 @@
     <section class="pr-tools-shell" aria-label="Busca e filtros">
         <div class="pr-tools">
             <label class="pr-search">
-                <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+                <i class="ph-fill ph-magnifying-glass" aria-hidden="true"></i>
 
                 <input
                     class="pr-control"
@@ -2273,7 +1929,7 @@
             onclick="document.getElementById('pr-search').value='';document.getElementById('pr-filter').value='all';document.getElementById('pr-filter').dispatchEvent(new Event('change'));"
             title="Limpar filtros"
         >
-            <i class="ph ph-funnel-x" aria-hidden="true"></i>
+            <i class="ph-fill ph-funnel-x" aria-hidden="true"></i>
             Limpar
         </button>
     </section>
@@ -2292,13 +1948,13 @@
 
         <div class="pr-pager">
             <button class="pr-btn" id="pr-prev" type="button">
-                <i class="ph ph-caret-left" aria-hidden="true"></i>
+                <i class="ph-fill ph-caret-left" aria-hidden="true"></i>
                 Anterior
             </button>
 
             <button class="pr-btn" id="pr-next" type="button">
                 Próxima
-                <i class="ph ph-caret-right" aria-hidden="true"></i>
+                <i class="ph-fill ph-caret-right" aria-hidden="true"></i>
             </button>
         </div>
     </footer>
@@ -2315,7 +1971,7 @@
     <section class="pr-sheet">
         <header class="pr-sheet-head">
             <span class="pr-sheet-icon" aria-hidden="true">
-                <i class="ph-duotone ph-files"></i>
+                <i class="ph-fill ph-files"></i>
             </span>
 
             <div>
@@ -2329,7 +1985,7 @@
                 type="button"
                 aria-label="Fechar"
             >
-                <i class="ph ph-x" aria-hidden="true"></i>
+                <i class="ph-fill ph-x" aria-hidden="true"></i>
             </button>
         </header>
 
@@ -2447,7 +2103,7 @@
                     </div>
 
                     <button class="pr-btn" id="pr-toggle-all" type="button">
-                        <i class="ph ph-list-checks" aria-hidden="true"></i>
+                        <i class="ph-fill ph-list-checks" aria-hidden="true"></i>
                         Marcar disponíveis
                     </button>
                 </div>
@@ -2533,6 +2189,8 @@
         page: 1, lastPage: 1, filter: 'all', timer: null, busy: false,
         associateId: null, associateName: '', check: null, receiptId: null, distributions: [],
         preferenceTimer: null, preferencePromise: null,
+        confirmResolver: null,
+        confirmDecision: null,
     };
     const $ = id => document.getElementById(id);
     const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
@@ -2540,6 +2198,59 @@
     const qty = value => Number(value || 0).toLocaleString('pt-BR', { maximumFractionDigits:3 });
     const icons = () => {};
     const initials = name => String(name || '?').trim().split(/\s+/).slice(0,2).map(part => part[0] || '').join('').toUpperCase();
+
+    const HISTORY_KEY = 'sgcProducerReceiptsLayer';
+
+    function currentLayer() {
+        return history.state?.[HISTORY_KEY] || null;
+    }
+
+    function pushLayer(layer) {
+        if (currentLayer() === layer) return;
+
+        history.pushState(
+            {
+                ...(history.state || {}),
+                [HISTORY_KEY]: layer,
+            },
+            '',
+            window.location.href
+        );
+    }
+
+    function stripLayerFromCurrentEntry(url = window.location.href) {
+        if (!history.state?.[HISTORY_KEY]) return;
+
+        const nextState = {
+            ...(history.state || {}),
+        };
+
+        delete nextState[HISTORY_KEY];
+
+        history.replaceState(
+            nextState,
+            '',
+            url
+        );
+    }
+
+    function closeConfirmDirect(value = false) {
+        const dialog = $('pr-confirm');
+
+        if (dialog?.open) {
+            dialog.close();
+        }
+
+        $('pr-confirm-ok').onclick = null;
+        $('pr-confirm-cancel').onclick = null;
+
+        const resolver = state.confirmResolver;
+
+        state.confirmResolver = null;
+        state.confirmDecision = null;
+
+        resolver?.(value);
+    }
 
     async function json(url, options = {}) {
         const response = await fetch(url, {
@@ -2580,7 +2291,7 @@
         ];
         $('pr-summary').innerHTML = items.map(([filter,label,value,icon]) => `
             <button class="pr-stat ${state.filter === filter ? 'active' : ''}" type="button" data-summary-filter="${filter}">
-                <span class="pr-stat-icon" aria-hidden="true"><i class="ph-duotone ${icon}"></i></span>
+                <span class="pr-stat-icon" aria-hidden="true"><i class="ph-fill ${icon}"></i></span>
                 <span class="pr-stat-copy"><strong>${value}</strong><small>${label}</small></span>
             </button>`).join('');
     }
@@ -2625,10 +2336,10 @@
             </div>
             <div class="pr-card-actions">
                 <a class="pr-btn" href="/${encodeURIComponent(tenant)}/delivery/projects/${project}/associates/${row.associate_id}">
-                    <i class="ph ph-user"></i> Ver cadastro
+                    <i class="ph-fill ph-user"></i> Ver cadastro
                 </a>
                 <button class="pr-btn primary" type="button" data-open-receipts="${row.associate_id}" data-associate-name="${esc(row.name)}">
-                    <i class="ph ph-file-check"></i> ${esc(actionLabel)}
+                    <i class="ph-fill ph-file-check"></i> ${esc(actionLabel)}
                 </button>
             </div>
         </article>`;
@@ -2696,13 +2407,13 @@
         const target = $(targetId);
         const issues = actionableIssues();
         if (!issues.length) {
-            target.innerHTML = `<div class="pr-ready"><i class="ph-duotone ph-check-circle"></i> Nenhuma pendência deste ${esc(memberTermLower)} bloqueia o comprovante.</div>`;
+            target.innerHTML = `<div class="pr-ready"><i class="ph-fill ph-check-circle"></i> Nenhuma pendência deste ${esc(memberTermLower)} bloqueia o comprovante.</div>`;
             return;
         }
         const critical = issues.filter(issue => issue.severity === 'critical').length;
         const warning = issues.filter(issue => issue.severity === 'warning').length;
         target.innerHTML = `<details class="pr-issues" ${critical ? 'open' : ''}>
-            <summary><i class="ph-duotone ${critical ? 'ph-warning-circle' : 'ph-warning'}"></i>
+            <summary><i class="ph-fill ${critical ? 'ph-warning-circle' : 'ph-warning'}"></i>
                 ${critical ? `${critical} correção(ões) necessária(s)` : `${warning} aviso(s) operacional(is)`}
             </summary>
             <div class="pr-issue-list">${issues.map(issue => `<article class="pr-issue ${esc(issue.severity)}">
@@ -2732,13 +2443,13 @@
                 </div>
                 ${receipt.status === 'obsolete' ? `<div class="pr-receipt-note">${esc(receipt.obsolete_reason || 'Este comprovante precisa ser regenerado.')}${receipt.obsolete_at ? ` · ${esc(receipt.obsolete_at)}` : ''}</div>` : ''}
                 <div class="pr-receipt-actions">
-                    ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph ph-list-checks"></i> Alterar distribuições</button>` : ''}
-                    ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph ph-arrows-clockwise"></i> Regenerar</button>` : ''}
-                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph ph-eye"></i> Visualizar e imprimir</button>` : ''}
+                    ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> Alterar distribuições</button>` : ''}
+                    ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar</button>` : ''}
+                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-eye"></i> Visualizar e imprimir</button>` : ''}
                 </div>
             </article>`).join('') : `<div class="pr-empty">Nenhum comprovante gerado para este ${esc(memberTermLower)}.</div>`;
         $('pr-modal-primary').hidden = false;
-        $('pr-modal-primary').innerHTML = '<i class="ph ph-plus"></i> Novo comprovante';
+        $('pr-modal-primary').innerHTML = '<i class="ph-fill ph-plus"></i> Novo comprovante';
         $('pr-modal-primary').dataset.action = 'new';
         setModalView('overview');
         $('pr-modal-primary').hidden = false;
@@ -2751,7 +2462,15 @@
         state.receiptId = null;
         state.check = null;
         $('pr-modal-person').textContent = name;
+
+        const wasClosed = $('pr-modal').hidden;
+
         $('pr-modal').hidden = false;
+
+        if (wasClosed) {
+            pushLayer('sheet');
+        }
+
         setModalView('loading');
         try {
             state.check = await json(`/${tenant}/delivery/projects/${project}/associates/${state.associateId}/receipt-check`);
@@ -2808,8 +2527,8 @@
                 ? state.distributions.map(distributionCard).join('')
                 : '<div class="pr-empty">Não há distribuições disponíveis para este comprovante.</div>';
             $('pr-modal-primary').innerHTML = state.receiptId
-                ? '<i class="ph ph-floppy-disk"></i> Salvar e gerar PDF'
-                : '<i class="ph ph-file-arrow-down"></i> Gerar comprovante';
+                ? '<i class="ph-fill ph-floppy-disk"></i> Salvar e gerar PDF'
+                : '<i class="ph-fill ph-file-arrow-down"></i> Gerar comprovante';
             $('pr-modal-primary').dataset.action = 'save';
             setModalView('selection');
             updateSelection();
@@ -2835,8 +2554,8 @@
             : '';
         const available = [...document.querySelectorAll('.pr-dist-check:not(:disabled)')];
         $('pr-toggle-all').innerHTML = available.length && available.every(input => input.checked)
-            ? '<i class="ph ph-list-dashes"></i> Desmarcar'
-            : '<i class="ph ph-list-checks"></i> Marcar disponíveis';
+            ? '<i class="ph-fill ph-list-dashes"></i> Desmarcar'
+            : '<i class="ph-fill ph-list-checks"></i> Marcar disponíveis';
         icons();
     }
 
@@ -2933,7 +2652,7 @@
         if (!ids.length || state.busy || Number(state.check?.critical_issues || 0) > 0) return;
         state.busy = true;
         updateSelection();
-        $('pr-modal-primary').innerHTML = '<i class="ph ph-spinner-gap"></i> Processando...';
+        $('pr-modal-primary').innerHTML = '<i class="ph-fill ph-spinner-gap"></i> Processando...';
         try {
             await savePrintPreferences(false);
             const url = state.receiptId
@@ -2953,8 +2672,8 @@
         } finally {
             state.busy = false;
             $('pr-modal-primary').innerHTML = state.receiptId
-                ? '<i class="ph ph-floppy-disk"></i> Salvar e gerar PDF'
-                : '<i class="ph ph-file-arrow-down"></i> Gerar comprovante';
+                ? '<i class="ph-fill ph-floppy-disk"></i> Salvar e gerar PDF'
+                : '<i class="ph-fill ph-file-arrow-down"></i> Gerar comprovante';
             updateSelection();
         }
     }
@@ -2985,14 +2704,29 @@
     function confirmAction(message) {
         return new Promise(resolve => {
             const dialog = $('pr-confirm');
+
+            state.confirmResolver = resolve;
+            state.confirmDecision = null;
+
             $('pr-confirm-message').textContent = message;
-            dialog.showModal();
+
+            if (!dialog.open) {
+                dialog.showModal();
+            }
+
+            pushLayer('confirm');
+
             const finish = value => {
-                dialog.close();
-                $('pr-confirm-ok').onclick = null;
-                $('pr-confirm-cancel').onclick = null;
-                resolve(value);
+                state.confirmDecision = value;
+
+                if (currentLayer() === 'confirm') {
+                    history.back();
+                    return;
+                }
+
+                closeConfirmDirect(value);
             };
+
             $('pr-confirm-ok').onclick = () => finish(true);
             $('pr-confirm-cancel').onclick = () => finish(false);
         });
@@ -3039,9 +2773,22 @@
         }
     }
 
-    function closeModal() {
+    function closeModal(options = {}) {
         if (state.busy) return;
+
+        const fromHistory =
+            options.fromHistory === true;
+
+        if (
+            !fromHistory
+            && currentLayer() === 'sheet'
+        ) {
+            history.back();
+            return;
+        }
+
         $('pr-modal').hidden = true;
+
         state.associateId = null;
         state.check = null;
         state.receiptId = null;
@@ -3150,11 +2897,72 @@
         if (action) handleIssue(action);
     });
 
+
+    $('pr-confirm')?.addEventListener('cancel', event => {
+        event.preventDefault();
+
+        state.confirmDecision = false;
+
+        if (currentLayer() === 'confirm') {
+            history.back();
+            return;
+        }
+
+        closeConfirmDirect(false);
+    });
+
+    $('pr-modal')?.addEventListener('click', event => {
+        if (
+            event.target === $('pr-modal')
+            && !state.busy
+        ) {
+            closeModal();
+        }
+    });
+
+    window.addEventListener('popstate', () => {
+        const layer = currentLayer();
+
+        if (
+            $('pr-confirm')?.open
+            && layer !== 'confirm'
+        ) {
+            closeConfirmDirect(
+                state.confirmDecision ?? false
+            );
+        }
+
+        if (
+            !$('pr-modal').hidden
+            && layer !== 'sheet'
+            && !$('pr-confirm')?.open
+        ) {
+            closeModal({
+                fromHistory: true,
+            });
+        }
+    });
+
+    if (
+        history.state?.[HISTORY_KEY]
+        && $('pr-modal').hidden
+        && !$('pr-confirm')?.open
+    ) {
+        stripLayerFromCurrentEntry();
+    }
+
     loadProducers(true);
     const auto = Number(new URLSearchParams(location.search).get('associate') || 0);
     if (auto) {
-        openModal(auto, new URLSearchParams(location.search).get('name') || memberTerm);
-        history.replaceState(null, '', location.pathname);
+        stripLayerFromCurrentEntry(
+            location.pathname
+        );
+
+        openModal(
+            auto,
+            new URLSearchParams(location.search).get('name')
+                || memberTerm
+        );
     }
 })();
 </script>

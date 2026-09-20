@@ -6,6 +6,7 @@ use App\Actions\Passkeys\GenerateSecureRegistrationOptions;
 use App\Contracts\GoogleIdTokenVerifier;
 use App\Exceptions\AccountProofRequiredException;
 use App\Exceptions\GoogleTokenVerificationException;
+use App\Exceptions\PasskeyChallengeException;
 use App\Http\Requests\SecurePasskeyVerificationRequest;
 use App\Models\Associate;
 use App\Models\Passkey;
@@ -25,6 +26,7 @@ use Illuminate\Support\Facades\Schema;
 use Laravel\Passkeys\Actions\GenerateVerificationOptions;
 use Laravel\Passkeys\Support\WebAuthn;
 use ParagonIE\ConstantTime\Base64UrlSafe;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Webauthn\AuthenticatorSelectionCriteria;
 use Webauthn\PublicKeyCredentialRequestOptions;
@@ -42,6 +44,7 @@ class AccessInvitationSecurityTest extends TestCase
             $t->id();
             $t->string('name')->nullable();
             $t->string('email')->nullable()->unique();
+            $t->timestamp('email_verified_at')->nullable();
             $t->string('password')->nullable();
             $t->boolean('status')->default(true);
             $t->string('google_id')->nullable();
@@ -535,7 +538,7 @@ class AccessInvitationSecurityTest extends TestCase
         try {
             $request->verificationOptions();
             $this->fail('The authentication challenge must be consumed only once.');
-        } catch (\App\Exceptions\PasskeyChallengeException $exception) {
+        } catch (PasskeyChallengeException $exception) {
             $this->assertSame('missing_or_replayed_challenge', $exception->reason);
         }
     }
@@ -667,6 +670,30 @@ class AccessInvitationSecurityTest extends TestCase
         $this->assertSame($user->id, $resolved->id);
         $this->assertSame('authorized-google-subject', $account->provider_subject);
         $this->assertDatabaseCount('oauth_accounts', 1);
+        $this->assertNotNull($resolved->fresh()->email_verified_at);
+    }
+
+    public function test_google_login_links_a_global_super_admin_without_tenant_membership(): void
+    {
+        $role = Role::firstOrCreate([
+            'name' => 'super_admin',
+            'guard_name' => 'web',
+        ]);
+        $user = User::query()->create([
+            'name' => 'Super Admin',
+            'email' => 'seeded-super-admin@example.test',
+            'password' => bcrypt('unused-secret'),
+            'status' => true,
+        ]);
+        $user->assignRole($role);
+
+        [$resolved, $account] = app(GoogleAccountService::class)->resolve(
+            'login', 'seeded-super-admin-subject', $user->email, null, null
+        );
+
+        $this->assertSame($user->id, $resolved->id);
+        $this->assertSame('seeded-super-admin-subject', $account->provider_subject);
+        $this->assertNotNull($resolved->fresh()->email_verified_at);
     }
 
     public function test_google_login_requires_explicit_linking_for_a_non_authoritative_email_provider(): void

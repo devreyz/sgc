@@ -636,6 +636,7 @@ class OrganizationSettingsPage extends Page implements HasForms
     {
         return TenantCloudStorageConnection::query()
             ->where('tenant_id', (int) session('tenant_id'))
+            ->where('provider', 'google_drive')
             ->first();
     }
 

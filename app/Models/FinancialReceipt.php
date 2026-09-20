@@ -8,6 +8,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -72,6 +73,11 @@ class FinancialReceipt extends Model
     public function reversalMovement(): BelongsTo
     {
         return $this->belongsTo(CashMovement::class, 'reversal_movement_id');
+    }
+
+    public function verificationIdentity(): MorphOne
+    {
+        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
     }
 
     public function isDraft(): bool

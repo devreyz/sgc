@@ -74,9 +74,9 @@
             const payload = await getJson(root.dataset.queueUrl);
             const baseProcesses = root.dataset.processesUrl;
             summary.innerHTML = `
-                <div class="acc-summary-item"><span>Processos em aberto</span><strong>${esc(payload.summary.open_processes)}</strong><small>Fechados ou parcialmente recebidos</small></div>
+                <div class="acc-summary-item"><span>Cobranças em andamento</span><strong>${esc(payload.summary.open_processes)}</strong><small>Enviadas ou com recebimento parcial</small></div>
                 <div class="acc-summary-item"><span>Saldo a receber</span><strong>${money.format(payload.summary.open_amount || 0)}</strong><small>Conforme snapshots das cobranças</small></div>
-                <div class="acc-summary-item"><span>Fluxo atual</span><strong>Fase 2A</strong><small>${esc(payload.summary.legacy_state)}</small></div>`;
+                <div class="acc-summary-item"><span>Fluxo de trabalho</span><strong>5 etapas</strong><small>${esc(payload.summary.workflow_label)}</small></div>`;
             if (payload.empty) {
                 target.innerHTML = `<div class="acc-empty">${icon('circle-check')}<div><strong>Nenhuma ação pendente</strong><br><span>A fila está limpa neste momento.</span></div></div>`;
             } else {
@@ -102,7 +102,7 @@
             <td>${esc(process.recipient)}<div class="acc-muted">${esc(process.recipient_type)}</div></td>
             <td>${badge(process.state.label, process.state.tone)}<div class="acc-muted">${esc(process.state.next_action)}</div></td>
             <td class="acc-money">${money.format(process.net || 0)}<div class="acc-muted">Saldo ${money.format(process.remaining || 0)}</div></td>
-            <td>${process.critical_issues ? badge(`${process.critical_issues} crítica(s)`, 'danger') : badge('Íntegro', 'success')}</td>
+            <td>${process.critical_issues ? badge(`${process.critical_issues} erro(s)`, 'danger') : (process.preparation_issues ? badge(`${process.preparation_issues} item(ns) a completar`, 'warning') : badge('Pronto', 'success'))}</td>
         </tr>`;
     }
 
@@ -113,7 +113,7 @@
                 <span>Destinatário<strong>${esc(process.recipient)}</strong></span>
                 <span>Valor líquido<strong>${money.format(process.net || 0)}</strong></span>
                 <span>Próxima ação<strong>${esc(process.state.next_action)}</strong></span>
-                <span>Integridade<strong>${process.critical_issues ? `${esc(process.critical_issues)} crítica(s)` : 'Sem bloqueios'}</strong></span>
+                <span>Conferência<strong>${process.critical_issues ? `${esc(process.critical_issues)} erro(s)` : (process.preparation_issues ? `${esc(process.preparation_issues)} item(ns) a completar` : 'Pronto')}</strong></span>
             </div>
         </article>`;
     }
@@ -292,9 +292,9 @@
                 </section>
                 <aside class="acc-side-stack">
                     <section class="acc-panel"><div class="acc-panel-head"><div><h2>Próxima ação</h2><p>${esc(process.state.next_action)}</p></div>${badge(process.workflow.authorization.label, process.workflow.authorization.state === 'authorized' ? 'success' : (['invalidated','correction_requested'].includes(process.workflow.authorization.state) ? 'danger' : 'warning'))}</div>
-                        <div class="acc-action-box" data-authorization-action>${process.workflow.fiscal.ready && process.workflow.fiscal.prepare_url ? `<button class="acc-button acc-button-primary" type="button" data-prepare-fiscal>${icon('file-check')} Preparar emissão</button><div class="acc-action-feedback" aria-live="polite"></div>` : (process.workflow.authorization.state === 'authorized' && process.workflow.fiscal.settings_url && process.workflow.fiscal.blocks?.some(block => ['fiscal_profile_missing','fiscal_profile_inactive','document_type_missing','fiscal_amount_source_missing'].includes(block.code)) ? `<a class="acc-button acc-button-primary" href="${esc(process.workflow.fiscal.settings_url)}">${icon('settings')} Configurar emissão</a>` : (root.dataset.canSendAuthorization === '1' && ['legacy_unsubmitted','correction_requested','invalidated','cancelled'].includes(process.workflow.authorization.state) && process.financial.status === 'pending_payment' && !integrity.critical_count ? `<button class="acc-button acc-button-primary" type="button" data-send-authorization>${icon('send')} Enviar para organização</button><div class="acc-action-feedback" aria-live="polite"></div>` : '<span class="acc-muted">Nenhuma ação interna disponível agora.</span>'))}</div></section>
-                    <section class="acc-panel"><div class="acc-panel-head"><div><h2>Integridade</h2><p>${esc(integrity.critical_count)} bloqueio(s)</p></div>${badge(integrity.critical_count ? 'Conferir' : 'Íntegro', integrity.critical_count ? 'danger' : 'success')}</div>
-                        <div style="padding:.72rem"><ul class="acc-integrity-list">${integrity.issues.length ? integrity.issues.map(issue => `<li class="acc-integrity-item">${esc(issue.message)}</li>`).join('') : '<li class="acc-simple-item">Nenhuma inconsistência crítica encontrada.</li>'}</ul></div></section>
+                        <div class="acc-action-box" data-authorization-action>${process.workflow.fiscal.ready && process.workflow.fiscal.prepare_url ? `<button class="acc-button acc-button-primary" type="button" data-prepare-fiscal>${icon('file-check')} Preparar emissão</button><div class="acc-action-feedback" aria-live="polite"></div>` : (process.workflow.authorization.state === 'authorized' && process.workflow.fiscal.settings_url && process.workflow.fiscal.blocks?.some(block => ['fiscal_profile_missing','fiscal_profile_inactive','document_type_missing','fiscal_amount_source_missing'].includes(block.code)) ? `<a class="acc-button acc-button-primary" href="${esc(process.workflow.fiscal.settings_url)}">${icon('settings')} Configurar emissão</a>` : (root.dataset.canSendAuthorization === '1' && ['legacy_unsubmitted','correction_requested','invalidated','cancelled'].includes(process.workflow.authorization.state) && process.financial.status === 'pending_payment' && !integrity.blocking_count ? `<button class="acc-button acc-button-primary" type="button" data-send-authorization>${icon('send')} Enviar para organização</button><div class="acc-action-feedback" aria-live="polite"></div>` : '<span class="acc-muted">Conclua a etapa indicada acima para continuar.</span>'))}</div></section>
+                    <section class="acc-panel"><div class="acc-panel-head"><div><h2>Conferência dos dados</h2><p>${integrity.critical_count ? `${esc(integrity.critical_count)} erro(s) de integridade` : (integrity.preparation_count ? `${esc(integrity.preparation_count)} item(ns) a completar` : 'Dados prontos para avançar')}</p></div>${badge(integrity.critical_count ? 'Corrigir erro' : (integrity.preparation_count ? 'Em preparação' : 'Pronto'), integrity.critical_count ? 'danger' : (integrity.preparation_count ? 'warning' : 'success'))}</div>
+                        <div style="padding:.72rem"><ul class="acc-integrity-list">${integrity.issues.length ? integrity.issues.map(issue => `<li class="acc-integrity-item">${badge(issue.severity === 'critical' ? 'Erro' : 'Preparação', issue.severity === 'critical' ? 'danger' : 'warning')} ${esc(issue.message)}</li>`).join('') : '<li class="acc-simple-item">Nenhuma pendência encontrada.</li>'}</ul></div></section>
                     <section class="acc-panel"><div class="acc-panel-head"><div><h2>Documentos</h2><p>${esc(payload.documents.length)} arquivo(s)</p></div></div>
                         <div style="padding:.72rem"><ul class="acc-simple-list">${payload.documents.length ? payload.documents.map(document => `<li class="acc-simple-item"><strong>${esc(document.name)}</strong><span>${esc(document.category)} · ${esc(document.date)}</span></li>`).join('') : '<li class="acc-simple-item">Nenhum documento anexado.</li>'}</ul></div></section>
                 </aside>`;

@@ -23,7 +23,7 @@
         <div class="acc-heading">
             <p class="acc-eyebrow">Dossiês financeiros</p>
             <h1>Processos</h1>
-            <p>Cada linha representa uma cobrança consolidada a partir de distribuições.</p>
+            <p>Cada linha mostra a etapa atual, a próxima ação e os dados que ainda precisam ser concluídos antes da emissão.</p>
         </div>
         <a class="acc-button" href="{{ route('accounting.index', ['tenant' => $tenant->slug]) }}">
             <i data-lucide="list-checks" aria-hidden="true"></i>
@@ -55,9 +55,9 @@
                 <span>Pendência</span>
                 <select class="acc-select" name="pending">
                     <option value="">Todas</option>
-                    <option value="review_inconsistency">Inconsistência crítica</option>
-                    <option value="review_draft">Revisar rascunho</option>
-                    <option value="review_closed">Conferir cobrança fechada</option>
+                    <option value="review_inconsistency">Corrigir erro de integridade</option>
+                    <option value="review_draft">Completar rascunho</option>
+                    <option value="review_closed">Enviar para autorização</option>
                     <option value="track_balance">Acompanhar saldo</option>
                 </select>
             </label>
@@ -82,7 +82,7 @@
 
         <div class="acc-table-wrap">
             <table class="acc-table">
-                <thead><tr><th>Processo</th><th>Projeto</th><th>Destinatário</th><th>Situação e próxima ação</th><th>Valor</th><th>Integridade</th></tr></thead>
+                <thead><tr><th>Processo</th><th>Projeto</th><th>Destinatário</th><th>Etapa e próxima ação</th><th>Valor</th><th>Conferência</th></tr></thead>
                 <tbody data-process-table></tbody>
             </table>
         </div>

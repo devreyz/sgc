@@ -22,7 +22,11 @@ class AdminUserSeeder extends Seeder
             ]
         );
 
-        if (!$user->hasRole('super_admin')) {
+        if (blank($user->email_verified_at)) {
+            $user->forceFill(['email_verified_at' => now()])->saveQuietly();
+        }
+
+        if (! $user->hasRole('super_admin')) {
             $user->assignRole('super_admin');
         }
     }

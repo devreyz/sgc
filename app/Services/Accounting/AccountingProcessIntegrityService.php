@@ -3,6 +3,7 @@
 namespace App\Services\Accounting;
 
 use App\Enums\DeliveryStatus;
+use App\Enums\CustomerReceiptStatus;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use Illuminate\Support\Collection;
@@ -13,7 +14,11 @@ class AccountingProcessIntegrityService
      * Focused receipt-level checks. This intentionally does not run the full
      * project auditor while a page is being rendered.
      *
-     * @return array{critical_count: int, issues: array<int, array{code: string, message: string}>}
+     * Rascunhos may be incomplete by design. Missing financial inputs are kept
+     * as preparation items until the receipt is closed; structural corruption
+     * remains critical at every stage.
+     *
+     * @return array{critical_count: int, preparation_count: int, blocking_count: int, issues: array<int, array{code: string, message: string, severity: string}>}
      */
     public function inspect(CustomerBillingReceipt $receipt): array
     {
@@ -45,7 +50,11 @@ class AccountingProcessIntegrityService
         }
 
         if ($distributions->isEmpty()) {
-            $issues->push($this->issue('missing_distributions', 'Nenhuma distribuição está vinculada à cobrança.'));
+            $issues->push($this->issue(
+                'missing_distributions',
+                'Adicione os itens que formarão esta cobrança antes de enviá-la para emissão.',
+                $this->completionSeverity($receipt),
+            ));
         }
 
         $parents = ProductionDelivery::withoutGlobalScopes()->withTrashed()
@@ -55,7 +64,9 @@ class AccountingProcessIntegrityService
         $this->inspectDistributions($receipt, $distributions, $parents, $issues, $projectIds);
 
         return [
-            'critical_count' => $issues->count(),
+            'critical_count' => $issues->where('severity', 'critical')->count(),
+            'preparation_count' => $issues->where('severity', 'preparation')->count(),
+            'blocking_count' => $issues->count(),
             'issues' => $issues->values()->all(),
         ];
     }
@@ -90,26 +101,31 @@ class AccountingProcessIntegrityService
             }
 
             if (! $distribution->customer_id) {
-                $issues->push($this->issue('missing_customer', $prefix.'cliente não identificado.'));
+                $issues->push($this->issue('missing_customer', $prefix.'informe o cliente de destino.', $this->completionSeverity($receipt)));
             }
 
             if ((float) $distribution->quantity <= 0) {
-                $issues->push($this->issue('invalid_quantity', $prefix.'quantidade inválida.'));
+                $issues->push($this->issue('invalid_quantity', $prefix.'informe uma quantidade válida.', $this->completionSeverity($receipt)));
             }
 
             if ((float) $distribution->unit_price <= 0) {
-                $issues->push($this->issue('invalid_price', $prefix.'preço unitário inválido.'));
+                $issues->push($this->issue('invalid_price', $prefix.'informe o preço antes de fechar a cobrança.', $this->completionSeverity($receipt)));
             }
 
             if ($distribution->status !== DeliveryStatus::APPROVED) {
-                $issues->push($this->issue('invalid_status', $prefix.'status incompatível com o fechamento financeiro.'));
+                $issues->push($this->issue('invalid_status', $prefix.'conclua a conferência do item antes de fechar a cobrança.', $this->completionSeverity($receipt)));
             }
         }
     }
 
-    /** @return array{code: string, message: string} */
-    private function issue(string $code, string $message): array
+    private function completionSeverity(CustomerBillingReceipt $receipt): string
     {
-        return compact('code', 'message');
+        return $receipt->status === CustomerReceiptStatus::DRAFT ? 'preparation' : 'critical';
+    }
+
+    /** @return array{code: string, message: string, severity: string} */
+    private function issue(string $code, string $message, string $severity = 'critical'): array
+    {
+        return compact('code', 'message', 'severity');
     }
 }

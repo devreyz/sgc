@@ -120,7 +120,11 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if (! TenantCloudStorageConnection::query()->where('tenant_id', $tenantId)->where('status', 'active')->exists()) {
+        if (! TenantCloudStorageConnection::query()
+            ->where('tenant_id', $tenantId)
+            ->where('provider', 'google_drive')
+            ->where('status', 'active')
+            ->exists()) {
             Log::notice('Google Drive stored-file synchronization skipped because the connection is inactive.', [
                 'tenant_id' => $tenantId,
                 'document_type' => $definition[1],
@@ -209,6 +213,7 @@ class SyncTenantStoredFileToDrive implements ShouldBeUnique, ShouldQueue
 
         TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenantId)
+            ->where('provider', 'google_drive')
             ->first()
             ?->forceFill(['last_error' => $message])
             ->save();

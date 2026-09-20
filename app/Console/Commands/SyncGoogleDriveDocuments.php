@@ -14,7 +14,7 @@ class SyncGoogleDriveDocuments extends Command
 
     public function handle(GoogleDriveSyncDispatcher $dispatcher): int
     {
-        $query = TenantCloudStorageConnection::query()->where('status', 'active')->select('tenant_id')->distinct();
+        $query = TenantCloudStorageConnection::query()->where('provider', 'google_drive')->where('status', 'active')->select('tenant_id')->distinct();
         if ($tenant = $this->option('tenant')) {
             $query->where('tenant_id', (int) $tenant);
         }

@@ -4,7 +4,7 @@
     "name": "vendor"
   },
   "resources/css/app.css": {
-    "file": "assets/resources/css/app-D72inxmK.css",
+    "file": "assets/resources/css/app-BEpkFYaS.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "resources/css/app.css",
@@ -13,7 +13,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/resources/js/app.js-DyJfJQT7.js",
+    "file": "assets/resources/js/app.js-qu2nfCzF.js",
     "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,

@@ -9,6 +9,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class AssociateReceipt extends Model
 {
@@ -119,6 +120,11 @@ class AssociateReceipt extends Model
     {
         return $this->hasMany(AssociateReceiptPayment::class, 'associate_receipt_id')
             ->orderBy('payment_date');
+    }
+
+    public function verificationIdentity(): MorphOne
+    {
+        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
     }
 
     /**

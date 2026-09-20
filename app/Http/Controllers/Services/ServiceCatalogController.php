@@ -36,12 +36,13 @@ class ServiceCatalogController extends Controller
     public function store(Request $request, Tenant $tenant, ServiceCatalogService $catalog, ServicePresetRegistry $presets): RedirectResponse
     {
         $this->allow($request, 'manage_service_catalog');
-        $data = $request->validate(['name' => 'required|string|max:191', 'code' => 'nullable|string|max:191|unique:services,code', 'description' => 'nullable|string', 'preset' => 'required|string', 'unit' => 'required|string|max:30', 'review_mode' => 'required|in:automatic,manual', 'allow_provider_create_order' => 'boolean', 'receivable_enabled' => 'boolean', 'customer_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base', 'customer_rate' => 'nullable|numeric|min:0', 'payable_enabled' => 'boolean', 'provider_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base', 'default_provider_rate' => 'nullable|numeric|min:0', 'provider_percentage' => 'nullable|numeric|min:0|max:100', 'publish' => 'boolean']);
+        $data = $request->validate(['name' => 'required|string|max:191', 'code' => 'nullable|string|max:191', 'description' => 'nullable|string', 'preset' => 'required|string', 'unit' => 'required|string|max:30', 'review_mode' => 'required|in:automatic,manual', 'allow_provider_create_order' => 'boolean', 'members_only' => 'boolean', 'receivable_enabled' => 'boolean', 'customer_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base', 'customer_rate' => 'nullable|numeric|min:0', 'customer_percentage' => 'nullable|numeric|min:0|max:100', 'payable_enabled' => 'boolean', 'provider_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base', 'default_provider_rate' => 'nullable|numeric|min:0', 'provider_percentage' => 'nullable|numeric|min:0|max:100', 'publish' => 'boolean']);
         $preset = $presets->get($data['preset']);
-        $service = new Service(['name' => $data['name'], 'code' => $data['code'] ?? null, 'description' => $data['description'] ?? null, 'type' => ServiceType::OUTRO, 'unit' => $data['unit'], 'base_price' => $data['customer_rate'] ?? 0, 'status' => true]);
+        abort_if(Service::query()->where('tenant_id', $tenant->id)->where('code', $data['code'] ?? null)->whereNotNull('code')->exists(), 422, 'Já existe um serviço com este código na organização.');
+        $service = new Service(['name' => $data['name'], 'code' => $data['code'] ?? null, 'description' => $data['description'] ?? null, 'type' => ServiceType::tryFrom($preset['service_type'] ?? '') ?? ServiceType::OUTRO, 'unit' => $data['unit'], 'base_price' => $data['customer_rate'] ?? 0, 'status' => true]);
         $service->tenant_id = $tenant->id;
         $service->save();
-        $version = $catalog->createDraft($service, ['unit' => $data['unit'], 'review_mode' => $data['review_mode'], 'allow_provider_create_order' => $data['allow_provider_create_order'] ?? false, 'receivable_enabled' => $data['receivable_enabled'] ?? false, 'customer_pricing_method' => $data['customer_pricing_method'] ?? $preset['customer_pricing_method'], 'customer_rate' => $data['customer_rate'] ?? null, 'payable_enabled' => $data['payable_enabled'] ?? false, 'provider_pricing_method' => $data['provider_pricing_method'] ?? null, 'default_provider_rate' => $data['default_provider_rate'] ?? null, 'provider_percentage' => $data['provider_percentage'] ?? null, 'execution_config' => $preset['execution_config'] ?? []], $preset['fields'] ?? []);
+        $version = $catalog->createDraft($service, ['unit' => $data['unit'], 'review_mode' => $data['review_mode'], 'allow_provider_create_order' => $data['allow_provider_create_order'] ?? false, 'members_only' => $data['members_only'] ?? false, 'receivable_enabled' => $data['receivable_enabled'] ?? $preset['receivable_enabled'], 'customer_pricing_method' => $data['customer_pricing_method'] ?? $preset['customer_pricing_method'], 'customer_rate' => $data['customer_rate'] ?? null, 'customer_percentage' => $data['customer_percentage'] ?? null, 'payable_enabled' => $data['payable_enabled'] ?? $preset['payable_enabled'], 'provider_pricing_method' => $data['provider_pricing_method'] ?? $preset['provider_pricing_method'], 'default_provider_rate' => $data['default_provider_rate'] ?? null, 'provider_percentage' => $data['provider_percentage'] ?? null, 'execution_config' => $preset['execution_config'] ?? []], $preset['fields'] ?? []);
         if ($data['publish'] ?? false) {
             $catalog->publish($version, $request->user());
         }
@@ -65,14 +66,59 @@ class ServiceCatalogController extends Controller
         abort_unless($version->status === 'draft', 422, 'Duplique a versão publicada para alterá-la.');
         $data = $request->validate([
             'unit' => 'required|string|max:30', 'review_mode' => 'required|in:automatic,manual',
-            'allow_provider_create_order' => 'boolean', 'receivable_enabled' => 'boolean', 'payable_enabled' => 'boolean',
+            'allow_provider_create_order' => 'boolean', 'members_only' => 'boolean', 'receivable_enabled' => 'boolean', 'payable_enabled' => 'boolean',
             'customer_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base',
             'customer_rate' => 'nullable|numeric|min:0', 'customer_percentage' => 'nullable|numeric|min:0|max:100',
             'provider_pricing_method' => 'nullable|in:fixed,quantity_x_rate,percent_of_base',
             'default_provider_rate' => 'nullable|numeric|min:0', 'provider_percentage' => 'nullable|numeric|min:0|max:100',
+            'execution_config' => 'nullable|array',
+            'execution_config.quantity_mode' => 'nullable|in:fixed_one,field,meter_difference',
+            'execution_config.quantity_field' => 'nullable|string|max:80',
+            'execution_config.meter_start_field' => 'nullable|string|max:80',
+            'execution_config.meter_end_field' => 'nullable|string|max:80',
+            'execution_config.customer_quantity_mode' => 'nullable|in:primary,fixed_one,field,meter_difference',
+            'execution_config.customer_quantity_field' => 'nullable|string|max:80',
+            'execution_config.customer_meter_start_field' => 'nullable|string|max:80',
+            'execution_config.customer_meter_end_field' => 'nullable|string|max:80',
+            'execution_config.customer_unit' => 'nullable|string|max:30',
+            'execution_config.provider_quantity_mode' => 'nullable|in:primary,fixed_one,field,meter_difference',
+            'execution_config.provider_quantity_field' => 'nullable|string|max:80',
+            'execution_config.provider_meter_start_field' => 'nullable|string|max:80',
+            'execution_config.provider_meter_end_field' => 'nullable|string|max:80',
+            'execution_config.provider_unit' => 'nullable|string|max:30',
+            'financial_config' => 'nullable|array',
+            'financial_config.rules' => 'nullable|array|max:30',
+            'financial_config.rules.*.description' => 'required|string|max:191',
+            'financial_config.rules.*.direction' => 'required|in:receivable,payable',
+            'financial_config.rules.*.method' => 'required|in:fixed_addition,fixed_deduction,percent_addition,percent_deduction,quantity_x_rate',
+            'financial_config.rules.*.effect' => 'required|in:add,subtract',
+            'financial_config.rules.*.value' => 'nullable|numeric|min:0',
+            'financial_config.rules.*.percentage' => 'nullable|numeric|min:0|max:100',
+            'financial_config.rules.*.value_field' => 'nullable|string|max:80',
+            'financial_config.rules.*.quantity_field' => 'nullable|string|max:80',
+            'financial_config.rules.*.input_key' => ['nullable', 'string', 'max:80', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'financial_config.rules.*.input_label' => 'nullable|required_with:financial_config.rules.*.input_key|string|max:160',
+            'financial_config.rules.*.input_role' => 'nullable|in:quantity,value',
+            'financial_config.rules.*.input_unit' => 'nullable|string|max:30',
+            'financial_config.rules.*.input_phase' => 'nullable|in:start,execution,finish',
+            'financial_config.rules.*.input_required' => 'nullable|boolean',
+            'financial_config.rules.*.evidence_required' => 'nullable|boolean',
+            'financial_config.rules.*.evidence_key' => ['nullable', 'string', 'max:80', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'financial_config.rules.*.evidence_label' => 'nullable|string|max:160',
+            'financial_config.rules.*.evidence_field' => 'nullable|string|max:80',
         ]);
+        $data['execution_config'] = array_replace($version->execution_config ?? [], $data['execution_config'] ?? []);
+        if (array_key_exists('financial_config', $data)) {
+            $data['financial_config']['rules'] = collect(data_get($data, 'financial_config.rules', []))->map(function (array $rule): array {
+                $rule['input_required'] = (bool) ($rule['input_required'] ?? false);
+                $rule['evidence_required'] = (bool) ($rule['evidence_required'] ?? false);
+
+                return $rule;
+            })->values()->all();
+        }
         $version->update($data + [
             'allow_provider_create_order' => $request->boolean('allow_provider_create_order'),
+            'members_only' => $request->boolean('members_only'),
             'receivable_enabled' => $request->boolean('receivable_enabled'),
             'payable_enabled' => $request->boolean('payable_enabled'),
         ]);
@@ -91,7 +137,7 @@ class ServiceCatalogController extends Controller
             'section' => 'nullable|string|max:80', 'required' => 'boolean', 'visible_to_provider' => 'boolean', 'editable_by_provider' => 'boolean',
             'visible_to_management' => 'boolean', 'include_in_documents' => 'boolean', 'reportable' => 'boolean', 'unit' => 'nullable|string|max:30',
             'decimal_places' => 'nullable|integer|min:0|max:6', 'minimum' => 'nullable|numeric', 'maximum' => 'nullable|numeric',
-            'options_text' => 'nullable|string', 'placeholder' => 'nullable|string|max:191', 'help' => 'nullable|string|max:500',
+            'options_text' => 'nullable|string', 'evidence_for_field' => 'nullable|string|max:80', 'placeholder' => 'nullable|string|max:191', 'help' => 'nullable|string|max:500',
         ]);
         abort_if($version->fields()->where('key', $data['key'])->exists(), 422, 'Já existe um campo com essa chave.');
         $options = collect(preg_split('/\r\n|\r|\n/', (string) ($data['options_text'] ?? '')))->map(fn ($value) => trim($value))->filter()->values()->all();
@@ -135,6 +181,16 @@ class ServiceCatalogController extends Controller
         $copy = $catalog->clone($version);
 
         return redirect()->route('services.catalog.show', [$tenant, $copy])->with('success', 'Nova versão em rascunho criada.');
+    }
+
+    public function active(Request $request, Tenant $tenant, int $version, ServiceCatalogService $catalog): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $record = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
+        $data = $request->validate(['active' => 'required|boolean']);
+        $catalog->setActive($record, (bool) $data['active']);
+
+        return back()->with('success', $data['active'] ? 'Versão ativada para novas ordens.' : 'Versão desativada para novas ordens.');
     }
 
     public function rate(Request $request, Tenant $tenant, int $version): RedirectResponse

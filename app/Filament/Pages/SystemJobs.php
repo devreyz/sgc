@@ -95,7 +95,7 @@ class SystemJobs extends Page
         abort_unless(static::canAccess(), 403);
 
         $tenantId = (int) session('tenant_id');
-        if (! TenantCloudStorageConnection::query()->where('tenant_id', $tenantId)->where('status', 'active')->exists()) {
+        if (! TenantCloudStorageConnection::query()->where('tenant_id', $tenantId)->where('provider', 'google_drive')->where('status', 'active')->exists()) {
             Notification::make()->title('Conecte e ative o Google Drive antes de sincronizar')->warning()->send();
 
             return;

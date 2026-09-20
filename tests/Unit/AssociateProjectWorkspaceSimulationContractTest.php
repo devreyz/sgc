@@ -13,7 +13,7 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         $simulator = file_get_contents(resource_path('views/associate/project-simulator.blade.php'));
 
         self::assertStringContainsString('data-section="prices"', $view);
-        self::assertStringNotContainsString('<span>Simular</span>', $view);
+        self::assertStringContainsString('<span>Simular</span>', $view);
         self::assertStringContainsString("route('associate.projects.simulator'", $view);
         self::assertStringContainsString("route('delivery.projects.associates.simulator'", $recorderView);
         self::assertStringContainsString('Simular entregas', $recorderView);
@@ -21,7 +21,7 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString("'share' => 'real-quotas'", $recorderView);
         self::assertStringContainsString('Compartilhar cotas reais', $view);
         self::assertStringContainsString('Compartilhar cotas reais', $recorderView);
-        self::assertStringContainsString('function awPrices(data)', $view);
+        self::assertStringContainsString('function renderPrices(data)', $view);
         self::assertStringContainsString('data-step-panel="0"', $simulator);
         self::assertStringContainsString('data-step-panel="2"', $simulator);
         self::assertStringContainsString("productFilter:'enabled'", $simulator);
@@ -49,11 +49,11 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         $view = file_get_contents(resource_path('views/associate/project-workspace.blade.php'));
 
         self::assertStringContainsString('Valor líquido das entregas', $view);
-        self::assertStringContainsString('Cota usada:', $view);
-        self::assertStringContainsString('Cota total:', $view);
+        self::assertStringContainsString('Cota comprometida', $view);
+        self::assertStringContainsString('Saldo da cota', $view);
         self::assertStringContainsString('Entregas por destino', $view);
         self::assertStringContainsString('fee_breakdown', $view);
-        self::assertStringContainsString('Detalhamento das taxas e ajustes', $view);
+        self::assertStringContainsString('Taxas e descontos', $view);
         self::assertStringNotContainsString('Valor disponível para entregar', $view);
         self::assertStringNotContainsString('% de ${limit} já foi utilizado.', $view);
     }
@@ -95,8 +95,8 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertGreaterThanOrEqual(2, substr_count($memberController, "'notes' => \$item->notes"));
         self::assertStringContainsString("'notes' => \$item->notes", $recorderController);
         self::assertStringContainsString('data-aw-note=', $memberView);
-        self::assertStringContainsString('Ver observações', $memberView);
-        self::assertStringContainsString('awInfoBody.textContent', $memberView);
+        self::assertStringContainsString('Observações</button>', $memberView);
+        self::assertStringContainsString('dialogBody.textContent', $memberView);
         self::assertStringContainsString('data-delivery-notes-title="Observações da distribuição"', $recorderView);
     }
 

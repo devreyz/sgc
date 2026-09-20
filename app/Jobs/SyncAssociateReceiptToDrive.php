@@ -8,6 +8,7 @@ use App\Models\TenantCloudStorageConnection;
 use App\Services\AssociateReceiptArchiveService;
 use App\Services\AssociateReceiptDriveState;
 use App\Services\TenantNotificationDispatcher;
+use App\Services\FinancialDocumentIdentityService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUniqueUntilProcessing;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -60,6 +61,7 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
 
         if (! TenantCloudStorageConnection::query()
             ->where('tenant_id', $receipt->tenant_id)
+            ->where('provider', 'google_drive')
             ->where('status', 'active')
             ->exists()) {
             Log::notice('Google Drive receipt synchronization skipped because the connection is inactive.', [
@@ -157,19 +159,18 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
         }
 
         $receipt->loadMissing(['associate', 'project']);
-        $adminUrl = '/admin/associate-receipts/'.(int) $receipt->id.'/edit';
+        $identity = app(FinancialDocumentIdentityService::class)->ensure($receipt);
+        $documentUrl = $identity
+            ? route('financial-documents.show', $identity->public_id, false)
+            : '/'.$tenant->slug.'/notifications';
         $notifications->dispatchToConfiguredRoles('drive.receipt_synced', (int) $tenant->id, [
             'title' => 'Comprovante atualizado no Google Drive',
             'body' => 'O comprovante '.$receipt->formatted_number.' de '.($receipt->associate?->display_name ?: 'associado').' foi salvo na conta Google Drive da organização.',
-            'url' => route('delivery.projects.producers', [
-                'tenant' => $tenant->slug,
-                'project' => $receipt->sales_project_id,
-                'associate' => $receipt->associate_id,
-                'name' => $receipt->associate?->display_name,
-            ], false),
+            'url' => $documentUrl,
             'role_urls' => [
-                'tesoureiro' => $adminUrl,
-                'admin' => $adminUrl,
+                'financeiro' => $documentUrl,
+                'tesoureiro' => $documentUrl,
+                'admin' => $documentUrl,
             ],
             'icon' => 'cloud-check',
             'action_label' => 'Abrir comprovante',

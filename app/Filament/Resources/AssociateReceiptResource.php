@@ -15,6 +15,7 @@ use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Models\TenantUser;
 use App\Services\AssociateReceiptService;
+use App\Services\FinancialDocumentIdentityService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
@@ -613,6 +614,18 @@ class AssociateReceiptResource extends Resource
                     }),
 
                 // ── PAGAR COMPROVANTE (parcial ou total) ──────────────────────
+                Tables\Actions\Action::make('openVerifiedReceipt')
+                    ->label('Abrir comprovante e QR')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('info')
+                    ->url(function (AssociateReceipt $record): string {
+                        $identity = app(FinancialDocumentIdentityService::class)
+                            ->ensure($record, auth()->user());
+
+                        return $identity ? route('financial-documents.show', $identity->public_id) : '#';
+                    })
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\Action::make('addPayment')
                     ->label(fn (AssociateReceipt $r) => $r->status === ReceiptStatus::PARTIALLY_PAID
                         ? 'Registrar Parcela'
@@ -650,18 +663,21 @@ class AssociateReceiptResource extends Resource
                             Forms\Components\Select::make('payment_method')
                                 ->label('Forma de Pagamento')
                                 ->options(collect(PaymentMethod::cases())
+                                    ->reject(fn ($m) => $m === PaymentMethod::CHEQUE)
                                     ->mapWithKeys(fn ($m) => [$m->value => $m->getLabel()])
                                     ->toArray())
+                                ->helperText('Para cheque, use “Abrir comprovante e QR”; a emissão não liquida até a entrega.')
                                 ->required(),
 
                             Forms\Components\Select::make('bank_account_id')
-                                ->label('Conta Bancária (opcional)')
+                                ->label('Conta bancária ou caixa')
                                 ->options(fn () => BankAccount::where('tenant_id', session('tenant_id'))
                                     ->where('status', true)
                                     ->pluck('name', 'id')
                                     ->toArray())
-                                ->placeholder('— Nenhuma —')
-                                ->helperText('Se informada, registra saída no caixa da cooperativa'),
+                                ->placeholder('Selecione')
+                                ->required()
+                                ->helperText('Registra a saída correspondente no caixa da organização.'),
 
                             Forms\Components\TextInput::make('document_number')
                                 ->label('Nº Documento / Comprovante')

@@ -142,7 +142,7 @@
         ],
         [
             'label' => 'Concluído',
-            'icon' => 'ph-check',
+            'icon' => 'ph-flag',
         ],
     ];
 
@@ -216,8 +216,8 @@
             );
 
     /*
-     * Valores preparados para JavaScript.
-     * Evita @json() com expressões complexas dentro do script.
+     * Valores escalares usados pela interface.
+     * O JavaScript os lê pelos atributos data-* do <main>.
      */
     $draftUrl = route(
         'provider.orders.draft',
@@ -237,7 +237,24 @@
         'execution_config.meter_end_field'
     );
 
-    $executionUnit = $execution->unit;
+    $executionUnit = (string) ($execution->unit ?? '');
+
+    $serviceLocalKey = implode(
+        ':',
+        [
+            'service-order-draft',
+            (string) $tenantSlug,
+            (string) $order->id,
+        ]
+    );
+
+    $savedValues = collect(
+        $execution->values ?? []
+    )->filter(
+        static fn ($value) =>
+            $value !== null
+            && $value !== ''
+    );
 @endphp
 
 @section('content')
@@ -747,17 +764,23 @@
         padding: .72rem;
     }
 
+    /*
+     * Formulário em colunas tipo masonry/Pinterest.
+     *
+     * Diferente do CSS Grid tradicional, cada campo mantém
+     * sua altura natural. Um textarea, ajuda, evidência ou
+     * preview maior não aumenta a altura dos campos vizinhos.
+     *
+     * A ordem do DOM continua preservada:
+     * a leitura flui verticalmente dentro de cada coluna.
+     */
     .svc-form {
-        display: grid;
-        grid-template-columns:
-            repeat(
-                auto-fit,
-                minmax(
-                    min(100%, 17rem),
-                    1fr
-                )
-            );
-        gap: .72rem;
+        display: block;
+        width: 100%;
+        min-width: 0;
+        column-count: 3;
+        column-gap: .68rem;
+        column-fill: balance;
     }
 
     /*
@@ -768,7 +791,23 @@
     .svc-form .form-group,
     .svc-form .field-group,
     .svc-form .svc-field {
+        width: 100%;
         min-width: 0;
+        max-width: 100%;
+        margin: 0 0 .62rem;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        -webkit-column-break-inside: avoid;
+    }
+
+    /*
+     * Os partials atuais usam .svc-field como unidade principal.
+     * inline-grid faz o bloco participar corretamente do fluxo
+     * multicoluna sem esticar a altura da coluna vizinha.
+     */
+    .svc-form .svc-field {
+        display: inline-grid;
+        vertical-align: top;
     }
 
     .svc-form label,
@@ -845,13 +884,17 @@
     }
 
     .svc-form-actions {
-        grid-column: 1 / -1;
+        column-span: all;
+        width: 100%;
+        break-inside: avoid;
         display: flex;
         gap: .42rem;
         align-items: center;
         justify-content: flex-end;
         flex-wrap: wrap;
-        padding-top: .2rem;
+        margin-top: .05rem;
+        padding-top: .68rem;
+        border-top: 1px solid var(--svc-border);
     }
 
     /* =========================================================
@@ -967,7 +1010,9 @@
        ========================================================= */
 
     .svc-preview {
-        grid-column: 1 / -1;
+        column-span: all;
+        width: 100%;
+        break-inside: avoid;
         display: none;
         grid-template-columns:
             auto
@@ -1193,7 +1238,28 @@
         }
     }
 
+    /*
+     * Tablet: duas colunas independentes.
+     * Mobile: uma coluna, mantendo a ordem natural do formulário.
+     */
+    @media (max-width: 1120px) and (min-width: 721px) {
+        .svc-form {
+            column-count: 2;
+            column-gap: .62rem;
+        }
+    }
+
     @media (max-width: 720px) {
+        .svc-form {
+            column-count: 1;
+            column-gap: 0;
+        }
+
+        .svc-form .svc-field {
+            display: grid;
+            margin-bottom: .5rem;
+        }
+
         .svc-header {
             grid-template-columns: 1fr;
         }
@@ -1359,9 +1425,2444 @@
             transition-duration: .01ms !important;
         }
     }
+
+    /* =========================================================
+       WORKSPACE V2 — coerência com Project Workspace
+       ========================================================= */
+
+    .service-execution {
+        --svc-green: #219653;
+        --svc-green-dark: #177c43;
+        --svc-green-soft: #edf8f1;
+        --svc-green-border: #cde8d6;
+
+        --svc-blue: #3478d4;
+        --svc-blue-soft: #eef4ff;
+        --svc-blue-border: #d4e2f8;
+
+        --svc-violet: #8a4bd2;
+        --svc-violet-soft: #f5effc;
+        --svc-violet-border: #e5d8f5;
+
+        --svc-cyan: #168eae;
+        --svc-cyan-soft: #edf8fb;
+        --svc-cyan-border: #d2eaf0;
+
+        --svc-amber: #c38418;
+        --svc-amber-soft: #fff7e8;
+        --svc-amber-border: #efdcb8;
+
+        --svc-red: #cf5050;
+        --svc-red-soft: #fff1f1;
+        --svc-red-border: #f1cccc;
+
+        --svc-slate: #64748b;
+        --svc-slate-soft: #f2f5f7;
+
+        --svc-text: var(--color-text, #17251c);
+        --svc-text-2: var(--color-text-secondary, #58685e);
+        --svc-muted: var(--color-text-muted, #87938b);
+        --svc-border: var(--color-border, #d7e2da);
+        --svc-border-strong: var(--color-border-strong, #becdc3);
+        --svc-surface: var(--color-surface, #fff);
+        --svc-soft: var(--color-surface-soft, #f7faf8);
+        --svc-shadow: 0 5px 18px rgba(25, 61, 39, .055);
+
+        width: min(100%, 1380px);
+        gap: .78rem;
+    }
+
+    /* O topo passa a ser composto por duas peças:
+       cabeçalho + stepper sticky, como header + tabs do Project Workspace. */
+    .svc-top {
+        display: grid;
+        gap: .58rem;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .svc-top .svc-header {
+        --status-tone: var(--svc-blue);
+        --status-soft: var(--svc-blue-soft);
+        --status-border: var(--svc-blue-border);
+
+        min-height: 76px;
+        padding: .72rem .78rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 12px;
+        background:
+            radial-gradient(
+                circle at 100% 0,
+                color-mix(
+                    in srgb,
+                    var(--status-tone) 10%,
+                    transparent
+                ),
+                transparent 19rem
+            ),
+            linear-gradient(
+                180deg,
+                #fbfdfb,
+                #fff
+            );
+        box-shadow: var(--svc-shadow);
+    }
+
+    .svc-top .svc-header.is-draft {
+        --status-tone: var(--svc-slate);
+        --status-soft: var(--svc-slate-soft);
+        --status-border: var(--svc-border);
+    }
+
+    .svc-top .svc-header.is-rejected {
+        --status-tone: var(--svc-red);
+        --status-soft: var(--svc-red-soft);
+        --status-border: var(--svc-red-border);
+    }
+
+    .svc-top .svc-header.is-progress {
+        --status-tone: var(--svc-cyan);
+        --status-soft: var(--svc-cyan-soft);
+        --status-border: var(--svc-cyan-border);
+    }
+
+    .svc-top .svc-header.is-submitted {
+        --status-tone: var(--svc-amber);
+        --status-soft: var(--svc-amber-soft);
+        --status-border: var(--svc-amber-border);
+    }
+
+    .svc-top .svc-header.is-validated {
+        --status-tone: var(--svc-green);
+        --status-soft: var(--svc-green-soft);
+        --status-border: var(--svc-green-border);
+    }
+
+    .svc-header-main {
+        gap: .62rem;
+    }
+
+    .svc-back,
+    .svc-header-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 9px;
+    }
+
+    .svc-header-copy h1 {
+        font-size: clamp(1.03rem, 2vw, 1.25rem);
+        font-weight: 850;
+        letter-spacing: -.03em;
+    }
+
+    .svc-meta {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: .16rem .65rem;
+        margin-top: .2rem;
+        color: var(--svc-muted);
+        font-size: .68rem;
+        font-weight: 610;
+    }
+
+    .svc-meta > span {
+        display: inline-flex;
+        min-width: 0;
+        gap: .25rem;
+        align-items: center;
+    }
+
+    .svc-meta i {
+        flex: 0 0 auto;
+        color: var(--svc-blue);
+        font-size: .76rem;
+    }
+
+    .svc-meta-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* STEPS NO TOPO */
+    .svc-top .svc-workflow {
+        position: sticky;
+        z-index: 34;
+        top: .2rem;
+        min-width: 0;
+        padding: .34rem;
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, .97);
+        box-shadow:
+            0 4px 15px rgba(25, 61, 39, .05);
+    }
+
+    .svc-top .svc-steps {
+        display: grid;
+        min-width: 0;
+        grid-template-columns:
+            repeat(4, minmax(145px, 1fr));
+        gap: .22rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+        overscroll-behavior-inline: contain;
+    }
+
+    .svc-top .svc-steps::-webkit-scrollbar {
+        display: none;
+    }
+
+    .svc-top .svc-step {
+        --step-tone: var(--svc-slate);
+        --step-soft: transparent;
+        --step-border: transparent;
+
+        position: relative;
+        display: grid;
+        min-width: 145px;
+        min-height: 44px;
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: .38rem;
+        align-items: center;
+        padding: .36rem .48rem;
+        overflow: hidden;
+        border: 1px solid var(--step-border);
+        border-radius: 8px;
+        background: var(--step-soft);
+        color: var(--step-tone);
+        box-shadow: none;
+    }
+
+    .svc-top .svc-step:nth-child(1) {
+        --step-tone: var(--svc-blue);
+    }
+
+    .svc-top .svc-step:nth-child(2) {
+        --step-tone: var(--svc-cyan);
+    }
+
+    .svc-top .svc-step:nth-child(3) {
+        --step-tone: var(--svc-amber);
+    }
+
+    .svc-top .svc-step:nth-child(4) {
+        --step-tone: var(--svc-green);
+    }
+
+    .svc-top .svc-step.done {
+        --step-soft: var(--svc-green-soft);
+        --step-border: var(--svc-green-border);
+        --step-tone: var(--svc-green);
+    }
+
+    .svc-top .svc-step.current {
+        --step-soft:
+            color-mix(
+                in srgb,
+                var(--step-tone) 9%,
+                #fff
+            );
+        --step-border:
+            color-mix(
+                in srgb,
+                var(--step-tone) 27%,
+                var(--svc-border)
+            );
+        box-shadow:
+            inset 0 -2px 0
+            color-mix(
+                in srgb,
+                var(--step-tone) 52%,
+                transparent
+            );
+    }
+
+    .svc-top .svc-step.rejected.current {
+        --step-tone: var(--svc-red);
+        --step-soft: var(--svc-red-soft);
+        --step-border: var(--svc-red-border);
+    }
+
+    .svc-top .svc-step-icon {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        border: 1px solid
+            color-mix(
+                in srgb,
+                var(--step-tone) 18%,
+                var(--svc-border)
+            );
+        border-radius: 7px;
+        background: #fff;
+        color: var(--step-tone);
+    }
+
+    .svc-top .svc-step-copy strong {
+        color: var(--step-tone);
+        font-size: .66rem;
+        font-weight: 810;
+    }
+
+    .svc-top .svc-step-copy span {
+        margin-top: .02rem;
+        color: var(--svc-muted);
+        font-size: .54rem;
+        font-weight: 660;
+    }
+
+    /* Seções no mesmo vocabulário do Project Workspace. */
+    .svc-panel {
+        border-radius: 12px;
+        box-shadow: var(--svc-shadow);
+    }
+
+    .svc-panel-head {
+        min-height: 62px;
+        padding: .65rem .72rem;
+        background:
+            linear-gradient(
+                180deg,
+                #fafcfb,
+                #fff
+            );
+    }
+
+    .svc-panel-icon {
+        width: 39px;
+        height: 39px;
+        border-radius: 9px;
+    }
+
+    .svc-panel-copy h2 {
+        font-size: .92rem;
+        font-weight: 840;
+        letter-spacing: -.02em;
+    }
+
+    .svc-panel-copy p {
+        margin-top: .08rem;
+        font-size: .69rem;
+    }
+
+    /*
+     * Resumo vira uma única superfície visual.
+     * Continua usando exatamente as duas tabelas e os mesmos dados.
+     */
+    .svc-summary-grid {
+        gap: 0;
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 12px;
+        background: #fff;
+        box-shadow: var(--svc-shadow);
+    }
+
+    .svc-summary-grid > .svc-panel {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .svc-summary-grid > .svc-panel + .svc-panel {
+        border-left: 1px solid var(--svc-border);
+    }
+
+    .svc-summary-grid .svc-panel-head {
+        background:
+            linear-gradient(
+                180deg,
+                #fbfdfc,
+                #fff
+            );
+    }
+
+    /* Tabelas mais próximas da linguagem data-table do workspace. */
+    .svc-info-table th,
+    .svc-money-table th,
+    .svc-review-table th,
+    .svc-evidence-table th {
+        background:
+            linear-gradient(
+                180deg,
+                #f5f8f6,
+                #eff4f1
+            );
+    }
+
+    .svc-info-table tr:hover td,
+    .svc-money-table tr:hover td,
+    .svc-review-table tr:hover td,
+    .svc-evidence-table tbody tr:hover td {
+        background: #fafcfb;
+    }
+
+    .svc-money-value {
+        font-size: .82rem;
+    }
+
+    /* Formulários são área operacional, sem "cards dentro de cards". */
+    .svc-form-body {
+        padding: .7rem;
+        background: #fff;
+    }
+
+    .svc-form {
+        gap: .62rem;
+    }
+
+    .svc-form input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+    .svc-form select,
+    .svc-form textarea,
+    .svc-file {
+        border-radius: 8px;
+    }
+
+    .svc-form-actions {
+        margin-top: .08rem;
+        padding-top: .62rem;
+        border-top: 1px solid var(--svc-border);
+    }
+
+    .svc-btn {
+        min-height: 38px;
+        border-radius: 8px;
+    }
+
+    .svc-alert {
+        border-radius: 9px;
+    }
+
+    /* Conferência mais tabular / operacional. */
+    .svc-review-table-wrap {
+        border-radius: 9px;
+    }
+
+    .svc-evidence-table {
+        background: #fff;
+    }
+
+    /* Desktop largo: mantém leitura densa. */
+    @media (min-width: 1100px) {
+        .svc-summary-grid {
+            grid-template-columns:
+                minmax(0, 1.15fr)
+                minmax(320px, .85fr);
+        }
+
+        .svc-info-table th {
+            width: 150px;
+        }
+
+        .svc-money-table th {
+            width: auto;
+        }
+    }
+
+    @media (max-width: 980px) {
+        .svc-summary-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+
+        .svc-summary-grid > .svc-panel + .svc-panel {
+            border-top: 1px solid var(--svc-border);
+            border-left: 0;
+        }
+    }
+
+    @media (max-width: 720px) {
+        .svc-top .svc-header {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-top .svc-header-side {
+            justify-content: flex-start;
+        }
+
+        .svc-top .svc-steps {
+            display: flex;
+            gap: .2rem;
+        }
+
+        .svc-top .svc-step {
+            flex: 0 0 154px;
+            min-width: 154px;
+        }
+
+        .svc-meta {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+            width: 100%;
+            gap: .15rem .55rem;
+        }
+
+        .svc-meta > span {
+            min-width: 0;
+        }
+
+        .svc-meta-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .svc-top .svc-header {
+            padding: .64rem;
+        }
+
+        .svc-header-icon {
+            display: grid;
+        }
+
+        .svc-header-copy h1 {
+            white-space: normal;
+        }
+
+        .svc-meta {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-top .svc-workflow {
+            top: .12rem;
+            padding: .3rem;
+        }
+
+        .svc-top .svc-step {
+            flex-basis: 142px;
+            min-width: 142px;
+        }
+
+        .svc-summary-grid {
+            border-radius: 10px;
+        }
+    }
+
+    @media (max-width: 390px) {
+        .svc-header-icon {
+            display: none;
+        }
+    }
+
+
+    /* Campos dinâmicos e evidências */
+    .svc-field {
+        display: grid;
+        width: 100%;
+        min-width: 0;
+        gap: .42rem;
+        padding: .54rem .58rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: none;
+    }
+
+    .svc-field > label {
+        display: grid;
+        gap: .35rem;
+    }
+
+    .svc-field > label > span,
+    .svc-evidence-label {
+        color: var(--svc-text);
+        font-size: .66rem;
+        font-weight: 770;
+    }
+
+    .svc-required {
+        color: var(--svc-red);
+    }
+
+    .svc-field-unit,
+    .svc-optional,
+    .svc-field-help {
+        color: var(--svc-muted);
+        font-size: .58rem;
+        font-weight: 560;
+        line-height: 1.4;
+    }
+
+    .svc-evidence-field {
+        display: grid;
+        min-width: 0;
+        gap: .35rem;
+        padding: .5rem .52rem;
+        border: 1px dashed var(--svc-border-strong);
+        border-radius: 7px;
+        background: var(--svc-soft);
+    }
+
+    .svc-form .svc-field > label,
+    .svc-form .svc-evidence-field {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .svc-form .svc-field > label > span,
+    .svc-form .svc-evidence-label {
+        display: block;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: normal;
+        line-height: 1.35;
+    }
+
+    .svc-form .svc-field input,
+    .svc-form .svc-field select,
+    .svc-form .svc-field textarea {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .svc-form .svc-field textarea {
+        min-height: 92px;
+    }
+
+    .svc-form .svc-file-preview img {
+        width: auto;
+        max-width: 100%;
+        height: auto;
+    }
+
+    /*
+     * Selects muito longos não devem forçar a largura da coluna.
+     */
+    .svc-form select {
+        text-overflow: ellipsis;
+    }
+
+
+    .svc-evidence-field[hidden],
+    .svc-field[hidden] {
+        display: none !important;
+    }
+
+
+    /* =========================================================
+       TOPO COMPACTO — prioridade para a ação atual
+       ========================================================= */
+
+    .svc-top {
+        gap: .38rem;
+    }
+
+    .svc-top .svc-header {
+        min-height: 66px;
+        padding: .56rem .68rem;
+    }
+
+    .svc-back,
+    .svc-header-icon {
+        width: 38px;
+        height: 38px;
+    }
+
+    .svc-header-copy h1 {
+        font-size: clamp(.98rem, 1.8vw, 1.15rem);
+    }
+
+    .svc-meta {
+        margin-top: .12rem;
+        gap: .14rem .55rem;
+        font-size: .63rem;
+    }
+
+    .svc-status {
+        min-height: 28px;
+        padding: .24rem .42rem;
+        font-size: .61rem;
+    }
+
+    /* Stepper deliberadamente baixo e sem subtítulos. */
+    .svc-top .svc-workflow {
+        padding: .26rem;
+        border-radius: 10px;
+    }
+
+    .svc-top .svc-steps {
+        grid-template-columns:
+            repeat(4, minmax(110px, 1fr));
+        gap: .16rem;
+    }
+
+    .svc-top .svc-step {
+        min-width: 110px;
+        min-height: 34px;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: .28rem;
+        padding: .26rem .38rem;
+        border-radius: 7px;
+    }
+
+    .svc-top .svc-step-icon {
+        width: 22px;
+        height: 22px;
+        border: 0;
+        border-radius: 6px;
+        font-size: .62rem;
+    }
+
+    .svc-top .svc-step-copy strong {
+        font-size: .61rem;
+    }
+
+    /* =========================================================
+       CONTEXTO COMPACTO
+       ========================================================= */
+
+    .svc-context-strip {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+        gap: .45rem;
+        align-items: stretch;
+        min-width: 0;
+        padding: .44rem .52rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--svc-shadow);
+    }
+
+    .svc-context-main {
+        display: grid;
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+        min-width: 0;
+    }
+
+    .svc-context-item {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 27px minmax(0, 1fr);
+        gap: .34rem;
+        align-items: center;
+        padding: .12rem .48rem;
+    }
+
+    .svc-context-item + .svc-context-item {
+        border-left: 1px solid var(--svc-border);
+    }
+
+    .svc-context-item > i {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--svc-blue-soft);
+        color: var(--svc-blue);
+        font-size: .74rem;
+    }
+
+    .svc-context-item span {
+        min-width: 0;
+    }
+
+    .svc-context-item small,
+    .svc-context-item strong {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .svc-context-item small {
+        color: var(--svc-muted);
+        font-size: .52rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .025em;
+    }
+
+    .svc-context-item strong {
+        margin-top: .03rem;
+        color: var(--svc-text);
+        font-size: .65rem;
+        font-weight: 790;
+    }
+
+    .svc-order-details {
+        position: relative;
+        align-self: center;
+    }
+
+    .svc-order-details > summary {
+        display: inline-flex;
+        min-height: 34px;
+        gap: .28rem;
+        align-items: center;
+        padding: .3rem .42rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 7px;
+        background: var(--svc-soft);
+        color: var(--svc-text-2);
+        cursor: pointer;
+        font-size: .61rem;
+        font-weight: 760;
+        list-style: none;
+        white-space: nowrap;
+    }
+
+    .svc-order-details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .svc-details-caret {
+        transition: transform .15s ease;
+    }
+
+    .svc-order-details[open] .svc-details-caret {
+        transform: rotate(180deg);
+    }
+
+    .svc-order-details-body {
+        position: absolute;
+        z-index: 45;
+        top: calc(100% + .4rem);
+        right: 0;
+        width: min(88vw, 430px);
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 9px;
+        background: #fff;
+        box-shadow: 0 18px 42px rgba(19, 50, 30, .16);
+    }
+
+    .svc-details-list {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        margin: 0;
+    }
+
+    .svc-details-list > div {
+        min-width: 0;
+        padding: .52rem .58rem;
+        border-bottom: 1px solid var(--svc-border);
+    }
+
+    .svc-details-list > div:nth-child(odd) {
+        border-right: 1px solid var(--svc-border);
+    }
+
+    .svc-details-list dt,
+    .svc-details-list dd {
+        margin: 0;
+    }
+
+    .svc-details-list dt {
+        color: var(--svc-muted);
+        font-size: .54rem;
+        font-weight: 760;
+        text-transform: uppercase;
+    }
+
+    .svc-details-list dd {
+        margin-top: .08rem;
+        color: var(--svc-text);
+        font-size: .65rem;
+        font-weight: 740;
+        overflow-wrap: anywhere;
+    }
+
+    /* Financeiro vira faixa curta, não seção/card. */
+    .svc-finance-strip {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1fr)
+            1px
+            minmax(0, 1fr);
+        gap: .48rem;
+        align-items: center;
+        min-width: 0;
+        padding: .4rem .54rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .svc-finance-divider {
+        align-self: stretch;
+        background: var(--svc-border);
+    }
+
+    .svc-finance-item {
+        display: grid;
+        min-width: 0;
+        grid-template-columns:
+            minmax(0, 1fr)
+            auto;
+        gap: .04rem .5rem;
+        align-items: center;
+    }
+
+    .svc-finance-item > span {
+        display: inline-flex;
+        min-width: 0;
+        gap: .25rem;
+        align-items: center;
+        color: var(--svc-muted);
+        font-size: .57rem;
+        font-weight: 730;
+    }
+
+    .svc-finance-item > span i {
+        color: currentColor;
+        font-size: .72rem;
+    }
+
+    .svc-finance-item strong {
+        grid-row: 1 / span 2;
+        grid-column: 2;
+        color: var(--svc-text);
+        font-size: .73rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .svc-finance-item small {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--svc-muted);
+        font-size: .53rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .svc-finance-item.receivable strong {
+        color: var(--svc-green);
+    }
+
+    .svc-finance-item.payable strong {
+        color: var(--svc-blue);
+    }
+
+    /* =========================================================
+       IMAGEM: seletor normal + preview clicável
+       ========================================================= */
+
+    .svc-file-preview img {
+        cursor: zoom-in;
+    }
+
+    .svc-image-preview-button {
+        position: relative;
+        display: block;
+        width: 100%;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 8px;
+        background: #fff;
+        cursor: zoom-in;
+    }
+
+    .svc-image-preview-button img {
+        display: block;
+        width: 100%;
+        max-height: 210px;
+        object-fit: contain;
+        background: #f3f6f4;
+    }
+
+    .svc-image-preview-hint {
+        position: absolute;
+        right: .38rem;
+        bottom: .38rem;
+        display: inline-flex;
+        gap: .22rem;
+        align-items: center;
+        padding: .22rem .35rem;
+        border-radius: 6px;
+        background: rgba(23, 37, 28, .82);
+        color: #fff;
+        font-size: .55rem;
+        font-weight: 760;
+        pointer-events: none;
+    }
+
+    .svc-image-viewer {
+        position: fixed;
+        z-index: 2600;
+        inset: 0;
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: rgba(8, 18, 12, .96);
+    }
+
+    .svc-image-viewer:not([open]) {
+        display: none;
+    }
+
+    .svc-image-viewer[open] {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .svc-image-viewer::backdrop {
+        background: rgba(8, 18, 12, .96);
+    }
+
+    .svc-image-viewer-toolbar {
+        display: flex;
+        min-height: 54px;
+        gap: .5rem;
+        align-items: center;
+        justify-content: space-between;
+        padding:
+            max(.5rem, env(safe-area-inset-top))
+            max(.65rem, env(safe-area-inset-right))
+            .5rem
+            max(.65rem, env(safe-area-inset-left));
+        border-bottom: 1px solid rgba(255, 255, 255, .12);
+        color: #fff;
+    }
+
+    .svc-image-viewer-title {
+        min-width: 0;
+        overflow: hidden;
+        font-size: .71rem;
+        font-weight: 760;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .svc-image-viewer-close {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, .18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .08);
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .svc-image-viewer-stage {
+        display: grid;
+        min-height: 0;
+        place-items: center;
+        overflow: auto;
+        padding: .7rem;
+    }
+
+    .svc-image-viewer-stage img {
+        display: block;
+        max-width: 100%;
+        max-height: calc(100dvh - 80px);
+        object-fit: contain;
+    }
+
+    @media (max-width: 720px) {
+        .svc-top .svc-steps {
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+            overflow: visible;
+        }
+
+        .svc-top .svc-step {
+            min-width: 0;
+            grid-template-columns: 1fr;
+            justify-items: center;
+            gap: .12rem;
+            padding: .24rem .15rem;
+            text-align: center;
+        }
+
+        .svc-top .svc-step-copy strong {
+            font-size: .55rem;
+        }
+
+        .svc-context-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-context-main {
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+        }
+
+        .svc-context-item {
+            grid-template-columns: 1fr;
+            justify-items: center;
+            padding: .14rem .22rem;
+            text-align: center;
+        }
+
+        .svc-context-item > i {
+            width: 24px;
+            height: 24px;
+        }
+
+        .svc-order-details {
+            justify-self: stretch;
+        }
+
+        .svc-order-details > summary {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .svc-order-details-body {
+            position: static;
+            width: 100%;
+            margin-top: .35rem;
+            box-shadow: none;
+        }
+
+        .svc-finance-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-finance-divider {
+            width: 100%;
+            height: 1px;
+        }
+    }
+
+    @media (max-width: 430px) {
+        .svc-header-icon {
+            display: none;
+        }
+
+        .svc-top .svc-step-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .svc-context-main {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .svc-context-item:nth-child(3) {
+            grid-column: 1 / -1;
+            border-top: 1px solid var(--svc-border);
+            border-left: 0;
+            padding-top: .3rem;
+        }
+
+        .svc-details-list {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-details-list > div:nth-child(odd) {
+            border-right: 0;
+        }
+    }
+
+
+    /* =========================================================
+       AJUSTES FINAIS — clareza, estado e responsividade
+       ========================================================= */
+
+    .svc-top .svc-header-icon {
+        background: var(--status-soft);
+        color: var(--status-tone);
+    }
+
+    /* Stepper */
+    .svc-top .svc-workflow {
+        padding: .34rem .5rem .4rem;
+        overflow: visible;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .svc-top .svc-steps {
+        position: relative;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0;
+        overflow: visible;
+    }
+
+    .svc-top .svc-step {
+        --step-tone: var(--svc-slate);
+        --step-soft: #fff;
+        --step-border: var(--svc-border);
+
+        position: relative;
+        z-index: 1;
+        display: grid;
+        min-width: 0;
+        min-height: 42px;
+        grid-template-columns: 1fr;
+        gap: .16rem;
+        align-content: start;
+        justify-items: center;
+        padding: 0 .18rem;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: var(--step-tone);
+        box-shadow: none;
+        text-align: center;
+    }
+
+    .svc-top .svc-step::after {
+        position: absolute;
+        z-index: -1;
+        top: 14px;
+        left: calc(50% + 17px);
+        width: calc(100% - 34px);
+        height: 2px;
+        background: var(--svc-border);
+        content: "";
+    }
+
+    .svc-top .svc-step:last-child::after {
+        display: none;
+    }
+
+    .svc-top .svc-step.done {
+        --step-tone: var(--svc-green);
+        --step-soft: var(--svc-green-soft);
+        --step-border: var(--svc-green-border);
+    }
+
+    .svc-top .svc-step.done::after {
+        background: var(--svc-green);
+    }
+
+    .svc-top .svc-step:nth-child(1).current {
+        --step-tone: var(--svc-blue);
+        --step-soft: var(--svc-blue-soft);
+        --step-border: var(--svc-blue-border);
+    }
+
+    .svc-top .svc-step:nth-child(2).current {
+        --step-tone: var(--svc-cyan);
+        --step-soft: var(--svc-cyan-soft);
+        --step-border: var(--svc-cyan-border);
+    }
+
+    .svc-top .svc-step:nth-child(3).current {
+        --step-tone: var(--svc-amber);
+        --step-soft: var(--svc-amber-soft);
+        --step-border: var(--svc-amber-border);
+    }
+
+    .svc-top .svc-step:nth-child(4).current {
+        --step-tone: var(--svc-green);
+        --step-soft: var(--svc-green-soft);
+        --step-border: var(--svc-green-border);
+    }
+
+    .svc-top .svc-step.rejected.current {
+        --step-tone: var(--svc-red);
+        --step-soft: var(--svc-red-soft);
+        --step-border: var(--svc-red-border);
+    }
+
+    .svc-top .svc-step-icon {
+        display: grid;
+        width: 29px;
+        height: 29px;
+        place-items: center;
+        border: 1px solid var(--step-border);
+        border-radius: 50%;
+        background: var(--step-soft);
+        color: var(--step-tone);
+        font-size: .72rem;
+        box-shadow: 0 0 0 4px #fff;
+    }
+
+    .svc-top .svc-step.current .svc-step-icon {
+        box-shadow:
+            0 0 0 4px #fff,
+            0 0 0 5px var(--step-border);
+    }
+
+    .svc-top .svc-step-copy strong {
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--step-tone);
+        font-size: .58rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Context */
+    .svc-quick-context {
+        position: relative;
+        display: grid;
+        min-width: 0;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: .45rem;
+        align-items: center;
+        padding: .42rem .48rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: var(--svc-shadow);
+    }
+
+    .svc-quick-facts {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .svc-quick-fact {
+        --fact-tone: var(--svc-blue);
+        --fact-soft: var(--svc-blue-soft);
+
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: .38rem;
+        align-items: center;
+        min-height: 48px;
+        padding: .35rem .46rem;
+        background: #fff;
+    }
+
+    .svc-quick-fact + .svc-quick-fact {
+        border-left: 1px solid var(--svc-border);
+    }
+
+    .svc-quick-fact.provider {
+        --fact-tone: var(--svc-violet);
+        --fact-soft: var(--svc-violet-soft);
+    }
+
+    .svc-quick-fact.evidence {
+        --fact-tone: var(--svc-cyan);
+        --fact-soft: var(--svc-cyan-soft);
+    }
+
+    .svc-quick-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--fact-soft);
+        color: var(--fact-tone);
+        font-size: .8rem;
+    }
+
+    .svc-quick-copy {
+        min-width: 0;
+    }
+
+    .svc-quick-copy small,
+    .svc-quick-copy strong {
+        display: block;
+        min-width: 0;
+    }
+
+    .svc-quick-copy small {
+        color: var(--svc-muted);
+        font-size: .5rem;
+        font-weight: 760;
+        letter-spacing: .025em;
+        text-transform: uppercase;
+    }
+
+    .svc-quick-copy strong {
+        margin-top: .03rem;
+        overflow: hidden;
+        color: var(--svc-text);
+        font-size: .63rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Details */
+    .svc-order-details {
+        position: relative;
+        min-width: 0;
+        align-self: stretch;
+    }
+
+    .svc-order-details > summary {
+        display: flex;
+        min-width: 150px;
+        height: 100%;
+        min-height: 48px;
+        gap: .5rem;
+        align-items: center;
+        justify-content: space-between;
+        padding: .4rem .52rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--svc-text-2);
+        cursor: pointer;
+        font-size: .61rem;
+        font-weight: 780;
+        list-style: none;
+        white-space: nowrap;
+    }
+
+    .svc-order-details > summary > span {
+        display: inline-flex;
+        gap: .3rem;
+        align-items: center;
+    }
+
+    .svc-order-details > summary > span i {
+        color: var(--svc-blue);
+    }
+
+    .svc-order-details > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .svc-details-caret {
+        flex: 0 0 auto;
+        color: var(--svc-muted);
+        transition: transform .15s ease;
+    }
+
+    .svc-order-details[open] .svc-details-caret {
+        transform: rotate(180deg);
+    }
+
+    .svc-order-details-body {
+        position: absolute;
+        z-index: 55;
+        top: calc(100% + .4rem);
+        right: 0;
+        width: min(92vw, 540px);
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 18px 44px rgba(19, 50, 30, .16);
+    }
+
+    .svc-details-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        margin: 0;
+    }
+
+    .svc-details-list > div {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 112px minmax(0, 1fr);
+        gap: .65rem;
+        align-items: start;
+        padding: .5rem .62rem;
+        border-bottom: 1px solid var(--svc-border);
+    }
+
+    .svc-details-list > div:last-child {
+        border-bottom: 0;
+    }
+
+    .svc-details-list > div:nth-child(odd) {
+        border-right: 0;
+    }
+
+    .svc-details-list dt,
+    .svc-details-list dd {
+        margin: 0;
+    }
+
+    .svc-details-list dt {
+        color: var(--svc-muted);
+        font-size: .55rem;
+        font-weight: 780;
+        letter-spacing: .02em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .svc-details-list dd {
+        min-width: 0;
+        color: var(--svc-text);
+        font-size: .65rem;
+        font-weight: 740;
+        line-height: 1.4;
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
+
+    /* Finance */
+    .svc-finance-strip {
+        padding: 0;
+        overflow: hidden;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .svc-finance-item {
+        min-height: 56px;
+        padding: .48rem .58rem;
+        border-left: 3px solid transparent;
+    }
+
+    .svc-finance-item.receivable {
+        border-left-color: var(--svc-green);
+    }
+
+    .svc-finance-item.payable {
+        border-left-color: var(--svc-blue);
+    }
+
+    .svc-finance-item.receivable > span i {
+        color: var(--svc-green);
+    }
+
+    .svc-finance-item.payable > span i {
+        color: var(--svc-blue);
+    }
+
+    /* Files */
+    .evidence-name {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: .45rem;
+        align-items: center;
+    }
+
+    .evidence-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: var(--svc-slate-soft);
+        color: var(--svc-slate);
+    }
+
+    .evidence-icon.image {
+        background: var(--svc-violet-soft);
+        color: var(--svc-violet);
+    }
+
+    .evidence-icon.pdf {
+        background: var(--svc-red-soft);
+        color: var(--svc-red);
+    }
+
+    .evidence-icon.signature {
+        background: var(--svc-blue-soft);
+        color: var(--svc-blue);
+    }
+
+    .evidence-copy {
+        min-width: 0;
+    }
+
+    .evidence-copy strong,
+    .evidence-copy small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .evidence-copy strong {
+        color: var(--svc-text);
+        font-size: .66rem;
+        font-weight: 800;
+    }
+
+    .evidence-copy small {
+        margin-top: .04rem;
+        color: var(--svc-muted);
+        font-size: .55rem;
+        font-weight: 650;
+    }
+
+    .svc-evidence-reference {
+        color: var(--svc-text-2);
+        font-size: .64rem;
+        font-weight: 690;
+        overflow-wrap: break-word;
+    }
+
+    .svc-evidence-thumb {
+        position: relative;
+        display: block;
+        width: 58px;
+        height: 40px;
+        padding: 0;
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 7px;
+        background: var(--svc-soft);
+        cursor: zoom-in;
+    }
+
+    .svc-evidence-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .svc-evidence-thumb > span {
+        position: absolute;
+        right: 3px;
+        bottom: 3px;
+        display: grid;
+        width: 18px;
+        height: 18px;
+        place-items: center;
+        border-radius: 5px;
+        background: rgba(23, 37, 28, .82);
+        color: #fff;
+        font-size: .52rem;
+    }
+
+    .svc-table-link {
+        cursor: pointer;
+    }
+
+    /* Viewer */
+    .svc-file-viewer {
+        position: fixed;
+        z-index: 2700;
+        inset: 0;
+        width: 100%;
+        max-width: none;
+        height: 100%;
+        max-height: none;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: rgba(8, 18, 12, .97);
+    }
+
+    .svc-file-viewer:not([open]) {
+        display: none;
+    }
+
+    .svc-file-viewer[open] {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .svc-file-viewer::backdrop {
+        background: rgba(8, 18, 12, .97);
+    }
+
+    .svc-file-viewer-toolbar {
+        display: flex;
+        min-height: 54px;
+        gap: .6rem;
+        align-items: center;
+        justify-content: space-between;
+        padding:
+            max(.48rem, env(safe-area-inset-top))
+            max(.65rem, env(safe-area-inset-right))
+            .48rem
+            max(.65rem, env(safe-area-inset-left));
+        border-bottom: 1px solid rgba(255, 255, 255, .12);
+        color: #fff;
+    }
+
+    .svc-file-viewer-title {
+        min-width: 0;
+        overflow: hidden;
+        font-size: .7rem;
+        font-weight: 780;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .svc-file-viewer-close {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, .16);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .08);
+        color: #fff;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .svc-file-viewer-stage {
+        display: grid;
+        min-height: 0;
+        place-items: center;
+        overflow: hidden;
+        padding: .7rem;
+    }
+
+    .svc-file-viewer-image {
+        display: block;
+        max-width: 100%;
+        max-height: calc(100dvh - 80px);
+        object-fit: contain;
+    }
+
+    .svc-file-viewer-frame {
+        width: min(100%, 1080px);
+        height: 100%;
+        min-height: 0;
+        border: 0;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .svc-file-viewer-fallback {
+        display: grid;
+        width: min(100%, 360px);
+        gap: .55rem;
+        justify-items: center;
+        padding: 1rem;
+        border: 1px solid rgba(255, 255, 255, .14);
+        border-radius: 10px;
+        color: #fff;
+        text-align: center;
+    }
+
+    .svc-file-viewer-fallback[hidden],
+    .svc-file-viewer-image[hidden],
+    .svc-file-viewer-frame[hidden] {
+        display: none !important;
+    }
+
+    .svc-file-viewer-fallback-icon {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, .08);
+        font-size: 1.2rem;
+    }
+
+    @media (max-width: 880px) {
+        .svc-quick-context {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-order-details {
+            width: 100%;
+        }
+
+        .svc-order-details > summary {
+            width: 100%;
+            min-height: 38px;
+            justify-content: center;
+        }
+
+        .svc-order-details-body {
+            right: auto;
+            left: 0;
+            width: min(100%, 540px);
+        }
+    }
+
+    @media (max-width: 720px) {
+        .svc-top .svc-step {
+            min-height: 40px;
+            padding-inline: .08rem;
+        }
+
+        .svc-top .svc-step::after {
+            left: calc(50% + 15px);
+            width: calc(100% - 30px);
+        }
+
+        .svc-top .svc-step-icon {
+            width: 27px;
+            height: 27px;
+        }
+
+        .svc-quick-facts {
+            display: flex;
+            min-width: 0;
+            overflow-x: auto;
+            scroll-snap-type: x proximity;
+            scrollbar-width: none;
+        }
+
+        .svc-quick-facts::-webkit-scrollbar {
+            display: none;
+        }
+
+        .svc-quick-fact {
+            flex: 0 0 min(72vw, 200px);
+            scroll-snap-align: start;
+        }
+
+        .svc-quick-fact + .svc-quick-fact {
+            border-left: 1px solid var(--svc-border);
+        }
+
+        .svc-order-details-body {
+            position: static;
+            width: 100%;
+            margin-top: .36rem;
+            box-shadow: none;
+        }
+
+        .svc-finance-strip {
+            grid-template-columns: 1fr;
+            gap: 0;
+        }
+
+        .svc-finance-divider {
+            width: auto;
+            height: 1px;
+        }
+
+        .svc-evidence-table tr {
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .svc-evidence-table td[data-label="Referência"] {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 470px) {
+        .svc-top .svc-step-copy strong {
+            font-size: .52rem;
+        }
+
+        .svc-details-list > div {
+            grid-template-columns: 92px minmax(0, 1fr);
+            gap: .45rem;
+        }
+
+        .evidence-name {
+            grid-template-columns: 32px minmax(0, 1fr);
+        }
+
+        .svc-evidence-thumb {
+            grid-column: 1 / -1;
+            width: 100%;
+            height: 92px;
+        }
+    }
+
+
+    /* =========================================================
+       AJUSTES — detalhes no fluxo + evidência vinculada
+       ========================================================= */
+
+    /*
+     * Detalhes passam a fazer parte do fluxo normal.
+     * Ao abrir, empurram o restante da página para baixo;
+     * nada fica sobreposto.
+     */
+    .svc-quick-context {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: .42rem;
+        align-items: stretch;
+    }
+
+    .svc-order-details {
+        position: static;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .svc-order-details > summary {
+        width: 100%;
+        height: auto;
+        min-height: 38px;
+        justify-content: space-between;
+        padding: .36rem .5rem;
+        background: var(--svc-soft);
+    }
+
+    .svc-order-details-body {
+        position: static;
+        z-index: auto;
+        top: auto;
+        right: auto;
+        left: auto;
+        width: 100%;
+        margin-top: .38rem;
+        overflow: hidden;
+        border: 1px solid var(--svc-border);
+        border-radius: 9px;
+        background: #fff;
+        box-shadow: none;
+    }
+
+    .svc-details-list {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: 0;
+        margin: 0;
+    }
+
+    .svc-details-list > .svc-detail-item {
+        --detail-tone: var(--svc-blue);
+        --detail-soft: var(--svc-blue-soft);
+
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: .48rem;
+        align-items: center;
+        min-height: 58px;
+        padding: .46rem .55rem;
+        border-bottom: 1px solid var(--svc-border);
+        background: #fff;
+    }
+
+    .svc-details-list > .svc-detail-item:nth-child(odd) {
+        border-right: 1px solid var(--svc-border);
+    }
+
+    .svc-details-list > .svc-detail-item.order {
+        --detail-tone: var(--svc-blue);
+        --detail-soft: var(--svc-blue-soft);
+    }
+
+    .svc-details-list > .svc-detail-item.service {
+        --detail-tone: var(--svc-cyan);
+        --detail-soft: var(--svc-cyan-soft);
+    }
+
+    .svc-details-list > .svc-detail-item.beneficiary {
+        --detail-tone: var(--svc-green);
+        --detail-soft: var(--svc-green-soft);
+    }
+
+    .svc-details-list > .svc-detail-item.provider {
+        --detail-tone: var(--svc-violet);
+        --detail-soft: var(--svc-violet-soft);
+    }
+
+    .svc-details-list > .svc-detail-item.schedule {
+        --detail-tone: var(--svc-amber);
+        --detail-soft: var(--svc-amber-soft);
+    }
+
+    .svc-details-list > .svc-detail-item.location {
+        --detail-tone: var(--svc-red);
+        --detail-soft: var(--svc-red-soft);
+    }
+
+    .svc-detail-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--detail-soft);
+        color: var(--detail-tone);
+        font-size: .86rem;
+    }
+
+    .svc-detail-copy {
+        display: block;
+        min-width: 0;
+    }
+
+    .svc-detail-copy dt,
+    .svc-detail-copy dd {
+        margin: 0;
+    }
+
+    .svc-detail-copy dt {
+        color: var(--svc-muted);
+        font-size: .52rem;
+        font-weight: 780;
+        letter-spacing: .025em;
+        text-transform: uppercase;
+    }
+
+    .svc-detail-copy dd {
+        margin-top: .06rem;
+        min-width: 0;
+        color: var(--svc-text);
+        font-size: .65rem;
+        font-weight: 760;
+        line-height: 1.38;
+        overflow-wrap: break-word;
+        word-break: normal;
+    }
+
+    /*
+     * Arquivos enviados:
+     * arquivo à esquerda, vínculo/valor no centro, preview à direita.
+     */
+    .svc-files-panel .svc-evidence-table {
+        min-width: 760px;
+    }
+
+    .svc-files-panel .svc-evidence-table th:nth-child(1) {
+        width: 38%;
+    }
+
+    .svc-files-panel .svc-evidence-table th:nth-child(2) {
+        width: 34%;
+    }
+
+    .svc-files-panel .svc-evidence-table th:nth-child(3) {
+        width: 28%;
+        text-align: right;
+    }
+
+    .svc-files-panel .svc-evidence-table td:nth-child(3) {
+        text-align: right;
+    }
+
+    .svc-evidence-link {
+        display: grid;
+        min-width: 0;
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: .4rem;
+        align-items: center;
+    }
+
+    .svc-evidence-link-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 7px;
+        background: var(--svc-cyan-soft);
+        color: var(--svc-cyan);
+        font-size: .75rem;
+    }
+
+    .svc-evidence-link-copy {
+        min-width: 0;
+    }
+
+    .svc-evidence-link-copy strong,
+    .svc-evidence-link-copy small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .svc-evidence-link-copy strong {
+        color: var(--svc-text);
+        font-size: .64rem;
+        font-weight: 800;
+    }
+
+    .svc-evidence-link-copy small {
+        margin-top: .05rem;
+        color: var(--svc-blue);
+        font-size: .6rem;
+        font-weight: 780;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .svc-evidence-preview-cell {
+        display: inline-flex;
+        gap: .38rem;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .svc-evidence-thumb {
+        width: 76px;
+        height: 52px;
+        flex: 0 0 auto;
+    }
+
+    .svc-file-preview-button {
+        --preview-tone: var(--svc-slate);
+        --preview-soft: var(--svc-slate-soft);
+
+        display: grid;
+        width: 52px;
+        height: 52px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--svc-border);
+        border-radius: 8px;
+        background: var(--preview-soft);
+        color: var(--preview-tone);
+        cursor: pointer;
+        font-size: 1.05rem;
+    }
+
+    .svc-file-preview-button.pdf {
+        --preview-tone: var(--svc-red);
+        --preview-soft: var(--svc-red-soft);
+    }
+
+    .svc-file-preview-button.signature {
+        --preview-tone: var(--svc-blue);
+        --preview-soft: var(--svc-blue-soft);
+    }
+
+    @media (max-width: 820px) {
+        .svc-details-list {
+            grid-template-columns: 1fr;
+        }
+
+        .svc-details-list > .svc-detail-item:nth-child(odd) {
+            border-right: 0;
+        }
+
+        .svc-files-panel .svc-evidence-table {
+            min-width: 0;
+        }
+
+        .svc-files-panel .svc-evidence-table tr {
+            display: grid;
+            grid-template-columns:
+                minmax(0, 1fr)
+                auto;
+            gap: .42rem;
+        }
+
+        .svc-files-panel .svc-evidence-table td[data-label="Vinculado a"] {
+            grid-column: 1;
+        }
+
+        .svc-files-panel .svc-evidence-table td[data-label="Prévia"] {
+            grid-column: 2;
+            grid-row: 1 / span 2;
+            align-self: center;
+        }
+
+        .svc-evidence-preview-cell {
+            display: grid;
+            justify-items: end;
+        }
+
+        .svc-evidence-thumb {
+            width: 82px;
+            height: 58px;
+        }
+    }
+
+    @media (max-width: 520px) {
+        .svc-detail-item {
+            min-height: 54px;
+        }
+
+        .svc-files-panel .svc-evidence-table tr {
+            grid-template-columns:
+                minmax(0, 1fr)
+                72px;
+        }
+
+        .svc-files-panel .svc-evidence-table td[data-label="Prévia"] {
+            width: 72px;
+        }
+
+        .svc-evidence-preview-cell .svc-table-link {
+            width: 100%;
+            min-height: 32px;
+            padding-inline: .3rem;
+            font-size: 0;
+        }
+
+        .svc-evidence-preview-cell .svc-table-link i {
+            font-size: .75rem;
+        }
+
+        .svc-evidence-thumb,
+        .svc-file-preview-button {
+            width: 72px;
+        }
+
+        .svc-evidence-thumb {
+            height: 58px;
+        }
+    }
+
+
+    /* =========================================================
+       CORREÇÃO DO STEPPER
+       ========================================================= */
+
+    /*
+     * Etapa concluída mantém o ícone que representa a própria etapa.
+     * A conclusão é indicada pela cor verde, não por um visto genérico.
+     */
+    .svc-top .svc-step.done .svc-step-icon {
+        background: var(--svc-green-soft);
+        border-color: var(--svc-green-border);
+        color: var(--svc-green);
+    }
+
+    /*
+     * "Concluído" recebe o check somente quando o status da execução
+     * realmente é validated.
+     */
+    .svc-top .svc-step.validated-step .svc-step-icon {
+        background: var(--svc-green);
+        border-color: var(--svc-green);
+        color: #fff;
+        box-shadow:
+            0 0 0 4px #fff,
+            0 0 0 5px var(--svc-green-border);
+    }
+
+    .svc-top .svc-step.validated-step .svc-step-copy strong {
+        color: var(--svc-green);
+    }
+
+    /*
+     * Em Conferência, a última etapa continua visualmente futura/neutra.
+     */
+    .svc-top .svc-step:not(.done):not(.current):not(.validated-step) {
+        --step-tone: var(--svc-slate);
+        --step-soft: #fff;
+        --step-border: var(--svc-border);
+    }
+
+    .svc-top .svc-step:not(.done):not(.current):not(.validated-step)
+    .svc-step-icon {
+        background: #fff;
+        border-color: var(--svc-border);
+        color: var(--svc-muted);
+    }
+
+    .svc-top .svc-step:not(.done):not(.current):not(.validated-step)
+    .svc-step-copy strong {
+        color: var(--svc-muted);
+    }
+
+    /*
+     * Imagem já é a própria ação de visualização.
+     * Sem botão redundante abaixo dela.
+     */
+    .svc-evidence-preview-cell:has(.svc-evidence-thumb) {
+        align-items: center;
+    }
+
+
+    /* =========================================================
+       EVIDÊNCIA — ARQUIVOS / CÂMERA
+       ========================================================= */
+
+    .svc-evidence-picker {
+        display: grid;
+        min-width: 0;
+        gap: .34rem;
+    }
+
+    /*
+     * O input que realmente será enviado permanece no formulário,
+     * mas a interação visual é feita pelos dois botões explícitos.
+     */
+    .svc-evidence-native-input,
+    .svc-evidence-camera-input {
+        position: absolute !important;
+        width: 1px !important;
+        height: 1px !important;
+        padding: 0 !important;
+        margin: -1px !important;
+        overflow: hidden !important;
+        clip: rect(0, 0, 0, 0) !important;
+        white-space: nowrap !important;
+        border: 0 !important;
+        opacity: 0 !important;
+    }
+
+    .svc-evidence-picker-actions {
+        display: grid;
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+        gap: .38rem;
+    }
+
+    .svc-evidence-pick-btn {
+        --picker-tone: var(--svc-blue);
+        --picker-soft: var(--svc-blue-soft);
+        --picker-border: var(--svc-blue-border);
+
+        display: inline-flex;
+        min-width: 0;
+        min-height: 39px;
+        gap: .32rem;
+        align-items: center;
+        justify-content: center;
+        padding: .4rem .52rem;
+        border: 1px solid var(--picker-border);
+        border-radius: 8px;
+        background: var(--picker-soft);
+        color: var(--picker-tone);
+        cursor: pointer;
+        font: inherit;
+        font-size: .65rem;
+        font-weight: 790;
+    }
+
+    .svc-evidence-pick-btn.camera {
+        --picker-tone: var(--svc-green);
+        --picker-soft: var(--svc-green-soft);
+        --picker-border: var(--svc-green-border);
+    }
+
+    .svc-evidence-pick-btn i {
+        flex: 0 0 auto;
+        font-size: .84rem;
+    }
+
+    .svc-evidence-pick-btn:focus-visible {
+        outline: 2px solid var(--picker-tone);
+        outline-offset: 2px;
+    }
+
+    .svc-evidence-selection {
+        display: inline-flex;
+        min-width: 0;
+        gap: .24rem;
+        align-items: center;
+        color: var(--svc-muted);
+        font-size: .56rem;
+        font-weight: 650;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .svc-evidence-selection.is-selected,
+    .svc-evidence-selection.is-saved {
+        color: var(--svc-green);
+        font-weight: 740;
+    }
+
+    .svc-evidence-field.has-evidence-error {
+        border-color: var(--svc-red);
+        background: var(--svc-red-soft);
+    }
+
+    /* =========================================================
+       FEEDBACK DE TRANSIÇÃO / RELOAD
+       ========================================================= */
+
+    .svc-reload-overlay {
+        position: fixed;
+        z-index: 3100;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 1rem;
+        background: rgba(14, 25, 18, .72);
+    }
+
+    .svc-reload-overlay[hidden] {
+        display: none !important;
+    }
+
+    .svc-reload-card {
+        display: grid;
+        width: min(100%, 310px);
+        gap: .42rem;
+        justify-items: center;
+        padding: 1rem;
+        border: 1px solid var(--svc-border);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--svc-text);
+        box-shadow: 0 18px 50px rgba(12, 28, 18, .2);
+        text-align: center;
+    }
+
+    .svc-reload-spinner {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--svc-green-soft);
+        color: var(--svc-green);
+        font-size: 1.2rem;
+    }
+
+    .svc-reload-spinner i {
+        animation: svc-spin .82s linear infinite;
+    }
+
+    .svc-reload-card strong {
+        font-size: .78rem;
+        font-weight: 840;
+    }
+
+    .svc-reload-card small {
+        color: var(--svc-muted);
+        font-size: .61rem;
+        line-height: 1.4;
+    }
+
+    @keyframes svc-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .svc-reload-spinner i {
+            animation-duration: 1.8s;
+        }
+    }
+
+    @media (max-width: 420px) {
+        .svc-evidence-picker-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+
+
+    .svc-evidence-file-error {
+        display: inline-flex;
+        gap: .25rem;
+        align-items: flex-start;
+        color: var(--svc-red);
+        font-size: .58rem;
+        font-weight: 740;
+        line-height: 1.4;
+    }
+
+    .svc-evidence-file-error i {
+        flex: 0 0 auto;
+        margin-top: .04rem;
+        font-size: .72rem;
+    }
+
 </style>
 
-<main class="service-execution">
+<main
+    class="service-execution"
+    data-draft-url="{{ $draftUrl }}"
+    data-local-key="{{ $serviceLocalKey }}"
+    data-meter-start="{{ $meterStartField }}"
+    data-meter-end="{{ $meterEndField }}"
+    data-execution-unit="{{ $executionUnit }}"
+    data-execution-status="{{ $executionStatus }}"
+>
     @if($errors->any())
         <div class="svc-alert danger" role="alert" tabindex="-1" id="form-errors">
             <span class="svc-alert-icon" aria-hidden="true"><i class="ph-fill ph-warning-circle"></i></span>
@@ -1371,7 +3872,7 @@
     {{-- =========================================================
          CABEÇALHO + FLUXO
          ========================================================= --}}
-    <section class="svc-panel">
+    <section class="svc-panel svc-top">
         <header
             class="
                 svc-header
@@ -1388,14 +3889,19 @@
                     aria-label="Voltar às ordens"
                     title="Voltar às ordens"
                 >
-                    <i class="ph ph-arrow-left"></i>
+                    <i class="ph-fill ph-arrow-left"></i>
                 </a>
 
                 <span
                     class="svc-header-icon"
                     aria-hidden="true"
                 >
-                    <i class="ph-fill ph-wrench"></i>
+                    <i
+                        class="
+                            ph-fill
+                            {{ $executionStatusMeta['icon'] }}
+                        "
+                    ></i>
                 </span>
 
                 <div class="svc-header-copy">
@@ -1405,11 +3911,21 @@
                         {{ $order->service->name }}
                     </h1>
 
-                    <p>
-                        {{ $beneficiaryName }}
-                        ·
-                        {{ $locationLabel }}
-                    </p>
+                    <div class="svc-meta">
+                        <span>
+                            <i class="ph-fill ph-user-circle" aria-hidden="true"></i>
+                            <span class="svc-meta-text">
+                                {{ $beneficiaryName }}
+                            </span>
+                        </span>
+
+                        <span>
+                            <i class="ph-fill ph-map-pin" aria-hidden="true"></i>
+                            <span class="svc-meta-text">
+                                {{ $locationLabel }}
+                            </span>
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -1428,7 +3944,7 @@
         </header>
 
         <div class="svc-workflow">
-            <div
+            <nav
                 class="svc-steps"
                 aria-label="Etapas da execução"
             >
@@ -1451,7 +3967,14 @@
                             {{ $stepDone ? 'done' : '' }}
                             {{ $stepCurrent ? 'current' : '' }}
                             {{ $stepRejected ? 'rejected' : '' }}
+                            {{
+                                $executionStatus === 'validated'
+                                && $index === 3
+                                    ? 'validated-step'
+                                    : ''
+                            }}
                         "
+                        data-step="{{ $index + 1 }}"
                         @if($stepCurrent)
                             aria-current="step"
                         @endif
@@ -1463,267 +3986,200 @@
                             <i
                                 class="
                                     ph-fill
-                                    {{ $stepDone
-                                        ? 'ph-check'
-                                        : $step['icon'] }}
+                                    {{
+                                        $executionStatus === 'validated'
+                                        && $index === 3
+                                            ? 'ph-check-circle'
+                                            : $step['icon']
+                                    }}
                                 "
                             ></i>
                         </span>
 
                         <span class="svc-step-copy">
                             <strong>
-                                {{ $step['label'] }}
+                                {{ $executionStatus === 'rejected' && $index === 0
+                                    ? 'Corrigir'
+                                    : $step['label'] }}
                             </strong>
-
-                            <span>
-                                @if($stepDone)
-                                    concluída
-                                @elseif($stepCurrent)
-                                    etapa atual
-                                @else
-                                    próxima etapa
-                                @endif
-                            </span>
                         </span>
                     </div>
                 @endforeach
-            </div>
+            </nav>
         </div>
     </section>
 
     {{-- =========================================================
-         RESUMO OPERACIONAL E FINANCEIRO
+         CONTEXTO RÁPIDO DA ORDEM
          ========================================================= --}}
-    <div class="svc-summary-grid">
-        <section class="svc-panel">
-            <header
-                class="svc-panel-head"
-                style="
-                    --panel-tone:var(--svc-blue);
-                    --panel-soft:var(--svc-blue-soft);
-                "
-            >
-                <div class="svc-panel-title">
-                    <span
-                        class="svc-panel-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-fill ph-list-checks"></i>
-                    </span>
+    <section class="svc-quick-context">
+        <div class="svc-quick-facts">
+            <div class="svc-quick-fact schedule">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-calendar-check"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Agendamento</small>
+                    <strong>{{ $scheduledLabel }}</strong>
+                </span>
+            </div>
 
-                    <div class="svc-panel-copy">
-                        <h2>Dados da ordem</h2>
+            <div class="svc-quick-fact provider">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-user-gear"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Prestador</small>
+                    <strong>{{ $providerName }}</strong>
+                </span>
+            </div>
 
-                        <p>
-                            Informações operacionais principais.
-                        </p>
+            <div class="svc-quick-fact evidence">
+                <span class="svc-quick-icon" aria-hidden="true">
+                    <i class="ph-fill ph-images-square"></i>
+                </span>
+                <span class="svc-quick-copy">
+                    <small>Evidências</small>
+                    <strong>
+                        {{ $evidenceTotal }}
+                        @if($evidenceConfiguredTotal > 0)
+                            de {{ $evidenceConfiguredTotal }}
+                        @else
+                            enviada(s)
+                        @endif
+                    </strong>
+                </span>
+            </div>
+        </div>
+
+        <details class="svc-order-details">
+            <summary>
+                <span>
+                    <i class="ph-fill ph-info"></i>
+                    Detalhes da ordem
+                </span>
+
+                <i
+                    class="ph-fill ph-caret-down svc-details-caret"
+                    aria-hidden="true"
+                ></i>
+            </summary>
+
+            <div class="svc-order-details-body">
+                <dl class="svc-details-list">
+                    <div class="svc-detail-item order">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-receipt"></i>
+                        </span>
+
+                        <span class="svc-detail-copy">
+                            <dt>Ordem</dt>
+                            <dd>{{ $order->number }}</dd>
+                        </span>
                     </div>
-                </div>
-            </header>
 
-            <table
-                class="svc-info-table"
-                aria-label="Dados da ordem de serviço"
-            >
-                <tbody>
-                    <tr>
-                        <th>Agendamento</th>
+                    <div class="svc-detail-item service">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-wrench"></i>
+                        </span>
 
-                        <td>
-                            {{ $scheduledLabel }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Beneficiário</th>
-
-                        <td>
-                            {{ $beneficiaryName }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Prestador</th>
-
-                        <td>
-                            {{ $providerName }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Serviço</th>
-
-                        <td>
-                            {{ $order->service->name }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Local</th>
-
-                        <td>
-                            {{ $locationLabel }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Evidências</th>
-
-                        <td>
-                            {{ $evidenceTotal }}
-
-                            @if($evidenceConfiguredTotal > 0)
-                                de
-                                {{ $evidenceConfiguredTotal }}
-                                campo(s) de evidência configurado(s)
-                            @else
-                                arquivo(s) enviado(s)
-                            @endif
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
-
-        <section class="svc-panel">
-            <header
-                class="svc-panel-head"
-                style="
-                    --panel-tone:var(--svc-green);
-                    --panel-soft:var(--svc-green-soft);
-                "
-            >
-                <div class="svc-panel-title">
-                    <span
-                        class="svc-panel-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-fill ph-calculator"></i>
-                    </span>
-
-                    <div class="svc-panel-copy">
-                        <h2>Prévia financeira</h2>
-
-                        <p>
-                            Cobrança e remuneração previstas.
-                        </p>
+                        <span class="svc-detail-copy">
+                            <dt>Serviço</dt>
+                            <dd>{{ $order->service->name }}</dd>
+                        </span>
                     </div>
-                </div>
-            </header>
 
-            <table
-                class="svc-money-table"
-                aria-label="Prévia financeira da ordem"
-            >
-                <tbody>
-                    <tr>
-                        <th>
-                            Solicitante paga à organização
+                    <div class="svc-detail-item beneficiary">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-user-circle"></i>
+                        </span>
 
-                            <span class="svc-money-note">
-                                Regra:
-                                {{ $formatMethod(
-                                    $customerPricingMethod
-                                ) }}
+                        <span class="svc-detail-copy">
+                            <dt>Beneficiário</dt>
+                            <dd>{{ $beneficiaryName }}</dd>
+                        </span>
+                    </div>
 
-                                @if(
-                                    $order->serviceVersion
-                                        ?->customer_rate
-                                )
-                                    ·
-                                    {{ $formatMoney(
-                                        $order
-                                            ->serviceVersion
-                                            ->customer_rate
-                                    ) }}
-                                @endif
-                            </span>
-                        </th>
+                    <div class="svc-detail-item provider">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-user-gear"></i>
+                        </span>
 
-                        <td>
-                            <span
-                                class="
-                                    svc-money-value
-                                    receivable
-                                "
-                            >
-                                {{ $receivablePreview !== null
-                                    ? $formatMoney(
-                                        $receivablePreview
-                                    )
-                                    : 'A calcular' }}
-                            </span>
+                        <span class="svc-detail-copy">
+                            <dt>Prestador</dt>
+                            <dd>{{ $providerName }}</dd>
+                        </span>
+                    </div>
 
-                            @if($receivablePreview === null)
-                                <span class="svc-money-note">
-                                    Preencha os dados necessários
-                                    para obter o valor.
-                                </span>
-                            @endif
-                        </td>
-                    </tr>
+                    <div class="svc-detail-item schedule">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-calendar-check"></i>
+                        </span>
 
-                    <tr>
-                        <th>
-                            Prestador recebe
+                        <span class="svc-detail-copy">
+                            <dt>Agendamento</dt>
+                            <dd>{{ $scheduledLabel }}</dd>
+                        </span>
+                    </div>
 
-                            <span class="svc-money-note">
-                                Regra:
-                                {{ $formatMethod(
-                                    $providerPricingMethod
-                                ) }}
+                    <div class="svc-detail-item location">
+                        <span class="svc-detail-icon" aria-hidden="true">
+                            <i class="ph-fill ph-map-pin"></i>
+                        </span>
 
-                                @if($providerConfiguredRate)
-                                    ·
-                                    {{ $providerPricingMethod === 'percent_of_base'
-                                        ? number_format((float) $providerConfiguredRate, 2, ',', '.') . '%'
-                                        : $formatMoney($providerConfiguredRate) }}
-                                @endif
-                                <br>
-                                <strong>{{ in_array($providerPricingSource, ['provider_override', 'provider_service_version'], true) ? 'Exceção individual deste prestador' : 'Regra padrão da versão' }}</strong>
-                            </span>
-                        </th>
+                        <span class="svc-detail-copy">
+                            <dt>Local</dt>
+                            <dd>{{ $locationLabel }}</dd>
+                        </span>
+                    </div>
+                </dl>
+            </div>
+        </details>
+    </section>
 
-                        <td>
-                            <span
-                                class="
-                                    svc-money-value
-                                    payable
-                                "
-                            >
-                                {{ $payablePreview !== null
-                                    ? $formatMoney(
-                                        $payablePreview
-                                    )
-                                    : 'A calcular' }}
-                            </span>
+    <section class="svc-finance-strip">
+        <div class="svc-finance-item receivable">
+            <span>
+                <i class="ph-fill ph-bank"></i>
+                Organização recebe
+            </span>
 
-                            @if($payablePreview === null)
-                                <span class="svc-money-note">
-                                    O valor será atualizado
-                                    conforme a execução.
-                                </span>
-                            @endif
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
-    </div>
+            <strong>
+                {{ $receivablePreview !== null
+                    ? $formatMoney($receivablePreview)
+                    : 'A calcular' }}
+            </strong>
 
-    @if(collect($execution->values)->filter(fn ($value) => $value !== null && $value !== '')->isNotEmpty())
-        <section class="svc-panel">
-            <header class="svc-panel-head" style="--panel-tone:var(--svc-blue);--panel-soft:var(--svc-blue-soft)">
-                <div class="svc-panel-title"><span class="svc-panel-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><div class="svc-panel-copy"><h2>Dados já registrados</h2><p>Valores salvos anteriormente nesta execução.</p></div></div>
-            </header>
-            <table class="svc-info-table"><tbody>
-                @foreach(collect($execution->values)->filter(fn ($value) => $value !== null && $value !== '') as $key => $value)
-                    @php($savedField = $fields->firstWhere('key', $key))
-                    <tr><th>{{$savedField['label'] ?? \Illuminate\Support\Str::headline($key)}}</th><td>{{is_bool($value) ? ($value ? 'Sim' : 'Não') : (is_array($value) ? implode(', ', $value) : $value)}} @if(data_get($savedField, 'unit')) {{data_get($savedField, 'unit')}} @endif</td></tr>
-                @endforeach
-            </tbody></table>
-        </section>
-    @endif
+            <small>
+                {{ $formatMethod($customerPricingMethod) }}
+                @if($order->serviceVersion?->customer_rate)
+                    · {{ $formatMoney($order->serviceVersion->customer_rate) }}
+                @endif
+            </small>
+        </div>
+
+        <div class="svc-finance-divider" aria-hidden="true"></div>
+
+        <div class="svc-finance-item payable">
+            <span>
+                <i class="ph-fill ph-hand-coins"></i>
+                Prestador recebe
+            </span>
+
+            <strong>
+                {{ $payablePreview !== null
+                    ? $formatMoney($payablePreview)
+                    : 'A calcular' }}
+            </strong>
+
+            <small>
+                {{ $formatMethod($providerPricingMethod) }}
+                @if($providerConfiguredRate)
+                    · {{ $formatMoney($providerConfiguredRate) }}
+                @endif
+            </small>
+        </div>
+    </section>
 
     {{-- =========================================================
          INÍCIO / CORREÇÃO
@@ -1800,6 +4256,7 @@
                 @endif
 
                 <form
+                    data-async-service-form
                     method="post"
                     enctype="multipart/form-data"
                     action="{{ route(
@@ -1825,6 +4282,7 @@
                             'execution' => $execution,
                             'phase' => 'start',
                             'operator' => $operator ?? false,
+                            'tenantSlug' => $tenantSlug,
                         ]
                     )
 
@@ -1894,6 +4352,7 @@
 
                 <form
                     id="execution-form"
+                    data-async-service-form
                     method="post"
                     enctype="multipart/form-data"
                     action="{{ route(
@@ -1919,6 +4378,7 @@
                             'execution' => $execution,
                             'phase' => 'execution',
                             'operator' => $operator ?? false,
+                            'tenantSlug' => $tenantSlug,
                         ]
                     )
 
@@ -1928,6 +4388,7 @@
                             'execution' => $execution,
                             'phase' => 'finish',
                             'operator' => $operator ?? false,
+                            'tenantSlug' => $tenantSlug,
                         ]
                     )
 
@@ -1973,9 +4434,9 @@
                         <button
                             type="button"
                             class="svc-btn"
-                            onclick="saveDraft()"
+                            data-save-draft
                         >
-                            <i class="ph ph-floppy-disk"></i>
+                            <i class="ph-fill ph-floppy-disk"></i>
                             Salvar rascunho
                         </button>
 
@@ -1992,11 +4453,85 @@
         </section>
     @endif
 
+    @if($savedValues->isNotEmpty())
+        <section class="svc-panel">
+            <header
+                class="svc-panel-head"
+                style="
+                    --panel-tone:var(--svc-blue);
+                    --panel-soft:var(--svc-blue-soft);
+                "
+            >
+                <div class="svc-panel-title">
+                    <span
+                        class="svc-panel-icon"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-fill ph-clock-counter-clockwise"></i>
+                    </span>
+
+                    <div class="svc-panel-copy">
+                        <h2>Dados já registrados</h2>
+                        <p>Valores salvos anteriormente nesta execução.</p>
+                    </div>
+                </div>
+            </header>
+
+            <table
+                class="svc-info-table"
+                aria-label="Dados já registrados"
+            >
+                <tbody>
+                    @foreach($savedValues as $key => $value)
+                        @php
+                            $savedField = $fields->firstWhere(
+                                'key',
+                                $key
+                            );
+
+                            $savedLabel =
+                                $savedField['label']
+                                ?? \Illuminate\Support\Str::headline(
+                                    (string) $key
+                                );
+
+                            $savedUnit = data_get(
+                                $savedField,
+                                'unit'
+                            );
+
+                            $savedDisplayValue = is_bool($value)
+                                ? ($value ? 'Sim' : 'Não')
+                                : (
+                                    is_array($value)
+                                        ? implode(', ', $value)
+                                        : $value
+                                );
+                        @endphp
+
+                        <tr>
+                            <th>{{ $savedLabel }}</th>
+
+                            <td>
+                                {{ $savedDisplayValue }}
+
+                                @if($savedUnit)
+                                    {{ $savedUnit }}
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </section>
+    @endif
+
+
     {{-- =========================================================
          EVIDÊNCIAS JÁ ENVIADAS
          ========================================================= --}}
     @if($execution->evidences->isNotEmpty())
-        <section class="svc-panel">
+        <section class="svc-panel svc-files-panel">
             <header
                 class="svc-panel-head"
                 style="
@@ -2005,81 +4540,359 @@
                 "
             >
                 <div class="svc-panel-title">
-                    <span
-                        class="svc-panel-icon"
-                        aria-hidden="true"
-                    >
-                        <i class="ph-fill ph-paperclip"></i>
+                    <span class="svc-panel-icon" aria-hidden="true">
+                        <i class="ph-fill ph-files"></i>
                     </span>
 
                     <div class="svc-panel-copy">
                         <h2>Arquivos enviados</h2>
-
-                        <p>
-                            Evidências já vinculadas à execução.
-                        </p>
+                        <p>Evidências vinculadas a esta execução.</p>
                     </div>
                 </div>
 
                 <span class="svc-count">
-                    <i class="ph ph-files"></i>
+                    <i class="ph-fill ph-paperclip"></i>
                     {{ $evidenceTotal }}
                 </span>
             </header>
 
             <div class="svc-evidence-wrap">
-                <table
-                    class="svc-evidence-table"
-                    aria-label="Arquivos enviados"
-                >
+                <table class="svc-evidence-table" aria-label="Arquivos enviados">
                     <thead>
                         <tr>
-                            <th>Documento</th>
-                            <th>Campo</th>
-                            <th>Ação</th>
+                            <th>Arquivo</th>
+                            <th>Vinculado a</th>
+                            <th>Prévia</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         @foreach($execution->evidences as $evidence)
-                            <tr>
-                                <td>
+                            @php
+                                $evidenceMime = (string) (
+                                    $evidence->document->mime_type
+                                    ?? ''
+                                );
+
+                                $evidenceUrl = route(
+                                    'provider.evidences.download',
+                                    [
+                                        $tenantSlug,
+                                        $evidence,
+                                    ]
+                                );
+
+                                $evidenceIsImage = str_starts_with(
+                                    $evidenceMime,
+                                    'image/'
+                                );
+
+                                $evidenceIsPdf =
+                                    $evidenceMime === 'application/pdf'
+                                    || str_ends_with(
+                                        strtolower(
+                                            (string) $evidence
+                                                ->document
+                                                ->name
+                                        ),
+                                        '.pdf'
+                                    );
+
+                                $evidenceField = $fields->firstWhere(
+                                    'key',
+                                    $evidence->field_key
+                                );
+
+                                $evidenceFieldType = data_get(
+                                    $evidenceField,
+                                    'type'
+                                );
+
+                                $evidenceFieldLabel =
+                                    data_get(
+                                        $evidenceField,
+                                        'label'
+                                    )
+                                    ?? (
+                                        $evidence->field_key
+                                            ? \Illuminate\Support\Str::headline(
+                                                (string) $evidence->field_key
+                                            )
+                                            : 'Arquivo da execução'
+                                    );
+
+                                /*
+                                 * Campo de dado ao qual esta evidência pertence.
+                                 * Primeiro usa evidence_for_field do catálogo.
+                                 * Se não existir, tenta a mesma inferência
+                                 * inicial/final usada no partial de campos.
+                                 */
+                                $representedFieldKey = data_get(
+                                    $evidenceField,
+                                    'evidence_for_field'
+                                );
+
+                                if (!$representedFieldKey && $evidenceField) {
+                                    $normalizedEvidenceLabel = str(
+                                        (string) $evidenceFieldLabel
+                                    )
+                                        ->ascii()
+                                        ->lower()
+                                        ->toString();
+
+                                    $evidenceKeyword = collect(
+                                        [
+                                            'inicial',
+                                            'inicio',
+                                            'final',
+                                            'fim',
+                                        ]
+                                    )->first(
+                                        static fn (string $word): bool =>
+                                            str_contains(
+                                                $normalizedEvidenceLabel,
+                                                $word
+                                            )
+                                    );
+
+                                    if ($evidenceKeyword) {
+                                        $representedField = $fields->first(
+                                            static function ($candidate) use ($evidenceKeyword): bool {
+                                                $candidateType = data_get(
+                                                    $candidate,
+                                                    'type'
+                                                );
+
+                                                if (
+                                                    in_array(
+                                                        $candidateType,
+                                                        [
+                                                            'image',
+                                                            'file',
+                                                            'signature',
+                                                        ],
+                                                        true
+                                                    )
+                                                ) {
+                                                    return false;
+                                                }
+
+                                                $candidateLabel = str(
+                                                    (string) data_get(
+                                                        $candidate,
+                                                        'label',
+                                                        ''
+                                                    )
+                                                )
+                                                    ->ascii()
+                                                    ->lower()
+                                                    ->toString();
+
+                                                return str_contains(
+                                                    $candidateLabel,
+                                                    $evidenceKeyword
+                                                );
+                                            }
+                                        );
+
+                                        $representedFieldKey = data_get(
+                                            $representedField,
+                                            'key'
+                                        );
+                                    }
+                                }
+
+                                $representedField = $representedFieldKey
+                                    ? $fields->firstWhere(
+                                        'key',
+                                        $representedFieldKey
+                                    )
+                                    : null;
+
+                                $representedLabel = $representedField
+                                    ? (
+                                        data_get(
+                                            $representedField,
+                                            'label'
+                                        )
+                                        ?? \Illuminate\Support\Str::headline(
+                                            (string) $representedFieldKey
+                                        )
+                                    )
+                                    : $evidenceFieldLabel;
+
+                                $representedUnit = data_get(
+                                    $representedField,
+                                    'unit'
+                                );
+
+                                $representedValue = $representedFieldKey
+                                    ? data_get(
+                                        $execution->values,
+                                        $representedFieldKey
+                                    )
+                                    : null;
+
+                                if (is_bool($representedValue)) {
+                                    $representedDisplayValue = $representedValue
+                                        ? 'Sim'
+                                        : 'Não';
+                                } elseif (is_array($representedValue)) {
+                                    $representedDisplayValue = implode(
+                                        ', ',
+                                        $representedValue
+                                    );
+                                } else {
+                                    $representedDisplayValue =
+                                        $representedValue;
+                                }
+
+                                if ($evidenceFieldType === 'signature') {
+                                    $evidenceIcon = 'ph-signature';
+                                    $evidenceKind = 'signature';
+                                    $previewType = $evidenceIsImage
+                                        ? 'image'
+                                        : 'file';
+                                } elseif ($evidenceIsImage) {
+                                    $evidenceIcon = 'ph-image-square';
+                                    $evidenceKind = 'image';
+                                    $previewType = 'image';
+                                } elseif ($evidenceIsPdf) {
+                                    $evidenceIcon = 'ph-file-pdf';
+                                    $evidenceKind = 'pdf';
+                                    $previewType = 'pdf';
+                                } else {
+                                    $evidenceIcon = 'ph-file';
+                                    $evidenceKind = 'file';
+                                    $previewType = 'file';
+                                }
+                            @endphp
+
+                            <tr class="svc-evidence-row">
+                                <td data-label="Arquivo">
                                     <div class="evidence-name">
                                         <span
-                                            class="evidence-icon"
+                                            class="evidence-icon {{ $evidenceKind }}"
                                             aria-hidden="true"
                                         >
-                                            <i class="ph-fill ph-file"></i>
+                                            <i class="ph-fill {{ $evidenceIcon }}"></i>
                                         </span>
 
-                                        <strong>
-                                            {{ $evidence
-                                                ->document
-                                                ->name }}
-                                        </strong>
+                                        <span class="evidence-copy">
+                                            <strong>
+                                                {{ $evidence->document->name }}
+                                            </strong>
+
+                                            <small>
+                                                {{ $evidenceIsImage
+                                                    ? 'Imagem'
+                                                    : (
+                                                        $evidenceIsPdf
+                                                            ? 'Documento PDF'
+                                                            : (
+                                                                $evidenceFieldType === 'signature'
+                                                                    ? 'Assinatura'
+                                                                    : 'Arquivo'
+                                                            )
+                                                    ) }}
+                                            </small>
+                                        </span>
                                     </div>
                                 </td>
 
-                                <td>
-                                    {{ $evidence->field_key
-                                        ?: '—' }}
+                                <td data-label="Vinculado a">
+                                    <div class="svc-evidence-link">
+                                        <span class="svc-evidence-link-icon">
+                                            <i class="ph-fill ph-link-simple"></i>
+                                        </span>
+
+                                        <span class="svc-evidence-link-copy">
+                                            <strong>
+                                                {{ $representedLabel }}
+                                            </strong>
+
+                                            @if(
+                                                $representedDisplayValue !== null
+                                                && $representedDisplayValue !== ''
+                                            )
+                                                <small>
+                                                    {{ $representedDisplayValue }}
+                                                    @if($representedUnit)
+                                                        {{ $representedUnit }}
+                                                    @endif
+                                                </small>
+                                            @else
+                                                <small>
+                                                    {{ $representedFieldKey
+                                                        ? 'Valor não informado'
+                                                        : 'Evidência independente' }}
+                                                </small>
+                                            @endif
+                                        </span>
+                                    </div>
                                 </td>
 
-                                <td>
-                                    <a
-                                        class="svc-table-link"
-                                        href="{{ route(
-                                            'provider.evidences.download',
-                                            [
-                                                $tenantSlug,
-                                                $evidence,
-                                            ]
-                                        ) }}"
-                                        target="_blank"
-                                    >
-                                        <i class="ph ph-eye"></i>
-                                        Visualizar
-                                    </a>
+                                <td data-label="Prévia">
+                                    <div class="svc-evidence-preview-cell">
+                                        @if($evidenceIsImage)
+                                            <button
+                                                type="button"
+                                                class="
+                                                    svc-evidence-thumb
+                                                    svc-preview-trigger
+                                                "
+                                                data-preview-url="{{ $evidenceUrl }}"
+                                                data-preview-type="image"
+                                                data-preview-title="{{ $evidence->document->name }}"
+                                                aria-label="Ampliar {{ $evidence->document->name }}"
+                                            >
+                                                <img
+                                                    src="{{ $evidenceUrl }}"
+                                                    alt=""
+                                                    loading="lazy"
+                                                >
+
+                                                <span aria-hidden="true">
+                                                    <i class="ph-fill ph-arrows-out"></i>
+                                                </span>
+                                            </button>
+                                        @else
+                                            <button
+                                                type="button"
+                                                class="
+                                                    svc-file-preview-button
+                                                    {{ $evidenceKind }}
+                                                    svc-preview-trigger
+                                                "
+                                                data-preview-url="{{ $evidenceUrl }}"
+                                                data-preview-type="{{ $previewType }}"
+                                                data-preview-title="{{ $evidence->document->name }}"
+                                            >
+                                                <i
+                                                    class="
+                                                        ph-fill
+                                                        {{ $evidenceIcon }}
+                                                    "
+                                                ></i>
+                                            </button>
+                                        @endif
+
+                                        @unless($evidenceIsImage)
+                                            <button
+                                                type="button"
+                                                class="
+                                                    svc-table-link
+                                                    svc-preview-trigger
+                                                "
+                                                data-preview-url="{{ $evidenceUrl }}"
+                                                data-preview-type="{{ $previewType }}"
+                                                data-preview-title="{{ $evidence->document->name }}"
+                                            >
+                                                <i class="ph-fill ph-eye"></i>
+                                                Visualizar
+                                            </button>
+                                        @endunless
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -2151,8 +4964,20 @@
                             aria-label="Cálculos da execução"
                         >
                             <tbody>
-                                @foreach(['customer' => 'Cobrança', 'provider' => 'Remuneração'] as $direction => $label)
-                                    @php($calculation = data_get($execution->derived_values, "calculation.$direction", []))
+                                @foreach(
+                                    [
+                                        'customer' => 'Cobrança',
+                                        'provider' => 'Remuneração',
+                                    ]
+                                    as $direction => $label
+                                )
+                                    @php
+                                        $calculation = data_get(
+                                            $execution->derived_values,
+                                            "calculation.$direction",
+                                            []
+                                        );
+                                    @endphp
 
                                     @if(
                                         data_get($calculation, 'mode') ===
@@ -2233,6 +5058,7 @@
                     @if($canApprove)
                         <div class="svc-review-action">
                             <form
+                                data-async-service-form
                                 method="post"
                                 action="{{ route(
                                     'provider.orders.approve',
@@ -2264,56 +5090,1643 @@
             </div>
         </section>
     @endif
+
+    <dialog
+        class="svc-file-viewer"
+        id="svc-file-viewer"
+        aria-label="Visualização do arquivo"
+    >
+        <div class="svc-file-viewer-toolbar">
+            <span class="svc-file-viewer-title" id="svc-file-viewer-title">
+                Visualização
+            </span>
+
+            <button
+                type="button"
+                class="svc-file-viewer-close"
+                data-file-viewer-close
+                aria-label="Fechar visualização"
+                title="Fechar"
+            >
+                <i class="ph-fill ph-x-circle"></i>
+            </button>
+        </div>
+
+        <div class="svc-file-viewer-stage">
+            <img
+                id="svc-file-viewer-image"
+                class="svc-file-viewer-image"
+                src=""
+                alt="Imagem ampliada"
+                hidden
+            >
+
+            <iframe
+                id="svc-file-viewer-frame"
+                class="svc-file-viewer-frame"
+                src="about:blank"
+                title="Prévia do documento"
+                hidden
+            ></iframe>
+
+            <div
+                id="svc-file-viewer-fallback"
+                class="svc-file-viewer-fallback"
+                hidden
+            >
+                <span class="svc-file-viewer-fallback-icon">
+                    <i class="ph-fill ph-file"></i>
+                </span>
+
+                <strong>Este arquivo não possui prévia incorporada.</strong>
+
+                <a
+                    id="svc-file-viewer-open"
+                    class="svc-btn"
+                    href="#"
+                    target="_blank"
+                    rel="noopener"
+                >
+                    <i class="ph-fill ph-arrow-square-out"></i>
+                    Abrir arquivo
+                </a>
+            </div>
+        </div>
+    </dialog>
+
+
+    <div
+        class="svc-reload-overlay"
+        id="svc-reload-overlay"
+        hidden
+        role="status"
+        aria-live="assertive"
+        aria-busy="true"
+    >
+        <div class="svc-reload-card">
+            <span class="svc-reload-spinner" aria-hidden="true">
+                <i class="ph-fill ph-spinner-gap"></i>
+            </span>
+
+            <strong id="svc-reload-title">
+                Atualizando ordem…
+            </strong>
+
+            <small id="svc-reload-copy">
+                Salvando o novo estado e recarregando a tela.
+            </small>
+        </div>
+    </div>
+
 </main>
 
 <script>
-    function saveDraft() {
-        const form =
-            document.getElementById(
-                'execution-form'
-            );
+    const serviceWorkspace =
+        document.querySelector('.service-execution');
 
-        if (!form) {
+    const serviceDraftUrl =
+        serviceWorkspace?.dataset.draftUrl || '';
+
+    const serviceLocalKey =
+        serviceWorkspace?.dataset.localKey || '';
+
+    const serviceMeterStartField =
+        serviceWorkspace?.dataset.meterStart || '';
+
+    const serviceMeterEndField =
+        serviceWorkspace?.dataset.meterEnd || '';
+
+    const serviceExecutionUnit =
+        serviceWorkspace?.dataset.executionUnit || '';
+
+    const serviceExecutionStatus =
+        serviceWorkspace?.dataset.executionStatus || '';
+
+    const serviceReloadOverlay =
+        document.getElementById('svc-reload-overlay');
+
+    const serviceReloadTitle =
+        document.getElementById('svc-reload-title');
+
+    const serviceReloadCopy =
+        document.getElementById('svc-reload-copy');
+
+    const serviceFileViewer =
+        document.getElementById('svc-file-viewer');
+
+    const serviceFileViewerImage =
+        document.getElementById('svc-file-viewer-image');
+
+    const serviceFileViewerFrame =
+        document.getElementById('svc-file-viewer-frame');
+
+    const serviceFileViewerFallback =
+        document.getElementById('svc-file-viewer-fallback');
+
+    const serviceFileViewerOpen =
+        document.getElementById('svc-file-viewer-open');
+
+    const serviceFileViewerTitle =
+        document.getElementById('svc-file-viewer-title');
+
+    let serviceViewerPushedHistory = false;
+
+    function resetServiceFileViewer() {
+        if (serviceFileViewerImage) {
+            serviceFileViewerImage.hidden = true;
+            serviceFileViewerImage.src = '';
+        }
+
+        if (serviceFileViewerFrame) {
+            serviceFileViewerFrame.hidden = true;
+            serviceFileViewerFrame.src = 'about:blank';
+        }
+
+        if (serviceFileViewerFallback) {
+            serviceFileViewerFallback.hidden = true;
+        }
+
+        if (serviceFileViewerOpen) {
+            serviceFileViewerOpen.href = '#';
+        }
+    }
+
+    function openServiceFileViewer(
+        source,
+        type = 'file',
+        title = 'Visualização'
+    ) {
+        if (!serviceFileViewer || !source) {
             return;
         }
 
-        form.action =
-            {{ \Illuminate\Support\Js::from(
-                $draftUrl
-            ) }};
+        resetServiceFileViewer();
 
-        let method =
-            form.querySelector(
-                'input[name="_method"]'
-            );
-
-        if (!method) {
-            method =
-                document.createElement('input');
-
-            method.type = 'hidden';
-            method.name = '_method';
-
-            form.appendChild(method);
+        if (serviceFileViewerTitle) {
+            serviceFileViewerTitle.textContent =
+                title || 'Visualização';
         }
 
-        method.value = 'PUT';
+        if (type === 'image' && serviceFileViewerImage) {
+            serviceFileViewerImage.src = source;
+            serviceFileViewerImage.hidden = false;
+        } else if (type === 'pdf' && serviceFileViewerFrame) {
+            serviceFileViewerFrame.src = source;
+            serviceFileViewerFrame.hidden = false;
+        } else if (serviceFileViewerFallback) {
+            serviceFileViewerFallback.hidden = false;
 
-        form.submit();
+            if (serviceFileViewerOpen) {
+                serviceFileViewerOpen.href = source;
+            }
+        }
+
+        if (!serviceFileViewer.hasAttribute('open')) {
+            if (
+                typeof serviceFileViewer.showModal
+                === 'function'
+            ) {
+                serviceFileViewer.showModal();
+            } else {
+                serviceFileViewer.setAttribute('open', '');
+            }
+        }
+
+        if (!history.state?.svcFileViewer) {
+            history.pushState(
+                {
+                    ...(history.state || {}),
+                    svcFileViewer: true,
+                },
+                '',
+                window.location.href
+            );
+
+            serviceViewerPushedHistory = true;
+        }
+    }
+
+    function closeServiceFileViewerDirect() {
+        if (!serviceFileViewer) {
+            return;
+        }
+
+        if (
+            typeof serviceFileViewer.close === 'function'
+            && serviceFileViewer.open
+        ) {
+            serviceFileViewer.close();
+        } else {
+            serviceFileViewer.removeAttribute('open');
+        }
+
+        resetServiceFileViewer();
+        serviceViewerPushedHistory = false;
+    }
+
+    function requestCloseServiceFileViewer() {
+        if (
+            serviceViewerPushedHistory
+            && history.state?.svcFileViewer
+        ) {
+            history.back();
+            return;
+        }
+
+        closeServiceFileViewerDirect();
+    }
+
+    function bindServicePreviewTriggers(root = document) {
+        root
+            .querySelectorAll(
+                '.svc-preview-trigger:not([data-preview-bound])'
+            )
+            .forEach(trigger => {
+                trigger.dataset.previewBound = '1';
+
+                trigger.addEventListener(
+                    'click',
+                    event => {
+                        event.preventDefault();
+
+                        openServiceFileViewer(
+                            trigger.dataset.previewUrl,
+                            trigger.dataset.previewType || 'file',
+                            trigger.dataset.previewTitle || 'Visualização'
+                        );
+                    }
+                );
+            });
+    }
+
+    function bindServiceImagePreview(
+        image,
+        title = 'Prévia da imagem',
+        sourceOverride = null
+    ) {
+        if (!image) {
+            return;
+        }
+
+        image.setAttribute('tabindex', '0');
+        image.setAttribute('role', 'button');
+        image.setAttribute('aria-label', 'Ampliar imagem');
+
+        const open = () => {
+            openServiceFileViewer(
+                sourceOverride || image.currentSrc || image.src,
+                'image',
+                title
+            );
+        };
+
+        image.addEventListener('click', event => {
+            event.preventDefault();
+            open();
+        });
+
+        image.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                open();
+            }
+        });
+    }
+
+    bindServicePreviewTriggers();
+
+    document
+        .querySelectorAll(
+            '.svc-file-preview img'
+        )
+        .forEach(image => {
+            if (!image.closest('.svc-preview-trigger')) {
+                bindServiceImagePreview(
+                    image,
+                    image.alt || 'Prévia da imagem'
+                );
+            }
+        });
+
+    document
+        .querySelector('[data-file-viewer-close]')
+        ?.addEventListener(
+            'click',
+            requestCloseServiceFileViewer
+        );
+
+    serviceFileViewer?.addEventListener(
+        'cancel',
+        event => {
+            event.preventDefault();
+            requestCloseServiceFileViewer();
+        }
+    );
+
+    serviceFileViewer?.addEventListener(
+        'click',
+        event => {
+            if (event.target === serviceFileViewer) {
+                requestCloseServiceFileViewer();
+            }
+        }
+    );
+
+    window.addEventListener(
+        'popstate',
+        () => {
+            if (serviceFileViewer?.hasAttribute('open')) {
+                closeServiceFileViewerDirect();
+            }
+        }
+    );
+
+    const SERVICE_DRAFT_DB_NAME =
+        'sgc-service-drafts';
+
+    const SERVICE_DRAFT_DB_VERSION =
+        1;
+
+    const SERVICE_DRAFT_EVIDENCE_STORE =
+        'evidenceFiles';
+
+    function serviceDraftEvidenceId(input) {
+        if (!serviceLocalKey || !input?.name) {
+            return '';
+        }
+
+        return `${serviceLocalKey}:${input.name}`;
+    }
+
+    function openServiceDraftDb() {
+        return new Promise((resolve, reject) => {
+            if (!('indexedDB' in window)) {
+                reject(
+                    new Error(
+                        'IndexedDB indisponível'
+                    )
+                );
+                return;
+            }
+
+            const request =
+                indexedDB.open(
+                    SERVICE_DRAFT_DB_NAME,
+                    SERVICE_DRAFT_DB_VERSION
+                );
+
+            request.onupgradeneeded = () => {
+                const db = request.result;
+
+                if (
+                    !db.objectStoreNames.contains(
+                        SERVICE_DRAFT_EVIDENCE_STORE
+                    )
+                ) {
+                    const store =
+                        db.createObjectStore(
+                            SERVICE_DRAFT_EVIDENCE_STORE,
+                            {
+                                keyPath: 'id',
+                            }
+                        );
+
+                    store.createIndex(
+                        'draftKey',
+                        'draftKey',
+                        {
+                            unique: false,
+                        }
+                    );
+                }
+            };
+
+            request.onsuccess = () => {
+                resolve(request.result);
+            };
+
+            request.onerror = () => {
+                reject(
+                    request.error
+                    || new Error(
+                        'Falha ao abrir cache local'
+                    )
+                );
+            };
+        });
+    }
+
+    async function saveServiceDraftEvidenceFile(
+        input,
+        file
+    ) {
+        const id =
+            serviceDraftEvidenceId(input);
+
+        if (!id || !file) {
+            return;
+        }
+
+        try {
+            const db =
+                await openServiceDraftDb();
+
+            await new Promise(
+                (resolve, reject) => {
+                    const transaction =
+                        db.transaction(
+                            SERVICE_DRAFT_EVIDENCE_STORE,
+                            'readwrite'
+                        );
+
+                    transaction
+                        .objectStore(
+                            SERVICE_DRAFT_EVIDENCE_STORE
+                        )
+                        .put({
+                            id,
+                            draftKey:
+                                serviceLocalKey,
+                            inputName:
+                                input.name,
+                            fileName:
+                                file.name,
+                            type:
+                                file.type,
+                            lastModified:
+                                file.lastModified
+                                || Date.now(),
+                            blob:
+                                file,
+                            savedAt:
+                                Date.now(),
+                        });
+
+                    transaction.oncomplete =
+                        () => resolve();
+
+                    transaction.onerror =
+                        () => reject(
+                            transaction.error
+                        );
+                }
+            );
+
+            db.close();
+        } catch (error) {
+            /*
+             * Cache local é uma melhoria de resiliência.
+             * Falha nele não deve impedir o envio normal.
+             */
+        }
+    }
+
+    async function removeServiceDraftEvidenceFile(
+        input
+    ) {
+        const id =
+            serviceDraftEvidenceId(input);
+
+        if (!id) {
+            return;
+        }
+
+        try {
+            const db =
+                await openServiceDraftDb();
+
+            await new Promise(
+                (resolve, reject) => {
+                    const transaction =
+                        db.transaction(
+                            SERVICE_DRAFT_EVIDENCE_STORE,
+                            'readwrite'
+                        );
+
+                    transaction
+                        .objectStore(
+                            SERVICE_DRAFT_EVIDENCE_STORE
+                        )
+                        .delete(id);
+
+                    transaction.oncomplete =
+                        () => resolve();
+
+                    transaction.onerror =
+                        () => reject(
+                            transaction.error
+                        );
+                }
+            );
+
+            db.close();
+        } catch (error) {}
+    }
+
+    async function clearServiceDraftEvidenceFiles() {
+        if (!serviceLocalKey) {
+            return;
+        }
+
+        try {
+            const db =
+                await openServiceDraftDb();
+
+            await new Promise(
+                (resolve, reject) => {
+                    const transaction =
+                        db.transaction(
+                            SERVICE_DRAFT_EVIDENCE_STORE,
+                            'readwrite'
+                        );
+
+                    const store =
+                        transaction.objectStore(
+                            SERVICE_DRAFT_EVIDENCE_STORE
+                        );
+
+                    const index =
+                        store.index('draftKey');
+
+                    const request =
+                        index.openCursor(
+                            IDBKeyRange.only(
+                                serviceLocalKey
+                            )
+                        );
+
+                    request.onsuccess = () => {
+                        const cursor =
+                            request.result;
+
+                        if (!cursor) {
+                            return;
+                        }
+
+                        cursor.delete();
+                        cursor.continue();
+                    };
+
+                    transaction.oncomplete =
+                        () => resolve();
+
+                    transaction.onerror =
+                        () => reject(
+                            transaction.error
+                        );
+                }
+            );
+
+            db.close();
+        } catch (error) {}
+    }
+
+    const SERVICE_ALLOWED_IMAGE_EXTENSIONS =
+        new Set([
+            'jpg',
+            'jpeg',
+            'png',
+            'webp',
+        ]);
+
+    const SERVICE_ALLOWED_IMAGE_TYPES =
+        new Set([
+            'image/jpeg',
+            'image/png',
+            'image/webp',
+        ]);
+
+    function serviceFileExtension(file) {
+        const name =
+            String(
+                file?.name
+                || ''
+            );
+
+        const dotIndex =
+            name.lastIndexOf('.');
+
+        return dotIndex >= 0
+            ? name
+                .slice(dotIndex + 1)
+                .toLowerCase()
+            : '';
+    }
+
+    function isServiceEvidenceImage(file) {
+        if (!file) {
+            return false;
+        }
+
+        return (
+            SERVICE_ALLOWED_IMAGE_EXTENSIONS
+                .has(
+                    serviceFileExtension(file)
+                )
+            || SERVICE_ALLOWED_IMAGE_TYPES
+                .has(
+                    String(
+                        file.type
+                        || ''
+                    ).toLowerCase()
+                )
+        );
+    }
+
+    function isServiceEvidencePdf(file) {
+        if (!file) {
+            return false;
+        }
+
+        return (
+            serviceFileExtension(file) === 'pdf'
+            || String(
+                file.type
+                || ''
+            ).toLowerCase()
+                === 'application/pdf'
+        );
+    }
+
+    function validateServiceEvidenceFile(
+        input,
+        file
+    ) {
+        if (!file) {
+            return {
+                valid: false,
+                message: 'Nenhum arquivo selecionado.',
+            };
+        }
+
+        const extension =
+            serviceFileExtension(file);
+
+        const type =
+            String(
+                file.type
+                || ''
+            ).toLowerCase();
+
+        const isVideo =
+            type.startsWith('video/')
+            || [
+                'mp4',
+                'mov',
+                'm4v',
+                'avi',
+                'mkv',
+                'webm',
+                '3gp',
+                '3gpp',
+            ].includes(extension);
+
+        if (isVideo) {
+            return {
+                valid: false,
+                message:
+                    'Vídeos não são permitidos. Escolha uma foto ou imagem.',
+            };
+        }
+
+        const allowedKind =
+            input?.dataset.allowedKind
+            || 'image';
+
+        const isImage =
+            isServiceEvidenceImage(file);
+
+        const isPdf =
+            isServiceEvidencePdf(file);
+
+        if (
+            allowedKind === 'image'
+            && !isImage
+        ) {
+            return {
+                valid: false,
+                message:
+                    'Este campo aceita somente JPG, JPEG, PNG ou WebP.',
+            };
+        }
+
+        if (
+            allowedKind === 'image_or_pdf'
+            && !isImage
+            && !isPdf
+        ) {
+            return {
+                valid: false,
+                message:
+                    'Escolha JPG, JPEG, PNG, WebP ou PDF.',
+            };
+        }
+
+        return {
+            valid: true,
+            message: '',
+        };
+    }
+
+    function clearEvidenceFileError(input) {
+        const wrapper =
+            input?.closest(
+                '.svc-evidence-field'
+            );
+
+        wrapper?.classList.remove(
+            'has-evidence-error'
+        );
+
+        wrapper
+            ?.querySelector(
+                '.svc-evidence-file-error'
+            )
+            ?.remove();
+    }
+
+    function showEvidenceFileError(
+        input,
+        message
+    ) {
+        const wrapper =
+            input?.closest(
+                '.svc-evidence-field'
+            );
+
+        if (!wrapper) {
+            return;
+        }
+
+        wrapper.classList.add(
+            'has-evidence-error'
+        );
+
+        let error =
+            wrapper.querySelector(
+                '.svc-evidence-file-error'
+            );
+
+        if (!error) {
+            error =
+                document.createElement(
+                    'small'
+                );
+
+            error.className =
+                'svc-evidence-file-error';
+
+            const picker =
+                wrapper.querySelector(
+                    '.svc-evidence-picker'
+                );
+
+            if (picker) {
+                picker.insertAdjacentElement(
+                    'afterend',
+                    error
+                );
+            } else {
+                wrapper.appendChild(error);
+            }
+        }
+
+        error.innerHTML = `
+            <i class="ph-fill ph-warning-circle"></i>
+            ${escapeHtml(message)}
+        `;
+    }
+
+    function setEvidenceInputFile(
+        input,
+        file
+    ) {
+        if (!input || !file) {
+            return false;
+        }
+
+        try {
+            const transfer =
+                new DataTransfer();
+
+            transfer.items.add(file);
+            input.files = transfer.files;
+
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function evidenceSelectionFor(input) {
+        const id =
+            input?.dataset.selection;
+
+        return id
+            ? document.getElementById(id)
+            : null;
+    }
+
+    function updateEvidenceSelection(
+        input,
+        {
+            saved = false,
+            restored = false,
+        } = {}
+    ) {
+        const selection =
+            evidenceSelectionFor(input);
+
+        if (!selection) {
+            return;
+        }
+
+        const file =
+            input.files?.[0];
+
+        selection.classList.toggle(
+            'is-selected',
+            Boolean(file)
+        );
+
+        selection.classList.toggle(
+            'is-saved',
+            saved
+            || input.dataset.evidenceSaved === '1'
+        );
+
+        if (file) {
+            selection.innerHTML = `
+                <i class="ph-fill ph-check-circle"></i>
+                ${escapeHtml(file.name)}
+                ${restored ? ' · recuperado do rascunho' : ''}
+            `;
+            return;
+        }
+
+        if (
+            saved
+            || input.dataset.evidenceSaved === '1'
+        ) {
+            selection.innerHTML = `
+                <i class="ph-fill ph-check-circle"></i>
+                Arquivo já salvo
+            `;
+            return;
+        }
+
+        selection.textContent =
+            'Nenhum novo arquivo selecionado';
+    }
+
+    async function restoreServiceDraftEvidenceFiles(
+        root = document
+    ) {
+        if (!serviceLocalKey) {
+            return;
+        }
+
+        let db;
+
+        try {
+            db =
+                await openServiceDraftDb();
+        } catch (error) {
+            return;
+        }
+
+        const inputs = [
+            ...root.querySelectorAll(
+                '.svc-evidence-input'
+            ),
+        ];
+
+        for (const input of inputs) {
+            if (input.files?.length) {
+                updateEvidenceSelection(input);
+                continue;
+            }
+
+            const id =
+                serviceDraftEvidenceId(input);
+
+            if (!id) {
+                continue;
+            }
+
+            const record =
+                await new Promise(resolve => {
+                    const transaction =
+                        db.transaction(
+                            SERVICE_DRAFT_EVIDENCE_STORE,
+                            'readonly'
+                        );
+
+                    const request =
+                        transaction
+                            .objectStore(
+                                SERVICE_DRAFT_EVIDENCE_STORE
+                            )
+                            .get(id);
+
+                    request.onsuccess =
+                        () => resolve(
+                            request.result
+                            || null
+                        );
+
+                    request.onerror =
+                        () => resolve(null);
+                });
+
+            if (!record?.blob) {
+                updateEvidenceSelection(
+                    input,
+                    {
+                        saved:
+                            input.dataset.evidenceSaved
+                            === '1',
+                    }
+                );
+                continue;
+            }
+
+            const restoredFile =
+                new File(
+                    [record.blob],
+                    record.fileName
+                    || 'evidencia',
+                    {
+                        type:
+                            record.type
+                            || record.blob.type
+                            || 'application/octet-stream',
+                        lastModified:
+                            record.lastModified
+                            || Date.now(),
+                    }
+                );
+
+            const restoredValidation =
+                validateServiceEvidenceFile(
+                    input,
+                    restoredFile
+                );
+
+            if (!restoredValidation.valid) {
+                await removeServiceDraftEvidenceFile(
+                    input
+                );
+                continue;
+            }
+
+            if (
+                !setEvidenceInputFile(
+                    input,
+                    restoredFile
+                )
+            ) {
+                continue;
+            }
+
+            const box =
+                document.getElementById(
+                    input.dataset.preview
+                );
+
+            if (box) {
+                renderOriginalFile(
+                    box,
+                    restoredFile
+                );
+            }
+
+            updateEvidenceSelection(
+                input,
+                {
+                    restored: true,
+                }
+            );
+        }
+
+        db.close();
+    }
+
+    function validateServiceEvidenceInputs(
+        form
+    ) {
+        let firstInvalid = null;
+
+        form
+            .querySelectorAll(
+                '.svc-evidence-input'
+            )
+            .forEach(input => {
+                const wrapper =
+                    input.closest(
+                        '.svc-evidence-field'
+                    );
+
+                wrapper?.classList.remove(
+                    'has-evidence-error'
+                );
+
+                if (
+                    input.disabled
+                    || wrapper?.hidden
+                    || input.dataset.required !== '1'
+                ) {
+                    return;
+                }
+
+                const hasNewFile =
+                    Boolean(
+                        input.files?.length
+                    );
+
+                const hasSavedFile =
+                    input.dataset.evidenceSaved
+                    === '1';
+
+                if (
+                    !hasNewFile
+                    && !hasSavedFile
+                ) {
+                    wrapper?.classList.add(
+                        'has-evidence-error'
+                    );
+
+                    firstInvalid ??=
+                        input;
+                }
+            });
+
+        if (!firstInvalid) {
+            return true;
+        }
+
+        const wrapper =
+            firstInvalid.closest(
+                '.svc-evidence-field'
+            );
+
+        wrapper?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+
+        const fileButton =
+            wrapper?.querySelector(
+                '[data-open-file-picker]'
+            );
+
+        fileButton?.focus({
+            preventScroll: true,
+        });
+
+        return false;
+    }
+
+    function showServiceReloadOverlay(
+        title = 'Atualizando ordem…',
+        copy = 'Salvando o novo estado e recarregando a tela.'
+    ) {
+        if (!serviceReloadOverlay) {
+            return;
+        }
+
+        if (serviceReloadTitle) {
+            serviceReloadTitle.textContent =
+                title;
+        }
+
+        if (serviceReloadCopy) {
+            serviceReloadCopy.textContent =
+                copy;
+        }
+
+        serviceReloadOverlay.hidden = false;
+    }
+
+    document.addEventListener(
+        'click',
+        async event => {
+            const fileButton =
+                event.target.closest(
+                    '[data-open-file-picker]'
+                );
+
+            if (fileButton) {
+                const target =
+                    document.getElementById(
+                        fileButton.dataset
+                            .openFilePicker
+                    );
+
+                target?.click();
+                return;
+            }
+
+            const cameraButton =
+                event.target.closest(
+                    '[data-open-camera]'
+                );
+
+            if (cameraButton) {
+                const cameraInput =
+                    document.getElementById(
+                        cameraButton.dataset
+                            .openCamera
+                    );
+
+                const evidenceInput =
+                    document.getElementById(
+                        cameraInput?.dataset
+                            .targetInput
+                    );
+
+                const nativeCamera =
+                    window.Capacitor?.Plugins
+                        ?.NativeCamera;
+
+                if (
+                    window.Capacitor
+                        ?.isNativePlatform?.()
+                    && nativeCamera?.takePhoto
+                    && evidenceInput
+                ) {
+                    cameraButton.disabled = true;
+
+                    try {
+                        const capture =
+                            await nativeCamera
+                                .takePhoto();
+
+                        const blob =
+                            await fetch(
+                                capture.dataUrl
+                            ).then(
+                                response => response.blob()
+                            );
+
+                        const file = new File(
+                            [blob],
+                            capture.fileName
+                                || 'evidencia.jpg',
+                            {
+                                type:
+                                    capture.mimeType
+                                    || 'image/jpeg',
+                            }
+                        );
+
+                        if (
+                            setEvidenceInputFile(
+                                evidenceInput,
+                                file
+                            )
+                        ) {
+                            evidenceInput.dispatchEvent(
+                                new Event(
+                                    'change',
+                                    {bubbles: true}
+                                )
+                            );
+                        }
+                    } catch (error) {
+                        if (
+                            error?.code
+                            !== 'CAMERA_CANCELLED'
+                        ) {
+                            window.appToast?.(
+                                'A câmera nativa não respondeu. Abrindo a câmera compatível do aparelho.',
+                                'warning'
+                            );
+                            cameraInput?.click();
+                        }
+                    } finally {
+                        cameraButton.disabled = false;
+                    }
+
+                    return;
+                }
+
+                cameraInput?.click();
+            }
+        }
+    );
+
+    document.addEventListener(
+        'change',
+        event => {
+            const cameraInput =
+                event.target.closest(
+                    '.svc-evidence-camera-input'
+                );
+
+            if (!cameraInput) {
+                return;
+            }
+
+            const file =
+                cameraInput.files?.[0];
+
+            const target =
+                document.getElementById(
+                    cameraInput.dataset
+                        .targetInput
+                );
+
+            if (file && target) {
+                const validation =
+                    validateServiceEvidenceFile(
+                        target,
+                        file
+                    );
+
+                if (!validation.valid) {
+                    showEvidenceFileError(
+                        target,
+                        validation.message
+                    );
+
+                    cameraInput.value = '';
+                    return;
+                }
+
+                clearEvidenceFileError(target);
+
+                if (
+                    setEvidenceInputFile(
+                        target,
+                        file
+                    )
+                ) {
+                    target.dispatchEvent(
+                        new Event(
+                            'change',
+                            {
+                                bubbles: true,
+                            }
+                        )
+                    );
+                }
+            }
+
+            cameraInput.value = '';
+        }
+    );
+
+    async function submitServiceForm(form, {draft = false} = {}) {
+        if (
+            !draft
+            && !validateServiceEvidenceInputs(form)
+        ) {
+            const feedback = feedbackFor(form);
+
+            feedback.className =
+                'svc-alert danger svc-async-feedback';
+
+            feedback.innerHTML = `
+                <span class="svc-alert-icon">
+                    <i class="ph-fill ph-warning-circle"></i>
+                </span>
+                <div>
+                    <strong>Falta uma evidência obrigatória.</strong>
+                    <br>
+                    <small>
+                        Escolha um arquivo ou tire uma foto no campo destacado.
+                    </small>
+                </div>
+            `;
+
+            feedback.hidden = false;
+            return;
+        }
+
+        if (!draft && !form.reportValidity()) {
+            return;
+        }
+
+        let navigating = false;
+        const buttons = [...form.querySelectorAll('button')];
+        const feedback = feedbackFor(form);
+        buttons.forEach(button => button.disabled = true);
+        feedback.className = 'svc-alert svc-async-feedback';
+        feedback.innerHTML = '<span class="svc-alert-icon"><i class="ph-fill ph-spinner-gap"></i></span><div>Salvando sem recarregar a página…</div>';
+        feedback.hidden = false;
+
+        try {
+            const data = new FormData(form);
+            if (draft) data.set('_method', 'PUT');
+            const response = await fetch(draft ? serviceDraftUrl : form.action, {
+                method: 'POST', body: data, credentials: 'same-origin',
+                headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'}
+            });
+            const payload = await response.json().catch(() => ({message: 'O servidor retornou uma resposta inválida.'}));
+            if (!response.ok) {
+                const messages = payload.errors ? Object.values(payload.errors).flat() : [payload.message || 'Não foi possível salvar.'];
+                showAsyncErrors(form, feedback, messages, payload.errors || {});
+                return;
+            }
+
+            feedback.className =
+                'svc-alert svc-async-feedback';
+
+            feedback.innerHTML = `
+                <span class="svc-alert-icon">
+                    <i class="ph-fill ph-check-circle"></i>
+                </span>
+                <div>
+                    <strong>
+                        ${escapeHtml(payload.message || 'Dados salvos.')}
+                    </strong>
+                    <br>
+                    <small>
+                        ${draft
+                            ? 'Rascunho salvo com segurança.'
+                            : 'Atualizando o estado da ordem…'}
+                    </small>
+                </div>
+            `;
+
+            await updateEvidencePreviews(
+                form,
+                payload.evidences || []
+            );
+
+            /*
+             * Se o servidor persistiu a evidência, a referência
+             * deixa de depender do FileList local.
+             */
+            form
+                .querySelectorAll(
+                    '.svc-evidence-input'
+                )
+                .forEach(input => {
+                    if (
+                        input.dataset.evidenceSaved
+                        === '1'
+                    ) {
+                        input.value = '';
+                        updateEvidenceSelection(
+                            input,
+                            {
+                                saved: true,
+                            }
+                        );
+                    }
+                });
+
+            if (serviceLocalKey) {
+                localStorage.removeItem(
+                    serviceLocalKey
+                );
+            }
+
+            /*
+             * Toda ação não-rascunho é uma transição de estado
+             * nesta tela. Recarrega por padrão, salvo se o backend
+             * explicitamente responder reload:false.
+             */
+            const shouldReload =
+                draft
+                    ? Boolean(payload.reload)
+                    : payload.reload !== false;
+
+            if (!draft) {
+                await clearServiceDraftEvidenceFiles();
+            }
+
+            if (shouldReload) {
+                navigating = true;
+
+                showServiceReloadOverlay(
+                    payload.message
+                    || 'Atualizando ordem…',
+                    'Aplicando o novo estado e recarregando a tela.'
+                );
+
+                window.setTimeout(
+                    () => {
+                        window.location.assign(
+                            payload.url
+                            || window.location.href
+                        );
+                    },
+                    750
+                );
+            }
+        } catch (error) {
+            showAsyncErrors(form, feedback, ['Falha de conexão. Os dados continuam nesta tela; tente novamente.'], {});
+        } finally {
+            if (!navigating) {
+                buttons.forEach(
+                    button => {
+                        button.disabled = false;
+                    }
+                );
+            }
+        }
+    }
+
+    function feedbackFor(form) {
+        let feedback = form.querySelector('.svc-async-feedback');
+        if (!feedback) {
+            feedback = document.createElement('div'); feedback.className = 'svc-alert svc-async-feedback'; feedback.hidden = true;
+            form.prepend(feedback);
+        }
+        return feedback;
+    }
+
+    function showAsyncErrors(form, feedback, messages, errors) {
+        feedback.className = 'svc-alert danger svc-async-feedback';
+        feedback.innerHTML = `<span class="svc-alert-icon"><i class="ph-fill ph-warning-circle"></i></span><div><strong>Não foi possível concluir.</strong><ul style="margin:.35rem 0 0;padding-left:1.15rem">${messages.map(message => `<li>${escapeHtml(message)}</li>`).join('')}</ul><small>Corrija somente os itens indicados. Tudo o que foi preenchido continua na tela.</small></div>`;
+        form.querySelectorAll('[aria-invalid="true"]').forEach(field => field.removeAttribute('aria-invalid'));
+        let first = null;
+        Object.keys(errors).forEach(key => {
+            const simple = key.replace(/^values\./, '').replace(/^evidences\./, '');
+            const field = form.querySelector(`[name="values[${CSS.escape(simple)}]"], [name="evidences[${CSS.escape(simple)}]"]`);
+            if (field) { field.setAttribute('aria-invalid', 'true'); first ||= field; }
+        });
+        (first || feedback).scrollIntoView({behavior: 'smooth', block: 'center'});
+        first?.focus({preventScroll: true});
+    }
+
+    async function updateEvidencePreviews(form, evidences) {
+        for (const item of evidences) {
+            const input = form.querySelector(
+                `[name="evidences[${CSS.escape(item.field_key)}]"]`
+            );
+
+            const box = input
+                ? document.getElementById(input.dataset.preview)
+                : null;
+
+            if (!box) {
+                return;
+            }
+
+            const name =
+                escapeHtml(item.name || 'Evidência enviada');
+
+            const url =
+                escapeHtml(item.url || '');
+
+            const mime =
+                String(item.mime_type || '');
+
+            const previewType =
+                mime.startsWith('image/')
+                    ? 'image'
+                    : (
+                        mime === 'application/pdf'
+                            ? 'pdf'
+                            : 'file'
+                    );
+
+            if (previewType === 'image') {
+                box.innerHTML = `
+                    <button
+                        type="button"
+                        class="svc-image-preview-button svc-preview-trigger"
+                        data-preview-url="${url}"
+                        data-preview-type="image"
+                        data-preview-title="${name}"
+                    >
+                        <img
+                            src="${url}"
+                            alt="Prévia de ${name}"
+                        >
+                        <span class="svc-image-preview-hint">
+                            <i class="ph-fill ph-arrows-out"></i>
+                            Ampliar
+                        </span>
+                    </button>
+                `;
+            } else {
+                box.innerHTML = `
+                    <button
+                        type="button"
+                        class="svc-table-link svc-preview-trigger"
+                        data-preview-url="${url}"
+                        data-preview-type="${previewType}"
+                        data-preview-title="${name}"
+                    >
+                        <i class="ph-fill ph-eye"></i>
+                        Visualizar arquivo
+                    </button>
+                `;
+            }
+
+            input.dataset.evidenceSaved = '1';
+
+            input
+                .closest('.svc-evidence-field')
+                ?.classList.remove(
+                    'has-evidence-error'
+                );
+
+            updateEvidenceSelection(
+                input,
+                {
+                    saved: true,
+                }
+            );
+
+            await removeServiceDraftEvidenceFile(
+                input
+            );
+
+            bindServicePreviewTriggers(box);
+        }
     }
 
     document.addEventListener(
         'DOMContentLoaded',
-        () => {
+        async () => {
+            bindServicePreviewTriggers();
+
+            /*
+             * Se a ordem já chegou ao estado final, não há motivo
+             * para manter rascunho ou arquivos temporários locais.
+             */
+            if (
+                serviceExecutionStatus === 'validated'
+            ) {
+                if (serviceLocalKey) {
+                    localStorage.removeItem(
+                        serviceLocalKey
+                    );
+                }
+
+                await clearServiceDraftEvidenceFiles();
+            }
+
+            document.querySelectorAll('[data-async-service-form]').forEach(form => {
+                form.addEventListener('submit', event => { event.preventDefault(); submitServiceForm(form); });
+                form.querySelector('[data-save-draft]')?.addEventListener('click', () => submitServiceForm(form, {draft: true}));
+            });
+
+            const executionForm = document.getElementById('execution-form');
+            if (executionForm) {
+                try {
+                    const saved = serviceLocalKey
+                        ? JSON.parse(
+                            localStorage.getItem(serviceLocalKey)
+                            || '{}'
+                        )
+                        : {};
+                    Object.entries(saved).forEach(([name, value]) => {
+                        const field = executionForm.elements.namedItem(name);
+                        if (field && field.type !== 'file') field.value = value;
+                    });
+                } catch (error) {
+                    if (serviceLocalKey) {
+                        localStorage.removeItem(serviceLocalKey);
+                    }
+                }
+                const remember = () => {
+                    const values = {};
+                    executionForm.querySelectorAll('[name^="values["]').forEach(field => { if (!field.disabled) values[field.name] = field.value; });
+                    if (serviceLocalKey) {
+                        localStorage.setItem(
+                            serviceLocalKey,
+                            JSON.stringify(values)
+                        );
+                    }
+                };
+                executionForm.addEventListener('input', remember);
+                executionForm.addEventListener('change', remember);
+            }
+
+            const syncConditions = () => {
+                document.querySelectorAll('[data-condition]').forEach(wrapper => {
+                    let rule = null; try { rule = JSON.parse(wrapper.dataset.condition || 'null'); } catch (error) {}
+                    if (!rule?.field) { wrapper.hidden = false; return; }
+                    const source = document.querySelector(`[name="values[${CSS.escape(rule.field)}]"]`);
+                    const actual = source?.value; const expected = rule.value;
+                    const visible = ({equals:actual == expected, not_equals:actual != expected, is_true:['1','true',1,true].includes(actual), is_false:!['1','true',1,true].includes(actual), greater_than:Number(actual)>Number(expected), less_than:Number(actual)<Number(expected)})[rule.operator || 'equals'] ?? false;
+                    wrapper.hidden = !visible;
+                    wrapper
+                        .querySelectorAll(
+                            'input,select,textarea,button'
+                        )
+                        .forEach(
+                            field => {
+                                field.disabled =
+                                    !visible;
+                            }
+                        );
+                });
+            };
+            document.addEventListener('input', syncConditions); document.addEventListener('change', syncConditions); syncConditions();
+
             const startKey =
-                {{ \Illuminate\Support\Js::from(
-                    $meterStartField
-                ) }};
+                serviceMeterStartField;
 
             const endKey =
-                {{ \Illuminate\Support\Js::from(
-                    $meterEndField
-                ) }};
+                serviceMeterEndField;
 
             const preview =
                 document.getElementById(
@@ -2408,9 +6821,7 @@
                                 }
                             )
                             + ' '
-                            + {{ \Illuminate\Support\Js::from(
-                                $executionUnit
-                            ) }}
+                            + serviceExecutionUnit
                             : 'Medição final inválida';
                 };
 
@@ -2443,6 +6854,33 @@
                             const file =
                                 input.files?.[0];
 
+                            if (file) {
+                                const validation =
+                                    validateServiceEvidenceFile(
+                                        input,
+                                        file
+                                    );
+
+                                if (!validation.valid) {
+                                    input.value = '';
+
+                                    showEvidenceFileError(
+                                        input,
+                                        validation.message
+                                    );
+
+                                    updateEvidenceSelection(
+                                        input
+                                    );
+
+                                    return;
+                                }
+
+                                clearEvidenceFileError(
+                                    input
+                                );
+                            }
+
                             const box =
                                 document.getElementById(
                                     input.dataset.preview
@@ -2453,14 +6891,53 @@
                             }
 
                             if (
-                                !file.type.startsWith(
-                                    'image/'
+                                !isServiceEvidenceImage(
+                                    file
                                 )
                             ) {
-                                box.innerHTML =
-                                    `<small>${escapeHtml(
-                                        file.name
-                                    )}</small>`;
+                                if (box.dataset.objectUrl) {
+                                    URL.revokeObjectURL(
+                                        box.dataset.objectUrl
+                                    );
+                                }
+
+                                const objectUrl =
+                                    URL.createObjectURL(file);
+
+                                box.dataset.objectUrl =
+                                    objectUrl;
+
+                                const previewType =
+                                    isServiceEvidencePdf(file)
+                                        ? 'pdf'
+                                        : 'file';
+
+                                box.innerHTML = `
+                                    <button
+                                        type="button"
+                                        class="svc-table-link svc-preview-trigger"
+                                        data-preview-url="${escapeHtml(objectUrl)}"
+                                        data-preview-type="${previewType}"
+                                        data-preview-title="${escapeHtml(file.name)}"
+                                    >
+                                        <i class="ph-fill ph-eye"></i>
+                                        Visualizar ${previewType === 'pdf' ? 'PDF' : 'arquivo'}
+                                    </button>
+                                `;
+
+                                bindServicePreviewTriggers(box);
+
+                                await saveServiceDraftEvidenceFile(
+                                    input,
+                                    file
+                                );
+
+                                updateEvidenceSelection(
+                                    input
+                                );
+
+                                input.dataset.evidenceSaved =
+                                    '0';
 
                                 return;
                             }
@@ -2565,28 +7042,45 @@
                                                 'img'
                                             );
 
-                                        const objectUrl =
-                                            URL.createObjectURL(
-                                                blob
+                                        if (box.dataset.objectUrl) {
+                                            URL.revokeObjectURL(
+                                                box.dataset.objectUrl
                                             );
+                                        }
+
+                                        const objectUrl =
+                                            URL.createObjectURL(blob);
+
+                                        box.dataset.objectUrl =
+                                            objectUrl;
 
                                         image.src = objectUrl;
                                         image.alt =
                                             'Prévia da evidência';
 
-                                        image.addEventListener(
-                                            'load',
-                                            () => {
-                                                URL.revokeObjectURL(
-                                                    objectUrl
-                                                );
-                                            },
-                                            {
-                                                once: true,
-                                            }
+                                        box.appendChild(image);
+
+                                        bindServiceImagePreview(
+                                            image,
+                                            file.name,
+                                            objectUrl
                                         );
 
-                                        box.appendChild(image);
+                                        input.dataset.evidenceSaved =
+                                            '0';
+
+                                        const cachedFile =
+                                            input.files?.[0]
+                                            || file;
+
+                                        saveServiceDraftEvidenceFile(
+                                            input,
+                                            cachedFile
+                                        );
+
+                                        updateEvidenceSelection(
+                                            input
+                                        );
                                     },
                                     'image/webp',
                                     .82
@@ -2596,10 +7090,26 @@
                                     box,
                                     file
                                 );
+
+                                input.dataset.evidenceSaved =
+                                    '0';
+
+                                await saveServiceDraftEvidenceFile(
+                                    input,
+                                    file
+                                );
+
+                                updateEvidenceSelection(
+                                    input
+                                );
                             }
                         }
                     );
                 });
+
+            await restoreServiceDraftEvidenceFiles(
+                document
+            );
         }
     );
 
@@ -2607,10 +7117,67 @@
         box,
         file
     ) {
-        box.innerHTML =
-            `<small>${escapeHtml(
-                file.name
-            )}</small>`;
+        if (!isServiceEvidenceImage(file)) {
+            if (box.dataset.objectUrl) {
+                URL.revokeObjectURL(box.dataset.objectUrl);
+            }
+
+            const objectUrl =
+                URL.createObjectURL(file);
+
+            box.dataset.objectUrl =
+                objectUrl;
+
+            const previewType =
+                isServiceEvidencePdf(file)
+                    ? 'pdf'
+                    : 'file';
+
+            box.innerHTML = `
+                <button
+                    type="button"
+                    class="svc-table-link svc-preview-trigger"
+                    data-preview-url="${escapeHtml(objectUrl)}"
+                    data-preview-type="${previewType}"
+                    data-preview-title="${escapeHtml(file.name)}"
+                >
+                    <i class="ph-fill ph-eye"></i>
+                    Visualizar arquivo
+                </button>
+            `;
+
+            bindServicePreviewTriggers(box);
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.addEventListener(
+            'load',
+            () => {
+                box.innerHTML = '';
+
+                const image =
+                    document.createElement('img');
+
+                image.src =
+                    String(reader.result || '');
+
+                image.alt =
+                    `Prévia de ${file.name}`;
+
+                box.appendChild(image);
+
+                bindServiceImagePreview(
+                    image,
+                    file.name,
+                    image.src
+                );
+            },
+            {once: true}
+        );
+
+        reader.readAsDataURL(file);
     }
 
     function escapeHtml(value) {

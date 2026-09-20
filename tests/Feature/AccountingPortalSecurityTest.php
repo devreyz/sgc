@@ -220,6 +220,36 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('summary.open_amount', 180);
     }
 
+    public function test_incomplete_draft_is_preparation_work_and_not_a_critical_inconsistency(): void
+    {
+        DB::table('customer_billing_receipts')->where('id', 10)->update([
+            'status' => 'draft',
+            'total_gross' => 0,
+            'total_fees' => 0,
+            'total_net' => 0,
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null]);
+
+        $user = User::query()->findOrFail(1);
+        $queue = $this->actingAs($user)->getJson('/tenant-a/accounting/data/queue')->assertOk();
+
+        self::assertSame(['drafts'], collect($queue->json('queue'))->pluck('key')->all());
+        $queue->assertJsonPath('queue.0.count', 1);
+
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/data/processes?financial_status=draft')
+            ->assertOk()
+            ->assertJsonPath('processes.data.0.critical_issues', 0)
+            ->assertJsonPath('processes.data.0.preparation_issues', 1)
+            ->assertJsonPath('processes.data.0.state.label', 'Dados a completar');
+
+        $inspection = app(AccountingProcessIntegrityService::class)
+            ->inspect(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10));
+        self::assertSame(0, $inspection['critical_count']);
+        self::assertSame(1, $inspection['preparation_count']);
+        self::assertSame(1, $inspection['blocking_count']);
+    }
+
     public function test_filters_cannot_expand_results_to_another_tenant(): void
     {
         $user = User::query()->findOrFail(1);
@@ -443,7 +473,7 @@ class AccountingPortalSecurityTest extends TestCase
         DB::table('organization_authorized_emails')->where('tenant_id', 1)->update(['active' => false]);
         $this->actingAs(User::query()->findOrFail(2))
             ->get('/tenant-a/buyer/authorizations/'.$round->id)
-            ->assertRedirect('/');
+            ->assertForbidden();
     }
 
     public function test_legacy_receipt_does_not_receive_a_fictitious_authorization(): void

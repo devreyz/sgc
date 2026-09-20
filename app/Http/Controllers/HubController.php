@@ -90,25 +90,13 @@ class HubController extends Controller
             ];
         }
 
-        if ($user->checkPermissionTo('view_service_management') || $user->checkPermissionTo('simulate_services')) {
+        if ($user->checkPermissionTo('view_service_management')) {
             $roles[] = [
                 'name' => 'Gestão de Serviços',
-                'description' => 'Ordens, catálogo, prestação de contas e laboratório de simulação',
+                'description' => 'Ordens, catálogo, prestação de contas e simulações',
                 'icon' => 'briefcase',
-                'url' => $user->checkPermissionTo('view_service_management')
-                    ? route('services.management.index', ['tenant' => $currentTenant->slug])
-                    : route('services.simulations.index', ['tenant' => $currentTenant->slug]),
+                'url' => route('services.management.index', ['tenant' => $currentTenant->slug]),
                 'color' => 'success',
-            ];
-        }
-
-        if ($user->checkPermissionTo('simulate_services')) {
-            $roles[] = [
-                'name' => 'Simulador de Serviços',
-                'description' => 'Testar versões, medições, preços e obrigações sem criar lançamentos reais',
-                'icon' => 'calculator',
-                'url' => route('services.simulations.index', ['tenant' => $currentTenant->slug]),
-                'color' => 'info',
             ];
         }
 

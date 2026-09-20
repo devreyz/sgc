@@ -17,6 +17,7 @@ class GoogleDriveSyncDispatcher
     {
         if ($tenantId <= 0 || ! TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenantId)
+            ->where('provider', 'google_drive')
             ->where('status', 'active')
             ->exists()) {
             return 0;

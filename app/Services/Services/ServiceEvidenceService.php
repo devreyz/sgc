@@ -40,7 +40,11 @@ class ServiceEvidenceService
             $hash = hash('sha256', $bytes);
             $filename = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME).'.'.$extension;
             $drive = Schema::hasTable('tenant_cloud_storage_connections')
-                && TenantCloudStorageConnection::query()->where('tenant_id', $execution->tenant_id)->where('status', 'active')->exists();
+                && TenantCloudStorageConnection::query()
+                    ->where('tenant_id', $execution->tenant_id)
+                    ->where('provider', 'google_drive')
+                    ->where('status', 'active')
+                    ->exists();
             if ($drive) {
                 $tenant = Tenant::query()->findOrFail($execution->tenant_id);
                 $cloud = app(TenantGoogleDriveService::class)->putDocument(

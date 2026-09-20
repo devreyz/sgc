@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ServiceOrderResource\Pages;
 use App\Filament\Support\ServiceExecutionForm;
 use App\Filament\Traits\TenantScoped;
+use App\Models\Associate;
 use App\Models\BankAccount;
 use App\Models\Service;
 use App\Models\ServiceObligation;
@@ -87,8 +88,17 @@ class ServiceOrderResource extends Resource
                             ? ServiceProvider::query()->where('status', true)->whereHas('services', fn ($query) => $query->whereKey($get('service_id')))->orderBy('name')->pluck('name', 'id')
                             : collect())
                         ->searchable()->preload()->required(fn (callable $get) => ServiceVersion::query()->find($get('service_version_id'))?->payable_enabled ?? false),
-                    Forms\Components\Select::make('associate_id')->label('Associado/beneficiário')->relationship('associate', 'id')->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? "Associado #{$record->id}")->searchable()->preload(),
-                    Forms\Components\TextInput::make('beneficiary_name')->label('Nome ou apelido do beneficiário')->helperText('Para serviço interno, informe a organização ou setor atendido.')->required()->maxLength(191)->afterStateHydrated(fn ($component, $record) => $component->state(data_get($record, 'beneficiary_snapshot.name'))),
+                    Forms\Components\Select::make('associate_id')->label('Associado/beneficiário')->relationship('associate', 'id')->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name ?? "Associado #{$record->id}")->searchable()->preload()->live()
+                        ->afterStateUpdated(function ($state, callable $set): void {
+                            if (! $state) {
+                                return;
+                            }
+                            $associate = Associate::query()->where('tenant_id', session('tenant_id'))->whereKey($state)->first();
+                            if ($associate) {
+                                $set('beneficiary_name', $associate->nickname ?: $associate->display_name);
+                            }
+                        }),
+                    Forms\Components\TextInput::make('beneficiary_name')->label('Nome ou apelido do beneficiário')->helperText('Preenchido automaticamente com o apelido do membro, quando existir. Para serviço interno, informe a organização ou setor atendido.')->required(fn (callable $get) => blank($get('associate_id')))->maxLength(191)->afterStateHydrated(fn ($component, $record) => $component->state(data_get($record, 'beneficiary_snapshot.name'))),
                     Forms\Components\Select::make('asset_id')->label('Equipamento/recurso')->relationship('asset', 'name')->searchable()->preload(),
                     Forms\Components\DateTimePicker::make('scheduled_at')->label('Agendamento')->seconds(false)->default(now())->required(),
                     Forms\Components\TextInput::make('location')->label('Local')->maxLength(191)->columnSpanFull(),

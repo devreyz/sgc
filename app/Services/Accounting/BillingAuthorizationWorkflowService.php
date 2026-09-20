@@ -136,7 +136,7 @@ class BillingAuthorizationWorkflowService
 
             $currentHash = $this->validity->currentHash($round->receipt, true);
             $currentStateIsInvalid = ! $this->validity->hasCompatibleFinancialStatus($round->receipt)
-                || $this->integrity->inspect($round->receipt)['critical_count'] > 0;
+                || $this->integrity->inspect($round->receipt)['blocking_count'] > 0;
             if ($currentStateIsInvalid || ! hash_equals((string) $round->snapshot_hash, $currentHash)) {
                 $this->markInvalidated($round, $currentHash, null, $currentStateIsInvalid
                     ? 'A cobrança deixou de estar íntegra ou em situação compatível antes da resposta.'
@@ -193,7 +193,7 @@ class BillingAuthorizationWorkflowService
 
             $currentHash = $this->validity->currentHash($round->receipt, true);
             $currentStateIsInvalid = ! $this->validity->hasCompatibleFinancialStatus($round->receipt)
-                || $this->integrity->inspect($round->receipt)['critical_count'] > 0;
+                || $this->integrity->inspect($round->receipt)['blocking_count'] > 0;
             if ($currentStateIsInvalid || ! hash_equals((string) $round->snapshot_hash, $currentHash)) {
                 $this->markInvalidated($round, $currentHash, null, $currentStateIsInvalid
                     ? 'A cobrança deixou de estar íntegra ou em situação compatível antes da resposta.'

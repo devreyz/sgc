@@ -5,7 +5,7 @@ return [
     'name' => env('APP_NAME', 'SGC'),
 
     // Também identifica os caches locais do PWA. Altere a cada publicação.
-    'version' => env('APP_VERSION', '2026.09.18'),
+    'version' => env('APP_VERSION', '2026.09.19'),
 
     'env' => env('APP_ENV', 'production'),
 

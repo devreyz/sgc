@@ -24,7 +24,7 @@
         <div class="acc-heading">
             <p class="acc-eyebrow">Trabalho contábil</p>
             <h1>Fila de processos</h1>
-            <p>Prioridades calculadas a partir das cobranças e distribuições do tenant.</p>
+            <p>Acompanhe cada cobrança desde a preparação dos dados até a emissão fiscal e o recebimento.</p>
         </div>
         <a class="acc-button acc-button-primary" href="{{ route('accounting.processes.index', ['tenant' => $tenant->slug]) }}">
             <i data-lucide="folder-search" aria-hidden="true"></i>
@@ -42,7 +42,7 @@
         <header class="acc-panel-head">
             <div>
                 <h2>Ações que exigem atenção</h2>
-                <p>Filas sem pendências não ocupam espaço.</p>
+                <p>Rascunhos incompletos são tarefas de preparação; somente erros estruturais aparecem como falha de integridade.</p>
             </div>
         </header>
         <div class="acc-queue" data-queue-list aria-live="polite"></div>

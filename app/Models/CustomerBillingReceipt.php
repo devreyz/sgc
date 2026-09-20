@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
@@ -144,6 +145,11 @@ class CustomerBillingReceipt extends Model
     public function documents(): MorphMany
     {
         return $this->morphMany(Document::class, 'documentable');
+    }
+
+    public function verificationIdentity(): MorphOne
+    {
+        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
     }
 
     public function authorizationRounds(): HasMany

@@ -93,11 +93,19 @@ class TenantSeeder extends Seeder
             ]
         );
 
+        if (blank($superAdmin->email_verified_at)) {
+            $superAdmin->forceFill(['email_verified_at' => now()])->saveQuietly();
+        }
+
         // Ensure super_admin role exists
         $superAdminRole = Role::firstOrCreate(
             ['name' => 'super_admin'],
             ['guard_name' => 'web']
         );
+
+        if (blank($admin->email_verified_at)) {
+            $admin->forceFill(['email_verified_at' => now()])->saveQuietly();
+        }
 
         // Ensure admin role exists
         $adminRole = Role::firstOrCreate(

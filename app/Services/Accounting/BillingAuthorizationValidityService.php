@@ -50,7 +50,7 @@ class BillingAuthorizationValidityService
             || (int) $authorization->tenant_id !== (int) $receipt->tenant_id
             || (int) $authorization->customer_billing_receipt_id !== (int) $receipt->id
             || ! $this->hasCompatibleFinancialStatus($receipt)
-            || $this->integrity->inspect($receipt)['critical_count'] > 0) {
+            || $this->integrity->inspect($receipt)['blocking_count'] > 0) {
             return false;
         }
 
@@ -91,7 +91,7 @@ class BillingAuthorizationValidityService
                 $invalidReason = $reason.' Não foi possível reconstruir a versão material atual.';
             }
             $stateInvalid = ! $this->hasCompatibleFinancialStatus($lockedReceipt);
-            $integrityInvalid = $this->integrity->inspect($lockedReceipt)['critical_count'] > 0;
+            $integrityInvalid = $this->integrity->inspect($lockedReceipt)['blocking_count'] > 0;
             if (! $stateInvalid && ! $integrityInvalid && $currentHash !== null
                 && hash_equals((string) $authorization->snapshot_hash, $currentHash)) {
                 return null;

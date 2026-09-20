@@ -27,6 +27,7 @@ class GoogleDriveOAuthController extends Controller
 
         $connection = TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenant->id)
+            ->where('provider', 'google_drive')
             ->first();
 
         if (! $connection?->hasOAuthConfiguration()) {
@@ -85,6 +86,7 @@ class GoogleDriveOAuthController extends Controller
 
             $connection = TenantCloudStorageConnection::query()
                 ->where('tenant_id', $tenant->id)
+                ->where('provider', 'google_drive')
                 ->whereKey((int) $oauth['connection_id'])
                 ->firstOrFail();
 
@@ -105,6 +107,7 @@ class GoogleDriveOAuthController extends Controller
             $connection = DB::transaction(function () use ($tenant, $request, $refreshToken, $grantedScopes) {
                 $connection = TenantCloudStorageConnection::query()
                     ->where('tenant_id', $tenant->id)
+                    ->where('provider', 'google_drive')
                     ->lockForUpdate()
                     ->firstOrFail();
 

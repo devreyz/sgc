@@ -99,7 +99,11 @@ function defaultDocumentPath(title = '') {
 
 function closeWebPdfViewer() {
     const viewer = document.getElementById('sgc-web-pdf-viewer');
-    if (viewer) viewer.hidden = true;
+    if (viewer) {
+        viewer.hidden = true;
+        const frame = viewer.querySelector('[data-sgc-pdf-frame]');
+        if (frame) frame.removeAttribute('src');
+    }
     if (webPdfState?.url) URL.revokeObjectURL(webPdfState.url);
     webPdfState = null;
     document.documentElement.style.overflow = '';
@@ -120,12 +124,13 @@ function ensureWebPdfViewer() {
             <div class="sgc-pdf-heading"><span>Documento</span><strong data-sgc-pdf-title></strong></div>
             <nav aria-label="Ações do documento">
                 <button type="button" data-sgc-pdf-download>Baixar</button>
+                <button type="button" data-sgc-pdf-open>Abrir em nova aba</button>
                 <button type="button" data-sgc-pdf-share>Compartilhar</button>
                 <button type="button" data-sgc-pdf-print>Imprimir</button>
                 <button type="button" data-sgc-pdf-close>Fechar</button>
             </nav>
         </header>
-        <iframe title="Conteúdo do PDF" data-sgc-pdf-frame></iframe>
+        <iframe title="Conteúdo do PDF" data-sgc-pdf-frame referrerpolicy="no-referrer"></iframe>
     `;
     const style = document.createElement('style');
     style.textContent = `
@@ -142,6 +147,9 @@ function ensureWebPdfViewer() {
     viewer.querySelector('[data-sgc-pdf-close]').addEventListener('click', closeWebPdfViewer);
     viewer.querySelector('[data-sgc-pdf-download]').addEventListener('click', () => {
         if (webPdfState) downloadInBrowser(webPdfState.blob, webPdfState.fileName);
+    });
+    viewer.querySelector('[data-sgc-pdf-open]').addEventListener('click', () => {
+        if (webPdfState?.url) window.open(webPdfState.url, '_blank', 'noopener,noreferrer');
     });
     viewer.querySelector('[data-sgc-pdf-share]').addEventListener('click', () => {
         if (webPdfState) window.SgcDocuments.sharePdf(webPdfState.blob, webPdfState.fileName, webPdfState.title);
@@ -160,7 +168,10 @@ function openInBrowser(blob, fileName, title) {
     const url = URL.createObjectURL(blob);
     webPdfState = { blob, fileName, title, url };
     viewer.querySelector('[data-sgc-pdf-title]').textContent = title;
-    viewer.querySelector('[data-sgc-pdf-frame]').src = `${url}#view=FitH&toolbar=0`;
+    // Parâmetros de leitor (#toolbar/#view) fazem alguns WebViews e PWAs
+    // exibirem uma página vazia. O blob puro preserva o visualizador nativo
+    // do navegador e o botão acima oferece uma saída explícita.
+    viewer.querySelector('[data-sgc-pdf-frame]').src = url;
     viewer.hidden = false;
     document.documentElement.style.overflow = 'hidden';
     hideNavigationLoading();
@@ -183,7 +194,7 @@ window.SgcDocuments = {
             }
             return;
         } else {
-        showNavigationLoading("Abrindo documento", "Preparando o visualizador");
+            showNavigationLoading("Abrindo documento", "Preparando o visualizador");
         }
         openInBrowser(blob, fileName, resolvedTitle);
     },

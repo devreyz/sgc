@@ -6,9 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentTemplate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\SvgWriter;
-use Endroid\QrCode\Writer\PngWriter;
+use SimpleSoftwareIO\QrCode\Generator;
 
 class DocumentService
 {
@@ -17,7 +15,8 @@ class DocumentService
      */
     public function generateVerificationHash(array $data): string
     {
-        $stringToHash = json_encode($data) . now()->timestamp . Str::random(10);
+        $stringToHash = json_encode($data).now()->timestamp.Str::random(10);
+
         return hash('sha256', $stringToHash);
     }
 
@@ -27,23 +26,16 @@ class DocumentService
     public function generateQrCode(string $hash): string
     {
         $url = route('document.verify', ['hash' => $hash]);
-        $qr = QrCode::create($url)
-            ->setSize(150);
-        $writer = new SvgWriter();
-        return $writer->write($qr)->getString();
+
+        return (string) (new Generator)->format('svg')->size(150)->margin(1)->generate($url);
     }
 
     /**
-     * Generate QR Code PNG base64 for document verification
+     * Generate a base64 SVG for document verification.
      */
     public function generateQrCodeBase64(string $hash): string
     {
-        $url = route('document.verify', ['hash' => $hash]);
-        $qr = QrCode::create($url)
-            ->setSize(150);
-        $writer = new PngWriter();
-        $result = $writer->write($qr);
-        return base64_encode($result->getString());
+        return base64_encode($this->generateQrCode($hash));
     }
 
     /**
@@ -77,7 +69,7 @@ class DocumentService
 
         // Generate QR code SVG for embedding in HTML
         $qrCodeSvg = $this->generateQrCode($hash);
-        
+
         // Add QR code to variables
         $variables['qrcode'] = $qrCodeSvg;
         $variables['verification_hash'] = $hash;
@@ -99,7 +91,7 @@ class DocumentService
      */
     public function formatDate(\DateTime|string|null $date, string $format = 'd/m/Y'): string
     {
-        if (!$date) {
+        if (! $date) {
             return '-';
         }
 
@@ -115,7 +107,7 @@ class DocumentService
      */
     public function formatDateExtensive(\DateTime|string|null $date): string
     {
-        if (!$date) {
+        if (! $date) {
             return '-';
         }
 
@@ -126,7 +118,7 @@ class DocumentService
         $months = [
             1 => 'janeiro', 2 => 'fevereiro', 3 => 'março', 4 => 'abril',
             5 => 'maio', 6 => 'junho', 7 => 'julho', 8 => 'agosto',
-            9 => 'setembro', 10 => 'outubro', 11 => 'novembro', 12 => 'dezembro'
+            9 => 'setembro', 10 => 'outubro', 11 => 'novembro', 12 => 'dezembro',
         ];
 
         $day = $date->format('d');
@@ -150,16 +142,16 @@ class DocumentService
     public function numberToWords(float $value): string
     {
         $formatter = new \NumberFormatter('pt_BR', \NumberFormatter::SPELLOUT);
-        
+
         $reais = floor($value);
         $centavos = round(($value - $reais) * 100);
 
         $text = $formatter->format($reais);
-        $text = ucfirst($text) . ($reais == 1 ? ' real' : ' reais');
+        $text = ucfirst($text).($reais == 1 ? ' real' : ' reais');
 
         if ($centavos > 0) {
             $centavosText = $formatter->format($centavos);
-            $text .= ' e ' . $centavosText . ($centavos == 1 ? ' centavo' : ' centavos');
+            $text .= ' e '.$centavosText.($centavos == 1 ? ' centavo' : ' centavos');
         }
 
         return $text;

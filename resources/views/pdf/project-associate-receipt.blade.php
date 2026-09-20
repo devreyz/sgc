@@ -463,6 +463,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 @endif
 
 {{-- ═══ SEGUNDA VIA ═══ --}}
+@include('pdf.partials.financial-document-qr')
+
+{{-- ═══ SEGUNDA VIA ═══ --}}
     @if($copyLabel && str_starts_with($copyLabel, '2ª VIA'))
         <div style="position: fixed; top: 50%; left: 0; width: 100%; text-align: center; transform: translateY(-50%) rotate(-35deg); color: rgba(180,0,0,0.12); font-size: 72px; font-weight: bold; letter-spacing: 6px; font-family: 'DejaVu Sans', Arial, sans-serif; pointer-events: none; z-index: 100;">
             2ª VIA

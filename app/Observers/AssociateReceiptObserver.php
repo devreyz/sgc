@@ -7,10 +7,14 @@ use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Models\AssociateReceipt;
 use App\Models\Tenant;
 use App\Services\TenantNotificationDispatcher;
+use App\Services\FinancialDocumentIdentityService;
 
 class AssociateReceiptObserver
 {
-    public function __construct(private readonly TenantNotificationDispatcher $notifications) {}
+    public function __construct(
+        private readonly TenantNotificationDispatcher $notifications,
+        private readonly FinancialDocumentIdentityService $identities,
+    ) {}
 
     public function created(AssociateReceipt $receipt): void
     {
@@ -51,34 +55,21 @@ class AssociateReceiptObserver
         $recipients = $this->notifications->usersForRoles($tenant->id, $roles);
 
         $obsolete = $event === 'receipt.obsolete';
-        $adminUrl = '/admin/associate-receipts/'.(int) $receipt->id.'/edit';
+        $identity = $this->identities->ensure($receipt);
+        $documentUrl = $identity
+            ? route('financial-documents.show', $identity->public_id, false)
+            : '/'.$tenant->slug.'/notifications';
         $message = [
             'title' => $obsolete ? 'Comprovante precisa ser regenerado' : 'Comprovante gerado',
             'body' => 'Comprovante '.$receipt->formatted_number.' de '.$receipt->associate?->display_name.'.',
-            'url' => route('delivery.projects.producers', [
-                'tenant' => $tenant->slug,
-                'project' => $receipt->sales_project_id,
-                'associate' => $receipt->associate_id,
-                'name' => $receipt->associate?->display_name,
-            ], false),
+            'url' => $documentUrl,
             'role_urls' => [
-                'registrador_entregas' => route('delivery.projects.receipt-reprint', [
-                    'tenant' => $tenant->slug,
-                    'project' => $receipt->sales_project_id,
-                    'receipt' => $receipt->id,
-                ], false).'?preview=1',
-                'associado' => route('associate.projects.receipts.download', [
-                    'tenant' => $tenant->slug,
-                    'project' => $receipt->sales_project_id,
-                    'receipt' => $receipt->id,
-                ], false),
-                'visualizador_entregas' => route('delivery-viewer.projects.show', [
-                    'tenant' => $tenant->slug,
-                    'project' => $receipt->sales_project_id,
-                ], false).'#documents',
-                'financeiro' => $adminUrl,
-                'tesoureiro' => $adminUrl,
-                'admin' => $adminUrl,
+                'registrador_entregas' => $documentUrl,
+                'associado' => $documentUrl,
+                'visualizador_entregas' => $documentUrl,
+                'financeiro' => $documentUrl,
+                'tesoureiro' => $documentUrl,
+                'admin' => $documentUrl,
             ],
             'icon' => $obsolete ? 'file-warning' : 'file-check-2',
             'action_label' => $obsolete ? 'Corrigir comprovante' : 'Ver comprovante',

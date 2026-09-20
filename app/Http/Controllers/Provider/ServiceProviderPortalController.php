@@ -3,21 +3,24 @@
 namespace App\Http\Controllers\Provider;
 
 use App\Http\Controllers\Controller;
-use App\Models\ServiceExecutionEvidence;
 use App\Models\Associate;
+use App\Models\ChartAccount;
+use App\Models\Document;
+use App\Models\Expense;
+use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceObligation;
 use App\Models\ServiceOrder;
 use App\Models\ServiceProvider;
 use App\Models\ServiceVersion;
 use App\Models\Tenant;
-use App\Models\Expense;
-use App\Models\ChartAccount;
 use App\Services\Services\CreateServiceOrder;
 use App\Services\Services\ServiceCompositionCalculator;
 use App\Services\Services\ServiceEvidenceService;
-use App\Services\Services\ServiceExpenseService;
 use App\Services\Services\ServiceExecutionWorkflow;
+use App\Services\Services\ServiceExpenseAttachmentService;
+use App\Services\Services\ServiceExpenseService;
 use App\Services\Services\ServicePayoutRequestService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -94,7 +97,7 @@ class ServiceProviderPortalController extends Controller
         return view('provider.services-show', compact('provider', 'operator', 'order', 'financialPreview'));
     }
 
-    public function start(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse
+    public function start(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse|JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $order = $this->order($tenant, $provider, $operator, $order);
@@ -104,10 +107,10 @@ class ServiceProviderPortalController extends Controller
             $workflow->start($order->execution, $this->portalValues($order, $data['values'] ?? [], ['start'], $operator), $data['operation_key'], $request->user());
         }, 3);
 
-        return back()->with('success', 'Serviço iniciado.');
+        return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), 'Serviço iniciado.', true);
     }
 
-    public function draft(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse
+    public function draft(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse|JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $order = $this->order($tenant, $provider, $operator, $order);
@@ -117,20 +120,23 @@ class ServiceProviderPortalController extends Controller
             $workflow->saveDraft($order->execution, $this->portalValues($order, $data['values'] ?? [], ['start', 'execution', 'finish'], $operator), $request->user());
         }, 3);
 
-        return back()->with('success', 'Rascunho salvo.');
+        return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), 'Rascunho salvo.', false);
     }
 
-    public function submit(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse
+    public function submit(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence): RedirectResponse|JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $order = $this->order($tenant, $provider, $operator, $order);
         $data = $request->validate(['operation_key' => 'required|uuid', 'values' => 'array', 'evidences' => 'array', 'evidences.*' => 'nullable|file|max:12288']);
         $execution = DB::transaction(function () use ($request, $order, $operator, $data, $workflow, $evidence) {
             $this->uploadSubmittedEvidences($request, $order, $operator, ['execution', 'finish'], $evidence);
+
             return $workflow->submit($order->execution, $this->portalValues($order, $data['values'] ?? [], ['execution', 'finish'], $operator), $data['operation_key'], $request->user());
         }, 3);
 
-        return back()->with('success', $execution->status === 'validated' ? 'Serviço validado e obrigações geradas.' : 'Serviço enviado para conferência.');
+        $message = $execution->status === 'validated' ? 'Serviço validado e obrigações geradas.' : 'Serviço enviado para conferência.';
+
+        return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), $message, true);
     }
 
     public function upload(Request $request, Tenant $tenant, int $order, ServiceEvidenceService $evidence): RedirectResponse
@@ -147,7 +153,7 @@ class ServiceProviderPortalController extends Controller
         return back()->with('success', 'Evidência anexada.');
     }
 
-    public function approve(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse
+    public function approve(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse|JsonResponse
     {
         [$provider, $operator] = $this->access($request, $tenant);
         abort_unless($operator && $request->user()->checkPermissionTo('approve_service_execution'), 403);
@@ -155,14 +161,23 @@ class ServiceProviderPortalController extends Controller
         $data = $request->validate(['operation_key' => 'required|uuid']);
         $workflow->approve($order->execution, $data['operation_key'], $request->user());
 
-        return back()->with('success', 'Execução conferida e concluída.');
+        return $this->mutationResponse($request, $tenant, $order->fresh(['execution.evidences.document']), 'Execução conferida e concluída.', true);
     }
 
     public function financial(Request $request, Tenant $tenant): View
     {
         [$provider, $operator] = $this->access($request, $tenant);
         $query = ServiceObligation::query()->where('tenant_id', $tenant->id)->when(! $operator, fn ($query) => $query->where('service_provider_id', $provider->id))->where('direction', 'payable');
-        $summary = ['due' => (clone $query)->sum('total_amount'), 'paid' => (clone $query)->sum('paid_amount'), 'balance' => (clone $query)->sum('balance')];
+        $due = (float) (clone $query)->selectRaw('COALESCE(SUM(principal_amount + adjustment_amount), 0) AS aggregate')->value('aggregate');
+        $paid = (float) DB::table('service_payment_allocations as allocation')
+            ->join('service_obligations as obligation', 'obligation.id', '=', 'allocation.service_obligation_id')
+            ->join('service_payment_events as payment', 'payment.id', '=', 'allocation.service_payment_event_id')
+            ->where('obligation.tenant_id', $tenant->id)
+            ->where('obligation.direction', 'payable')
+            ->when(! $operator, fn ($builder) => $builder->where('obligation.service_provider_id', $provider->id))
+            ->whereIn('payment.status', ['confirmed', 'reversed'])
+            ->sum('allocation.amount');
+        $summary = ['due' => round($due, 2), 'paid' => round($paid, 2), 'balance' => max(0, round($due - $paid, 2))];
         $obligations = $query->with(['execution.order.service', 'provider'])->latest()->paginate(20);
 
         return view('provider.services-financial', compact('provider', 'operator', 'obligations', 'summary'));
@@ -190,14 +205,14 @@ class ServiceProviderPortalController extends Controller
     {
         [, $operator] = $this->access($request, $tenant);
         abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
-        $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')->with('expenseable')->latest('date')->paginate(25);
+        $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')->with(['expenseable', 'documents'])->latest('date')->paginate(25);
         $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->latest()->limit(200)->get(['id', 'number', 'beneficiary_snapshot', 'scheduled_at']);
         $accounts = ChartAccount::query()->where('tenant_id', $tenant->id)->where('type', 'despesa')->orderBy('name')->get(['id', 'name']);
 
         return view('provider.services-expenses', compact('operator', 'expenses', 'orders', 'accounts'));
     }
 
-    public function storeExpense(Request $request, Tenant $tenant, ServiceExpenseService $service): RedirectResponse
+    public function storeExpense(Request $request, Tenant $tenant, ServiceExpenseService $service, ServiceExpenseAttachmentService $attachments): RedirectResponse|JsonResponse
     {
         [, $operator] = $this->access($request, $tenant);
         abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
@@ -205,10 +220,39 @@ class ServiceProviderPortalController extends Controller
             'description' => 'required|string|max:191', 'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date', 'due_date' => 'required|date|after_or_equal:date', 'service_order_id' => 'nullable|integer',
             'chart_account_id' => 'nullable|integer', 'document_number' => 'nullable|string|max:80', 'notes' => 'nullable|string|max:2000',
+            'attachments' => 'nullable|array|max:5', 'attachments.*' => 'file|mimes:jpg,jpeg,png,webp,pdf|max:12288',
         ]);
-        $service->create($tenant, $data, $request->user());
+        DB::transaction(function () use ($tenant, $data, $request, $service, $attachments): void {
+            $expense = $service->create($tenant, $data, $request->user());
+            foreach ($request->file('attachments', []) as $file) {
+                $attachments->upload($tenant, $expense, $file, $request->user());
+            }
+        }, 3);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'message' => 'Despesa de serviço registrada. O pagamento continua sendo controlado pelo motor financeiro.',
+                'url' => route('provider.expenses', $tenant->slug),
+            ]);
+        }
 
         return back()->with('success', 'Despesa de serviço registrada. O pagamento continua sendo controlado pelo motor financeiro.');
+    }
+
+    public function expenseDocument(Request $request, Tenant $tenant, int $document, ServiceExpenseAttachmentService $attachments)
+    {
+        [, $operator] = $this->access($request, $tenant);
+        abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
+        $record = Document::query()->where('tenant_id', $tenant->id)
+            ->where('documentable_type', Expense::class)->whereKey($document)->with('documentable')->firstOrFail();
+        abort_unless($record->documentable?->origin_module === 'services', 404);
+
+        return response($attachments->contents($record), 200, [
+            'Content-Type' => $record->mime_type,
+            'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $record->original_name).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /** @return array{0:?ServiceProvider,1:bool} */
@@ -260,7 +304,9 @@ class ServiceProviderPortalController extends Controller
     {
         $fields = collect(data_get($order->execution->catalog_snapshot, 'fields', []))->keyBy('key');
         foreach ((array) $request->file('evidences', []) as $key => $file) {
-            if (! $file) continue;
+            if (! $file) {
+                continue;
+            }
             $field = $fields->get($key);
             $allowed = $field
                 && in_array($field['type'] ?? null, ['image', 'file', 'signature'], true)
@@ -269,5 +315,29 @@ class ServiceProviderPortalController extends Controller
             abort_unless($allowed, 422, 'Esta evidência não pode ser enviada neste momento.');
             $service->upload($order->execution, (string) $key, $file, $request->user());
         }
+    }
+
+    private function mutationResponse(Request $request, Tenant $tenant, ServiceOrder $order, string $message, bool $reload): RedirectResponse|JsonResponse
+    {
+        if (! $request->expectsJson()) {
+            return back()->with('success', $message);
+        }
+
+        $order->loadMissing('execution.evidences.document');
+
+        return response()->json([
+            'ok' => true,
+            'message' => $message,
+            'reload' => $reload,
+            'url' => route('provider.orders.show', [$tenant, $order]),
+            'status' => $order->execution?->status,
+            'values' => $order->execution?->values ?? [],
+            'evidences' => $order->execution?->evidences->map(fn (ServiceExecutionEvidence $item): array => [
+                'field_key' => $item->field_key,
+                'name' => $item->document?->original_name,
+                'mime_type' => $item->document?->mime_type,
+                'url' => route('provider.evidences.download', [$tenant, $item]),
+            ])->values()->all() ?? [],
+        ]);
     }
 }

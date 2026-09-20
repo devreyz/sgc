@@ -61,6 +61,7 @@ class TenantGoogleDriveService
     ): CloudDocument {
         $connection = TenantCloudStorageConnection::query()
             ->where('tenant_id', $tenant->id)
+            ->where('provider', 'google_drive')
             ->where('status', 'active')
             ->first();
 
@@ -182,6 +183,7 @@ class TenantGoogleDriveService
 
         $connection = TenantCloudStorageConnection::query()
             ->where('tenant_id', $document->tenant_id)
+            ->where('provider', 'google_drive')
             ->where('status', 'active')
             ->first();
         if (! $connection) {

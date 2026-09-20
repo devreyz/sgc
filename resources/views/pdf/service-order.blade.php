@@ -243,6 +243,17 @@
         </div>
     </div>
 
+    @if($order->execution?->obligations?->isNotEmpty())
+        <div class="section-title">Comprovantes financeiros verificáveis</div>
+        @foreach($order->execution->obligations as $obligation)
+            <div style="page-break-inside: avoid; margin-bottom: 6px;">
+                <strong>{{ $obligation->number }}</strong>
+                — {{ $obligation->direction === 'payable' ? 'pagamento ao prestador' : 'cobrança do serviço' }}
+                @include('pdf.partials.financial-document-qr', ['receipt' => $obligation])
+            </div>
+        @endforeach
+    @endif
+
     {{-- Footer --}}
     <div class="footer">
         Documento gerado em {{ now()->format('d/m/Y H:i') }} | {{ $tenant->name ?? 'SGC' }}

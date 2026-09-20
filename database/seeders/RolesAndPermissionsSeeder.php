@@ -148,10 +148,33 @@ class RolesAndPermissionsSeeder extends Seeder
             $accountingPermissions = $allPermissions->filter(
                 fn ($permission) => str_contains($permission->name, 'accounting')
             );
-            $financeiro->givePermissionTo($accountingPermissions);
             $tesoureiro->givePermissionTo($accountingPermissions);
             $financeiro->givePermissionTo($conferencePermissions);
             $tesoureiro->givePermissionTo($conferencePermissions);
+
+            // O módulo financeiro pode liquidar fatos de serviços, mas não
+            // configurar catálogo, prestadores nem executar/aprovar ordens.
+            $servicePermissions = $allPermissions->whereIn('name', [
+                'view_service_portal', 'view_own_service_orders', 'create_own_service_order',
+                'record_own_service_execution', 'upload_own_service_evidence',
+                'view_service_management', 'manage_service_catalog', 'manage_service_providers',
+                'create_service_order', 'edit_service_order', 'review_service_execution',
+                'approve_service_execution', 'view_service_financials', 'manage_service_receivables',
+                'manage_service_payables', 'record_service_payment', 'reverse_service_payment',
+                'manage_service_resources', 'manage_service_expenses', 'manage_service_agreements',
+                'view_service_reports', 'operate_all_service_orders_portal', 'simulate_services',
+            ]);
+            $financialServicePermissions = $servicePermissions->whereIn('name', [
+                'view_service_management', 'view_service_financials', 'manage_service_receivables',
+                'manage_service_payables', 'record_service_payment', 'reverse_service_payment',
+                'manage_service_expenses', 'manage_service_agreements', 'view_service_reports',
+                'simulate_services',
+            ]);
+            $financeiro->revokePermissionTo($servicePermissions);
+            $financeiro->givePermissionTo($financialServicePermissions);
+            $tesoureiro->revokePermissionTo($servicePermissions);
+            $tesoureiro->givePermissionTo($servicePermissions);
+            $contador->revokePermissionTo($servicePermissions);
             $presidente->givePermissionTo($accountingPermissions->filter(
                 fn ($permission) => str_contains($permission->name, 'view_accounting')
                     || in_array($permission->name, ['send_accounting_authorizations', 'cancel_accounting_authorizations'], true)
@@ -224,6 +247,10 @@ class RolesAndPermissionsSeeder extends Seeder
                 'status' => true,
             ]
         );
+
+        if (blank($superAdminUser->email_verified_at)) {
+            $superAdminUser->forceFill(['email_verified_at' => now()])->saveQuietly();
+        }
 
         $superAdminUser->assignRole($superAdmin);
         $this->command->info('✓ Usuário Super Admin criado: admin@sgc.com / password');
