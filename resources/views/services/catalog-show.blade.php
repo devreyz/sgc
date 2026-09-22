@@ -1522,6 +1522,17 @@
          CAMPOS
          ====================================================== --}}
 
+    <section class="cc-panel" aria-label="Histórico de versões e preços" style="margin-bottom:1rem">
+        <header class="cc-panel-head"><div class="cc-panel-title"><span class="cc-panel-title-icon"><i class="ph-fill ph-clock-counter-clockwise"></i></span><span class="cc-panel-title-copy"><strong>Versões e preços anteriores</strong><span>Versões publicadas permanecem somente para consulta; duplique para fazer alterações.</span></span></div></header>
+        <div class="cc-panel-body cc-table-wrap">
+            <table class="cc-table"><thead><tr><th>Versão</th><th>Situação</th><th>Cobrança padrão</th><th>Remuneração padrão</th><th></th></tr></thead><tbody>
+                @foreach($version->service->versions->sortByDesc('version') as $item)
+                    <tr><td>v{{ $item->version }}</td><td>{{ $statusLabels[$item->status] ?? $item->status }}</td><td>{{ $item->receivable_enabled ? ($item->customer_pricing_method === 'percent_of_base' ? number_format((float) $item->customer_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->customer_rate, 2, ',', '.')) : 'Sem cobrança' }}</td><td>{{ $item->payable_enabled ? ($item->provider_pricing_method === 'percent_of_base' ? number_format((float) $item->provider_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->default_provider_rate, 2, ',', '.')) : 'Sem remuneração' }}</td><td><a class="cc-action" href="{{ route('services.catalog.show', [$tenantSlug, $item]) }}">{{ $item->id === $version->id ? 'Atual' : 'Ver versão' }}</a></td></tr>
+                @endforeach
+            </tbody></table>
+        </div>
+    </section>
+
     <section
         class="cc-panel"
         data-tab-panel="fields"
@@ -1560,11 +1571,7 @@
             <div class="cc-inline-note">
                 <i class="ph-fill ph-info"></i>
 
-                <span>
-                    Estes campos registram a execução. Eles somente
-                    participam de valores quando forem usados em uma
-                    fórmula ou regra financeira.
-                </span>
+                <span>Estes campos registram a execução. Eles somente participam de valores quando usados em uma fórmula ou regra financeira. Para exigir um comprovante junto de uma medição, crie um campo do tipo Foto ou Arquivo, vincule-o à medição e marque-o obrigatório.</span>
             </div>
 
             @if($version->fields->isEmpty())
@@ -1599,9 +1606,12 @@
                                                 {{ $field->label }}
                                             </strong>
 
-                                            <small>
-                                                {{ $field->key }}
-                                            </small>
+                        <small>
+                            {{ $field->key }}
+                            @if($field->evidence_for_field)
+                                · Anexado a {{ $version->fields->firstWhere('key', $field->evidence_for_field)?->label ?? $field->evidence_for_field }}
+                            @endif
+                        </small>
                                         </div>
                                     </td>
 
@@ -1647,6 +1657,7 @@
 
                                     @if($isDraft)
                                         <td>
+                                            <button type="button" class="cc-action" data-edit-field='@json($field->only(['id','key','label','type','phase','section','unit','minimum','maximum','sort_order','placeholder','help','options','evidence_for_field','accepted_mime_types','required','visible_to_provider','editable_by_provider','visible_to_management','include_in_documents','reportable']))' aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
                                             <form
                                                 method="post"
                                                 action="{{ route(
@@ -1692,6 +1703,7 @@
                                 </div>
 
                                 @if($isDraft)
+                                    <button type="button" class="cc-action" data-edit-field='@json($field->only(['id','key','label','type','phase','section','unit','minimum','maximum','sort_order','placeholder','help','options','evidence_for_field','accepted_mime_types','required','visible_to_provider','editable_by_provider','visible_to_management','include_in_documents','reportable']))' aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
                                     <form
                                         method="post"
                                         action="{{ route(
@@ -2659,6 +2671,7 @@
                     id="field-form"
                 >
                     @csrf
+                    <input type="hidden" name="_method" value="PUT" disabled>
 
                     <div class="cc-grid">
                         <label class="cc-field">
@@ -2757,7 +2770,7 @@
                             >
                         </label>
 
-                        <label class="cc-field full">
+                        <label class="cc-field full" data-field-setting="evidence">
                             <span class="cc-label">
                                 Vincular evidência a um dado
                             </span>
@@ -2781,14 +2794,23 @@
                                     )
                                     as $target
                                 )
-                                    <option value="{{ $target->key }}">
+                                    <option value="{{ $target->key }}" data-phase="{{ $target->phase }}">
                                         {{ $target->label }}
                                         —
                                         {{ $labels::phase($target->phase) }}
                                     </option>
                                 @endforeach
                             </select>
+                            <small class="cc-help">Crie primeiro o dado, depois o campo de arquivo na mesma etapa. Quando o comprovante for obrigatório, marque também “Preenchimento obrigatório”.</small>
                         </label>
+
+                        <fieldset class="cc-field full" data-field-setting="mimes" style="border:0;padding:0;margin:0">
+                            <legend class="cc-label">Formatos aceitos neste comprovante</legend>
+                            @foreach(['image/jpeg' => 'JPG / JPEG', 'image/png' => 'PNG', 'image/webp' => 'WebP', 'application/pdf' => 'PDF'] as $mime => $mimeLabel)
+                                <label style="display:inline-flex;align-items:center;gap:.35rem;margin-right:1rem"><input type="checkbox" name="accepted_mime_types[]" value="{{ $mime }}"> {{ $mimeLabel }}</label>
+                            @endforeach
+                            <small class="cc-help">Se nada for marcado, fotos aceitam imagens e arquivos aceitam imagens ou PDF.</small>
+                        </fieldset>
 
                         <label class="cc-field">
                             <span class="cc-label">
@@ -2816,6 +2838,10 @@
                             >
                         </label>
 
+                        <label class="cc-field"><span class="cc-label">Ordem de exibição</span><input class="cc-control" type="number" name="sort_order" min="0" max="10000" placeholder="Automática"></label>
+                        <label class="cc-field"><span class="cc-label">Exemplo no campo</span><input class="cc-control" name="placeholder" maxlength="191" placeholder="Texto de orientação"></label>
+                        <label class="cc-field full"><span class="cc-label">Ajuda para preenchimento</span><textarea class="cc-control" name="help" maxlength="500" placeholder="Explique o que deve ser informado"></textarea></label>
+
                         <label class="cc-field full">
                             <span class="cc-label">
                                 Opções da lista
@@ -2824,8 +2850,9 @@
                             <textarea
                                 class="cc-control"
                                 name="options_text"
-                                placeholder="Uma opção por linha"
+                                placeholder="Uma opção por linha. Ex.: bom|Bom"
                             ></textarea>
+                            <small class="cc-help">Para Lista, escreva uma opção por linha. Use valor|Nome exibido para separar o valor salvo do texto mostrado; sem |, o mesmo texto é usado nos dois.</small>
                         </label>
                     </div>
 
@@ -3146,6 +3173,67 @@
     );
     </script>
 @endif
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('field-form');
+    const dialog = document.getElementById('field-dialog');
+    if (!form || !dialog) return;
+    const storeUrl = @json(route('services.catalog.fields.store', [$tenantSlug, $version]));
+    const updateUrl = @json(route('services.catalog.fields.update', [$tenantSlug, $version, '__FIELD__']));
+    const title = dialog.querySelector('.cc-dialog-title-copy strong');
+    const saveLabel = dialog.querySelector('.cc-dialog-foot button[type="submit"] span');
+    const method = form.querySelector('input[name="_method"]');
+    const type = form.elements.namedItem('type');
+    const phase = form.elements.namedItem('phase');
+    const linked = form.elements.namedItem('evidence_for_field');
+    const updateSettings = () => {
+        const evidence = ['image', 'file', 'signature'].includes(type.value);
+        form.querySelector('[data-field-setting="evidence"]').hidden = !evidence;
+        form.querySelector('[data-field-setting="mimes"]').hidden = !evidence;
+        form.elements.namedItem('options_text').closest('.cc-field').hidden = type.value !== 'select';
+        [...linked.options].forEach(option => {
+            if (!option.value) return;
+            option.disabled = option.dataset.phase !== phase.value;
+        });
+        if (linked.selectedOptions[0]?.disabled) linked.value = '';
+        const pdf = form.querySelector('input[value="application/pdf"]');
+        pdf.closest('label').hidden = type.value !== 'file';
+        if (type.value !== 'file') pdf.checked = false;
+    };
+    type.addEventListener('change', updateSettings);
+    phase.addEventListener('change', updateSettings);
+    document.querySelectorAll('[data-edit-field]').forEach(button => button.addEventListener('click', () => {
+        const field = JSON.parse(button.dataset.editField);
+        form.reset();
+        form.action = updateUrl.replace('__FIELD__', String(field.id));
+        method.disabled = false;
+        title.textContent = 'Editar campo';
+        saveLabel.textContent = 'Salvar alterações';
+        for (const [key, value] of Object.entries(field)) {
+            const input = form.elements.namedItem(key);
+            if (!input || key === 'id' || key === 'options' || key === 'accepted_mime_types') continue;
+            if (input.type === 'checkbox') input.checked = Boolean(value);
+            else input.value = value ?? '';
+        }
+        form.elements.namedItem('key').readOnly = true;
+        form.elements.namedItem('options_text').value = Array.isArray(field.options) ? field.options.join('\n') : Object.entries(field.options ?? {}).map(([key, label]) => `${key}|${label}`).join('\n');
+        form.querySelectorAll('input[name="accepted_mime_types[]"]').forEach(input => input.checked = (field.accepted_mime_types ?? []).includes(input.value));
+        updateSettings();
+        dialog.showModal();
+    }));
+    document.querySelectorAll('[data-open-dialog="field-dialog"]').forEach(button => button.addEventListener('click', () => {
+        form.reset();
+        form.action = storeUrl;
+        method.disabled = true;
+        form.elements.namedItem('key').readOnly = false;
+        title.textContent = 'Adicionar campo';
+        saveLabel.textContent = 'Adicionar campo';
+        updateSettings();
+    }, {capture:true}));
+    updateSettings();
+});
+</script>
 
 <script>
 document.addEventListener(

@@ -15,11 +15,13 @@ class ServiceVersionField extends Model
 
     public const PHASES = ['order', 'start', 'execution', 'finish', 'review'];
 
-    protected $fillable = ['service_version_id', 'key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'placeholder', 'help'];
+    public const FILE_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+
+    protected $fillable = ['service_version_id', 'key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'accepted_mime_types', 'placeholder', 'help'];
 
     protected function casts(): array
     {
-        return ['required' => 'boolean', 'visible_to_provider' => 'boolean', 'editable_by_provider' => 'boolean', 'visible_to_management' => 'boolean', 'include_in_documents' => 'boolean', 'reportable' => 'boolean', 'default_value' => 'array', 'options' => 'array', 'conditional_rule' => 'array', 'minimum' => 'decimal:4', 'maximum' => 'decimal:4'];
+        return ['required' => 'boolean', 'visible_to_provider' => 'boolean', 'editable_by_provider' => 'boolean', 'visible_to_management' => 'boolean', 'include_in_documents' => 'boolean', 'reportable' => 'boolean', 'default_value' => 'array', 'options' => 'array', 'conditional_rule' => 'array', 'accepted_mime_types' => 'array', 'minimum' => 'decimal:4', 'maximum' => 'decimal:4'];
     }
 
     protected static function booted(): void
@@ -43,6 +45,6 @@ class ServiceVersionField extends Model
 
     public function snapshot(): array
     {
-        return $this->only(['key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'placeholder', 'help']);
+        return $this->only(['key', 'label', 'type', 'phase', 'section', 'required', 'visible_to_provider', 'editable_by_provider', 'visible_to_management', 'include_in_documents', 'reportable', 'sort_order', 'unit', 'decimal_places', 'minimum', 'maximum', 'default_value', 'options', 'conditional_rule', 'evidence_for_field', 'accepted_mime_types', 'placeholder', 'help']);
     }
 }

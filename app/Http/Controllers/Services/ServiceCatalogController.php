@@ -14,6 +14,7 @@ use App\Services\Services\ServiceCatalogService;
 use App\Services\Services\ServicePresetRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ServiceCatalogController extends Controller
@@ -53,7 +54,7 @@ class ServiceCatalogController extends Controller
     public function show(Request $request, Tenant $tenant, int $version): View
     {
         $this->allow($request, 'manage_service_catalog');
-        $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->with(['service', 'fields', 'providerRates.provider'])->firstOrFail();
+        $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->with(['service.versions', 'fields', 'providerRates.provider'])->firstOrFail();
         $providers = ServiceProvider::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         return view('services.catalog-show', compact('version', 'providers'));
@@ -131,23 +132,9 @@ class ServiceCatalogController extends Controller
         $this->allow($request, 'manage_service_catalog');
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
         abort_unless($version->status === 'draft', 422, 'Campos de versão publicada são imutáveis.');
-        $data = $request->validate([
-            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z][a-z0-9_]*$/'], 'label' => 'required|string|max:191',
-            'type' => 'required|in:'.implode(',', ServiceVersionField::TYPES), 'phase' => 'required|in:'.implode(',', ServiceVersionField::PHASES),
-            'section' => 'nullable|string|max:80', 'required' => 'boolean', 'visible_to_provider' => 'boolean', 'editable_by_provider' => 'boolean',
-            'visible_to_management' => 'boolean', 'include_in_documents' => 'boolean', 'reportable' => 'boolean', 'unit' => 'nullable|string|max:30',
-            'decimal_places' => 'nullable|integer|min:0|max:6', 'minimum' => 'nullable|numeric', 'maximum' => 'nullable|numeric',
-            'options_text' => 'nullable|string', 'evidence_for_field' => 'nullable|string|max:80', 'placeholder' => 'nullable|string|max:191', 'help' => 'nullable|string|max:500',
-        ]);
+        $data = $this->fieldData($request, $version);
         abort_if($version->fields()->where('key', $data['key'])->exists(), 422, 'Já existe um campo com essa chave.');
-        $options = collect(preg_split('/\r\n|\r|\n/', (string) ($data['options_text'] ?? '')))->map(fn ($value) => trim($value))->filter()->values()->all();
-        unset($data['options_text']);
-        $field = new ServiceVersionField($data + [
-            'required' => $request->boolean('required'), 'visible_to_provider' => $request->boolean('visible_to_provider'),
-            'editable_by_provider' => $request->boolean('editable_by_provider'), 'visible_to_management' => $request->boolean('visible_to_management'),
-            'include_in_documents' => $request->boolean('include_in_documents'), 'reportable' => $request->boolean('reportable'),
-            'options' => $options, 'sort_order' => (int) $version->fields()->max('sort_order') + 1,
-        ]);
+        $field = new ServiceVersionField($data + ['sort_order' => (int) $version->fields()->max('sort_order') + 1]);
         $field->tenant_id = $tenant->id;
         $field->service_version_id = $version->id;
         $field->save();
@@ -155,11 +142,83 @@ class ServiceCatalogController extends Controller
         return back()->with('success', 'Campo incluído no rascunho.');
     }
 
+    public function updateField(Request $request, Tenant $tenant, int $version, int $field): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
+        abort_unless($version->status === 'draft', 422, 'Campos de versão publicada são imutáveis.');
+        $record = $version->fields()->where('tenant_id', $tenant->id)->whereKey($field)->firstOrFail();
+        $data = $this->fieldData($request, $version, $record);
+        $record->update($data);
+
+        return back()->with('success', 'Campo atualizado no rascunho.');
+    }
+
+    private function fieldData(Request $request, ServiceVersion $version, ?ServiceVersionField $record = null): array
+    {
+        $data = $request->validate([
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z][a-z0-9_]*$/'], 'label' => 'required|string|max:160',
+            'type' => 'required|in:'.implode(',', ServiceVersionField::TYPES), 'phase' => 'required|in:'.implode(',', ServiceVersionField::PHASES),
+            'section' => 'nullable|string|max:80', 'required' => 'boolean', 'visible_to_provider' => 'boolean', 'editable_by_provider' => 'boolean',
+            'visible_to_management' => 'boolean', 'include_in_documents' => 'boolean', 'reportable' => 'boolean', 'unit' => 'nullable|string|max:30',
+            'decimal_places' => 'nullable|integer|min:0|max:6', 'minimum' => 'nullable|numeric', 'maximum' => 'nullable|numeric', 'sort_order' => 'nullable|integer|min:0|max:10000',
+            'options_text' => 'nullable|string', 'evidence_for_field' => 'nullable|string|max:80', 'placeholder' => 'nullable|string|max:191', 'help' => 'nullable|string|max:500',
+            'accepted_mime_types' => 'nullable|array', 'accepted_mime_types.*' => 'in:'.implode(',', ServiceVersionField::FILE_MIMES),
+        ]);
+        if ($record && $data['key'] !== $record->key) {
+            throw ValidationException::withMessages(['key' => 'O identificador técnico não pode ser alterado. Crie outro campo para usar uma nova chave.']);
+        }
+        $type = $data['type'];
+        $targetKey = $data['evidence_for_field'] ?? null;
+        if ($targetKey) {
+            $target = $version->fields()->where('key', $targetKey)->first();
+            if (! in_array($type, ['image', 'file', 'signature'], true) || ! $target || in_array($target->type, ['image', 'file', 'signature'], true) || $target->phase !== $data['phase']) {
+                throw ValidationException::withMessages(['evidence_for_field' => 'Vincule o arquivo a um dado da mesma etapa.']);
+            }
+        }
+        if ($record && ! in_array($type, ['image', 'file', 'signature'], true) && $version->fields()->where('evidence_for_field', $record->key)->exists()) {
+            throw ValidationException::withMessages(['type' => 'Este dado já possui comprovante vinculado e deve continuar como campo de preenchimento.']);
+        }
+        $options = collect(preg_split('/\r\n|\r|\n/', (string) ($data['options_text'] ?? '')))
+            ->map(fn ($value) => trim($value))->filter()->mapWithKeys(function (string $line): array {
+                [$value, $label] = array_pad(explode('|', $line, 2), 2, null);
+                $value = trim($value);
+
+                return [$value => trim($label ?? $value)];
+            })->all();
+        if ($type === 'select' && $options === []) {
+            throw ValidationException::withMessages(['options_text' => 'Informe pelo menos uma opção para a lista.']);
+        }
+        unset($data['options_text']);
+        $data = array_replace($data, [
+            'required' => $request->boolean('required'), 'visible_to_provider' => $request->boolean('visible_to_provider'),
+            'editable_by_provider' => $request->boolean('editable_by_provider'), 'visible_to_management' => $request->boolean('visible_to_management'),
+            'include_in_documents' => $request->boolean('include_in_documents'), 'reportable' => $request->boolean('reportable'),
+            'options' => $type === 'select' ? $options : [],
+            'accepted_mime_types' => in_array($type, ['image', 'file', 'signature'], true) ? array_values(array_unique($data['accepted_mime_types'] ?? [])) : null,
+            'evidence_for_field' => $targetKey ?: null,
+        ]);
+        if ($type !== 'file' && in_array('application/pdf', $data['accepted_mime_types'] ?? [], true)) {
+            throw ValidationException::withMessages(['accepted_mime_types' => 'PDF só pode ser aceito em um campo de arquivo.']);
+        }
+        if (($data['sort_order'] ?? null) === null) {
+            if ($record) {
+                unset($data['sort_order']);
+            } else {
+                $data['sort_order'] = (int) $version->fields()->max('sort_order') + 1;
+            }
+        }
+
+        return $data;
+    }
+
     public function deleteField(Request $request, Tenant $tenant, int $version, int $field): RedirectResponse
     {
         $this->allow($request, 'manage_service_catalog');
         $version = ServiceVersion::query()->where('tenant_id', $tenant->id)->whereKey($version)->firstOrFail();
         abort_unless($version->status === 'draft', 422, 'Campos de versão publicada são imutáveis.');
+        $linked = $version->fields()->where('evidence_for_field', $version->fields()->whereKey($field)->value('key'))->exists();
+        abort_if($linked, 422, 'Desvincule primeiro o comprovante deste campo.');
         ServiceVersionField::query()->where('tenant_id', $tenant->id)->where('service_version_id', $version->id)->whereKey($field)->firstOrFail()->delete();
 
         return back()->with('success', 'Campo removido do rascunho.');

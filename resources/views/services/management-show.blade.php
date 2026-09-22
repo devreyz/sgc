@@ -1738,6 +1738,10 @@
             </span>
         </div>
 
+        @if(auth()->user()?->checkPermissionTo('operate_all_service_orders_portal'))
+            <p><a href="{{ route('services.management.execute', [$tenantSlug, $order]) }}" class="btn btn-primary"><i class="ph-fill ph-pencil-simple-line"></i> Preencher ou concluir esta ordem</a></p>
+        @endif
+
         <div class="ds-facts">
             <div class="ds-fact">
                 <span

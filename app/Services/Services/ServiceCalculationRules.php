@@ -214,7 +214,7 @@ class ServiceCalculationRules
         foreach ($fields as $field) {
             if (filled($field->evidence_for_field)) {
                 $target = $fields->get($field->evidence_for_field);
-                if (! in_array($field->type, ['image', 'file', 'signature'], true) || ! $target || $target->phase !== $field->phase) {
+                if (! in_array($field->type, ['image', 'file', 'signature'], true) || ! $target || in_array($target->type, ['image', 'file', 'signature'], true) || $target->phase !== $field->phase) {
                     throw ValidationException::withMessages(['fields' => "A evidência {$field->label} deve estar vinculada a um campo existente da mesma etapa."]);
                 }
             }

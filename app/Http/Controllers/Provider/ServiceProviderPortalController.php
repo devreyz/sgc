@@ -329,7 +329,7 @@ class ServiceProviderPortalController extends Controller
             'ok' => true,
             'message' => $message,
             'reload' => $reload,
-            'url' => route('provider.orders.show', [$tenant, $order]),
+            'url' => route(str_starts_with((string) $request->route()?->getName(), 'services.management.execute.') ? 'services.management.execute' : 'provider.orders.show', [$tenant, $order]),
             'status' => $order->execution?->status,
             'values' => $order->execution?->values ?? [],
             'evidences' => $order->execution?->evidences->map(fn (ServiceExecutionEvidence $item): array => [

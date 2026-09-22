@@ -408,6 +408,11 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/orders/create', [ServiceManagementController::class, 'create'])->name('management.create');
         Route::post('/orders', [ServiceManagementController::class, 'store'])->middleware('throttle:30,1')->name('management.store');
         Route::get('/orders/{order}', [ServiceManagementController::class, 'show'])->whereNumber('order')->name('management.show');
+        Route::get('/orders/{order}/execute', [ServiceManagementController::class, 'execute'])->whereNumber('order')->name('management.execute');
+        Route::post('/orders/{order}/execute/start', [ServiceManagementController::class, 'startExecution'])->middleware('throttle:20,1')->whereNumber('order')->name('management.execute.start');
+        Route::put('/orders/{order}/execute/draft', [ServiceManagementController::class, 'draftExecution'])->middleware('throttle:60,1')->whereNumber('order')->name('management.execute.draft');
+        Route::post('/orders/{order}/execute/submit', [ServiceManagementController::class, 'submitExecution'])->middleware('throttle:20,1')->whereNumber('order')->name('management.execute.submit');
+        Route::post('/orders/{order}/execute/approve', [ServiceManagementController::class, 'approveExecution'])->middleware('throttle:20,1')->whereNumber('order')->name('management.execute.approve');
         Route::post('/orders/{order}/approve', [ServiceManagementController::class, 'approve'])->middleware('throttle:20,1')->whereNumber('order')->name('management.approve');
         Route::post('/orders/{order}/correction', [ServiceManagementController::class, 'correction'])->middleware('throttle:20,1')->whereNumber('order')->name('management.correction');
         Route::post('/obligations/{obligation}/payments', [ServiceManagementController::class, 'payment'])->middleware('throttle:20,1')->whereNumber('obligation')->name('management.payments.store');
@@ -429,6 +434,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/catalog/versions/{version}', [ServiceCatalogController::class, 'show'])->whereNumber('version')->name('catalog.show');
         Route::put('/catalog/versions/{version}', [ServiceCatalogController::class, 'update'])->middleware('throttle:20,1')->whereNumber('version')->name('catalog.update');
         Route::post('/catalog/versions/{version}/fields', [ServiceCatalogController::class, 'field'])->middleware('throttle:30,1')->whereNumber('version')->name('catalog.fields.store');
+        Route::put('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'updateField'])->middleware('throttle:30,1')->whereNumber(['version', 'field'])->name('catalog.fields.update');
         Route::delete('/catalog/versions/{version}/fields/{field}', [ServiceCatalogController::class, 'deleteField'])->middleware('throttle:20,1')->whereNumber(['version', 'field'])->name('catalog.fields.delete');
         Route::post('/catalog/versions/{version}/publish', [ServiceCatalogController::class, 'publish'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.publish');
         Route::post('/catalog/versions/{version}/active', [ServiceCatalogController::class, 'active'])->middleware('throttle:10,1')->whereNumber('version')->name('catalog.active');

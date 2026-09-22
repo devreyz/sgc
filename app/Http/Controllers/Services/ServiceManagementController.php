@@ -71,6 +71,49 @@ class ServiceManagementController extends Controller
         return view('services.management-show', compact('order', 'accounts', 'statuses'));
     }
 
+    public function execute(Request $request, Tenant $tenant, int $order): View
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        $view = app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->show($request, $tenant, $order);
+        $view->with('managementExecution', true);
+
+        return $view;
+    }
+
+    public function startExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence)
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        return app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->start($request, $tenant, $order, $workflow, $evidence);
+    }
+
+    public function draftExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence)
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        return app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->draft($request, $tenant, $order, $workflow, $evidence);
+    }
+
+    public function submitExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow, ServiceEvidenceService $evidence)
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        return app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->submit($request, $tenant, $order, $workflow, $evidence);
+    }
+
+    public function approveExecution(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow)
+    {
+        $this->allow($request, 'view_service_management');
+        $this->allow($request, 'operate_all_service_orders_portal');
+
+        return app(\App\Http\Controllers\Provider\ServiceProviderPortalController::class)->approve($request, $tenant, $order, $workflow);
+    }
+
     public function approve(Request $request, Tenant $tenant, int $order, ServiceExecutionWorkflow $workflow): RedirectResponse
     {
         $this->allow($request, 'approve_service_execution');

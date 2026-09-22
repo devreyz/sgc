@@ -60,6 +60,13 @@
     $allowedEvidenceKind = $fieldType === 'image'
         ? 'image'
         : 'image_or_pdf';
+    $acceptedMimes = (array) ($field['accepted_mime_types'] ?? []);
+    if ($acceptedMimes === []) {
+        $acceptedMimes = $fieldType === 'file'
+            ? ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+            : ['image/jpeg', 'image/png', 'image/webp'];
+    }
+    $acceptedMimes = array_values(array_intersect($acceptedMimes, \App\Models\ServiceVersionField::FILE_MIMES));
 
     /*
      * A câmera fica em outro input, isolado do seletor Arquivos.
@@ -151,6 +158,7 @@
             data-evidence-saved="{{ $existing ? '1' : '0' }}"
             data-field-label="{{ $fieldLabel }}"
             data-allowed-kind="{{ $allowedEvidenceKind }}"
+            data-allowed-mimes="{{ implode(',', $acceptedMimes) }}"
         >
 
         <input
@@ -200,10 +208,7 @@
 
     <small class="svc-field-help">
         <strong>Arquivos</strong> abre o seletor de documentos do aparelho.
-        Depois da escolha, o sistema aceita apenas JPG, JPEG, PNG e WebP
-        @if($fieldType !== 'image')
-            ou PDF
-        @endif
+        Formatos aceitos: {{ collect($acceptedMimes)->map(fn ($mime) => match ($mime) {'image/jpeg' => 'JPG/JPEG', 'image/png' => 'PNG', 'image/webp' => 'WebP', 'application/pdf' => 'PDF', default => $mime})->implode(', ') }}
         . Vídeos são recusados.
         A câmera só é acionada por este botão. A foto é usada como evidência
         da execução, otimizada antes do envio e armazenada no repositório

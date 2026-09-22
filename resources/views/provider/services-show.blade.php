@@ -220,7 +220,7 @@
      * O JavaScript os lê pelos atributos data-* do <main>.
      */
     $draftUrl = route(
-        'provider.orders.draft',
+        $managementExecution ?? false ? 'services.management.execute.draft' : 'provider.orders.draft',
         [
             $tenantSlug,
             $order,
@@ -3882,10 +3882,7 @@
             <div class="svc-header-main">
                 <a
                     class="svc-back"
-                    href="{{ route(
-                        'provider.orders',
-                        ['tenant' => $tenantSlug]
-                    ) }}"
+                    href="{{ route(($managementExecution ?? false) ? 'services.management.show' : 'provider.orders', ($managementExecution ?? false) ? [$tenantSlug, $order] : ['tenant' => $tenantSlug]) }}"
                     aria-label="Voltar às ordens"
                     title="Voltar às ordens"
                 >
@@ -4260,7 +4257,7 @@
                     method="post"
                     enctype="multipart/form-data"
                     action="{{ route(
-                        'provider.orders.start',
+                        ($managementExecution ?? false) ? 'services.management.execute.start' : 'provider.orders.start',
                         [
                             $tenantSlug,
                             $order,
@@ -4356,7 +4353,7 @@
                     method="post"
                     enctype="multipart/form-data"
                     action="{{ route(
-                        'provider.orders.submit',
+                        ($managementExecution ?? false) ? 'services.management.execute.submit' : 'provider.orders.submit',
                         [
                             $tenantSlug,
                             $order,
@@ -5061,7 +5058,7 @@
                                 data-async-service-form
                                 method="post"
                                 action="{{ route(
-                                    'provider.orders.approve',
+                                    ($managementExecution ?? false) ? 'services.management.execute.approve' : 'provider.orders.approve',
                                     [
                                         $tenantSlug,
                                         $order,
@@ -5798,6 +5795,14 @@
 
         const isPdf =
             isServiceEvidencePdf(file);
+
+        const selectedMime = isPdf
+            ? 'application/pdf'
+            : (file.type === 'image/jpg' ? 'image/jpeg' : file.type);
+        const allowedMimes = (input?.dataset.allowedMimes || '').split(',').filter(Boolean);
+        if (allowedMimes.length && !allowedMimes.includes(selectedMime)) {
+            return { valid: false, message: 'Formato não permitido para este comprovante. Escolha um dos formatos indicados no campo.' };
+        }
 
         if (
             allowedKind === 'image'
@@ -7004,6 +7009,10 @@
                                         }
 
                                         try {
+                                            if (!(input.dataset.allowedMimes || '').split(',').includes('image/webp')) {
+                                                renderOriginalFile(box, file);
+                                                return;
+                                            }
                                             const optimized =
                                                 new File(
                                                     [blob],

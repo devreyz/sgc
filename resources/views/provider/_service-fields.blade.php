@@ -62,7 +62,7 @@
                     ?? null
                 )
         )
-        ->keyBy('evidence_for_field');
+        ->groupBy('evidence_for_field');
 
     $inferredKeys = collect();
 
@@ -119,10 +119,7 @@
                 $target['key']
             )
         ) {
-            $linkedEvidence->put(
-                $target['key'],
-                $evidence
-            );
+            $linkedEvidence->put($target['key'], collect([$evidence]));
 
             $inferredKeys->push(
                 $evidence['key']
@@ -206,9 +203,7 @@
             }
         }
 
-        $proof = $linkedEvidence->get(
-            $fieldKey
-        );
+        $proofFields = $linkedEvidence->get($fieldKey, collect());
 
         $conditionJson = json_encode(
             $field['conditional_rule']
@@ -383,7 +378,7 @@
             @endif
         </label>
 
-        @if($proof)
+        @foreach($proofFields as $proof)
             @include(
                 'provider._service-evidence-input',
                 [
@@ -392,7 +387,7 @@
                     'tenantSlug' => $tenantSlug ?? null,
                 ]
             )
-        @endif
+        @endforeach
     </div>
 @endforeach
 

@@ -5,6 +5,7 @@ namespace App\Services\Services;
 use App\Models\Document;
 use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionEvidence;
+use App\Models\ServiceVersionField;
 use App\Models\Tenant;
 use App\Models\TenantCloudStorageConnection;
 use App\Models\User;
@@ -30,7 +31,15 @@ class ServiceEvidenceService
             if (! $field || ! in_array($field['type'] ?? null, ['image', 'file', 'signature'], true)) {
                 throw ValidationException::withMessages(['field_key' => 'Campo de evidência inválido.']);
             }$mime = $file->getMimeType();
-            if (! in_array($mime, self::ALLOWED_MIMES, true)) {
+            $allowed = $field['accepted_mime_types'] ?? null;
+            if (! is_array($allowed) || $allowed === []) {
+                $allowed = ($field['type'] ?? null) === 'file' ? self::ALLOWED_MIMES : array_values(array_filter(self::ALLOWED_MIMES, fn (string $type): bool => str_starts_with($type, 'image/')));
+            }
+            $allowed = array_values(array_intersect($allowed, ServiceVersionField::FILE_MIMES));
+            if (($field['type'] ?? null) !== 'file') {
+                $allowed = array_values(array_filter($allowed, fn (string $type): bool => str_starts_with($type, 'image/')));
+            }
+            if (! in_array($mime, $allowed, true)) {
                 throw ValidationException::withMessages(['file' => 'Tipo de arquivo não permitido.']);
             }if ($file->getSize() > 12 * 1024 * 1024) {
                 throw ValidationException::withMessages(['file' => 'O arquivo deve ter no máximo 12 MB.']);
