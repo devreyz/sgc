@@ -1742,6 +1742,19 @@
             <p><a href="{{ route('services.management.execute', [$tenantSlug, $order]) }}" class="btn btn-primary"><i class="ph-fill ph-pencil-simple-line"></i> Preencher ou concluir esta ordem</a></p>
         @endif
 
+        <div class="ds-doc-actions" style="margin:.6rem 0">
+            @foreach(['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] as $documentType => $documentLabel)
+                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank">
+                    @csrf
+                    <input type="hidden" name="type" value="{{ $documentType }}">
+                    <button class="ds-button blue" type="submit"><i class="ph-fill ph-printer"></i>{{ $documentLabel }}</button>
+                </form>
+            @endforeach
+            @if($order->execution?->obligations?->where('direction', 'receivable')->isNotEmpty())
+                <a class="ds-button" href="{{ route('services.management.agreements', ['tenant' => $tenantSlug]) }}"><i class="ph-fill ph-handshake"></i>Negociar cobrança</a>
+            @endif
+        </div>
+
         <div class="ds-facts">
             <div class="ds-fact">
                 <span
@@ -2317,15 +2330,17 @@
                                                 value="{{ \Illuminate\Support\Str::uuid() }}"
                                             >
 
-                                            <input
-                                                type="hidden"
-                                                name="type"
-                                                value="manual"
-                                            >
+                                            <label class="ds-field">
+                                                <span class="ds-label">Tipo de ajuste</span>
+                                                <select class="ds-control" name="effect" required>
+                                                    <option value="decrease">Desconto — reduz o saldo</option>
+                                                    <option value="increase">Acréscimo — aumenta o saldo</option>
+                                                </select>
+                                            </label>
 
                                             <label class="ds-field">
                                                 <span class="ds-label">
-                                                    Ajuste (+ ou -)
+                                                    Valor do ajuste
                                                 </span>
 
                                                 <input
@@ -2333,6 +2348,7 @@
                                                     type="number"
                                                     name="amount"
                                                     step="0.01"
+                                                    min="0.01"
                                                     required
                                                     inputmode="decimal"
                                                     placeholder="0,00"

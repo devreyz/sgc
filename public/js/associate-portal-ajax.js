@@ -57,14 +57,32 @@
     function statusClass(value) { return ['approved','pending','rejected','cancelled','paid','partially_paid','pending_payment','obsolete'].includes(value) ? value : ''; }
 
     async function dashboard() {
-        const financialValues = root.querySelectorAll('.financial-primary > strong, .financial-metric > strong');
+        const heroValue = root.querySelector('.finance-hero .finance-value');
+        const kpiValues = root.querySelectorAll('.finance-kpi > strong');
+        const barValues = root.querySelectorAll('.finance-bar-value');
+        const barFills = root.querySelectorAll('.finance-bar-fill');
+        const financialValues = [heroValue, ...kpiValues, ...barValues].filter(Boolean);
         financialValues.forEach(node => node.classList.add('portal-loading-value'));
-        const sections = root.querySelectorAll('.dashboard-workspace .dashboard-section');
+        const sections = root.querySelectorAll('.dashboard-workspace > .dash-section');
         sections.forEach(section => replaceSectionBody(section, skeleton(3)));
         try {
             const data = await request('dashboard', config.urls.dashboard);
-            const values = [data.summary.receivable, data.summary.issued_this_month, data.summary.paid_this_month, data.summary.total_net];
-            financialValues.forEach((node, index) => { node.classList.remove('portal-loading-value'); node.textContent = money(values[index]); });
+            const summary = data.summary || {};
+            if (heroValue) heroValue.textContent = money(summary.receivable);
+            [summary.issued_this_month, summary.paid_this_month, summary.total_net].forEach((value, index) => {
+                if (kpiValues[index]) kpiValues[index].textContent = money(value);
+                if (barValues[index]) barValues[index].textContent = money(value);
+            });
+            const chartValues = [summary.issued_this_month, summary.paid_this_month, summary.total_net].map(value => Number(value || 0));
+            const chartMax = Math.max(...chartValues, 1);
+            chartValues.forEach((value, index) => {
+                if (barFills[index]) barFills[index].style.width = `${Math.min(100, value / chartMax * 100)}%`;
+            });
+            const paidInHero = root.querySelector('.finance-hero-foot strong');
+            if (paidInHero) paidInHero.textContent = money(summary.paid_this_month);
+            const activeProjects = root.querySelector('[data-dashboard-active-projects]');
+            if (activeProjects) activeProjects.textContent = `${Number(summary.active_projects || 0)} ${Number(summary.active_projects || 0) === 1 ? 'projeto ativo' : 'projetos ativos'}`;
+            financialValues.forEach(node => node.classList.remove('portal-loading-value'));
             renderDashboardProjects(sections[0], data.projects || []);
             renderDashboardDeliveries(sections[1], data.deliveries || []);
         } catch (error) {

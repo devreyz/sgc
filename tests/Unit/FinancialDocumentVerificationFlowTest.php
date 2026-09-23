@@ -6,6 +6,7 @@ use App\Enums\ReceiptStatus;
 use App\Models\AssociateReceipt;
 use App\Models\FinancialDocumentIdentity;
 use App\Models\FinancialReceipt;
+use App\Models\ServicePaymentPlanInstallment;
 use App\Services\FinancialDocumentIdentityService;
 use App\Services\FinancialDocumentPaymentService;
 use App\Services\FinancialDocumentPresenter;
@@ -112,6 +113,7 @@ class FinancialDocumentVerificationFlowTest extends TestCase
             );
         }
         $this->assertContains(FinancialReceipt::class, FinancialDocumentIdentityService::SUPPORTED_TYPES);
+        $this->assertContains(ServicePaymentPlanInstallment::class, FinancialDocumentIdentityService::SUPPORTED_TYPES);
         $this->assertStringContainsString(
             'pdf.partials.financial-document-qr',
             file_get_contents(resource_path('views/pdf/service-order.blade.php')),

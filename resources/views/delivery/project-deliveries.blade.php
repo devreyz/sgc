@@ -65,6 +65,7 @@
     :tenant-slug="$currentTenant->slug"
     :csrf="csrf_token()"
 />
+<x-delivery.quantity-adjustment-modal :tenant-slug="$currentTenant->slug" :csrf="csrf_token()" />
 <x-delivery.notes-modal />
 @php
     $bentoNavigation = \App\Support\PortalNavigation::make(
@@ -4076,6 +4077,16 @@ function pdMoney(value) {
     return Number(value || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
 }
 
+function pdAdjustmentHistory(item) {
+    if (!Array.isArray(item.quantity_adjustments) || !item.quantity_adjustments.length) return '';
+    return item.quantity_adjustments.map(adjustment => {
+        const kind = adjustment.kind === 'return' ? 'Devolução' : 'Rejeição';
+        const author = adjustment.created_by ? ` · ${adjustment.created_by}` : '';
+        const timestamp = adjustment.created_at ? ` · ${adjustment.created_at}` : '';
+        return `${kind}: ${pdQty(adjustment.quantity, item.unit)}${timestamp}${author}\nMotivo: ${adjustment.reason}`;
+    }).join('\n\n');
+}
+
 function pdActions(item, mobile = false) {
     const label = mobile ? 'dc-action-label' : 'pd-action-label';
     const button = (classes, icon, text, attrs = '') => {
@@ -4092,15 +4103,18 @@ function pdActions(item, mobile = false) {
         return `<button type="button" class="${renderedClasses}" ${attrs} title="${text}" aria-label="${text}"><i class="ph-duotone ph-${icon}"></i><span class="${label}">${text}</span></button>`;
     };
     let html = item.notes ? button('delivery-note-trigger', 'chat-text', 'Observações', `data-delivery-notes="${esc(item.notes)}" data-delivery-notes-title="Observações da entrega" data-delivery-notes-meta="${esc(item.product_name + ' · ' + item.associate_name)}"`) : '';
+    const adjustmentHistory = pdAdjustmentHistory(item);
+    if (adjustmentHistory) html += button('delivery-note-trigger', 'clock-counter-clockwise', 'Histórico de ajustes', `data-delivery-notes="${esc(adjustmentHistory)}" data-delivery-notes-title="Histórico de rejeições e devoluções" data-delivery-notes-meta="${esc(item.product_name + ' · ' + item.associate_name)}"`);
     const editAttrs = `data-id="${item.id}" data-date="${item.delivery_date_raw}" data-qty="${item.quantity}" data-price="${item.unit_price}" data-quality="${esc(item.quality_grade || '')}" data-notes="${esc(item.notes || '')}" data-unit="${esc(item.unit)}" data-distributions="${esc(JSON.stringify(item.distributions || []))}"`;
     if (item.status_value === 'pending') {
         html += button('btn-approve btn-xs', 'check-circle', 'Aprovar', `data-id="${item.id}"`);
-        html += button('btn-reject btn-xs', 'x-circle', 'Rejeitar', `data-id="${item.id}"`);
+        html += button('btn-reject btn-return-delivery btn-xs', 'x-circle', 'Rejeitar total ou parcialmente', `data-id="${item.id}" data-mode="rejection" data-product="${esc(item.product_name)}" data-unit="${esc(item.unit)}" data-current="${item.quantity}" data-available="${item.returnable_quantity}"`);
         html += button('btn-edit btn-xs', 'pencil-simple', 'Editar', editAttrs);
         html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
     } else if (item.status_value === 'approved') {
         html += button('btn-distribute btn-xs', 'git-merge', 'Distribuir', `data-id="${item.id}" data-product="${esc(item.product_name)}" data-unit="${esc(item.unit)}" data-qty="${item.quantity}" data-distributed="${item.distributed_qty}" data-existing="${esc(JSON.stringify(item.distributions || []))}" data-participants="${esc(JSON.stringify(DM_PROJECT_PARTICIPANTS))}" data-default-customer-id="${item.default_customer_id || ''}" data-notes="${esc(item.notes || '')}" data-context="${item.sales_project_id}:${item.associate_id}"`);
         html += button('btn-edit btn-xs', 'pencil-simple', 'Editar', editAttrs);
+        if (Number(item.returnable_quantity||0) > .00005) html += button('btn-reject btn-return-delivery btn-xs', 'arrow-u-down-left', 'Registrar devolução', `data-id="${item.id}" data-mode="return" data-product="${esc(item.product_name)}" data-unit="${esc(item.unit)}" data-current="${item.quantity}" data-available="${item.returnable_quantity}"`);
         if (!item.has_billed) html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
     } else if (item.status_value === 'rejected' && !item.has_billed) {
         html += button('btn-delete-approved btn-xs', 'trash', 'Excluir', `data-id="${item.id}"`);
@@ -4128,7 +4142,7 @@ function renderProjectRow(item) {
 function renderProjectCard(item) {
     const m = pdMetrics(item), limit = item.limit || {}, limitPct = limit.associate_percent == null ? null : Math.min(100, Number(limit.associate_percent));
     const visualStatus = item.status_value === 'approved' && m.percent >= 100 && !m.over ? 'distributed' : item.status_value;
-    const signals = `${item.has_billed ? '<span class="dc-signal billed" title="Entrega faturada"><i class="ph-duotone ph-receipt"></i></span>' : ''}${item.issue_count > 0 ? `<button type="button" class="pd-issue-btn ${item.issue_severity || 'warning'}" onclick="openIntegrityModal(${item.id})" title="Ver pendências desta entrega" aria-label="Ver ${item.issue_count} pendência(s) desta entrega"><i class="ph-duotone ph-warning"></i>${item.issue_count}</button>` : ''}`;
+    const signals = `${Number(item.adjusted_quantity||0)>0?`<span class="dc-signal" title="${pdQty(item.adjusted_quantity,item.unit)} rejeitados ou devolvidos"><i class="ph-duotone ph-arrow-u-down-left"></i></span>`:''}${item.has_billed ? '<span class="dc-signal billed" title="Entrega faturada"><i class="ph-duotone ph-receipt"></i></span>' : ''}${item.issue_count > 0 ? `<button type="button" class="pd-issue-btn ${item.issue_severity || 'warning'}" onclick="openIntegrityModal(${item.id})" title="Ver pendências desta entrega" aria-label="Ver ${item.issue_count} pendência(s) desta entrega"><i class="ph-duotone ph-warning"></i>${item.issue_count}</button>` : ''}`;
     return `<article class="mobile-card delivery-card-v2 status-${visualStatus}" id="mobile-row-${item.id}" data-delivery-id="${item.id}" data-total-qty="${m.total}" data-unit="${esc(item.unit)}" data-product="${esc(item.product_name)}" data-distributed="${m.distributed}" data-distributions="${esc(JSON.stringify(item.distributions || []))}" data-filter-date="${item.delivery_date_raw}" data-filter-associate="${esc(item.associate_name)}" data-filter-product="${esc(item.product_name)}" data-filter-status="${item.status_value}">
         <div class="dc-head mc-head"><div class="dc-main"><div class="dc-product-line"><strong class="dc-product mc-head-product">${esc(item.product_name)}</strong><span class="badge-status ${item.status_value}">${pdStatusLabel(item.status_value)}</span></div>${signals ? `<div class="dc-signals">${signals}</div>` : ''}<div class="dc-context"><span class="dc-context-item"><i class="ph-duotone ph-user"></i><span class="dc-associate mc-assoc">${esc(item.associate_name)}</span></span><span class="dc-context-item date"><i class="ph-duotone ph-calendar-dots"></i>${esc(item.delivery_date)}</span></div></div><div class="dc-side"><strong class="dc-qty mc-head-qty">${pdQty(m.total,item.unit)}</strong></div></div>
         <div class="dc-body mc-body">${limitPct == null ? '' : `<div class="dc-meter dc-limit-meter ${limitPct >= 100 ? 'red' : limitPct >= 80 ? 'amber' : 'green'}"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-gauge"></i>Cota</span><strong class="dc-meter-value">${pdQty(limit.associate_remaining,item.unit)} livres</strong></div><div class="dc-track"><span style="width:${limitPct}%"></span></div></div>`}<div class="dc-meter dc-distribution"><div class="dc-meter-head"><span class="dc-meter-label"><i class="ph-duotone ph-git-merge"></i>Distribuição</span><strong class="dc-meter-value">${m.over ? 'Excedeu ' + pdQty(m.distributed-m.total,item.unit) : m.percent >= 100 ? 'Concluída' : pdQty(m.total-m.distributed,item.unit) + ' restantes'}</strong></div><div class="mc-dist-indicator" role="button" tabindex="0" data-summary="1"><div class="mc-dist-bar-bg"><div class="mc-dist-bar-fill ${m.over ? 'over' : m.percent >= 100 ? 'full' : 'partial'}" style="width:${m.display}%"></div></div><span class="mc-dist-text">${m.over ? '!' : m.percent + '%'}</span></div></div><div class="dc-actions mc-actions">${pdActions(item,true)}</div></div></article>`;
@@ -4354,6 +4368,13 @@ function updateDistIndicator(container, totalQty, distQty, unit) {
 }
 
 /* ========== ACTION HANDLERS ========== */
+document.addEventListener('delivery-quantity-adjusted', async event => {
+    const id = Number(event.detail?.delivery_id || 0);
+    if (id) await refreshDeliveryItem(id).catch(() => loadDeliveryPage(true));
+    else await loadDeliveryPage(true);
+    pdToast(event.detail?.message || 'Ajuste de quantidade registrado.');
+});
+
 document.addEventListener('click', async function(e) {
     const summary = e.target.closest('.mc-dist-indicator[data-summary], .dist-indicator[data-summary]');
     if (summary) {
@@ -4362,7 +4383,7 @@ document.addEventListener('click', async function(e) {
     }
 
     const approveBtn  = e.target.closest('.btn-approve');
-    const rejectBtn   = e.target.closest('.btn-reject');
+    const rejectBtn   = e.target.closest('.btn-reject:not(.btn-return-delivery)');
     const editBtn     = e.target.closest('.btn-edit');
     const distBtn     = e.target.closest('.btn-distribute');
     const deleteBtn   = e.target.closest('.btn-delete-approved');

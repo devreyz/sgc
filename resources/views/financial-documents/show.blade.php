@@ -448,6 +448,14 @@
             opacity: .58;
         }
 
+        @media print {
+            .document-print-action,
+            .action-area,
+            dialog {
+                display: none !important;
+            }
+        }
+
         .btn:focus-visible,
         .dialog-close:focus-visible,
         .history-toggle:focus-visible {
@@ -1044,6 +1052,9 @@
                 </section>
 
                 @if($documentView['can_view_details'])
+                    <div class="document-print-action" style="display:flex;justify-content:flex-end;padding:.55rem .9rem;border-bottom:1px solid var(--border)">
+                        <button class="btn" type="button" data-print-document><i class="ph-fill ph-printer"></i> Imprimir cobrança</button>
+                    </div>
                     <section
                         class="summary"
                         aria-label="Resumo financeiro"
@@ -1885,6 +1896,8 @@
             .forEach(input => {
                 input.value ||= uuid();
             });
+
+        document.querySelector('[data-print-document]')?.addEventListener('click', () => window.print());
 
         const dialogs = [
             ...document.querySelectorAll(

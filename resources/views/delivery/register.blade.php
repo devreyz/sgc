@@ -13,6 +13,7 @@
     :csrf="csrf_token()"
     :customers="$customers->map(fn($c)=>['id'=>$c->id,'name'=>$c->trade_name?:$c->name,'organization_name'=>$c->organization?->short_name??$c->organization?->name])->values()->all()"
 />
+<x-delivery.quantity-adjustment-modal :tenant-slug="$currentTenant->slug" :csrf="csrf_token()" />
 <x-delivery.notes-modal />
 
 
@@ -8149,9 +8150,27 @@ function renderSessionItems() {
                </button>`
             : '';
 
+        if (Array.isArray(item.quantityAdjustments) && item.quantityAdjustments.length) {
+            const history = item.quantityAdjustments.map(adjustment => {
+                const kind = adjustment.kind === 'return' ? 'Devolução' : 'Rejeição';
+                const author = adjustment.created_by ? ` · ${adjustment.created_by}` : '';
+                const timestamp = adjustment.created_at ? ` · ${adjustment.created_at}` : '';
+                return `${kind}: ${fmtQty(adjustment.quantity, item.productUnit)}${timestamp}${author}\nMotivo: ${adjustment.reason}`;
+            }).join('\n\n');
+
+            buttons += `<button class="delivery-note-trigger dc-action notes" type="button"
+                data-delivery-notes="${escAttr(history)}"
+                data-delivery-notes-title="Histórico de rejeições e devoluções"
+                data-delivery-notes-meta="${escAttr(item.productName + ' · ' + item.associateName)}"
+                title="Histórico de ajustes" aria-label="Histórico de ajustes">
+                    <i class="ph-duotone ph-clock-counter-clockwise"></i>
+                    <span class="${labelClass}">Histórico</span>
+               </button>`;
+        }
+
         if (isPending) {
             buttons += `<button class="btn-approve btn-xs dc-action approve" data-action="approve" data-id="${item.id}" title="Aprovar entrega" aria-label="Aprovar entrega"><i class="ph-duotone ph-check-circle"></i><span class="${labelClass}">Aprovar</span></button>`;
-            buttons += `<button class="btn-reject btn-xs dc-action reject" data-action="reject" data-id="${item.id}" title="Rejeitar entrega" aria-label="Rejeitar entrega"><i class="ph-duotone ph-x-circle"></i><span class="${labelClass}">Rejeitar</span></button>`;
+            buttons += `<button class="btn-reject btn-return-delivery btn-xs dc-action reject" data-id="${item.id}" data-mode="rejection" data-product="${escAttr(item.productName)}" data-unit="${escAttr(item.productUnit)}" data-current="${item.qty}" data-available="${item.returnableQty}" title="Rejeitar total ou parcialmente" aria-label="Rejeitar total ou parcialmente"><i class="ph-duotone ph-x-circle"></i><span class="${labelClass}">Rejeitar</span></button>`;
             buttons += `<button class="btn-edit btn-xs dc-action edit" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
             if (!isBilled) {
                 buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete" data-id="${item.id}" title="Excluir entrega pendente" aria-label="Excluir entrega pendente"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
@@ -8159,6 +8178,7 @@ function renderSessionItems() {
         } else if (isApproved) {
             buttons += `<button class="btn-distribute btn-xs dc-action distribute" data-action="distribute" data-id="${item.id}" title="Distribuir entrega" aria-label="Distribuir entrega"><i class="ph-duotone ph-git-merge"></i><span class="${labelClass}">Distribuir</span></button>`;
             buttons += `<button class="btn-edit btn-xs dc-action edit" data-action="edit" data-id="${item.id}" title="Editar entrega" aria-label="Editar entrega"><i class="ph-duotone ph-pencil-simple"></i><span class="${labelClass}">Editar</span></button>`;
+            if (Number(item.returnableQty||0) > .00005) buttons += `<button class="btn-reject btn-return-delivery btn-xs dc-action reject" data-id="${item.id}" data-mode="return" data-product="${escAttr(item.productName)}" data-unit="${escAttr(item.productUnit)}" data-current="${item.qty}" data-available="${item.returnableQty}" title="Registrar devolução" aria-label="Registrar devolução"><i class="ph-duotone ph-arrow-u-down-left"></i><span class="${labelClass}">Devolver</span></button>`;
 
             if (!isBilled) {
                 buttons += `<button class="btn-delete-approved btn-xs dc-action delete" data-action="delete-approved" data-id="${item.id}" title="Excluir entrega" aria-label="Excluir entrega"><i class="ph-duotone ph-trash"></i><span class="${labelClass}">Excluir</span></button>`;
@@ -8255,7 +8275,7 @@ function renderSessionItems() {
         const stateIcon = getDeliveryStateIcon(statusClass, distPercent, overDist);
         const distJson = escAttr(JSON.stringify(item.distributions || []));
         const billedTag = isBilled ? '<span class="mc-billed">Fat.</span>' : '';
-        const statusTag = isRejected ? '<span class="mc-status-pill rejected">Rejeitada</span>' : '';
+        const statusTag = `${isRejected ? '<span class="mc-status-pill rejected">Rejeitada</span>' : ''}${Number(item.adjustedQty||0)>0?`<span class="mc-status-pill rejected">${fmtQty(item.adjustedQty,item.productUnit)} ajustados</span>`:''}`;
         const limit = item.limit || {};
         const limitPct = limit.associate_percent == null ? null : Math.min(100, Number(limit.associate_percent));
         const limitColor = limitPct == null ? '#94a3b8' : limitPct >= 100 ? '#dc2626' : limitPct >= 80 ? '#d97706' : '#059669';
@@ -8579,6 +8599,12 @@ async function deleteItem(id, btn, isApproved = false) {
 }
 
 /* ─── Action delegation ────────────────────────── */
+document.addEventListener('delivery-quantity-adjusted', async event => {
+    if (S.project) await loadProjectDeliveries(S.project.id, true);
+    else renderSessionItems();
+    toast(event.detail?.message || 'Ajuste de quantidade registrado.', 'info');
+});
+
 document.addEventListener('click', function (e) {
     const cardSummary = e.target.closest('.mc-dist-indicator[data-summary]');
     if (cardSummary && cardSummary.closest('#session-list')) {

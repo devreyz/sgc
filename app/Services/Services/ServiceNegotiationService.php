@@ -6,6 +6,7 @@ use App\Models\ServiceNegotiation;
 use App\Models\ServiceObligation;
 use App\Models\ServicePaymentPlan;
 use App\Models\User;
+use App\Services\FinancialDocumentIdentityService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +30,24 @@ class ServiceNegotiationService
             if ($obligations->count() !== count(array_unique($obligationIds))) {
                 throw ValidationException::withMessages(['obligations' => 'Uma ou mais obrigações não pertencem à organização.']);
             }
+            $parties = $obligations->map(fn (ServiceObligation $obligation): string => implode(':', [
+                (string) data_get($obligation->party_snapshot, 'type', 'party'),
+                (string) (data_get($obligation->party_snapshot, 'id') ?: (str(data_get($obligation->party_snapshot, 'name', ''))->ascii()->lower()->squish()->toString() ?: 'unknown-'.$obligation->id)),
+            ]))->unique();
+            if ($parties->count() !== 1) {
+                throw ValidationException::withMessages(['obligation_ids' => 'Um termo só pode reunir obrigações da mesma pessoa. Crie um termo separado para cada beneficiário.']);
+            }
+            $alreadyNegotiatedQuery = DB::table('service_payment_plan_obligations as link')
+                ->join('service_payment_plans as plans', 'plans.id', '=', 'link.service_payment_plan_id')
+                ->where('plans.tenant_id', $tenantId)->where('plans.status', 'active')
+                ->whereIn('link.service_obligation_id', $obligations->pluck('id'));
+            if ($supersedes?->payment_plan_id) {
+                $alreadyNegotiatedQuery->where('plans.id', '!=', $supersedes->payment_plan_id);
+            }
+            $alreadyNegotiated = $alreadyNegotiatedQuery->exists();
+            if ($alreadyNegotiated) {
+                throw ValidationException::withMessages(['obligation_ids' => 'Uma das obrigações já pertence a um termo ativo. Conclua ou substitua o termo existente antes de negociar novamente.']);
+            }
             $total = round((float) $obligations->sum('balance'), 2);
             if ($total <= 0) {
                 throw ValidationException::withMessages(['obligations' => 'As obrigações selecionadas não possuem saldo.']);
@@ -50,6 +69,7 @@ class ServiceNegotiationService
                 ]);
                 $item->tenant_id = $tenantId;
                 $item->save();
+                app(FinancialDocumentIdentityService::class)->ensure($item, $actor);
             }
             $year = (int) now()->format('Y');
             DB::table('service_negotiation_sequences')->insertOrIgnore(['tenant_id' => $tenantId, 'year' => $year, 'last_number' => 0, 'created_at' => now(), 'updated_at' => now()]);
@@ -122,6 +142,7 @@ class ServiceNegotiationService
         if ($entryCount > 1) {
             throw ValidationException::withMessages(['installments' => 'O plano pode possuir somente uma entrada.']);
         }
+        $schedule = collect($schedule)->sortBy(fn (array $item): int => $item['kind'] === 'entry' ? 0 : 1)->values()->all();
         $scheduledTotal = round((float) collect($schedule)->sum('amount'), 2);
         if (abs($scheduledTotal - round($total, 2)) > 0.009) {
             throw ValidationException::withMessages([

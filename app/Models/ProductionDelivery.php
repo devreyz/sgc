@@ -32,6 +32,7 @@ class ProductionDelivery extends Model
         'product_id',
         'delivery_date',
         'quantity',
+        'original_quantity',
         'unit_price',
         'cost_price_used',
         'admin_fee_percentage',
@@ -63,6 +64,7 @@ class ProductionDelivery extends Model
             'status' => DeliveryStatus::class,
             'delivery_date' => 'date',
             'quantity' => 'decimal:4',
+            'original_quantity' => 'decimal:4',
             'unit_price' => 'decimal:4',
             'cost_price_used' => 'decimal:4',
             'admin_fee_percentage' => 'decimal:2',
@@ -101,6 +103,11 @@ class ProductionDelivery extends Model
     public function distributions(): HasMany
     {
         return $this->hasMany(ProductionDelivery::class, 'parent_delivery_id');
+    }
+
+    public function quantityAdjustments(): HasMany
+    {
+        return $this->hasMany(ProductionDeliveryQuantityAdjustment::class, 'production_delivery_id');
     }
 
     /**

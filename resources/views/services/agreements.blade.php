@@ -1033,6 +1033,13 @@
 </style>
 
 <main class="agreements-workspace">
+    @if(session('agreement_document_id'))
+        <div class="ag-note" style="margin-bottom:.75rem">
+            <i class="ph-fill ph-check-circle"></i>
+            <span>O termo foi salvo com sucesso.</span>
+            <a class="ag-action primary" href="{{ route('services.management.documents.download', [$tenantSlug, session('agreement_document_id'), 'inline' => 1]) }}" target="_blank" rel="noopener"><i class="ph-fill ph-printer"></i><span>Abrir e imprimir termo</span></a>
+        </div>
+    @endif
     <header class="ag-head">
         <div class="ag-head-main">
             <span
@@ -1158,7 +1165,8 @@
                             </thead>
 
                             <tbody>
-                                @forelse($obligations as $obligation)
+                                @if($obligations->isNotEmpty())
+                                @foreach($obligations as $obligation)
                                     <tr>
                                         <td class="ag-check-cell">
                                             <input
@@ -1174,6 +1182,7 @@
                                                         ''
                                                     )
                                                 }}"
+                                                data-party="{{ data_get($obligation->party_snapshot, 'type', 'party') }}:{{ data_get($obligation->party_snapshot, 'id') ?: (\Illuminate\Support\Str::slug((string) data_get($obligation->party_snapshot, 'name')) ?: 'unknown-'.$obligation->id) }}"
                                                 @checked(
                                                     in_array(
                                                         $obligation->id,
@@ -1250,20 +1259,22 @@
                                             </span>
                                         </td>
                                     </tr>
-                                @empty
+                                @endforeach
+                                @else
                                     <tr>
                                         <td colspan="5">
                                             Não há obrigações a receber com saldo disponível.
                                         </td>
                                     </tr>
-                                @endforelse
+                                @endif
                             </tbody>
                         </table>
                     </div>
                 </div>
 
                 <div class="ag-obligation-mobile">
-                    @forelse($obligations as $obligation)
+                    @if($obligations->isNotEmpty())
+                    @foreach($obligations as $obligation)
                         <label class="ag-obligation-card">
                             <div class="ag-obligation-card-head">
                                 <input
@@ -1279,6 +1290,7 @@
                                             ''
                                         )
                                     }}"
+                                    data-party="{{ data_get($obligation->party_snapshot, 'type', 'party') }}:{{ data_get($obligation->party_snapshot, 'id') ?: (\Illuminate\Support\Str::slug((string) data_get($obligation->party_snapshot, 'name')) ?: 'unknown-'.$obligation->id) }}"
                                     @checked(
                                         in_array(
                                             $obligation->id,
@@ -1352,11 +1364,12 @@
                                 </span>
                             </div>
                         </label>
-                    @empty
+                    @endforeach
+                    @else
                         <div class="ag-empty">
                             Não há obrigações a receber com saldo disponível.
                         </div>
-                    @endforelse
+                    @endif
                 </div>
 
                 @error('obligation_ids')
@@ -1399,13 +1412,26 @@
                         </div>
                     </header>
 
+                    <div id="mixed-party-warning" class="ag-validation" role="alert" hidden>
+                        Um termo não pode misturar pessoas diferentes. Selecione somente obrigações do mesmo beneficiário.
+                    </div>
+
+                    <div class="ag-note" style="margin:.65rem 0">
+                        <i class="ph-fill ph-calendar-plus"></i>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.55rem;align-items:end;width:100%">
+                            <label class="ag-field"><span>Quantidade de parcelas</span><input class="ag-control" id="bulk-installment-count" type="number" min="1" max="120" value="3" inputmode="numeric"></label>
+                            <label class="ag-field"><span>Primeiro vencimento</span><input class="ag-control" id="bulk-first-date" type="date" value="{{ now()->addMonthNoOverflow()->toDateString() }}"></label>
+                            <button class="ag-action blue" id="generate-installments" type="button"><i class="ph-fill ph-magic-wand"></i><span>Gerar parcelas restantes</span></button>
+                        </div>
+                    </div>
+
                     <div id="schedule-rows">
                         @foreach(
                             old(
                                 'installments',
                                 [
                                     [
-                                        'kind' => 'installment',
+                                        'kind' => 'entry',
                                         'due_date' => now()->toDateString(),
                                         'amount' => '',
                                     ],
@@ -1546,7 +1572,7 @@
                             @disabled($obligations->isEmpty())
                         >
                             <i class="ph-fill ph-file-pdf"></i>
-                            <span>Criar termo e abrir PDF</span>
+                            <span>Criar termo</span>
                         </button>
                     </div>
                 </section>
@@ -1596,7 +1622,8 @@
                     </thead>
 
                     <tbody>
-                        @forelse($agreements as $agreement)
+                        @if($agreements->isNotEmpty())
+                        @foreach($agreements as $agreement)
                             @php
                                 $status =
                                     $agreementStatusMeta(
@@ -1714,6 +1741,7 @@
                                                         $tenantSlug,
                                                         $agreement
                                                             ->generatedDocument,
+                                                        'inline' => 1,
                                                     ]
                                                 ) }}"
                                                 target="_blank"
@@ -1725,6 +1753,7 @@
 
                                         <form
                                             method="post"
+                                            target="_blank"
                                             action="{{ route(
                                                 'services.management.agreements.document',
                                                 [
@@ -1922,6 +1951,13 @@
                                                                                 Pendente
                                                                             </span>
 
+                                                                            @if($installment->verificationIdentity)
+                                                                                <a class="ag-action blue" href="{{ route('financial-documents.show', $installment->verificationIdentity->public_id) }}" target="_blank" rel="noopener" style="margin-top:.4rem">
+                                                                                    <i class="ph-fill ph-qr-code"></i>
+                                                                                    <span>Abrir cobrança com QR</span>
+                                                                                </a>
+                                                                            @endif
+
                                                                             <form
                                                                                 class="installment-payment"
                                                                                 method="post"
@@ -2038,20 +2074,22 @@
                                     </details>
                                 </td>
                             </tr>
-                        @empty
+                        @endforeach
+                        @else
                             <tr>
                                 <td colspan="6">
                                     Nenhum termo emitido.
                                 </td>
                             </tr>
-                        @endforelse
+                        @endif
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div class="ag-agreements-mobile">
-            @forelse($agreements as $agreement)
+            @if($agreements->isNotEmpty())
+            @foreach($agreements as $agreement)
                 @php
                     $status =
                         $agreementStatusMeta(
@@ -2171,6 +2209,7 @@
                                         $tenantSlug,
                                         $agreement
                                             ->generatedDocument,
+                                        'inline' => 1,
                                     ]
                                 ) }}"
                                 target="_blank"
@@ -2182,6 +2221,7 @@
 
                         <form
                             method="post"
+                            target="_blank"
                             action="{{ route(
                                 'services.management.agreements.document',
                                 [
@@ -2363,6 +2403,12 @@
                                                     'manage_service_receivables'
                                                 )
                                         )
+                                            @if($installment->verificationIdentity)
+                                                <a class="ag-action blue" href="{{ route('financial-documents.show', $installment->verificationIdentity->public_id) }}" target="_blank" rel="noopener" style="margin-top:.4rem">
+                                                    <i class="ph-fill ph-qr-code"></i>
+                                                    <span>Abrir cobrança com QR</span>
+                                                </a>
+                                            @endif
                                             <form
                                                 class="installment-payment"
                                                 method="post"
@@ -2476,11 +2522,12 @@
                         </div>
                     </details>
                 </article>
-            @empty
+            @endforeach
+            @else
                 <div class="ag-empty">
                     Nenhum termo emitido.
                 </div>
-            @endforelse
+            @endif
         </div>
     </section>
 </main>
@@ -2578,6 +2625,12 @@
         document.getElementById(
             'schedule-difference'
         );
+
+    const mixedPartyWarning = document.getElementById('mixed-party-warning');
+    const createButton = document.querySelector('#agreement-form .ag-create-actions button');
+    const bulkCount = document.getElementById('bulk-installment-count');
+    const bulkFirstDate = document.getElementById('bulk-first-date');
+    const generateInstallments = document.getElementById('generate-installments');
 
     if (
         !rows
@@ -2679,6 +2732,12 @@
         const selectedIds =
             selectedObligationIds();
 
+        const selectedParties = new Set(
+            [...document.querySelectorAll('.obligation-choice:checked')]
+                .map(field => field.dataset.party)
+                .filter(Boolean)
+        );
+
         let selected = 0;
 
         selectedIds.forEach(id => {
@@ -2741,6 +2800,12 @@
                     >= .01
             );
         }
+
+        const mixedParties = selectedParties.size > 1;
+        if (mixedPartyWarning) mixedPartyWarning.hidden = !mixedParties;
+        if (createButton) {
+            createButton.disabled = selectedIds.size === 0 || mixedParties || Math.abs(difference) >= .01;
+        }
     };
 
     const hasEntry = () =>
@@ -2753,7 +2818,7 @@
                 select.value === 'entry'
         );
 
-    const addRow = kind => {
+    const addRow = (kind, values = {}) => {
         if (
             kind === 'entry'
             && hasEntry()
@@ -2803,11 +2868,14 @@
                 .toISOString()
                 .slice(0, 10);
 
-            dateInput.value =
-                localDate;
+            dateInput.value = values.dueDate || localDate;
         }
 
-        rows.appendChild(row);
+        const amountInput = row.querySelector('[data-amount]');
+        if (amountInput && values.amount !== undefined) amountInput.value = Number(values.amount).toFixed(2);
+
+        if (kind === 'entry') rows.prepend(row);
+        else rows.appendChild(row);
 
         reindex();
         refresh();
@@ -2837,6 +2905,38 @@
             'installment'
         )
     );
+
+    generateInstallments?.addEventListener('click', () => {
+        const count = Math.max(1, Math.min(120, Number(bulkCount?.value || 1)));
+        const firstDate = bulkFirstDate?.value;
+        if (!firstDate) {
+            bulkFirstDate?.focus();
+            return;
+        }
+        const selected = [...selectedObligationIds()].reduce((sum, id) => {
+            const field = document.querySelector(`.obligation-choice[value="${CSS.escape(id)}"]`);
+            return sum + Number(field?.dataset.balance || 0);
+        }, 0);
+        const entryAmount = [...rows.querySelectorAll('[data-schedule-row]')]
+            .filter(row => row.querySelector('[data-kind]')?.value === 'entry')
+            .reduce((sum, row) => sum + Number(row.querySelector('[data-amount]')?.value || 0), 0);
+        const remainingCents = Math.round((selected - entryAmount) * 100);
+        if (remainingCents <= 0) return;
+        [...rows.querySelectorAll('[data-schedule-row]')].forEach(row => {
+            if (row.querySelector('[data-kind]')?.value === 'installment') row.remove();
+        });
+        const baseCents = Math.floor(remainingCents / count);
+        let remainder = remainingCents - baseCents * count;
+        const start = new Date(`${firstDate}T12:00:00`);
+        for (let index = 0; index < count; index++) {
+            const due = new Date(start);
+            due.setMonth(start.getMonth() + index);
+            const cents = baseCents + (remainder-- > 0 ? 1 : 0);
+            addRow('installment', {dueDate: due.toISOString().slice(0, 10), amount: cents / 100});
+        }
+        reindex();
+        refresh();
+    });
 
     document.addEventListener(
         'change',

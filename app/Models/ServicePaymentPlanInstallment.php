@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class ServicePaymentPlanInstallment extends Model
 {
@@ -25,5 +26,10 @@ class ServicePaymentPlanInstallment extends Model
     public function paymentEvent(): BelongsTo
     {
         return $this->belongsTo(ServicePaymentEvent::class, 'service_payment_event_id');
+    }
+
+    public function verificationIdentity(): MorphOne
+    {
+        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
     }
 }

@@ -111,6 +111,7 @@ class AssociatePortalFinancialTruthTest extends TestCase
         $this->assertSame(12.0, $summary['total_fees']);
         $this->assertSame(108.0, $summary['total_net']);
         $this->assertSame(108.0, $summary['unbilled']);
+        $this->assertSame(108.0, $summary['outstanding']);
     }
 
     public function test_receipt_display_is_recalculated_from_distributions_and_payments(): void
@@ -152,6 +153,7 @@ class AssociatePortalFinancialTruthTest extends TestCase
         $this->assertSame(108.0, $summary['receipt_issued']);
         $this->assertSame(40.0, $summary['receipt_paid']);
         $this->assertSame(68.0, $summary['receivable']);
+        $this->assertSame(68.0, $summary['outstanding']);
         $this->assertSame(40.0, $summary['paid']);
         $this->assertSame(0.0, $summary['unbilled']);
     }

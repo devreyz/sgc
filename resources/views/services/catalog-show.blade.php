@@ -1097,7 +1097,8 @@
        MOBILE
        ========================================================= */
 
-    .cc-mobile-fields {
+    .cc-mobile-fields,
+    .cc-mobile-versions {
         display: none;
     }
 
@@ -1135,8 +1136,30 @@
             display: none;
         }
 
-        .cc-mobile-fields {
+        .cc-mobile-fields,
+        .cc-mobile-versions {
             display: grid;
+        }
+
+        .cc-mobile-versions {
+            gap:.55rem;
+            padding:.65rem;
+        }
+
+        .cc-mobile-version {
+            display:grid;
+            gap:.45rem;
+            padding:.7rem;
+            border:1px solid var(--cc-border);
+            border-radius:10px;
+            background:#fff;
+        }
+
+        .cc-mobile-version-head {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:.5rem;
         }
 
         .cc-mobile-field {
@@ -1188,6 +1211,18 @@
 
         .cc-dialog-layout {
             max-height: calc(100dvh - .8rem);
+            height: calc(100dvh - .8rem);
+        }
+
+        .cc-dialog-foot {
+            position:sticky;
+            bottom:0;
+            z-index:3;
+            padding-bottom:max(.62rem, env(safe-area-inset-bottom));
+        }
+
+        .cc-dialog-foot .cc-action {
+            min-height:46px;
         }
     }
 
@@ -1540,6 +1575,15 @@
                     <tr><td>v{{ $item->version }}</td><td>{{ $statusLabels[$item->status] ?? $item->status }}</td><td>{{ $item->receivable_enabled ? ($item->customer_pricing_method === 'percent_of_base' ? number_format((float) $item->customer_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->customer_rate, 2, ',', '.')) : 'Sem cobrança' }}</td><td>{{ $item->payable_enabled ? ($item->provider_pricing_method === 'percent_of_base' ? number_format((float) $item->provider_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->default_provider_rate, 2, ',', '.')) : 'Sem remuneração' }}</td><td><a class="cc-action" href="{{ route('services.catalog.show', [$tenantSlug, $item]) }}">{{ $item->id === $version->id ? 'Atual' : 'Ver versão' }}</a></td></tr>
                 @endforeach
             </tbody></table>
+        </div>
+        <div class="cc-mobile-versions">
+            @foreach($version->service->versions->sortByDesc('version') as $item)
+                <article class="cc-mobile-version">
+                    <div class="cc-mobile-version-head"><strong>Versão {{ $item->version }}</strong><span class="cc-status">{{ $statusLabels[$item->status] ?? $item->status }}</span></div>
+                    <div class="cc-mobile-field-meta"><span>Cobrança: {{ $item->receivable_enabled ? ($item->customer_pricing_method === 'percent_of_base' ? number_format((float) $item->customer_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->customer_rate, 2, ',', '.')) : 'não gera' }}</span><span>·</span><span>Prestador: {{ $item->payable_enabled ? ($item->provider_pricing_method === 'percent_of_base' ? number_format((float) $item->provider_percentage, 2, ',', '.').'%' : 'R$ '.number_format((float) $item->default_provider_rate, 2, ',', '.')) : 'não gera' }}</span></div>
+                    <a class="cc-action" href="{{ route('services.catalog.show', [$tenantSlug, $item]) }}">{{ $item->id === $version->id ? 'Versão aberta' : 'Ver esta versão' }}</a>
+                </article>
+            @endforeach
         </div>
     </section>
 
@@ -2554,6 +2598,26 @@
                         Para alterar regras financeiras, crie uma nova versão.
                     </span>
                 </div>
+
+                <div style="display:grid;gap:.6rem;margin-top:.7rem">
+                    @if(count((array) data_get($version->financial_config, 'rules', [])) > 0)
+                    @foreach((array) data_get($version->financial_config, 'rules', []) as $rule)
+                        <article class="cc-financial-block" style="border:1px solid var(--cc-border);border-radius:10px;padding:.7rem">
+                            <div class="cc-financial-block-title">
+                                <strong>{{ $rule['description'] ?? 'Termo financeiro' }}</strong>
+                                <small>{{ ($rule['direction'] ?? '') === 'payable' ? 'Remuneração do prestador' : 'Cobrança da organização' }} · {{ ($rule['effect'] ?? 'add') === 'subtract' ? 'Desconto' : 'Acréscimo' }}</small>
+                            </div>
+                            <div class="cc-mobile-field-meta" style="margin-top:.45rem">
+                                <span>Método: {{ match($rule['method'] ?? '') {'quantity_x_rate' => 'quantidade × tarifa', 'percent_addition', 'percent_deduction' => 'percentual do valor base', default => 'valor fixo ou informado'} }}</span>
+                                @if(filled($rule['input_label'] ?? null))<span>· Campo: {{ $rule['input_label'] }}</span>@endif
+                                @if($rule['evidence_required'] ?? false)<span>· Comprovante obrigatório</span>@endif
+                            </div>
+                        </article>
+                    @endforeach
+                    @else
+                        <div class="cc-empty">Nenhum adicional ou desconto configurado nesta versão.</div>
+                    @endif
+                </div>
             @endif
         </div>
     </section>
@@ -3158,6 +3222,23 @@
                     ).length;
 
                 const bind = scope => {
+                    const syncRule = rule => {
+                        const method = rule.querySelector('[data-rule-method]')?.value || 'fixed_addition';
+                        const evidenceRequired = rule.querySelector('[data-rule-evidence-toggle]')?.checked;
+                        rule.querySelectorAll('[data-rule-setting]').forEach(element => {
+                            const setting = element.dataset.ruleSetting;
+                            element.hidden = (setting === 'percentage' && !method.startsWith('percent'))
+                                || (setting === 'quantity-field' && method !== 'quantity_x_rate')
+                                || (setting === 'value' && method.startsWith('percent'))
+                                || (setting === 'value-field' && method === 'quantity_x_rate');
+                        });
+                        const evidence = rule.querySelector('[data-rule-evidence]');
+                        if (evidence) evidence.hidden = !evidenceRequired;
+                        const description = rule.querySelector('[data-rule-description]')?.value?.trim();
+                        const title = rule.querySelector('[data-rule-title]');
+                        if (title) title.textContent = description || 'Novo termo financeiro';
+                    };
+
                     scope
                         .querySelectorAll(
                             '[data-remove-rule]'
@@ -3172,6 +3253,13 @@
                                         ?.remove();
                                 };
                         });
+                    scope.querySelectorAll('[data-rule]').forEach(rule => {
+                        rule.querySelectorAll('select,input').forEach(control => {
+                            control.addEventListener('change', () => syncRule(rule));
+                            control.addEventListener('input', () => syncRule(rule));
+                        });
+                        syncRule(rule);
+                    });
                 };
 
                 add.addEventListener(

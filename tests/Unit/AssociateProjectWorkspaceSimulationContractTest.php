@@ -54,8 +54,23 @@ class AssociateProjectWorkspaceSimulationContractTest extends TestCase
         self::assertStringContainsString('Entregas por destino', $view);
         self::assertStringContainsString('fee_breakdown', $view);
         self::assertStringContainsString('Taxas e descontos', $view);
+        self::assertStringContainsString("f.name||f.label||'Taxa ou desconto'", $view);
+        self::assertStringContainsString('class="record-grid"', $view);
+        self::assertStringContainsString('class="record-card distribution"', $view);
         self::assertStringNotContainsString('Valor disponível para entregar', $view);
         self::assertStringNotContainsString('% de ${limit} já foi utilizado.', $view);
+    }
+
+    public function test_member_receipt_is_generated_from_the_portal_template_without_reusing_the_signed_archive(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Associate/AssociateProjectPortalController.php'));
+        $portalReceipt = file_get_contents(resource_path('views/pdf/associate-portal-receipt.blade.php'));
+
+        self::assertStringContainsString("generateSystemPdf('pdf.associate-portal-receipt'", $controller);
+        self::assertStringNotContainsString('AssociateReceiptDriveState', $controller);
+        self::assertStringNotContainsString('TenantGoogleDriveService', $controller);
+        self::assertStringContainsString("@include('pdf.partials.financial-document-qr')", $portalReceipt);
+        self::assertStringNotContainsString('Assinatura', $portalReceipt);
     }
 
     public function test_workspace_endpoints_are_read_only_and_catalog_is_bounded(): void

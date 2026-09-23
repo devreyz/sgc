@@ -1315,7 +1315,7 @@
                         </strong>
                     </span>
 
-                    <span>
+                    <span data-dashboard-active-projects>
                         {{ $activeProjectsCount }}
                         {{ $activeProjectsCount === 1
                             ? 'projeto ativo'

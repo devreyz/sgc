@@ -7,6 +7,7 @@ use App\Models\CustomerBillingReceipt;
 use App\Models\FinancialDocumentIdentity;
 use App\Models\FinancialReceipt;
 use App\Models\ServiceObligation;
+use App\Models\ServicePaymentPlanInstallment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -23,6 +24,7 @@ class FinancialDocumentIdentityService
         CustomerBillingReceipt::class,
         FinancialReceipt::class,
         ServiceObligation::class,
+        ServicePaymentPlanInstallment::class,
     ];
 
     public function ensure(Model $document, ?User $actor = null): ?FinancialDocumentIdentity

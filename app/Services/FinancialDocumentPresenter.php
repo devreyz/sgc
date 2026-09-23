@@ -10,6 +10,7 @@ use App\Models\FinancialCheckInstrument;
 use App\Models\FinancialDocumentIdentity;
 use App\Models\FinancialReceipt;
 use App\Models\ServiceObligation;
+use App\Models\ServicePaymentPlanInstallment;
 use App\Models\User;
 
 class FinancialDocumentPresenter
@@ -23,8 +24,15 @@ class FinancialDocumentPresenter
         [$technicalStatus, $humanStatus, $tone] = $this->status($document, $latestCheck);
         $canView = $user ? $this->canView($user, $identity) : false;
         $canPay = $user && $canView ? $this->canPay($user, $identity) : false;
-        $total = $this->payments->total($identity);
-        $balance = $this->payments->balance($identity);
+        $details = $canView ? $this->inTenant((int) $identity->tenant_id, fn (): array => [
+            'total' => $this->payments->total($identity),
+            'balance' => $this->payments->balance($identity),
+            'party' => $this->party($document),
+            'project' => $this->project($document),
+            'payments' => $this->paymentHistory($document),
+        ]) : ['total' => 0.0, 'balance' => 0.0, 'party' => null, 'project' => null, 'payments' => collect()];
+        $total = $details['total'];
+        $balance = $details['balance'];
         $paid = max(0, round($total - $balance, 2));
         $pendingCheck = $latestCheck?->status === 'issued' ? $latestCheck : null;
         $canLiquidate = $canPay && $balance > 0 && ! in_array($technicalStatus, ['draft', 'obsolete', 'cancelled', 'paid'], true);
@@ -34,8 +42,10 @@ class FinancialDocumentPresenter
             $actions[] = ['key' => 'deliver_check', 'label' => 'Confirmar entrega', 'primary' => true];
             $actions[] = ['key' => 'cancel_check', 'label' => 'Cancelar cheque', 'primary' => false];
         } elseif ($canLiquidate) {
-            $actions[] = ['key' => 'pay', 'label' => $document instanceof CustomerBillingReceipt ? 'Registrar recebimento' : 'Pagar agora', 'primary' => true];
-            $actions[] = ['key' => 'issue_check', 'label' => 'Emitir cheque', 'primary' => false];
+            $actions[] = ['key' => 'pay', 'label' => ($document instanceof CustomerBillingReceipt || $document instanceof ServicePaymentPlanInstallment) ? 'Registrar recebimento' : 'Pagar agora', 'primary' => true];
+            if (! $document instanceof ServicePaymentPlanInstallment) {
+                $actions[] = ['key' => 'issue_check', 'label' => 'Emitir cheque', 'primary' => false];
+            }
         }
 
         return [
@@ -54,9 +64,9 @@ class FinancialDocumentPresenter
             'total' => $canView ? $total : null,
             'paid' => $canView ? $paid : null,
             'balance' => $canView ? $balance : null,
-            'party' => $canView ? $this->party($document) : null,
-            'project' => $canView ? $this->project($document) : null,
-            'payments' => $canView ? $this->paymentHistory($document) : collect(),
+            'party' => $details['party'],
+            'project' => $details['project'],
+            'payments' => $details['payments'],
             'checks' => $canView ? $identity->checks : collect(),
             'pending_check' => $canView ? $pendingCheck : null,
             'actions' => $actions,
@@ -78,6 +88,8 @@ class FinancialDocumentPresenter
                 CustomerBillingReceipt::class => $user->checkPermissionTo('update_customer::billing::receipt'),
                 ServiceObligation::class => $user->checkPermissionTo('record_service_payment')
                     && $user->checkPermissionTo($document->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables'),
+                ServicePaymentPlanInstallment::class => $user->checkPermissionTo('manage_service_receivables')
+                    && $user->checkPermissionTo('manage_service_agreements'),
                 default => false,
             };
         });
@@ -101,6 +113,7 @@ class FinancialDocumentPresenter
             AssociateReceipt::class => $user->checkPermissionTo('view_associate::receipt'),
             CustomerBillingReceipt::class => $user->checkPermissionTo('view_customer::billing::receipt'),
             ServiceObligation::class => $user->checkPermissionTo('view_service_financials'),
+            ServicePaymentPlanInstallment::class => $user->checkPermissionTo('manage_service_agreements'),
             FinancialReceipt::class => $user->checkPermissionTo('view_financial::receipt'),
             default => false,
         });
@@ -142,12 +155,17 @@ class FinancialDocumentPresenter
             'cancelled', 'canceled' => ['cancelled', 'Documento cancelado', 'danger'],
             'issued' => ['paid', 'Recebimento confirmado', 'success'],
             'open', 'pending' => ['pending_payment', $document instanceof ServiceObligation && $document->direction === 'receivable' ? 'Aguardando recebimento' : 'Aguardando pagamento', 'warning'],
+            'scheduled' => ['pending_payment', 'Parcela aguardando recebimento', 'warning'],
             default => ['unknown', 'Situação em análise', 'neutral'],
         };
     }
 
     private function number(mixed $document): string
     {
+        if ($document instanceof ServicePaymentPlanInstallment) {
+            return ($document->kind === 'entry' ? 'Entrada' : 'Parcela').' '.$document->number;
+        }
+
         return (string) ($document?->formatted_number ?? $document?->number ?? '—');
     }
 
@@ -157,6 +175,7 @@ class FinancialDocumentPresenter
             AssociateReceipt::class => 'Pagamento ao membro',
             CustomerBillingReceipt::class => 'Cobrança do cliente',
             ServiceObligation::class => $document->direction === 'payable' ? 'Pagamento de serviço ao prestador' : 'Cobrança de serviço',
+            ServicePaymentPlanInstallment::class => 'Cobrança de termo de negociação',
             FinancialReceipt::class => 'Recibo de recebimento',
             default => 'Comprovante financeiro',
         };
@@ -174,6 +193,7 @@ class FinancialDocumentPresenter
             CustomerBillingReceipt::class => (string) $document->recipient_name,
             ServiceObligation::class => (string) (data_get($document->party_snapshot, 'name')
                 ?? $document->provider?->name ?? $document->associate?->display_name ?? 'Parte não identificada'),
+            ServicePaymentPlanInstallment::class => (string) data_get($document->plan?->obligations()->first()?->party_snapshot, 'name', 'Parte não identificada'),
             FinancialReceipt::class => (string) ($document->payer_name ?: 'Pagador não identificado'),
             default => '—',
         };
@@ -185,6 +205,7 @@ class FinancialDocumentPresenter
             AssociateReceipt::class => $document->project?->title,
             CustomerBillingReceipt::class => $document->project_summary,
             ServiceObligation::class => $document->execution?->order?->service?->name,
+            ServicePaymentPlanInstallment::class => 'Termo de negociação de serviços',
             default => null,
         };
     }
@@ -202,6 +223,14 @@ class FinancialDocumentPresenter
                     'payment_method' => $allocation->paymentEvent?->payment_method,
                     'document_number' => data_get($allocation->paymentEvent?->metadata, 'document_number'),
                 ]);
+        }
+        if ($document instanceof ServicePaymentPlanInstallment) {
+            return $document->paymentEvent ? collect([(object) [
+                'amount' => $document->paymentEvent->amount,
+                'payment_date' => $document->paymentEvent->payment_date,
+                'payment_method' => $document->paymentEvent->payment_method,
+                'document_number' => 'NEG-'.$document->service_payment_plan_id.'-'.$document->number,
+            ]]) : collect();
         }
 
         return collect();

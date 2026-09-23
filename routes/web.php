@@ -505,6 +505,7 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/deliveries', [DeliveryRegistrationController::class, 'projectDeliveries'])->name('projects.deliveries');
         Route::post('/deliveries/{delivery}/approve', [DeliveryRegistrationController::class, 'approveDelivery'])->name('deliveries.approve');
         Route::post('/deliveries/{delivery}/reject', [DeliveryRegistrationController::class, 'rejectDelivery'])->name('deliveries.reject');
+        Route::post('/deliveries/{delivery}/return', [DeliveryRegistrationController::class, 'returnDelivery'])->name('deliveries.return');
         Route::post('/deliveries/{delivery}/distribute', [DeliveryRegistrationController::class, 'distribute'])->name('deliveries.distribute');
         Route::get('/deliveries/{delivery}/customers/{customer}/price', [DeliveryRegistrationController::class, 'distributionPrice'])->name('deliveries.customers.price');
         Route::put('/deliveries/{delivery}/customers/{customer}/price', [DeliveryRegistrationController::class, 'updateDistributionPrice'])->name('deliveries.customers.price.update');

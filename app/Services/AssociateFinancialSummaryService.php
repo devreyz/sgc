@@ -132,6 +132,9 @@ class AssociateFinancialSummaryService
             'receipt_issued' => $receiptIssued,
             'receipt_paid' => $receiptPaid,
             'receivable' => $receivable,
+            // Saldo econômico do membro: toda distribuição aprovada ainda não
+            // paga, mesmo antes de ser incluída em um comprovante.
+            'outstanding' => max(0.0, $net - $paid),
             'issued_this_month' => $receiptIssuedThisMonth,
             'paid_this_month' => $paymentsThisMonth,
             'legacy_billed' => $legacyBilled,

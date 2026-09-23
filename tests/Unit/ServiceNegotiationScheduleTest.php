@@ -40,4 +40,15 @@ class ServiceNegotiationScheduleTest extends TestCase
             ['kind' => 'entry', 'due_date' => '2026-09-20', 'amount' => 100],
         ]);
     }
+
+    public function test_entry_is_always_moved_to_the_beginning_of_the_plan(): void
+    {
+        $schedule = (new ServiceNegotiationService)->normalizeSchedule(300, [
+            ['kind' => 'installment', 'due_date' => '2026-10-19', 'amount' => 200],
+            ['kind' => 'entry', 'due_date' => '2026-09-19', 'amount' => 100],
+        ]);
+
+        $this->assertSame('entry', $schedule[0]['kind']);
+        $this->assertSame('installment', $schedule[1]['kind']);
+    }
 }

@@ -28,6 +28,7 @@ use App\Services\AssociateReceiptService;
 use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
+use App\Services\DeliveryQuantityAdjustmentService;
 use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
 use App\Services\ProjectFinancialCalculator;
@@ -43,6 +44,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -68,6 +70,13 @@ class DeliveryRegistrationController extends Controller
     private function memberTerm(bool $plural = false): string
     {
         return $this->currentTenant()?->associateTerm(plural: $plural) ?: ($plural ? 'Membros' : 'Membro');
+    }
+
+    private function deliveryAdjustmentRelations(): array
+    {
+        return Schema::hasTable('production_delivery_quantity_adjustments')
+            ? ['quantityAdjustments.creator:id,name']
+            : [];
     }
 
     /**
@@ -267,6 +276,16 @@ class DeliveryRegistrationController extends Controller
         ]);
 
         $distributedQty = (float) $distributions->sum('qty');
+        $adjustments = ($delivery->relationLoaded('quantityAdjustments') ? $delivery->quantityAdjustments : collect())->map(fn ($adjustment) => [
+            'id' => (int) $adjustment->id,
+            'kind' => $adjustment->kind,
+            'quantity' => (float) $adjustment->quantity,
+            'reason' => $adjustment->reason,
+            'created_at' => $adjustment->created_at?->format('d/m/Y H:i'),
+            'created_by' => $adjustment->creator?->name,
+        ])->values();
+        $adjustedQty = (float) $adjustments->sum('quantity');
+        $originalQty = (float) ($delivery->original_quantity ?: ((float) $delivery->quantity + $adjustedQty));
         $issueCount = 0;
         $issueSeverity = null;
 
@@ -303,6 +322,10 @@ class DeliveryRegistrationController extends Controller
             'delivery_date' => $delivery->delivery_date?->format('d/m/Y') ?? '-',
             'delivery_date_raw' => $delivery->delivery_date?->format('Y-m-d') ?? '',
             'quantity' => (float) $delivery->quantity,
+            'original_quantity' => $originalQty,
+            'adjusted_quantity' => $adjustedQty,
+            'returnable_quantity' => max(0, (float) $delivery->quantity - $distributedQty),
+            'quantity_adjustments' => $adjustments->all(),
             'unit' => $unit,
             'unit_price' => (float) $delivery->unit_price,
             'net_value' => (float) $delivery->net_value,
@@ -1524,7 +1547,10 @@ class DeliveryRegistrationController extends Controller
         $deliveryModels = ProductionDelivery::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt'])
+            ->with(array_merge(
+                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt'],
+                $this->deliveryAdjustmentRelations(),
+            ))
             ->orderBy('delivery_date', 'desc')
             ->orderBy('created_at', 'desc')
             ->get();
@@ -1563,6 +1589,15 @@ class DeliveryRegistrationController extends Controller
                 ]);
 
                 $hasBilled = $distributions->contains('billed', true);
+                $adjustments = ($d->relationLoaded('quantityAdjustments') ? $d->quantityAdjustments : collect())->map(fn ($adjustment) => [
+                    'id' => (int) $adjustment->id,
+                    'kind' => $adjustment->kind,
+                    'quantity' => (float) $adjustment->quantity,
+                    'reason' => $adjustment->reason,
+                    'created_at' => $adjustment->created_at?->format('d/m/Y H:i'),
+                    'created_by' => $adjustment->creator?->name,
+                ])->values();
+                $adjustedQty = (float) $adjustments->sum('quantity');
                 $issueCount = 0;
                 $issueSeverity = null;
 
@@ -1598,6 +1633,10 @@ class DeliveryRegistrationController extends Controller
                     'productUnit' => $productUnit,
                     'associateName' => $associateName,
                     'qty' => (float) $d->quantity,
+                    'originalQty' => (float) ($d->original_quantity ?: ((float) $d->quantity + $adjustedQty)),
+                    'adjustedQty' => $adjustedQty,
+                    'returnableQty' => max(0, (float) $d->quantity - (float) $distributions->sum('qty')),
+                    'quantityAdjustments' => $adjustments->all(),
                     'date' => $d->delivery_date?->format('Y-m-d') ?? '',
                     'quality' => $d->quality_grade ?? '',
                     'notes' => $d->notes ?? '',
@@ -1876,6 +1915,15 @@ class DeliveryRegistrationController extends Controller
         }
 
         if (! $delivery->parent_delivery_id) {
+            if (Schema::hasTable('production_delivery_quantity_adjustments')
+                && $delivery->quantityAdjustments()->exists()
+                && abs((float) $validated['quantity'] - (float) $delivery->quantity) > 0.00005) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'A quantidade desta entrega possui histórico de rejeição ou devolução. Use a ação de devolução para preservar a auditoria.',
+                ], 422);
+            }
+
             $distributedQuantity = (float) ProductionDelivery::where('tenant_id', $tenantId)
                 ->where('parent_delivery_id', $delivery->id)
                 ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
@@ -2215,7 +2263,10 @@ class DeliveryRegistrationController extends Controller
             ->when($validated['date_to'] ?? null, fn (Builder $q, string $date) => $q->whereDate('delivery_date', '<=', $date));
 
         $paginator = $query
-            ->with(['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'])
+            ->with(array_merge(
+                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'],
+                $this->deliveryAdjustmentRelations(),
+            ))
             ->orderByDesc('delivery_date')->orderByDesc('id')
             ->paginate((int) ($validated['per_page'] ?? 24));
         $models = collect($paginator->items());
@@ -2316,21 +2367,59 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Tenant não encontrado'], 403);
         }
 
-        try {
-            $delivery = ProductionDelivery::where('tenant_id', $tenantId)->findOrFail($deliveryId);
+        return $this->adjustDeliveryQuantity($request, $deliveryId, $tenantId, 'rejeitada');
+    }
 
-            if ($delivery->status !== DeliveryStatus::PENDING) {
-                return response()->json(['success' => false, 'message' => 'Esta entrega já foi processada.'], 400);
-            }
-
-            $delivery->update([
-                'status' => DeliveryStatus::REJECTED,
-            ]);
-
-            return response()->json(['success' => true, 'message' => 'Entrega rejeitada.']);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Erro ao rejeitar: '.$e->getMessage()], 500);
+    public function returnDelivery(Request $request)
+    {
+        $deliveryId = (int) $request->route('delivery');
+        $tenantId = (int) session('tenant_id');
+        if ($tenantId <= 0) {
+            return response()->json(['success' => false, 'message' => 'Tenant não encontrado'], 403);
         }
+
+        return $this->adjustDeliveryQuantity($request, $deliveryId, $tenantId, 'devolvida');
+    }
+
+    private function adjustDeliveryQuantity(Request $request, int $deliveryId, int $tenantId, string $actionLabel)
+    {
+        $delivery = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('parent_delivery_id')
+            ->findOrFail($deliveryId);
+        $validated = $request->validate([
+            'quantity' => 'nullable|numeric|min:0.0001',
+            'reason' => 'nullable|string|max:1000',
+        ]);
+        $distributed = (float) $delivery->distributions()
+            ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
+            ->sum('quantity');
+        $available = max(0.0, (float) $delivery->quantity - $distributed);
+        $quantity = array_key_exists('quantity', $validated) && $validated['quantity'] !== null
+            ? (float) $validated['quantity']
+            : $available;
+
+        $adjustment = app(DeliveryQuantityAdjustmentService::class)->adjust(
+            $delivery,
+            $quantity,
+            $validated['reason'] ?? null,
+            $request->user(),
+        );
+        $delivery->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Quantidade '.$actionLabel.' com sucesso.',
+            'delivery_id' => $delivery->id,
+            'status' => $delivery->status->value,
+            'quantity' => (float) $delivery->quantity,
+            'adjustment' => [
+                'id' => $adjustment->id,
+                'kind' => $adjustment->kind,
+                'quantity' => (float) $adjustment->quantity,
+                'reason' => $adjustment->reason,
+            ],
+        ]);
     }
 
     public function finalizeProject()

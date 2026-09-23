@@ -2597,18 +2597,42 @@ function customerState(participants, context) {
         ? DM_CUSTOMERS.filter(customer => participants.some(id => String(id) === String(customer.id)))
         : DM_CUSTOMERS).map(customer => String(customer.id));
     const nextKey = context || 'customers:' + defaultIds.slice().sort().join(',');
-    if (_customerStateKey && _customerStateKey !== nextKey) {
-        _customerStates.delete(_customerStateKey);
-    }
     _customerStateKey = nextKey;
     if (!_customerStates.has(_customerStateKey)) {
-        _customerStates.set(_customerStateKey, { defaultIds, activeIds: defaultIds.slice(), excludedIds: [] });
+        let excludedIds = [];
+        try {
+            const stored = JSON.parse(window.localStorage?.getItem(customerStorageKey(_customerStateKey)) || '{}');
+            excludedIds = Array.isArray(stored.excludedIds)
+                ? stored.excludedIds.map(String).filter(id => defaultIds.includes(id))
+                : [];
+        } catch {}
+        _customerStates.set(_customerStateKey, {
+            defaultIds,
+            excludedIds,
+            activeIds: defaultIds.filter(id => !excludedIds.includes(id)),
+        });
     }
     const state = _customerStates.get(_customerStateKey);
     state.defaultIds = defaultIds;
-    state.activeIds = state.activeIds.filter(id => defaultIds.includes(String(id)));
+    state.excludedIds = state.excludedIds.filter(id => defaultIds.includes(String(id)));
+    state.activeIds = defaultIds.filter(id => !state.excludedIds.includes(id));
     _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
     return state;
+}
+
+function customerStorageKey(context) {
+    return `sgc.dist-modal.customers.${DM_TENANT}.${context}`;
+}
+
+function persistCustomerState() {
+    if (!_customerStateKey) return;
+    const state = _customerStates.get(_customerStateKey);
+    if (!state) return;
+    try {
+        window.localStorage?.setItem(customerStorageKey(_customerStateKey), JSON.stringify({
+            excludedIds: state.excludedIds,
+        }));
+    } catch {}
 }
 
 function excludeCustomer(customerId) {
@@ -2619,6 +2643,7 @@ function excludeCustomer(customerId) {
     state.activeIds = state.activeIds.filter(item => String(item) !== id);
     if (!state.excludedIds.includes(id)) state.excludedIds.push(id);
     _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
+    persistCustomerState();
 }
 
 function focusQtyInput(currentInput, direction) {
@@ -2967,6 +2992,7 @@ window.DistModal = {
         state.activeIds = state.defaultIds.slice();
         state.excludedIds = [];
         _activeCustomers = DM_CUSTOMERS.filter(customer => state.activeIds.includes(String(customer.id)));
+        try { window.localStorage?.removeItem(customerStorageKey(_customerStateKey)); } catch {}
         $('dm-new-rows').innerHTML = '';
         $('dm-new-rows').appendChild(buildRow());
         updateProgress();

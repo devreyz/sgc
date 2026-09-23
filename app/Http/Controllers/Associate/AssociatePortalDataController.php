@@ -53,7 +53,8 @@ class AssociatePortalDataController extends Controller
 
         return response()->json([
             'summary' => [
-                'receivable' => $financial['receivable'],
+                'receivable' => $financial['outstanding'],
+                'unbilled' => $financial['unbilled'],
                 'issued_this_month' => $financial['issued_this_month'],
                 'paid_this_month' => $financial['paid_this_month'],
                 'total_net' => $financial['total_net'],

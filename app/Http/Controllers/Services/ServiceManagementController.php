@@ -28,6 +28,7 @@ use App\Services\Services\ServicePaymentService;
 use App\Services\Services\ServiceReportService;
 use App\Services\Services\ServiceResourceService;
 use App\Services\TemplatedPdfService;
+use App\Services\FinancialDocumentIdentityService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -168,8 +169,14 @@ class ServiceManagementController extends Controller
     {
         $record = ServiceObligation::query()->where('tenant_id', $tenant->id)->whereKey($obligation)->firstOrFail();
         $this->allow($request, $record->direction === 'payable' ? 'manage_service_payables' : 'manage_service_receivables');
-        $data = $request->validate(['operation_key' => 'required|uuid', 'type' => 'required|string|max:40', 'amount' => 'required|numeric|not_in:0', 'reason' => 'required|string|min:5|max:500']);
-        $adjustments->add($record, $data['type'], (float) $data['amount'], $data['reason'], $data['operation_key'], $request->user());
+        $data = $request->validate([
+            'operation_key' => 'required|uuid',
+            'effect' => 'required|in:increase,decrease',
+            'amount' => 'required|numeric|min:0.01',
+            'reason' => 'required|string|min:5|max:500',
+        ]);
+        $amount = abs((float) $data['amount']) * ($data['effect'] === 'decrease' ? -1 : 1);
+        $adjustments->add($record, $data['effect'], $amount, $data['reason'], $data['operation_key'], $request->user());
 
         return back()->with('success', 'Ajuste auditável registrado.');
     }
@@ -196,13 +203,24 @@ class ServiceManagementController extends Controller
         return Pdf::loadView('pdf.service-accountability', compact('summary'))->setPaper('a4', 'landscape')->download('prestacao-servicos.pdf');
     }
 
-    public function agreements(Request $request, Tenant $tenant): View
+    public function agreements(Request $request, Tenant $tenant, FinancialDocumentIdentityService $identities): View
     {
         $this->allow($request, 'manage_service_agreements');
-        $obligations = ServiceObligation::query()->where('tenant_id', $tenant->id)->where('direction', 'receivable')->whereIn('status', ['open', 'partially_paid'])->with('execution.order.service')->get();
+        $activeObligationIds = DB::table('service_payment_plan_obligations as link')
+            ->join('service_payment_plans as plans', 'plans.id', '=', 'link.service_payment_plan_id')
+            ->where('plans.tenant_id', $tenant->id)->where('plans.status', 'active')
+            ->pluck('link.service_obligation_id');
+        $obligations = ServiceObligation::query()->where('tenant_id', $tenant->id)->where('direction', 'receivable')->whereIn('status', ['open', 'partially_paid'])
+            ->whereNotIn('id', $activeObligationIds)->with('execution.order.service')->get();
         $agreements = ServiceNegotiation::query()->where('tenant_id', $tenant->id)
-            ->with(['plan.installments.paymentEvent', 'generatedDocument', 'creator'])
+            ->with(['plan.installments.paymentEvent', 'plan.installments.verificationIdentity', 'plan.obligations', 'generatedDocument', 'creator'])
             ->latest()->get();
+        $agreements->flatMap(fn (ServiceNegotiation $agreement) => $agreement->plan?->installments ?? collect())
+            ->each(function (ServicePaymentPlanInstallment $installment) use ($identities, $request): void {
+                if (! $installment->verificationIdentity) {
+                    $installment->setRelation('verificationIdentity', $identities->ensure($installment, $request->user()));
+                }
+            });
         $accounts = BankAccount::query()->where('tenant_id', $tenant->id)->active()->orderBy('name')->get();
 
         return view('services.agreements', compact('obligations', 'agreements', 'accounts'));
@@ -227,7 +245,9 @@ class ServiceManagementController extends Controller
             return $agreement;
         });
 
-        return redirect()->route('services.management.documents.download', [$tenant, $agreement->generated_document_id]);
+        return redirect()->route('services.management.agreements', [$tenant])
+            ->with('success', 'Termo criado. Ele já aparece na lista abaixo e está pronto para impressão.')
+            ->with('agreement_document_id', $agreement->generated_document_id);
     }
 
     public function payAgreementInstallment(Request $request, Tenant $tenant, int $agreement, int $installment, ServicePaymentService $payments): RedirectResponse
@@ -254,7 +274,7 @@ class ServiceManagementController extends Controller
         $document = $documents->generate($agreement, 'service_negotiation', 'Termo '.$agreement->number, $this->negotiationDocumentVariables($tenant, $agreement), $request->user());
         $agreement->update(['generated_document_id' => $document->id]);
 
-        return redirect()->route('services.management.documents.download', [$tenant, $document]);
+        return redirect()->route('services.management.documents.download', [$tenant, $document, 'inline' => 1]);
     }
 
     public function generateOrderDocument(Request $request, Tenant $tenant, int $order, ServiceDocumentService $documents): RedirectResponse
@@ -267,7 +287,7 @@ class ServiceManagementController extends Controller
             + $this->executionDocumentVariables($order);
         $document = $documents->generate($subject, $type === 'order' ? 'service_order' : 'service_execution', $type === 'order' ? 'Ordem '.$order->number : 'Execução '.$order->number, $variables, $request->user());
 
-        return redirect()->route('services.management.documents.download', [$tenant, $document]);
+        return redirect()->route('services.management.documents.download', [$tenant, $document, 'inline' => 1]);
     }
 
     public function document(Request $request, Tenant $tenant, int $document, TemplatedPdfService $pdf)
@@ -275,7 +295,11 @@ class ServiceManagementController extends Controller
         $this->allow($request, 'view_service_management');
         $record = GeneratedDocument::query()->where('tenant_id', $tenant->id)->whereKey($document)->firstOrFail();
 
-        return $pdf->generateFrozenDocument($record)->download(str($record->title)->slug().'.pdf');
+        $filename = str($record->title)->slug().'.pdf';
+
+        return $request->boolean('inline')
+            ? $pdf->generateFrozenDocument($record)->stream($filename)
+            : $pdf->generateFrozenDocument($record)->download($filename);
     }
 
     public function evidence(Request $request, Tenant $tenant, int $evidence, ServiceEvidenceService $files)
@@ -337,7 +361,7 @@ class ServiceManagementController extends Controller
 
     private function negotiationDocumentVariables(Tenant $tenant, ServiceNegotiation $agreement): array
     {
-        $agreement->loadMissing(['plan.obligations.execution.order.service', 'plan.installments']);
+        $agreement->loadMissing(['plan.obligations.execution.order.service', 'plan.installments.verificationIdentity']);
         $snapshot = (array) $agreement->terms_snapshot;
         $liveObligations = $agreement->plan?->obligations ?? collect();
         $party = (array) (data_get($snapshot, 'party')
@@ -354,12 +378,15 @@ class ServiceManagementController extends Controller
             ]);
         }
         $obligationRows = $obligationItems->map(fn (array $item): string => '<tr><td>'.e($item['number'] ?? '—').'</td><td>'.e($item['order_number'] ?? '—').'</td><td>'.e($item['service'] ?? '—').'</td><td class="money">R$ '.number_format((float) ($item['included_amount'] ?? $item['balance'] ?? 0), 2, ',', '.').'</td></tr>')->implode('');
-        $installmentRows = $agreement->plan?->installments?->map(function (ServicePaymentPlanInstallment $item): string {
+        $identityService = app(FinancialDocumentIdentityService::class);
+        $installmentRows = $agreement->plan?->installments?->map(function (ServicePaymentPlanInstallment $item) use ($identityService): string {
             $kind = $item->kind === 'entry' ? 'Entrada' : 'Parcela '.$item->number;
             $status = $item->status === 'paid' ? 'Recebida em '.$item->paid_at?->format('d/m/Y') : 'Pendente';
+            $identity = $item->verificationIdentity ?: $identityService->ensure($item, auth()->user());
+            $qr = $identity ? '<img src="'.$identityService->qrDataUri($identity, 70).'" width="46" height="46" alt="QR"><br><small>'.e($identity->reference_code).'</small>' : '—';
 
-            return '<tr><td>'.e($kind).'</td><td>'.e($item->due_date?->format('d/m/Y') ?? '—').'</td><td style="text-align:right">R$ '.number_format((float) $item->amount, 2, ',', '.').'</td><td>'.e($status).'</td></tr>';
-        })->implode('') ?: collect(data_get($snapshot, 'installments', []))->map(fn (array $item): string => '<tr><td>'.e(($item['kind'] ?? null) === 'entry' ? 'Entrada' : 'Parcela '.($item['number'] ?? '—')).'</td><td>'.e(filled($item['due_date'] ?? null) ? Carbon::parse($item['due_date'])->format('d/m/Y') : '—').'</td><td style="text-align:right">R$ '.number_format((float) ($item['amount'] ?? 0), 2, ',', '.').'</td><td>Pendente</td></tr>')->implode('');
+            return '<tr><td>'.e($kind).'</td><td>'.e($item->due_date?->format('d/m/Y') ?? '—').'</td><td style="text-align:right">R$ '.number_format((float) $item->amount, 2, ',', '.').'</td><td>'.e($status).'</td><td style="text-align:center">'.$qr.'</td></tr>';
+        })->implode('') ?: collect(data_get($snapshot, 'installments', []))->map(fn (array $item): string => '<tr><td>'.e(($item['kind'] ?? null) === 'entry' ? 'Entrada' : 'Parcela '.($item['number'] ?? '—')).'</td><td>'.e(filled($item['due_date'] ?? null) ? Carbon::parse($item['due_date'])->format('d/m/Y') : '—').'</td><td style="text-align:right">R$ '.number_format((float) ($item['amount'] ?? 0), 2, ',', '.').'</td><td>Pendente</td><td>—</td></tr>')->implode('');
 
         return [
             'number' => $agreement->number,
@@ -376,7 +403,7 @@ class ServiceManagementController extends Controller
             'negotiated_amount' => 'R$ '.number_format((float) $agreement->negotiated_amount, 2, ',', '.'),
             'installments' => $agreement->plan?->installments->count() ?? count(data_get($snapshot, 'installments', [])),
             'obligations_table' => '<table class="neg-table"><thead><tr><th>Obrigação</th><th>OS</th><th>Serviço</th><th class="money">Saldo incluído</th></tr></thead><tbody>'.$obligationRows.'</tbody></table>',
-            'installments_table' => '<table class="neg-table"><thead><tr><th>Tipo</th><th>Vencimento</th><th class="money">Valor</th><th>Situação</th></tr></thead><tbody>'.$installmentRows.'</tbody></table>',
+            'installments_table' => '<table class="neg-table"><thead><tr><th>Tipo</th><th>Vencimento</th><th class="money">Valor</th><th>Situação</th><th>Cobrança verificável</th></tr></thead><tbody>'.$installmentRows.'</tbody></table>',
         ];
     }
 
