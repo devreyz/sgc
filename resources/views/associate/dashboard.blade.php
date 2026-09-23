@@ -184,7 +184,7 @@
 @endphp
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}">
+<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}?v={{ urlencode(config('app.version', 'dev')) }}">
 <link rel="stylesheet" href="{{ asset('css/associate-workspace-theme.css') }}">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
@@ -1915,5 +1915,5 @@
         @json($associatePortalConfig);
 </script>
 
-<script src="{{ asset('js/associate-portal-ajax.js') }}"></script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}?v={{ urlencode(config('app.version', 'dev')) }}"></script>
 @endsection

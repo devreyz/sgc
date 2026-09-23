@@ -96,7 +96,7 @@
 @endphp
 
 @section('content')
-<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}">
+<link rel="stylesheet" href="{{ asset('css/associate-portal-ajax.css') }}?v={{ urlencode(config('app.version', 'dev')) }}">
 <style>
     .ledger-page {
         display: grid;
@@ -1394,5 +1394,5 @@
     ];
 @endphp
 <script>window.AssociatePortalConfig = @json($associatePortalConfig);</script>
-<script src="{{ asset('js/associate-portal-ajax.js') }}"></script>
+<script src="{{ asset('js/associate-portal-ajax.js') }}?v={{ urlencode(config('app.version', 'dev')) }}"></script>
 @endsection
