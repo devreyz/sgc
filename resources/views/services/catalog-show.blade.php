@@ -99,6 +99,16 @@
 
     $isDraft =
         $version->status === 'draft';
+
+    $fieldStoreUrl = route(
+        'services.catalog.fields.store',
+        [$tenantSlug, $version]
+    );
+
+    $fieldUpdateUrlTemplate = route(
+        'services.catalog.fields.update',
+        [$tenantSlug, $version, '__FIELD__']
+    );
 @endphp
 
 @section('content')
@@ -1599,6 +1609,19 @@
 
                         <tbody>
                             @foreach($version->fields as $field)
+                                @php
+                                    $fieldEditPayload = $field->only([
+                                        'id', 'key', 'label', 'type', 'phase',
+                                        'section', 'unit', 'minimum', 'maximum',
+                                        'sort_order', 'placeholder', 'help',
+                                        'options', 'evidence_for_field',
+                                        'accepted_mime_types', 'required',
+                                        'visible_to_provider',
+                                        'editable_by_provider',
+                                        'visible_to_management',
+                                        'include_in_documents', 'reportable',
+                                    ]);
+                                @endphp
                                 <tr>
                                     <td>
                                         <div class="cc-field-main">
@@ -1657,7 +1680,7 @@
 
                                     @if($isDraft)
                                         <td>
-                                            <button type="button" class="cc-action" data-edit-field='@json($field->only(['id','key','label','type','phase','section','unit','minimum','maximum','sort_order','placeholder','help','options','evidence_for_field','accepted_mime_types','required','visible_to_provider','editable_by_provider','visible_to_management','include_in_documents','reportable']))' aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
+                                            <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
                                             <form
                                                 method="post"
                                                 action="{{ route(
@@ -1690,6 +1713,19 @@
 
                 <div class="cc-mobile-fields">
                     @foreach($version->fields as $field)
+                        @php
+                            $fieldEditPayload = $field->only([
+                                'id', 'key', 'label', 'type', 'phase',
+                                'section', 'unit', 'minimum', 'maximum',
+                                'sort_order', 'placeholder', 'help',
+                                'options', 'evidence_for_field',
+                                'accepted_mime_types', 'required',
+                                'visible_to_provider',
+                                'editable_by_provider',
+                                'visible_to_management',
+                                'include_in_documents', 'reportable',
+                            ]);
+                        @endphp
                         <article class="cc-mobile-field">
                             <div class="cc-mobile-field-top">
                                 <div class="cc-field-main">
@@ -1703,7 +1739,7 @@
                                 </div>
 
                                 @if($isDraft)
-                                    <button type="button" class="cc-action" data-edit-field='@json($field->only(['id','key','label','type','phase','section','unit','minimum','maximum','sort_order','placeholder','help','options','evidence_for_field','accepted_mime_types','required','visible_to_provider','editable_by_provider','visible_to_management','include_in_documents','reportable']))' aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
+                                    <button type="button" class="cc-action" data-edit-field="{{ json_encode($fieldEditPayload, JSON_HEX_APOS | JSON_HEX_QUOT) }}" aria-label="Editar {{ $field->label }}"><i class="ph-fill ph-pencil"></i></button>
                                     <form
                                         method="post"
                                         action="{{ route(
@@ -3179,8 +3215,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('field-form');
     const dialog = document.getElementById('field-dialog');
     if (!form || !dialog) return;
-    const storeUrl = @json(route('services.catalog.fields.store', [$tenantSlug, $version]));
-    const updateUrl = @json(route('services.catalog.fields.update', [$tenantSlug, $version, '__FIELD__']));
+    const storeUrl = @json($fieldStoreUrl);
+    const updateUrl = @json($fieldUpdateUrlTemplate);
     const title = dialog.querySelector('.cc-dialog-title-copy strong');
     const saveLabel = dialog.querySelector('.cc-dialog-foot button[type="submit"] span');
     const method = form.querySelector('input[name="_method"]');
