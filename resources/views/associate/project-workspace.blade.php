@@ -56,17 +56,17 @@
 
 <style>
 .project-workspace{
-    --green:#219653;--green-strong:#177c43;--green-soft:#edf8f1;--green-border:#cde8d6;
-    --blue:#3478d4;--blue-soft:#eef4ff;--blue-border:#d4e2f8;
-    --purple:#8a4bd2;--purple-soft:#f5effc;--purple-border:#e5d8f5;
-    --cyan:#168eae;--cyan-soft:#edf8fb;--cyan-border:#d2eaf0;
-    --amber:#c38418;--amber-soft:#fff7e8;--amber-border:#efdcb8;
-    --red:#cf5050;--red-soft:#fff1f1;--red-border:#f1cccc;
-    --slate:#64748b;--slate-soft:#f2f5f7;--slate-border:#dfe5e9;
-    --text:var(--color-text,#17251c);--text2:var(--color-text-secondary,#58685e);
-    --muted:var(--color-text-muted,#87938b);--border:var(--color-border,#d7e2da);
-    --border-strong:var(--color-border-strong,#becdc3);--surface:var(--color-surface,#fff);
-    --soft:var(--color-surface-soft,#f7faf8);--shadow:0 5px 18px rgba(25,61,39,.055);
+    --green:var(--ui-color-success);--green-strong:var(--ui-color-primary-strong);--green-soft:var(--ui-color-success-soft);--green-border:var(--ui-color-success-border);
+    --blue:var(--ui-color-info);--blue-soft:var(--ui-color-info-soft);--blue-border:var(--ui-color-info-border);
+    --purple:var(--ui-color-violet);--purple-soft:var(--ui-color-violet-soft);--purple-border:var(--ui-color-violet-border);
+    --cyan:var(--ui-color-cyan);--cyan-soft:var(--ui-color-cyan-soft);--cyan-border:var(--ui-color-cyan-border);
+    --amber:var(--ui-color-warning);--amber-soft:var(--ui-color-warning-soft);--amber-border:var(--ui-color-warning-border);
+    --red:var(--ui-color-danger);--red-soft:var(--ui-color-danger-soft);--red-border:var(--ui-color-danger-border);
+    --slate:var(--ui-color-neutral);--slate-soft:var(--ui-color-neutral-soft);--slate-border:var(--ui-color-border);
+    --text:var(--ui-color-text);--text2:var(--ui-color-text-secondary);
+    --muted:var(--ui-color-text-muted);--border:var(--ui-color-border);
+    --border-strong:var(--ui-color-border-strong);--surface:var(--ui-color-surface);
+    --soft:var(--ui-color-surface-soft);--shadow:var(--ui-shadow-sm);
     display:grid;width:min(100%,1380px);min-width:0;grid-column:1/-1;gap:.78rem;margin:0 auto;padding-bottom:1rem;color:var(--text)
 }
 .project-workspace *, .project-workspace *::before,.project-workspace *::after{box-sizing:border-box}
@@ -156,14 +156,14 @@
 @media(prefers-reduced-motion:reduce){.project-workspace *{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 </style>
 
-<main class="project-workspace" id="associate-workspace">
-    <header class="project-head status-{{ $projectStatusValue }}" aria-labelledby="workspace-title">
+<main class="project-workspace ui-page" id="associate-workspace">
+    <header class="project-head ui-section status-{{ $projectStatusValue }}" aria-labelledby="workspace-title">
         <div class="head-start">
-            <a class="square-btn" href="{{ route('associate.projects', ['tenant' => $tenantSlug]) }}" aria-label="Voltar aos projetos" title="Voltar aos projetos">
+            <a class="square-btn ui-btn ui-btn--icon" href="{{ route('associate.projects', ['tenant' => $tenantSlug]) }}" aria-label="Voltar aos projetos" title="Voltar aos projetos">
                 <i class="ph ph-arrow-left"></i>
             </a>
 
-            <span class="head-icon" aria-hidden="true">
+            <span class="head-icon ui-icon-box" aria-hidden="true" data-tone="success">
                 <i class="ph-fill ph-folder-open"></i>
             </span>
 
@@ -187,35 +187,35 @@
         </div>
 
         <div class="head-actions">
-            <span class="project-status">
+            <span class="project-status ui-badge" data-tone="success">
                 <i class="ph-fill {{ $projectStatusIcon }}"></i>
                 {{ $projectStatusLabel }}
             </span>
 
-            <a class="square-btn" href="{{ $projectQuotaShareUrl }}" aria-label="Compartilhar cotas reais" title="Compartilhar cotas reais">
+            <a class="square-btn ui-btn ui-btn--icon" href="{{ $projectQuotaShareUrl }}" aria-label="Compartilhar cotas reais" title="Compartilhar cotas reais">
                 <i class="ph ph-share-network"></i>
             </a>
 
-            <a class="square-btn" href="{{ $projectSimulatorUrl }}" aria-label="Abrir simulador em página própria" title="Abrir simulador em página própria">
+            <a class="square-btn ui-btn ui-btn--icon" href="{{ $projectSimulatorUrl }}" aria-label="Abrir simulador em página própria" title="Abrir simulador em página própria">
                 <i class="ph ph-calculator"></i>
             </a>
 
-            <button class="square-btn" type="button" onclick="awRefresh()" aria-label="Atualizar dados" title="Atualizar dados">
+            <button class="square-btn ui-btn ui-btn--icon" type="button" onclick="awRefresh()" aria-label="Atualizar dados" title="Atualizar dados">
                 <i class="ph ph-arrows-clockwise"></i>
             </button>
         </div>
     </header>
 
-    <div class="tabs-wrap">
-        <nav class="tabs" aria-label="Seções do projeto" role="tablist">
-            <button class="tab active" type="button" data-section="summary" role="tab" aria-selected="true"><i class="ph-fill ph-chart-donut"></i><span>Resumo</span></button>
-            <button class="tab" type="button" data-section="limits" role="tab" aria-selected="false"><i class="ph-fill ph-gauge"></i><span>Limites</span></button>
-            <button class="tab" type="button" data-section="prices" role="tab" aria-selected="false"><i class="ph-fill ph-tag"></i><span>Preços</span></button>
-            <button class="tab" type="button" data-section="simulator" role="tab" aria-selected="false"><i class="ph-fill ph-calculator"></i><span>Simular</span></button>
-            <button class="tab" type="button" data-section="deliveries" role="tab" aria-selected="false"><i class="ph-fill ph-package"></i><span>Entregas</span></button>
-            <button class="tab" type="button" data-section="distributions" role="tab" aria-selected="false"><i class="ph-fill ph-map-pin"></i><span>Destinos</span></button>
-            <button class="tab" type="button" data-section="receipts" role="tab" aria-selected="false"><i class="ph-fill ph-receipt"></i><span>Comprovantes</span></button>
-            <button class="tab" type="button" data-section="payments" role="tab" aria-selected="false"><i class="ph-fill ph-wallet"></i><span>Pagamentos</span></button>
+    <div class="tabs-wrap ui-tabs-wrap ui-tabs-wrap--sticky">
+        <nav class="tabs ui-tabs" aria-label="Seções do projeto" role="tablist">
+            <button class="tab ui-tab active" type="button" data-section="summary" data-tone="info" role="tab" aria-selected="true"><i class="ph-fill ph-chart-donut"></i><span>Resumo</span></button>
+            <button class="tab ui-tab" type="button" data-section="limits" data-tone="violet" role="tab" aria-selected="false"><i class="ph-fill ph-gauge"></i><span>Limites</span></button>
+            <button class="tab ui-tab" type="button" data-section="prices" data-tone="cyan" role="tab" aria-selected="false"><i class="ph-fill ph-tag"></i><span>Preços</span></button>
+            <button class="tab ui-tab" type="button" data-section="simulator" data-tone="success" role="tab" aria-selected="false"><i class="ph-fill ph-calculator"></i><span>Simular</span></button>
+            <button class="tab ui-tab" type="button" data-section="deliveries" data-tone="warning" role="tab" aria-selected="false"><i class="ph-fill ph-package"></i><span>Entregas</span></button>
+            <button class="tab ui-tab" type="button" data-section="distributions" data-tone="info" role="tab" aria-selected="false"><i class="ph-fill ph-map-pin"></i><span>Destinos</span></button>
+            <button class="tab ui-tab" type="button" data-section="receipts" data-tone="violet" role="tab" aria-selected="false"><i class="ph-fill ph-receipt"></i><span>Comprovantes</span></button>
+            <button class="tab ui-tab" type="button" data-section="payments" data-tone="success" role="tab" aria-selected="false"><i class="ph-fill ph-wallet"></i><span>Pagamentos</span></button>
         </nav>
     </div>
 

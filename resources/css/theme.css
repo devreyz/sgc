@@ -1,0 +1,287 @@
+*
+ * SGC UI theme
+ * -----------------------------------------------------------------------------
+ * Fonte única dos tokens visuais do SGC.
+ *
+ * Referências visuais oficiais:
+ * - Dashboard do associado
+ * - Workspace do projeto do associado
+ *
+ * O objetivo não é criar uma biblioteca genérica "bonita". Os tokens abaixo
+ * reproduzem a linguagem que já funcionou melhor no produto: superfícies claras,
+ * bordas discretas, sombras muito leves, densidade controlada, ícones compactos
+ * e cor usada com propósito.
+ */
+
+@theme {
+    --font-sans: Inter, 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-brand-50: var(--ui-color-primary-soft);
+    --color-brand-100: var(--ui-color-primary-muted);
+    --color-brand-500: var(--ui-color-primary);
+    --color-brand-600: var(--ui-color-primary-strong);
+    --color-brand-700: var(--ui-color-primary-deep);
+
+    --color-ui-canvas: var(--ui-color-canvas);
+    --color-ui-surface: var(--ui-color-surface);
+    --color-ui-soft: var(--ui-color-surface-soft);
+    --color-ui-muted-surface: var(--ui-color-surface-muted);
+    --color-ui-border: var(--ui-color-border);
+    --color-ui-border-strong: var(--ui-color-border-strong);
+    --color-ui-text: var(--ui-color-text);
+    --color-ui-secondary: var(--ui-color-text-secondary);
+    --color-ui-muted: var(--ui-color-text-muted);
+
+    --color-ui-info: var(--ui-color-info);
+    --color-ui-success: var(--ui-color-success);
+    --color-ui-warning: var(--ui-color-warning);
+    --color-ui-danger: var(--ui-color-danger);
+    --color-ui-violet: var(--ui-color-violet);
+    --color-ui-cyan: var(--ui-color-cyan);
+    --color-ui-neutral: var(--ui-color-neutral);
+
+    --radius-ui-xs: var(--ui-radius-xs);
+    --radius-ui-sm: var(--ui-radius-sm);
+    --radius-ui: var(--ui-radius-md);
+    --radius-ui-lg: var(--ui-radius-lg);
+    --radius-ui-xl: var(--ui-radius-xl);
+
+    --shadow-ui-xs: var(--ui-shadow-xs);
+    --shadow-ui-sm: var(--ui-shadow-sm);
+    --shadow-ui: var(--ui-shadow-md);
+    --shadow-ui-lg: var(--ui-shadow-lg);
+}
+
+:root,
+[data-theme='sgc'] {
+    /* -------------------------------------------------------------------------
+       Identidade e tons semânticos
+       ------------------------------------------------------------------------- */
+
+    --ui-brand: #219653;
+
+    --ui-color-primary: var(--ui-brand);
+    --ui-color-primary-strong: #177c43;
+    --ui-color-primary-deep: #126a38;
+    --ui-color-primary-soft: #edf8f1;
+    --ui-color-primary-muted: #dff1e6;
+    --ui-color-primary-border: #cde8d6;
+
+    --ui-color-info: #3478d4;
+    --ui-color-info-strong: #285fa9;
+    --ui-color-info-soft: #eef4ff;
+    --ui-color-info-border: #d4e2f8;
+
+    --ui-color-success: #219653;
+    --ui-color-success-strong: #177c43;
+    --ui-color-success-soft: #edf8f1;
+    --ui-color-success-border: #cde8d6;
+
+    --ui-color-warning: #c38418;
+    --ui-color-warning-strong: #975f0f;
+    --ui-color-warning-soft: #fff7e8;
+    --ui-color-warning-border: #efdcb8;
+
+    --ui-color-danger: #cf5050;
+    --ui-color-danger-strong: #a43d3d;
+    --ui-color-danger-soft: #fff1f1;
+    --ui-color-danger-border: #f1cccc;
+
+    --ui-color-violet: #8a4bd2;
+    --ui-color-violet-strong: #6f37b5;
+    --ui-color-violet-soft: #f5effc;
+    --ui-color-violet-border: #e5d8f5;
+
+    --ui-color-cyan: #168eae;
+    --ui-color-cyan-strong: #11758f;
+    --ui-color-cyan-soft: #edf8fb;
+    --ui-color-cyan-border: #d2eaf0;
+
+    --ui-color-neutral: #64748b;
+    --ui-color-neutral-strong: #526171;
+    --ui-color-neutral-soft: #f2f5f7;
+    --ui-color-neutral-border: #dfe5e9;
+
+    /* -------------------------------------------------------------------------
+       Superfícies e texto
+       ------------------------------------------------------------------------- */
+
+    --ui-color-canvas: #f1f6f3;
+    --ui-color-canvas-deep: #eaf1ed;
+    --ui-color-surface: #ffffff;
+    --ui-color-surface-soft: #f7faf8;
+    --ui-color-surface-muted: #eef4f0;
+    --ui-color-surface-raised: #ffffff;
+
+    --ui-color-border: #d7e2da;
+    --ui-color-border-strong: #becdc3;
+
+    --ui-color-text: #17251c;
+    --ui-color-text-secondary: #58685e;
+    --ui-color-text-muted: #87938b;
+    --ui-color-focus: #3478d4;
+    --ui-color-overlay: rgb(10 24 16 / 0.58);
+
+    /* -------------------------------------------------------------------------
+       Tipografia
+       ------------------------------------------------------------------------- */
+
+    --ui-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        'Segoe UI', sans-serif;
+
+    --ui-font-size-2xs: 0.625rem;
+    --ui-font-size-xs: 0.6875rem;
+    --ui-font-size-sm: 0.75rem;
+    --ui-font-size-md: 0.875rem;
+    --ui-font-size-lg: 1rem;
+    --ui-font-size-xl: 1.25rem;
+    --ui-font-size-2xl: clamp(1.55rem, 3vw, 2.25rem);
+
+    --ui-line-compact: 1.2;
+    --ui-line-normal: 1.45;
+    --ui-line-relaxed: 1.6;
+
+    --ui-weight-medium: 600;
+    --ui-weight-semibold: 700;
+    --ui-weight-bold: 800;
+    --ui-weight-black: 850;
+
+    /* -------------------------------------------------------------------------
+       Ritmo e geometria
+       O padrão visual das páginas de associado usa 8–12px na maior parte das
+       superfícies e 12px nos shells principais.
+       ------------------------------------------------------------------------- */
+
+    --ui-space-1: 0.25rem;
+    --ui-space-2: 0.375rem;
+    --ui-space-3: 0.5rem;
+    --ui-space-4: 0.625rem;
+    --ui-space-5: 0.75rem;
+    --ui-space-6: 1rem;
+    --ui-space-7: 1.25rem;
+    --ui-space-8: 1.5rem;
+    --ui-space-9: 2rem;
+    --ui-space-10: 2.5rem;
+
+    --ui-radius-xs: 0.375rem;
+    --ui-radius-sm: 0.5rem;
+    --ui-radius-md: 0.5625rem;
+    --ui-radius-lg: 0.75rem;
+    --ui-radius-xl: 0.875rem;
+    --ui-radius-2xl: 1rem;
+    --ui-radius-pill: 999px;
+
+    --ui-shadow-xs: 0 2px 8px rgb(15 35 24 / 0.035);
+    --ui-shadow-sm: 0 5px 18px rgb(25 61 39 / 0.055);
+    --ui-shadow-md: 0 10px 28px rgb(15 35 24 / 0.075);
+    --ui-shadow-lg: 0 22px 56px rgb(8 24 15 / 0.16);
+    --ui-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--ui-color-focus) 14%, transparent);
+
+    --ui-control-height-sm: 2rem;
+    --ui-control-height: 2.375rem;
+    --ui-control-height-lg: 2.625rem;
+
+    --ui-icon-size-sm: 2rem;
+    --ui-icon-size: 2.4375rem;
+    --ui-icon-size-lg: 2.625rem;
+
+    --ui-section-header-height: 3.875rem;
+    --ui-row-height: 3.625rem;
+
+    --ui-content-narrow: 52rem;
+    --ui-content: 86.25rem;
+    --ui-content-wide: 105rem;
+
+    --ui-page-gap: 0.78rem;
+    --ui-section-padding: 0.7rem;
+
+    --ui-transition-fast: 140ms ease;
+    --ui-transition: 200ms ease;
+
+    --ui-z-sticky: 40;
+    --ui-z-overlay: 1000;
+    --ui-z-modal: 1200;
+
+    /* -------------------------------------------------------------------------
+       Compatibilidade com views legadas já alinhadas visualmente.
+       Isso permite migrar sem reescrever telas que ainda usam --color-*.
+       ------------------------------------------------------------------------- */
+
+    --color-text: var(--ui-color-text);
+    --color-text-secondary: var(--ui-color-text-secondary);
+    --color-text-muted: var(--ui-color-text-muted);
+    --color-border: var(--ui-color-border);
+    --color-border-strong: var(--ui-color-border-strong);
+    --color-surface: var(--ui-color-surface);
+    --color-surface-soft: var(--ui-color-surface-soft);
+    --shadow-sm: var(--ui-shadow-sm);
+}
+
+/*
+ * Tema escuro permanece suportado, mas mantém a mesma lógica de contraste,
+ * densidade e hierarquia do tema claro.
+ */
+[data-theme='dark'] {
+    color-scheme: dark;
+
+    --ui-brand: #43c779;
+
+    --ui-color-canvas: #0d1711;
+    --ui-color-canvas-deep: #08110c;
+    --ui-color-surface: #142019;
+    --ui-color-surface-soft: #18271f;
+    --ui-color-surface-muted: #203128;
+    --ui-color-surface-raised: #1a2920;
+
+    --ui-color-border: #2b4033;
+    --ui-color-border-strong: #3b5444;
+
+    --ui-color-text: #edf6f0;
+    --ui-color-text-secondary: #bfd0c4;
+    --ui-color-text-muted: #8da095;
+
+    --ui-color-overlay: rgb(0 0 0 / 0.72);
+
+    --ui-color-primary-soft: color-mix(in srgb, var(--ui-color-primary) 18%, var(--ui-color-surface));
+    --ui-color-primary-muted: color-mix(in srgb, var(--ui-color-primary) 24%, var(--ui-color-surface));
+    --ui-color-primary-border: color-mix(in srgb, var(--ui-color-primary) 35%, var(--ui-color-border));
+
+    --ui-color-info-soft: color-mix(in srgb, var(--ui-color-info) 18%, var(--ui-color-surface));
+    --ui-color-info-border: color-mix(in srgb, var(--ui-color-info) 34%, var(--ui-color-border));
+
+    --ui-color-success-soft: color-mix(in srgb, var(--ui-color-success) 18%, var(--ui-color-surface));
+    --ui-color-success-border: color-mix(in srgb, var(--ui-color-success) 34%, var(--ui-color-border));
+
+    --ui-color-warning-soft: color-mix(in srgb, var(--ui-color-warning) 18%, var(--ui-color-surface));
+    --ui-color-warning-border: color-mix(in srgb, var(--ui-color-warning) 34%, var(--ui-color-border));
+
+    --ui-color-danger-soft: color-mix(in srgb, var(--ui-color-danger) 18%, var(--ui-color-surface));
+    --ui-color-danger-border: color-mix(in srgb, var(--ui-color-danger) 34%, var(--ui-color-border));
+
+    --ui-color-violet-soft: color-mix(in srgb, var(--ui-color-violet) 18%, var(--ui-color-surface));
+    --ui-color-violet-border: color-mix(in srgb, var(--ui-color-violet) 34%, var(--ui-color-border));
+
+    --ui-color-cyan-soft: color-mix(in srgb, var(--ui-color-cyan) 18%, var(--ui-color-surface));
+    --ui-color-cyan-border: color-mix(in srgb, var(--ui-color-cyan) 34%, var(--ui-color-border));
+
+    --ui-color-neutral-soft: #223129;
+    --ui-color-neutral-border: #33473b;
+}
+
+[data-density='compact'] {
+    --ui-control-height-sm: 1.75rem;
+    --ui-control-height: 2.125rem;
+    --ui-control-height-lg: 2.375rem;
+    --ui-section-header-height: 3.5rem;
+    --ui-row-height: 3.25rem;
+    --ui-page-gap: 0.625rem;
+    --ui-section-padding: 0.625rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --ui-transition-fast: 0.01ms;
+        --ui-transition: 0.01ms;
+    }
+}

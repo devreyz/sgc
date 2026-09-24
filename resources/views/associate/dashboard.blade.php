@@ -191,45 +191,37 @@
 
 <style>
     .associate-dashboard {
-        --green: #219653;
-        --green-strong: #177c43;
-        --green-soft: #edf8f1;
-        --green-border: #cde8d6;
-
-        --blue: #3478d4;
-        --blue-soft: #eef4ff;
-        --blue-border: #d4e2f8;
-
-        --purple: #8a4bd2;
-        --purple-soft: #f5effc;
-        --purple-border: #e5d8f5;
-
-        --cyan: #168eae;
-        --cyan-soft: #edf8fb;
-        --cyan-border: #d2eaf0;
-
-        --amber: #c38418;
-        --amber-soft: #fff7e8;
-        --amber-border: #efdcb8;
-
-        --red: #cf5050;
-        --red-soft: #fff1f1;
-        --red-border: #f1cccc;
-
-        --slate: #64748b;
-        --slate-soft: #f2f5f7;
-
-        --text: var(--color-text, #17251c);
-        --text-2: var(--color-text-secondary, #58685e);
-        --muted: var(--color-text-muted, #87938b);
-        --border: var(--color-border, #d7e2da);
-        --border-strong: var(--color-border-strong, #becdc3);
-        --surface: var(--color-surface, #fff);
-        --soft: var(--color-surface-soft, #f7faf8);
-
-        --radius: 10px;
-        --radius-lg: 12px;
-        --shadow: 0 5px 18px rgba(25, 61, 39, .055);
+        --green: var(--ui-color-success);
+        --green-strong: var(--ui-color-primary-strong);
+        --green-soft: var(--ui-color-success-soft);
+        --green-border: var(--ui-color-success-border);
+        --blue: var(--ui-color-info);
+        --blue-soft: var(--ui-color-info-soft);
+        --blue-border: var(--ui-color-info-border);
+        --purple: var(--ui-color-violet);
+        --purple-soft: var(--ui-color-violet-soft);
+        --purple-border: var(--ui-color-violet-border);
+        --cyan: var(--ui-color-cyan);
+        --cyan-soft: var(--ui-color-cyan-soft);
+        --cyan-border: var(--ui-color-cyan-border);
+        --amber: var(--ui-color-warning);
+        --amber-soft: var(--ui-color-warning-soft);
+        --amber-border: var(--ui-color-warning-border);
+        --red: var(--ui-color-danger);
+        --red-soft: var(--ui-color-danger-soft);
+        --red-border: var(--ui-color-danger-border);
+        --slate: var(--ui-color-neutral);
+        --slate-soft: var(--ui-color-neutral-soft);
+        --text: var(--ui-color-text);
+        --text-2: var(--ui-color-text-secondary);
+        --muted: var(--ui-color-text-muted);
+        --border: var(--ui-color-border);
+        --border-strong: var(--ui-color-border-strong);
+        --surface: var(--ui-color-surface);
+        --soft: var(--ui-color-surface-soft);
+        --radius: var(--ui-radius-md);
+        --radius-lg: var(--ui-radius-lg);
+        --shadow: var(--ui-shadow-sm);
 
         display: grid;
         width: min(100%, 1380px);
@@ -1257,23 +1249,24 @@
 </style>
 
 <main
-    class="associate-dashboard"
+    class="associate-dashboard ui-page"
     data-associate-page="dashboard"
 >
     {{-- =========================================================
          RESUMO FINANCEIRO
          ========================================================= --}}
-    <section class="dash-section">
-        <header class="section-head">
-            <div class="section-title">
+    <section class="dash-section ui-section">
+        <header class="section-head ui-section__header">
+            <div class="section-title ui-section__heading">
                 <span
-                    class="section-icon finance"
+                    class="section-icon finance ui-icon-box"
+                    data-tone="success"
                     aria-hidden="true"
                 >
                     <i class="ph-fill ph-wallet"></i>
                 </span>
 
-                <div class="section-copy">
+                <div class="section-copy ui-section__copy">
                     <h2>Resumo financeiro</h2>
                     <p>
                         Valores principais da sua participação.
@@ -1281,8 +1274,8 @@
                 </div>
             </div>
 
-            <div class="section-actions">
-                <span class="section-count">
+            <div class="section-actions ui-section__actions">
+                <span class="section-count ui-badge ui-count">
                     <i class="ph ph-calendar-blank"></i>
                     mês atual
                 </span>
@@ -1460,17 +1453,18 @@
         {{-- =====================================================
              PROJETOS
              ===================================================== --}}
-        <section class="dash-section">
-            <header class="section-head">
-                <div class="section-title">
+        <section class="dash-section ui-section">
+            <header class="section-head ui-section__header">
+                <div class="section-title ui-section__heading">
                     <span
-                        class="section-icon projects"
+                        class="section-icon projects ui-icon-box"
+                        data-tone="violet"
                         aria-hidden="true"
                     >
                         <i class="ph-fill ph-folder-open"></i>
                     </span>
 
-                    <div class="section-copy">
+                    <div class="section-copy ui-section__copy">
                         <h2>Projetos em execução</h2>
                         <p>
                             Limites e participação em uma visão rápida.
@@ -1478,14 +1472,14 @@
                     </div>
                 </div>
 
-                <div class="section-actions">
-                    <span class="section-count">
+                <div class="section-actions ui-section__actions">
+                    <span class="section-count ui-badge ui-count">
                         <i class="ph ph-folder"></i>
                         {{ $activeProjectsCount }}
                     </span>
 
                     <a
-                        class="section-link"
+                        class="section-link ui-btn ui-btn--sm"
                         href="{{ $tenantSlug
                             ? route('associate.projects', [
                                 'tenant' => $tenantSlug,
@@ -1728,17 +1722,18 @@
         {{-- =====================================================
              ENTREGAS RECENTES
              ===================================================== --}}
-        <section class="dash-section">
-            <header class="section-head">
-                <div class="section-title">
+        <section class="dash-section ui-section">
+            <header class="section-head ui-section__header">
+                <div class="section-title ui-section__heading">
                     <span
-                        class="section-icon deliveries"
+                        class="section-icon deliveries ui-icon-box"
+                        data-tone="info"
                         aria-hidden="true"
                     >
                         <i class="ph-fill ph-package"></i>
                     </span>
 
-                    <div class="section-copy">
+                    <div class="section-copy ui-section__copy">
                         <h2>Entregas recentes</h2>
                         <p>
                             Últimos registros da sua participação.
@@ -1746,14 +1741,14 @@
                     </div>
                 </div>
 
-                <div class="section-actions">
-                    <span class="section-count">
+                <div class="section-actions ui-section__actions">
+                    <span class="section-count ui-badge ui-count">
                         <i class="ph ph-package"></i>
                         {{ $recentDeliveriesCount }}
                     </span>
 
                     <a
-                        class="section-link"
+                        class="section-link ui-btn ui-btn--sm"
                         href="{{ $tenantSlug
                             ? route('associate.deliveries', [
                                 'tenant' => $tenantSlug,
