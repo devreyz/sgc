@@ -444,9 +444,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 @endif
 
 @if(!empty($hasRoundingDivergence))
-<!-- <p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
+<p style="text-align: right; font-size: 8px; color: #999; margin: 4px 0 0 0; font-style: italic;">
     * A soma visual dos itens pode divergir do total devido a arredondamentos de exibição. Os valores totais são calculados com precisão interna.
-</p> -->
+</p>
 @endif
 
 @if($showSection('signature'))

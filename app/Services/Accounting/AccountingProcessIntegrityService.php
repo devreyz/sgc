@@ -24,9 +24,14 @@ class AccountingProcessIntegrityService
     {
         $issues = collect();
         $projectIds = collect($receipt->projectIds());
-        $distributions = $receipt->relationLoaded('billingDistributions')
-            ? $receipt->billingDistributions
-            : $receipt->billingDistributions()->get([
+        $draftIds = $receipt->status === CustomerReceiptStatus::DRAFT
+            ? collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values()
+            : collect();
+        $distributions = $draftIds->isNotEmpty()
+            ? ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->whereIn('id', $draftIds)
+                ->get([
                 'id',
                 'tenant_id',
                 'sales_project_id',
@@ -35,7 +40,13 @@ class AccountingProcessIntegrityService
                 'quantity',
                 'unit_price',
                 'status',
-            ]);
+            ])
+            : ($receipt->relationLoaded('billingDistributions')
+                ? $receipt->billingDistributions
+                : $receipt->billingDistributions()->get([
+                    'id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'customer_id',
+                    'quantity', 'unit_price', 'status',
+                ]));
 
         if (! $receipt->sales_project_id) {
             $issues->push($this->issue('missing_project', 'A cobrança não possui projeto de venda válido.'));

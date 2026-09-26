@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\DocumentMask;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -12,7 +13,8 @@ class PdvCustomerResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'cpf_cnpj' => $this->cpf_cnpj,
+            'cpf_cnpj' => DocumentMask::forDisplay($this->cpf_cnpj),
+            'has_document' => filled($this->cpf_cnpj),
             'phone' => $this->phone,
             'email' => $this->email,
             'address' => $this->address,

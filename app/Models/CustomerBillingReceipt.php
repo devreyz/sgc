@@ -53,6 +53,7 @@ class CustomerBillingReceipt extends Model
         'payment_notes',
         'amount_paid',
         'created_by',
+        'operation_key',
     ];
 
     protected function casts(): array
@@ -327,5 +328,18 @@ class CustomerBillingReceipt extends Model
     public function isLocked(): bool
     {
         return $this->status?->isLocked() ?? false;
+    }
+
+    /**
+     * Linhas financeiras congeladas na emissao. Documentos e exportacoes nao
+     * devem recalcular valores a partir das distribuicoes depois deste ponto.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function documentLines(): array
+    {
+        $lines = data_get($this->fee_snapshot, 'document_lines', []);
+
+        return is_array($lines) ? array_values($lines) : [];
     }
 }

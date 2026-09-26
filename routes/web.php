@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Accounting\AccountingAccessController;
+use App\Http\Controllers\Accounting\AccountingBillingController;
 use App\Http\Controllers\Accounting\AccountingFiscalController;
 use App\Http\Controllers\Accounting\AccountingPortalController;
 use App\Http\Controllers\Associate\AssociateDashboardController;
@@ -329,7 +331,29 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             Route::get('/', [AccountingPortalController::class, 'index'])->name('index');
             Route::get('/data/queue', [AccountingPortalController::class, 'queue'])->name('data.queue');
             Route::get('/processes', [AccountingPortalController::class, 'processes'])->name('processes.index');
+            Route::get('/access', [AccountingAccessController::class, 'index'])->name('access.index');
+            Route::post('/access', [AccountingAccessController::class, 'store'])->middleware('throttle:20,1')->name('access.store');
+            Route::delete('/access/{scope}', [AccountingAccessController::class, 'destroy'])->middleware('throttle:20,1')->whereNumber('scope')->name('access.destroy');
+            Route::get('/billings/create', [AccountingBillingController::class, 'create'])->name('billings.create');
+            Route::get('/billings/context', [AccountingBillingController::class, 'context'])->name('billings.context');
+            Route::get('/billings/manual', [AccountingBillingController::class, 'manual'])->name('billings.manual');
+            Route::post('/billings/select', [AccountingBillingController::class, 'select'])->middleware('throttle:60,1')->name('billings.select');
+            Route::post('/billings/preview', [AccountingBillingController::class, 'preview'])->middleware('throttle:60,1')->name('billings.preview');
+            Route::post('/billings', [AccountingBillingController::class, 'store'])->middleware('throttle:20,1')->name('billings.store');
+            Route::get('/billings/{receipt}/edit', [AccountingBillingController::class, 'edit'])->whereNumber('receipt')->name('billings.edit');
+            Route::get('/billings/{receipt}/context', [AccountingBillingController::class, 'context'])->whereNumber('receipt')->name('billings.context.edit');
+            Route::get('/billings/{receipt}/manual', [AccountingBillingController::class, 'manual'])->whereNumber('receipt')->name('billings.manual.edit');
+            Route::post('/billings/{receipt}/select', [AccountingBillingController::class, 'select'])->middleware('throttle:60,1')->whereNumber('receipt')->name('billings.select.edit');
+            Route::post('/billings/{receipt}/preview', [AccountingBillingController::class, 'preview'])->middleware('throttle:60,1')->whereNumber('receipt')->name('billings.preview.edit');
+            Route::put('/billings/{receipt}', [AccountingBillingController::class, 'update'])->middleware('throttle:20,1')->whereNumber('receipt')->name('billings.update');
+            Route::post('/billings/{receipt}/freeze', [AccountingBillingController::class, 'freeze'])->middleware('throttle:10,1')->whereNumber('receipt')->name('billings.freeze');
+            Route::post('/billings/{receipt}/reopen', [AccountingBillingController::class, 'reopen'])->middleware('throttle:10,1')->whereNumber('receipt')->name('billings.reopen');
+            Route::post('/billings/{receipt}/payments', [AccountingBillingController::class, 'payment'])->middleware('throttle:20,1')->whereNumber('receipt')->name('billings.payments.store');
             Route::get('/data/processes', [AccountingPortalController::class, 'processesData'])->name('data.processes');
+            Route::get('/source-receipts', [AccountingPortalController::class, 'sourceReceipts'])->name('source-receipts.index');
+            Route::get('/data/source-receipts', [AccountingPortalController::class, 'sourceReceiptsData'])->name('data.source-receipts');
+            Route::get('/data/source-receipts/{associateReceipt}', [AccountingPortalController::class, 'sourceReceiptData'])
+                ->whereNumber('associateReceipt')->name('data.source-receipts.show');
             Route::get('/processes/{receipt}', [AccountingPortalController::class, 'show'])
                 ->whereNumber('receipt')
                 ->name('processes.show');
@@ -338,12 +362,15 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
                 ->name('data.processes.show');
             Route::post('/data/processes/{receipt}/authorization/send', [AccountingPortalController::class, 'sendAuthorization'])
                 ->middleware('throttle:20,1')->whereNumber('receipt')->name('data.processes.authorization.send');
+            Route::post('/data/processes/{receipt}/authorization/access', [AccountingPortalController::class, 'storeAuthorizationAccess'])
+                ->middleware('throttle:10,1')->whereNumber('receipt')->name('data.processes.authorization.access');
             Route::post('/data/processes/{receipt}/authorizations/{billingAuthorization}/cancel', [AccountingPortalController::class, 'cancelAuthorization'])
                 ->middleware('throttle:10,1')->whereNumber('receipt')->whereNumber('billingAuthorization')->name('data.processes.authorization.cancel');
             Route::get('/fiscal', [AccountingFiscalController::class, 'index'])->name('fiscal.index');
             Route::get('/data/fiscal', [AccountingFiscalController::class, 'data'])->name('fiscal.data');
             Route::get('/fiscal/settings', [AccountingFiscalController::class, 'settings'])->name('fiscal.settings');
             Route::post('/fiscal/settings', [AccountingFiscalController::class, 'storeSettings'])->middleware('throttle:20,1')->name('fiscal.settings.store');
+            Route::get('/fiscal/{receipt}/billing-sheet', [AccountingFiscalController::class, 'billingSheet'])->whereNumber('receipt')->name('fiscal.billing-sheet');
             Route::get('/fiscal/{receipt}', [AccountingFiscalController::class, 'show'])->whereNumber('receipt')->name('fiscal.show');
             Route::post('/fiscal/{receipt}/prepare', [AccountingFiscalController::class, 'prepare'])->middleware('throttle:20,1')->whereNumber('receipt')->name('fiscal.prepare');
         });

@@ -1,6 +1,6 @@
 @php
 /**
- * Comprovante de Cobrança — Comprador
+ * Documento de Faturamento — Cliente
  * $tenant, $project, $customer, $receipt,
  * $productRows  => [ product, unit, quantity, unit_price, gross ]
  * $totalGross, $totalFees, $totalNet, $feeBreakdown
@@ -118,7 +118,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
         </div>
     </div>
     <div class="hdr-right">
-        <span class="doc-type">Distribuição de Produtos — Comprador</span>
+        <span class="doc-type">Faturamento de Produtos — Cliente</span>
         @if($showSection('document_info'))
         <span class="doc-num">Nº Documento: {{ $receiptLabel }}</span>
         @if(!empty($periodLabel))
@@ -136,12 +136,12 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </div>
 </div>
 
-{{-- ═══ COMPRADOR / PROJETO ═══ --}}
+{{-- ═══ CLIENTE / PROJETO ═══ --}}
 @if($showSection('customer_info') || $showSection('project_info'))
 <div class="proj-strip">
     @if($showSection('customer_info'))
     <div class="proj-cell" style="width:50%;">
-        <span class="proj-label">Comprador</span>
+        <span class="proj-label">Cliente</span>
         <span class="proj-value">{{ $customer?->name ?? '—' }}</span>
     </div>
     @endif

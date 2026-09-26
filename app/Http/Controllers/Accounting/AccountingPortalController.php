@@ -12,10 +12,14 @@ use App\Models\BillingAuthorization;
 use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
 use App\Models\Document;
+use App\Models\FinancialDocumentIdentity;
 use App\Models\Organization;
+use App\Models\OrganizationAuthorizedEmail;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Services\Accounting\AccountingAccessService;
 use App\Services\Accounting\AccountingNextActionResolver;
 use App\Services\Accounting\AccountingProcessIntegrityService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
@@ -26,8 +30,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AccountingPortalController extends Controller
@@ -48,6 +54,137 @@ class AccountingPortalController extends Controller
         return view('accounting.processes.index', compact('tenant'));
     }
 
+    public function sourceReceipts(Request $request): View
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+
+        return view('accounting.source-receipts.index', compact('tenant'));
+    }
+
+    public function sourceReceiptsData(Request $request, TenantIdentityService $identities): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:180'],
+            'project' => ['nullable', 'integer', 'min:1'],
+            'status' => ['nullable', 'in:draft,pending_payment,partially_paid,paid,obsolete'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'between:10,50'],
+        ]);
+
+        $search = trim((string) ($filters['search'] ?? ''));
+        $identityIds = collect();
+        if ($search !== '') {
+            $uuid = Str::isUuid($search) ? $search : (preg_match('/([0-9a-f]{8}-[0-9a-f-]{27,})/i', $search, $matches) ? $matches[1] : null);
+            $reference = preg_match('/\b(CP-[A-Z0-9-]+)\b/i', $search, $matches) ? mb_strtoupper($matches[1]) : null;
+            if ($uuid || $reference) {
+                $identityIds = FinancialDocumentIdentity::withoutGlobalScopes()
+                    ->where('tenant_id', $tenant->id)
+                    ->where('documentable_type', (new AssociateReceipt)->getMorphClass())
+                    ->where(function (Builder $query) use ($uuid, $reference): void {
+                        $query->when($uuid, fn (Builder $query, string $value) => $query->where('public_id', mb_strtolower($value)))
+                            ->when($reference, fn (Builder $query, string $value) => $query->orWhere('reference_code', $value));
+                    })->pluck('documentable_id');
+            }
+        }
+
+        $visibleReceiptIds = $this->billingSourceReceiptIds($tenant->id, $request->user());
+
+        $query = AssociateReceipt::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->whereIn('id', $visibleReceiptIds)
+            ->with([
+                'project:id,tenant_id,title,code,receipt_numbering_scope,receipt_number_format,receipt_project_reference',
+                'associate:id,tenant_id,user_id,nickname',
+                'verificationIdentity:id,tenant_id,documentable_type,documentable_id,public_id,reference_code',
+            ])->withCount('distributions');
+
+        $query->when($filters['project'] ?? null, fn (Builder $query, int $projectId) => $query->where('sales_project_id', $projectId))
+            ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
+            ->when($search !== '', function (Builder $query) use ($search, $identityIds): void {
+                $number = preg_match('/\b0*(\d+)\s*\/\s*\d{4}/', $search, $numberMatch)
+                    ? (int) $numberMatch[1]
+                    : (ctype_digit($search) ? (int) $search : null);
+                $query->where(function (Builder $nested) use ($search, $number, $identityIds): void {
+                    $nested->whereIn('id', $identityIds)
+                        ->orWhere('receipt_label', 'like', '%'.$search.'%')
+                        ->orWhereHas('project', fn (Builder $project) => $project
+                            ->where('title', 'like', '%'.$search.'%')->orWhere('code', 'like', '%'.$search.'%'))
+                        ->orWhereHas('associate', fn (Builder $associate) => $associate
+                            ->where('nickname', 'like', '%'.$search.'%')
+                            ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', '%'.$search.'%')));
+                    if ($number !== null) {
+                        $nested->orWhere('receipt_number', $number)
+                            ->orWhere('tenant_receipt_number', $number)
+                            ->orWhere('project_receipt_number', $number);
+                    }
+                });
+            });
+
+        $receipts = $query->latest('issued_at')->latest('id')
+            ->paginate((int) ($filters['per_page'] ?? 20))->withQueryString();
+        $names = $identities->namesForUsers($tenant->id, $receipts->getCollection()->pluck('associate.user_id')->filter());
+        $receipts->getCollection()->transform(fn (AssociateReceipt $receipt): array => $this->sourceReceiptRow($receipt, $tenant->slug, $names));
+
+        return $this->privateJson([
+            'receipts' => $receipts,
+            'filters' => ['projects' => SalesProject::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+                ->whereIn('id', AssociateReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+                    ->whereIn('id', $visibleReceiptIds)->distinct()->pluck('sales_project_id'))
+                ->orderByDesc('reference_year')->orderBy('title')->get(['id', 'title', 'code'])
+                ->map(fn (SalesProject $project) => ['id' => $project->id, 'label' => $project->title.($project->code ? ' · '.$project->code : '')])],
+        ]);
+    }
+
+    public function sourceReceiptData(Request $request, TenantIdentityService $identities): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        $visibleReceiptIds = $this->billingSourceReceiptIds($tenant->id, $request->user());
+        $receipt = AssociateReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->whereIn('id', $visibleReceiptIds)
+            ->with(['project', 'associate:id,tenant_id,user_id,nickname', 'verificationIdentity'])
+            ->findOrFail((int) $request->route('associateReceipt'));
+        $names = $identities->namesForUsers($tenant->id, collect([$receipt->associate?->user_id])->filter());
+
+        $distributions = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)->where('associate_receipt_id', $receipt->id)
+            ->with(['product:id,tenant_id,name,unit', 'customer:id,tenant_id,name,trade_name', 'parentDelivery:id,tenant_id,delivery_date'])
+            ->orderByDesc('delivery_date')->orderByDesc('id')->get()
+            ->map(fn (ProductionDelivery $row): array => [
+                'id' => $row->id,
+                'date' => $row->delivery_date?->format('d/m/Y'),
+                'product' => $row->product?->name ?? 'Produto não identificado',
+                'unit' => $row->product?->unit ?: 'un',
+                'customer' => $row->customer?->trade_name ?: $row->customer?->name ?: 'Destino não identificado',
+                'quantity' => (float) $row->quantity,
+                'unit_price' => (float) $row->unit_price,
+                'gross' => (float) $row->gross_value,
+                'net' => (float) $row->net_value,
+                'billing_receipt_id' => $row->billing_receipt_id ? (int) $row->billing_receipt_id : null,
+            ]);
+        $processIds = $distributions->pluck('billing_receipt_id')->filter()->unique();
+        $processes = app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id),
+            $request->user(),
+            $tenant->id,
+        )->whereIn('id', $processIds)
+            ->get()->map(fn (CustomerBillingReceipt $process): array => [
+                'id' => $process->id,
+                'number' => $process->formatted_number,
+                'status' => $process->status?->getLabel() ?? 'Rascunho',
+                'url' => route('accounting.processes.show', ['tenant' => $tenant->slug, 'receipt' => $process->id]),
+            ]);
+
+        return $this->privateJson([
+            'receipt' => $this->sourceReceiptRow($receipt, $tenant->slug, $names),
+            'distributions' => $distributions,
+            'processes' => $processes,
+        ]);
+    }
+
     public function show(Request $request): View
     {
         $tenant = $this->tenant($request);
@@ -65,7 +202,11 @@ class AccountingPortalController extends Controller
     {
         $tenant = $this->tenant($request);
         $this->authorizePortal($request);
-        $base = CustomerBillingReceipt::query()->where('tenant_id', $tenant->id);
+        $base = app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::query()->where('tenant_id', $tenant->id),
+            $request->user(),
+            $tenant->id,
+        );
 
         $critical = $this->criticalProcessQuery(clone $base)->count();
 
@@ -145,7 +286,11 @@ class AccountingPortalController extends Controller
             'per_page' => ['nullable', 'integer', 'between:10,50'],
         ]);
 
-        $query = $this->processQuery($tenant->id);
+        $query = app(AccountingAccessService::class)->scopeBillings(
+            $this->processQuery($tenant->id),
+            $request->user(),
+            $tenant->id,
+        );
         $search = trim((string) ($filters['search'] ?? ''));
 
         $query
@@ -201,7 +346,7 @@ class AccountingPortalController extends Controller
 
         return $this->privateJson([
             'processes' => $processes,
-            'filters' => $this->filterOptions($tenant->id),
+            'filters' => $this->filterOptions($tenant->id, $request->user()),
         ]);
     }
 
@@ -223,7 +368,7 @@ class AccountingPortalController extends Controller
         $receipt->load([
             'project:id,tenant_id,title,code,type,status,start_date,end_date,receipt_numbering_scope,receipt_number_format,receipt_project_reference',
             'customer:id,tenant_id,name,trade_name,organization_id',
-            'organization:id,tenant_id,name',
+            'organization:id,tenant_id,name,email,responsible_name',
             'bankAccount:id,tenant_id,name,type',
         ]);
 
@@ -234,7 +379,8 @@ class AccountingPortalController extends Controller
             ? $authorizationValidity->isValid($receipt, $latestRound)
             : null;
         $authorization = $this->authorizationPayload($latestRound, $isCurrentAuthorizationValid);
-        $fiscal = $latestRound?->status === BillingAuthorizationStatus::AUTHORIZED
+        $authorization['access'] = $this->authorizationAccessPayload($receipt, $request);
+        $fiscal = $receipt->status !== CustomerReceiptStatus::DRAFT
             ? $fiscalGate->evaluate($receipt, $tenant->id)
             : null;
         $state = $resolver->resolve(
@@ -244,7 +390,17 @@ class AccountingPortalController extends Controller
             $fiscal,
             $integrityResult['preparation_count'],
         );
-        $distributions = $receipt->billingDistributions()
+        $draftDistributionIds = $receipt->status === CustomerReceiptStatus::DRAFT
+            ? collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values()
+            : collect();
+        $distributionQuery = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->when(
+                $draftDistributionIds->isNotEmpty(),
+                fn (Builder $query) => $query->whereIn('id', $draftDistributionIds),
+                fn (Builder $query) => $query->where('billing_receipt_id', $receipt->id),
+            );
+        $distributions = (clone $distributionQuery)
             ->with([
                 'product:id,tenant_id,name,unit',
                 'customer:id,tenant_id,name,trade_name',
@@ -283,10 +439,15 @@ class AccountingPortalController extends Controller
             ];
         });
 
-        $producerReceiptIds = $receipt->billingDistributions()
+        $producerReceiptIds = (clone $distributionQuery)
             ->whereNotNull('associate_receipt_id')
             ->distinct()
             ->pluck('associate_receipt_id');
+        $includedByProducerReceipt = (clone $distributionQuery)
+            ->whereNotNull('associate_receipt_id')
+            ->selectRaw('associate_receipt_id, COUNT(*) AS aggregate')
+            ->groupBy('associate_receipt_id')
+            ->pluck('aggregate', 'associate_receipt_id');
         $producerReceipts = AssociateReceipt::query()
             ->where('tenant_id', $tenant->id)
             ->whereIn('id', $producerReceiptIds)
@@ -315,7 +476,32 @@ class AccountingPortalController extends Controller
             'status_label' => $producerReceipt->status?->getLabel() ?? 'Rascunho',
             'net' => (float) $producerReceipt->total_net,
             'paid' => (float) $producerReceipt->amount_paid,
+            'included_distributions' => (int) ($includedByProducerReceipt[$producerReceipt->id] ?? 0),
+            'detail_url' => route('accounting.data.source-receipts.show', [
+                'tenant' => $tenant->slug, 'associateReceipt' => $producerReceipt->id,
+            ]),
+            'reprint_url' => $producerReceipt->status?->value === 'obsolete' ? null : route('delivery.projects.receipt-reprint', [
+                'tenant' => $tenant->slug, 'project' => $producerReceipt->sales_project_id,
+                'receipt' => $producerReceipt->id, 'preview' => 1,
+            ]),
         ]);
+
+        $traceSummary = (clone $distributionQuery)
+            ->selectRaw('COUNT(*) AS distributions_count')
+            ->selectRaw('COUNT(DISTINCT associate_id) AS producers_count')
+            ->selectRaw('COUNT(DISTINCT product_id) AS products_count')
+            ->selectRaw('COUNT(DISTINCT customer_id) AS recipient_units_count')
+            ->selectRaw('COUNT(DISTINCT associate_receipt_id) AS source_receipts_count')
+            ->first();
+        $consolidatedLines = collect($receipt->documentLines())->map(fn (array $line): array => [
+            'project' => (string) ($line['project'] ?? $receipt->project?->title ?? ''),
+            'product' => (string) ($line['product'] ?? 'Produto não identificado'),
+            'unit' => (string) ($line['unit'] ?? 'un'),
+            'quantity' => (string) ($line['quantity'] ?? '0'),
+            'unit_price' => (string) ($line['unit_price'] ?? '0'),
+            'raw_amount' => (string) ($line['raw_amount'] ?? '0'),
+            'document_amount' => (string) ($line['document_amount'] ?? '0.00'),
+        ])->values();
 
         return $this->privateJson([
             'process' => [
@@ -334,12 +520,22 @@ class AccountingPortalController extends Controller
                     'name' => $receipt->recipient_name,
                 ],
                 'state' => $state,
+                'edit_url' => $receipt->status === CustomerReceiptStatus::DRAFT
+                    && $request->user()->can('update_customer::billing::receipt')
+                    ? route('accounting.billings.edit', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
+                    : null,
+                'reopen_url' => $receipt->status !== CustomerReceiptStatus::DRAFT
+                    && in_array($authorization['state'], ['correction_requested', 'invalidated', 'cancelled'], true)
+                    && $request->user()->can('update_customer::billing::receipt')
+                    ? route('accounting.billings.reopen', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
+                    : null,
                 'workflow' => [
                     'authorization' => $authorization,
                     'fiscal' => $this->fiscalPayload(
                         $fiscal,
                         $tenant->slug,
                         $receipt->id,
+                        $receipt->sales_project_id,
                         $request->user()->can('prepare_accounting_fiscal'),
                         $request->user()->can('view_accounting_fiscal_settings'),
                     ),
@@ -355,7 +551,15 @@ class AccountingPortalController extends Controller
                     'status_label' => $receipt->status?->getLabel() ?? 'Rascunho',
                 ],
                 'integrity' => $integrityResult,
+                'summary' => [
+                    'distributions' => (int) ($traceSummary?->distributions_count ?? 0),
+                    'producers' => (int) ($traceSummary?->producers_count ?? 0),
+                    'products' => (int) ($traceSummary?->products_count ?? 0),
+                    'recipient_units' => (int) ($traceSummary?->recipient_units_count ?? 0),
+                    'source_receipts' => (int) ($traceSummary?->source_receipts_count ?? 0),
+                ],
             ],
+            'consolidated_lines' => $consolidatedLines,
             'distributions' => $distributions,
             'payments' => $receipt->payments()
                 ->with('bankAccount:id,tenant_id,name')
@@ -408,6 +612,42 @@ class AccountingPortalController extends Controller
         return $this->privateJson(['message' => 'Cobrança enviada para a organização.', 'authorization' => $this->authorizationPayload($round)]);
     }
 
+    public function storeAuthorizationAccess(Request $request): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        $receipt = $this->receipt($request, $tenant->id);
+        $this->authorize('send', [BillingAuthorization::class, $receipt]);
+        abort_unless($receipt->organization_id, 422, 'Este processo não está vinculado a uma organização compradora.');
+        $data = $request->validate([
+            'email' => ['required', 'email:rfc', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+        ]);
+        $email = mb_strtolower(trim($data['email']));
+        $access = OrganizationAuthorizedEmail::withoutGlobalScopes()->updateOrCreate([
+            'tenant_id' => $tenant->id,
+            'organization_id' => $receipt->organization_id,
+            'email' => $email,
+        ], [
+            'name' => trim((string) ($data['name'] ?? '')) ?: $receipt->organization?->responsible_name,
+            'active' => true,
+        ]);
+        activity()->performedOn($access)->causedBy($request->user())->withProperties([
+            'tenant_id' => $tenant->id,
+            'organization_id' => $receipt->organization_id,
+            'receipt_id' => $receipt->id,
+        ])->log('Acesso de autorização da organização configurado pelo portal contábil');
+
+        $hasAccount = User::query()->where('status', true)->whereRaw('LOWER(email) = ?', [$email])->exists();
+
+        return $this->privateJson([
+            'message' => $hasAccount
+                ? 'E-mail autorizado. A organização já pode receber e responder à solicitação.'
+                : 'E-mail autorizado. O representante deverá entrar com este mesmo e-mail para responder.',
+            'access' => $this->authorizationAccessPayload($receipt->fresh('organization'), $request),
+        ]);
+    }
+
     public function cancelAuthorization(Request $request, BillingAuthorizationWorkflowService $workflow): JsonResponse
     {
         $tenant = $this->tenant($request);
@@ -431,7 +671,7 @@ class AccountingPortalController extends Controller
                 'receipt_year', 'receipt_number', 'receipt_label', 'tenant_receipt_year',
                 'tenant_receipt_number', 'project_receipt_year', 'project_receipt_number',
                 'issued_at', 'from_date', 'to_date', 'status', 'total_gross', 'total_fees',
-                'total_net', 'amount_paid', 'created_at',
+                'total_net', 'amount_paid', 'delivery_ids', 'created_at',
             ])
             ->with([
                 'project:id,tenant_id,title,code,type,status,receipt_numbering_scope,receipt_number_format,receipt_project_reference',
@@ -531,19 +771,35 @@ class AccountingPortalController extends Controller
         string $tenantSlug,
     ): array {
         $isDraft = $receipt->status === CustomerReceiptStatus::DRAFT;
-        $critical = (int) $receipt->structural_distributions_count;
+        $distributionCount = (int) $receipt->billing_distributions_count;
+        $structuralCount = (int) $receipt->structural_distributions_count;
+        $incompleteCount = (int) $receipt->incomplete_distributions_count;
+        if ($isDraft) {
+            $draftIds = collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values();
+            if ($draftIds->isNotEmpty()) {
+                $draftRows = ProductionDelivery::withoutGlobalScopes()->where('tenant_id', $receipt->tenant_id)
+                    ->whereIn('id', $draftIds)->get(['id', 'parent_delivery_id', 'customer_id', 'quantity', 'unit_price', 'status']);
+                $distributionCount = $draftRows->count();
+                $structuralCount = $draftRows->whereNull('parent_delivery_id')->count() + max(0, $draftIds->count() - $distributionCount);
+                $incompleteCount = $draftRows->filter(function (ProductionDelivery $row): bool {
+                    $status = $row->status instanceof DeliveryStatus ? $row->status->value : (string) $row->status;
+
+                    return ! $row->customer_id || (float) $row->quantity <= 0 || (float) $row->unit_price <= 0
+                        || $status !== DeliveryStatus::APPROVED->value;
+                })->count();
+            }
+        }
+        $critical = $structuralCount;
         $critical += ! $receipt->sales_project_id ? 1 : 0;
         $critical += (($receipt->customer_id && $receipt->organization_id) || (! $receipt->customer_id && ! $receipt->organization_id)) ? 1 : 0;
-        $critical += ! $isDraft && $receipt->billing_distributions_count < 1 ? 1 : 0;
-        $critical += ! $isDraft ? (int) $receipt->incomplete_distributions_count : 0;
+        $critical += ! $isDraft && $distributionCount < 1 ? 1 : 0;
+        $critical += ! $isDraft ? $incompleteCount : 0;
         $critical += ! $isDraft && (float) $receipt->total_net <= 0 ? 1 : 0;
         $preparation = $isDraft
-            ? (int) $receipt->incomplete_distributions_count + ($receipt->billing_distributions_count < 1 ? 1 : 0)
+            ? $incompleteCount + ($distributionCount < 1 ? 1 : 0)
             : 0;
         $authorization = $this->authorizationPayload($receipt->latestAuthorizationRound);
-        $fiscal = $authorization['state'] === BillingAuthorizationStatus::AUTHORIZED->value
-            ? $fiscalGate->evaluate($receipt, (int) $receipt->tenant_id)
-            : null;
+        $fiscal = ! $isDraft ? $fiscalGate->evaluate($receipt, (int) $receipt->tenant_id) : null;
         $state = $resolver->resolve($receipt->status, $critical, $authorization['state'], $fiscal, $preparation);
 
         return [
@@ -560,7 +816,7 @@ class AccountingPortalController extends Controller
             'net' => (float) $receipt->total_net,
             'received' => (float) $receipt->amount_paid,
             'remaining' => $receipt->remaining_amount,
-            'distributions' => (int) $receipt->billing_distributions_count,
+            'distributions' => $distributionCount,
             'critical_issues' => $critical,
             'preparation_issues' => $preparation,
             'state' => $state,
@@ -575,6 +831,7 @@ class AccountingPortalController extends Controller
         ?array $gate,
         string $tenantSlug,
         int $receiptId,
+        ?int $projectId = null,
         bool $canPrepare = false,
         bool $canViewSettings = false,
     ): array {
@@ -589,18 +846,25 @@ class AccountingPortalController extends Controller
             'document_type' => $gate['document_type_label'],
             'expected_amount' => $gate['expected_fiscal_amount'] !== null ? (float) $gate['expected_fiscal_amount'] : null,
             'blocks' => $gate['blocks'],
+            'billing_sheet_url' => $canPrepare ? route('accounting.fiscal.billing-sheet', ['tenant' => $tenantSlug, 'receipt' => $receiptId]) : null,
+            'fiscal_summary_url' => $canPrepare && $gate['ready'] ? route('accounting.fiscal.show', ['tenant' => $tenantSlug, 'receipt' => $receiptId]) : null,
             'prepare_url' => $canPrepare ? route('accounting.fiscal.prepare', ['tenant' => $tenantSlug, 'receipt' => $receiptId]) : null,
-            'settings_url' => $canViewSettings ? route('accounting.fiscal.settings', ['tenant' => $tenantSlug]) : null,
+            'settings_url' => $canViewSettings ? route('accounting.fiscal.settings', array_filter([
+                'tenant' => $tenantSlug, 'receipt' => $receiptId, 'project' => $projectId,
+            ], fn ($value) => $value !== null)) : null,
         ];
     }
 
-    private function filterOptions(int $tenantId): array
+    private function filterOptions(int $tenantId, User $user): array
     {
-        $projectIds = CustomerBillingReceipt::query()->where('tenant_id', $tenantId)
+        $billingQuery = fn () => app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::query()->where('tenant_id', $tenantId), $user, $tenantId,
+        );
+        $projectIds = $billingQuery()
             ->whereNotNull('sales_project_id')->distinct()->pluck('sales_project_id');
-        $organizationIds = CustomerBillingReceipt::query()->where('tenant_id', $tenantId)
+        $organizationIds = $billingQuery()
             ->whereNotNull('organization_id')->distinct()->pluck('organization_id');
-        $customerIds = CustomerBillingReceipt::query()->where('tenant_id', $tenantId)
+        $customerIds = $billingQuery()
             ->whereNotNull('customer_id')->distinct()->pluck('customer_id');
 
         return [
@@ -678,9 +942,11 @@ class AccountingPortalController extends Controller
         $id = (int) $request->route('receipt');
         abort_if($id < 1, 404);
 
-        return CustomerBillingReceipt::withoutGlobalScopes()
-            ->where('tenant_id', $tenantId)
-            ->findOrFail($id);
+        return app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenantId),
+            $request->user(),
+            $tenantId,
+        )->findOrFail($id);
     }
 
     private function tenant(Request $request): Tenant
@@ -700,6 +966,111 @@ class AccountingPortalController extends Controller
     private function authorizeProcesses(Request $request): void
     {
         abort_unless($request->user()?->can('view_accounting_processes'), 403);
+    }
+
+    private function sourceReceiptRow(AssociateReceipt $receipt, string $tenantSlug, $names): array
+    {
+        return [
+            'id' => $receipt->id,
+            'number' => $receipt->formatted_number,
+            'member' => $names[$receipt->associate?->user_id]
+                ?? $receipt->associate?->nickname
+                ?? 'Membro não identificado',
+            'project' => $receipt->project?->title ?? 'Projeto não identificado',
+            'project_code' => $receipt->project?->code,
+            'issued_at' => $receipt->issued_at?->format('d/m/Y'),
+            'status' => $receipt->status?->value ?? 'draft',
+            'status_label' => $receipt->status?->getLabel() ?? 'Rascunho',
+            'distribution_count' => (int) ($receipt->distributions_count ?? $receipt->distributions()->count()),
+            'total_net' => (float) ($receipt->total_net ?? 0),
+            'reference_code' => $receipt->verificationIdentity?->reference_code,
+            'reprint_url' => $receipt->status?->value === 'obsolete' ? null : route('delivery.projects.receipt-reprint', [
+                'tenant' => $tenantSlug,
+                'project' => $receipt->sales_project_id,
+                'receipt' => $receipt->id,
+                'preview' => 1,
+            ]),
+            'detail_url' => route('accounting.data.source-receipts.show', [
+                'tenant' => $tenantSlug,
+                'associateReceipt' => $receipt->id,
+            ]),
+        ];
+    }
+
+    private function authorizationAccessPayload(CustomerBillingReceipt $receipt, Request $request): array
+    {
+        if (! $receipt->organization_id) {
+            return [
+                'applicable' => false,
+                'configured' => false,
+                'organization_email' => null,
+                'recipients' => [],
+                'buyer_url' => null,
+            ];
+        }
+
+        $organization = $receipt->relationLoaded('organization')
+            ? $receipt->organization
+            : Organization::withoutGlobalScopes()->where('tenant_id', $receipt->tenant_id)->find($receipt->organization_id);
+        $accesses = OrganizationAuthorizedEmail::withoutGlobalScopes()
+            ->where('tenant_id', $receipt->tenant_id)
+            ->where('organization_id', $receipt->organization_id)
+            ->where('active', true)->orderBy('email')->get(['id', 'email', 'name', 'last_login_at']);
+        $userEmail = mb_strtolower(trim((string) $request->user()?->email));
+        $canPreview = $request->user()?->isTenantAdmin((int) $receipt->tenant_id)
+            || $accesses->contains(fn (OrganizationAuthorizedEmail $access): bool => mb_strtolower(trim($access->email)) === $userEmail);
+        $round = $receipt->latestAuthorizationRound;
+
+        return [
+            'applicable' => true,
+            'configured' => $accesses->isNotEmpty(),
+            'organization_email' => $organization?->email,
+            'organization_contact' => $organization?->responsible_name,
+            'recipients' => $accesses->map(fn (OrganizationAuthorizedEmail $access): array => [
+                'email' => $access->email,
+                'name' => $access->name,
+                'has_account' => User::query()->where('status', true)
+                    ->whereRaw('LOWER(email) = ?', [mb_strtolower(trim($access->email))])->exists(),
+                'last_access_at' => $access->last_login_at?->format('d/m/Y H:i'),
+            ])->values(),
+            'buyer_url' => $canPreview && $round ? route('buyer.authorizations.show', [
+                'tenant' => $request->route('tenant'),
+                'billingAuthorization' => $round->id,
+            ]) : null,
+        ];
+    }
+
+    /** IDs de comprovantes realmente usados por algum faturamento do tenant. */
+    private function billingSourceReceiptIds(int $tenantId, User $user): Collection
+    {
+        $accessibleBillingIds = app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenantId), $user, $tenantId,
+        )->pluck('id');
+        $linked = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('billing_receipt_id', $accessibleBillingIds)
+            ->whereNotNull('associate_receipt_id')
+            ->distinct()->pluck('associate_receipt_id');
+
+        $draftDeliveryIds = app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenantId), $user, $tenantId,
+        )
+            ->where('status', CustomerReceiptStatus::DRAFT->value)
+            ->get(['delivery_ids'])
+            ->flatMap(fn (CustomerBillingReceipt $receipt) => (array) $receipt->delivery_ids)
+            ->map(fn ($id): int => (int) $id)->filter()->unique();
+
+        if ($draftDeliveryIds->isNotEmpty()) {
+            $linked = $linked->merge(ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $tenantId)
+                ->whereIn('id', $draftDeliveryIds)
+                ->whereNotNull('associate_receipt_id')
+                ->pluck('associate_receipt_id'));
+        }
+
+        $linked = $linked->merge(app(AccountingAccessService::class)->associateReceiptIds($user, $tenantId));
+
+        return $linked->map(fn ($id): int => (int) $id)->unique()->values();
     }
 
     private function privateJson(mixed $data, int $status = 200): JsonResponse

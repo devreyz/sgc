@@ -11,7 +11,7 @@ use Illuminate\Support\Collection;
 
 class BillingAuthorizationSnapshotService
 {
-    public const VERSION = 1;
+    public const VERSION = 2;
 
     /**
      * Build the material document sent to the buyer. The caller must supply
@@ -33,63 +33,99 @@ class BillingAuthorizationSnapshotService
         $projects = $receipt->includedProjects()->keyBy('id');
         $isMultiProject = $projects->count() > 1;
 
-        $lines = $distributions->sortBy('id')->values()->map(function (ProductionDelivery $distribution) use ($feeDefinitions, $projectSnapshots, $projects, $isMultiProject): array {
-            $lineFeeDefinitions = collect(data_get(
-                $projectSnapshots->get((string) $distribution->sales_project_id),
-                'fees',
-                $feeDefinitions->all(),
-            ))->values();
-            $gross = $this->decimal($distribution->gross_value ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8));
-            $fees = $lineFeeDefinitions->map(function (array $fee) use ($gross): array {
-                $rate = $this->decimal($fee['rate'] ?? 0);
-                $amount = ($fee['type'] ?? 'percentage') === 'fixed'
-                    ? $rate
-                    : $this->decimal(bcmul($gross, bcdiv($rate, '100', 8), 8));
-
-                return [
-                    'id' => isset($fee['id']) ? (int) $fee['id'] : null,
-                    'name' => (string) ($fee['name'] ?? 'Taxa'),
-                    'type' => (string) ($fee['type'] ?? 'percentage'),
-                    'nature' => (string) ($fee['nature'] ?? 'discount'),
-                    'rate' => $rate,
-                    'amount' => $amount,
+        $frozenDocumentLines = collect($receipt->documentLines());
+        $lines = $frozenDocumentLines->isNotEmpty()
+            ? $frozenDocumentLines->map(function (array $line) use ($projects, $isMultiProject): array {
+                $distributionIds = collect($line['distribution_ids'] ?? [])->map(fn ($id): int => (int) $id)->values()->all();
+                $result = [
+                    'distribution_id' => count($distributionIds) === 1 ? $distributionIds[0] : null,
+                    'distribution_ids' => $distributionIds,
+                    'product' => [
+                        'id' => (int) ($line['product_id'] ?? 0),
+                        'name' => (string) ($line['product'] ?? 'Produto não identificado'),
+                        'unit' => (string) ($line['unit'] ?? ''),
+                        'ncm' => (string) ($line['ncm'] ?? ''),
+                    ],
+                    'quantity' => $this->decimal($line['quantity'] ?? 0),
+                    'unit_price' => $this->decimal($line['unit_price'] ?? 0),
+                    'gross' => $this->decimal($line['document_gross'] ?? 0),
+                    'fees' => collect($line['fees'] ?? [])->map(fn (array $fee): array => [
+                        'id' => isset($fee['id']) ? (int) $fee['id'] : null,
+                        'name' => (string) ($fee['name'] ?? 'Taxa'),
+                        'type' => (string) ($fee['type'] ?? 'percentage'),
+                        'nature' => (string) ($fee['nature'] ?? 'discount'),
+                        'rate' => $this->decimal($fee['rate'] ?? 0),
+                        'amount' => $this->decimal($fee['amount'] ?? 0),
+                    ])->all(),
+                    'net' => $this->decimal($line['document_amount'] ?? 0),
                 ];
+                if ($isMultiProject) {
+                    $projectId = (int) ($line['project_id'] ?? 0);
+                    $result['project'] = [
+                        'id' => $projectId,
+                        'name' => (string) ($projects->get($projectId)?->title ?? $line['project'] ?? ''),
+                    ];
+                }
+
+                return $result;
+            })->all()
+            : $distributions->sortBy('id')->values()->map(function (ProductionDelivery $distribution) use ($feeDefinitions, $projectSnapshots, $projects, $isMultiProject): array {
+                $lineFeeDefinitions = collect(data_get(
+                    $projectSnapshots->get((string) $distribution->sales_project_id),
+                    'fees',
+                    $feeDefinitions->all(),
+                ))->values();
+                $gross = $this->decimal($distribution->gross_value ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8));
+                $fees = $lineFeeDefinitions->map(function (array $fee) use ($gross): array {
+                    $rate = $this->decimal($fee['rate'] ?? 0);
+                    $amount = ($fee['type'] ?? 'percentage') === 'fixed'
+                        ? $rate
+                        : $this->decimal(bcmul($gross, bcdiv($rate, '100', 8), 8));
+
+                    return [
+                        'id' => isset($fee['id']) ? (int) $fee['id'] : null,
+                        'name' => (string) ($fee['name'] ?? 'Taxa'),
+                        'type' => (string) ($fee['type'] ?? 'percentage'),
+                        'nature' => (string) ($fee['nature'] ?? 'discount'),
+                        'rate' => $rate,
+                        'amount' => $amount,
+                    ];
+                })->all();
+                $discounts = collect($fees)->where('nature', 'discount')->reduce(
+                    fn (string $carry, array $fee): string => bcadd($carry, $fee['amount'], 4), '0.0000'
+                );
+                $accruals = collect($fees)->where('nature', 'accrual')->reduce(
+                    fn (string $carry, array $fee): string => bcadd($carry, $fee['amount'], 4), '0.0000'
+                );
+
+                $line = [
+                    'distribution_id' => (int) $distribution->id,
+                    'parent_delivery_id' => (int) $distribution->parent_delivery_id,
+                    'delivery_date' => $distribution->delivery_date?->format('Y-m-d'),
+                    'product' => [
+                        'id' => (int) $distribution->product_id,
+                        'name' => (string) ($distribution->product?->name ?? 'Produto não identificado'),
+                        'unit' => (string) ($distribution->product?->unit ?? ''),
+                    ],
+                    'customer' => [
+                        'id' => (int) $distribution->customer_id,
+                        'name' => (string) ($distribution->customer?->trade_name ?: $distribution->customer?->name ?: 'Cliente não identificado'),
+                    ],
+                    'quantity' => $this->decimal($distribution->quantity),
+                    'unit_price' => $this->decimal($distribution->unit_price),
+                    'gross' => $gross,
+                    'fees' => $fees,
+                    'net' => $this->decimal(bcsub(bcadd($gross, $accruals, 4), $discounts, 4)),
+                ];
+                if ($isMultiProject) {
+                    $line['project'] = [
+                        'id' => (int) $distribution->sales_project_id,
+                        'name' => (string) ($projects->get((int) $distribution->sales_project_id)?->title ?? ''),
+                    ];
+                }
+
+                return $line;
             })->all();
-            $discounts = collect($fees)->where('nature', 'discount')->reduce(
-                fn (string $carry, array $fee): string => bcadd($carry, $fee['amount'], 4), '0.0000'
-            );
-            $accruals = collect($fees)->where('nature', 'accrual')->reduce(
-                fn (string $carry, array $fee): string => bcadd($carry, $fee['amount'], 4), '0.0000'
-            );
-
-            $line = [
-                'distribution_id' => (int) $distribution->id,
-                'parent_delivery_id' => (int) $distribution->parent_delivery_id,
-                'delivery_date' => $distribution->delivery_date?->format('Y-m-d'),
-                'product' => [
-                    'id' => (int) $distribution->product_id,
-                    'name' => (string) ($distribution->product?->name ?? 'Produto não identificado'),
-                    'unit' => (string) ($distribution->product?->unit ?? ''),
-                ],
-                'customer' => [
-                    'id' => (int) $distribution->customer_id,
-                    'name' => (string) ($distribution->customer?->trade_name ?: $distribution->customer?->name ?: 'Cliente não identificado'),
-                ],
-                'quantity' => $this->decimal($distribution->quantity),
-                'unit_price' => $this->decimal($distribution->unit_price),
-                'gross' => $gross,
-                'fees' => $fees,
-                'net' => $this->decimal(bcsub(bcadd($gross, $accruals, 4), $discounts, 4)),
-            ];
-            if ($isMultiProject) {
-                $line['project'] = [
-                    'id' => (int) $distribution->sales_project_id,
-                    'name' => (string) ($projects->get((int) $distribution->sales_project_id)?->title ?? ''),
-                ];
-            }
-
-            return $line;
-        })->all();
         $documents = Document::query()->where('tenant_id', $receipt->tenant_id)
             ->where('documentable_type', CustomerBillingReceipt::class)
             ->where('documentable_id', $receipt->id)
@@ -122,7 +158,17 @@ class BillingAuthorizationSnapshotService
                 ];
             })->sortBy(fn (array $fee): string => sprintf('%010d:%s', (int) ($fee['id'] ?? 0), $fee['name']))
             ->values()->all();
-        $frozenFees = $this->normalize($receipt->fee_snapshot ?? []);
+        $feeSnapshot = $receipt->fee_snapshot ?? [];
+        unset($feeSnapshot['document_lines']);
+        if (isset($feeSnapshot['project_snapshots']) && is_array($feeSnapshot['project_snapshots'])) {
+            foreach ($feeSnapshot['project_snapshots'] as &$projectSnapshot) {
+                if (is_array($projectSnapshot)) {
+                    unset($projectSnapshot['document_lines']);
+                }
+            }
+            unset($projectSnapshot);
+        }
+        $frozenFees = $this->normalize($feeSnapshot);
         $frozenFees['calculated'] = $calculatedFees;
         $identity = [
             'tenant' => ['id' => (int) $receipt->tenant_id, 'name' => (string) $receipt->tenant?->name],

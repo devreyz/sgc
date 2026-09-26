@@ -8,9 +8,10 @@ use App\Http\Resources\PdvCustomerResource;
 use App\Http\Resources\PdvSaleResource;
 use App\Models\PdvCustomer;
 use App\Models\PdvSale;
-use App\Models\Product;
 use App\Models\PriceTable;
+use App\Models\Tenant;
 use App\Services\PdvService;
+use App\Support\DocumentMask;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,7 @@ class PdvController extends Controller
     {
         // Resolve pela rota primeiro (mais confiável que session para AJAX)
         $routeTenant = request()->route('tenant');
-        if ($routeTenant instanceof \App\Models\Tenant) {
+        if ($routeTenant instanceof Tenant) {
             return $routeTenant->id;
         }
 
@@ -261,7 +262,16 @@ class PdvController extends Controller
             ->orderBy('name')
             ->get();
 
-        return response()->json($customers);
+        return response()->json($customers->map(fn (PdvCustomer $customer): array => [
+            'id' => $customer->id,
+            'name' => $customer->name,
+            'cpf_cnpj' => DocumentMask::forDisplay($customer->cpf_cnpj),
+            'has_document' => filled($customer->cpf_cnpj),
+            'phone' => $customer->phone,
+            'email' => $customer->email,
+            'credit_balance' => $customer->credit_balance,
+            'status' => $customer->status,
+        ]));
     }
 
     public function storeCustomer(Request $request): JsonResponse
@@ -301,7 +311,7 @@ class PdvController extends Controller
             ->firstOrFail();
 
         $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator', 'priceTable']);
-        $tenant = \App\Models\Tenant::find($this->tenantId());
+        $tenant = Tenant::find($this->tenantId());
 
         return view('pdv.receipt', ['sale' => $model, 'tenant' => $tenant]);
     }
@@ -309,11 +319,11 @@ class PdvController extends Controller
     // ─── DETALHE DE VENDA (JSON) ───────────────────────────
     public function saleDetail(Request $request, $sale): JsonResponse
     {
-                $saleId = $this->resolveSaleId($sale);
-                Log::info("Fetching details for sale ID: {$saleId}, Tenant ID: {$this->tenantId()}");
-                $model = PdvSale::where('id', $saleId)
-                        ->where('tenant_id', $this->tenantId())
-                        ->firstOrFail();
+        $saleId = $this->resolveSaleId($sale);
+        Log::info("Fetching details for sale ID: {$saleId}, Tenant ID: {$this->tenantId()}");
+        $model = PdvSale::where('id', $saleId)
+            ->where('tenant_id', $this->tenantId())
+            ->firstOrFail();
 
         $model->load(['items.product', 'payments', 'fiadoPayments', 'customer', 'creator', 'priceTable']);
 
@@ -324,7 +334,7 @@ class PdvController extends Controller
     public function getCustomer(Request $request, $customer): JsonResponse
     {
         $customerId = $this->resolveCustomerId($customer);
-        Log::info("Fetching customer param: {$customer}, resolved ID: {$customerId}, route params: " . json_encode(request()->route()->parameters()));
+        Log::info("Fetching customer param: {$customer}, resolved ID: {$customerId}, route params: ".json_encode(request()->route()->parameters()));
         $model = PdvCustomer::where('id', $customerId)
             ->where('tenant_id', $this->tenantId())
             ->firstOrFail();
@@ -367,7 +377,7 @@ class PdvController extends Controller
     private function resolveSaleId($sale): int
     {
         $routeSale = request()->route('sale');
-        if ($routeSale instanceof \App\Models\PdvSale) {
+        if ($routeSale instanceof PdvSale) {
             return $routeSale->id;
         }
 
@@ -381,7 +391,9 @@ class PdvController extends Controller
                 return (int) $params['sale'];
             }
             foreach ($params as $v) {
-                if (is_numeric($v)) return (int) $v;
+                if (is_numeric($v)) {
+                    return (int) $v;
+                }
             }
         }
 
@@ -394,7 +406,7 @@ class PdvController extends Controller
     private function resolveCustomerId($customer): int
     {
         $routeCustomer = request()->route('customer');
-        if ($routeCustomer instanceof \App\Models\PdvCustomer) {
+        if ($routeCustomer instanceof PdvCustomer) {
             return $routeCustomer->id;
         }
 
@@ -408,7 +420,9 @@ class PdvController extends Controller
                 return (int) $params['customer'];
             }
             foreach ($params as $v) {
-                if (is_numeric($v)) return (int) $v;
+                if (is_numeric($v)) {
+                    return (int) $v;
+                }
             }
         }
 

@@ -33,6 +33,7 @@ class AccountingPortalSecurityTest extends TestCase
 
         foreach ([
             'activity_log', 'documents', 'customer_receipt_payments', 'associate_receipts',
+            'financial_document_identities',
             'fiscal_profiles', 'billing_authorizations', 'organization_authorized_emails', 'sales_project_organizations',
             'production_deliveries', 'products', 'associates', 'customer_billing_receipts',
             'customers', 'organizations', 'sales_projects', 'bank_accounts',
@@ -66,6 +67,68 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('processes.data.0.number', 'COM-A-0001')
             ->assertJsonPath('processes.data.0.net', 180)
             ->assertJsonPath('processes.data.0.distributions', 1);
+    }
+
+    public function test_accounting_portal_lists_source_receipts_and_shows_their_distributions(): void
+    {
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'receipt_year' => 2026, 'receipt_number' => 8, 'receipt_label' => 'SRC-A-0008',
+            'issued_at' => '2026-08-19', 'status' => 'paid', 'total_net' => 180,
+            'amount_paid' => 180, 'delivery_ids' => json_encode([301]), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => 40]);
+
+        $user = User::query()->findOrFail(1);
+        $this->actingAs($user)->get('/tenant-a/accounting/source-receipts')
+            ->assertOk()->assertSee('Localizar comprovantes e entregas');
+        $this->actingAs($user)->getJson('/tenant-a/accounting/data/source-receipts?search=SRC-A-0008')
+            ->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonCount(1, 'receipts.data')
+            ->assertJsonPath('receipts.data.0.id', 40)
+            ->assertJsonPath('receipts.data.0.distribution_count', 1);
+        $this->actingAs($user)->getJson('/tenant-a/accounting/data/source-receipts/40')
+            ->assertOk()->assertJsonCount(1, 'distributions')
+            ->assertJsonPath('distributions.0.id', 301)
+            ->assertJsonPath('processes.0.id', 10);
+    }
+
+    public function test_source_receipt_detail_is_tenant_scoped(): void
+    {
+        DB::table('associate_receipts')->insert([
+            'id' => 41, 'tenant_id' => 2, 'sales_project_id' => 20, 'associate_id' => 999,
+            'receipt_year' => 2026, 'receipt_number' => 1, 'receipt_label' => 'SRC-B-0001',
+            'issued_at' => '2026-08-19', 'status' => 'paid', 'total_net' => 900,
+            'amount_paid' => 900, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/accounting/data/source-receipts/41')
+            ->assertNotFound();
+    }
+
+    public function test_treasurer_can_authorize_the_organization_email_inside_the_accounting_flow(): void
+    {
+        DB::table('organization_authorized_emails')->where('tenant_id', 1)->delete();
+        DB::table('organizations')->where('id', 1)->update([
+            'email' => 'responsavel@prefeitura.test',
+            'responsible_name' => 'Responsável Financeira',
+        ]);
+
+        $this->actingAs(User::query()->findOrFail(1))
+            ->postJson('/tenant-a/accounting/data/processes/10/authorization/access', [
+                'email' => 'RESPONSAVEL@PREFEITURA.TEST',
+                'name' => 'Responsável Financeira',
+            ])->assertOk()
+            ->assertJsonPath('access.configured', true)
+            ->assertJsonPath('access.recipients.0.email', 'responsavel@prefeitura.test');
+
+        $this->assertDatabaseHas('organization_authorized_emails', [
+            'tenant_id' => 1,
+            'organization_id' => 1,
+            'email' => 'responsavel@prefeitura.test',
+            'active' => true,
+        ]);
     }
 
     public function test_receipt_from_another_tenant_is_not_addressable_by_id(): void
@@ -248,6 +311,33 @@ class AccountingPortalSecurityTest extends TestCase
         self::assertSame(0, $inspection['critical_count']);
         self::assertSame(1, $inspection['preparation_count']);
         self::assertSame(1, $inspection['blocking_count']);
+    }
+
+    public function test_draft_uses_delivery_ids_until_freeze_in_integrity_and_dossier(): void
+    {
+        DB::table('customer_billing_receipts')->where('id', 10)->update([
+            'status' => 'draft',
+            'delivery_ids' => json_encode([301]),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null]);
+
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $inspection = app(AccountingProcessIntegrityService::class)->inspect($receipt);
+        self::assertNotContains('missing_distributions', collect($inspection['issues'])->pluck('code')->all());
+
+        $user = User::query()->findOrFail(1);
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/data/processes/10')
+            ->assertOk()
+            ->assertJsonPath('process.summary.distributions', 1)
+            ->assertJsonPath('distributions.total', 1)
+            ->assertJsonPath('distributions.data.0.id', 301);
+
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/data/processes?financial_status=draft')
+            ->assertOk()
+            ->assertJsonPath('processes.data.0.distributions', 1)
+            ->assertJsonPath('processes.data.0.preparation_issues', 0);
     }
 
     public function test_filters_cannot_expand_results_to_another_tenant(): void
@@ -628,29 +718,33 @@ class AccountingPortalSecurityTest extends TestCase
         self::assertSame([], $gate['blocks']);
     }
 
-    public function test_fiscal_gate_blocks_missing_authorization_and_missing_profile(): void
+    public function test_fiscal_gate_treats_buyer_authorization_as_optional_but_requires_profile(): void
     {
         $gate = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
 
         self::assertFalse($gate['ready']);
-        self::assertContains('authorization_missing', collect($gate['blocks'])->pluck('code')->all());
+        self::assertNotContains('authorization_missing', collect($gate['blocks'])->pluck('code')->all());
+        self::assertContains('buyer_authorization_not_sent', collect($gate['warnings'])->pluck('code')->all());
         self::assertContains('fiscal_profile_missing', collect($gate['blocks'])->pluck('code')->all());
     }
 
-    public function test_fiscal_gate_blocks_sent_invalidated_and_outdated_authorizations(): void
+    public function test_fiscal_gate_warns_but_does_not_block_on_optional_outdated_authorizations(): void
     {
         $round = $this->sendRound();
         $this->createFiscalProfile();
         $sent = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
-        self::assertContains('authorization_invalid', collect($sent['blocks'])->pluck('code')->all());
+        self::assertNotContains('authorization_invalid', collect($sent['blocks'])->pluck('code')->all());
+        self::assertContains('buyer_authorization_outdated', collect($sent['warnings'])->pluck('code')->all());
 
         $round->forceFill(['status' => BillingAuthorizationStatus::INVALIDATED, 'active_marker' => true])->save();
         $invalidated = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
-        self::assertContains('authorization_invalid', collect($invalidated['blocks'])->pluck('code')->all());
+        self::assertNotContains('authorization_invalid', collect($invalidated['blocks'])->pluck('code')->all());
+        self::assertContains('buyer_authorization_outdated', collect($invalidated['warnings'])->pluck('code')->all());
 
         $round->forceFill(['status' => BillingAuthorizationStatus::AUTHORIZED, 'snapshot_hash' => str_repeat('0', 64)])->save();
         $outdated = app(FiscalGateService::class)->evaluate(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), 1);
-        self::assertContains('authorization_invalid', collect($outdated['blocks'])->pluck('code')->all());
+        self::assertNotContains('authorization_invalid', collect($outdated['blocks'])->pluck('code')->all());
+        self::assertContains('buyer_authorization_outdated', collect($outdated['warnings'])->pluck('code')->all());
     }
 
     public function test_inactive_or_incomplete_fiscal_profile_blocks_preparation(): void
@@ -667,7 +761,7 @@ class AccountingPortalSecurityTest extends TestCase
         self::assertContains('fiscal_amount_unresolved', $codes);
     }
 
-    public function test_fiscal_amount_is_read_from_authorized_snapshot(): void
+    public function test_outdated_optional_authorization_is_ignored_in_favor_of_current_frozen_billing(): void
     {
         $round = $this->authorizeRound();
         $this->createFiscalProfile(['amount_source' => 'authorized_gross']);
@@ -676,10 +770,10 @@ class AccountingPortalSecurityTest extends TestCase
         $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
         $gate = app(FiscalGateService::class)->evaluate($receipt, 1);
 
-        self::assertFalse($gate['ready']);
+        self::assertTrue($gate['ready']);
         self::assertSame('200.0000', data_get($round->snapshot, 'totals.gross'));
-        self::assertNull($gate['expected_fiscal_amount']);
-        self::assertContains('authorization_invalid', collect($gate['blocks'])->pluck('code')->all());
+        self::assertSame('999.0000', $gate['expected_fiscal_amount']);
+        self::assertContains('buyer_authorization_outdated', collect($gate['warnings'])->pluck('code')->all());
     }
 
     public function test_fiscal_queue_and_prepare_flow_are_permission_and_tenant_aware(): void
@@ -689,14 +783,42 @@ class AccountingPortalSecurityTest extends TestCase
         $user = User::query()->findOrFail(1);
 
         $this->actingAs($user)->get('/tenant-a/accounting/fiscal')->assertOk();
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/settings?receipt=10&project=10')
+            ->assertOk()->assertSee('Salvar e abrir faturamento completo');
         $this->actingAs($user)->getJson('/tenant-a/accounting/data/fiscal')->assertOk()
             ->assertHeader('Cache-Control', 'no-store, private')
             ->assertJsonCount(1, 'processes.data')
             ->assertJsonPath('processes.data.0.gate', 'ready')
+            ->assertJsonPath('processes.data.0.action', 'Imprimir faturamento completo')
             ->assertJsonMissingPath('processes.data.0.authorization.snapshot');
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/10')->assertOk()->assertSee('Abrir faturamento completo');
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/10/billing-sheet')
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->actingAs($user)->postJson('/tenant-a/accounting/fiscal/10/prepare')->assertOk();
         $this->actingAs($user)->get('/tenant-a/accounting/fiscal/20')->assertNotFound();
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/20/billing-sheet')->assertNotFound();
         $this->assertDatabaseHas('activity_log', ['subject_id' => 10, 'description' => 'Preparação fiscal iniciada']);
+    }
+
+    public function test_saving_active_configuration_from_billing_opens_printable_sheet_without_buyer_access(): void
+    {
+        $user = User::query()->findOrFail(1);
+
+        $this->actingAs($user)->post('/tenant-a/accounting/fiscal/settings', [
+            'project_id' => 10,
+            'receipt_id' => 10,
+            'document_type' => 'nfse',
+            'amount_source' => 'authorized_final',
+            'active' => 1,
+        ])->assertRedirect('/tenant-a/accounting/fiscal/10/billing-sheet');
+
+        $this->assertDatabaseHas('fiscal_profiles', [
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'status' => 'active',
+            'active_marker' => 1,
+        ]);
+        $this->assertDatabaseCount('billing_authorizations', 0);
     }
 
     public function test_user_without_fiscal_permission_receives_forbidden(): void
@@ -707,6 +829,7 @@ class AccountingPortalSecurityTest extends TestCase
 
         $this->actingAs($user)->get('/tenant-a/accounting/fiscal')->assertForbidden();
         $this->actingAs($user)->getJson('/tenant-a/accounting/data/fiscal')->assertForbidden();
+        $this->actingAs($user)->get('/tenant-a/accounting/fiscal/10/billing-sheet')->assertForbidden();
         $this->actingAs($user)->postJson('/tenant-a/accounting/fiscal/10/prepare')->assertForbidden();
     }
 
@@ -861,6 +984,7 @@ class AccountingPortalSecurityTest extends TestCase
             $table->string('short_name')->nullable();
             $table->string('cnpj')->nullable();
             $table->string('responsible_name')->nullable();
+            $table->string('email')->nullable();
             $table->string('address')->nullable();
             $table->string('city')->nullable();
             $table->string('state')->nullable();
@@ -1028,6 +1152,16 @@ class AccountingPortalSecurityTest extends TestCase
             $table->decimal('total_net', 14, 4)->default(0);
             $table->decimal('amount_paid', 14, 2)->default(0);
             $table->json('delivery_ids')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('financial_document_identities', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->uuid('public_id')->nullable();
+            $table->string('reference_code')->nullable();
+            $table->string('documentable_type');
+            $table->unsignedBigInteger('documentable_id');
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
         });
         Schema::create('customer_receipt_payments', function (Blueprint $table): void {

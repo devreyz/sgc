@@ -127,7 +127,7 @@
             <td class="info-label">{{ $associateTerm }}</td>
             <td>{{ $associateName }}</td>
             <td class="info-label">CPF/CNPJ</td>
-            <td>{{ $cpf }}</td>
+            <td>{{ \App\Support\DocumentMask::forDisplay($cpf) }}</td>
         </tr>
         <tr>
             <td class="info-label">Forma de Pgto</td>

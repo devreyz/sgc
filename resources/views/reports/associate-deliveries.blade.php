@@ -18,7 +18,7 @@
     </div>
     <div class="bento-card">
         <div class="label">CPF / CNPJ</div>
-        <div class="value">{{ $associate->cpf_cnpj ?? 'N/D' }}</div>
+        <div class="value">{{ \App\Support\DocumentMask::forDisplay($associate->cpf_cnpj) }}</div>
     </div>
     <div class="bento-card">
         <div class="label">Código do Membro</div>

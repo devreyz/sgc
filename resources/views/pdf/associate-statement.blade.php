@@ -82,7 +82,7 @@
             <div class="info-box">
                 <h3>Dados Pessoais</h3>
                 <div class="info-row"><span class="label">Nome:</span> {{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</div>
-                @if($associate->cpf)<div class="info-row"><span class="label">CPF:</span> {{ $associate->cpf }}</div>@endif
+                @if($associate->cpf)<div class="info-row"><span class="label">CPF:</span> {{ \App\Support\DocumentMask::forDisplay($associate->cpf) }}</div>@endif
                 @if($associate->user && $associate->user->phone)<div class="info-row"><span class="label">Telefone:</span> {{ $associate->user->phone }}</div>@endif
                 @if($associate->user && $associate->user->email)<div class="info-row"><span class="label">E-mail:</span> {{ $associate->user->email }}</div>@endif
                 <div class="info-row" style="margin-top: 6px;">

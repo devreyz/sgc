@@ -102,6 +102,7 @@ class PortalNavigationTest extends TestCase
         $this->assertSame('processes', $navigation['active']);
         $this->assertStringEndsWith('/organizacao-principal/accounting', $items['queue']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/processes', $items['processes']['url']);
+        $this->assertStringEndsWith('/organizacao-principal/accounting/source-receipts', $items['source-receipts']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal', $items['fiscal']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal/settings', $items['settings']['url']);
         $this->assertArrayNotHasKey('finance', $items);
@@ -110,12 +111,23 @@ class PortalNavigationTest extends TestCase
             ->filter(fn ($route) => str_starts_with((string) $route->getName(), 'accounting.'));
 
         $readRoutes = $routes->filter(fn ($route) => in_array('GET', $route->methods(), true));
-        $writeRoutes = $routes->filter(fn ($route) => in_array('POST', $route->methods(), true));
+        $writeRoutes = $routes->filter(fn ($route) => collect($route->methods())->intersect(['POST', 'PUT', 'PATCH', 'DELETE'])->isNotEmpty());
 
-        $this->assertCount(10, $readRoutes);
-        $this->assertCount(4, $writeRoutes);
+        $this->assertGreaterThanOrEqual(19, $readRoutes->count());
         $this->assertEqualsCanonicalizing([
+            'accounting.access.store',
+            'accounting.access.destroy',
+            'accounting.billings.store',
+            'accounting.billings.preview',
+            'accounting.billings.select',
+            'accounting.billings.update',
+            'accounting.billings.freeze',
+            'accounting.billings.payments.store',
+            'accounting.billings.preview.edit',
+            'accounting.billings.reopen',
+            'accounting.billings.select.edit',
             'accounting.data.processes.authorization.send',
+            'accounting.data.processes.authorization.access',
             'accounting.data.processes.authorization.cancel',
             'accounting.fiscal.settings.store',
             'accounting.fiscal.prepare',

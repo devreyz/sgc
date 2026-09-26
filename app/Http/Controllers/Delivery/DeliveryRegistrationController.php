@@ -29,6 +29,7 @@ use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\DeliveryQuantityAdjustmentService;
+use App\Services\NotificationService;
 use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
 use App\Services\ProjectFinancialCalculator;
@@ -36,10 +37,12 @@ use App\Services\ReceiptDataBuilder;
 use App\Services\ReceiptFeeColumnService;
 use App\Services\TemplatedPdfService;
 use App\Services\TenantGoogleDriveService;
+use App\Support\DocumentMask;
 use App\Support\PortalNavigation;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -361,7 +364,14 @@ class DeliveryRegistrationController extends Controller
         return $gross > 0 ? $gross / $quantity : 0.0;
     }
 
-    private function receiptDistributionIntegrityMessage($distributions, int $tenantId, int $projectId, ?int $associateId = null, ?int $receiptId = null): ?string
+    private function receiptDistributionIntegrityMessage(
+        $distributions,
+        int $tenantId,
+        int $projectId,
+        ?int $associateId = null,
+        ?int $receiptId = null,
+        bool $requireUnbilled = true,
+    ): ?string
     {
         $distributions = collect($distributions)->values();
 
@@ -400,11 +410,11 @@ class DeliveryRegistrationController extends Controller
                 return "A distribuicao #{$distribution->id} esta com valor bruto zerado.";
             }
 
-            if (
+            if ($requireUnbilled && (
                 $distribution->paid
                 || $distribution->billing_status !== BillingStatus::UNBILLED
                 || ! is_null($distribution->billing_receipt_id)
-            ) {
+            )) {
                 return "A distribuicao #{$distribution->id} ja foi faturada, paga ou vinculada a cobranca.";
             }
 
@@ -991,7 +1001,7 @@ class DeliveryRegistrationController extends Controller
 
             DB::commit();
 
-            app(\App\Services\NotificationService::class)
+            app(NotificationService::class)
                 ->notifyDistributionCompleted($reception, count($created));
 
             $affectedOrganizations->unique()->each(function (int $organizationId) use ($requestFulfillment, $tenantId, $project) {
@@ -2770,7 +2780,7 @@ class DeliveryRegistrationController extends Controller
             $assoc = $items->first()->associate;
             $groups[] = [
                 'associate_name' => $assoc?->display_name ?? 'Associado nao identificado',
-                'cpf' => $assoc?->cpf_cnpj ?? '',
+                'cpf' => DocumentMask::forDisplay($assoc?->cpf_cnpj),
                 'deliveries_count' => $items->count(),
                 'total_quantity' => $items->sum('quantity'),
                 'gross_value' => $items->sum('gross_value'),
@@ -3330,7 +3340,7 @@ class DeliveryRegistrationController extends Controller
                 return [
                     'associate' => $assoc,
                     'name' => $assoc?->display_name ?? 'Associado nao identificado',
-                    'cpf' => $assoc?->cpf_cnpj ?? '—',
+                    'cpf' => DocumentMask::forDisplay($assoc?->cpf_cnpj),
                     'registration' => $assoc?->registration_number ?? '—',
                     'deliveries' => $items->count(),
                     'quantity' => $items->sum('quantity'),
@@ -3526,7 +3536,7 @@ class DeliveryRegistrationController extends Controller
             return [
                 'associate_id' => (int) $row->associate_id,
                 'name' => $row->associate_name ?: 'Associado #'.$row->associate_id,
-                'cpf' => $row->cpf_cnpj ?: '-',
+                'cpf' => DocumentMask::forDisplay($row->cpf_cnpj),
                 'registration' => $row->registration_number ?: '-',
                 'deliveries' => (int) $row->deliveries_count,
                 'quantity' => (float) $row->total_quantity,
@@ -3669,6 +3679,26 @@ class DeliveryRegistrationController extends Controller
             $feeDefinitions,
             ReceiptFeeColumnService::STATIC_COLUMNS,
         );
+
+        // Este endpoint tambem aparece em links antigos. Uma navegacao normal do
+        // navegador deve abrir o documento, nunca despejar a resposta tecnica JSON.
+        // As telas atuais enviam Accept: application/json e continuam usando a API.
+        if (! $request->expectsJson()) {
+            $latestPrintable = $receipts->first(
+                fn (AssociateReceipt $receipt): bool => $receipt->status !== ReceiptStatus::OBSOLETE
+            );
+
+            if ($latestPrintable) {
+                return redirect()->route('delivery.projects.receipt-reprint', [
+                    'tenant' => $tenantSlug,
+                    'project' => $projectId,
+                    'receipt' => $latestPrintable->id,
+                    'preview' => 1,
+                ]);
+            }
+
+            return redirect()->back()->with('error', 'Nenhum comprovante válido foi encontrado para visualizar.');
+        }
 
         return response()->json([
             'success' => true,
@@ -4516,7 +4546,8 @@ class DeliveryRegistrationController extends Controller
             ->findOrFail($receiptId);
 
         if ($receipt->status === ReceiptStatus::OBSOLETE) {
-            return redirect()->back()->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
+            return redirect()->route('delivery.projects.producers', ['tenant' => $request->route('tenant'), 'project' => $projectId])
+                ->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
         }
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
@@ -4555,11 +4586,22 @@ class DeliveryRegistrationController extends Controller
         $deliveries = $query->get();
 
         if ($deliveries->isEmpty()) {
-            return redirect()->back()->with('error', 'Não há entregas disponíveis para reimprimir este comprovante.');
+            return redirect()->route('delivery.projects.producers', ['tenant' => $request->route('tenant'), 'project' => $projectId])
+                ->with('error', 'Não há entregas disponíveis para reimprimir este comprovante.');
         }
 
-        if ($message = $this->receiptDistributionIntegrityMessage($deliveries, (int) $tenantId, $projectId, (int) $associate->id, $receipt->id)) {
-            return redirect()->back()->with('error', $message);
+        // Reimpressão é leitura de um documento já emitido. Uma distribuição já
+        // faturada ou paga é válida aqui e nunca deve reutilizar regras de criação.
+        if ($message = $this->receiptDistributionIntegrityMessage(
+            $deliveries,
+            (int) $tenantId,
+            $projectId,
+            (int) $associate->id,
+            $receipt->id,
+            false,
+        )) {
+            return redirect()->route('delivery.projects.producers', ['tenant' => $request->route('tenant'), 'project' => $projectId])
+                ->with('error', $message);
         }
 
         $receiptData = ReceiptDataBuilder::fromDeliveries($deliveries, null, $project, $receipt->fee_snapshot);
@@ -4617,7 +4659,7 @@ class DeliveryRegistrationController extends Controller
         AssociateReceipt $receipt,
         SalesProject $project,
         string $filename,
-    ): ?\Illuminate\Http\Response {
+    ): ?Response {
         $driveState = app(AssociateReceiptDriveState::class);
         $fingerprint = $driveState->fingerprint($receipt);
         if (! $driveState->alreadyHandled($receipt, $fingerprint)) {

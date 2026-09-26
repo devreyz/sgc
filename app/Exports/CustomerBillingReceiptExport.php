@@ -22,7 +22,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
     public const AVAILABLE_COLUMNS = [
         'delivery_date' => 'Data Entrega',
         'product' => 'Produto',
-        'customer' => 'Comprador',
+        'customer' => 'Cliente / Destinatário',
         'associate' => 'Produtor',
         'quantity' => 'Quantidade',
         'unit' => 'Unidade',
@@ -30,11 +30,11 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
         'gross' => 'Valor Bruto (R$)',
         'fees' => 'Deduções (R$)',
         'net' => 'Valor Líquido (R$)',
-        'receipt_number' => 'Nº Cobrança',
+        'receipt_number' => 'Nº Faturamento',
         'issued_at' => 'Data de Emissão',
         'project' => 'Projeto',
         'billing_status' => 'Status Dist.',
-        'receipt_status' => 'Status Cobrança',
+        'receipt_status' => 'Status Faturamento',
     ];
 
     public const DEFAULT_COLUMNS = [
@@ -96,12 +96,12 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
         // ── Linha de título (será mesclada) ──────────────────────────────────
         $pad = array_fill(0, max(0, $colCount - 1), null);
         $this->allRows[] = array_merge(
-            ['Comprovante de Cobrança — Nº '.$receipt->formatted_number],
+            ['Faturamento — Nº '.$receipt->formatted_number],
             $pad
         );
 
         // ── Linha de metadados ───────────────────────────────────────────────
-        $meta = "Emissão: {$issuedAt}   |   Comprador/Org.: {$customerName}   |   Projeto: {$projectName}   |   Valor Líquido: {$totalNet}";
+        $meta = "Emissão: {$issuedAt}   |   Destinatário: {$customerName}   |   Projeto: {$projectName}   |   Total: {$totalNet}";
         $this->allRows[] = array_merge([$meta], $pad);
 
         // ── Spacer ───────────────────────────────────────────────────────────
@@ -114,41 +114,59 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
         );
 
         // ── Linhas de dados ──────────────────────────────────────────────────
+        $documentLines = collect($receipt->documentLines());
         $deliveryIds = $receipt->delivery_ids ?? [];
-        $distributions = empty($deliveryIds)
-            ? collect()
-            : ProductionDelivery::whereIn('id', $deliveryIds)
+        $distributions = collect();
+
+        // Compatibilidade de leitura para comprovantes legados. Novos
+        // faturamentos sempre usam exclusivamente as linhas congeladas.
+        if ($documentLines->isEmpty() && ! empty($deliveryIds)) {
+            $distributions = ProductionDelivery::query()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->whereIn('id', $deliveryIds)
                 ->with(['salesProject:id,title', 'product', 'customer', 'associate.user'])
                 ->orderBy('delivery_date')
                 ->get();
+            $documentLines = $distributions->map(fn ($distribution): array => [
+                'project' => $distribution->salesProject?->title ?? '—',
+                'product' => $distribution->product?->name ?? '—',
+                'unit' => $distribution->product?->unit ?? 'un',
+                'quantity' => (string) $distribution->quantity,
+                'unit_price' => (string) $distribution->unit_price,
+                'document_gross' => (string) ($distribution->gross_value
+                    ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8)),
+                'document_fees' => '0.00',
+                'document_amount' => (string) ($distribution->gross_value
+                    ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8)),
+                'delivery_date' => $distribution->delivery_date?->format('d/m/Y') ?? '—',
+                'customer' => $distribution->customer?->name ?? $customerName,
+                'associate' => $distribution->associate?->display_name ?? '—',
+                'billing_status' => $distribution->billing_status?->getLabel() ?? '—',
+            ]);
+        }
 
-        $totalGross = $distributions->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
-        $totalFees = (float) ($receipt->total_fees ?? 0);
-
-        foreach ($distributions as $d) {
-            $gross = (float) $d->quantity * (float) $d->unit_price;
-            $fees = $totalGross > 0
-                ? round($gross / $totalGross * $totalFees, 4)
-                : 0.0;
-            $net = $gross - $fees;
+        foreach ($documentLines as $line) {
+            $gross = (string) ($line['document_gross'] ?? '0.00');
+            $fees = (string) ($line['document_fees'] ?? '0.00');
+            $net = (string) ($line['document_amount'] ?? '0.00');
 
             $row = [];
             foreach ($cols as $col) {
                 $row[] = match ($col) {
                     'receipt_number' => $receipt->formatted_number,
                     'issued_at' => $receipt->issued_at?->format('d/m/Y') ?? '—',
-                    'project' => $d->salesProject?->title ?? '—',
-                    'delivery_date' => $d->delivery_date?->format('d/m/Y') ?? '—',
-                    'product' => $d->product?->name ?? '—',
-                    'customer' => $d->customer?->name ?? '—',
-                    'associate' => $d->associate?->display_name ?? '—',
-                    'quantity' => (float) $d->quantity,
-                    'unit' => $d->product?->unit ?? 'kg',
-                    'unit_price' => (float) $d->unit_price,
+                    'project' => $line['project'] ?? $projectName,
+                    'delivery_date' => $line['delivery_date'] ?? ($receipt->from_date?->format('d/m/Y').' a '.$receipt->to_date?->format('d/m/Y')),
+                    'product' => $line['product'] ?? '—',
+                    'customer' => $line['customer'] ?? $customerName,
+                    'associate' => $line['associate'] ?? 'Consolidado',
+                    'quantity' => (string) ($line['quantity'] ?? '0'),
+                    'unit' => $line['unit'] ?? 'un',
+                    'unit_price' => (string) ($line['unit_price'] ?? '0'),
                     'gross' => $gross,
                     'fees' => $fees,
                     'net' => $net,
-                    'billing_status' => $d->billing_status?->getLabel() ?? '—',
+                    'billing_status' => $line['billing_status'] ?? 'Faturada',
                     'receipt_status' => $receipt->status?->getLabel() ?? '—',
                     default => '—',
                 };
@@ -156,14 +174,19 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
             $this->allRows[] = $row;
         }
 
-        $this->dataCount = $distributions->count();
+        $this->dataCount = $documentLines->count();
         $this->footerRow = $this->dataStart + $this->dataCount;
 
         // ── Linha de totais (rodapé) ─────────────────────────────────────────
         $footer = [];
         $labelSet = false;
-        $qtyTotal = $distributions->sum(fn ($d) => (float) $d->quantity);
-        $netFromReceipt = (float) ($receipt->total_net ?? ($totalGross - $totalFees));
+        $qtyTotal = $documentLines->reduce(
+            fn (string $total, array $line): string => bcadd($total, (string) ($line['quantity'] ?? 0), 8),
+            '0',
+        );
+        $totalGross = (string) ($receipt->total_gross ?? '0.00');
+        $totalFees = (string) ($receipt->total_fees ?? '0.00');
+        $netFromReceipt = (string) ($receipt->total_net ?? '0.00');
 
         foreach ($cols as $col) {
             if (! $labelSet && ! in_array($col, self::NUMERIC_COLS)) {
@@ -175,7 +198,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
             } elseif ($col === 'gross') {
                 $footer[] = $totalGross;
             } elseif ($col === 'fees') {
-                $footer[] = $totalFees > 0 ? $totalFees : null;
+                $footer[] = bccomp($totalFees, '0', 2) !== 0 ? $totalFees : null;
             } elseif ($col === 'net') {
                 $footer[] = $netFromReceipt;
             } else {
@@ -203,7 +226,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
 
     public function title(): string
     {
-        return 'Cobrança '.str_replace(['/', '\\', '?', '*', '[', ']', ':'], '-', $this->receipt->formatted_number ?? 'S-N');
+        return 'Faturamento '.str_replace(['/', '\\', '?', '*', '[', ']', ':'], '-', $this->receipt->formatted_number ?? 'S-N');
     }
 
     public function styles(Worksheet $sheet): array

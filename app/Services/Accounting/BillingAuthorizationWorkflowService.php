@@ -271,7 +271,10 @@ class BillingAuthorizationWorkflowService
         }
         if (! OrganizationAuthorizedEmail::withoutGlobalScope('tenant')->where('tenant_id', $receipt->tenant_id)
             ->where('organization_id', $organizationId)->where('active', true)->exists()) {
-            $issues[] = $this->issue('organization_without_access', 'A organização não possui e-mail autorizado ativo.');
+            $issues[] = $this->issue(
+                'organization_without_access',
+                'O e-mail do cadastro geral não concede aprovação. Autorize o e-mail de um representante na aba Autorização deste dossiê.'
+            );
         }
         $inspection = $this->integrity->inspect($receipt->setRelation('billingDistributions', $distributions));
         $issues = array_merge($issues, $inspection['issues']);

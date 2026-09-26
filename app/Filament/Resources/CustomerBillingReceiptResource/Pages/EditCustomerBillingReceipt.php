@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 
 use App\Filament\Resources\CustomerBillingReceiptResource;
+use App\Models\Customer;
+use App\Models\Organization;
 use App\Models\SalesProject;
 use App\Services\CustomerBillingReceiptService;
 use App\Services\ProjectReceiptNumberingService;
@@ -41,6 +43,21 @@ class EditCustomerBillingReceipt extends EditRecord
     {
         // Nunca permite alterar campos de controle
         unset($data['tenant_id'], $data['status'], $data['project_ids']);
+        $customerId = filled($data['customer_id'] ?? null) ? (int) $data['customer_id'] : null;
+        $organizationId = filled($data['organization_id'] ?? null) ? (int) $data['organization_id'] : null;
+        if (($customerId === null) === ($organizationId === null)) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Escolha exatamente um destinatário: cliente ou organização.',
+            ]);
+        }
+        $recipientExists = $customerId
+            ? Customer::withoutGlobalScopes()->where('tenant_id', $this->record->tenant_id)->whereKey($customerId)->exists()
+            : Organization::withoutGlobalScopes()->where('tenant_id', $this->record->tenant_id)->whereKey($organizationId)->exists();
+        if (! $recipientExists) {
+            throw ValidationException::withMessages([
+                $customerId ? 'customer_id' : 'organization_id' => 'O destinatário não pertence à organização atual.',
+            ]);
+        }
         $tenantDuplicate = $this->record->newQuery()
             ->where('tenant_id', $this->record->tenant_id)
             ->where('tenant_receipt_year', $data['tenant_receipt_year'])

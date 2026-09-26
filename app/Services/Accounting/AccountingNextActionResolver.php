@@ -39,6 +39,22 @@ class AccountingNextActionResolver
         }
 
         if ($status !== CustomerReceiptStatus::DRAFT) {
+            if ($fiscalGate !== null) {
+                $hardBlocks = collect($fiscalGate['blocks'] ?? [])->pluck('code')
+                    ->intersect(['tenant_mismatch', 'financial_integrity_error']);
+                if ($hardBlocks->isEmpty()) {
+                    return [
+                        'state' => 'ready_for_fiscal',
+                        'label' => 'Faturamento pronto',
+                        'tone' => 'success',
+                        'next_action' => 'Imprimir o faturamento completo',
+                        'next_action_key' => 'prepare_fiscal',
+                    ];
+                }
+
+                return ['state' => 'fiscal_blocked', 'label' => 'Dados a corrigir', 'tone' => 'danger', 'next_action' => 'Corrigir os dados indicados para gerar a folha', 'next_action_key' => 'review_fiscal_block'];
+            }
+
             $authorization = match ($authorizationState) {
                 'sent' => ['state' => 'awaiting_organization', 'label' => 'Aguardando organização', 'tone' => 'warning', 'next_action' => 'Aguardar a análise da organização', 'next_action_key' => 'await_organization'],
                 'correction_requested' => ['state' => 'correction_requested', 'label' => 'Correção solicitada', 'tone' => 'danger', 'next_action' => 'Revisar a solicitação e enviar nova versão', 'next_action_key' => 'review_correction'],
@@ -49,6 +65,7 @@ class AccountingNextActionResolver
             if ($authorization) {
                 return $authorization;
             }
+
         }
 
         return match ($status) {

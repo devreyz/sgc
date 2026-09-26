@@ -14,786 +14,357 @@
 @endphp
 
 @section('content')
+@once
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+@endonce
+
 <style>
-    .projects-shell {
-        --projects-green: var(--color-primary, #22c55e);
-        --projects-green-dark: var(--color-primary-dark, #16a34a);
-        --projects-green-deep: var(--color-primary-deep, #15803d);
-        --projects-surface: var(--color-surface, #ffffff);
-        --projects-soft: var(--color-surface-soft, #f8faf9);
-        --projects-muted: var(--color-surface-muted, #eef4f0);
-        --projects-border: var(--color-border, #dce6df);
-        --projects-border-strong: var(--color-border-strong, #c8d6cd);
-        --projects-text: var(--color-text, #102018);
-        --projects-secondary: var(--color-text-secondary, #52645a);
-        --projects-faded: var(--color-text-muted, #809087);
-        --projects-danger: var(--color-danger, #dc2626);
-        --projects-warning: var(--color-warning, #d97706);
-        --projects-info: var(--color-info, #0284c7);
-        --projects-shadow-sm: 0 5px 18px rgba(15, 35, 24, .055);
-        --projects-shadow: 0 12px 34px rgba(15, 35, 24, .075);
+    /*
+     * CSS local da tela.
+     *
+     * O visual genérico vem do novo theme.css + design-system.css.
+     * Aqui ficam somente a composição específica da listagem de projetos,
+     * o tooltip contextual e os ajustes responsivos desta página.
+     */
 
-        display: grid;
-        width: min(100%, 1320px);
-        min-width: 0;
-        grid-column: 1 / -1;
-        gap: .85rem;
-        margin: 0 auto;
-        padding-bottom: 1.25rem;
-        color: var(--projects-text);
+    .viewer-projects {
+        --viewer-list-columns:
+            minmax(260px, 1.55fr)
+            110px
+            110px
+            92px
+            minmax(160px, .75fr)
+            32px;
     }
 
-    .projects-shell *,
-    .projects-shell *::before,
-    .projects-shell *::after {
-        box-sizing: border-box;
-    }
-
-    .projects-projectbar {
-        position: relative;
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .8rem;
-        align-items: center;
-        padding: .78rem .85rem;
-        border: 1px solid var(--projects-border);
-        border-left: 4px solid var(--projects-green-dark);
-        border-radius: 14px;
-        background:
-            linear-gradient(90deg, rgba(236, 253, 245, .75), rgba(255, 255, 255, .96) 36%),
-            var(--projects-surface);
-        box-shadow: var(--projects-shadow-sm);
-    }
-
-    .projects-project-icon {
-        display: grid;
-        width: 44px;
-        height: 44px;
-        place-items: center;
-        border-radius: 12px;
-        background: linear-gradient(145deg, #dcfce7, #ecfdf5);
-        color: var(--projects-green-dark);
-        box-shadow: inset 0 0 0 1px rgba(34, 197, 94, .12);
-    }
-
-    .projects-project-icon svg {
-        width: 21px;
-        height: 21px;
-    }
-
-    .projects-project-copy {
-        min-width: 0;
-    }
-
-    .projects-kicker {
-        display: flex;
-        align-items: center;
-        gap: .38rem;
-        color: var(--projects-green-dark);
-        font-size: .62rem;
-        font-weight: 820;
-        letter-spacing: .065em;
-        text-transform: uppercase;
-    }
-
-    .projects-kicker svg {
-        width: 13px;
-        height: 13px;
-    }
-
-    .projects-title {
-        margin: .14rem 0 0;
-        overflow: hidden;
-        color: var(--projects-text);
-        font-size: clamp(1.02rem, 2vw, 1.35rem);
-        font-weight: 860;
-        letter-spacing: -.03em;
-        line-height: 1.2;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .projects-meta {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: .35rem .72rem;
-        margin-top: .34rem;
-        color: var(--projects-secondary);
-        font-size: .68rem;
-        font-weight: 650;
-    }
-
-    .projects-meta > span {
+    .viewer-head-count {
         display: inline-flex;
-        align-items: center;
+        min-height: 32px;
         gap: .3rem;
-    }
-
-    .projects-meta svg {
-        width: 13px;
-        height: 13px;
-        color: var(--projects-faded);
-    }
-
-    .projects-project-actions {
-        display: flex;
         align-items: center;
-        gap: .42rem;
-    }
-
-    .projects-summary-chip {
-        display: inline-flex;
-        min-height: 38px;
-        align-items: center;
-        gap: .45rem;
-        padding: .42rem .58rem;
-        border: 1px solid var(--projects-border);
-        border-radius: 10px;
-        background: var(--projects-surface);
-        color: var(--projects-secondary);
-        font-size: .62rem;
-        font-weight: 720;
+        padding: .28rem .48rem;
+        border: 1px solid var(--ui-color-border);
+        border-radius: var(--ui-radius-sm);
+        background: var(--ui-color-surface);
+        color: var(--ui-color-text-secondary);
+        font-size: .66rem;
+        font-weight: 760;
         white-space: nowrap;
     }
 
-    .projects-summary-chip svg {
-        width: 15px;
-        height: 15px;
-        color: var(--projects-green-dark);
-    }
-
-    .projects-summary-chip strong {
-        color: var(--projects-text);
-        font-size: .74rem;
+    .viewer-head-count strong {
+        color: var(--ui-color-text);
+        font-size: .72rem;
         font-weight: 850;
     }
 
-    .projects-help-button {
+    .viewer-toolbar {
         display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border: 1px solid var(--projects-border);
-        border-radius: 10px;
-        background: var(--projects-surface);
-        color: var(--projects-secondary);
-        cursor: help;
-    }
-
-    .projects-help-button:hover,
-    .projects-help-button:focus-visible {
-        border-color: rgba(34, 197, 94, .42);
-        color: var(--projects-green-dark);
-        outline: none;
-    }
-
-    .projects-help-button svg {
-        width: 17px;
-        height: 17px;
-    }
-
-    .projects-workspace {
-        overflow: hidden;
-        border: 1px solid var(--projects-border);
-        border-radius: 15px;
-        background: rgba(255, 255, 255, .96);
-        box-shadow: var(--projects-shadow);
-    }
-
-    .projects-toolbar {
-        display: grid;
+        min-width: 0;
         grid-template-columns: minmax(260px, 1fr) minmax(190px, 245px) auto;
         gap: .62rem;
         align-items: center;
-        padding: .78rem;
-        border-bottom: 1px solid var(--projects-border);
-        background: linear-gradient(180deg, var(--projects-soft), var(--projects-surface));
+        padding: .68rem .72rem;
+        border-bottom: 1px solid var(--ui-color-border);
+        background: var(--ui-color-surface-soft);
     }
 
-    .projects-search-wrap {
+    .viewer-search {
         position: relative;
         min-width: 0;
     }
 
-    .projects-search-wrap > svg {
+    .viewer-search > i {
         position: absolute;
+        z-index: 2;
         top: 50%;
-        left: .72rem;
-        width: 16px;
-        height: 16px;
-        color: var(--projects-faded);
-        transform: translateY(-50%);
+        left: .68rem;
+        color: var(--ui-color-text-muted);
+        font-size: .9rem;
         pointer-events: none;
-    }
-
-    .projects-input,
-    .projects-select {
-        width: 100%;
-        min-height: 44px;
-        border: 1px solid var(--projects-border-strong);
-        border-radius: 10px;
-        outline: none;
-        background: var(--projects-surface);
-        color: var(--projects-text);
-        font: inherit;
-        font-size: .76rem;
-        font-weight: 610;
-        transition: border-color 150ms ease, box-shadow 150ms ease;
-    }
-
-    .projects-input {
-        padding: .58rem 2.5rem .58rem 2.22rem;
-    }
-
-    .projects-select {
-        padding: .58rem .68rem;
-    }
-
-    .projects-input:focus,
-    .projects-select:focus {
-        border-color: var(--projects-green);
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-    }
-
-    .projects-clear-search {
-        position: absolute;
-        top: 50%;
-        right: .45rem;
-        display: none;
-        width: 30px;
-        height: 30px;
-        place-items: center;
-        border: 0;
-        border-radius: 8px;
-        background: transparent;
-        color: var(--projects-faded);
-        cursor: pointer;
         transform: translateY(-50%);
     }
 
-    .projects-clear-search.is-visible {
-        display: grid;
+    .viewer-search .ui-input {
+        min-height: 42px;
+        padding-left: 2.05rem;
+        padding-right: 2.35rem;
     }
 
-    .projects-clear-search:hover {
-        background: var(--projects-muted);
-        color: var(--projects-text);
+    .viewer-clear-search {
+        position: absolute;
+        z-index: 3;
+        top: 50%;
+        right: .32rem;
+        display: none;
+        transform: translateY(-50%);
     }
 
-    .projects-clear-search svg {
-        width: 15px;
-        height: 15px;
+    .viewer-clear-search.is-visible {
+        display: inline-flex;
     }
 
-    .projects-toolbar-meta {
-        display: flex;
+    .viewer-toolbar .ui-select {
+        min-height: 42px;
+    }
+
+    .viewer-toolbar-meta {
+        display: inline-flex;
+        min-height: 32px;
+        gap: .28rem;
         align-items: center;
         justify-content: flex-end;
-        gap: .4rem;
-        color: var(--projects-faded);
-        font-size: .66rem;
-        font-weight: 720;
+        color: var(--ui-color-text-muted);
+        font-size: .64rem;
+        font-weight: 730;
         white-space: nowrap;
     }
 
-    .projects-toolbar-meta svg {
-        width: 15px;
-        height: 15px;
-        color: var(--projects-green-dark);
+    .viewer-toolbar-meta i {
+        color: var(--ui-color-info);
+        font-size: .82rem;
     }
 
-    .projects-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .78rem;
-        padding: .8rem;
-    }
-
-    .projects-card {
-        position: relative;
-        display: flex;
-        min-width: 0;
-        flex-direction: column;
-        overflow: hidden;
-        border: 1px solid var(--projects-border);
-        border-radius: 14px;
-        background: var(--projects-surface);
-        color: inherit;
-        text-decoration: none;
-        box-shadow: var(--projects-shadow-sm);
-        transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
-    }
-
-    .projects-card::after {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        left: 0;
-        height: 3px;
-        background: var(--projects-border);
-        content: "";
-    }
-
-    .projects-card.active::after {
-        background: linear-gradient(90deg, var(--projects-green), var(--projects-green-dark));
-    }
-
-    .projects-card.draft::after {
-        background: linear-gradient(90deg, #fbbf24, var(--projects-warning));
-    }
-
-    .projects-card.awaiting_delivery::after,
-    .projects-card.pending::after {
-        background: linear-gradient(90deg, #38bdf8, var(--projects-info));
-    }
-
-    .projects-card.completed::after,
-    .projects-card.finished::after {
-        background: linear-gradient(90deg, #94a3b8, #475569);
-    }
-
-    .projects-card.cancelled::after,
-    .projects-card.rejected::after {
-        background: linear-gradient(90deg, #fb7185, var(--projects-danger));
-    }
-
-    .projects-card:hover {
-        border-color: rgba(34, 197, 94, .38);
-        box-shadow: 0 11px 27px rgba(15, 35, 24, .085);
-        transform: translateY(-1px);
-    }
-
-    .projects-card-main {
-        display: flex;
-        min-width: 0;
-        flex: 1;
-        flex-direction: column;
-        padding: .86rem;
-    }
-
-    .projects-card-head {
+    .viewer-list-head,
+    .viewer-project-row {
         display: grid;
         min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: .65rem;
-        align-items: start;
-    }
-
-    .projects-card-icon {
-        display: grid;
-        width: 40px;
-        height: 40px;
-        place-items: center;
-        border-radius: 11px;
-        background: var(--projects-muted);
-        color: var(--projects-green-dark);
-    }
-
-    .projects-card-icon svg {
-        width: 19px;
-        height: 19px;
-    }
-
-    .projects-card-copy {
-        min-width: 0;
-    }
-
-    .projects-card h2 {
-        margin: 0;
-        overflow: hidden;
-        color: var(--projects-text);
-        font-size: .92rem;
-        font-weight: 830;
-        line-height: 1.32;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .projects-client {
-        display: flex;
-        min-width: 0;
+        grid-template-columns: var(--viewer-list-columns);
         align-items: center;
-        gap: .32rem;
-        margin-top: .24rem;
-        overflow: hidden;
-        color: var(--projects-secondary);
-        font-size: .66rem;
-        font-weight: 620;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
 
-    .projects-client svg {
-        width: 13px;
-        height: 13px;
-        flex: 0 0 auto;
-        color: var(--projects-faded);
-    }
-
-    .projects-status {
-        display: inline-flex;
-        min-height: 25px;
-        align-items: center;
-        gap: .28rem;
-        padding: .22rem .44rem;
-        border-radius: 999px;
-        background: #f1f5f9;
-        color: #475569;
-        font-size: .57rem;
-        font-weight: 820;
-        white-space: nowrap;
-    }
-
-    .projects-status svg {
-        width: 11px;
-        height: 11px;
-    }
-
-    .projects-status.active {
-        background: #ecfdf5;
-        color: #047857;
-    }
-
-    .projects-status.draft {
-        background: #fffbeb;
-        color: #92400e;
-    }
-
-    .projects-status.awaiting_delivery,
-    .projects-status.pending {
-        background: #eff6ff;
-        color: #1d4ed8;
-    }
-
-    .projects-status.cancelled,
-    .projects-status.rejected {
-        background: #fef2f2;
-        color: #b91c1c;
-    }
-
-    .projects-progress {
-        margin-top: .72rem;
-        padding: .62rem;
-        border: 1px solid var(--projects-border);
-        border-radius: 10px;
-        background: var(--projects-soft);
-    }
-
-    .projects-progress-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: .65rem;
-    }
-
-    .projects-progress-label {
-        display: inline-flex;
-        min-width: 0;
-        align-items: center;
-        gap: .32rem;
-        color: var(--projects-secondary);
-        font-size: .63rem;
-        font-weight: 720;
-    }
-
-    .projects-progress-label svg {
-        width: 13px;
-        height: 13px;
-        color: var(--projects-green-dark);
-    }
-
-    .projects-tooltip-trigger {
-        display: inline-grid;
-        width: 22px;
-        height: 22px;
-        place-items: center;
-        border: 0;
-        border-radius: 50%;
-        background: var(--projects-muted);
-        color: var(--projects-secondary);
-        cursor: help;
-        font: inherit;
-    }
-
-    .projects-tooltip-trigger:hover,
-    .projects-tooltip-trigger:focus-visible {
-        background: #dcfce7;
-        color: var(--projects-green-dark);
-        outline: none;
-    }
-
-    .projects-tooltip-trigger svg {
-        width: 12px;
-        height: 12px;
-    }
-
-    .projects-progress-value {
-        color: var(--projects-green-dark);
-        font-size: .72rem;
-        font-weight: 850;
-    }
-
-    .projects-meter {
-        height: 9px;
-        margin-top: .5rem;
-        overflow: hidden;
-        border-radius: 999px;
-        background: var(--projects-muted);
-    }
-
-    .projects-meter span {
-        display: block;
-        height: 100%;
-        border-radius: inherit;
-        background: linear-gradient(90deg, #4ade80, var(--projects-green-dark));
-        transition: width 300ms ease;
-    }
-
-    .projects-values {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: .38rem;
-        margin-top: .62rem;
-    }
-
-    .projects-value {
-        min-width: 0;
-        padding: .46rem;
-        border: 1px solid var(--projects-border);
-        border-radius: 9px;
-        background: var(--projects-soft);
-    }
-
-    .projects-value span {
-        display: block;
-        overflow: hidden;
-        color: var(--projects-secondary);
-        font-size: .57rem;
-        font-weight: 680;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .projects-value strong {
-        display: block;
-        margin-top: .16rem;
-        overflow: hidden;
-        color: var(--projects-text);
-        font-size: .72rem;
-        font-weight: 820;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .projects-alert {
-        display: flex;
-        align-items: center;
-        gap: .38rem;
-        margin-top: .62rem;
-        padding: .48rem .55rem;
-        border: 1px solid rgba(245, 158, 11, .26);
-        border-radius: 9px;
-        background: #fffbeb;
-        color: #92400e;
-        font-size: .62rem;
-        font-weight: 760;
-    }
-
-    .projects-alert svg {
-        width: 14px;
-        height: 14px;
-        flex: 0 0 auto;
-    }
-
-    .projects-open {
-        display: flex;
-        min-height: 43px;
-        align-items: center;
-        justify-content: space-between;
-        gap: .6rem;
-        padding: .6rem .86rem;
-        border-top: 1px solid var(--projects-border);
-        background: var(--projects-soft);
-        color: var(--projects-green-dark);
-        font-size: .68rem;
-        font-weight: 820;
-    }
-
-    .projects-open svg {
-        width: 15px;
-        height: 15px;
-        transition: transform 150ms ease;
-    }
-
-    .projects-card:hover .projects-open svg {
-        transform: translateX(2px);
-    }
-
-    .projects-loading-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: .78rem;
-        padding: .8rem;
-    }
-
-    .projects-skeleton {
-        height: 246px;
-        border-radius: 14px;
+    .viewer-list-head {
+        min-height: 36px;
+        padding: 0 .55rem;
+        border-bottom: 1px solid var(--ui-color-border);
         background:
             linear-gradient(
-                90deg,
-                #eef3f0 25%,
-                #f8faf9 50%,
-                #eef3f0 75%
+                180deg,
+                var(--ui-color-surface-soft),
+                var(--ui-color-surface-muted)
             );
-        background-size: 200% 100%;
-        animation: projects-shimmer 1.2s infinite linear;
+        color: var(--ui-color-text-muted);
+        font-size: .56rem;
+        font-weight: 820;
+        letter-spacing: .04em;
+        text-transform: uppercase;
     }
 
-    @keyframes projects-shimmer {
-        to {
-            background-position: -200% 0;
-        }
+    .viewer-list-head > span {
+        min-width: 0;
+        padding: .3rem .45rem;
     }
 
-    .projects-state {
-        display: flex;
-        min-height: 270px;
-        grid-column: 1 / -1;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: .65rem;
-        padding: 2rem;
-        color: var(--projects-secondary);
-        text-align: center;
+    .viewer-list-head > span:not(:first-child) {
+        text-align: right;
     }
 
-    .projects-state-icon {
+    .viewer-project-list {
+        display: block;
+        min-width: 0;
+    }
+
+    .viewer-project-row {
+        --ui-tone: var(--ui-color-neutral);
+        --ui-tone-soft: var(--ui-color-neutral-soft);
+        --ui-tone-border: var(--ui-color-neutral-border);
+
+        position: relative;
+        min-height: 72px;
+        padding: .5rem .55rem;
+        border-bottom: 1px solid var(--ui-color-border);
+        background: var(--ui-color-surface);
+        color: inherit;
+        text-decoration: none;
+        transition:
+            background var(--ui-transition-fast),
+            box-shadow var(--ui-transition-fast);
+    }
+
+    .viewer-project-row:last-child {
+        border-bottom: 0;
+    }
+
+    .viewer-project-row:hover,
+    .viewer-project-row:focus-visible {
+        background: var(--ui-color-surface-soft);
+        color: inherit;
+        outline: 0;
+        box-shadow: inset 3px 0 0 var(--ui-tone);
+    }
+
+    .viewer-project-main {
         display: grid;
-        width: 56px;
-        height: 56px;
-        place-items: center;
-        border-radius: 16px;
-        background: var(--projects-muted);
-        color: var(--projects-faded);
+        min-width: 0;
+        grid-template-columns: 36px minmax(0, 1fr);
+        gap: .48rem;
+        align-items: center;
+        padding-right: .45rem;
     }
 
-    .projects-state-icon svg {
-        width: 26px;
-        height: 26px;
+    .viewer-project-copy {
+        min-width: 0;
     }
 
-    .projects-state strong {
-        color: var(--projects-text);
-        font-size: .84rem;
-        font-weight: 830;
+    .viewer-project-title-line {
+        display: flex;
+        min-width: 0;
+        gap: .34rem;
+        align-items: center;
     }
 
-    .projects-state p {
-        max-width: 410px;
-        margin: 0;
-        color: var(--projects-secondary);
+    .viewer-project-title {
+        min-width: 0;
+        overflow: hidden;
+        color: var(--ui-color-text);
+        font-size: .73rem;
+        font-weight: 820;
+        line-height: 1.3;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .viewer-project-client {
+        display: flex;
+        min-width: 0;
+        gap: .24rem;
+        align-items: center;
+        margin-top: .08rem;
+        overflow: hidden;
+        color: var(--ui-color-text-muted);
+        font-size: .59rem;
+        line-height: 1.35;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .viewer-project-client i {
+        flex: 0 0 auto;
+        color: var(--ui-color-text-muted);
+        font-size: .72rem;
+    }
+
+    .viewer-project-cell {
+        min-width: 0;
+        padding: 0 .45rem;
+        text-align: right;
+    }
+
+    .viewer-project-cell-label {
+        display: none;
+    }
+
+    .viewer-project-cell strong {
+        display: block;
+        overflow: hidden;
+        color: var(--ui-color-text);
         font-size: .68rem;
-        line-height: 1.5;
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .projects-error {
+    .viewer-project-progress {
+        min-width: 0;
+        padding: 0 .45rem;
+    }
+
+    .viewer-project-progress-head {
         display: flex;
-        min-height: 175px;
+        gap: .35rem;
         align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: .62rem;
-        margin: .8rem;
-        padding: 1.1rem;
-        border: 1px solid #fecaca;
-        border-radius: 12px;
-        background: #fff7f7;
-        color: #991b1b;
-        text-align: center;
+        justify-content: space-between;
+        margin-bottom: .24rem;
     }
 
-    .projects-error svg {
-        width: 27px;
-        height: 27px;
+    .viewer-project-progress-head span {
+        overflow: hidden;
+        color: var(--ui-color-text-muted);
+        font-size: .57rem;
+        font-weight: 720;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .projects-error p {
-        max-width: 410px;
-        margin: 0;
-        font-size: .7rem;
-        line-height: 1.5;
+    .viewer-project-progress-head strong {
+        color: var(--ui-tone);
+        font-size: .62rem;
+        font-weight: 850;
+        white-space: nowrap;
     }
 
-    .projects-button {
+    .viewer-project-pending {
         display: inline-flex;
-        min-height: 41px;
+        max-width: 100%;
+        gap: .22rem;
         align-items: center;
-        justify-content: center;
-        gap: .38rem;
-        padding: .54rem .72rem;
-        border: 1px solid var(--projects-border);
-        border-radius: 10px;
-        background: var(--projects-surface);
-        color: var(--projects-text);
-        cursor: pointer;
-        font: inherit;
+        margin-top: .24rem;
+        color: var(--ui-color-warning-strong);
+        font-size: .56rem;
+        font-weight: 760;
+        white-space: nowrap;
+    }
+
+    .viewer-project-pending i {
         font-size: .67rem;
-        font-weight: 790;
-        transition: border-color 140ms ease, box-shadow 140ms ease, color 140ms ease, transform 140ms ease;
     }
 
-    .projects-button:hover {
-        border-color: rgba(34, 197, 94, .35);
-        color: var(--projects-green-dark);
-        box-shadow: 0 6px 16px rgba(15, 35, 24, .07);
-        transform: translateY(-1px);
+    .viewer-project-arrow {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        justify-self: end;
+        border-radius: var(--ui-radius-sm);
+        color: var(--ui-color-text-muted);
     }
 
-    .projects-button.is-primary {
-        border-color: var(--projects-green-dark);
-        background: linear-gradient(135deg, var(--projects-green), var(--projects-green-dark));
-        color: #fff;
-        box-shadow: 0 8px 18px rgba(22, 163, 74, .16);
+    .viewer-project-row:hover .viewer-project-arrow,
+    .viewer-project-row:focus-visible .viewer-project-arrow {
+        background: var(--ui-tone-soft);
+        color: var(--ui-tone);
     }
 
-    .projects-button.is-primary:hover {
-        color: #fff;
+    .viewer-loading-list {
+        display: grid;
+        gap: 0;
     }
 
-    .projects-button:disabled {
-        cursor: not-allowed;
-        opacity: .48;
-        transform: none;
+    .viewer-skeleton-row {
+        min-height: 72px;
+        border-width: 0 0 1px;
+        border-radius: 0;
     }
 
-    .projects-button svg {
-        width: 15px;
-        height: 15px;
+    .viewer-skeleton-row:last-child {
+        border-bottom: 0;
     }
 
-    .projects-footer {
+    .viewer-error-state,
+    .viewer-empty-state {
+        min-height: 210px;
+    }
+
+    .viewer-footer {
         display: flex;
-        align-items: center;
         justify-content: center;
-        padding: .75rem;
-        border-top: 1px solid var(--projects-border);
-        background: var(--projects-soft);
+        padding: .62rem .72rem;
+        border-top: 1px solid var(--ui-color-border);
+        background: var(--ui-color-surface-soft);
     }
 
-    .projects-more {
-        min-width: min(100%, 270px);
+    .viewer-more {
+        min-width: min(100%, 250px);
     }
 
     /*
-     * Tooltip global:
-     * o JavaScript move este elemento para document.body.
-     * Assim ele não é cortado por overflow:hidden dos cards.
+     * Tooltip flutuante:
+     * o JS move este elemento para document.body para não ser cortado
+     * por overflow de seções/listas.
      */
-    .projects-floating-tooltip {
+    .viewer-floating-tooltip {
         position: fixed;
         z-index: 99999;
         top: 0;
@@ -801,12 +372,12 @@
         display: none;
         width: max-content;
         max-width: min(290px, calc(100vw - 24px));
-        padding: .5rem .62rem;
-        border: 1px solid rgba(255, 255, 255, .1);
-        border-radius: 8px;
+        padding: .48rem .58rem;
+        border: 1px solid rgb(255 255 255 / .1);
+        border-radius: var(--ui-radius-sm);
         background: #142219;
         color: #fff;
-        box-shadow: 0 12px 30px rgba(15, 35, 24, .24);
+        box-shadow: 0 12px 30px rgb(15 35 24 / .24);
         font-size: .62rem;
         font-weight: 650;
         line-height: 1.48;
@@ -814,16 +385,18 @@
         text-align: left;
         opacity: 0;
         transform: translateY(4px);
-        transition: opacity 120ms ease, transform 120ms ease;
+        transition:
+            opacity 120ms ease,
+            transform 120ms ease;
     }
 
-    .projects-floating-tooltip.is-visible {
+    .viewer-floating-tooltip.is-visible {
         display: block;
         opacity: 1;
         transform: translateY(0);
     }
 
-    .projects-floating-tooltip::after {
+    .viewer-floating-tooltip::after {
         position: absolute;
         left: var(--tooltip-arrow-left, 50%);
         width: 9px;
@@ -833,199 +406,277 @@
         transform: translateX(-50%) rotate(45deg);
     }
 
-    .projects-floating-tooltip.is-above::after {
+    .viewer-floating-tooltip.is-above::after {
         bottom: -4px;
     }
 
-    .projects-floating-tooltip.is-below::after {
+    .viewer-floating-tooltip.is-below::after {
         top: -4px;
     }
 
-    @media (max-width: 980px) {
-        .projects-projectbar {
-            grid-template-columns: auto minmax(0, 1fr);
+    @media (max-width: 1120px) {
+        .viewer-projects {
+            --viewer-list-columns:
+                minmax(235px, 1.45fr)
+                100px
+                100px
+                minmax(145px, .72fr)
+                30px;
         }
 
-        .projects-project-actions {
-            position: absolute;
-            top: .7rem;
-            right: .7rem;
+        .viewer-list-head .associates,
+        .viewer-project-cell.associates {
+            display: none;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .viewer-toolbar {
+            grid-template-columns: minmax(0, 1fr) minmax(180px, 230px);
         }
 
-        .projects-project-copy {
-            padding-right: 3rem;
+        .viewer-toolbar-meta {
+            grid-column: 1 / -1;
+            justify-content: flex-start;
+            padding-left: .08rem;
         }
 
-        .projects-summary-chip {
+        .viewer-projects {
+            --viewer-list-columns:
+                minmax(225px, 1.45fr)
+                94px
+                94px
+                minmax(135px, .7fr)
+                28px;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .viewer-toolbar {
+            grid-template-columns: 1fr;
+            padding: .58rem;
+        }
+
+        .viewer-search .ui-input,
+        .viewer-toolbar .ui-select {
+            min-height: 46px;
+            font-size: 16px;
+        }
+
+        .viewer-list-head {
             display: none;
         }
 
-        .projects-grid,
-        .projects-loading-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    @media (max-width: 740px) {
-        .projects-toolbar {
-            grid-template-columns: 1fr;
+        .viewer-project-list,
+        .viewer-loading-list {
+            display: grid;
+            gap: .46rem;
+            padding: .58rem;
+            background: var(--ui-color-surface-soft);
         }
 
-        .projects-toolbar-meta {
-            justify-content: flex-start;
-        }
-    }
-
-    @media (max-width: 600px) {
-        .projects-shell {
-            gap: .7rem;
-        }
-
-        .projects-projectbar {
-            padding: .68rem;
-            border-radius: 12px;
+        .viewer-project-row {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: .5rem;
+            min-height: 0;
+            padding: .62rem;
+            border: 1px solid var(--ui-color-border);
+            border-left: 3px solid var(--ui-tone);
+            border-radius: .625rem;
+            background: var(--ui-color-surface);
         }
 
-        .projects-project-icon {
-            width: 39px;
-            height: 39px;
-            border-radius: 10px;
+        .viewer-project-row:last-child {
+            border-bottom: 1px solid var(--ui-color-border);
         }
 
-        .projects-title {
-            font-size: 1rem;
-        }
-
-        .projects-meta {
-            gap: .28rem .5rem;
-            font-size: .62rem;
-        }
-
-        .projects-workspace {
-            border-radius: 13px;
-        }
-
-        .projects-toolbar {
-            padding: .65rem;
-        }
-
-        .projects-grid,
-        .projects-loading-grid {
-            gap: .6rem;
-            padding: .65rem;
-        }
-
-        .projects-card {
-            border-radius: 12px;
-        }
-
-        .projects-card-main {
-            padding: .72rem;
-        }
-
-        .projects-card-head {
-            grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .projects-status {
+        .viewer-project-main {
             grid-column: 1 / -1;
-            width: max-content;
-            margin-left: 47px;
+            padding-right: 2rem;
         }
 
-        .projects-values {
-            gap: .3rem;
+        .viewer-project-title-line {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: .18rem;
         }
 
-        .projects-value {
-            padding: .4rem;
+        .viewer-project-title {
+            white-space: normal;
         }
 
-        .projects-error {
-            margin: .65rem;
+        .viewer-project-cell,
+        .viewer-project-cell.associates {
+            display: block;
+            padding: .42rem .45rem;
+            border: 1px solid var(--ui-color-border);
+            border-radius: var(--ui-radius-sm);
+            background: var(--ui-color-surface-soft);
+            text-align: left;
+        }
+
+        .viewer-project-cell-label {
+            display: block;
+            color: var(--ui-color-text-muted);
+            font-size: .54rem;
+            font-weight: 720;
+            text-transform: uppercase;
+        }
+
+        .viewer-project-cell strong {
+            margin-top: .08rem;
+            font-size: .67rem;
+            text-align: left;
+        }
+
+        .viewer-project-progress {
+            grid-column: 1 / -1;
+            padding: .48rem .52rem;
+            border: 1px solid var(--ui-color-border);
+            border-radius: var(--ui-radius-sm);
+            background: var(--ui-color-surface-soft);
+        }
+
+        .viewer-project-arrow {
+            position: absolute;
+            top: .62rem;
+            right: .62rem;
+            border: 1px solid var(--ui-color-border);
+            background: var(--ui-color-surface);
+        }
+
+        .viewer-skeleton-row {
+            min-height: 180px;
+            border: 1px solid var(--ui-color-border);
+            border-radius: .625rem;
+        }
+
+        .viewer-footer {
+            padding: .58rem;
         }
     }
 
-    @media (max-width: 390px) {
-        .projects-values {
+    @media (max-width: 420px) {
+        .viewer-project-row {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
-        .projects-value:last-child {
+        .viewer-project-cell.associates {
             grid-column: 1 / -1;
         }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            scroll-behavior: auto !important;
+        .viewer-project-row,
+        .viewer-project-arrow,
+        .viewer-floating-tooltip {
             transition-duration: .01ms !important;
         }
     }
 </style>
 
 <main
-    class="projects-shell"
+    class="ui-page ui-scope viewer-projects"
     id="viewerProjects"
     data-url="{{ route('delivery-viewer.projects.data-list', [
         'tenant' => $tenant->slug,
     ]) }}"
 >
-    <header class="projects-projectbar">
-        <span class="projects-project-icon">
-            <i data-lucide="folder-kanban"></i>
-        </span>
+    <header
+        class="ui-page-head"
+        data-tone="info"
+        aria-labelledby="viewer-projects-title"
+    >
+        <div class="ui-page-head__start">
+            <span
+                class="ui-icon-box ui-icon-box--lg"
+                data-tone="info"
+                aria-hidden="true"
+            >
+                <i class="ph-fill ph-folders"></i>
+            </span>
 
-        <div class="projects-project-copy">
-            <div class="projects-kicker">
-                <i data-lucide="chart-no-axes-combined"></i>
-                Acompanhamento
-            </div>
+            <div class="ui-page-head__copy">
+                <h1
+                    class="ui-page-head__title"
+                    id="viewer-projects-title"
+                >
+                    Projetos de venda
+                </h1>
 
-            <h1 class="projects-title">Projetos de venda</h1>
+                <div class="ui-page-head__meta">
+                    <span>
+                        <i class="ph ph-buildings" aria-hidden="true"></i>
+                        {{ $tenant->name ?? 'Organização' }}
+                    </span>
 
-            <div class="projects-meta">
-                <span>
-                    <i data-lucide="building-2"></i>
-                    {{ $tenant->name ?? 'Organização' }}
-                </span>
-
-                <span>
-                    <i data-lucide="filter"></i>
-                    <span id="activeFilterLabel">Projetos ativos</span>
-                </span>
+                    <span>
+                        <i class="ph ph-funnel" aria-hidden="true"></i>
+                        <span id="activeFilterLabel">Projetos ativos</span>
+                    </span>
+                </div>
             </div>
         </div>
 
-        <div class="projects-project-actions">
-            <span class="projects-summary-chip">
-                <i data-lucide="folders"></i>
+        <div class="ui-page-head__actions">
+            <span class="viewer-head-count">
+                <i class="ph ph-folders" aria-hidden="true"></i>
                 Total
                 <strong id="projectCount">—</strong>
             </span>
 
             <button
-                class="projects-help-button"
+                class="ui-btn ui-btn--icon ui-btn--sm"
+                data-tone="info"
                 type="button"
                 aria-label="Ajuda sobre esta página"
-                data-tooltip="Escolha um projeto para consultar produtos, associados, distribuições, entregas e anotações."
+                data-tooltip="Escolha um projeto para consultar produtos, associados, distribuições, entregas e anotações. O percentual de distribuição corresponde à quantidade distribuída dividida pela quantidade recebida."
             >
-                <i data-lucide="circle-help"></i>
+                <i class="ph ph-question" aria-hidden="true"></i>
             </button>
         </div>
     </header>
 
-    <section class="projects-workspace">
-        <div class="projects-toolbar">
-            <label class="projects-search-wrap">
-                <i data-lucide="search"></i>
+    <section
+        class="ui-section"
+        aria-labelledby="viewer-project-list-title"
+    >
+        <header class="ui-section__header">
+            <div class="ui-section__heading">
+                <span
+                    class="ui-icon-box"
+                    data-tone="violet"
+                    aria-hidden="true"
+                >
+                    <i class="ph-fill ph-folder-open"></i>
+                </span>
+
+                <div class="ui-section__copy">
+                    <h2 id="viewer-project-list-title">Acompanhamento</h2>
+                    <p>
+                        Consulte volumes recebidos, distribuídos e o andamento de cada projeto.
+                    </p>
+                </div>
+            </div>
+
+            <div class="ui-section__actions">
+                <span class="ui-count" id="visibleProjectCount">
+                    0 exibidos
+                </span>
+            </div>
+        </header>
+
+        <div class="viewer-toolbar">
+            <label class="viewer-search">
+                <i class="ph ph-magnifying-glass" aria-hidden="true"></i>
+
+                <span class="ui-sr-only">
+                    Buscar projeto ou cliente
+                </span>
 
                 <input
-                    class="projects-input"
+                    class="ui-input"
                     id="projectSearch"
                     type="search"
                     autocomplete="off"
@@ -1034,17 +685,17 @@
                 >
 
                 <button
-                    class="projects-clear-search"
+                    class="ui-btn ui-btn--ghost ui-btn--icon ui-btn--sm viewer-clear-search"
                     id="clearProjectSearch"
                     type="button"
                     aria-label="Limpar busca"
                 >
-                    <i data-lucide="x"></i>
+                    <i class="ph ph-x" aria-hidden="true"></i>
                 </button>
             </label>
 
             <select
-                class="projects-select"
+                class="ui-select"
                 id="projectStatus"
                 aria-label="Filtrar projetos por status"
             >
@@ -1060,46 +711,82 @@
                 @endforeach
             </select>
 
-            <div class="projects-toolbar-meta">
-                <i data-lucide="layout-grid"></i>
-                <span id="visibleProjectCount">0 exibidos</span>
+            <div class="viewer-toolbar-meta" aria-hidden="true">
+                <i class="ph ph-list-bullets"></i>
+                Atualização automática
             </div>
         </div>
 
-        <div class="projects-loading-grid" id="projectLoading">
+        <div class="viewer-list-head" aria-hidden="true">
+            <span>Projeto</span>
+            <span>Recebido</span>
+            <span>Distribuído</span>
+            <span class="associates">Associados</span>
+            <span>Distribuição</span>
+            <span></span>
+        </div>
+
+        <div
+            class="viewer-loading-list"
+            id="projectLoading"
+            aria-hidden="true"
+        >
             @for($index = 0; $index < 4; $index++)
-                <div class="projects-skeleton"></div>
+                <div class="ui-skeleton viewer-skeleton-row"></div>
             @endfor
         </div>
 
-        <div class="projects-error" id="projectError" hidden>
-            <i data-lucide="circle-alert"></i>
-            <p id="projectErrorMessage"></p>
+        <div
+            class="ui-state viewer-error-state"
+            id="projectError"
+            data-tone="danger"
+            hidden
+        >
+            <div class="ui-state__content">
+                <span
+                    class="ui-state__icon"
+                    data-tone="danger"
+                    aria-hidden="true"
+                >
+                    <i class="ph-fill ph-warning-circle"></i>
+                </span>
 
-            <button
-                class="projects-button"
-                id="retryProjects"
-                type="button"
-            >
-                <i data-lucide="refresh-cw"></i>
-                Tentar novamente
-            </button>
+                <strong>Não foi possível carregar os projetos</strong>
+
+                <span id="projectErrorMessage">
+                    Tente novamente em instantes.
+                </span>
+
+                <button
+                    class="ui-btn ui-btn--sm"
+                    data-tone="danger"
+                    id="retryProjects"
+                    type="button"
+                >
+                    <i class="ph ph-arrow-clockwise" aria-hidden="true"></i>
+                    Tentar novamente
+                </button>
+            </div>
         </div>
 
         <section
-            class="projects-grid"
+            class="viewer-project-list"
             id="projectGrid"
             aria-live="polite"
             hidden
         ></section>
 
-        <footer class="projects-footer" id="projectFooter" hidden>
+        <footer
+            class="viewer-footer"
+            id="projectFooter"
+            hidden
+        >
             <button
-                class="projects-button is-primary projects-more"
+                class="ui-btn ui-btn--primary viewer-more"
                 id="moreProjects"
                 type="button"
             >
-                <i data-lucide="chevrons-down"></i>
+                <i class="ph ph-caret-down" aria-hidden="true"></i>
                 Mostrar mais projetos
             </button>
         </footer>
@@ -1107,7 +794,7 @@
 </main>
 
 <div
-    class="projects-floating-tooltip"
+    class="viewer-floating-tooltip"
     id="projectsFloatingTooltip"
     role="tooltip"
     aria-hidden="true"
@@ -1117,6 +804,8 @@
 @push('scripts')
 <script>
 (() => {
+    'use strict';
+
     const root = document.getElementById('viewerProjects');
 
     if (!root) {
@@ -1147,9 +836,14 @@
         visible: 0,
     };
 
-    const fmt = value => new Intl.NumberFormat('pt-BR', {
-        maximumFractionDigits: 3,
-    }).format(Number(value || 0));
+    const fmt = value => new Intl.NumberFormat(
+        'pt-BR',
+        {
+            maximumFractionDigits: 3,
+        }
+    ).format(
+        Number(value || 0)
+    );
 
     const esc = value => String(value ?? '').replace(
         /[&<>"']/g,
@@ -1162,203 +856,291 @@
         }[character])
     );
 
-    function refreshIcons() {
-        window.lucide?.createIcons();
+    function statusTone(status) {
+        return ({
+            active: 'success',
+            draft: 'warning',
+            awaiting_delivery: 'info',
+            pending: 'info',
+            completed: 'neutral',
+            finished: 'neutral',
+            cancelled: 'danger',
+            rejected: 'danger',
+        })[status] || 'neutral';
     }
 
     function statusIcon(status) {
-        return {
-            active: 'circle-play',
-            draft: 'file-pen-line',
-            awaiting_delivery: 'truck',
-            pending: 'clock-3',
-            completed: 'circle-check-big',
-            finished: 'circle-check-big',
-            cancelled: 'circle-x',
-            rejected: 'circle-x',
-        }[status] || 'circle-dashed';
+        return ({
+            active: 'ph-play-circle',
+            draft: 'ph-note-pencil',
+            awaiting_delivery: 'ph-truck',
+            pending: 'ph-clock',
+            completed: 'ph-check-circle',
+            finished: 'ph-check-circle',
+            cancelled: 'ph-x-circle',
+            rejected: 'ph-x-circle',
+        })[status] || 'ph-circle-dashed';
     }
 
     function emptyState() {
         return `
-            <div class="projects-state">
-                <div class="projects-state-icon">
-                    <i data-lucide="folder-search"></i>
-                </div>
+            <div
+                class="ui-state viewer-empty-state"
+                data-tone="neutral"
+            >
+                <div class="ui-state__content">
+                    <span
+                        class="ui-state__icon"
+                        data-tone="neutral"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-fill ph-folder-dashed"></i>
+                    </span>
 
-                <strong>Nenhum projeto encontrado</strong>
-                <p>Altere a busca ou selecione outro status.</p>
+                    <strong>Nenhum projeto encontrado</strong>
+
+                    <span>
+                        Altere a busca ou selecione outro status.
+                    </span>
+                </div>
             </div>
         `;
     }
 
     function projectCard(project) {
-        const received = Number(project.received || 0);
-        const distributed = Number(project.distributed || 0);
-        const pending = Number(project.pending || 0);
-        const associates = Number(project.associates || 0);
+        const received = Number(
+            project.received || 0
+        );
+
+        const distributed = Number(
+            project.distributed || 0
+        );
+
+        const pending = Number(
+            project.pending || 0
+        );
+
+        const associates = Number(
+            project.associates || 0
+        );
 
         const percent = received > 0
             ? Math.min(
                 100,
-                Math.max(0, distributed / received * 100)
+                Math.max(
+                    0,
+                    distributed / received * 100
+                )
             )
             : 0;
 
-        const roundedPercent = Math.round(percent);
-        const rawStatus = String(project.status || '');
+        const roundedPercent =
+            Math.round(percent);
+
+        const rawStatus =
+            String(project.status || '');
 
         const status = rawStatus
-            .replace(/[^a-z0-9_-]/gi, '');
+            .replace(
+                /[^a-z0-9_-]/gi,
+                ''
+            );
+
+        const tone =
+            statusTone(rawStatus);
 
         return `
             <a
-                class="projects-card ${status}"
+                class="viewer-project-row"
+                data-tone="${tone}"
                 href="${esc(project.url)}"
             >
-                <div class="projects-card-main">
-                    <div class="projects-card-head">
-                        <span class="projects-card-icon">
-                            <i data-lucide="folder-kanban"></i>
-                        </span>
+                <div class="viewer-project-main">
+                    <span
+                        class="ui-icon-box ui-icon-box--sm"
+                        aria-hidden="true"
+                    >
+                        <i class="ph-fill ph-folder-open"></i>
+                    </span>
 
-                        <div class="projects-card-copy">
-                            <h2 title="${esc(project.title)}">
+                    <div class="viewer-project-copy">
+                        <div class="viewer-project-title-line">
+                            <strong
+                                class="viewer-project-title"
+                                title="${esc(project.title)}"
+                            >
                                 ${esc(project.title)}
-                            </h2>
+                            </strong>
 
-                            <div class="projects-client">
-                                <i data-lucide="building-2"></i>
-                                ${esc(project.client || 'Vários destinos')}
-                            </div>
+                            <span
+                                class="ui-badge"
+                                data-tone="${tone}"
+                            >
+                                <i class="ph ${statusIcon(rawStatus)}"></i>
+                                ${esc(project.status_label)}
+                            </span>
                         </div>
 
-                        <span class="projects-status ${status}">
-                            <i data-lucide="${statusIcon(rawStatus)}"></i>
-                            ${esc(project.status_label)}
+                        <span class="viewer-project-client">
+                            <i class="ph ph-buildings"></i>
+                            ${esc(project.client || 'Vários destinos')}
                         </span>
                     </div>
+                </div>
 
-                    <div class="projects-progress">
-                        <div class="projects-progress-head">
-                            <span class="projects-progress-label">
-                                <i data-lucide="route"></i>
-                                Distribuição
+                <div class="viewer-project-cell">
+                    <span class="viewer-project-cell-label">
+                        Recebido
+                    </span>
+                    <strong>${fmt(received)}</strong>
+                </div>
 
-                                <button
-                                    class="projects-tooltip-trigger"
-                                    type="button"
-                                    aria-label="Como o percentual é calculado"
-                                    data-tooltip="Percentual calculado pela quantidade distribuída dividida pela quantidade recebida."
-                                >
-                                    <i data-lucide="info"></i>
-                                </button>
-                            </span>
+                <div class="viewer-project-cell">
+                    <span class="viewer-project-cell-label">
+                        Distribuído
+                    </span>
+                    <strong>${fmt(distributed)}</strong>
+                </div>
 
-                            <strong class="projects-progress-value">
-                                ${roundedPercent}%
-                            </strong>
-                        </div>
+                <div class="viewer-project-cell associates">
+                    <span class="viewer-project-cell-label">
+                        Associados
+                    </span>
+                    <strong>${associates}</strong>
+                </div>
 
-                        <div
-                            class="projects-meter"
-                            role="progressbar"
-                            aria-label="Progresso da distribuição"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                            aria-valuenow="${roundedPercent}"
-                        >
-                            <span style="width:${percent}%"></span>
-                        </div>
+                <div class="viewer-project-progress">
+                    <div class="viewer-project-progress-head">
+                        <span>Distribuição</span>
+                        <strong>${roundedPercent}%</strong>
                     </div>
 
-                    <div class="projects-values">
-                        <div class="projects-value">
-                            <span>Recebido</span>
-                            <strong>${fmt(received)}</strong>
-                        </div>
-
-                        <div class="projects-value">
-                            <span>Distribuído</span>
-                            <strong>${fmt(distributed)}</strong>
-                        </div>
-
-                        <div class="projects-value">
-                            <span>Associados</span>
-                            <strong>${associates}</strong>
-                        </div>
+                    <div
+                        class="ui-progress"
+                        data-tone="${tone}"
+                        style="--ui-progress:${percent}%"
+                        role="progressbar"
+                        aria-label="Progresso da distribuição"
+                        aria-valuemin="0"
+                        aria-valuemax="100"
+                        aria-valuenow="${roundedPercent}"
+                    >
+                        <span></span>
                     </div>
 
                     ${pending > 0 ? `
-                        <div class="projects-alert">
-                            <i data-lucide="clock-3"></i>
+                        <span class="viewer-project-pending">
+                            <i class="ph ph-clock"></i>
                             ${pending}
-                            ${pending === 1
-                                ? 'entrega pendente'
-                                : 'entregas pendentes'}
-                        </div>
+                            ${
+                                pending === 1
+                                    ? 'entrega pendente'
+                                    : 'entregas pendentes'
+                            }
+                        </span>
                     ` : ''}
                 </div>
 
-                <div class="projects-open">
-                    <span>Abrir projeto</span>
-                    <i data-lucide="arrow-right"></i>
-                </div>
+                <span
+                    class="viewer-project-arrow"
+                    aria-hidden="true"
+                >
+                    <i class="ph ph-arrow-right"></i>
+                </span>
             </a>
         `;
     }
 
-    function setLoading(loading, reset) {
+    function setLoading(
+        loading,
+        reset
+    ) {
         if (reset) {
-            elements.loading.hidden = !loading;
-            elements.grid.hidden = loading;
+            elements.loading.hidden =
+                !loading;
+
+            elements.grid.hidden =
+                loading;
         }
 
-        elements.more.disabled = loading;
+        elements.more.disabled =
+            loading;
     }
 
     function updateFilterLabel() {
         const option =
-            elements.status.options[elements.status.selectedIndex];
+            elements.status.options[
+                elements.status.selectedIndex
+            ];
 
         elements.filterLabel.textContent =
-            option?.text || 'Todos os projetos';
+            option?.text
+            || 'Todos os projetos';
     }
 
-    async function load(reset = false) {
+    async function load(
+        reset = false
+    ) {
         if (reset) {
             state.page = 1;
             state.visible = 0;
-            elements.grid.innerHTML = '';
-            elements.error.hidden = true;
-            elements.footer.hidden = true;
+
+            elements.grid.innerHTML =
+                '';
+
+            elements.error.hidden =
+                true;
+
+            elements.footer.hidden =
+                true;
         }
 
         state.abort?.abort();
-        state.abort = new AbortController();
 
-        setLoading(true, reset);
+        state.abort =
+            new AbortController();
 
-        const params = new URLSearchParams({
-            page: state.page,
-            search: elements.search.value.trim(),
-            status: elements.status.value,
-        });
+        setLoading(
+            true,
+            reset
+        );
+
+        const params =
+            new URLSearchParams({
+                page: state.page,
+                search:
+                    elements.search
+                        .value
+                        .trim(),
+                status:
+                    elements.status
+                        .value,
+            });
 
         try {
-            const response = await fetch(
-                `${root.dataset.url}?${params}`,
-                {
-                    headers: {
-                        Accept: 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    credentials: 'same-origin',
-                    signal: state.abort.signal,
-                }
-            );
+            const response =
+                await fetch(
+                    `${root.dataset.url}?${params}`,
+                    {
+                        headers: {
+                            Accept:
+                                'application/json',
+                            'X-Requested-With':
+                                'XMLHttpRequest',
+                        },
+                        credentials:
+                            'same-origin',
+                        signal:
+                            state.abort.signal,
+                    }
+                );
 
-            const body = await response.json().catch(() => ({}));
+            const body =
+                await response
+                    .json()
+                    .catch(
+                        () => ({})
+                    );
 
             if (!response.ok) {
                 throw new Error(
@@ -1367,27 +1149,49 @@
                 );
             }
 
-            const projects = Array.isArray(body.data)
-                ? body.data
-                : [];
+            const projects =
+                Array.isArray(
+                    body.data
+                )
+                    ? body.data
+                    : [];
 
-            const markup = projects
-                .map(projectCard)
-                .join('');
+            const markup =
+                projects
+                    .map(projectCard)
+                    .join('');
 
-            elements.grid.innerHTML = reset
-                ? markup
-                : elements.grid.innerHTML + markup;
+            elements.grid.innerHTML =
+                reset
+                    ? markup
+                    : elements.grid
+                        .innerHTML
+                        + markup;
 
-            state.visible += projects.length;
-            state.lastPage = Number(body.last_page || 1);
+            state.visible +=
+                projects.length;
 
-            if (!elements.grid.innerHTML.trim()) {
-                elements.grid.innerHTML = emptyState();
+            state.lastPage =
+                Number(
+                    body.last_page
+                    || 1
+                );
+
+            if (
+                !elements.grid
+                    .innerHTML
+                    .trim()
+            ) {
+                elements.grid.innerHTML =
+                    emptyState();
             }
 
             elements.total.textContent =
-                Number(body.total || 0).toLocaleString('pt-BR');
+                Number(
+                    body.total || 0
+                ).toLocaleString(
+                    'pt-BR'
+                );
 
             elements.visibleCount.textContent =
                 `${state.visible} ${
@@ -1396,72 +1200,100 @@
                         : 'exibidos'
                 }`;
 
-            elements.loading.hidden = true;
-            elements.grid.hidden = false;
+            elements.loading.hidden =
+                true;
+
+            elements.grid.hidden =
+                false;
 
             elements.footer.hidden =
-                state.page >= state.lastPage
-                || projects.length === 0;
+                state.page
+                    >= state.lastPage
+                || projects.length
+                    === 0;
 
-            elements.error.hidden = true;
-
-            refreshIcons();
+            elements.error.hidden =
+                true;
         } catch (error) {
-            if (error.name === 'AbortError') {
+            if (
+                error.name
+                === 'AbortError'
+            ) {
                 return;
             }
 
-            elements.loading.hidden = true;
-            elements.grid.hidden = reset;
-            elements.error.hidden = false;
-            elements.errorMessage.textContent = error.message;
-            elements.footer.hidden = true;
+            elements.loading.hidden =
+                true;
 
-            refreshIcons();
+            elements.grid.hidden =
+                reset;
+
+            elements.error.hidden =
+                false;
+
+            elements.errorMessage
+                .textContent =
+                    error.message;
+
+            elements.footer.hidden =
+                true;
         } finally {
-            setLoading(false, false);
+            setLoading(
+                false,
+                false
+            );
         }
     }
 
     function scheduleLoad() {
-        window.clearTimeout(state.timer);
-
-        state.timer = window.setTimeout(
-            () => load(true),
-            280
+        window.clearTimeout(
+            state.timer
         );
+
+        state.timer =
+            window.setTimeout(
+                () => load(true),
+                280
+            );
     }
 
-    /*
-     * Tooltip em portal:
-     * o elemento é movido para document.body e usa position:fixed.
-     * Dessa forma não é cortado pelos cards com overflow:hidden.
-     */
     function initializeFloatingTooltip() {
-        const tooltip = document.getElementById(
-            'projectsFloatingTooltip'
-        );
+        const tooltip =
+            document.getElementById(
+                'projectsFloatingTooltip'
+            );
 
-        let activeTrigger = null;
+        let activeTrigger =
+            null;
 
         if (!tooltip) {
             return;
         }
 
-        document.body.appendChild(tooltip);
+        document.body.appendChild(
+            tooltip
+        );
 
-        function positionTooltip(trigger) {
+        function positionTooltip(
+            trigger
+        ) {
             if (
                 !trigger
-                || !tooltip.classList.contains('is-visible')
+                || !tooltip.classList
+                    .contains(
+                        'is-visible'
+                    )
             ) {
                 return;
             }
 
             const gap = 10;
             const viewportPadding = 12;
-            const triggerRect = trigger.getBoundingClientRect();
-            const tooltipRect = tooltip.getBoundingClientRect();
+            const triggerRect =
+                trigger.getBoundingClientRect();
+
+            const tooltipRect =
+                tooltip.getBoundingClientRect();
 
             let left =
                 triggerRect.left
@@ -1481,8 +1313,8 @@
             const placeBelow =
                 triggerRect.top
                 < tooltipRect.height
-                + gap
-                + viewportPadding;
+                    + gap
+                    + viewportPadding;
 
             let top = placeBelow
                 ? triggerRect.bottom + gap
@@ -1501,18 +1333,23 @@
             );
 
             const triggerCenter =
-                triggerRect.left + triggerRect.width / 2;
+                triggerRect.left
+                + triggerRect.width / 2;
 
-            const arrowLeft = Math.max(
-                12,
-                Math.min(
-                    tooltipRect.width - 12,
-                    triggerCenter - left
-                )
-            );
+            const arrowLeft =
+                Math.max(
+                    12,
+                    Math.min(
+                        tooltipRect.width - 12,
+                        triggerCenter - left
+                    )
+                );
 
-            tooltip.style.left = `${Math.round(left)}px`;
-            tooltip.style.top = `${Math.round(top)}px`;
+            tooltip.style.left =
+                `${Math.round(left)}px`;
+
+            tooltip.style.top =
+                `${Math.round(top)}px`;
 
             tooltip.style.setProperty(
                 '--tooltip-arrow-left',
@@ -1530,60 +1367,105 @@
             );
         }
 
-        function showTooltip(trigger) {
-            const message = trigger.dataset.tooltip;
+        function showTooltip(
+            trigger
+        ) {
+            const message =
+                trigger.dataset.tooltip;
 
             if (!message) {
                 return;
             }
 
-            activeTrigger = trigger;
-            tooltip.textContent = message;
-            tooltip.style.display = 'block';
-            tooltip.setAttribute('aria-hidden', 'false');
+            activeTrigger =
+                trigger;
+
+            tooltip.textContent =
+                message;
+
+            tooltip.style.display =
+                'block';
+
+            tooltip.setAttribute(
+                'aria-hidden',
+                'false'
+            );
 
             trigger.setAttribute(
                 'aria-describedby',
                 tooltip.id
             );
 
-            window.requestAnimationFrame(() => {
-                tooltip.classList.add('is-visible');
-                positionTooltip(trigger);
-            });
+            window.requestAnimationFrame(
+                () => {
+                    tooltip.classList.add(
+                        'is-visible'
+                    );
+
+                    positionTooltip(
+                        trigger
+                    );
+                }
+            );
         }
 
-        function hideTooltip(trigger = null) {
+        function hideTooltip(
+            trigger = null
+        ) {
             if (
                 trigger
-                && activeTrigger !== trigger
+                && activeTrigger
+                    !== trigger
             ) {
                 return;
             }
 
-            activeTrigger?.removeAttribute('aria-describedby');
-            activeTrigger = null;
+            activeTrigger
+                ?.removeAttribute(
+                    'aria-describedby'
+                );
 
-            tooltip.classList.remove('is-visible');
-            tooltip.setAttribute('aria-hidden', 'true');
+            activeTrigger =
+                null;
 
-            window.setTimeout(() => {
-                if (
-                    !tooltip.classList.contains('is-visible')
-                ) {
-                    tooltip.style.display = 'none';
-                }
-            }, 130);
+            tooltip.classList.remove(
+                'is-visible'
+            );
+
+            tooltip.setAttribute(
+                'aria-hidden',
+                'true'
+            );
+
+            window.setTimeout(
+                () => {
+                    if (
+                        !tooltip.classList
+                            .contains(
+                                'is-visible'
+                            )
+                    ) {
+                        tooltip.style
+                            .display =
+                                'none';
+                    }
+                },
+                130
+            );
         }
 
         document.addEventListener(
             'pointerover',
             event => {
                 const trigger =
-                    event.target.closest('[data-tooltip]');
+                    event.target.closest(
+                        '[data-tooltip]'
+                    );
 
                 if (trigger) {
-                    showTooltip(trigger);
+                    showTooltip(
+                        trigger
+                    );
                 }
             }
         );
@@ -1592,16 +1474,22 @@
             'pointerout',
             event => {
                 const trigger =
-                    event.target.closest('[data-tooltip]');
+                    event.target.closest(
+                        '[data-tooltip]'
+                    );
 
                 if (
                     !trigger
-                    || trigger.contains(event.relatedTarget)
+                    || trigger.contains(
+                        event.relatedTarget
+                    )
                 ) {
                     return;
                 }
 
-                hideTooltip(trigger);
+                hideTooltip(
+                    trigger
+                );
             }
         );
 
@@ -1609,10 +1497,14 @@
             'focusin',
             event => {
                 const trigger =
-                    event.target.closest('[data-tooltip]');
+                    event.target.closest(
+                        '[data-tooltip]'
+                    );
 
                 if (trigger) {
-                    showTooltip(trigger);
+                    showTooltip(
+                        trigger
+                    );
                 }
             }
         );
@@ -1621,10 +1513,14 @@
             'focusout',
             event => {
                 const trigger =
-                    event.target.closest('[data-tooltip]');
+                    event.target.closest(
+                        '[data-tooltip]'
+                    );
 
                 if (trigger) {
-                    hideTooltip(trigger);
+                    hideTooltip(
+                        trigger
+                    );
                 }
             }
         );
@@ -1633,7 +1529,9 @@
             'click',
             event => {
                 const trigger =
-                    event.target.closest('[data-tooltip]');
+                    event.target.closest(
+                        '[data-tooltip]'
+                    );
 
                 if (!trigger) {
                     hideTooltip();
@@ -1645,16 +1543,26 @@
 
                 if (
                     window
-                        .matchMedia('(hover: none)')
+                        .matchMedia(
+                            '(hover: none)'
+                        )
                         .matches
                 ) {
                     if (
-                        activeTrigger === trigger
-                        && tooltip.classList.contains('is-visible')
+                        activeTrigger
+                            === trigger
+                        && tooltip.classList
+                            .contains(
+                                'is-visible'
+                            )
                     ) {
-                        hideTooltip(trigger);
+                        hideTooltip(
+                            trigger
+                        );
                     } else {
-                        showTooltip(trigger);
+                        showTooltip(
+                            trigger
+                        );
                     }
                 }
             },
@@ -1664,8 +1572,12 @@
         window.addEventListener(
             'resize',
             () => {
-                if (activeTrigger) {
-                    positionTooltip(activeTrigger);
+                if (
+                    activeTrigger
+                ) {
+                    positionTooltip(
+                        activeTrigger
+                    );
                 }
             }
         );
@@ -1673,8 +1585,12 @@
         window.addEventListener(
             'scroll',
             () => {
-                if (activeTrigger) {
-                    positionTooltip(activeTrigger);
+                if (
+                    activeTrigger
+                ) {
+                    positionTooltip(
+                        activeTrigger
+                    );
                 }
             },
             true
@@ -1683,7 +1599,10 @@
         document.addEventListener(
             'keydown',
             event => {
-                if (event.key === 'Escape') {
+                if (
+                    event.key
+                    === 'Escape'
+                ) {
                     hideTooltip();
                 }
             }
@@ -1693,10 +1612,14 @@
     elements.search.addEventListener(
         'input',
         () => {
-            elements.clearSearch.classList.toggle(
-                'is-visible',
-                elements.search.value.trim().length > 0
-            );
+            elements.clearSearch
+                .classList.toggle(
+                    'is-visible',
+                    elements.search
+                        .value
+                        .trim()
+                        .length > 0
+                );
 
             scheduleLoad();
         }
@@ -1705,12 +1628,24 @@
     elements.clearSearch.addEventListener(
         'click',
         () => {
-            elements.search.value = '';
-            elements.clearSearch.classList.remove(
-                'is-visible'
-            );
+            elements.search.value =
+                '';
 
-            elements.search.focus();
+            elements.clearSearch
+                .classList.remove(
+                    'is-visible'
+                );
+
+            if (
+                window.matchMedia(
+                    '(hover: none)'
+                ).matches
+            ) {
+                elements.search.blur();
+            } else {
+                elements.search.focus();
+            }
+
             load(true);
         }
     );

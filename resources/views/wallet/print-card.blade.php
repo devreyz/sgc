@@ -737,7 +737,7 @@
                             </div>
                             <div class="data-row">
                                 <span class="label">CPF/CNPJ:</span>
-                                <span class="value">{{ $associate->cpf_cnpj ?? 'N/A' }}</span>
+                                <span class="value">{{ \App\Support\DocumentMask::forDisplay($associate->cpf_cnpj) }}</span>
                             </div>
                             <div class="data-row">
                                 <span class="label">ADMISSÃO:</span>
@@ -796,7 +796,7 @@
 
                             <div class="field">
                                 <span class="f-label">CPF/CNPJ</span>
-                                <span class="f-value">{{ $associate->cpf_cnpj ?? 'N/A' }}</span>
+                                <span class="f-value">{{ \App\Support\DocumentMask::forDisplay($associate->cpf_cnpj) }}</span>
                             </div>
 
                             <div class="field">

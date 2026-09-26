@@ -231,6 +231,26 @@ class NotificationSecurityTest extends TestCase
         $this->assertSame('/', $first->notifications->first()->data['url']);
     }
 
+    public function test_unread_count_is_json_only_for_api_requests_and_direct_navigation_opens_center(): void
+    {
+        $tenant = Tenant::query()->create(['name' => 'Tenant A', 'slug' => 'tenant-a']);
+        $user = User::withoutEvents(fn () => User::query()->create(['name' => 'Pessoa', 'email' => 'pessoa@example.test', 'status' => true]));
+        DB::table('tenant_user')->insert([
+            'tenant_id' => $tenant->id, 'user_id' => $user->id, 'roles' => json_encode(['admin']),
+            'status' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $session = ['tenant_id' => $tenant->id, 'tenant_slug' => $tenant->slug];
+        $this->actingAs($user)->withSession($session)
+            ->get('/tenant-a/notifications/unread-count')
+            ->assertRedirect('/tenant-a/notifications');
+
+        $this->actingAs($user)->withSession($session)
+            ->getJson('/tenant-a/notifications/unread-count')
+            ->assertOk()
+            ->assertExactJson(['count' => 0]);
+    }
+
     public function test_notification_destination_uses_the_role_context_in_push_and_central(): void
     {
         Queue::fake();

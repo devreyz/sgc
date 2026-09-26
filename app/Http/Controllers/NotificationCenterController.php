@@ -24,9 +24,16 @@ class NotificationCenterController extends Controller
         return view('notifications.index', compact('tenant', 'notifications'));
     }
 
-    public function unreadCount(Request $request, Tenant $tenant): JsonResponse
+    public function unreadCount(Request $request, Tenant $tenant): JsonResponse|RedirectResponse
     {
         $this->assertTenant($request, $tenant);
+
+        // Este endpoint é técnico. Se alguém o abrir como página (por link,
+        // histórico ou redirecionamento antigo), leve-o para a Central em vez
+        // de exibir JSON bruto. O polling continua recebendo JSON por Accept.
+        if (! $request->expectsJson()) {
+            return redirect()->route('notifications.index', ['tenant' => $tenant->slug]);
+        }
 
         return response()->json([
             'count' => $this->tenantNotifications($request, $tenant)->whereNull('read_at')->count(),

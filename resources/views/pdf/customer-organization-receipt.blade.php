@@ -151,7 +151,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
         </div>
     </div>
     <div class="hdr-right">
-        <span class="doc-type">Relatório de Distribuição de Produtos</span>
+        <span class="doc-type">Faturamento Consolidado de Produtos</span>
         @if($showSection('document_info'))
         <span class="doc-num">Nº Documento: {{ $receiptLabel }}</span>
         @if($periodLabel)
@@ -282,14 +282,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
                 <td class="r">{{ $fee['nature'] === 'accrual' ? '+' : '-' }} R$&nbsp;{{ number_format($row['fee_values'][$fee['key']] ?? 0, 2, ',', '.') }}</td>
             @endforeach
             @if($showNet)
-                @php
-                    $rowNet = (float) $row['total_gross'];
-                    foreach ($feeColumns ?? [] as $fee) {
-                        $amount = (float) ($row['fee_values'][$fee['key']] ?? 0);
-                        $rowNet += $fee['nature'] === 'accrual' ? $amount : -$amount;
-                    }
-                @endphp
-                <td class="r">R$&nbsp;{{ number_format($rowNet, 2, ',', '.') }}</td>
+                <td class="r">R$&nbsp;{{ number_format((float) ($row['net'] ?? 0), 2, ',', '.') }}</td>
             @endif
         </tr>
         @endforeach

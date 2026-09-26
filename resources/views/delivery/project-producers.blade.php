@@ -2842,10 +2842,6 @@
     $('pr-receipts').addEventListener('click', event => {
         const preview = event.target.closest('[data-preview-url]');
         if (preview) {
-            if (window.SgcPlatform?.kind === 'web') {
-                window.open(preview.dataset.previewUrl, '_blank', 'noopener,noreferrer');
-                return;
-            }
             preview.disabled = true;
             window.SgcNavigation?.show('Abrindo documento', 'Buscando o comprovante');
             savePrintPreferences(false)
@@ -2868,10 +2864,6 @@
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
-            if (window.SgcPlatform?.kind === 'web') {
-                window.open(reprint.dataset.reprintUrl, '_blank', 'noopener,noreferrer');
-                return;
-            }
             reprint.disabled = true;
             window.SgcNavigation?.show('Abrindo documento', 'Preparando a segunda via');
             savePrintPreferences(false)

@@ -86,7 +86,7 @@
                 <h3>Dados Pessoais</h3>
                 <div class="info-row"><span class="label">Nome:</span> {{ $provider->name }}</div>
                 <div class="info-row"><span class="label">Tipo:</span> {{ $provider->getTypeLabel() }}</div>
-                @if($provider->cpf)<div class="info-row"><span class="label">CPF:</span> {{ $provider->cpf }}</div>@endif
+                @if($provider->cpf)<div class="info-row"><span class="label">CPF:</span> {{ \App\Support\DocumentMask::forDisplay($provider->cpf) }}</div>@endif
                 @if($provider->phone)<div class="info-row"><span class="label">Telefone:</span> {{ $provider->phone }}</div>@endif
                 @if($provider->email)<div class="info-row"><span class="label">E-mail:</span> {{ $provider->email }}</div>@endif
             </div>

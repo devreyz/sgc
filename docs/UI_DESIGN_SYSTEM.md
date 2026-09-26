@@ -227,7 +227,9 @@ somente composição específica daquela tela
 
 O theme.css também fornece aliases para variáveis legadas como --color-text, --color-border e --color-surface, permitindo migração gradual das telas que já seguem visualmente o padrão aprovado.
 
-5. Convenções de classe
+5. Catálogo de classes
+
+Convenções de classe
 
 componente público: ui-*;
 
@@ -839,7 +841,9 @@ evitar autofocus.
 
 Referência mínima: 360 px.
 
-27. Migração do legado
+27. Mapa de migração do legado
+
+Migração do legado
 
 A migração deve ser incremental.
 

@@ -173,7 +173,7 @@ class FinancialDocumentPresenter
     {
         return match ($document?->getMorphClass()) {
             AssociateReceipt::class => 'Pagamento ao membro',
-            CustomerBillingReceipt::class => 'Cobrança do cliente',
+            CustomerBillingReceipt::class => 'Faturamento do cliente',
             ServiceObligation::class => $document->direction === 'payable' ? 'Pagamento de serviço ao prestador' : 'Cobrança de serviço',
             ServicePaymentPlanInstallment::class => 'Cobrança de termo de negociação',
             FinancialReceipt::class => 'Recibo de recebimento',

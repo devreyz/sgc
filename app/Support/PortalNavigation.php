@@ -52,11 +52,14 @@ class PortalNavigation
                 ['key' => 'new-receipt', 'label' => 'Novo recibo', 'route' => 'finance.receipts.create', 'icon' => 'plus-circle'],
             ],
             'accounting' => [
-                ['key' => 'queue', 'label' => 'Fila', 'route' => 'accounting.index', 'icon' => 'list-checks'],
-                ['key' => 'processes', 'label' => 'Processos', 'route' => 'accounting.processes.index', 'icon' => 'flow-arrow'],
-                ['key' => 'fiscal', 'label' => 'Fiscal', 'route' => 'accounting.fiscal.index', 'icon' => 'file-text'],
+                ['key' => 'queue', 'label' => 'Visão geral', 'route' => 'accounting.index', 'icon' => 'list-checks'],
+                ['key' => 'processes', 'label' => 'Faturamentos', 'route' => 'accounting.processes.index', 'icon' => 'flow-arrow'],
+                ['key' => 'source-receipts', 'label' => 'Documentos de origem', 'route' => 'accounting.source-receipts.index', 'icon' => 'qr-code'],
+                ['key' => 'fiscal', 'label' => 'Documentos fiscais', 'route' => 'accounting.fiscal.index', 'icon' => 'file-text'],
                 ['key' => 'settings', 'label' => 'Configuração', 'route' => 'accounting.fiscal.settings', 'icon' => 'gear'],
-                ['key' => 'home', 'label' => 'Painéis', 'route' => 'home', 'icon' => 'squares-four'],
+                ...((auth()->user() && app(\App\Services\Accounting\AccountingAccessService::class)->canManage(auth()->user(), (int) session('tenant_id')))
+                    ? [['key' => 'access', 'label' => 'Acessos', 'route' => 'accounting.access.index', 'icon' => 'shield-check']]
+                    : []),
             ],
             'secretary' => [
                 ['key' => 'documents', 'label' => 'Documentos', 'route' => 'secretary.index', 'icon' => 'files'],

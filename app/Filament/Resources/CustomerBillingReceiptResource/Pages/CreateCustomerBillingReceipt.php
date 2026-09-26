@@ -4,7 +4,9 @@ namespace App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 
 use App\Enums\CustomerReceiptStatus;
 use App\Filament\Resources\CustomerBillingReceiptResource;
+use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
+use App\Models\Organization;
 use App\Services\CustomerBillingProjectContextService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +31,22 @@ class CreateCustomerBillingReceipt extends CreateRecord
         $this->selectedProjectIds = $projects->pluck('id')->map(fn ($id): int => (int) $id)->all();
         $project = $projects->first();
         unset($data['project_ids']);
+
+        $customerId = filled($data['customer_id'] ?? null) ? (int) $data['customer_id'] : null;
+        $organizationId = filled($data['organization_id'] ?? null) ? (int) $data['organization_id'] : null;
+        if (($customerId === null) === ($organizationId === null)) {
+            throw ValidationException::withMessages([
+                'customer_id' => 'Escolha exatamente um destinatário: cliente ou organização.',
+            ]);
+        }
+        $recipientExists = $customerId
+            ? Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereKey($customerId)->exists()
+            : Organization::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereKey($organizationId)->exists();
+        if (! $recipientExists) {
+            throw ValidationException::withMessages([
+                $customerId ? 'customer_id' : 'organization_id' => 'O destinatário não pertence à organização atual.',
+            ]);
+        }
 
         $data['tenant_id'] = $tenantId;
         $data['sales_project_id'] = $project->id;

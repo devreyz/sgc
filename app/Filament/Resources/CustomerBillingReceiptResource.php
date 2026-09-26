@@ -16,7 +16,9 @@ use App\Models\Organization;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Services\CustomerBillingProjectContextService;
 use App\Services\CustomerBillingReceiptService;
+use App\Services\CustomerBillingSelectionService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\FinancialDocumentIdentityService;
 use App\Services\ReceiptFeeColumnService;
@@ -31,6 +33,7 @@ use Filament\Tables\Table;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
@@ -45,9 +48,9 @@ class CustomerBillingReceiptResource extends Resource
 
     protected static ?string $navigationGroup = 'Projetos de Venda';
 
-    protected static ?string $modelLabel = 'Cobrança ao Comprador';
+    protected static ?string $modelLabel = 'Faturamento de Cliente';
 
-    protected static ?string $pluralModelLabel = 'Cobranças aos Compradores';
+    protected static ?string $pluralModelLabel = 'Faturamentos de Clientes';
 
     protected static ?int $navigationSort = 6;
 
@@ -108,6 +111,7 @@ class CustomerBillingReceiptResource extends Resource
                                 ->pluck('name', 'id')->toArray();
                         })
                         ->searchable()->nullable()
+                        ->requiredWithout('organization_id')
                         ->placeholder('— Selecione um comprador —')
                         ->helperText('Somente compradores com distribuições aprovadas em todos os projetos selecionados.')
                         ->live()
@@ -145,6 +149,7 @@ class CustomerBillingReceiptResource extends Resource
                                 ->orderBy('name')->pluck('name', 'id')->toArray();
                         })
                         ->searchable()->nullable()
+                        ->requiredWithout('customer_id')
                         ->placeholder('— Ou selecione uma organização —')
                         ->helperText('Agrupa os compradores desta organização que possuem distribuições nos projetos selecionados.')
                         ->live()
@@ -193,10 +198,100 @@ class CustomerBillingReceiptResource extends Resource
 
             // ── Distribuições ───────────────────────────────────────────────
             Forms\Components\Section::make('Distribuições a Cobrar')
-                ->description('Distribuições vinculadas a outro comprovante aparecem em laranja e não podem ser selecionadas. Após emitir, a lista torna-se imutável.')
+                ->description('Escolha por período, por comprovantes do associado ou manualmente. O comprovante serve apenas para localizar distribuições; seu valor nunca entra no cálculo.')
                 ->schema([
+                    Forms\Components\ToggleButtons::make('selection_mode')
+                        ->label('Como deseja selecionar?')
+                        ->options([
+                            'period' => 'Período',
+                            'receipts' => 'Comprovantes / QR Code',
+                            'manual' => 'Manual',
+                        ])
+                        ->icons([
+                            'period' => 'heroicon-o-calendar-days',
+                            'receipts' => 'heroicon-o-qr-code',
+                            'manual' => 'heroicon-o-list-bullet',
+                        ])
+                        ->default('period')->inline()->live()->dehydrated(false)->columnSpanFull(),
+
+                    Forms\Components\DatePicker::make('from_date')
+                        ->label('Distribuições de')->native(false)->live(),
+                    Forms\Components\DatePicker::make('to_date')
+                        ->label('Distribuições até')->native(false)->live()
+                        ->afterOrEqual('from_date'),
+
+                    Forms\Components\Textarea::make('associate_receipt_codes')
+                        ->label('Código ou link do QR Code dos comprovantes')
+                        ->helperText('Informe um código CP-…, número do comprovante ou cole o link lido no QR Code. Um por linha.')
+                        ->rows(3)->dehydrated(false)->columnSpanFull()
+                        ->visible(fn (Get $get): bool => $get('selection_mode') === 'receipts'),
+
+                    Forms\Components\ViewField::make('associate_receipt_qr_scanner')
+                        ->label(false)
+                        ->view('filament.forms.customer-billing-qr-scanner')
+                        ->dehydrated(false)->columnSpanFull()
+                        ->visible(fn (Get $get): bool => $get('selection_mode') === 'receipts'),
+
                     // Botão rápido: selecionar todos os disponíveis
                     Forms\Components\Actions::make([
+                        Forms\Components\Actions\Action::make('selectEligiblePeriod')
+                            ->label('Carregar período')
+                            ->icon('heroicon-o-calendar-days')->color('primary')->size('sm')
+                            ->action(function (Get $get, Forms\Set $set, $record): void {
+                                $ids = app(CustomerBillingSelectionService::class)->eligibleQuery(
+                                    (int) session('tenant_id'),
+                                    static::normalizeProjectIds($get('project_ids')),
+                                    $get('customer_id') ? (int) $get('customer_id') : null,
+                                    $get('organization_id') ? (int) $get('organization_id') : null,
+                                    $get('from_date') ?: null,
+                                    $get('to_date') ?: null,
+                                    $record?->id,
+                                )->pluck('id')->map(fn ($id): string => (string) $id)->all();
+                                $set('delivery_ids', $ids);
+                                Notification::make()->success()->title(count($ids).' distribuição(ões) compatível(is) selecionada(s).')->send();
+                            })
+                            ->visible(fn (Get $get): bool => $get('selection_mode') === 'period'
+                                && static::normalizeProjectIds($get('project_ids')) !== []
+                                && ((bool) $get('customer_id') || (bool) $get('organization_id'))),
+
+                        Forms\Components\Actions\Action::make('selectByReceipts')
+                            ->label('Ler comprovantes')
+                            ->icon('heroicon-o-qr-code')->color('primary')->size('sm')
+                            ->action(function (Get $get, Forms\Set $set, $record): void {
+                                $result = app(CustomerBillingSelectionService::class)->selectFromAssociateReceiptCodes(
+                                    (int) session('tenant_id'),
+                                    [(string) $get('associate_receipt_codes')],
+                                    static::normalizeProjectIds($get('project_ids')),
+                                    $get('customer_id') ? (int) $get('customer_id') : null,
+                                    $get('organization_id') ? (int) $get('organization_id') : null,
+                                    $get('from_date') ?: null,
+                                    $get('to_date') ?: null,
+                                    $record?->id,
+                                );
+                                $set('delivery_ids', array_map('strval', $result['selected_ids']));
+                                $reasonLabels = [
+                                    'outro_projeto' => 'outro projeto',
+                                    'outro_destinatario' => 'outro cliente/organização',
+                                    'fora_do_periodo' => 'fora do período',
+                                    'nao_e_distribuicao' => 'não é distribuição',
+                                    'nao_aprovada' => 'não aprovada',
+                                    'valor_invalido' => 'quantidade/preço inválido',
+                                    'ja_faturada' => 'já faturada',
+                                    'incompativel' => 'incompatível',
+                                ];
+                                $reasons = collect($result['reasons'])->map(
+                                    fn (int $count, string $reason): string => $count.' '.($reasonLabels[$reason] ?? $reason)
+                                )->implode('; ');
+                                $excluded = $result['excluded_count'] > 0
+                                    ? " {$result['excluded_count']} ignorada(s): {$reasons}."
+                                    : '';
+                                Notification::make()->success()
+                                    ->title(count($result['selected_ids']).' distribuição(ões) selecionada(s).')
+                                    ->body($result['receipt_count'].' comprovante(s) reconhecido(s).'.$excluded)->send();
+                            })
+                            ->visible(fn (Get $get): bool => $get('selection_mode') === 'receipts'
+                                && filled($get('associate_receipt_codes'))),
+
                         Forms\Components\Actions\Action::make('selectAllFree')
                             ->label('Selecionar todos disponíveis')
                             ->icon('heroicon-o-check-circle')
@@ -212,7 +307,8 @@ class CustomerBillingReceiptResource extends Resource
                                 $set('delivery_ids', array_map('strval', $free));
                             })
                             ->visible(fn (Get $get) => static::normalizeProjectIds($get('project_ids')) !== []
-                                && ((bool) $get('customer_id') || (bool) $get('organization_id'))),
+                                && ((bool) $get('customer_id') || (bool) $get('organization_id'))
+                                && $get('selection_mode') === 'manual'),
 
                         Forms\Components\Actions\Action::make('deselectAll')
                             ->label('Desmarcar todos')
@@ -222,6 +318,41 @@ class CustomerBillingReceiptResource extends Resource
                             ->action(fn (Forms\Set $set) => $set('delivery_ids', []))
                             ->visible(fn (Get $get) => ! empty(array_filter((array) $get('delivery_ids')))),
                     ])
+                        ->columnSpanFull(),
+
+                    Forms\Components\Placeholder::make('eligible_summary')
+                        ->label('Resumo da seleção')
+                        ->content(function (Get $get, $record): HtmlString|string {
+                            $ids = collect((array) $get('delivery_ids'))->map(fn ($id): int => (int) $id)->filter()->unique();
+                            if ($ids->isEmpty()) {
+                                return 'Carregue um período, leia comprovantes ou selecione itens manualmente.';
+                            }
+                            $tenantId = (int) session('tenant_id');
+                            $rows = ProductionDelivery::withoutGlobalScopes()
+                                ->where('tenant_id', $tenantId)->whereIn('id', $ids)
+                                ->get(['id', 'tenant_id', 'sales_project_id', 'associate_id', 'customer_id', 'product_id', 'quantity', 'unit_price', 'gross_value', 'delivery_date']);
+                            $projects = app(CustomerBillingProjectContextService::class)
+                                ->projects($tenantId, static::normalizeProjectIds($get('project_ids')));
+                            $snapshot = app(CustomerBillingReceiptService::class)->computeSnapshotForProjects($rows, $projects);
+                            $originReceipts = ProductionDelivery::withoutGlobalScopes()
+                                ->where('tenant_id', $tenantId)->whereIn('id', $ids)
+                                ->whereNotNull('associate_receipt_id')->distinct()->count('associate_receipt_id');
+                            $cards = [
+                                'Distribuições' => $rows->count(),
+                                'Produtores' => $rows->pluck('associate_id')->filter()->unique()->count(),
+                                'Produtos' => $rows->pluck('product_id')->filter()->unique()->count(),
+                                'Unidades recebedoras' => $rows->pluck('customer_id')->filter()->unique()->count(),
+                                'Comprovantes de origem' => $originReceipts,
+                                'Valor previsto' => 'R$ '.number_format((float) $snapshot['total_net'], 2, ',', '.'),
+                            ];
+                            $html = collect($cards)->map(fn ($value, string $label): string => '<div style="padding:.65rem .8rem;border:1px solid rgb(229 231 235);border-radius:.75rem">'
+                                .'<div style="font-size:.75rem;color:rgb(107 114 128)">'.e($label).'</div>'
+                                .'<strong>'.e((string) $value).'</strong></div>'
+                            )->implode('');
+
+                            return new HtmlString('<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.5rem">'.$html.'</div>');
+                        })
+                        ->visible(fn (Get $get): bool => ! empty(array_filter((array) $get('delivery_ids'))))
                         ->columnSpanFull(),
 
                     Forms\Components\CheckboxList::make('delivery_ids')
@@ -264,7 +395,8 @@ class CustomerBillingReceiptResource extends Resource
                         })
                         ->noSearchResultsMessage('Nenhuma distribuição encontrada.')
                         ->visible(fn (Get $get) => static::normalizeProjectIds($get('project_ids')) !== []
-                            && ((bool) $get('customer_id') || (bool) $get('organization_id'))),
+                            && ((bool) $get('customer_id') || (bool) $get('organization_id'))
+                            && $get('selection_mode') === 'manual'),
 
                     Forms\Components\Placeholder::make('subtotal_preview')
                         ->label('Subtotal bruto selecionado (prévia)')
@@ -273,8 +405,14 @@ class CustomerBillingReceiptResource extends Resource
                             if (empty($ids)) {
                                 return 'R$ 0,00';
                             }
-                            $total = ProductionDelivery::whereIn('id', $ids)->get()
-                                ->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
+                            $total = ProductionDelivery::withoutGlobalScopes()
+                                ->where('tenant_id', session('tenant_id'))->whereIn('id', $ids)
+                                ->get(['quantity', 'unit_price'])
+                                ->reduce(fn (string $sum, $distribution): string => bcadd(
+                                    $sum,
+                                    bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8),
+                                    8,
+                                ), '0');
 
                             return 'R$ '.number_format($total, 2, ',', '.');
                         })
@@ -299,24 +437,15 @@ class CustomerBillingReceiptResource extends Resource
      */
     public static function getLockedDistributionMap(?int $currentReceiptId): array
     {
-        $receipts = CustomerBillingReceipt::where('tenant_id', session('tenant_id'))
-            ->when($currentReceiptId, fn ($q) => $q->where('id', '!=', $currentReceiptId))
-            ->whereNotNull('delivery_ids')
-            ->with('project')
-            ->get([
-                'id', 'sales_project_id', 'delivery_ids', 'receipt_year', 'receipt_number', 'receipt_label',
-                'tenant_receipt_year', 'tenant_receipt_number', 'project_receipt_year', 'project_receipt_number',
-            ]);
-
-        $map = [];
-        foreach ($receipts as $r) {
-            $ids = is_array($r->delivery_ids) ? $r->delivery_ids : [];
-            foreach ($ids as $did) {
-                $map[(int) $did] = $r->formatted_number;
-            }
-        }
-
-        return $map;
+        return ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', session('tenant_id'))
+            ->whereNotNull('billing_receipt_id')
+            ->when($currentReceiptId, fn ($query) => $query->where('billing_receipt_id', '!=', $currentReceiptId))
+            ->with('billingReceipt.project')
+            ->get(['id', 'billing_receipt_id'])
+            ->mapWithKeys(fn (ProductionDelivery $distribution): array => [
+                (int) $distribution->id => $distribution->billingReceipt?->formatted_number ?? 'outro faturamento',
+            ])->all();
     }
 
     /** Options [id => label] para o CheckboxList. */
@@ -423,7 +552,7 @@ class CustomerBillingReceiptResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('formatted_number')
-                    ->label('Nº Cobrança')->weight('bold')
+                    ->label('Nº Faturamento')->weight('bold')
                     ->searchable(['receipt_year', 'receipt_number'])
                     ->sortable(['receipt_year', 'receipt_number'])
                     ->description(fn (CustomerBillingReceipt $record): string => 'Geral '.$record->tenant_formatted_number.' | Projeto '.$record->project_formatted_number),
@@ -432,7 +561,7 @@ class CustomerBillingReceiptResource extends Resource
                     ->label('Projeto(s)')->limit(45)->default('— Avulso —'),
 
                 Tables\Columns\TextColumn::make('customer.name')
-                    ->label('Comprador')->searchable()->limit(30)->placeholder('—'),
+                    ->label('Cliente')->searchable()->limit(30)->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('organization.name')
                     ->label('Organização')->searchable()->limit(25)
@@ -749,19 +878,20 @@ class CustomerBillingReceiptResource extends Resource
                         return true;
                     }),
 
-                // ── Emitir Cobrança (DRAFT → PENDING_PAYMENT) ─────────────────
+                // ── Emitir faturamento (DRAFT → PENDING_PAYMENT) ──────────────
                 Tables\Actions\Action::make('freeze')
-                    ->label('Emitir Cobrança')
+                    ->label('Emitir faturamento')
                     ->icon('heroicon-o-paper-airplane')->color('warning')
                     ->visible(fn (CustomerBillingReceipt $r) => $r->status === CustomerReceiptStatus::DRAFT || $r->status === null)
                     ->requiresConfirmation()
-                    ->modalHeading(fn (CustomerBillingReceipt $r) => 'Emitir Cobrança '.$r->formatted_number)
+                    ->modalHeading(fn (CustomerBillingReceipt $r) => 'Emitir faturamento '.$r->formatted_number)
                     ->modalDescription(function (CustomerBillingReceipt $r) {
                         $count = is_array($r->delivery_ids) ? count($r->delivery_ids) : 0;
 
                         return "Congela {$count} distribuição(ões) e calcula os valores finais. Após emitir, não é possível editar.";
                     })
                     ->action(function (CustomerBillingReceipt $record): void {
+                        abort_unless(auth()->user()?->can('update', $record), 403);
                         if (empty($record->delivery_ids)) {
                             Notification::make()->danger()->title('Sem distribuições')
                                 ->body('Adicione ao menos uma distribuição antes de emitir.')->send();
@@ -769,13 +899,16 @@ class CustomerBillingReceiptResource extends Resource
                             return;
                         }
                         try {
-                            $distributions = ProductionDelivery::whereIn('id', $record->delivery_ids)->get();
+                            $distributions = ProductionDelivery::withoutGlobalScopes()
+                                ->where('tenant_id', $record->tenant_id)
+                                ->whereIn('id', $record->delivery_ids)
+                                ->get();
                             app(CustomerBillingReceiptService::class)
                                 ->freezeReceipt($record, $distributions, $record->project);
-                            Notification::make()->success()->title('Cobrança emitida')
+                            Notification::make()->success()->title('Faturamento emitido')
                                 ->body('Valor líquido: R$ '.number_format((float) $record->fresh()->total_net, 2, ',', '.'))->send();
                         } catch (\Throwable $e) {
-                            Notification::make()->danger()->title('Erro ao emitir cobrança')
+                            Notification::make()->danger()->title('Erro ao emitir faturamento')
                                 ->body($e->getMessage())->send();
                         }
                     }),
@@ -888,7 +1021,7 @@ class CustomerBillingReceiptResource extends Resource
     //  Dados para PDF — comprovante individual do comprador
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static function buildCustomerReceiptData(
+    public static function buildCustomerReceiptData(
         Collection $distributions,
         CustomerBillingReceipt $receipt,
         ?Tenant $tenant,
@@ -908,40 +1041,53 @@ class CustomerBillingReceiptResource extends Resource
         );
         $projectMap = $projects->keyBy('id');
         $projectSnapshots = collect(data_get($receipt->fee_snapshot, 'project_snapshots', []));
-        $productRows = $distributions
-            ->groupBy(fn ($d) => $d->sales_project_id.'|'.$d->product_id)
-            ->map(function ($group) use ($feeColumnService, $projectMap, $projectSnapshots, $receipt, $projects) {
-                $first = $group->first();
-                $rowProject = $projectMap->get((int) $first->sales_project_id);
-                $projectSnapshot = $projectSnapshots->get((string) $first->sales_project_id)
-                    ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
-                $rowFeeColumns = $rowProject
-                    ? $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot)
-                    : [];
-                $qty = $group->sum(fn ($d) => (float) $d->quantity);
-                $gross = $group->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
-                $feeValues = $feeColumnService->totals($group, $rowFeeColumns);
-                $net = $gross;
-                foreach ($rowFeeColumns as $fee) {
-                    $amount = $feeValues[$fee['key']] ?? 0;
-                    $net += $fee['nature'] === 'accrual' ? $amount : -$amount;
-                }
+        $frozenLines = collect($receipt->documentLines());
+        $productRows = $frozenLines->isNotEmpty()
+            ? $frozenLines->map(fn (array $line): array => [
+                'project_id' => (int) ($line['project_id'] ?? 0),
+                'project' => (string) ($line['project'] ?? '—'),
+                'product' => (string) ($line['product'] ?? '—'),
+                'unit' => (string) ($line['unit'] ?? 'un'),
+                'quantity' => (string) ($line['quantity'] ?? '0'),
+                'unit_price' => (string) ($line['unit_price'] ?? '0'),
+                'gross' => (string) ($line['document_gross'] ?? '0.00'),
+                'fee_values' => (array) ($line['fee_values'] ?? []),
+                'net' => (string) ($line['document_amount'] ?? '0.00'),
+            ])->values()->all()
+            : $distributions
+                ->groupBy(fn ($d) => $d->sales_project_id.'|'.$d->product_id.'|'.$d->unit_price)
+                ->map(function ($group) use ($feeColumnService, $projectMap, $projectSnapshots, $receipt, $projects) {
+                    $first = $group->first();
+                    $rowProject = $projectMap->get((int) $first->sales_project_id);
+                    $projectSnapshot = $projectSnapshots->get((string) $first->sales_project_id)
+                        ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
+                    $rowFeeColumns = $rowProject
+                        ? $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot)
+                        : [];
+                    $qty = $group->sum(fn ($d) => (float) $d->quantity);
+                    $gross = $group->sum(fn ($d) => (float) $d->quantity * (float) $d->unit_price);
+                    $feeValues = $feeColumnService->totals($group, $rowFeeColumns);
+                    $net = $gross;
+                    foreach ($rowFeeColumns as $fee) {
+                        $amount = $feeValues[$fee['key']] ?? 0;
+                        $net += $fee['nature'] === 'accrual' ? $amount : -$amount;
+                    }
 
-                return [
-                    'project_id' => (int) $first->sales_project_id,
-                    'project' => $rowProject?->title ?? 'Projeto #'.$first->sales_project_id,
-                    'product' => $first->product?->name ?? '—',
-                    'unit' => $first->product?->unit ?? 'kg',
-                    'quantity' => $qty,
-                    'unit_price' => (float) $first->unit_price,
-                    'gross' => $gross,
-                    'fee_values' => $feeValues,
-                    'net' => $net,
-                ];
-            })
-            ->values()->toArray();
+                    return [
+                        'project_id' => (int) $first->sales_project_id,
+                        'project' => $rowProject?->title ?? 'Projeto #'.$first->sales_project_id,
+                        'product' => $first->product?->name ?? '—',
+                        'unit' => $first->product?->unit ?? 'kg',
+                        'quantity' => $qty,
+                        'unit_price' => (float) $first->unit_price,
+                        'gross' => $gross,
+                        'fee_values' => $feeValues,
+                        'net' => $net,
+                    ];
+                })
+                ->values()->toArray();
 
-        $totalGross = array_sum(array_column($productRows, 'gross'));
+        $totalGross = (float) ($receipt->total_gross ?? array_sum(array_column($productRows, 'gross')));
         $totalFees = (float) ($receipt->total_fees ?? 0);
         $totalNet = (float) ($receipt->total_net ?? $totalGross);
 
@@ -1008,7 +1154,7 @@ class CustomerBillingReceiptResource extends Resource
     //  Dados para PDF — relatório de organização
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static function buildOrganizationReportData(
+    public static function buildOrganizationReportData(
         Collection $distributions,
         CustomerBillingReceipt $receipt,
         ?Tenant $tenant,
@@ -1029,67 +1175,61 @@ class CustomerBillingReceiptResource extends Resource
         // Todos os compradores distintos (para o rodapé)
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
-        // Agrupa distribuições pela tabela de preço do comprador (null → chave 0)
         $projectMap = $projects->keyBy('id');
         $projectSnapshots = collect(data_get($receipt->fee_snapshot, 'project_snapshots', []));
-        $byPriceTable = $distributions->groupBy(fn ($d) => $d->sales_project_id.'|'.($d->customer?->price_table_id ?? 0));
-
-        $priceGroups = $byPriceTable->map(function ($groupDists) use ($feeColumnService, $projectMap, $projectSnapshots, $feeColumns, $receipt, $projects) {
-            $firstDistribution = $groupDists->first();
-            $rowProject = $projectMap->get((int) $firstDistribution->sales_project_id);
-            $projectSnapshot = $projectSnapshots->get((string) $firstDistribution->sales_project_id)
+        $frozenLines = collect($receipt->documentLines());
+        $priceGroups = $projects->map(function (SalesProject $rowProject) use ($distributions, $frozenLines, $feeColumnService, $projectSnapshots, $receipt, $projects) {
+            $groupDists = $distributions->where('sales_project_id', $rowProject->id)->values();
+            $projectSnapshot = $projectSnapshots->get((string) $rowProject->id)
                 ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
-            $rowFeeColumns = $rowProject
-                ? $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot)
-                : [];
+            $rowFeeColumns = $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot);
             $groupCustomers = $groupDists->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
-            $ptName = $groupCustomers->first()?->priceTable?->name ?? 'Tabela Padrão';
+            $lines = $frozenLines->where('project_id', (int) $rowProject->id)->values();
+            $table = $lines->map(function (array $line) use ($groupDists): array {
+                $matching = $groupDists->filter(fn ($distribution): bool => (int) $distribution->product_id === (int) ($line['product_id'] ?? 0)
+                    && bccomp((string) $distribution->unit_price, (string) ($line['unit_price'] ?? 0), 8) === 0
+                );
+                $byCustomer = $matching->groupBy('customer_id')->map(
+                    fn (Collection $rows): string => $rows->reduce(
+                        fn (string $sum, $row): string => bcadd($sum, (string) $row->quantity, 8),
+                        '0',
+                    )
+                )->all();
 
-            $table = [];
-            foreach ($groupDists as $d) {
-                $pid = $d->product_id;
-                if (! isset($table[$pid])) {
-                    $table[$pid] = [
-                        'product' => $d->product?->name ?? 'Produto #'.$pid,
-                        'unit' => $d->product?->unit ?? 'kg',
-                        'unit_price' => (float) $d->unit_price,
-                        'by_customer' => [],
-                        'total_qty' => 0.0,
-                        'total_gross' => 0.0,
-                        'fee_values' => array_fill_keys(array_column($feeColumns, 'key'), 0.0),
-                    ];
-                }
-                $cid = $d->customer_id;
-                $qty = (float) $d->quantity;
-                $table[$pid]['by_customer'][$cid] = ($table[$pid]['by_customer'][$cid] ?? 0.0) + $qty;
-                $table[$pid]['total_qty'] += $qty;
-                $table[$pid]['total_gross'] += $qty * (float) $d->unit_price;
-                foreach ($feeColumnService->values($qty * (float) $d->unit_price, $rowFeeColumns) as $key => $amount) {
-                    $table[$pid]['fee_values'][$key] = ($table[$pid]['fee_values'][$key] ?? 0) + $amount;
-                }
-            }
+                return [
+                    'product' => (string) ($line['product'] ?? '—'),
+                    'unit' => (string) ($line['unit'] ?? 'un'),
+                    'unit_price' => (string) ($line['unit_price'] ?? '0'),
+                    'by_customer' => $byCustomer,
+                    'total_qty' => (string) ($line['quantity'] ?? '0'),
+                    'total_gross' => (string) ($line['document_gross'] ?? '0.00'),
+                    'fee_values' => (array) ($line['fee_values'] ?? []),
+                    'net' => (string) ($line['document_amount'] ?? '0.00'),
+                ];
+            })->all();
 
-            $feeTotals = $feeColumnService->totals($groupDists, $rowFeeColumns);
-            $subtotalGross = array_sum(array_column($table, 'total_gross'));
-            $subtotalNet = $subtotalGross;
-            foreach ($rowFeeColumns as $fee) {
-                $amount = $feeTotals[$fee['key']] ?? 0;
-                $subtotalNet += $fee['nature'] === 'accrual' ? $amount : -$amount;
-            }
+            $feeTotals = collect($rowFeeColumns)->mapWithKeys(fn (array $fee): array => [
+                $fee['key'] => $lines->reduce(
+                    fn (string $sum, array $line): string => bcadd($sum, (string) data_get($line, 'fee_values.'.$fee['key'], '0'), 2),
+                    '0.00',
+                ),
+            ])->all();
+            $subtotalGross = $lines->reduce(fn (string $sum, array $line): string => bcadd($sum, (string) ($line['document_gross'] ?? 0), 2), '0.00');
+            $subtotalNet = $lines->reduce(fn (string $sum, array $line): string => bcadd($sum, (string) ($line['document_amount'] ?? 0), 2), '0.00');
 
             return [
-                'project_id' => (int) $firstDistribution->sales_project_id,
-                'project_name' => $rowProject?->title ?? 'Projeto #'.$firstDistribution->sales_project_id,
-                'price_table_name' => $ptName,
+                'project_id' => (int) $rowProject->id,
+                'project_name' => $rowProject->title,
+                'price_table_name' => 'Valores consolidados',
                 'customers' => $groupCustomers,
                 'table' => $table,
                 'subtotal_gross' => $subtotalGross,
                 'subtotal_net' => $subtotalNet,
                 'fee_totals' => $feeTotals,
             ];
-        })->values()->all();
+        })->filter(fn (array $group): bool => $group['table'] !== [])->values()->all();
 
-        $totalGross = collect($priceGroups)->sum('subtotal_gross');
+        $totalGross = (float) ($receipt->total_gross ?? 0);
         $totalFees = (float) ($receipt->total_fees ?? 0);
         $totalNet = (float) ($receipt->total_net ?? $totalGross);
         $multiplePriceTables = count($priceGroups) > 1;
@@ -1137,7 +1277,9 @@ class CustomerBillingReceiptResource extends Resource
     {
         $rows = [];
         if (! empty($receipt->delivery_ids)) {
-            $rows = ProductionDelivery::whereIn('id', $receipt->delivery_ids)
+            $rows = ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->whereIn('id', $receipt->delivery_ids)
                 ->with(['salesProject:id,title', 'product', 'associate.user', 'customer'])->orderBy('delivery_date')->get()
                 ->map(fn ($d) => [
                     'id' => $d->id,

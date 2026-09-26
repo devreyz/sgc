@@ -7,7 +7,6 @@ use App\Enums\CustomerReceiptStatus;
 use App\Models\BankAccount;
 use App\Models\CashMovement;
 use App\Models\CustomerBillingReceipt;
-use App\Models\CustomerProjectFee;
 use App\Models\CustomerReceiptPayment;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
@@ -42,7 +41,7 @@ class CustomerBillingReceiptService
     private readonly CustomerBillingProjectContextService $projectContext;
 
     public function __construct(
-        private readonly ProjectFinancialCalculator $calculator,
+        private readonly CustomerBillingLineConsolidator $lineConsolidator,
         ?FinancialDistributionInvariantService $integrity = null,
         ?CustomerBillingProjectContextService $projectContext = null,
     ) {
@@ -133,78 +132,24 @@ class CustomerBillingReceiptService
      */
     public function computeSnapshot(Collection $distributions, SalesProject $project): array
     {
-        // Carrega taxas específicas do cliente; se vazia, zero deduções aplicadas
-        $customerFees = CustomerProjectFee::query()
-            ->where('tenant_id', $project->tenant_id)
-            ->where('sales_project_id', $project->id)
-            ->where('active', true)
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $totalGross = '0';
-        $totalFees = '0';
-        $totalNet = '0';
-        $totalDiscounts = '0';
-        $totalAccruals = '0';
-        $feeDetails = collect();
-
-        foreach ($distributions as $dist) {
-            $gross = $dist->gross_value ?? null;
-            if ($gross === null || bccomp((string) $gross, '0', 8) <= 0) {
-                $gross = bcmul((string) ($dist->quantity ?? 0), (string) ($dist->unit_price ?? 0), 8);
-            }
-            $gross = (string) $gross;
-
-            if ($customerFees->isEmpty()) {
-                // Sem taxas configuradas → bruto = líquido, sem deduções
-                $result = [
-                    'net' => $gross,
-                    'total_fee' => '0',
-                    'fees' => [],
-                    'total_discounts' => '0',
-                    'total_accruals' => '0',
-                ];
-            } else {
-                $result = $this->calculator->calculateWithFees($project, $gross, $customerFees);
-            }
-
-            $totalGross = bcadd($totalGross, $gross, 8);
-            $totalFees = bcadd($totalFees, $result['total_fee'], 8);
-            $totalNet = bcadd($totalNet, $result['net'], 8);
-            $netFee = (string) ($result['total_fee'] ?? '0');
-            $discounts = (string) ($result['total_discounts'] ?? (bccomp($netFee, '0', 8) >= 0 ? $netFee : '0'));
-            $accruals = (string) ($result['total_accruals'] ?? (bccomp($netFee, '0', 8) < 0 ? bcsub('0', $netFee, 8) : '0'));
-            $totalDiscounts = bcadd($totalDiscounts, $discounts, 8);
-            $totalAccruals = bcadd($totalAccruals, $accruals, 8);
-
-            foreach ($result['fees'] as $fee) {
-                $key = implode('|', [
-                    $fee['id'] ?? 'custom',
-                    $fee['name'] ?? '',
-                    $fee['type'] ?? '',
-                    $fee['nature'] ?? '',
-                    $fee['rate'] ?? '',
-                ]);
-                $existing = $feeDetails->get($key, array_merge($fee, ['amount' => '0']));
-                $existing['amount'] = bcadd((string) ($existing['amount'] ?? 0), (string) ($fee['amount'] ?? 0), 8);
-                $feeDetails->put($key, $existing);
-            }
-        }
+        $consolidated = $this->lineConsolidator->consolidate($distributions, $project);
 
         $feeSnapshot = [
-            'fees' => $feeDetails->values()->all(),
-            'total_discounts' => $totalDiscounts,
-            'total_accruals' => $totalAccruals,
-            'total_fee' => $totalFees,
+            'fees' => $consolidated['fees'],
+            'total_discounts' => $consolidated['total_discounts'],
+            'total_accruals' => $consolidated['total_accruals'],
+            'total_fee' => $consolidated['total_fees'],
             'distribution_count' => $distributions->count(),
-            'fee_source' => $customerFees->isNotEmpty() ? 'customer_project_fees' : 'no_fees',
+            'fee_source' => $consolidated['fees'] !== [] ? 'customer_project_fees' : 'no_fees',
+            'document_lines' => $consolidated['lines'],
+            'rounding' => 'HALF_UP_PER_CONSOLIDATED_LINE',
+            'snapshot_version' => 2,
         ];
 
         return [
-            'total_gross' => $totalGross,
-            'total_fees' => $totalFees,
-            'total_net' => $totalNet,
+            'total_gross' => $consolidated['total_gross'],
+            'total_fees' => $consolidated['total_fees'],
+            'total_net' => $consolidated['total_net'],
             'fee_snapshot' => $feeSnapshot,
         ];
     }
@@ -232,11 +177,13 @@ class CustomerBillingReceiptService
         $totalAccruals = '0';
         $projectSnapshots = [];
         $aggregatedFees = collect();
+        $documentLines = [];
 
         foreach ($projects as $project) {
             $projectDistributions = $distributions->where('sales_project_id', $project->id)->values();
             $calculated = $this->computeSnapshot($projectDistributions, $project);
             $feeSnapshot = $calculated['fee_snapshot'];
+            $documentLines = array_merge($documentLines, $feeSnapshot['document_lines'] ?? []);
 
             $projectSnapshots[(string) $project->id] = [
                 'project_id' => (int) $project->id,
@@ -287,6 +234,9 @@ class CustomerBillingReceiptService
                 'fee_source' => 'customer_project_fees_by_project',
                 'project_ids' => $projects->pluck('id')->map(fn ($id): int => (int) $id)->values()->all(),
                 'project_snapshots' => $projectSnapshots,
+                'document_lines' => $documentLines,
+                'rounding' => 'HALF_UP_PER_CONSOLIDATED_LINE',
+                'snapshot_version' => 2,
             ],
         ];
     }
@@ -329,6 +279,15 @@ class CustomerBillingReceiptService
                 ->lockForUpdate()
                 ->findOrFail($receipt->id);
 
+            if (! $lockedReceipt->isEditable()) {
+                $frozenIds = collect($lockedReceipt->delivery_ids ?? [])->map(fn ($id): int => (int) $id)->sort()->values()->all();
+                if ($frozenIds === $ids) {
+                    return; // repeticao idempotente da mesma emissao
+                }
+
+                throw new \RuntimeException('Este faturamento já foi emitido e suas linhas financeiras são imutáveis.');
+            }
+
             $this->integrity->assertProjectContext(
                 $project,
                 (int) $lockedReceipt->tenant_id,
@@ -365,6 +324,9 @@ class CustomerBillingReceiptService
             if ($locked->count() !== count($ids)) {
                 throw new \RuntimeException('Uma ou mais distribuicoes selecionadas nao existem neste tenant.');
             }
+            if (Schema::hasTable('products')) {
+                $locked->load('product:id,name,unit,ncm');
+            }
 
             $this->integrity->assertCommonProjects($locked, $projects, (int) $receipt->tenant_id);
             $this->integrity->assertCustomerRecipient(
@@ -384,7 +346,7 @@ class CustomerBillingReceiptService
             $alreadyClaimed = $locked->filter(function ($d) use ($receipt) {
                 // Já vinculada a OUTRO comprovante (não o atual)
                 return ! is_null($d->billing_receipt_id)
-                    && $d->billing_receipt_id !== $receipt->id;
+                    && (int) $d->billing_receipt_id !== (int) $receipt->id;
             });
 
             if ($alreadyClaimed->isNotEmpty()) {
@@ -421,7 +383,13 @@ class CustomerBillingReceiptService
                 ->all();
 
             if (! empty($freeIds)) {
-                $affected = ProductionDelivery::whereIn('id', $freeIds)
+                $affected = ProductionDelivery::withoutGlobalScopes()
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->whereIn('id', $freeIds)
+                    ->where(function ($query) use ($lockedReceipt): void {
+                        $query->whereNull('billing_receipt_id')
+                            ->orWhere('billing_receipt_id', $lockedReceipt->id);
+                    })
                     ->update(['billing_receipt_id' => $lockedReceipt->id]);
 
                 // ── 5. Verificação de integridade: detecta race condition residual ──

@@ -4453,7 +4453,10 @@
     function openEditCliente(c) {
         editClienteId = c.id;
         document.getElementById('editCustName').value = c.name || '';
-        document.getElementById('editCustDoc').value = c.cpf_cnpj || '';
+        document.getElementById('editCustDoc').value = '';
+        document.getElementById('editCustDoc').placeholder = c.has_document
+            ? 'Documento já cadastrado — preencha apenas para alterar'
+            : 'CPF/CNPJ';
         document.getElementById('editCustPhone').value = c.phone || '';
         document.getElementById('editCustEmail').value = c.email || '';
         document.getElementById('editCustAddress').value = c.address || '';
@@ -4473,14 +4476,16 @@
         const btn = document.getElementById('btnSaveEditCliente');
         btn.disabled = true; btn.textContent = 'Salvando...';
         try {
-            const res = await api(`/customers/${editClienteId}`, 'PUT', {
+            const customerPayload = {
                 name,
-                cpf_cnpj: document.getElementById('editCustDoc').value.trim() || null,
                 phone: document.getElementById('editCustPhone').value.trim() || null,
                 email: document.getElementById('editCustEmail').value.trim() || null,
                 address: document.getElementById('editCustAddress').value.trim() || null,
                 notes: document.getElementById('editCustNotes').value.trim() || null,
-            });
+            };
+            const changedDocument = document.getElementById('editCustDoc').value.trim();
+            if (changedDocument) customerPayload.cpf_cnpj = changedDocument;
+            const res = await api(`/customers/${editClienteId}`, 'PUT', customerPayload);
             if (res.success) {
                 showToast('Cliente atualizado!', 'success');
                 closeEditCliente();

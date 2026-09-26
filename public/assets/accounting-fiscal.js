@@ -1,8 +1,52 @@
 (() => {
- const root=document.querySelector('[data-fiscal-queue]'); if(!root)return; const form=root.querySelector('[data-fiscal-filters]'),body=root.querySelector('[data-fiscal-table]'),mobile=root.querySelector('[data-fiscal-mobile]'),pager=root.querySelector('[data-fiscal-pagination]'); let loaded=false,abort;
- const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); const money=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
- const action=x=>x.gate==='ready'?`<button class="acc-link acc-fiscal-action" type="button" data-prepare="${esc(x.prepare_url)}">Preparar emissão</button>`:`<a class="acc-link" href="${esc(x.review_url)}">Revisar processo</a>`;
- async function prepare(button){button.disabled=true;const original=button.textContent;button.textContent='Preparando...';try{const r=await fetch(button.dataset.prepare,{method:'POST',credentials:'same-origin',headers:{Accept:'application/json','X-CSRF-TOKEN':root.dataset.csrf}});const j=await r.json();if(!r.ok)throw new Error(j.message||'Não foi possível preparar a emissão.');window.location.assign(j.url)}catch(e){button.disabled=false;button.textContent=original;window.dispatchEvent(new CustomEvent('sgc:notify',{detail:{type:'error',message:e.message}}));}}
- async function load(page=1){abort?.abort();abort=new AbortController();body.innerHTML='<tr><td colspan="7"><div class="acc-empty">Carregando...</div></td></tr>';mobile.innerHTML='';const p=new URLSearchParams(new FormData(form));p.set('page',page);try{const r=await fetch(root.dataset.url+'?'+p,{headers:{Accept:'application/json'},signal:abort.signal,credentials:'same-origin'});const j=await r.json();if(!r.ok)throw new Error(j.message||'Falha ao carregar');if(!loaded){form.elements.project.innerHTML='<option value="">Todos</option>'+j.filters.projects.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join('');form.elements.organization.innerHTML='<option value="">Todas</option>'+j.filters.organizations.map(x=>`<option value="${x.id}">${esc(x.label)}</option>`).join('');loaded=true}const rows=j.processes.data;if(!rows.length){body.innerHTML='<tr><td colspan="7"><div class="acc-empty">Nenhum processo fiscal encontrado.</div></td></tr>';mobile.innerHTML='<div class="acc-empty">Nenhum processo fiscal encontrado.</div>'}else{body.innerHTML=rows.map(x=>`<tr><td><a class="acc-link" href="${esc(x.review_url)}">${esc(x.number)}</a></td><td>${esc(x.recipient)}</td><td>${esc(x.project)}</td><td>${esc(x.authorized_at||'—')}</td><td class="acc-money">${money.format(x.amount)}</td><td><span class="acc-badge acc-badge-${x.gate==='ready'?'success':'danger'}">${esc(x.label)}</span></td><td>${action(x)}</td></tr>`).join('');mobile.innerHTML=rows.map(x=>`<article class="acc-mobile-row"><div class="acc-mobile-head"><a class="acc-link" href="${esc(x.review_url)}">${esc(x.number)}</a><span class="acc-badge acc-badge-${x.gate==='ready'?'success':'danger'}">${esc(x.label)}</span></div><div class="acc-mobile-meta"><span>Destinatário<strong>${esc(x.recipient)}</strong></span><span>Projeto<strong>${esc(x.project)}</strong></span><span>Valor fiscal<strong>${money.format(x.amount)}</strong></span><span>Ação<strong>${esc(x.action)}</strong></span></div><div class="acc-mobile-action">${action(x)}</div></article>`).join('');root.querySelectorAll('[data-prepare]').forEach(b=>b.onclick=()=>prepare(b))}pager.innerHTML=`<span>${j.processes.from||0}–${j.processes.to||0} de ${j.processes.total}</span><div class="acc-pagination-actions"><button class="acc-button" ${j.processes.current_page<=1?'disabled':''} data-page="${j.processes.current_page-1}">Anterior</button><button class="acc-button" ${j.processes.current_page>=j.processes.last_page?'disabled':''} data-page="${j.processes.current_page+1}">Próxima</button></div>`;pager.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>load(b.dataset.page))}catch(e){if(e.name!=='AbortError')body.innerHTML=`<tr><td colspan="7"><div class="acc-error">${esc(e.message)}</div></td></tr>`}}
- let timer;form.oninput=e=>{clearTimeout(timer);timer=setTimeout(()=>load(1),e.target.name==='search'?300:0)};root.querySelector('[data-clear]').onclick=()=>{form.reset();load(1)};load();
+    const root = document.querySelector('[data-fiscal-queue]');
+    if (!root) return;
+    const form = root.querySelector('[data-fiscal-filters]');
+    const body = root.querySelector('[data-fiscal-table]');
+    const mobile = root.querySelector('[data-fiscal-mobile]');
+    const pager = root.querySelector('[data-fiscal-pagination]');
+    const esc = value => String(value ?? '').replace(/[&<>'"]/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[character]));
+    const money = new Intl.NumberFormat('pt-BR', {style:'currency', currency:'BRL'});
+    let filtersLoaded = false;
+    let controller;
+
+    const action = process => process.gate === 'ready'
+        ? `<a class="acc-link" href="${esc(process.billing_sheet_url)}" target="_blank" rel="noopener">Imprimir faturamento</a>`
+        : `<a class="acc-link" href="${esc(process.review_url)}">Revisar faturamento</a>`;
+
+    const load = async (page = 1) => {
+        controller?.abort();
+        controller = new AbortController();
+        body.innerHTML = '<tr><td colspan="7"><div class="acc-empty">Carregando...</div></td></tr>';
+        mobile.innerHTML = '';
+        const parameters = new URLSearchParams(new FormData(form));
+        parameters.set('page', page);
+        try {
+            const response = await fetch(`${root.dataset.url}?${parameters}`, {headers:{Accept:'application/json'}, signal:controller.signal, credentials:'same-origin'});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || 'Falha ao carregar a fila.');
+            if (!filtersLoaded) {
+                form.elements.project.innerHTML = '<option value="">Todos</option>' + payload.filters.projects.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join('');
+                form.elements.organization.innerHTML = '<option value="">Todas</option>' + payload.filters.organizations.map(item => `<option value="${item.id}">${esc(item.label)}</option>`).join('');
+                filtersLoaded = true;
+            }
+            const rows = payload.processes.data;
+            if (!rows.length) {
+                body.innerHTML = '<tr><td colspan="7"><div class="acc-empty">Nenhum faturamento encontrado.</div></td></tr>';
+                mobile.innerHTML = '<div class="acc-empty">Nenhum faturamento encontrado.</div>';
+            } else {
+                body.innerHTML = rows.map(item => `<tr><td><a class="acc-link" href="${esc(item.review_url)}">${esc(item.number)}</a></td><td>${esc(item.recipient)}</td><td>${esc(item.project)}</td><td>${esc(item.authorized_at || 'Não exigida')}</td><td class="acc-money">${money.format(item.amount)}</td><td><span class="acc-badge acc-badge-${item.gate === 'ready' ? 'success' : 'warning'}">${esc(item.label)}</span></td><td>${action(item)}</td></tr>`).join('');
+                mobile.innerHTML = rows.map(item => `<article class="acc-mobile-row"><div class="acc-mobile-head"><a class="acc-link" href="${esc(item.review_url)}">${esc(item.number)}</a><span class="acc-badge acc-badge-${item.gate === 'ready' ? 'success' : 'warning'}">${esc(item.label)}</span></div><div class="acc-mobile-meta"><span>Destinatário<strong>${esc(item.recipient)}</strong></span><span>Projeto<strong>${esc(item.project)}</strong></span><span>Valor para emissão<strong>${money.format(item.amount)}</strong></span><span>Próxima ação<strong>${esc(item.action)}</strong></span></div><div class="acc-mobile-action">${action(item)}</div></article>`).join('');
+            }
+            pager.innerHTML = `<span>${payload.processes.from || 0}–${payload.processes.to || 0} de ${payload.processes.total}</span><div class="acc-pagination-actions"><button class="acc-button" ${payload.processes.current_page <= 1 ? 'disabled' : ''} data-page="${payload.processes.current_page - 1}">Anterior</button><button class="acc-button" ${payload.processes.current_page >= payload.processes.last_page ? 'disabled' : ''} data-page="${payload.processes.current_page + 1}">Próxima</button></div>`;
+            pager.querySelectorAll('[data-page]').forEach(button => button.onclick = () => load(button.dataset.page));
+        } catch (error) {
+            if (error.name !== 'AbortError') body.innerHTML = `<tr><td colspan="7"><div class="acc-error">${esc(error.message)}</div></td></tr>`;
+        }
+    };
+
+    let timer;
+    form.oninput = event => { clearTimeout(timer); timer = setTimeout(() => load(1), event.target.name === 'search' ? 300 : 0); };
+    root.querySelector('[data-clear]').onclick = () => { form.reset(); load(1); };
+    load();
 })();

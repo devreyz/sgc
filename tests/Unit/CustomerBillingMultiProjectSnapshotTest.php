@@ -74,6 +74,90 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
         $this->assertCount(2, $snapshot['fee_snapshot']['fees']);
     }
 
+    public function test_it_consolidates_equal_product_unit_and_price_before_rounding_once(): void
+    {
+        $project = $this->project(10, 'Projeto de teste');
+        $distributions = collect([1, 2, 3])->map(function (int $id): ProductionDelivery {
+            $distribution = new ProductionDelivery;
+            $distribution->setRawAttributes([
+                'id' => $id,
+                'tenant_id' => 1,
+                'sales_project_id' => 10,
+                'product_id' => 99,
+                'quantity' => '0.3333',
+                'unit_price' => '0.1000',
+                'gross_value' => '0.0333',
+                'delivery_date' => '2026-01-15',
+                'status' => 'approved',
+            ], true);
+
+            return $distribution;
+        });
+
+        $snapshot = app(CustomerBillingReceiptService::class)->computeSnapshot($distributions, $project);
+        $lines = $snapshot['fee_snapshot']['document_lines'];
+
+        $this->assertCount(1, $lines);
+        $this->assertSame('0.9999', $lines[0]['quantity']);
+        $this->assertSame('0.10', $lines[0]['document_gross']);
+        $this->assertSame('0.10', $lines[0]['document_amount']);
+        $this->assertSame('0.10', $snapshot['total_net']);
+        $this->assertSame('HALF_UP_PER_CONSOLIDATED_LINE', $snapshot['fee_snapshot']['rounding']);
+    }
+
+    public function test_it_keeps_different_prices_in_different_document_lines(): void
+    {
+        $project = $this->project(10, 'Projeto de teste');
+        $first = $this->distribution(1, 10, '2026-01-15');
+        $second = $this->distribution(2, 10, '2026-01-16');
+        $second->setRawAttributes(array_merge($second->getAttributes(), ['unit_price' => '11.0000']), true);
+
+        $snapshot = app(CustomerBillingReceiptService::class)->computeSnapshot(collect([$first, $second]), $project);
+
+        $this->assertCount(2, $snapshot['fee_snapshot']['document_lines']);
+        $this->assertSame(['10.0000', '11.0000'], collect($snapshot['fee_snapshot']['document_lines'])->pluck('unit_price')->all());
+        $this->assertSame('210.00', $snapshot['total_net']);
+    }
+
+    public function test_required_financial_examples_use_half_up_only_after_consolidation(): void
+    {
+        $project = $this->project(10, 'Projeto de teste');
+        $examples = [
+            ['673.8770', '4.12000', '2776.37324000', '2776.37'],
+            ['85.1500', '23.56000', '2006.13400000', '2006.13'],
+            ['1', '5.5778', '5.57780000', '5.58'],
+            ['1', '5.5721', '5.57210000', '5.57'],
+        ];
+
+        foreach ($examples as $index => [$quantity, $price, $raw, $document]) {
+            $snapshot = app(CustomerBillingReceiptService::class)->computeSnapshot(
+                collect([$this->pricedDistribution($index + 1, $quantity, $price, $index + 1)]),
+                $project,
+            );
+            $line = $snapshot['fee_snapshot']['document_lines'][0];
+            self::assertSame($raw, $line['raw_amount']);
+            self::assertSame($document, $line['document_amount']);
+        }
+    }
+
+    public function test_total_is_exact_sum_of_document_lines_and_ignores_producer_admin_fee(): void
+    {
+        $project = $this->project(10, 'Projeto de teste');
+        $project->setRawAttributes(array_merge($project->getAttributes(), ['admin_fee_percentage' => '37.5000']), true);
+        $snapshot = app(CustomerBillingReceiptService::class)->computeSnapshot(collect([
+            $this->pricedDistribution(1, '673.8770', '4.12000', 99),
+            $this->pricedDistribution(2, '85.1500', '23.56000', 100),
+        ]), $project);
+        $sum = collect($snapshot['fee_snapshot']['document_lines'])->reduce(
+            fn (string $total, array $line): string => bcadd($total, $line['document_amount'], 2),
+            '0.00',
+        );
+
+        self::assertSame('0.00', $snapshot['total_fees']);
+        self::assertSame('4782.50', $sum);
+        self::assertSame($sum, $snapshot['total_net']);
+    }
+
     public function test_it_freezes_one_receipt_with_distributions_from_two_projects(): void
     {
         $this->createFreezeSchema();
@@ -359,6 +443,25 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
             'status' => 'approved',
         ], true);
         $distribution->setAttribute('delivery_date', Carbon::parse($date));
+
+        return $distribution;
+    }
+
+    private function pricedDistribution(int $id, string $quantity, string $price, int $productId): ProductionDelivery
+    {
+        $distribution = new ProductionDelivery;
+        $distribution->setRawAttributes([
+            'id' => $id,
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'product_id' => $productId,
+            'quantity' => $quantity,
+            'unit_price' => $price,
+            'gross_value' => bcmul($quantity, $price, 8),
+            'delivery_date' => '2026-01-15',
+            'status' => 'approved',
+        ], true);
+        $distribution->exists = true;
 
         return $distribution;
     }

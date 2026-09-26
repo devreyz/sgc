@@ -193,7 +193,39 @@
 .acc-check input { width:18px; height:18px; accent-color:var(--acc-primary); }
 .acc-span { grid-column:1/-1; }
 .acc-copy { margin-top:.4rem; border:0; background:transparent; color:var(--acc-primary); font:inherit; font-size:.68rem; font-weight:750; cursor:pointer; }
+.acc-receipt-filters { grid-template-columns:minmax(260px,1.6fr) minmax(170px,.7fr) minmax(150px,.55fr) auto; }
+.acc-receipt-results { display:grid; gap:.55rem; padding:.72rem; }
+.acc-receipt-card { display:grid; gap:.58rem; padding:.72rem; border:1px solid var(--acc-border); border-radius:8px; background:var(--acc-surface); }
+.acc-receipt-card:hover { border-color:var(--acc-border-strong); box-shadow:0 5px 14px rgba(16,35,24,.05); }
+.acc-receipt-card-main { display:flex; align-items:start; justify-content:space-between; gap:.6rem; }
+.acc-link-button { padding:0; border:0; background:transparent; font:inherit; cursor:pointer; }
+.acc-receipt-meta { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.5rem; }
+.acc-receipt-meta span { color:var(--acc-secondary); font-size:.63rem; }
+.acc-receipt-meta strong { display:block; margin-top:.12rem; overflow-wrap:anywhere; color:var(--acc-text); font-size:.72rem; }
+.acc-receipt-actions { display:flex; flex-wrap:wrap; gap:.4rem; padding-top:.5rem; border-top:1px solid var(--acc-border); }
+.acc-dialog { width:min(94vw,560px); max-height:90vh; padding:.8rem; overflow:auto; border:1px solid var(--acc-border, #d7e2da); border-radius:10px; background:var(--acc-surface, #fff); color:var(--acc-text, #17251c); box-shadow:0 24px 60px rgba(10,25,16,.22); }
+.acc-dialog::backdrop { background:rgba(9,27,16,.55); }
+.acc-dialog-wide { width:min(96vw,1100px); }
+.acc-dialog-head { display:flex; align-items:start; justify-content:space-between; gap:.7rem; margin-bottom:.75rem; }
+.acc-dialog-head strong,.acc-dialog-head span { display:block; }
+.acc-dialog-head span { margin-top:.12rem; color:var(--acc-secondary); font-size:.68rem; }
+.acc-scanner-video { display:block; width:100%; min-height:220px; max-height:52vh; margin-bottom:.65rem; border-radius:8px; background:#101713; object-fit:cover; }
+.acc-receipt-summary { margin-bottom:.75rem; }
+.acc-detail-table { max-height:55vh; border:1px solid var(--acc-border); border-radius:8px; }
+.acc-related-processes { margin-top:.8rem; }
+.acc-related-processes h3 { margin:0 0 .5rem; font-size:.8rem; }
+.acc-auth-access { display:grid; gap:.6rem; margin-bottom:.8rem; padding-bottom:.8rem; border-bottom:1px solid var(--acc-border); }
+.acc-inline-form { display:grid; grid-template-columns:minmax(190px,1fr) minmax(170px,.8fr) auto; gap:.5rem; align-items:end; padding:.65rem; border:1px solid var(--acc-border); border-radius:8px; background:var(--acc-soft); }
+.acc-guidance { display:grid; gap:.35rem; padding:.65rem; border-left:3px solid var(--acc-info); border-radius:6px; background:#f1faff; font-size:.71rem; }
+.acc-guidance span { color:var(--acc-secondary); }
+.acc-guidance .acc-button { justify-self:start; margin-top:.2rem; }
 @media print { .bento-header,.bento-bottom-nav,.acc-topbar .acc-button,.acc-copy { display:none!important; } .acc-shell { width:100%; } }
+
+.acc-wizard-steps{display:grid;grid-template-columns:repeat(4,1fr);overflow:hidden;border:1px solid var(--acc-border);border-radius:10px;background:var(--acc-surface)}
+.acc-wizard-steps button{display:flex;align-items:center;justify-content:center;gap:.45rem;min-height:52px;padding:.55rem;border:0;border-right:1px solid var(--acc-border);background:transparent;color:var(--acc-secondary);font:inherit;font-size:.72rem;cursor:pointer}.acc-wizard-steps button:last-child{border-right:0}.acc-wizard-steps button.is-active{background:var(--acc-soft);color:var(--acc-primary);font-weight:800}.acc-wizard-steps b{display:grid;width:24px;height:24px;place-items:center;border-radius:999px;background:var(--acc-border);font-size:.66rem}.acc-wizard-steps .is-active b{background:var(--acc-primary);color:#fff}
+.acc-billing-editor .acc-panel{padding:.85rem}.acc-section-heading{display:flex;align-items:start;justify-content:space-between;gap:1rem;margin-bottom:.85rem}.acc-section-heading span{color:var(--acc-primary);font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em}.acc-section-heading h2{margin:.1rem 0 0;font-size:1rem}.acc-form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem}.acc-span-2{grid-column:span 2}.acc-field small,.acc-help{color:var(--acc-secondary);font-size:.68rem}.acc-recipient-choice{display:flex;align-items:center;gap:1rem;padding:.6rem;border:1px solid var(--acc-border);border-radius:8px}.acc-recipient-choice legend{padding:0 .3rem;font-size:.68rem;font-weight:800}.acc-recipient-choice label{display:flex;align-items:center;gap:.35rem;font-size:.72rem}.acc-mode-tabs{display:flex;gap:.35rem;margin-bottom:.8rem;border-bottom:1px solid var(--acc-border)}.acc-mode-tabs button{padding:.6rem .75rem;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--acc-secondary);font:inherit;font-size:.72rem;font-weight:750;cursor:pointer}.acc-mode-tabs button.is-active{border-color:var(--acc-primary);color:var(--acc-primary)}.acc-inline-actions,.acc-editor-actions{display:flex;align-items:center;gap:.5rem}.acc-inline-actions .acc-input{max-width:420px}.acc-editor-actions{margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--acc-border)}.acc-editor-actions>span{flex:1}.acc-scanner{max-width:520px;margin-top:.7rem;padding:.6rem;border:1px solid var(--acc-border);border-radius:9px}.acc-scanner video{display:block;width:100%;min-height:240px;margin-bottom:.5rem;border-radius:7px;background:#111;object-fit:cover}.acc-summary-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:.55rem;margin-bottom:.9rem}.acc-summary-cards article{padding:.7rem;border:1px solid var(--acc-border);border-radius:8px;background:var(--acc-soft)}.acc-summary-cards span{display:block;color:var(--acc-secondary);font-size:.65rem}.acc-summary-cards strong{display:block;margin-top:.15rem;font-size:1rem}.acc-fee-list,.acc-totals{display:grid;gap:.35rem}.acc-fee-list>div,.acc-totals>div{display:flex;justify-content:space-between;gap:1rem;padding:.5rem .65rem;border-bottom:1px solid var(--acc-border);font-size:.72rem}.acc-totals{max-width:520px;margin:1rem 0 0 auto}.acc-totals .is-total{border-radius:7px;background:var(--acc-primary);color:#fff;font-size:.82rem}.acc-alert{padding:.65rem .75rem;border:1px solid #b7dfc4;border-radius:8px;background:#effaf2;color:var(--acc-success);font-size:.72rem}.acc-alert.is-error{border-color:#f0b7b7;background:#fff2f2;color:var(--acc-danger)}
+.acc-scanned-batches{display:grid;gap:.45rem;margin-top:.75rem}.acc-scanned-batches h3{margin:0;font-size:.78rem}.acc-batch-card{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.65rem;border:1px solid var(--acc-border);border-radius:8px;background:var(--acc-soft)}.acc-batch-card strong,.acc-batch-card span{display:block;overflow-wrap:anywhere}.acc-batch-card strong{font-size:.72rem}.acc-batch-card span{margin-top:.12rem;color:var(--acc-secondary);font-size:.65rem}
+.acc-qr-scanner-dialog{width:min(94vw,620px);max-width:620px;margin:auto}
 
 @media (max-width: 980px) {
     .acc-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -218,6 +250,8 @@
     .acc-filter-actions { align-items: stretch; }
     .acc-filter-actions .acc-button { flex: 1; }
     .acc-table-wrap { display: none; }
+    .acc-billing-editor .acc-table-wrap { display:block; max-width:100%; overflow-x:auto; }
+    .acc-billing-editor .acc-table { min-width:680px; }
     .acc-mobile-list { display: block; }
     .acc-pagination { align-items: stretch; flex-direction: column; }
     .acc-pagination-actions .acc-button { flex: 1; }
@@ -228,8 +262,251 @@
     .acc-side-stack { grid-template-columns: 1fr; }
     .acc-settings-grid { grid-template-columns:1fr; }
     .acc-span { grid-column:auto; }
+    .acc-receipt-filters { grid-template-columns:1fr; }
+    .acc-receipt-meta { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .acc-inline-form { grid-template-columns:1fr; }
+    .acc-wizard-steps span{display:none}.acc-form-grid{grid-template-columns:1fr}.acc-span-2{grid-column:auto}.acc-summary-cards{grid-template-columns:1fr}.acc-editor-actions{flex-wrap:wrap}.acc-editor-actions .acc-button{flex:1}.acc-recipient-choice{align-items:start;flex-direction:column}.acc-mode-tabs{overflow-x:auto}.acc-mode-tabs button{white-space:nowrap}
+    .acc-scanner{position:relative;max-width:none}.acc-scanner video{min-height:0;height:34vh}.acc-batch-card{align-items:stretch;flex-direction:column}.acc-detail-table{display:block!important;max-width:100%;overflow-x:auto}.acc-dialog{margin:8px auto;max-height:calc(100vh - 16px)}.acc-scanner-video{min-height:0;height:34vh}
+    .acc-tab-panel .acc-table-wrap{display:block;max-width:100%;overflow-x:auto}.acc-tab-panel .acc-table{min-width:720px}.acc-receipt-actions .acc-button{flex:1}
+    .acc-dossier-grid>.acc-side-stack{order:-1}.acc-dossier-grid>.acc-side-stack .acc-panel:not(:first-child){display:none}.acc-state-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.acc-state-item:nth-child(2){border-right:1px solid var(--acc-border)}
 }
 
 @media (max-width: 440px) {
-    .acc-detail-grid, .acc-mobile-meta { grid-template-columns: 1fr; }
+    .acc-detail-grid, .acc-mobile-meta, .acc-receipt-meta { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   ACCOUNTING DOSSIER — SGC WORKSPACE V3
+   ========================================================================== */
+
+.accounting-dossier-v3{
+    --green:var(--ui-color-success,#219653);
+    --green-strong:var(--ui-color-primary-strong,#177c43);
+    --green-soft:var(--ui-color-success-soft,#edf8f1);
+    --green-border:var(--ui-color-success-border,#cde8d6);
+    --blue:var(--ui-color-info,#3478d4);
+    --blue-soft:var(--ui-color-info-soft,#eef4ff);
+    --blue-border:var(--ui-color-info-border,#d4e2f8);
+    --purple:var(--ui-color-violet,#8a4bd2);
+    --purple-soft:var(--ui-color-violet-soft,#f5effc);
+    --purple-border:var(--ui-color-violet-border,#e5d8f5);
+    --cyan:var(--ui-color-cyan,#168eae);
+    --cyan-soft:var(--ui-color-cyan-soft,#edf8fb);
+    --cyan-border:var(--ui-color-cyan-border,#d2eaf0);
+    --amber:var(--ui-color-warning,#c38418);
+    --amber-soft:var(--ui-color-warning-soft,#fff7e8);
+    --amber-border:var(--ui-color-warning-border,#efdcb8);
+    --red:var(--ui-color-danger,#cf5050);
+    --red-soft:var(--ui-color-danger-soft,#fff1f1);
+    --red-border:var(--ui-color-danger-border,#f1cccc);
+    --slate:var(--ui-color-neutral,#64748b);
+    --slate-soft:var(--ui-color-neutral-soft,#f2f5f7);
+    --text:var(--ui-color-text,#17251c);
+    --text2:var(--ui-color-text-secondary,#58685e);
+    --muted:var(--ui-color-text-muted,#87938b);
+    --border:var(--ui-color-border,#d7e2da);
+    --border-strong:var(--ui-color-border-strong,#becdc3);
+    --surface:var(--ui-color-surface,#fff);
+    --soft:var(--ui-color-surface-soft,#f7faf8);
+    --shadow:var(--ui-shadow-sm,0 5px 18px rgba(25,61,39,.055));
+
+    display:grid;
+    width:min(100%,1380px);
+    min-width:0;
+    grid-column:1/-1;
+    gap:.78rem;
+    margin:0 auto;
+    padding-bottom:1rem;
+    color:var(--text)
+}
+
+.accounting-dossier-v3 *,
+.accounting-dossier-v3 *::before,
+.accounting-dossier-v3 *::after{box-sizing:border-box}
+
+.accounting-dossier-v3 .dossier-topbar{
+    display:grid;min-width:0;min-height:76px;grid-template-columns:minmax(0,1fr) auto;
+    gap:.7rem;align-items:center;padding:.75rem .8rem;border:1px solid var(--border);
+    border-left:1px solid var(--border);border-radius:12px;
+    background:
+        radial-gradient(circle at 100% 0,color-mix(in srgb,var(--purple) 8%,transparent),transparent 19rem),
+        linear-gradient(180deg,#fbfdfb,#fff);
+    box-shadow:var(--shadow)
+}
+.accounting-dossier-v3 .dossier-heading{display:grid;min-width:0;grid-template-columns:42px minmax(0,1fr);gap:.65rem;align-items:center}
+.accounting-dossier-v3 .dossier-head-icon{display:grid;width:42px;height:42px;place-items:center;border:0;border-radius:9px;background:var(--purple-soft);color:var(--purple)}
+.accounting-dossier-v3 .dossier-head-icon i{font-size:1.05rem}
+.accounting-dossier-v3 .dossier-head-copy{min-width:0}
+.accounting-dossier-v3 .dossier-head-copy h1{margin:0;overflow:hidden;color:var(--text);font-size:clamp(1.03rem,2vw,1.25rem);font-weight:850;letter-spacing:-.03em;line-height:1.24;text-overflow:ellipsis;white-space:nowrap}
+.accounting-dossier-v3 .dossier-meta{display:flex;min-width:0;flex-wrap:wrap;gap:.18rem .65rem;align-items:center;margin-top:.2rem;color:var(--muted);font-size:.7rem;font-weight:600}
+.accounting-dossier-v3 .dossier-meta>span{display:inline-flex;min-width:0;gap:.26rem;align-items:center}
+.accounting-dossier-v3 .dossier-meta i{color:var(--blue);font-size:.78rem}
+.accounting-dossier-v3 .dossier-head-actions{display:flex;flex-wrap:wrap;gap:.36rem;align-items:center;justify-content:flex-end}
+.accounting-dossier-v3 .dossier-copy-number.is-copied,.accounting-dossier-v3 .acc-copy-button.is-copied{border-color:var(--green-border);background:var(--green-soft);color:var(--green)}
+
+.accounting-dossier-v3 .acc-dossier-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:.78rem;align-items:start}
+.accounting-dossier-v3 .acc-panel{overflow:hidden;border:1px solid var(--border);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+
+.accounting-dossier-v3 .acc-state-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--border);background:#fff}
+.accounting-dossier-v3 .acc-state-item{min-width:0;padding:.58rem .65rem;border-right:1px solid var(--border)}
+.accounting-dossier-v3 .acc-state-item:last-child{border-right:0}
+.accounting-dossier-v3 .acc-state-item span{display:block;color:var(--muted);font-size:.58rem;font-weight:720}
+.accounting-dossier-v3 .acc-state-item strong{display:block;margin-top:.1rem;overflow:hidden;color:var(--text);font-size:.7rem;font-weight:820;text-overflow:ellipsis;white-space:nowrap}
+
+/* tabs inline, inclusive no mobile */
+.accounting-dossier-v3 .acc-tabs{
+    display:flex;min-width:0;flex-wrap:nowrap;gap:.22rem;margin:.55rem .62rem 0;padding:.34rem;
+    overflow-x:auto;overflow-y:hidden;border:1px solid var(--border);border-radius:12px;
+    background:rgba(255,255,255,.97);box-shadow:0 4px 15px rgba(25,61,39,.05);
+    scrollbar-width:none;-webkit-overflow-scrolling:touch
+}
+.accounting-dossier-v3 .acc-tabs::-webkit-scrollbar{display:none}
+.accounting-dossier-v3 .acc-tab{
+    --tone:var(--slate);--tone-soft:var(--slate-soft);--tone-border:var(--border);
+    display:inline-flex;min-width:max-content;min-height:39px;flex:0 0 auto;gap:.34rem;align-items:center;
+    justify-content:center;padding:.42rem .62rem;border:1px solid transparent;border-radius:8px;
+    background:transparent;color:#66736b;cursor:pointer;font:inherit;font-size:.72rem;font-weight:760;white-space:nowrap
+}
+.accounting-dossier-v3 .acc-tab[data-tab="overview"]{--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-border:var(--blue-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="delivered"]{--tone:var(--amber);--tone-soft:var(--amber-soft);--tone-border:var(--amber-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="distributions"]{--tone:var(--cyan);--tone-soft:var(--cyan-soft);--tone-border:var(--cyan-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="finance"]{--tone:var(--green);--tone-soft:var(--green-soft);--tone-border:var(--green-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="documents"]{--tone:var(--purple);--tone-soft:var(--purple-soft);--tone-border:var(--purple-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="timeline"]{--tone:var(--slate);--tone-soft:var(--slate-soft);--tone-border:var(--border)}
+.accounting-dossier-v3 .acc-tab i{color:var(--tone);font-size:.92rem}
+.accounting-dossier-v3 .acc-tab:hover,.accounting-dossier-v3 .acc-tab:focus-visible{background:#f7f9f8;color:var(--tone);outline:0}
+.accounting-dossier-v3 .acc-tab.is-active{border-color:var(--tone-border);background:var(--tone-soft);color:var(--tone);box-shadow:inset 0 -2px 0 color-mix(in srgb,var(--tone) 45%,transparent)}
+.accounting-dossier-v3 .acc-tab-panel{display:none;min-width:0;padding:.72rem}
+.accounting-dossier-v3 .acc-tab-panel.is-active{display:block}
+
+.accounting-dossier-v3 .acc-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.42rem}
+.accounting-dossier-v3 .acc-detail{min-width:0;padding:.58rem .6rem;border:1px solid color-mix(in srgb,var(--blue) 12%,var(--border));border-radius:9px;background:#fff}
+.accounting-dossier-v3 .acc-detail span{display:block;color:var(--muted);font-size:.61rem;font-weight:720}
+.accounting-dossier-v3 .acc-detail strong{display:block;margin-top:.18rem;overflow-wrap:anywhere;color:var(--text);font-size:.75rem;font-weight:840}
+
+/* real tables on all breakpoints */
+.accounting-dossier-v3 .acc-data-table-block{min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:9px;background:#fff}
+.accounting-dossier-v3 .acc-table-tools{display:flex;min-height:54px;gap:.65rem;align-items:center;justify-content:space-between;padding:.5rem .58rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fbfdfc,#fff)}
+.accounting-dossier-v3 .acc-table-tools-copy{display:grid;min-width:0;grid-template-columns:34px minmax(0,1fr);gap:.48rem;align-items:center}
+.accounting-dossier-v3 .acc-table-tools-copy>i{display:grid;width:34px;height:34px;place-items:center;border-radius:7px;background:var(--purple-soft);color:var(--purple);font-size:.9rem}
+.accounting-dossier-v3 .acc-data-table-delivered .acc-table-tools-copy>i{background:var(--amber-soft);color:var(--amber)}
+.accounting-dossier-v3 .acc-data-table-distributions .acc-table-tools-copy>i{background:var(--cyan-soft);color:var(--cyan)}
+.accounting-dossier-v3 .acc-table-tools-copy strong,.accounting-dossier-v3 .acc-table-tools-copy span{display:block}
+.accounting-dossier-v3 .acc-table-tools-copy strong{color:var(--text);font-size:.72rem;font-weight:820}
+.accounting-dossier-v3 .acc-table-tools-copy span{margin-top:.05rem;color:var(--muted);font-size:.59rem}
+.accounting-dossier-v3 .acc-data-table-block .acc-table-wrap{display:block;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;border:0;border-radius:0;background:#fff;-webkit-overflow-scrolling:touch}
+.accounting-dossier-v3 .acc-workspace-table{width:100%;min-width:720px;border-collapse:collapse;table-layout:auto}
+.accounting-dossier-v3 .acc-workspace-table thead{display:table-header-group!important}
+.accounting-dossier-v3 .acc-workspace-table tbody{display:table-row-group!important}
+.accounting-dossier-v3 .acc-workspace-table tr{display:table-row!important}
+.accounting-dossier-v3 .acc-workspace-table th,.accounting-dossier-v3 .acc-workspace-table td{display:table-cell!important;width:auto!important}
+.accounting-dossier-v3 .acc-workspace-table th{padding:.35rem .58rem;border-bottom:1px solid var(--border-strong);background:linear-gradient(180deg,#f5f8f6,#eff4f1);color:#6f7c74;font-size:.58rem;font-weight:820;letter-spacing:.045em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.accounting-dossier-v3 .acc-workspace-table td{padding:.48rem .58rem;border-bottom:1px solid var(--border);background:#fff;color:var(--text2);font-size:.69rem;vertical-align:middle;white-space:nowrap}
+.accounting-dossier-v3 .acc-workspace-table td:nth-child(1),.accounting-dossier-v3 .acc-workspace-table td:nth-child(2){white-space:normal}
+.accounting-dossier-v3 .acc-workspace-table tbody tr:last-child td{border-bottom:0}
+.accounting-dossier-v3 .acc-workspace-table tbody tr:hover td{background:#fafcfb}
+.accounting-dossier-v3 .acc-copy-column{width:82px!important;text-align:right}
+.accounting-dossier-v3 .acc-button-icon-copy{min-height:32px;padding:.3rem .45rem;font-size:.62rem}
+
+/* documents */
+.accounting-dossier-v3 .acc-documents-workspace{display:grid;gap:.62rem}
+.accounting-dossier-v3 .acc-subsection{min-width:0;overflow:hidden;border:1px solid var(--border);border-radius:9px;background:#fff}
+.accounting-dossier-v3 .acc-subsection-head{display:flex;min-height:58px;gap:.65rem;align-items:center;justify-content:space-between;padding:.58rem .62rem;border-bottom:1px solid var(--border);background:linear-gradient(180deg,#fafcfb,#fff)}
+.accounting-dossier-v3 .acc-subsection-title{display:flex;min-width:0;gap:.5rem;align-items:center}
+.accounting-dossier-v3 .acc-subsection-title>div{min-width:0}
+.accounting-dossier-v3 .acc-subsection-title h3,.accounting-dossier-v3 .acc-subsection-title p{margin:0}
+.accounting-dossier-v3 .acc-subsection-title h3{color:var(--text);font-size:.78rem;font-weight:840}
+.accounting-dossier-v3 .acc-subsection-title p{margin-top:.06rem;color:var(--muted);font-size:.61rem;line-height:1.35}
+.accounting-dossier-v3 .acc-subsection-icon{display:grid;width:34px;height:34px;flex:0 0 auto;place-items:center;border-radius:7px;font-size:.9rem}
+.accounting-dossier-v3 .acc-subsection-icon-purple,.accounting-dossier-v3 .acc-subsection-icon-violet{background:var(--purple-soft);color:var(--purple)}
+.accounting-dossier-v3 .acc-subsection-icon-blue{background:var(--blue-soft);color:var(--blue)}
+.accounting-dossier-v3 .acc-subsection-actions{display:flex;flex-wrap:wrap;gap:.32rem;align-items:center;justify-content:flex-end}
+.accounting-dossier-v3 .acc-subsection-body{padding:.62rem}
+.accounting-dossier-v3 .acc-subsection-body-flush{padding:0}
+.accounting-dossier-v3 .acc-section-counter{display:inline-grid;min-width:29px;min-height:29px;place-items:center;padding:.2rem .42rem;border-radius:999px;background:var(--slate-soft);color:var(--text2);font-size:.64rem;font-weight:800}
+.accounting-dossier-v3 .acc-metric-table{overflow:hidden;border:1px solid var(--border);border-radius:9px;background:#fff}
+.accounting-dossier-v3 .acc-metric-row{display:grid;grid-template-columns:34px minmax(0,1fr);gap:.5rem;align-items:center;min-height:54px;padding:.46rem .6rem;background:#fff}
+.accounting-dossier-v3 .acc-metric-row+.acc-metric-row{border-top:1px solid var(--border)}
+.accounting-dossier-v3 .acc-metric-icon{display:grid;width:30px;height:30px;place-items:center;border-radius:7px}
+.accounting-dossier-v3 .acc-tone-purple{background:var(--purple-soft);color:var(--purple)}
+.accounting-dossier-v3 .acc-tone-blue{background:var(--blue-soft);color:var(--blue)}
+.accounting-dossier-v3 .acc-tone-green{background:var(--green-soft);color:var(--green)}
+.accounting-dossier-v3 .acc-auth-access{display:grid;gap:.55rem;margin:0 0 .6rem;padding:0 0 .6rem;border-bottom:1px solid var(--border)}
+.accounting-dossier-v3 .acc-inline-form{display:grid;grid-template-columns:minmax(190px,1fr) minmax(170px,.8fr) auto;gap:.5rem;align-items:end;padding:.58rem;border:1px solid var(--border);border-radius:9px;background:var(--soft)}
+.accounting-dossier-v3 .acc-guidance{display:grid;gap:.32rem;padding:.55rem .58rem;border:1px solid var(--blue-border);border-left:3px solid var(--blue);border-radius:9px;background:var(--blue-soft);color:var(--text2);font-size:.68rem}
+.accounting-dossier-v3 .acc-document-alerts{display:grid;gap:.4rem;margin-top:.55rem}
+.accounting-dossier-v3 .acc-document-alert{display:grid;grid-template-columns:30px minmax(0,1fr);gap:.46rem;align-items:start;padding:.5rem .55rem;border:1px solid var(--amber-border);border-radius:9px;background:var(--amber-soft)}
+
+.accounting-dossier-v3 .acc-side-stack{display:grid;gap:.62rem;align-content:start}
+.accounting-dossier-v3 .acc-panel-head-workspace{min-height:62px;padding:.58rem .62rem;background:linear-gradient(180deg,#fafcfb,#fff)}
+.accounting-dossier-v3 .acc-panel-title-workspace{display:flex;min-width:0;gap:.5rem;align-items:center}
+.accounting-dossier-v3 .acc-panel-icon{display:grid;width:34px;height:34px;flex:0 0 auto;place-items:center;border-radius:7px}
+.accounting-dossier-v3 .acc-panel-icon-green{background:var(--green-soft);color:var(--green)}
+.accounting-dossier-v3 .acc-panel-icon-amber{background:var(--amber-soft);color:var(--amber)}
+.accounting-dossier-v3 .acc-panel-icon-purple{background:var(--purple-soft);color:var(--purple)}
+.accounting-dossier-v3 .acc-side-panel-body{padding:.58rem}
+
+/* modal: header/footer are fixed rows; only data body scrolls */
+.acc-related-dialog{
+    --acc-surface:var(--ui-color-surface,#fff);
+    --acc-soft:var(--ui-color-surface-soft,#f7faf8);
+    --acc-border:var(--ui-color-border,#d7e2da);
+    --acc-border-strong:var(--ui-color-border-strong,#becdc3);
+    --acc-text:var(--ui-color-text,#17251c);
+    --acc-secondary:var(--ui-color-text-secondary,#58685e);
+    display:grid;width:min(96vw,1100px);height:min(88dvh,760px);max-height:88dvh;
+    grid-template-rows:auto minmax(0,1fr) auto;padding:0;overflow:hidden;border:1px solid var(--acc-border);
+    border-radius:11px;background:#fff;color:var(--acc-text);box-shadow:0 24px 62px rgba(8,24,15,.23)
+}
+.acc-related-dialog::backdrop{background:rgba(9,27,16,.55)}
+.acc-related-dialog .acc-dialog-head,.acc-related-dialog .acc-dialog-footer{position:relative;z-index:2;background:#fff}
+.acc-related-dialog .acc-dialog-head{display:flex;min-height:62px;gap:.65rem;align-items:center;justify-content:space-between;margin:0;padding:.62rem .68rem;border-bottom:1px solid var(--acc-border)}
+.acc-related-dialog .acc-dialog-title{display:flex;min-width:0;gap:.5rem;align-items:center}
+.acc-related-dialog .acc-dialog-icon{display:grid;width:36px;height:36px;flex:0 0 auto;place-items:center;border-radius:8px;background:var(--cyan-soft,#edf8fb);color:var(--cyan,#168eae)}
+.acc-related-dialog .acc-dialog-title>div{min-width:0}
+.acc-related-dialog .acc-dialog-head strong{display:block;overflow:hidden;color:var(--acc-text);font-size:.8rem;font-weight:840;text-overflow:ellipsis;white-space:nowrap}
+.acc-related-dialog .acc-dialog-head span{display:block;margin-top:.06rem;color:var(--acc-secondary);font-size:.62rem}
+.acc-related-dialog .acc-dialog-body{min-height:0;padding:.7rem;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;background:#fff;-webkit-overflow-scrolling:touch}
+.acc-related-dialog .acc-dialog-footer{display:flex;min-height:54px;align-items:center;justify-content:flex-end;padding:.52rem .68rem;border-top:1px solid var(--acc-border);background:var(--ui-color-surface-soft,#f7faf8)}
+.acc-related-dialog .acc-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.42rem;margin-bottom:.62rem}
+.acc-related-dialog .acc-detail{min-width:0;padding:.52rem .56rem;border:1px solid var(--acc-border);border-radius:9px;background:#fff}
+.acc-related-dialog .acc-detail-table,.acc-related-dialog .acc-table-wrap{display:block;max-width:100%;overflow-x:auto;overflow-y:visible;border:1px solid var(--acc-border);border-radius:9px;background:#fff;-webkit-overflow-scrolling:touch}
+.acc-related-dialog .acc-table{width:100%;min-width:760px;border-collapse:collapse;color:var(--acc-text);font-size:.69rem}
+.acc-related-dialog .acc-table thead{display:table-header-group!important}
+.acc-related-dialog .acc-table tbody{display:table-row-group!important}
+.acc-related-dialog .acc-table tr{display:table-row!important}
+.acc-related-dialog .acc-table th,.acc-related-dialog .acc-table td{display:table-cell!important;width:auto!important}
+.acc-related-dialog .acc-table th{padding:.35rem .58rem;border-bottom:1px solid var(--acc-border-strong);background:linear-gradient(180deg,#f5f8f6,#eff4f1);color:#6f7c74;font-size:.58rem;font-weight:820;letter-spacing:.045em;text-align:left;text-transform:uppercase;white-space:nowrap}
+.acc-related-dialog .acc-table td{padding:.48rem .58rem;border-bottom:1px solid var(--acc-border);background:#fff;vertical-align:middle;white-space:nowrap}
+.acc-related-dialog .acc-table td:nth-child(2){white-space:normal}
+.acc-related-dialog .acc-table tbody tr:last-child td{border-bottom:0}
+.acc-related-dialog .acc-related-processes{margin-top:.62rem;padding-top:.62rem;border-top:1px solid var(--acc-border)}
+
+@media(max-width:980px){
+    .accounting-dossier-v3 .acc-dossier-grid{grid-template-columns:1fr}
+    .accounting-dossier-v3 .acc-side-stack{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:720px){
+    .accounting-dossier-v3 .dossier-topbar{min-height:68px;padding:.62rem}
+    .accounting-dossier-v3 .dossier-copy-number span,.accounting-dossier-v3 .dossier-back span{display:none}
+    .accounting-dossier-v3 .dossier-copy-number,.accounting-dossier-v3 .dossier-back{width:36px;padding:0}
+    .accounting-dossier-v3 .acc-tabs{margin-inline:.5rem;padding:.28rem}
+    .accounting-dossier-v3 .acc-tab{min-height:37px;padding:.38rem .52rem;font-size:.68rem}
+    .accounting-dossier-v3 .acc-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .accounting-dossier-v3 .acc-inline-form{grid-template-columns:1fr}
+    .accounting-dossier-v3 .acc-side-stack{grid-template-columns:1fr}
+    .accounting-dossier-v3 .acc-workspace-table{min-width:720px!important}
+    .acc-related-dialog{width:calc(100vw - 16px);height:calc(100dvh - 16px);max-height:calc(100dvh - 16px);margin:8px auto}
+    .acc-related-dialog .acc-detail-grid{grid-template-columns:1fr}
+    .acc-related-dialog .acc-table{min-width:760px!important}
+}
+@media(max-width:460px){
+    .accounting-dossier-v3 .dossier-heading{grid-template-columns:39px minmax(0,1fr)}
+    .accounting-dossier-v3 .dossier-head-icon{width:39px;height:39px}
+    .accounting-dossier-v3 .dossier-head-copy h1{white-space:normal}
+    .accounting-dossier-v3 .dossier-meta-secondary{display:none!important}
+    .accounting-dossier-v3 .acc-detail-grid{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+    .accounting-dossier-v3 *,.acc-related-dialog *{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
