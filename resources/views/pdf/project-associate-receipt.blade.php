@@ -309,8 +309,8 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                 @if($isFirstGroupRow)
                     <strong>{{ $ps['product_name'] }}</strong>
                 @else
-                    <span class="group-continuation-context"></span>
-                    <span class="group-continuation-label"></span>
+                    <span class="group-continuation-context">{{ $ps['product_name'] }}</span>
+                    <span class="group-continuation-label">continuação</span>
                 @endif
             </td>
             @if($showDeliveryDate)
@@ -318,8 +318,8 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                 @if($isFirstGroupRow)
                     {{ $groupDate }}
                 @else
-                    <span class="group-continuation-context"></span>
-                    <span class="group-continuation-label"></span>
+                    <span class="group-continuation-context">{{ $groupDate }}</span>
+                    <span class="group-continuation-label">continuação</span>
                 @endif
             </td>
             @endif

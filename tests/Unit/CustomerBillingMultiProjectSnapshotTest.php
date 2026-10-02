@@ -2,7 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Filament\Resources\CustomerBillingReceiptResource;
+use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
+use App\Models\Organization;
+use App\Models\Product;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Services\CustomerBillingProjectContextService;
@@ -156,6 +160,85 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
         self::assertSame('0.00', $snapshot['total_fees']);
         self::assertSame('4782.50', $sum);
         self::assertSame($sum, $snapshot['total_net']);
+    }
+
+    public function test_manual_organization_draft_builds_pdf_rows_and_totals_from_selected_distributions(): void
+    {
+        $project = $this->project(10, 'PNAE Agosto');
+        $customer = new Customer;
+        $customer->setRawAttributes(['id' => 50, 'tenant_id' => 1, 'name' => 'Escola Central'], true);
+        $product = new Product;
+        $product->setRawAttributes(['id' => 99, 'tenant_id' => 1, 'name' => 'Banana', 'unit' => 'kg'], true);
+        $distribution = $this->distribution(102, 10, '2026-08-18');
+        $distribution->setRawAttributes(array_merge($distribution->getAttributes(), [
+            'parent_delivery_id' => 101,
+            'customer_id' => 50,
+            'product_id' => 99,
+        ]), true);
+        $distribution->setRelation('customer', $customer);
+        $distribution->setRelation('product', $product);
+        $receipt = new CustomerBillingReceipt([
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'organization_id' => 5,
+            'status' => 'draft',
+            'total_gross' => 0,
+            'total_fees' => 0,
+            'total_net' => 0,
+            'delivery_ids' => [102],
+        ]);
+
+        $data = CustomerBillingReceiptResource::buildOrganizationReportData(
+            collect([$distribution]),
+            $receipt,
+            null,
+            $project,
+            new Organization(['name' => 'Prefeitura']),
+            collect([$project]),
+            ['unit_price', 'gross', 'net'],
+        );
+
+        self::assertCount(1, $data['priceGroups']);
+        self::assertCount(1, $data['priceGroups'][0]['table']);
+        self::assertSame('Banana', $data['priceGroups'][0]['table'][0]['product']);
+        self::assertSame('10', $data['priceGroups'][0]['table'][0]['total_qty']);
+        self::assertSame(100.0, $data['totalGross']);
+        self::assertSame(100.0, $data['totalNet']);
+    }
+
+    public function test_manual_customer_draft_ignores_stale_zero_totals_when_building_pdf(): void
+    {
+        $project = $this->project(10, 'PNAE Agosto');
+        $product = new Product;
+        $product->setRawAttributes(['id' => 99, 'tenant_id' => 1, 'name' => 'Banana', 'unit' => 'kg'], true);
+        $distribution = $this->distribution(102, 10, '2026-08-18');
+        $distribution->setRawAttributes(array_merge($distribution->getAttributes(), ['product_id' => 99]), true);
+        $distribution->setRelation('product', $product);
+        $receipt = new CustomerBillingReceipt([
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'customer_id' => 50,
+            'status' => 'draft',
+            'total_gross' => 0,
+            'total_fees' => 0,
+            'total_net' => 0,
+            'delivery_ids' => [102],
+        ]);
+
+        $data = CustomerBillingReceiptResource::buildCustomerReceiptData(
+            collect([$distribution]),
+            $receipt,
+            null,
+            $project,
+            new Customer(['name' => 'Escola Central']),
+            collect([$project]),
+            ['unit_price', 'gross', 'net'],
+        );
+
+        self::assertCount(1, $data['productRows']);
+        self::assertCount(1, $data['projectGroups']);
+        self::assertSame(100.0, $data['totalGross']);
+        self::assertSame(100.0, $data['totalNet']);
     }
 
     public function test_it_freezes_one_receipt_with_distributions_from_two_projects(): void

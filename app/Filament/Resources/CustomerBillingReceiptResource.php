@@ -1030,9 +1030,11 @@ class CustomerBillingReceiptResource extends Resource
         Collection $projects,
         array $requestedColumns = [],
     ): array {
+        $presentation = static::billingPresentation($receipt, $distributions, $projects);
+        $effectiveFeeSnapshot = $presentation['fee_snapshot'];
         $feeColumnService = app(ReceiptFeeColumnService::class);
         $feeColumns = $project
-            ? $feeColumnService->definitions($project, 'customer', $receipt->fee_snapshot)
+            ? $feeColumnService->definitions($project, 'customer', $effectiveFeeSnapshot)
             : [];
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
@@ -1040,8 +1042,8 @@ class CustomerBillingReceiptResource extends Resource
             ['unit_price', 'gross', 'net'],
         );
         $projectMap = $projects->keyBy('id');
-        $projectSnapshots = collect(data_get($receipt->fee_snapshot, 'project_snapshots', []));
-        $frozenLines = collect($receipt->documentLines());
+        $projectSnapshots = collect(data_get($effectiveFeeSnapshot, 'project_snapshots', []));
+        $frozenLines = $presentation['lines'];
         $productRows = $frozenLines->isNotEmpty()
             ? $frozenLines->map(fn (array $line): array => [
                 'project_id' => (int) ($line['project_id'] ?? 0),
@@ -1056,11 +1058,11 @@ class CustomerBillingReceiptResource extends Resource
             ])->values()->all()
             : $distributions
                 ->groupBy(fn ($d) => $d->sales_project_id.'|'.$d->product_id.'|'.$d->unit_price)
-                ->map(function ($group) use ($feeColumnService, $projectMap, $projectSnapshots, $receipt, $projects) {
+                ->map(function ($group) use ($feeColumnService, $projectMap, $projectSnapshots, $effectiveFeeSnapshot, $projects) {
                     $first = $group->first();
                     $rowProject = $projectMap->get((int) $first->sales_project_id);
                     $projectSnapshot = $projectSnapshots->get((string) $first->sales_project_id)
-                        ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
+                        ?? ($projects->count() === 1 ? $effectiveFeeSnapshot : null);
                     $rowFeeColumns = $rowProject
                         ? $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot)
                         : [];
@@ -1087,12 +1089,12 @@ class CustomerBillingReceiptResource extends Resource
                 })
                 ->values()->toArray();
 
-        $totalGross = (float) ($receipt->total_gross ?? array_sum(array_column($productRows, 'gross')));
-        $totalFees = (float) ($receipt->total_fees ?? 0);
-        $totalNet = (float) ($receipt->total_net ?? $totalGross);
+        $totalGross = (float) $presentation['total_gross'];
+        $totalFees = (float) $presentation['total_fees'];
+        $totalNet = (float) $presentation['total_net'];
 
         $feeBreakdown = [];
-        $snapshot = $receipt->fee_snapshot ?? [];
+        $snapshot = $effectiveFeeSnapshot;
         if (! empty($snapshot['fees'])) {
             foreach (array_values($snapshot['fees']) as $fee) {
                 $feeBreakdown[] = [
@@ -1117,7 +1119,7 @@ class CustomerBillingReceiptResource extends Resource
         $projectGroups = $projects->map(function (SalesProject $groupProject) use (
             $productRows,
             $projectSnapshots,
-            $receipt,
+            $effectiveFeeSnapshot,
             $projects,
             $feeColumnService,
             $periodsByProject,
@@ -1126,7 +1128,7 @@ class CustomerBillingReceiptResource extends Resource
                 ->where('project_id', (int) $groupProject->id)
                 ->values();
             $projectSnapshot = $projectSnapshots->get((string) $groupProject->id)
-                ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
+                ?? ($projects->count() === 1 ? $effectiveFeeSnapshot : null);
             $groupFeeColumns = $feeColumnService->definitions($groupProject, 'customer', $projectSnapshot);
             $feeTotals = collect($groupFeeColumns)->mapWithKeys(fn (array $fee): array => [
                 $fee['key'] => $rows->sum(fn (array $row): float => (float) ($row['fee_values'][$fee['key']] ?? 0)),
@@ -1163,9 +1165,11 @@ class CustomerBillingReceiptResource extends Resource
         Collection $projects,
         array $requestedColumns = [],
     ): array {
+        $presentation = static::billingPresentation($receipt, $distributions, $projects);
+        $effectiveFeeSnapshot = $presentation['fee_snapshot'];
         $feeColumnService = app(ReceiptFeeColumnService::class);
         $feeColumns = $project
-            ? $feeColumnService->definitions($project, 'customer', $receipt->fee_snapshot)
+            ? $feeColumnService->definitions($project, 'customer', $effectiveFeeSnapshot)
             : [];
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
@@ -1175,16 +1179,60 @@ class CustomerBillingReceiptResource extends Resource
         // Todos os compradores distintos (para o rodapé)
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
-        $projectMap = $projects->keyBy('id');
-        $projectSnapshots = collect(data_get($receipt->fee_snapshot, 'project_snapshots', []));
-        $frozenLines = collect($receipt->documentLines());
-        $priceGroups = $projects->map(function (SalesProject $rowProject) use ($distributions, $frozenLines, $feeColumnService, $projectSnapshots, $receipt, $projects) {
+        $projectSnapshots = collect(data_get($effectiveFeeSnapshot, 'project_snapshots', []));
+        $frozenLines = $presentation['lines'];
+        $priceGroups = $projects->map(function (SalesProject $rowProject) use ($distributions, $frozenLines, $feeColumnService, $projectSnapshots, $effectiveFeeSnapshot, $projects) {
             $groupDists = $distributions->where('sales_project_id', $rowProject->id)->values();
             $projectSnapshot = $projectSnapshots->get((string) $rowProject->id)
-                ?? ($projects->count() === 1 ? $receipt->fee_snapshot : null);
+                ?? ($projects->count() === 1 ? $effectiveFeeSnapshot : null);
             $rowFeeColumns = $feeColumnService->definitions($rowProject, 'customer', $projectSnapshot);
             $groupCustomers = $groupDists->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
             $lines = $frozenLines->where('project_id', (int) $rowProject->id)->values();
+            if ($lines->isEmpty() && $groupDists->isNotEmpty()) {
+                // Compatibilidade com faturamentos emitidos antes de
+                // document_lines existir. Os totais gerais continuam vindo do
+                // comprovante congelado; esta recomposição serve só à tabela.
+                $lines = $groupDists
+                    ->groupBy(fn ($distribution): string => implode('|', [
+                        (int) $distribution->product_id,
+                        (string) $distribution->unit_price,
+                    ]))
+                    ->map(function (Collection $rows) use ($rowProject, $feeColumnService, $rowFeeColumns): array {
+                        $first = $rows->first();
+                        $quantity = $rows->reduce(
+                            fn (string $sum, $row): string => bcadd($sum, (string) $row->quantity, 8),
+                            '0',
+                        );
+                        $gross = $rows->reduce(
+                            fn (string $sum, $row): string => bcadd(
+                                $sum,
+                                bcmul((string) $row->quantity, (string) $row->unit_price, 8),
+                                8,
+                            ),
+                            '0',
+                        );
+                        $feeValues = $feeColumnService->totals($rows, $rowFeeColumns);
+                        $net = (float) $gross;
+                        foreach ($rowFeeColumns as $fee) {
+                            $amount = (float) ($feeValues[$fee['key']] ?? 0);
+                            $net += $fee['nature'] === 'accrual' ? $amount : -$amount;
+                        }
+
+                        return [
+                            'project_id' => (int) $rowProject->id,
+                            'project' => (string) $rowProject->title,
+                            'product_id' => (int) $first->product_id,
+                            'product' => (string) ($first->product?->name ?? 'Produto #'.$first->product_id),
+                            'unit' => (string) ($first->product?->unit ?? 'un'),
+                            'quantity' => rtrim(rtrim($quantity, '0'), '.') ?: '0',
+                            'unit_price' => (string) $first->unit_price,
+                            'document_gross' => number_format((float) $gross, 2, '.', ''),
+                            'document_amount' => number_format($net, 2, '.', ''),
+                            'fee_values' => $feeValues,
+                        ];
+                    })
+                    ->values();
+            }
             $table = $lines->map(function (array $line) use ($groupDists): array {
                 $matching = $groupDists->filter(fn ($distribution): bool => (int) $distribution->product_id === (int) ($line['product_id'] ?? 0)
                     && bccomp((string) $distribution->unit_price, (string) ($line['unit_price'] ?? 0), 8) === 0
@@ -1229,9 +1277,9 @@ class CustomerBillingReceiptResource extends Resource
             ];
         })->filter(fn (array $group): bool => $group['table'] !== [])->values()->all();
 
-        $totalGross = (float) ($receipt->total_gross ?? 0);
-        $totalFees = (float) ($receipt->total_fees ?? 0);
-        $totalNet = (float) ($receipt->total_net ?? $totalGross);
+        $totalGross = (float) $presentation['total_gross'];
+        $totalFees = (float) $presentation['total_fees'];
+        $totalNet = (float) $presentation['total_net'];
         $multiplePriceTables = count($priceGroups) > 1;
 
         // Período das entregas (primeira → última data)
@@ -1251,6 +1299,90 @@ class CustomerBillingReceiptResource extends Resource
             'totalGross', 'totalFees', 'totalNet', 'periodLabel',
             'feeColumns', 'visibleColumns', 'projects', 'projectPeriods', 'isMultiProject'
         );
+    }
+
+    /**
+     * Resolve a fonte documental sem persistir recalculos.
+     *
+     * Rascunhos sempre refletem as distribuicoes selecionadas atualmente. Uma
+     * cobranca emitida continua usando seu snapshot imutavel; o recalculo so e
+     * usado como compatibilidade de apresentacao quando um documento legado nao
+     * possui linhas congeladas.
+     *
+     * @return array{
+     *     fee_snapshot: array<string, mixed>,
+     *     lines: Collection<int, array<string, mixed>>,
+     *     total_gross: string|float,
+     *     total_fees: string|float,
+     *     total_net: string|float
+     * }
+     */
+    private static function billingPresentation(
+        CustomerBillingReceipt $receipt,
+        Collection $distributions,
+        Collection $projects,
+    ): array {
+        $storedSnapshot = is_array($receipt->fee_snapshot) ? $receipt->fee_snapshot : [];
+        $storedLines = collect($receipt->documentLines());
+        $calculated = null;
+
+        if ($receipt->isEditable()
+            && $distributions->isNotEmpty()
+            && $projects->isNotEmpty()
+        ) {
+            $calculated = app(CustomerBillingReceiptService::class)
+                ->computeSnapshotForProjects($distributions, $projects);
+        }
+
+        $effectiveSnapshot = is_array($calculated['fee_snapshot'] ?? null)
+            ? $calculated['fee_snapshot']
+            : $storedSnapshot;
+        $lines = collect(data_get($effectiveSnapshot, 'document_lines', $storedLines->all()));
+
+        // Snapshots antigos de projeto unico nao registravam project_id. Sem
+        // esta normalizacao as linhas existem, mas o agrupamento as descarta.
+        if ($projects->count() === 1) {
+            $projectId = (int) $projects->first()->id;
+            $projectTitle = (string) $projects->first()->title;
+            $lines = $lines->map(function (array $line) use ($projectId, $projectTitle): array {
+                if (empty($line['project_id'])) {
+                    $line['project_id'] = $projectId;
+                }
+                if (blank($line['project'] ?? null)) {
+                    $line['project'] = $projectTitle;
+                }
+
+                return $line;
+            });
+        }
+
+        $lineGross = $lines->reduce(
+            fn (string $sum, array $line): string => bcadd($sum, (string) ($line['document_gross'] ?? 0), 2),
+            '0.00',
+        );
+        $lineFees = $lines->reduce(
+            fn (string $sum, array $line): string => bcadd($sum, (string) ($line['document_fees'] ?? 0), 2),
+            '0.00',
+        );
+        $lineNet = $lines->reduce(
+            fn (string $sum, array $line): string => bcadd($sum, (string) ($line['document_amount'] ?? 0), 2),
+            '0.00',
+        );
+        $useCalculatedTotals = $receipt->isEditable() && $calculated !== null;
+
+        return [
+            'fee_snapshot' => $effectiveSnapshot,
+            'lines' => $lines->values(),
+            'total_gross' => $useCalculatedTotals
+                ? $calculated['total_gross']
+                : ($receipt->total_gross ?? $calculated['total_gross'] ?? $lineGross),
+            'total_fees' => $useCalculatedTotals
+                ? $calculated['total_fees']
+                : ($receipt->total_fees ?? $calculated['total_fees'] ?? $lineFees),
+            'total_net' => $useCalculatedTotals
+                ? $calculated['total_net']
+                : ($receipt->total_net ?? $calculated['total_net'] ?? $lineNet),
+        ];
     }
 
     /** @return array<int, array{project: SalesProject, period: string}> */
