@@ -27,6 +27,109 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertGreaterThan(500, strlen($contents));
     }
 
+    public function test_pdf_blade_templates_do_not_use_rowspan(): void
+    {
+        $templates = File::allFiles(resource_path('views/pdf'));
+
+        $this->assertNotEmpty($templates);
+        foreach ($templates as $template) {
+            $this->assertDoesNotMatchRegularExpression(
+                '/\browspan\s*=/i',
+                File::get($template->getPathname()),
+                $template->getRelativePathname().' must keep every PDF row structurally independent.',
+            );
+        }
+    }
+
+    public function test_associate_receipt_allows_groups_to_break_only_between_rows(): void
+    {
+        $template = File::get(resource_path('views/pdf/project-associate-receipt.blade.php'));
+
+        $this->assertStringNotContainsString('receipt-table-page-break', $template);
+        $this->assertStringNotContainsString('receipt-product-group', $template);
+        $this->assertStringNotContainsString('AssociateReceiptTablePaginator', $template);
+        $this->assertStringContainsString('table.receipt-data-table tbody { page-break-inside: auto; break-inside: auto; }', $template);
+        $this->assertStringContainsString('table.receipt-data-table tr { page-break-inside: avoid; break-inside: avoid; }', $template);
+        $this->assertStringContainsString('table.receipt-data-table thead { display: table-header-group; }', $template);
+    }
+
+    public function test_dynamic_report_colspans_match_the_selected_columns(): void
+    {
+        $group = [
+            'associate_name' => 'Produtor Teste',
+            'deliveries_count' => 1,
+            'total_quantity' => 10,
+            'gross_value' => 100,
+            'admin_fee' => 5,
+            'net_value' => 95,
+            'deliveries' => [[
+                'delivery_date' => '02/10/2026',
+                'project' => 'Projeto Teste',
+                'product' => 'Tomate',
+                'customer' => 'Escola Central',
+                'quantity' => 10,
+                'unit_price' => 10,
+                'gross_value' => 100,
+                'admin_fee' => 5,
+                'net_value' => 95,
+                'status_value' => 'approved',
+                'status' => 'Aprovada',
+            ]],
+        ];
+        $totals = [
+            'associates_count' => 1,
+            'deliveries_count' => 1,
+            'total_quantity' => 10,
+            'total_gross' => 100,
+            'total_admin_fee' => 5,
+            'total_net' => 95,
+        ];
+
+        foreach ([
+            ['date', 'product', 'quantity', 'gross_value', 'net_value'],
+            ['project', 'quantity', 'status'],
+        ] as $columns) {
+            $html = view('pdf.deliveries-by-associate', [
+                'tenant' => null,
+                'title' => 'Entregas por associado',
+                'subtitle' => null,
+                'generated_at' => '02/10/2026 10:00',
+                'filters' => [],
+                'groups' => [$group],
+                'totals' => $totals,
+                'visible_columns' => $columns,
+                'visible_sections' => ['deliveries', 'totals'],
+            ])->render();
+
+            $this->assertTableStructure($html, 'data-table');
+        }
+
+        $emptyHtml = view('pdf.document_ee064db1', [
+            'tenant' => null,
+            'title' => 'Relatório vazio',
+            'generated_at' => '02/10/2026 10:00',
+            'columns' => ['delivery_date', 'product', 'quantity'],
+            'deliveries' => collect(),
+            'totals' => ['gross' => 0, 'admin_fee' => 0, 'net' => 0],
+        ])->render();
+
+        $this->assertStringContainsString('colspan="3"', $emptyHtml);
+
+        $genericHtml = view('pdf.generic-export', [
+            'title' => 'Exportação genérica',
+            'columns' => ['name' => 'Nome', 'document' => 'Documento', 'status' => 'Situação'],
+            'data' => [
+                ['name' => 'Registro A', 'document' => '123', 'status' => 'Ativo'],
+                ['name' => 'Registro B', 'document' => null, 'status' => 'Inativo'],
+            ],
+            'generatedAt' => '02/10/2026 10:00',
+        ])->render();
+
+        $this->assertTableStructure($genericHtml, 'generic-export-table');
+        $this->assertStringContainsString('Registro A', $genericHtml);
+        $this->assertStringContainsString('Registro B', $genericHtml);
+    }
+
     public function test_operational_report_renders_with_shared_theme_and_concise_columns(): void
     {
         $html = view('pdf.deliveries-report-v2', [
@@ -72,6 +175,38 @@ class PdfRenderingCompatibilityTest extends TestCase
         }
     }
 
+    public function test_small_and_large_distribution_groups_keep_independent_rows(): void
+    {
+        foreach ([1, 2, 4, 12] as $distributionCount) {
+            [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+            $distribution = $products[0]['distributions'][0];
+            $products[0]['distributions'] = collect(range(1, $distributionCount))
+                ->map(fn (int $index): array => array_merge($distribution, ['customer_name' => 'Destino '.$index]))
+                ->all();
+            $products[0]['total_quantity'] = $distributionCount * 10;
+            $products[0]['total_gross'] = $distributionCount * 100;
+            $products = [$products[0]];
+            $summary['gross_value'] = $distributionCount * 100;
+            $summary['deliveries_count'] = $distributionCount;
+
+            $data = compact('tenant', 'project', 'associate', 'receipt', 'summary') + [
+                'productsSummary' => $products,
+                'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+                'feeColumns' => [],
+                'visible_sections' => ['deliveries'],
+            ];
+            $html = view('pdf.project-associate-receipt', $data)->render();
+
+            $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
+            $this->assertSame(1, substr_count($html, '<tbody>'));
+            $this->assertSame($distributionCount, substr_count($html, '<td>Destino '));
+            $this->assertReceiptTableStructure($html);
+
+            $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+            $this->assertStringStartsWith('%PDF-', $pdf->output());
+        }
+    }
+
     public function test_multi_page_receipt_keeps_complete_columns_after_page_break(): void
     {
         [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
@@ -98,15 +233,145 @@ class PdfRenderingCompatibilityTest extends TestCase
         ];
 
         $html = view('pdf.project-associate-receipt', $data)->render();
-        $this->assertStringContainsString('class="receipt-product-group"', $html);
-        $this->assertStringContainsString('rowspan="4"', $html);
+        $this->assertStringNotContainsString('class="receipt-product-group"', $html);
+        $this->assertStringNotContainsString('rowspan=', $html);
+        $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
+        $this->assertSame(1, substr_count($html, '<tbody>'));
         $this->assertStringContainsString('continuação', $html);
+        $this->assertReceiptTableStructure($html);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
         $contents = $pdf->output();
-        $this->assertGreaterThan(1, $pdf->getDomPDF()->get_canvas()->get_page_count());
+        $this->assertSame(2, $pdf->getDomPDF()->get_canvas()->get_page_count());
 
         if ($output = env('SGC_PDF_QA_OUTPUT')) {
+            File::ensureDirectoryExists(dirname($output));
+            file_put_contents($output, $contents);
+        }
+    }
+
+    public function test_group_near_page_end_can_continue_without_moving_the_whole_group(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $baseProduct = $products[0];
+        $distribution = $baseProduct['distributions'][0];
+        $products = collect(range(1, 30))->map(function (int $index) use ($baseProduct, $distribution): array {
+            return array_merge($baseProduct, [
+                'product_name' => 'Produto anterior '.$index,
+                'distributions' => [array_merge($distribution, ['customer_name' => 'Destino anterior '.$index])],
+            ]);
+        })->all();
+        $focusProduct = array_merge($baseProduct, [
+            'product_name' => 'Cenoura da quebra natural',
+            'total_quantity' => 40,
+            'total_gross' => 400,
+            'distributions' => collect(range(1, 4))->map(fn (int $index): array => array_merge($distribution, [
+                'customer_name' => 'Destino da cenoura '.$index,
+            ]))->all(),
+        ]);
+        $products[] = $focusProduct;
+        $products[] = array_merge($baseProduct, [
+            'product_name' => 'Produto posterior',
+            'distributions' => [array_merge($distribution, ['customer_name' => 'Destino posterior'])],
+        ]);
+        $summary['gross_value'] = 3500;
+        $summary['deliveries_count'] = 35;
+
+        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary') + [
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_sections' => ['associate_info', 'project_info', 'deliveries'],
+        ];
+        $html = view('pdf.project-associate-receipt', $data)->render();
+
+        $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
+        $this->assertSame(1, substr_count($html, '<tbody>'));
+        $this->assertStringContainsString('Cenoura da quebra natural', $html);
+        $this->assertStringContainsString('Total (4 dist.)', $html);
+        $this->assertReceiptTableStructure($html);
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+        $contents = $pdf->output();
+
+        $this->assertSame(2, $pdf->getDomPDF()->get_canvas()->get_page_count());
+
+        if ($output = env('SGC_PDF_QA_BOUNDARY_OUTPUT')) {
+            File::ensureDirectoryExists(dirname($output));
+            file_put_contents($output, $contents);
+        }
+    }
+
+    public function test_compact_large_group_renders_three_pages_without_forced_breaks(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $distribution = $products[0]['distributions'][0];
+        $products[0]['distributions'] = collect(range(1, 70))->map(fn (int $index): array => array_merge($distribution, [
+            'customer_name' => 'Destino '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+        ]))->all();
+        $products[0]['total_quantity'] = 700;
+        $products[0]['total_gross'] = 7000;
+        $products = [$products[0]];
+        $summary['gross_value'] = 7000;
+        $summary['deliveries_count'] = 70;
+
+        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary') + [
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_sections' => ['associate_info', 'project_info', 'deliveries'],
+        ];
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+        $contents = $pdf->output();
+
+        $this->assertSame(3, $pdf->getDomPDF()->get_canvas()->get_page_count());
+        $this->assertStringStartsWith('%PDF-', $contents);
+
+        if ($output = env('SGC_PDF_QA_THREE_PAGE_OUTPUT')) {
+            File::ensureDirectoryExists(dirname($output));
+            file_put_contents($output, $contents);
+        }
+    }
+
+    public function test_large_group_renders_five_pages_with_long_labels_and_stable_columns(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $distribution = $products[0]['distributions'][0];
+        $products[0]['product_name'] = str_repeat('Produto agroecológico de nome extenso ', 3);
+        $products[0]['distributions'] = collect(range(1, 45))->map(fn (int $index): array => array_merge($distribution, [
+            'customer_name' => 'Unidade recebedora com nome institucional muito extenso '.str_pad((string) $index, 2, '0', STR_PAD_LEFT),
+            'quantity' => 1234.5678,
+            'unit_price' => 98765.43,
+            'gross' => 121932622.322154,
+        ]))->all();
+        $products[0]['total_quantity'] = 55555.551;
+        $products[0]['total_gross'] = 5486968004.49693;
+        $products = [$products[0]];
+        $summary['gross_value'] = $products[0]['total_gross'];
+        $summary['deliveries_count'] = 45;
+        $summary['total_quantity'] = $products[0]['total_quantity'];
+
+        $data = compact('tenant', 'project', 'associate', 'receipt', 'summary') + [
+            'productsSummary' => $products,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_sections' => ['associate_info', 'project_info', 'deliveries'],
+        ];
+        $html = view('pdf.project-associate-receipt', $data)->render();
+
+        $this->assertStringNotContainsString('rowspan=', $html);
+        $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
+        $this->assertSame(88, substr_count($html, '>continuação</span>'));
+        $this->assertReceiptTableStructure($html);
+
+        $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
+        $contents = $pdf->output();
+
+        $this->assertSame(5, $pdf->getDomPDF()->get_canvas()->get_page_count());
+        $this->assertStringStartsWith('%PDF-', $contents);
+
+        if ($output = env('SGC_PDF_QA_LARGE_OUTPUT')) {
             File::ensureDirectoryExists(dirname($output));
             file_put_contents($output, $contents);
         }
@@ -468,5 +733,48 @@ class PdfRenderingCompatibilityTest extends TestCase
         ];
 
         return [$tenant, $project, $associate, $receipt, $summary, $products];
+    }
+
+    private function assertReceiptTableStructure(string $html): void
+    {
+        $this->assertTableStructure($html, 'receipt-data-table');
+    }
+
+    private function assertTableStructure(string $html, string $tableClass): void
+    {
+        $document = new \DOMDocument('1.0', 'UTF-8');
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML($html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        $xpath = new \DOMXPath($document);
+        $tables = $xpath->query('//table[contains(concat(" ", normalize-space(@class), " "), " '.$tableClass.' ")]');
+
+        $this->assertGreaterThan(0, $tables->length);
+
+        foreach ($tables as $table) {
+            $header = $xpath->query('./thead/tr[1]', $table)->item(0);
+            $expectedColumns = $this->structuralColumnCount($xpath, $header);
+            $this->assertGreaterThan(0, $expectedColumns);
+
+            foreach ($xpath->query('./tbody/tr | ./tfoot/tr', $table) as $row) {
+                $this->assertSame($expectedColumns, $this->structuralColumnCount($xpath, $row));
+                $this->assertSame(0, $xpath->query('./td[@rowspan] | ./th[@rowspan]', $row)->length);
+            }
+        }
+    }
+
+    private function structuralColumnCount(\DOMXPath $xpath, ?\DOMNode $row): int
+    {
+        if (! $row) {
+            return 0;
+        }
+
+        $count = 0;
+        foreach ($xpath->query('./td | ./th', $row) as $cell) {
+            $count += max(1, (int) ($cell->attributes?->getNamedItem('colspan')?->nodeValue ?? 1));
+        }
+
+        return $count;
     }
 }

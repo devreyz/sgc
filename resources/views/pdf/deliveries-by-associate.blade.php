@@ -108,7 +108,12 @@
         @if($showSection('totals'))
         <tfoot>
             <tr>
-                <td colspan="4"><strong>SUBTOTAL — {{ $group['associate_name'] }}</strong></td>
+                @php
+                    $leadingColumnCount = collect(['date', 'project', 'product'])
+                        ->filter(fn (string $column): bool => $showCol($column))
+                        ->count() + 1;
+                @endphp
+                <td colspan="{{ $leadingColumnCount }}"><strong>SUBTOTAL — {{ $group['associate_name'] }}</strong></td>
                 @if($showCol('quantity'))<td class="text-right"><strong>{{ number_format($group['total_quantity'], 2, ',', '.') }}</strong></td>@endif
                 @if($showCol('unit_value'))<td></td>@endif
                 @if($showCol('gross_value'))<td class="text-right"><strong>R$ {{ number_format($group['gross_value'], 2, ',', '.') }}</strong></td>@endif

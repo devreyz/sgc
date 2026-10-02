@@ -107,6 +107,14 @@ table.tbl tfoot td { padding: 5px 6px; vertical-align: middle; font-weight: 700;
 table.tbl tfoot td.r { text-align: right; }
 table.tbl .fee-col { width: 1%; white-space: nowrap; }
 table.tbl .money-col { width: 1%; white-space: nowrap; }
+.receipt-data-table .group-cell { color: #374151; }
+.receipt-data-table .group-continuation-context { color: #9ca3af; font-size: 6.5pt; line-height: 1.15; }
+.receipt-data-table .group-continuation-label { color: #9ca3af; font-size: 6pt; font-style: italic; font-weight: normal; }
+.receipt-data-table tr.group-first .group-cell { border-bottom-color: transparent; }
+.receipt-data-table tr.group-middle .group-cell { border-top-color: transparent; border-bottom-color: transparent; }
+.receipt-data-table tr.group-last .group-cell,
+.receipt-data-table tr.group-total .group-cell { border-top-color: transparent; }
+.receipt-data-table tr.group-single .group-cell { border-top-color: #e5e7eb; border-bottom-color: #e5e7eb; }
 /* ─── Resumo financeiro ─── */
 .fin-summary { display: table; width: 100%; margin-bottom: 8px; border: 1px solid #d1d5db; border-radius: 3px; background: #fff; font-size: 8.5pt; page-break-inside: avoid; }
 .fin-left  { display: table-cell; vertical-align: top; width: 35%; padding: 6px 8px; border-right: 1px solid #e2e8f0; }
@@ -244,8 +252,13 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table .money-col { width: 1% !important; white-space: nowrap !important; }
     table.receipt-data-table thead { display: table-header-group; }
     table.receipt-data-table tfoot { display: table-row-group; }
-    table.receipt-data-table tr { page-break-inside: avoid; }
-    table.receipt-data-table tbody.receipt-product-group { page-break-inside: avoid; }
+    table.receipt-data-table,
+    table.receipt-data-table tbody { page-break-inside: auto; break-inside: auto; }
+    table.receipt-data-table tr { page-break-inside: avoid; break-inside: avoid; }
+    table.receipt-data-table tr.group-first .group-cell { border-bottom-color: transparent !important; }
+    table.receipt-data-table tr.group-middle .group-cell { border-top-color: transparent !important; border-bottom-color: transparent !important; }
+    table.receipt-data-table tr.group-last .group-cell,
+    table.receipt-data-table tr.group-total .group-cell { border-top-color: transparent !important; }
 </style>
 @if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
@@ -264,14 +277,11 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 @if($showSection('deliveries'))
 <table class="tbl receipt-data-table">
     @include('pdf.partials.associate-receipt-table-head')
-    @foreach($productsSummary as $ps)
+    <tbody>
+    @foreach($productsSummary ?? [] as $ps)
         @php
-            $rowCount  = count($ps['distributions']);
-            // Mantém o agrupamento visual original por rowspan. O DomPDF não
-            // respeita page-break-inside em tbody; por isso cada bloco possui
-            // poucas linhas e uma quebra preventiva é aplicada antes de a
-            // página ficar cheia. Assim nenhum rowspan é quebrado ao meio.
-            $distributionChunks = collect($ps['distributions'])->chunk(4)->values();
+            $distributionRows = collect($ps['distributions'] ?? [])->values();
+            $rowCount = $distributionRows->count();
             $groupDate = '—';
             if (!empty($ps['delivery_date'])) {
                 $dv = $ps['delivery_date'];
@@ -284,26 +294,34 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                 }
             }
         @endphp
-        @foreach($distributionChunks as $chunkIndex => $distributionChunk)
-        @if($chunkIndex > 0 && $chunkIndex % 5 === 0)
-        </table>
-        <div style="page-break-before:always;"></div>
-        <table class="tbl receipt-data-table">
-            @include('pdf.partials.associate-receipt-table-head')
-        @endif
+        @foreach($distributionRows as $distributionIndex => $dist)
         @php
-            $isFinalChunk = $chunkIndex === $distributionChunks->count() - 1;
-            $spanCount = $distributionChunk->count() + ($isFinalChunk && $rowCount > 1 ? 1 : 0);
+            $isFirstGroupRow = $distributionIndex === 0;
+            $isLastGroupRow = $distributionIndex === $rowCount - 1;
+            $groupPosition = $rowCount === 1
+                ? 'single'
+                : ($isFirstGroupRow
+                    ? 'first'
+                    : ($isLastGroupRow ? 'last' : 'middle'));
         @endphp
-        <tbody class="receipt-product-group">
-        @foreach($distributionChunk as $di => $dist)
-        <tr>
-            @if($loop->first)
-            <td rowspan="{{ $spanCount }}">
-                <strong>{{ $ps['product_name'] }}</strong>
-                @if($chunkIndex > 0)<br><small style="color:#6b7280;font-style:italic;">continuação</small>@endif
+        <tr class="group-{{ $groupPosition }}">
+            <td class="group-cell">
+                @if($isFirstGroupRow)
+                    <strong>{{ $ps['product_name'] }}</strong>
+                @else
+                    <span class="group-continuation-context"></span>
+                    <span class="group-continuation-label"></span>
+                @endif
             </td>
-            @if($showDeliveryDate)<td rowspan="{{ $spanCount }}" style="white-space:nowrap;">{{ $groupDate }}</td>@endif
+            @if($showDeliveryDate)
+            <td class="group-cell" style="white-space:nowrap;">
+                @if($isFirstGroupRow)
+                    {{ $groupDate }}
+                @else
+                    <span class="group-continuation-context"></span>
+                    <span class="group-continuation-label"></span>
+                @endif
+            </td>
             @endif
             @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
@@ -318,9 +336,12 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @if($showNet)<td class="r c-success" style="font-weight:600">R$&nbsp;{{ number_format($dist['net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endforeach
-        @if($isFinalChunk && $rowCount > 1)
-        {{-- Produto e data permanecem agrupados pelo rowspan deste bloco. --}}
-        <tr>
+        @if($rowCount > 1)
+        <tr class="group-total group-last">
+            <td class="group-cell">
+                @if($hideCustomerColumn)<span style="font-size:8pt;color:#4b5563;font-style:italic;">↳ Total ({{ $rowCount }} dist.)</span>@else&nbsp;@endif
+            </td>
+            @if($showDeliveryDate)<td class="group-cell">&nbsp;</td>@endif
             @unless($hideCustomerColumn)
                 <td style="font-size:8pt;color:#4b5563;padding:3px 6px;font-style:italic;border-top:1px dashed #9ca3af;">↳ Total ({{ $rowCount }} dist.)</td>
             @endunless
@@ -336,9 +357,8 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
             @if($showNet)<td class="r c-success" style="font-weight:700;padding:3px 6px;border-top:1px dashed #9ca3af;">R$&nbsp;{{ number_format($ps['total_net'], 2, ',', '.') }}</td>@endif
         </tr>
         @endif
-        </tbody>
-        @endforeach
     @endforeach
+    </tbody>
     <tfoot>
         <tr>
             <td colspan="{{ $leadingColumnCount }}"><strong>TOTAL GERAL</strong></td>

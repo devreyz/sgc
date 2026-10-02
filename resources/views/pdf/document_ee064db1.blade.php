@@ -1,4 +1,10 @@
-@php($associateTerm = $tenant?->associateTerm() ?? 'Associado')
+@php
+    $associateTerm = $tenant?->associateTerm() ?? 'Associado';
+    $tableColumnCount = count(array_intersect($columns ?? [], [
+        'delivery_date', 'project', 'associate', 'product', 'quantity', 'unit_price',
+        'gross_value', 'admin_fee', 'net_value', 'quality', 'status',
+    ]));
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -281,7 +287,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="11" class="text-center">Nenhum registro encontrado</td>
+                    <td colspan="{{ max(1, $tableColumnCount) }}" class="text-center">Nenhum registro encontrado</td>
                 </tr>
             @endforelse
         </tbody>
