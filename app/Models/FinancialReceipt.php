@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -77,7 +78,11 @@ class FinancialReceipt extends Model
 
     public function verificationIdentity(): MorphOne
     {
-        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
+        $relation = $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
+
+        return Schema::hasColumn('financial_document_identities', 'revision')
+            ? $relation->whereNull('invalidated_at')->latestOfMany('revision')
+            : $relation;
     }
 
     public function isDraft(): bool

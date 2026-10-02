@@ -15,10 +15,25 @@ class FinancialDocumentIdentity extends Model
         'tenant_id',
         'public_id',
         'reference_code',
+        'revision',
+        'document_hash',
+        'document_snapshot',
         'documentable_type',
         'documentable_id',
+        'invalidated_at',
+        'invalidated_by',
+        'invalidation_reason',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'revision' => 'integer',
+            'document_snapshot' => 'array',
+            'invalidated_at' => 'datetime',
+        ];
+    }
 
     public function documentable(): MorphTo
     {

@@ -2,9 +2,9 @@
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
-use Illuminate\Support\Facades\Artisan;
 use App\Support\NotificationEventCatalog;
+use Illuminate\Support\Facades\Artisan;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class GoogleDriveQueueOptimizationTest extends TestCase
@@ -51,5 +51,17 @@ class GoogleDriveQueueOptimizationTest extends TestCase
             "dispatchToConfiguredRoles('drive.receipt_synced'",
             file_get_contents(base_path('app/Jobs/SyncAssociateReceiptToDrive.php')),
         );
+    }
+
+    #[Test]
+    public function visual_refresh_is_lazy_and_keeps_qr_identity_out_of_the_render_policy(): void
+    {
+        $state = file_get_contents(app_path('Services/AssociateReceiptDriveState.php'));
+        $identity = file_get_contents(app_path('Services/FinancialDocumentIdentityService.php'));
+
+        self::assertStringContainsString('needsVisualRefresh(', $state);
+        self::assertStringContainsString('requestVisualRefresh(', $state);
+        self::assertStringContainsString("'verification_public_id'", $state);
+        self::assertStringNotContainsString("'renderer_version' => (string) config", $identity);
     }
 }

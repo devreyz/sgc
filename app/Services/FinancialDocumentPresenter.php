@@ -15,15 +15,21 @@ use App\Models\User;
 
 class FinancialDocumentPresenter
 {
-    public function __construct(private readonly FinancialDocumentPaymentService $payments) {}
+    public function __construct(
+        private readonly FinancialDocumentPaymentService $payments,
+        private readonly ?FinancialDocumentIdentityService $identities = null,
+    ) {}
 
     public function present(FinancialDocumentIdentity $identity, ?User $user): array
     {
         $document = $identity->documentable;
         $latestCheck = $identity->checks->first();
-        [$technicalStatus, $humanStatus, $tone] = $this->status($document, $latestCheck);
+        $isCurrent = $this->identityService()->isCurrent($identity);
+        [$technicalStatus, $humanStatus, $tone] = $isCurrent
+            ? $this->status($document, $latestCheck)
+            : ['obsolete', 'Versão substituída · não utilizar', 'danger'];
         $canView = $user ? $this->canView($user, $identity) : false;
-        $canPay = $user && $canView ? $this->canPay($user, $identity) : false;
+        $canPay = $isCurrent && $user && $canView ? $this->canPay($user, $identity) : false;
         $details = $canView ? $this->inTenant((int) $identity->tenant_id, fn (): array => [
             'total' => $this->payments->total($identity),
             'balance' => $this->payments->balance($identity),
@@ -52,6 +58,11 @@ class FinancialDocumentPresenter
             'identity' => $identity,
             'document' => $document,
             'reference' => $identity->reference_code,
+            'revision' => (int) ($identity->revision ?: 1),
+            'is_current' => $isCurrent,
+            'invalidation_reason' => $identity->invalidation_reason
+                ?: ($isCurrent ? null : 'O conteúdo deste documento foi alterado e uma nova versão deve ser consultada.'),
+            'invalidated_at' => $identity->invalidated_at,
             'number' => $this->number($document),
             'kind' => $this->kind($document),
             'issued_at' => $this->issuedAt($document),
@@ -76,6 +87,10 @@ class FinancialDocumentPresenter
 
     public function canPay(User $user, FinancialDocumentIdentity $identity): bool
     {
+        if (! $this->identityService()->isCurrent($identity)) {
+            return false;
+        }
+
         if (! $this->tenantMember($user, (int) $identity->tenant_id)) {
             return false;
         }
@@ -117,6 +132,11 @@ class FinancialDocumentPresenter
             FinancialReceipt::class => $user->checkPermissionTo('view_financial::receipt'),
             default => false,
         });
+    }
+
+    private function identityService(): FinancialDocumentIdentityService
+    {
+        return $this->identities ?? app(FinancialDocumentIdentityService::class);
     }
 
     private function tenantMember(User $user, int $tenantId): bool

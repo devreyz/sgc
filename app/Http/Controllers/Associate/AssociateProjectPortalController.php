@@ -13,6 +13,7 @@ use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Services\AssociateFinancialSummaryService;
 use App\Services\AssociateProjectLimitService;
+use App\Services\FinancialDocumentIdentityService;
 use App\Services\ProjectDemandService;
 use App\Services\ReceiptDataBuilder;
 use App\Services\TemplatedPdfService;
@@ -82,6 +83,8 @@ class AssociateProjectPortalController extends Controller
 
         abort_if($receipt->status === ReceiptStatus::OBSOLETE, 409, 'Este comprovante esta obsoleto e nao pode ser usado como documento vigente.');
 
+        app(FinancialDocumentIdentityService::class)->ensure($receipt, $request->user());
+
         $filename = 'comprovante-'.str_replace('/', '-', $receipt->formatted_number).'-'.Str::slug($associate->display_name).'.pdf';
         // A via arquivada no Drive e o documento administrativo, que pode
         // conter campos de assinatura. O portal sempre gera a via propria do
@@ -136,6 +139,7 @@ class AssociateProjectPortalController extends Controller
             'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
             'X-SGC-Document-Origin' => 'generated',
             'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
+            'X-SGC-Document-Refreshed' => '0',
         ]);
     }
 

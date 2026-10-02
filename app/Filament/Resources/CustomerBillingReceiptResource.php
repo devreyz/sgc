@@ -927,6 +927,24 @@ class CustomerBillingReceiptResource extends Resource
                     })
                     ->openUrlInNewTab(),
 
+                Tables\Actions\Action::make('refreshDocument')
+                    ->label('Atualizar comprovante')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Atualizar somente o visual?')
+                    ->modalDescription('O PDF será atualizado visualmente, preservando o mesmo QR Code. Valores, itens e recebimentos não serão recalculados.')
+                    ->action(function (CustomerBillingReceipt $record): void {
+                        $identity = app(FinancialDocumentIdentityService::class)
+                            ->ensure($record, auth()->user());
+
+                        Notification::make()
+                            ->success()
+                            ->title('Comprovante atualizado')
+                            ->body('A próxima impressão usará o layout atual e manterá o QR da versão '.((int) ($identity?->revision ?: 1)).'.')
+                            ->send();
+                    }),
+
                 Tables\Actions\Action::make('addPayment')
                     ->label(fn (CustomerBillingReceipt $r) => $r->status === CustomerReceiptStatus::PARTIALLY_PAID
                         ? 'Registrar Parcela'

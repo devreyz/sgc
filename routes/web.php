@@ -571,6 +571,9 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
         Route::put('/projects/{project}/receipt-print-preferences', [DeliveryRegistrationController::class, 'updateAssociateReceiptPrintPreferences'])->name('projects.receipt-print-preferences.update');
         Route::post('/projects/{project}/receipts/{receipt}/regenerate', [DeliveryRegistrationController::class, 'regenerateReceipt'])->name('projects.receipt-regenerate');
+        Route::post('/projects/{project}/receipts/{receipt}/refresh-document', [DeliveryRegistrationController::class, 'refreshReceiptDocument'])
+            ->middleware('throttle:10,1')
+            ->name('projects.receipt-document.refresh');
         Route::put('/projects/{project}/receipts/{receipt}/distributions', [DeliveryRegistrationController::class, 'updateReceiptDistributions'])->name('projects.receipt-distributions.update');
         Route::get('/projects/{project}/receipts/{receipt}/reprint', [DeliveryRegistrationController::class, 'reprintReceipt'])->name('projects.receipt-reprint');
         Route::get('/projects/{project}/receipts', [DeliveryRegistrationController::class, 'projectReceiptsList'])->name('projects.receipts-list');

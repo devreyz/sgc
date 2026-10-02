@@ -150,7 +150,11 @@ class CustomerBillingReceipt extends Model
 
     public function verificationIdentity(): MorphOne
     {
-        return $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
+        $relation = $this->morphOne(FinancialDocumentIdentity::class, 'documentable');
+
+        return Schema::hasColumn('financial_document_identities', 'revision')
+            ? $relation->whereNull('invalidated_at')->latestOfMany('revision')
+            : $relation;
     }
 
     public function authorizationRounds(): HasMany

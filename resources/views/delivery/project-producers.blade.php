@@ -2445,6 +2445,7 @@
                 <div class="pr-receipt-actions">
                     ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> Alterar distribuições</button>` : ''}
                     ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar</button>` : ''}
+                    ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-refresh-document="${esc(receipt.refresh_url)}" title="Atualiza o PDF sem trocar o QR Code"><i class="ph-fill ph-arrow-clockwise"></i> Atualizar comprovante</button>` : ''}
                     ${receipt.status !== 'obsolete' ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-eye"></i> Visualizar e imprimir</button>` : ''}
                 </div>
             </article>`).join('') : `<div class="pr-empty">Nenhum comprovante gerado para este ${esc(memberTermLower)}.</div>`;
@@ -2701,6 +2702,31 @@
         }
     }
 
+    async function refreshDocument(url, button) {
+        if (state.busy) return;
+        const confirmed = await confirmAction('Atualizar apenas o visual deste comprovante? O QR Code, os valores e os pagamentos serão preservados.');
+        if (!confirmed) return;
+        state.busy = true;
+        button.disabled = true;
+        try {
+            const data = await json(url, { method:'POST' });
+            toast(data.message);
+            const documentPdf = await window.SgcDocuments.fetchPdf(data.reprint_url, `Comprovante · ${root.dataset.projectTitle}`);
+            if (!documentPdf) throw new Error('O comprovante foi atualizado, mas não foi possível abrir a nova via.');
+            await window.SgcDocuments.openPdf(documentPdf.blob, documentPdf.fileName, documentPdf.title, {
+                relativePath: documentPdf.relativePath || root.dataset.documentPath,
+                origin: documentPdf.origin,
+                documentTitle: documentPdf.title,
+            });
+            await openModal(state.associateId, state.associateName);
+        } catch (error) {
+            toast(error.message, 'error');
+        } finally {
+            state.busy = false;
+            button.disabled = false;
+        }
+    }
+
     function confirmAction(message) {
         return new Promise(resolve => {
             const dialog = $('pr-confirm');
@@ -2862,6 +2888,11 @@
         if (edit) { openSelection(edit.dataset.editReceipt); return; }
         const refresh = event.target.closest('[data-regenerate]');
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
+        const refreshDocumentButton = event.target.closest('[data-refresh-document]');
+        if (refreshDocumentButton) {
+            refreshDocument(refreshDocumentButton.dataset.refreshDocument, refreshDocumentButton);
+            return;
+        }
         const reprint = event.target.closest('[data-reprint-url]');
         if (reprint) {
             reprint.disabled = true;

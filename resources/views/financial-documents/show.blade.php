@@ -1051,6 +1051,22 @@
                     </div>
                 </section>
 
+                @if(!$documentView['is_current'])
+                    <section style="margin:0;padding:1rem 1.15rem;background:var(--red-soft);border-bottom:1px solid #f2c7c5;color:var(--red)">
+                        <strong style="display:block;margin-bottom:.3rem">
+                            <i class="ph-fill ph-warning-circle"></i>
+                            Este QR Code pertence à versão {{ $documentView['revision'] }} e não valida o documento atual.
+                        </strong>
+                        <span style="display:block;color:var(--text-2);line-height:1.5">
+                            {{ $documentView['invalidation_reason'] }}
+                            @if($documentView['invalidated_at'])
+                                Invalidada em {{ $documentView['invalidated_at']->format('d/m/Y H:i') }}.
+                            @endif
+                            Solicite ou escaneie o comprovante reemitido, que possui outro código de validação.
+                        </span>
+                    </section>
+                @endif
+
                 @if($documentView['can_view_details'])
                     <div class="document-print-action" style="display:flex;justify-content:flex-end;padding:.55rem .9rem;border-bottom:1px solid var(--border)">
                         <button class="btn" type="button" data-print-document><i class="ph-fill ph-printer"></i> Imprimir cobrança</button>

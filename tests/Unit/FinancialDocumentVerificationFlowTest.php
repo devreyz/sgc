@@ -72,6 +72,31 @@ class FinancialDocumentVerificationFlowTest extends TestCase
         }
     }
 
+    public function test_receipt_refresh_is_lazy_manual_and_rate_limited(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes())->keyBy(fn ($route) => $route->getName());
+        $refresh = $routes['delivery.projects.receipt-document.refresh'];
+
+        $this->assertSame(['POST'], $refresh->methods());
+        $this->assertContains('throttle:10,1', $refresh->gatherMiddleware());
+        $this->assertStringContainsString(
+            'data-refresh-document',
+            file_get_contents(resource_path('views/delivery/project-producers.blade.php')),
+        );
+        $this->assertStringContainsString(
+            '->ensure(',
+            file_get_contents(resource_path('views/pdf/partials/financial-document-qr.blade.php')),
+        );
+        $this->assertStringNotContainsString(
+            'refreshForView',
+            file_get_contents(app_path('Services/FinancialDocumentIdentityService.php')),
+        );
+        $this->assertStringNotContainsString(
+            "'renderer_version' =>",
+            file_get_contents(app_path('Services/FinancialDocumentIdentityService.php')),
+        );
+    }
+
     public function test_financial_flows_reuse_domain_services_locks_and_idempotency(): void
     {
         $orchestrator = file_get_contents(app_path('Services/FinancialDocumentPaymentService.php'));

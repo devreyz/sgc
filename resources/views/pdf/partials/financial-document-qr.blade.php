@@ -83,6 +83,7 @@
                     >
                         {{ $verificationIdentity->reference_code }}
                     </strong>
+                    · versão {{ (int) ($verificationIdentity->revision ?: 1) }}
                 </span>
             </td>
         </tr>

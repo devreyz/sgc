@@ -6,6 +6,7 @@ use App\Enums\DeliveryStatus;
 use App\Models\AssociateReceipt;
 use App\Models\CloudDocument;
 use App\Models\ProductionDelivery;
+use Illuminate\Support\Carbon;
 
 class AssociateReceiptDriveState
 {
@@ -20,6 +21,8 @@ class AssociateReceiptDriveState
 
         return hash('sha256', json_encode([
             'receipt_id' => (int) $receipt->id,
+            'verification_public_id' => $receipt->verificationIdentity()->value('public_id'),
+            'renderer_version' => (string) config('documents.renderer_version', config('app.version')),
             'updated_at' => $receipt->updated_at?->format('Y-m-d H:i:s.u'),
             'status' => $receipt->status?->value,
             'delivery_ids' => $deliveryIds,
@@ -79,9 +82,50 @@ class AssociateReceiptDriveState
             && data_get($document->metadata, 'source_fingerprint') === $fingerprint;
     }
 
+    public function needsVisualRefresh(AssociateReceipt $receipt, bool $force = false): bool
+    {
+        $document = $this->document($receipt);
+        if (! $document) {
+            return false;
+        }
+        if ($force) {
+            return true;
+        }
+        if (! (bool) config('documents.automatic_refresh_on_view', true)) {
+            return false;
+        }
+
+        if (data_get($document->metadata, 'renderer_version') !== (string) config('documents.renderer_version', config('app.version'))) {
+            return true;
+        }
+
+        $months = max(1, min(120, (int) config('documents.refresh_after_months', 3)));
+        $renderedAt = data_get($document->metadata, 'rendered_at')
+            ? Carbon::parse(data_get($document->metadata, 'rendered_at'))
+            : $document->updated_at;
+
+        return $renderedAt?->lte(now()->subMonthsNoOverflow($months)) ?? false;
+    }
+
+    public function requestVisualRefresh(AssociateReceipt $receipt, string $reason): void
+    {
+        $document = $this->document($receipt);
+        if (! $document) {
+            return;
+        }
+
+        $document->forceFill([
+            'status' => 'pending',
+            'metadata' => array_merge($document->metadata ?? [], [
+                'visual_refresh_requested_at' => now()->toIso8601String(),
+                'visual_refresh_reason' => $reason,
+            ]),
+        ])->save();
+    }
+
     public function recordRejected(AssociateReceipt $receipt, string $fingerprint, string $reason): void
     {
-        $document = $this->document($receipt) ?? new CloudDocument();
+        $document = $this->document($receipt) ?? new CloudDocument;
         if (! $document->exists) {
             $document->forceFill([
                 'tenant_id' => $receipt->tenant_id,
@@ -114,6 +158,10 @@ class AssociateReceiptDriveState
             'metadata' => array_merge($document->metadata ?? [], [
                 'source_fingerprint' => $fingerprint,
                 'permanent_until_changed' => false,
+                'renderer_version' => (string) config('documents.renderer_version', config('app.version')),
+                'rendered_at' => now()->toIso8601String(),
+                'visual_refresh_requested_at' => null,
+                'visual_refresh_reason' => null,
             ]),
         ])->save();
     }

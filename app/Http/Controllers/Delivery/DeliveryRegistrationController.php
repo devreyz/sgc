@@ -29,6 +29,7 @@ use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\DeliveryQuantityAdjustmentService;
+use App\Services\FinancialDocumentIdentityService;
 use App\Services\NotificationService;
 use App\Services\PricingService;
 use App\Services\ProjectDistributionCustomerService;
@@ -3639,6 +3640,11 @@ class DeliveryRegistrationController extends Controller
                 && $r->canBeOperationallyUpdated()
                 && ! in_array((int) $r->id, $lockedReceiptIds, true),
             'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
+            'refresh_url' => route('delivery.projects.receipt-document.refresh', [
+                'tenant' => $tenantSlug,
+                'project' => $projectId,
+                'receipt' => $r->id,
+            ]),
             'reprint_url' => route('delivery.projects.receipt-reprint', [
                 'tenant' => $tenantSlug,
                 'project' => $projectId,
@@ -4310,6 +4316,62 @@ class DeliveryRegistrationController extends Controller
         ]);
     }
 
+    /**
+     * Atualiza apenas a representação visual, sem trocar o QR, recalcular,
+     * alterar pagamentos ou modificar as distribuições congeladas.
+     */
+    public function refreshReceiptDocument(Request $request)
+    {
+        $projectId = (int) $request->route('project');
+        $tenantId = (int) session('tenant_id');
+
+        abort_unless($tenantId > 0, 403);
+
+        $receipt = AssociateReceipt::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->findOrFail((int) $request->route('receipt'));
+
+        if ($receipt->status === ReceiptStatus::OBSOLETE) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Este comprovante possui dados operacionais obsoletos. Use “Regenerar” para recalcular uma versão válida.',
+            ], 422);
+        }
+
+        $identity = app(FinancialDocumentIdentityService::class)
+            ->ensure($receipt, $request->user());
+        app(AssociateReceiptDriveState::class)->requestVisualRefresh(
+            $receipt,
+            'Atualização visual solicitada manualmente pelo usuário.',
+        );
+
+        activity('associate_receipt')
+            ->performedOn($receipt)
+            ->causedBy($request->user())
+            ->withProperties([
+                'action' => 'refresh_document_version',
+                'identity_id' => $identity?->id,
+                'revision' => $identity?->revision,
+                'qr_preserved' => true,
+            ])
+            ->log('Atualização visual do comprovante solicitada');
+
+        SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comprovante atualizado visualmente. O QR Code e a validade da via arquivada foram preservados.',
+            'revision' => (int) ($identity?->revision ?: 1),
+            'reprint_url' => route('delivery.projects.receipt-reprint', [
+                'tenant' => $request->route('tenant'),
+                'project' => $projectId,
+                'receipt' => $receipt->id,
+                'preview' => 1,
+            ]),
+        ]);
+    }
+
     public function reportProjectAssociate()
     {
         $tenantId = session('tenant_id');
@@ -4559,6 +4621,23 @@ class DeliveryRegistrationController extends Controller
                 ->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
         }
 
+        app(FinancialDocumentIdentityService::class)->ensure($receipt, $request->user());
+        $receipt->unsetRelation('verificationIdentity');
+
+        $driveState = app(AssociateReceiptDriveState::class);
+        $documentRefreshed = $driveState->needsVisualRefresh(
+            $receipt,
+            $request->boolean('refresh_document'),
+        );
+        if ($documentRefreshed) {
+            $driveState->requestVisualRefresh(
+                $receipt,
+                $request->boolean('refresh_document')
+                    ? 'Atualização visual solicitada manualmente pelo usuário.'
+                    : 'Atualização visual automática ao abrir o comprovante.',
+            );
+        }
+
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($receipt->associate_id);
         $tenant = $this->currentTenant();
@@ -4650,6 +4729,7 @@ class DeliveryRegistrationController extends Controller
                 'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
                 'X-SGC-Document-Origin' => 'generated',
                 'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
+                'X-SGC-Document-Refreshed' => $documentRefreshed ? '1' : '0',
             ]);
         }
 
@@ -4662,6 +4742,7 @@ class DeliveryRegistrationController extends Controller
             'X-SGC-Document-Path' => $this->receiptDocumentPath($receipt, $project),
             'X-SGC-Document-Origin' => 'generated',
             'X-SGC-Document-Title' => $this->receiptDocumentTitle($receipt, $project),
+            'X-SGC-Document-Refreshed' => $documentRefreshed ? '1' : '0',
         ]);
     }
 
@@ -4740,6 +4821,11 @@ class DeliveryRegistrationController extends Controller
                     'delivery_count' => is_array($r->delivery_ids) ? count($r->delivery_ids) : '—',
                     'status' => $r->status?->value ?? 'draft',
                     'status_label' => $r->status?->getLabel() ?? 'Rascunho',
+                    'refresh_url' => route('delivery.projects.receipt-document.refresh', [
+                        'tenant' => $tenantSlug,
+                        'project' => $projectId,
+                        'receipt' => $r->id,
+                    ]),
                     'reprint_url' => route('delivery.projects.receipt-reprint', [
                         'tenant' => $tenantSlug,
                         'project' => $projectId,

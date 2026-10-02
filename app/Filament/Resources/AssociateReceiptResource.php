@@ -14,6 +14,7 @@ use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
 use App\Models\TenantUser;
+use App\Services\AssociateReceiptDriveState;
 use App\Services\AssociateReceiptService;
 use App\Services\FinancialDocumentIdentityService;
 use App\Services\ProjectFinancialCalculator;
@@ -627,6 +628,29 @@ class AssociateReceiptResource extends Resource
                         return $identity ? route('financial-documents.show', $identity->public_id) : '#';
                     })
                     ->openUrlInNewTab(),
+
+                Tables\Actions\Action::make('refreshDocument')
+                    ->label('Atualizar comprovante')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalHeading('Atualizar somente o visual?')
+                    ->modalDescription('O PDF será atualizado visualmente, preservando o mesmo QR Code. Valores, distribuições e pagamentos não serão recalculados.')
+                    ->visible(fn (AssociateReceipt $record): bool => $record->status !== ReceiptStatus::OBSOLETE)
+                    ->action(function (AssociateReceipt $record): void {
+                        $identity = app(FinancialDocumentIdentityService::class)
+                            ->ensure($record, auth()->user());
+                        app(AssociateReceiptDriveState::class)->requestVisualRefresh(
+                            $record,
+                            'Atualização visual solicitada manualmente no painel administrativo.',
+                        );
+
+                        Notification::make()
+                            ->success()
+                            ->title('Comprovante atualizado')
+                            ->body('A próxima abertura usará o layout atual e manterá o QR da versão '.((int) ($identity?->revision ?: 1)).'.')
+                            ->send();
+                    }),
 
                 Tables\Actions\Action::make('addPayment')
                     ->label(fn (AssociateReceipt $r) => $r->status === ReceiptStatus::PARTIALLY_PAID
