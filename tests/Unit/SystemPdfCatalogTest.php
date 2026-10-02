@@ -79,4 +79,32 @@ class SystemPdfCatalogTest extends TestCase
         $this->assertNotContains('unit_price', $definition['default_columns']);
         $this->assertNotContains('gross_value', $definition['default_columns']);
     }
+
+    public function test_customer_receipts_expose_optional_date_grouping_and_product_totals(): void
+    {
+        $definitions = DocumentTemplate::getSystemTemplateDefinitions();
+
+        foreach (['customer_billing_receipt', 'customer_organization_receipt'] as $key) {
+            $definition = $definitions[$key];
+
+            $this->assertArrayHasKey('delivery_date', $definition['columns']);
+            $this->assertArrayHasKey('product_totals', $definition['sections']);
+            $this->assertNotContains('delivery_date', $definition['default_columns']);
+            $this->assertNotContains('product_totals', $definition['default_sections']);
+        }
+    }
+
+    public function test_associate_receipts_expose_optional_date_grouping_and_product_totals(): void
+    {
+        $definitions = DocumentTemplate::getSystemTemplateDefinitions();
+        $administrative = $definitions['project_associate_receipt'];
+        $portal = $definitions['associate_portal_receipt'];
+
+        $this->assertArrayHasKey('delivery_date', $administrative['columns']);
+        $this->assertArrayHasKey('date', $portal['columns']);
+        foreach ([$administrative, $portal] as $definition) {
+            $this->assertArrayHasKey('product_totals', $definition['sections']);
+            $this->assertNotContains('product_totals', $definition['default_sections']);
+        }
+    }
 }

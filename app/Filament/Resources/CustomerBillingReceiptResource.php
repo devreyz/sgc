@@ -626,6 +626,7 @@ class CustomerBillingReceiptResource extends Resource
                             Forms\Components\CheckboxList::make('visible_columns')
                                 ->label('Colunas do PDF')
                                 ->options([
+                                    'delivery_date' => 'Data (agrupar produtos do mesmo dia)',
                                     'unit_price' => 'Valor unitário',
                                     'gross' => 'Valor bruto',
                                     'net' => 'Valor líquido',
@@ -1039,16 +1040,21 @@ class CustomerBillingReceiptResource extends Resource
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
             $feeColumns,
-            ['unit_price', 'gross', 'net'],
+            ['delivery_date', 'unit_price', 'gross', 'net'],
         );
+        $groupByDate = in_array('delivery_date', $visibleColumns, true);
         $projectMap = $projects->keyBy('id');
         $projectSnapshots = collect(data_get($effectiveFeeSnapshot, 'project_snapshots', []));
-        $frozenLines = $presentation['lines'];
+        $frozenLines = $groupByDate
+            ? static::groupPresentationLinesByDate($presentation['lines'], $distributions)
+            : $presentation['lines'];
         $productRows = $frozenLines->isNotEmpty()
             ? $frozenLines->map(fn (array $line): array => [
                 'project_id' => (int) ($line['project_id'] ?? 0),
                 'project' => (string) ($line['project'] ?? '—'),
+                'product_id' => (int) ($line['product_id'] ?? 0),
                 'product' => (string) ($line['product'] ?? '—'),
+                'delivery_date' => $line['delivery_date'] ?? null,
                 'unit' => (string) ($line['unit'] ?? 'un'),
                 'quantity' => (string) ($line['quantity'] ?? '0'),
                 'unit_price' => (string) ($line['unit_price'] ?? '0'),
@@ -1057,7 +1063,12 @@ class CustomerBillingReceiptResource extends Resource
                 'net' => (string) ($line['document_amount'] ?? '0.00'),
             ])->values()->all()
             : $distributions
-                ->groupBy(fn ($d) => $d->sales_project_id.'|'.$d->product_id.'|'.$d->unit_price)
+                ->groupBy(fn ($d) => implode('|', array_filter([
+                    $d->sales_project_id,
+                    $d->product_id,
+                    $d->unit_price,
+                    $groupByDate ? static::deliveryDateKey($d) : null,
+                ], fn ($value): bool => $value !== null)))
                 ->map(function ($group) use ($feeColumnService, $projectMap, $projectSnapshots, $effectiveFeeSnapshot, $projects) {
                     $first = $group->first();
                     $rowProject = $projectMap->get((int) $first->sales_project_id);
@@ -1078,7 +1089,9 @@ class CustomerBillingReceiptResource extends Resource
                     return [
                         'project_id' => (int) $first->sales_project_id,
                         'project' => $rowProject?->title ?? 'Projeto #'.$first->sales_project_id,
+                        'product_id' => (int) $first->product_id,
                         'product' => $first->product?->name ?? '—',
+                        'delivery_date' => $group->pluck('delivery_date')->filter()->min()?->format('Y-m-d'),
                         'unit' => $first->product?->unit ?? 'kg',
                         'quantity' => $qty,
                         'unit_price' => (float) $first->unit_price,
@@ -1145,10 +1158,13 @@ class CustomerBillingReceiptResource extends Resource
             ];
         })->filter(fn (array $group): bool => $group['rows'] !== [])->values()->all();
 
+        $productTotals = static::productTotals($productRows);
+
         return compact(
             'tenant', 'project', 'customer', 'receipt',
             'productRows', 'projectGroups', 'totalGross', 'totalFees', 'totalNet', 'feeBreakdown',
-            'periodLabel', 'feeColumns', 'visibleColumns', 'projects', 'projectPeriods', 'isMultiProject'
+            'periodLabel', 'feeColumns', 'visibleColumns', 'projects', 'projectPeriods', 'isMultiProject',
+            'productTotals'
         );
     }
 
@@ -1174,14 +1190,17 @@ class CustomerBillingReceiptResource extends Resource
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
             $feeColumns,
-            ['unit_price', 'gross', 'net'],
+            ['delivery_date', 'unit_price', 'gross', 'net'],
         );
+        $groupByDate = in_array('delivery_date', $visibleColumns, true);
         // Todos os compradores distintos (para o rodapé)
         $customers = $distributions->pluck('customer')->filter()->unique('id')->sortBy('name')->values();
 
         $projectSnapshots = collect(data_get($effectiveFeeSnapshot, 'project_snapshots', []));
-        $frozenLines = $presentation['lines'];
-        $priceGroups = $projects->map(function (SalesProject $rowProject) use ($distributions, $frozenLines, $feeColumnService, $projectSnapshots, $effectiveFeeSnapshot, $projects) {
+        $frozenLines = $groupByDate
+            ? static::groupPresentationLinesByDate($presentation['lines'], $distributions)
+            : $presentation['lines'];
+        $priceGroups = $projects->map(function (SalesProject $rowProject) use ($distributions, $frozenLines, $feeColumnService, $projectSnapshots, $effectiveFeeSnapshot, $projects, $groupByDate) {
             $groupDists = $distributions->where('sales_project_id', $rowProject->id)->values();
             $projectSnapshot = $projectSnapshots->get((string) $rowProject->id)
                 ?? ($projects->count() === 1 ? $effectiveFeeSnapshot : null);
@@ -1196,8 +1215,9 @@ class CustomerBillingReceiptResource extends Resource
                     ->groupBy(fn ($distribution): string => implode('|', [
                         (int) $distribution->product_id,
                         (string) $distribution->unit_price,
+                        $groupByDate ? static::deliveryDateKey($distribution) : '',
                     ]))
-                    ->map(function (Collection $rows) use ($rowProject, $feeColumnService, $rowFeeColumns): array {
+                    ->map(function (Collection $rows) use ($rowProject, $feeColumnService, $rowFeeColumns, $groupByDate): array {
                         $first = $rows->first();
                         $quantity = $rows->reduce(
                             fn (string $sum, $row): string => bcadd($sum, (string) $row->quantity, 8),
@@ -1223,6 +1243,7 @@ class CustomerBillingReceiptResource extends Resource
                             'project' => (string) $rowProject->title,
                             'product_id' => (int) $first->product_id,
                             'product' => (string) ($first->product?->name ?? 'Produto #'.$first->product_id),
+                            'delivery_date' => $groupByDate ? static::deliveryDateKey($first) : null,
                             'unit' => (string) ($first->product?->unit ?? 'un'),
                             'quantity' => rtrim(rtrim($quantity, '0'), '.') ?: '0',
                             'unit_price' => (string) $first->unit_price,
@@ -1236,6 +1257,7 @@ class CustomerBillingReceiptResource extends Resource
             $table = $lines->map(function (array $line) use ($groupDists): array {
                 $matching = $groupDists->filter(fn ($distribution): bool => (int) $distribution->product_id === (int) ($line['product_id'] ?? 0)
                     && bccomp((string) $distribution->unit_price, (string) ($line['unit_price'] ?? 0), 8) === 0
+                    && (empty($line['delivery_date']) || static::deliveryDateKey($distribution) === $line['delivery_date'])
                 );
                 $byCustomer = $matching->groupBy('customer_id')->map(
                     fn (Collection $rows): string => $rows->reduce(
@@ -1245,7 +1267,9 @@ class CustomerBillingReceiptResource extends Resource
                 )->all();
 
                 return [
+                    'product_id' => (int) ($line['product_id'] ?? 0),
                     'product' => (string) ($line['product'] ?? '—'),
+                    'delivery_date' => $line['delivery_date'] ?? null,
                     'unit' => (string) ($line['unit'] ?? 'un'),
                     'unit_price' => (string) ($line['unit_price'] ?? '0'),
                     'by_customer' => $byCustomer,
@@ -1292,13 +1316,201 @@ class CustomerBillingReceiptResource extends Resource
 
         $projectPeriods = static::projectPeriods($projects, $distributions);
         $isMultiProject = $projects->count() > 1;
+        $productTotals = static::productTotals(
+            collect($priceGroups)->flatMap(fn (array $group): array => $group['table'])->all()
+        );
 
         return compact(
             'tenant', 'project', 'organization', 'receipt',
             'customers', 'priceGroups', 'multiplePriceTables',
             'totalGross', 'totalFees', 'totalNet', 'periodLabel',
-            'feeColumns', 'visibleColumns', 'projects', 'projectPeriods', 'isMultiProject'
+            'feeColumns', 'visibleColumns', 'projects', 'projectPeriods', 'isMultiProject',
+            'productTotals'
         );
+    }
+
+    /**
+     * Divide uma linha documental congelada somente para apresentacao por dia.
+     * Os centavos da linha original sao rateados e o ultimo grupo recebe o
+     * residuo, portanto o agrupamento nunca altera os totais emitidos.
+     *
+     * @param  Collection<int, array<string, mixed>>  $lines
+     * @param  Collection<int, ProductionDelivery>  $distributions
+     * @return Collection<int, array<string, mixed>>
+     */
+    private static function groupPresentationLinesByDate(
+        Collection $lines,
+        Collection $distributions,
+    ): Collection {
+        $datedLines = collect();
+
+        foreach ($lines as $line) {
+            $lineDistributionIds = collect($line['distribution_ids'] ?? [])
+                ->map(fn ($id): int => (int) $id)
+                ->filter()
+                ->all();
+            $matching = $distributions->filter(function ($distribution) use ($line, $lineDistributionIds): bool {
+                if ($lineDistributionIds !== []) {
+                    return in_array((int) $distribution->id, $lineDistributionIds, true);
+                }
+
+                return (int) $distribution->sales_project_id === (int) ($line['project_id'] ?? 0)
+                    && (int) $distribution->product_id === (int) ($line['product_id'] ?? 0)
+                    && bccomp((string) $distribution->unit_price, (string) ($line['unit_price'] ?? 0), 8) === 0;
+            });
+
+            if ($matching->isEmpty()) {
+                $datedLines->push($line);
+
+                continue;
+            }
+
+            $dateGroups = $matching
+                ->groupBy(fn ($distribution): string => static::deliveryDateKey($distribution))
+                ->sortKeys();
+            $weights = $dateGroups->map(function (Collection $rows): float {
+                $gross = $rows->sum(fn ($row): float => (float) $row->quantity * (float) $row->unit_price);
+
+                return $gross > 0 ? $gross : $rows->sum(fn ($row): float => abs((float) $row->quantity));
+            })->all();
+            $grossAllocations = static::allocateMoneyByWeight((string) ($line['document_gross'] ?? 0), $weights);
+            $feeAllocations = static::allocateMoneyByWeight((string) ($line['document_fees'] ?? 0), $weights);
+            $netAllocations = static::allocateMoneyByWeight((string) ($line['document_amount'] ?? 0), $weights);
+            $feeValueAllocations = collect((array) ($line['fee_values'] ?? []))
+                ->map(fn ($amount): array => static::allocateMoneyByWeight((string) $amount, $weights));
+
+            foreach ($dateGroups as $date => $rows) {
+                $quantity = $rows->reduce(
+                    fn (string $sum, $row): string => bcadd($sum, (string) $row->quantity, 8),
+                    '0',
+                );
+                $rawAmount = $rows->reduce(
+                    fn (string $sum, $row): string => bcadd(
+                        $sum,
+                        bcmul((string) $row->quantity, (string) $row->unit_price, 8),
+                        8,
+                    ),
+                    '0',
+                );
+                $datedLine = $line;
+                $datedLine['delivery_date'] = $date;
+                $datedLine['quantity'] = static::trimDecimal($quantity);
+                $datedLine['raw_amount'] = $rawAmount;
+                $datedLine['document_gross'] = $grossAllocations[$date];
+                $datedLine['document_fees'] = $feeAllocations[$date];
+                $datedLine['document_amount'] = $netAllocations[$date];
+                $datedLine['distribution_ids'] = $rows->pluck('id')->map(fn ($id): int => (int) $id)->all();
+                $datedLine['fee_values'] = $feeValueAllocations
+                    ->mapWithKeys(fn (array $allocations, string $key): array => [$key => $allocations[$date]])
+                    ->all();
+                $datedLines->push($datedLine);
+            }
+        }
+
+        return $datedLines
+            ->sortBy(fn (array $line): string => implode('|', [
+                str_pad((string) ($line['project_id'] ?? 0), 12, '0', STR_PAD_LEFT),
+                (string) ($line['delivery_date'] ?? ''),
+                mb_strtolower((string) ($line['product'] ?? '')),
+                (string) ($line['unit_price'] ?? 0),
+            ]))
+            ->values();
+    }
+
+    /** @param array<string, float> $weights @return array<string, string> */
+    private static function allocateMoneyByWeight(string $amount, array $weights): array
+    {
+        if ($weights === []) {
+            return [];
+        }
+
+        $totalCents = (int) round((float) $amount * 100);
+        $sign = $totalCents < 0 ? -1 : 1;
+        $remaining = abs($totalCents);
+        $weightTotal = array_sum($weights);
+        if ($weightTotal <= 0) {
+            $weights = array_fill_keys(array_keys($weights), 1.0);
+            $weightTotal = count($weights);
+        }
+
+        $result = [];
+        $lastKey = array_key_last($weights);
+        foreach ($weights as $key => $weight) {
+            $cents = $key === $lastKey
+                ? $remaining
+                : min($remaining, (int) round(abs($totalCents) * ($weight / $weightTotal)));
+            $remaining -= $cents;
+            $result[$key] = number_format(($cents * $sign) / 100, 2, '.', '');
+        }
+
+        return $result;
+    }
+
+    private static function deliveryDateKey(mixed $distribution): string
+    {
+        $date = $distribution->delivery_date ?? null;
+
+        if ($date instanceof \DateTimeInterface) {
+            return $date->format('Y-m-d');
+        }
+
+        $date = trim((string) $date);
+
+        return $date !== '' ? substr($date, 0, 10) : 'sem-data';
+    }
+
+    private static function trimDecimal(string $value): string
+    {
+        $value = rtrim(rtrim($value, '0'), '.');
+
+        return $value === '' || $value === '-0' ? '0' : $value;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, array{product:string,unit:string,quantity:string,gross:string,adjustments:string,net:string}>
+     */
+    private static function productTotals(array $rows): array
+    {
+        return collect($rows)
+            ->groupBy(fn (array $row): string => ($row['product_id'] ?? 0) > 0
+                ? 'id:'.(int) $row['product_id'].'|'.mb_strtolower((string) ($row['unit'] ?? 'un'))
+                : 'name:'.mb_strtolower((string) ($row['product'] ?? '')).'|'.mb_strtolower((string) ($row['unit'] ?? 'un')))
+            ->map(function (Collection $group): array {
+                $first = $group->first();
+                $quantity = $group->reduce(
+                    fn (string $sum, array $row): string => bcadd(
+                        $sum,
+                        (string) ($row['quantity'] ?? $row['total_qty'] ?? 0),
+                        8,
+                    ),
+                    '0',
+                );
+                $gross = $group->reduce(
+                    fn (string $sum, array $row): string => bcadd(
+                        $sum,
+                        (string) ($row['gross'] ?? $row['total_gross'] ?? 0),
+                        2,
+                    ),
+                    '0.00',
+                );
+                $net = $group->reduce(
+                    fn (string $sum, array $row): string => bcadd($sum, (string) ($row['net'] ?? 0), 2),
+                    '0.00',
+                );
+
+                return [
+                    'product' => (string) ($first['product'] ?? '—'),
+                    'unit' => (string) ($first['unit'] ?? 'un'),
+                    'quantity' => static::trimDecimal($quantity),
+                    'gross' => $gross,
+                    'adjustments' => bcsub($net, $gross, 2),
+                    'net' => $net,
+                ];
+            })
+            ->sortBy(fn (array $row): string => mb_strtolower($row['product']))
+            ->values()
+            ->all();
     }
 
     /**

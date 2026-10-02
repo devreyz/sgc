@@ -241,6 +241,104 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
         self::assertSame(100.0, $data['totalNet']);
     }
 
+    public function test_customer_pdf_can_group_equal_products_by_delivery_date_without_changing_totals(): void
+    {
+        $project = $this->project(10, 'PNAE Agosto');
+        $product = new Product;
+        $product->setRawAttributes(['id' => 99, 'tenant_id' => 1, 'name' => 'Banana', 'unit' => 'kg'], true);
+        $first = $this->distribution(101, 10, '2026-08-18');
+        $second = $this->distribution(102, 10, '2026-08-18');
+        $third = $this->distribution(103, 10, '2026-08-19');
+        foreach ([$first, $second, $third] as $distribution) {
+            $distribution->setRawAttributes(array_merge($distribution->getAttributes(), ['product_id' => 99]), true);
+            $distribution->setRelation('product', $product);
+        }
+        $second->quantity = 5;
+        $second->gross_value = 50;
+        $third->quantity = 7;
+        $third->gross_value = 70;
+        $receipt = new CustomerBillingReceipt([
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'customer_id' => 50,
+            'status' => 'draft',
+            'delivery_ids' => [101, 102, 103],
+        ]);
+
+        $data = CustomerBillingReceiptResource::buildCustomerReceiptData(
+            collect([$first, $second, $third]),
+            $receipt,
+            null,
+            $project,
+            new Customer(['name' => 'Escola Central']),
+            collect([$project]),
+            ['delivery_date', 'unit_price', 'gross', 'net'],
+        );
+
+        self::assertCount(2, $data['productRows']);
+        self::assertSame(['2026-08-18', '2026-08-19'], collect($data['productRows'])->pluck('delivery_date')->all());
+        self::assertSame(['15', '7'], collect($data['productRows'])->pluck('quantity')->all());
+        self::assertSame(220.0, $data['totalGross']);
+        self::assertSame(220.0, $data['totalNet']);
+        self::assertCount(1, $data['productTotals']);
+        self::assertSame('22', $data['productTotals'][0]['quantity']);
+        self::assertSame('220.00', $data['productTotals'][0]['gross']);
+    }
+
+    public function test_organization_pdf_groups_same_day_product_and_keeps_quantities_per_customer(): void
+    {
+        $project = $this->project(10, 'PNAE Agosto');
+        $product = new Product;
+        $product->setRawAttributes(['id' => 99, 'tenant_id' => 1, 'name' => 'Banana', 'unit' => 'kg'], true);
+        $school = new Customer;
+        $school->setRawAttributes(['id' => 50, 'tenant_id' => 1, 'name' => 'Escola Central'], true);
+        $nursery = new Customer;
+        $nursery->setRawAttributes(['id' => 51, 'tenant_id' => 1, 'name' => 'Creche Norte'], true);
+        $rows = collect([
+            [$this->distribution(101, 10, '2026-08-18'), $school, 10],
+            [$this->distribution(102, 10, '2026-08-18'), $school, 5],
+            [$this->distribution(103, 10, '2026-08-18'), $nursery, 7],
+        ])->map(function (array $fixture) use ($product): ProductionDelivery {
+            [$distribution, $customer, $quantity] = $fixture;
+            $distribution->setRawAttributes(array_merge($distribution->getAttributes(), [
+                'product_id' => 99,
+                'customer_id' => $customer->id,
+                'quantity' => $quantity,
+                'gross_value' => $quantity * 10,
+            ]), true);
+            $distribution->setRelation('product', $product);
+            $distribution->setRelation('customer', $customer);
+
+            return $distribution;
+        });
+        $receipt = new CustomerBillingReceipt([
+            'tenant_id' => 1,
+            'sales_project_id' => 10,
+            'organization_id' => 5,
+            'status' => 'draft',
+            'delivery_ids' => [101, 102, 103],
+        ]);
+
+        $data = CustomerBillingReceiptResource::buildOrganizationReportData(
+            $rows,
+            $receipt,
+            null,
+            $project,
+            new Organization(['name' => 'Prefeitura']),
+            collect([$project]),
+            ['delivery_date', 'gross', 'net'],
+        );
+
+        self::assertCount(1, $data['priceGroups'][0]['table']);
+        $line = $data['priceGroups'][0]['table'][0];
+        self::assertSame('2026-08-18', $line['delivery_date']);
+        self::assertSame('15.00000000', $line['by_customer'][50]);
+        self::assertSame('7.00000000', $line['by_customer'][51]);
+        self::assertSame('22', $line['total_qty']);
+        self::assertSame('22', $data['productTotals'][0]['quantity']);
+        self::assertSame(220.0, $data['totalNet']);
+    }
+
     public function test_it_freezes_one_receipt_with_distributions_from_two_projects(): void
     {
         $this->createFreezeSchema();

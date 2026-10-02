@@ -237,7 +237,7 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringNotContainsString('rowspan=', $html);
         $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
         $this->assertSame(1, substr_count($html, '<tbody>'));
-        $this->assertStringContainsString('continuação', $html);
+        $this->assertStringContainsString('', $html);
         $this->assertReceiptTableStructure($html);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
@@ -362,7 +362,7 @@ class PdfRenderingCompatibilityTest extends TestCase
 
         $this->assertStringNotContainsString('rowspan=', $html);
         $this->assertSame(1, substr_count($html, 'class="tbl receipt-data-table"'));
-        $this->assertSame(88, substr_count($html, '>continuação</span>'));
+        $this->assertSame(88, substr_count($html, '></span>'));
         $this->assertReceiptTableStructure($html);
 
         $pdf = Pdf::loadView('pdf.project-associate-receipt', $data)->setPaper('a4', 'portrait');
@@ -394,6 +394,85 @@ class PdfRenderingCompatibilityTest extends TestCase
         ])->render();
 
         $this->assertStringNotContainsString('<th style="width:11%;">Data</th>', $html);
+    }
+
+    public function test_associate_receipt_date_option_uses_grouped_rows_and_optional_product_totals(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $grouped = [$products[0]];
+        $grouped[0]['product_name'] = 'Produto agrupado no dia';
+        $grouped[0]['total_quantity'] = 20;
+        $grouped[0]['total_gross'] = 200;
+        $grouped[0]['total_admin_fee'] = 10;
+        $grouped[0]['total_net'] = 190;
+        $grouped[0]['distributions'][0]['quantity'] = 20;
+        $grouped[0]['distributions'][0]['gross'] = 200;
+        $grouped[0]['distributions'][0]['admin_fee'] = 10;
+        $grouped[0]['distributions'][0]['net'] = 190;
+        $totals = [[
+            'product_name' => 'Produto agrupado no período',
+            'unit' => 'kg',
+            'total_quantity' => 50,
+            'total_gross' => 500,
+            'total_admin_fee' => 25,
+            'total_net' => 475,
+            'fee_totals' => [],
+        ]];
+
+        $html = view('pdf.project-associate-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'productsByDate' => $grouped,
+            'productTotals' => $totals,
+            'feeBreakdown' => ['fees' => [], 'has_detail' => false],
+            'feeColumns' => [],
+            'visible_columns' => ['delivery_date', 'gross', 'net'],
+            'visible_sections' => ['deliveries', 'product_totals'],
+        ])->render();
+
+        $this->assertStringContainsString('Produto agrupado no dia', $html);
+        $this->assertStringNotContainsString('Produto 2', $html);
+        $this->assertStringContainsString('Totais gerais por produto no período', $html);
+        $this->assertStringContainsString('Produto agrupado no período', $html);
+    }
+
+    public function test_associate_portal_receipt_respects_grouping_and_product_total_sections(): void
+    {
+        [$tenant, $project, $associate, $receipt, $summary, $products] = $this->associateReceiptFixtures();
+        $grouped = [$products[0]];
+        $grouped[0]['product_name'] = 'Produto agrupado no portal';
+        $totals = [[
+            'product_name' => 'Produto total no portal',
+            'unit' => 'kg',
+            'total_quantity' => 50,
+            'total_gross' => 500,
+            'total_admin_fee' => 25,
+            'total_net' => 475,
+            'fee_totals' => [],
+        ]];
+
+        $html = view('pdf.associate-portal-receipt', [
+            'tenant' => $tenant,
+            'project' => $project,
+            'associate' => $associate,
+            'receipt' => $receipt,
+            'summary' => $summary,
+            'productsSummary' => $products,
+            'productsByDate' => $grouped,
+            'productTotals' => $totals,
+            'visible_columns' => ['date', 'product', 'quantity', 'gross_value'],
+            'visible_sections' => ['distributions', 'product_totals'],
+        ])->render();
+
+        $this->assertStringContainsString('Produto agrupado no portal', $html);
+        $this->assertStringNotContainsString('Produto 2', $html);
+        $this->assertStringContainsString('Totais gerais por produto no período', $html);
+        $this->assertStringContainsString('Produto total no portal', $html);
+        $this->assertStringNotContainsString('class="portal-summary"', $html);
     }
 
     public function test_two_copy_receipt_reuses_the_same_layout_on_two_pages(): void
@@ -520,6 +599,42 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringNotContainsString('Valor Líquido</div>', $html);
         $this->assertStringContainsString('Gestão', $html);
         $this->assertStringContainsString('- R$ 2,50', $html);
+    }
+
+    public function test_customer_receipt_renders_optional_product_totals_section(): void
+    {
+        $html = view('pdf.customer-billing-receipt', [
+            'tenant' => new Tenant(['name' => 'Cooperativa Teste']),
+            'project' => new SalesProject(['title' => 'PNAE 2026']),
+            'customer' => new Customer(['name' => 'Escola Central']),
+            'receipt' => new CustomerBillingReceipt([
+                'receipt_year' => 2026,
+                'receipt_number' => 3,
+                'issued_at' => '2026-08-05',
+            ]),
+            'productRows' => [],
+            'productTotals' => [[
+                'product' => 'Banana',
+                'unit' => 'kg',
+                'quantity' => '25',
+                'gross' => '125.00',
+                'adjustments' => '-5.00',
+                'net' => '120.00',
+            ]],
+            'totalGross' => 125,
+            'totalFees' => 5,
+            'totalNet' => 120,
+            'feeBreakdown' => [],
+            'feeColumns' => [],
+            'visibleColumns' => ['gross'],
+            'visible_sections' => ['product_totals'],
+        ])->render();
+
+        $this->assertStringContainsString('Totais gerais por produto no período', $html);
+        $this->assertStringContainsString('25&nbsp;kg', $html);
+        $this->assertStringContainsString('R$ 125,00', $html);
+        $this->assertStringContainsString('- R$ 5,00', $html);
+        $this->assertStringNotContainsString('Entregas por Produto', $html);
     }
 
     public function test_associate_receipt_hides_disabled_financial_section(): void

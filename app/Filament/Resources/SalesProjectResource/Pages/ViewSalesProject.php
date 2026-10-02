@@ -499,7 +499,7 @@ class ViewSalesProject extends ViewRecord
                                     $service = app(ReceiptFeeColumnService::class);
 
                                     return [
-                                        'delivery_date' => 'Data da entrega',
+                                        'delivery_date' => 'Data (agrupar produtos do mesmo dia)',
                                         'unit_price' => 'Vlr. Unitário',
                                         'gross' => 'Vlr. Bruto',
                                         'admin_fee' => 'Taxas agrupadas',
@@ -784,6 +784,8 @@ class ViewSalesProject extends ViewRecord
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],

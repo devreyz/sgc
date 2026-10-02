@@ -371,8 +371,7 @@ class DeliveryRegistrationController extends Controller
         ?int $associateId = null,
         ?int $receiptId = null,
         bool $requireUnbilled = true,
-    ): ?string
-    {
+    ): ?string {
         $distributions = collect($distributions)->values();
 
         if ($distributions->isEmpty()) {
@@ -3849,6 +3848,8 @@ class DeliveryRegistrationController extends Controller
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
@@ -3994,6 +3995,8 @@ class DeliveryRegistrationController extends Controller
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
@@ -4143,6 +4146,8 @@ class DeliveryRegistrationController extends Controller
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
@@ -4276,6 +4281,8 @@ class DeliveryRegistrationController extends Controller
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
@@ -4359,6 +4366,8 @@ class DeliveryRegistrationController extends Controller
             'deliveries' => $deliveries,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],
@@ -4618,6 +4627,8 @@ class DeliveryRegistrationController extends Controller
             'receipt' => $receipt,
             'summary' => $receiptData['summary'],
             'productsSummary' => $receiptData['productsSummary'],
+            'productsByDate' => $receiptData['productsByDate'],
+            'productTotals' => $receiptData['productTotals'],
             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
             'feeBreakdown' => $receiptData['feeBreakdown'],
             'feeColumns' => $receiptData['feeColumns'],

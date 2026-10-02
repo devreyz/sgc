@@ -116,6 +116,8 @@ class AssociateProjectPortalController extends Controller
             'receipt' => $receipt,
             'summary' => $data['summary'],
             'productsSummary' => $data['productsSummary'],
+            'productsByDate' => $data['productsByDate'],
+            'productTotals' => $data['productTotals'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
             'feeColumns' => $data['feeColumns'],

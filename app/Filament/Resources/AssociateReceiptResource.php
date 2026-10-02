@@ -433,6 +433,8 @@ class AssociateReceiptResource extends Resource
                             'receipt' => $record,
                             'summary' => $receiptData['summary'],
                             'productsSummary' => $receiptData['productsSummary'],
+                            'productsByDate' => $receiptData['productsByDate'],
+                            'productTotals' => $receiptData['productTotals'],
                             'hasRoundingDivergence' => $receiptData['hasRoundingDivergence'],
                             'feeBreakdown' => $receiptData['feeBreakdown'],
                             'feeColumns' => $receiptData['feeColumns'],

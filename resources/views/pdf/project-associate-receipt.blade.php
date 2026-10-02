@@ -225,6 +225,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
     $vcols         = $visible_columns ?? ['delivery_date', 'unit_price', 'gross'];
     $showDeliveryDate = in_array('delivery_date', $vcols, true);
+    $displayProducts = $showDeliveryDate
+        ? ($productsByDate ?? $productsSummary ?? [])
+        : ($productsSummary ?? []);
     $showUnitPrice = in_array('unit_price', $vcols);
     $showGross     = in_array('gross',      $vcols);
     $showAdminFee  = in_array('admin_fee',  $vcols);
@@ -259,6 +262,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
     table.receipt-data-table tr.group-middle .group-cell { border-top-color: transparent !important; border-bottom-color: transparent !important; }
     table.receipt-data-table tr.group-last .group-cell,
     table.receipt-data-table tr.group-total .group-cell { border-top-color: transparent !important; }
+    .product-totals-block { page-break-inside: avoid; }
 </style>
 @if($showSection('signature'))
 @include('pdf.partials.receipt-consent', [
@@ -278,7 +282,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 <table class="tbl receipt-data-table">
     @include('pdf.partials.associate-receipt-table-head')
     <tbody>
-    @foreach($productsSummary ?? [] as $ps)
+    @foreach($displayProducts as $ps)
         @php
             $distributionRows = collect($ps['distributions'] ?? [])->values();
             $rowCount = $distributionRows->count();
@@ -310,7 +314,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                     <strong>{{ $ps['product_name'] }}</strong>
                 @else
                     <span class="group-continuation-context">{{ $ps['product_name'] }}</span>
-                    <span class="group-continuation-label">continuação</span>
+                    <span class="group-continuation-label"></span>
                 @endif
             </td>
             @if($showDeliveryDate)
@@ -319,7 +323,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                     {{ $groupDate }}
                 @else
                     <span class="group-continuation-context">{{ $groupDate }}</span>
-                    <span class="group-continuation-label">continuação</span>
+                    <span class="group-continuation-label"></span>
                 @endif
             </td>
             @endif
@@ -374,6 +378,38 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </tr>
     </tfoot>
 </table>
+@endif
+
+{{-- ═══ TOTAIS GERAIS POR PRODUTO ═══ --}}
+@if($showSection('product_totals') && !empty($productTotals))
+<div class="product-totals-block">
+    <div class="sec-label">Totais gerais por produto no período</div>
+    <table class="tbl receipt-data-table">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th class="r">Quantidade total</th>
+                <th class="r">Valor bruto</th>
+                <th class="r">Ajustes</th>
+                <th class="r">Valor líquido</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($productTotals as $productTotal)
+            @php $productAdjustment = (float) ($productTotal['total_net'] ?? 0) - (float) ($productTotal['total_gross'] ?? 0); @endphp
+            <tr>
+                <td>{{ $productTotal['product_name'] }}</td>
+                <td class="r">{{ number_format((float) $productTotal['total_quantity'], 3, ',', '.') }}&nbsp;{{ $productTotal['unit'] }}</td>
+                <td class="r">R$&nbsp;{{ number_format((float) $productTotal['total_gross'], 2, ',', '.') }}</td>
+                <td class="r {{ $productAdjustment >= 0 ? 'c-success' : 'c-danger' }}">
+                    {{ $productAdjustment > 0 ? '+' : ($productAdjustment < 0 ? '-' : '') }}&nbsp;R$&nbsp;{{ number_format(abs($productAdjustment), 2, ',', '.') }}
+                </td>
+                <td class="r"><strong>R$&nbsp;{{ number_format((float) $productTotal['total_net'], 2, ',', '.') }}</strong></td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
 @endif
 
 {{-- ═══ RESUMO FINANCEIRO + CHEQUE ═══ --}}

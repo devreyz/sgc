@@ -21,6 +21,19 @@
     $hideCustomer = $customerNames->count() <= 1;
     $associateTerm = $tenant?->associateTerm() ?? 'Associado';
     $associateTermLower = $tenant?->associateTerm(lowercase: true) ?? 'associado';
+    $pdfSections = $visible_sections ?? ['associate_info', 'financial', 'distributions'];
+    $showSection = fn (string $section): bool => in_array($section, $pdfSections, true);
+    $pdfColumns = $visible_columns ?? ['date', 'product', 'quantity', 'unit_value', 'gross_value'];
+    $showDate = in_array('date', $pdfColumns, true);
+    $showProduct = in_array('product', $pdfColumns, true);
+    $showCustomer = !$hideCustomer && in_array('customer', $pdfColumns, true);
+    $showQuantity = in_array('quantity', $pdfColumns, true);
+    $showUnitValue = in_array('unit_value', $pdfColumns, true);
+    $showGrossValue = in_array('gross_value', $pdfColumns, true);
+    $displayProducts = $showDate
+        ? ($productsByDate ?? $productsSummary ?? [])
+        : ($productsSummary ?? []);
+    $leadingColumns = collect([$showDate, $showProduct, $showCustomer, $showQuantity, $showUnitValue])->filter()->count();
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -110,6 +123,7 @@ body {
     text-align: center;
     font-size: 7pt;
 }
+.product-totals-block { page-break-inside: avoid; }
 @include('pdf.partials.theme')
 </style>
 </head>
@@ -129,6 +143,7 @@ body {
     </div>
 </div>
 
+@if($showSection('associate_info'))
 <table class="portal-info">
     <tr>
         <td style="width:52%">
@@ -141,7 +156,9 @@ body {
         </td>
     </tr>
 </table>
+@endif
 
+@if($showSection('financial'))
 <table class="portal-summary">
     <tr>
         <td>
@@ -158,21 +175,23 @@ body {
         </td>
     </tr>
 </table>
+@endif
 
+@if($showSection('distributions'))
 <div class="portal-section">Distribuições incluídas</div>
 <table class="portal-table">
     <thead>
         <tr>
-            <th style="width:12%">Data</th>
-            <th>Produto</th>
-            @unless($hideCustomer)<th>Destino</th>@endunless
-            <th class="right">Quantidade</th>
-            <th class="right">Valor unitário</th>
-            <th class="right">Total</th>
+            @if($showDate)<th style="width:12%">Data</th>@endif
+            @if($showProduct)<th>Produto</th>@endif
+            @if($showCustomer)<th>Destino</th>@endif
+            @if($showQuantity)<th class="right">Quantidade</th>@endif
+            @if($showUnitValue)<th class="right">Valor unitário</th>@endif
+            @if($showGrossValue)<th class="right">Total</th>@endif
         </tr>
     </thead>
     <tbody>
-        @foreach($productsSummary ?? [] as $product)
+        @foreach($displayProducts as $product)
             @php
                 $date = $product['delivery_date'] ?? null;
                 try {
@@ -185,23 +204,53 @@ body {
             @endphp
             @foreach($product['distributions'] ?? [] as $distribution)
                 <tr>
-                    <td>{{ $dateLabel }}</td>
-                    <td><strong>{{ $product['product_name'] ?? '-' }}</strong></td>
-                    @unless($hideCustomer)<td>{{ $distribution['customer_name'] ?? '-' }}</td>@endunless
-                    <td class="right">{{ number_format($distribution['quantity'] ?? 0, 3, ',', '.') }} {{ $product['unit'] ?? '' }}</td>
-                    <td class="right">R$ {{ number_format($distribution['unit_price'] ?? 0, 2, ',', '.') }}</td>
-                    <td class="right">R$ {{ number_format($distribution['gross'] ?? 0, 2, ',', '.') }}</td>
+                    @if($showDate)<td>{{ $dateLabel }}</td>@endif
+                    @if($showProduct)<td><strong>{{ $product['product_name'] ?? '-' }}</strong></td>@endif
+                    @if($showCustomer)<td>{{ $distribution['customer_name'] ?? '-' }}</td>@endif
+                    @if($showQuantity)<td class="right">{{ number_format($distribution['quantity'] ?? 0, 3, ',', '.') }} {{ $product['unit'] ?? '' }}</td>@endif
+                    @if($showUnitValue)<td class="right">R$ {{ number_format($distribution['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
+                    @if($showGrossValue)<td class="right">R$ {{ number_format($distribution['gross'] ?? 0, 2, ',', '.') }}</td>@endif
                 </tr>
             @endforeach
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ $hideCustomer ? 4 : 5 }}">Total das distribuições</td>
-            <td class="right">R$ {{ number_format($summary['gross_value'] ?? 0, 2, ',', '.') }}</td>
+            @if($leadingColumns > 0)<td colspan="{{ $leadingColumns }}">Total das distribuições</td>@endif
+            @if($showGrossValue)<td class="right">R$ {{ number_format($summary['gross_value'] ?? 0, 2, ',', '.') }}</td>@endif
         </tr>
     </tfoot>
 </table>
+@endif
+
+@if($showSection('product_totals') && !empty($productTotals))
+<div class="product-totals-block">
+    <div class="portal-section">Totais gerais por produto no período</div>
+    <table class="portal-table">
+        <thead>
+            <tr>
+                <th>Produto</th>
+                <th class="right">Quantidade total</th>
+                <th class="right">Valor bruto</th>
+                <th class="right">Ajustes</th>
+                <th class="right">Valor líquido</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($productTotals as $productTotal)
+            @php $productAdjustment = (float) ($productTotal['total_net'] ?? 0) - (float) ($productTotal['total_gross'] ?? 0); @endphp
+            <tr>
+                <td>{{ $productTotal['product_name'] }}</td>
+                <td class="right">{{ number_format((float) $productTotal['total_quantity'], 3, ',', '.') }} {{ $productTotal['unit'] }}</td>
+                <td class="right">R$ {{ number_format((float) $productTotal['total_gross'], 2, ',', '.') }}</td>
+                <td class="right">{{ $productAdjustment > 0 ? '+' : ($productAdjustment < 0 ? '-' : '') }} R$ {{ number_format(abs($productAdjustment), 2, ',', '.') }}</td>
+                <td class="right"><strong>R$ {{ number_format((float) $productTotal['total_net'], 2, ',', '.') }}</strong></td>
+            </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
 
 <div class="portal-note">
     Este comprovante apresenta somente as distribuições vinculadas ao documento. O valor líquido considera as taxas aplicadas no projeto.

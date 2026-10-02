@@ -100,6 +100,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 .c-success { color: #059669; }
 .ftr { margin-top: 10px; border-top: 1px solid {{ $lineColor }};
     padding-top: 4px; text-align: center; font-size: 8px; color: #777; }
+.product-totals-block { page-break-inside: avoid; }
 @include('pdf.partials.theme')
 </style>
 </head>
@@ -180,6 +181,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 @php
     $pdfColumns = $visibleColumns ?? ['unit_price', 'gross'];
+    $showDeliveryDate = in_array('delivery_date', $pdfColumns, true);
     $showUnitPrice = in_array('unit_price', $pdfColumns, true);
     $showGross = in_array('gross', $pdfColumns, true);
     $showNet = in_array('net', $pdfColumns, true);
@@ -229,6 +231,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 <table class="tbl receipt-data-table">
     <thead>
         <tr>
+            @if($showDeliveryDate)<th style="width:12%;">Data</th>@endif
             <th>Produto</th>
             <th class="r" style="width:18%;">Quantidade Total</th>
             @if($showUnitPrice)<th class="r">Vlr. Unit.</th>@endif
@@ -240,6 +243,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     <tbody>
         @foreach($projectGroup['rows'] as $row)
         <tr>
+            @if($showDeliveryDate)
+                <td>{{ !empty($row['delivery_date']) && $row['delivery_date'] !== 'sem-data' ? date('d/m/Y', strtotime($row['delivery_date'])) : '—' }}</td>
+            @endif
             <td>{{ $row['product'] }}</td>
             <td class="r">{{ $fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
@@ -255,7 +261,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="2"><strong>{{ !empty($isMultiProject) ? 'SUBTOTAL DO PROJETO' : 'TOTAL' }}</strong></td>
+            <td colspan="{{ $showDeliveryDate ? 3 : 2 }}"><strong>{{ !empty($isMultiProject) ? 'SUBTOTAL DO PROJETO' : 'TOTAL' }}</strong></td>
             @if($showUnitPrice)<td></td>@endif
             @if($showGross)<td class="r">R$ {{ number_format($projectGroup['subtotal_gross'], 2, ',', '.') }}</td>@endif
             @foreach($groupFeeColumns as $fee)
@@ -266,6 +272,37 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tfoot>
 </table>
 @endforeach
+@endif
+
+{{-- ═══ TOTAIS GERAIS POR PRODUTO ═══ --}}
+@if($showSection('product_totals') && !empty($productTotals))
+<div class="product-totals-block">
+<div class="sec-label">Totais gerais por produto no período</div>
+<table class="tbl receipt-data-table">
+    <thead>
+        <tr>
+            <th>Produto</th>
+            <th class="r">Quantidade total</th>
+            <th class="r">Valor bruto</th>
+            <th class="r">Ajustes</th>
+            <th class="r">Valor líquido</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($productTotals as $row)
+        <tr>
+            <td>{{ $row['product'] }}</td>
+            <td class="r">{{ $fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
+            <td class="r">R$ {{ number_format((float) $row['gross'], 2, ',', '.') }}</td>
+            <td class="r {{ (float) $row['adjustments'] >= 0 ? 'c-success' : 'c-danger' }}">
+                {{ (float) $row['adjustments'] > 0 ? '+' : ((float) $row['adjustments'] < 0 ? '-' : '') }} R$ {{ number_format(abs((float) $row['adjustments']), 2, ',', '.') }}
+            </td>
+            <td class="r"><strong>R$ {{ number_format((float) $row['net'], 2, ',', '.') }}</strong></td>
+        </tr>
+        @endforeach
+    </tbody>
+</table>
+</div>
 @endif
 
 {{-- ═══ RESUMO FINANCEIRO ═══ --}}

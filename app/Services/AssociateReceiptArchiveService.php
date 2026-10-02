@@ -10,9 +10,7 @@ use RuntimeException;
 
 class AssociateReceiptArchiveService
 {
-    public function __construct(private readonly TenantGoogleDriveService $drive)
-    {
-    }
+    public function __construct(private readonly TenantGoogleDriveService $drive) {}
 
     public function sync(AssociateReceipt $receipt): void
     {
@@ -66,6 +64,8 @@ class AssociateReceiptArchiveService
             'receipt' => $receipt,
             'summary' => $data['summary'],
             'productsSummary' => $data['productsSummary'],
+            'productsByDate' => $data['productsByDate'],
+            'productTotals' => $data['productTotals'],
             'hasRoundingDivergence' => $data['hasRoundingDivergence'],
             'feeBreakdown' => $data['feeBreakdown'],
             'feeColumns' => $data['feeColumns'],

@@ -18,7 +18,7 @@ class ReceiptDataBuilder
      * @param  Collection  $deliveries  — must be distributions (parent_delivery_id NOT NULL)
      * @param  DistributionBilling|null  $billing  — optional billing for fee snapshot
      * @param  SalesProject|null  $project  — optional project for live fee recalculation fallback
-     * @return array{summary: array, productsSummary: array, hasRoundingDivergence: bool, feeBreakdown: array}
+     * @return array{summary: array, productsSummary: array, productsByDate: array, productTotals: array, hasRoundingDivergence: bool, feeBreakdown: array}
      */
     public static function fromDeliveries(
         Collection $deliveries,
@@ -163,6 +163,7 @@ class ReceiptDataBuilder
                 $first = $group->first();
 
                 return [
+                    'product_id' => (int) ($first->product_id ?? 0),
                     'product_name' => $first->product?->name ?? '—',
                     'unit' => $first->product?->unit ?? 'un',
                     'delivery_date' => $first->delivery_date,
@@ -187,16 +188,139 @@ class ReceiptDataBuilder
                 ];
             })
             ->values()->all();
+        $productsByDate = self::groupProductsByDate($productsSummary);
+        $productTotals = self::productTotals($productsSummary);
 
         return [
             'summary' => $summary,
             'productsSummary' => $productsSummary,
+            'productsByDate' => $productsByDate,
+            'productTotals' => $productTotals,
             'hasRoundingDivergence' => $hasRoundingDivergence,
             'feeBreakdown' => $feeBreakdown,
             'feeColumns' => $feeColumns,
             'feeColumnOptions' => $feeColumnService->options($feeColumns),
             'distributionFinancials' => $distributionFinancials,
         ];
+    }
+
+    /**
+     * Consolida recepcoes distintas do mesmo produto e dia. Dentro do grupo,
+     * mantem destinos e precos diferentes em linhas separadas para preservar
+     * a rastreabilidade financeira do comprovante.
+     *
+     * @param  array<int, array<string, mixed>>  $products
+     * @return array<int, array<string, mixed>>
+     */
+    private static function groupProductsByDate(array $products): array
+    {
+        return collect($products)
+            ->groupBy(function (array $product): string {
+                $date = $product['delivery_date'] ?? null;
+                $dateKey = $date instanceof \DateTimeInterface
+                    ? $date->format('Y-m-d')
+                    : substr(trim((string) $date), 0, 10);
+
+                return implode('|', [
+                    ($product['product_id'] ?? 0) > 0
+                        ? 'id:'.(int) $product['product_id']
+                        : 'name:'.mb_strtolower((string) ($product['product_name'] ?? '')),
+                    mb_strtolower((string) ($product['unit'] ?? 'un')),
+                    $dateKey,
+                ]);
+            })
+            ->map(function (Collection $groups): array {
+                $first = $groups->first();
+                $distributions = $groups
+                    ->flatMap(fn (array $group): array => $group['distributions'] ?? [])
+                    ->groupBy(fn (array $distribution): string => implode('|', [
+                        mb_strtolower((string) ($distribution['customer_name'] ?? '')),
+                        number_format((float) ($distribution['unit_price'] ?? 0), 8, '.', ''),
+                    ]))
+                    ->map(function (Collection $rows): array {
+                        $row = $rows->first();
+
+                        return [
+                            'customer_name' => (string) ($row['customer_name'] ?? '—'),
+                            'quantity' => $rows->sum(fn (array $item): float => (float) ($item['quantity'] ?? 0)),
+                            'unit_price' => (float) ($row['unit_price'] ?? 0),
+                            'gross' => $rows->sum(fn (array $item): float => (float) ($item['gross'] ?? 0)),
+                            'admin_fee' => $rows->sum(fn (array $item): float => (float) ($item['admin_fee'] ?? 0)),
+                            'net' => $rows->sum(fn (array $item): float => (float) ($item['net'] ?? 0)),
+                            'fee_values' => self::sumArrayValues($rows->pluck('fee_values')->all()),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'product_id' => (int) ($first['product_id'] ?? 0),
+                    'product_name' => (string) ($first['product_name'] ?? '—'),
+                    'unit' => (string) ($first['unit'] ?? 'un'),
+                    'delivery_date' => $first['delivery_date'] ?? null,
+                    'total_quantity' => $groups->sum(fn (array $group): float => (float) ($group['total_quantity'] ?? 0)),
+                    'total_gross' => $groups->sum(fn (array $group): float => (float) ($group['total_gross'] ?? 0)),
+                    'total_admin_fee' => $groups->sum(fn (array $group): float => (float) ($group['total_admin_fee'] ?? 0)),
+                    'total_net' => $groups->sum(fn (array $group): float => (float) ($group['total_net'] ?? 0)),
+                    'fee_totals' => self::sumArrayValues($groups->pluck('fee_totals')->all()),
+                    'distributions' => $distributions,
+                ];
+            })
+            ->sortBy(function (array $product): string {
+                $date = $product['delivery_date'] ?? null;
+                $dateKey = $date instanceof \DateTimeInterface
+                    ? $date->format('Y-m-d')
+                    : substr(trim((string) $date), 0, 10);
+
+                return $dateKey.'|'.mb_strtolower($product['product_name']);
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     * @return array<int, array<string, mixed>>
+     */
+    private static function productTotals(array $products): array
+    {
+        return collect($products)
+            ->groupBy(fn (array $product): string => implode('|', [
+                ($product['product_id'] ?? 0) > 0
+                    ? 'id:'.(int) $product['product_id']
+                    : 'name:'.mb_strtolower((string) ($product['product_name'] ?? '')),
+                mb_strtolower((string) ($product['unit'] ?? 'un')),
+            ]))
+            ->map(function (Collection $groups): array {
+                $first = $groups->first();
+
+                return [
+                    'product_id' => (int) ($first['product_id'] ?? 0),
+                    'product_name' => (string) ($first['product_name'] ?? '—'),
+                    'unit' => (string) ($first['unit'] ?? 'un'),
+                    'total_quantity' => $groups->sum(fn (array $group): float => (float) ($group['total_quantity'] ?? 0)),
+                    'total_gross' => $groups->sum(fn (array $group): float => (float) ($group['total_gross'] ?? 0)),
+                    'total_admin_fee' => $groups->sum(fn (array $group): float => (float) ($group['total_admin_fee'] ?? 0)),
+                    'total_net' => $groups->sum(fn (array $group): float => (float) ($group['total_net'] ?? 0)),
+                    'fee_totals' => self::sumArrayValues($groups->pluck('fee_totals')->all()),
+                ];
+            })
+            ->sortBy(fn (array $product): string => mb_strtolower($product['product_name']))
+            ->values()
+            ->all();
+    }
+
+    /** @param array<int, mixed> $arrays @return array<string, float> */
+    private static function sumArrayValues(array $arrays): array
+    {
+        $totals = [];
+        foreach ($arrays as $values) {
+            foreach ((array) $values as $key => $value) {
+                $totals[$key] = ($totals[$key] ?? 0.0) + (float) $value;
+            }
+        }
+
+        return $totals;
     }
 
     private static function sumFeeValues(Collection $deliveries, array $calcMap, array $feeColumns): array
