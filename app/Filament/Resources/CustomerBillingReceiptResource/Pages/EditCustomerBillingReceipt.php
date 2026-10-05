@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\SalesProject;
 use App\Services\CustomerBillingReceiptService;
+use App\Services\CustomerBillingSelectionService;
 use App\Services\ProjectReceiptNumberingService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -58,6 +59,22 @@ class EditCustomerBillingReceipt extends EditRecord
                 $customerId ? 'customer_id' : 'organization_id' => 'O destinatário não pertence à organização atual.',
             ]);
         }
+        $selection = app(CustomerBillingSelectionService::class)->selectDistributionIds(
+            (int) $this->record->tenant_id,
+            (array) ($data['delivery_ids'] ?? []),
+            $this->record->projectIds(),
+            $customerId,
+            $organizationId,
+            isset($data['from_date']) ? (string) $data['from_date'] : null,
+            isset($data['to_date']) ? (string) $data['to_date'] : null,
+            (int) $this->record->id,
+        );
+        if ($selection['excluded_count'] > 0) {
+            throw ValidationException::withMessages([
+                'delivery_ids' => 'Uma ou mais distribuições já foram incluídas em outro faturamento ou não pertencem a esta seleção. Recarregue a lista e escolha somente os itens disponíveis.',
+            ]);
+        }
+        $data['delivery_ids'] = $selection['selected_ids'];
         $tenantDuplicate = $this->record->newQuery()
             ->where('tenant_id', $this->record->tenant_id)
             ->where('tenant_receipt_year', $data['tenant_receipt_year'])

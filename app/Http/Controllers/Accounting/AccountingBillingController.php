@@ -31,7 +31,11 @@ class AccountingBillingController extends Controller
     {
         $tenant = $this->tenant($request);
         $this->authorize('create', CustomerBillingReceipt::class);
-        $this->assertProjectAccess($request, $tenant, $request->validated('project_ids'));
+        $validated = $request->validate([
+            'project_ids' => ['nullable', 'array', 'max:20'],
+            'project_ids.*' => ['integer', 'distinct'],
+        ]);
+        $this->assertProjectAccess($request, $tenant, $validated['project_ids'] ?? []);
 
         return view('accounting.billings.editor', ['tenant' => $tenant, 'receipt' => null]);
     }

@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
 use App\Models\Organization;
 use App\Services\CustomerBillingProjectContextService;
+use App\Services\CustomerBillingSelectionService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -47,6 +48,22 @@ class CreateCustomerBillingReceipt extends CreateRecord
                 $customerId ? 'customer_id' : 'organization_id' => 'O destinatário não pertence à organização atual.',
             ]);
         }
+
+        $selection = app(CustomerBillingSelectionService::class)->selectDistributionIds(
+            (int) $tenantId,
+            (array) ($data['delivery_ids'] ?? []),
+            $this->selectedProjectIds,
+            $customerId,
+            $organizationId,
+            isset($data['from_date']) ? (string) $data['from_date'] : null,
+            isset($data['to_date']) ? (string) $data['to_date'] : null,
+        );
+        if ($selection['excluded_count'] > 0) {
+            throw ValidationException::withMessages([
+                'delivery_ids' => 'Uma ou mais distribuições já foram incluídas em outro faturamento ou não pertencem a esta seleção. Recarregue a lista e escolha somente os itens disponíveis.',
+            ]);
+        }
+        $data['delivery_ids'] = $selection['selected_ids'];
 
         $data['tenant_id'] = $tenantId;
         $data['sales_project_id'] = $project->id;

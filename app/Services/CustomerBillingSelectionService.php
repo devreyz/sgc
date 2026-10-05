@@ -9,11 +9,76 @@ use App\Models\FinancialDocumentIdentity;
 use App\Models\ProductionDelivery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /** Resolve selecao de faturamento sem usar o total do comprovante do associado. */
 final class CustomerBillingSelectionService
 {
+    /**
+     * Distribuicoes reservadas por outro faturamento, inclusive enquanto ele
+     * ainda e um rascunho e so possui a selecao salva em delivery_ids.
+     *
+     * @return array<int, string> [distribution_id => billing label]
+     */
+    public function lockedDistributionMap(int $tenantId, ?int $currentReceiptId = null): array
+    {
+        if (! Schema::hasTable('customer_billing_receipts')) {
+            return [];
+        }
+
+        $receipts = DB::table('customer_billing_receipts')
+            ->where('tenant_id', $tenantId)
+            ->when($currentReceiptId, fn ($query) => $query->where('id', '!=', $currentReceiptId))
+            ->get(['id', 'receipt_label', 'receipt_year', 'receipt_number', 'delivery_ids']);
+
+        $labels = $receipts->mapWithKeys(function ($receipt): array {
+            $label = filled($receipt->receipt_label)
+                ? (string) $receipt->receipt_label
+                : 'COM-'.str_pad((string) $receipt->receipt_number, 4, '0', STR_PAD_LEFT).'/'.$receipt->receipt_year;
+
+            return [(int) $receipt->id => $label];
+        });
+
+        $locked = [];
+        foreach ($receipts as $receipt) {
+            $ids = is_array($receipt->delivery_ids)
+                ? $receipt->delivery_ids
+                : json_decode((string) ($receipt->delivery_ids ?? '[]'), true);
+
+            foreach ((array) $ids as $id) {
+                if ((int) $id > 0) {
+                    $locked[(int) $id] = $labels->get((int) $receipt->id, 'outro faturamento');
+                }
+            }
+        }
+
+        // O vinculo na distribuicao e a protecao definitiva. Ele tambem cobre
+        // registros antigos que possam nao possuir delivery_ids consistente.
+        ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNotNull('billing_receipt_id')
+            ->when($currentReceiptId, fn ($query) => $query->where('billing_receipt_id', '!=', $currentReceiptId))
+            ->get(['id', 'billing_receipt_id'])
+            ->each(function (ProductionDelivery $distribution) use (&$locked, $labels): void {
+                $locked[(int) $distribution->id] = $labels->get(
+                    (int) $distribution->billing_receipt_id,
+                    'outro faturamento'
+                );
+            });
+
+        ksort($locked);
+
+        return $locked;
+    }
+
+    /** @return list<int> */
+    public function lockedDistributionIds(int $tenantId, ?int $currentReceiptId = null): array
+    {
+        return array_keys($this->lockedDistributionMap($tenantId, $currentReceiptId));
+    }
+
     public function eligibleQuery(
         int $tenantId,
         array $projectIds,
@@ -23,6 +88,7 @@ final class CustomerBillingSelectionService
         ?string $to,
         ?int $currentReceiptId = null,
     ): Builder {
+        $lockedIds = $this->lockedDistributionIds($tenantId, $currentReceiptId);
         $query = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
             ->whereIn('sales_project_id', collect($projectIds)->map(fn ($id): int => (int) $id)->filter()->unique())
@@ -36,6 +102,10 @@ final class CustomerBillingSelectionService
                     $billing->orWhere('billing_receipt_id', $currentReceiptId);
                 }
             });
+
+        if ($lockedIds !== []) {
+            $query->whereNotIn('id', $lockedIds);
+        }
 
         if ($from) {
             $query->whereDate('delivery_date', '>=', $from);
@@ -109,6 +179,7 @@ final class CustomerBillingSelectionService
         $reasons = [];
         $excluded = $candidateIds->diff($selected);
         if ($excluded->isNotEmpty()) {
+            $lockedIds = $this->lockedDistributionIds($tenantId, $currentReceiptId);
             $rows = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)->whereIn('id', $excluded)
                 ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id']);
@@ -122,6 +193,7 @@ final class CustomerBillingSelectionService
             }
             foreach ($rows as $row) {
                 $reason = match (true) {
+                    in_array((int) $row->id, $lockedIds, true) => 'ja_faturada',
                     ! in_array((int) $row->sales_project_id, array_map('intval', $projectIds), true) => 'outro_projeto',
                     $customerId && (int) $row->customer_id !== $customerId => 'outro_destinatario',
                     $organizationId && ! in_array((int) $row->customer_id, $organizationCustomerIds, true) => 'outro_destinatario',

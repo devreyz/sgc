@@ -14,7 +14,7 @@ class CustomerBillingSelectionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        foreach (['financial_document_identities', 'production_deliveries', 'associate_receipts', 'customers'] as $table) {
+        foreach (['financial_document_identities', 'production_deliveries', 'customer_billing_receipts', 'associate_receipts', 'customers'] as $table) {
             Schema::dropIfExists($table);
         }
         Schema::create('customers', function (Blueprint $table): void {
@@ -43,6 +43,20 @@ class CustomerBillingSelectionServiceTest extends TestCase
             $table->string('documentable_type');
             $table->unsignedBigInteger('documentable_id');
             $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('customer_billing_receipts', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('sales_project_id')->nullable();
+            $table->unsignedBigInteger('customer_id')->nullable();
+            $table->unsignedBigInteger('organization_id')->nullable();
+            $table->unsignedSmallInteger('receipt_year')->default(2026);
+            $table->unsignedInteger('receipt_number')->default(1);
+            $table->string('receipt_label')->nullable();
+            $table->json('delivery_ids')->nullable();
+            $table->string('status')->default('draft');
+            $table->date('issued_at')->nullable();
             $table->timestamps();
         });
         Schema::create('production_deliveries', function (Blueprint $table): void {
@@ -124,5 +138,33 @@ class CustomerBillingSelectionServiceTest extends TestCase
         self::assertSame([], $result['selected_ids']);
         self::assertSame(0, $result['receipt_count']);
         self::assertSame(0, $result['candidate_count']);
+    }
+
+    public function test_distribution_selected_in_another_draft_is_not_available(): void
+    {
+        DB::table('customer_billing_receipts')->insert([
+            'id' => 700,
+            'tenant_id' => 1,
+            'sales_project_id' => 300,
+            'customer_id' => 10,
+            'receipt_year' => 2026,
+            'receipt_number' => 7,
+            'receipt_label' => 'COM-0007/2026',
+            'delivery_ids' => json_encode([1, 2]),
+            'status' => 'draft',
+            'issued_at' => '2026-09-15',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(CustomerBillingSelectionService::class);
+        $blocked = $service->selectDistributionIds(1, [1, 2, 3], [300], 10, null, null, null);
+
+        self::assertSame([3], $blocked['selected_ids']);
+        self::assertSame(2, $blocked['reasons']['ja_faturada']);
+
+        $editingSameDraft = $service->selectDistributionIds(1, [1, 2, 3], [300], 10, null, null, null, 700);
+        self::assertSame([1, 2, 3], $editingSameDraft['selected_ids']);
+        self::assertSame(0, $editingSameDraft['excluded_count']);
     }
 }

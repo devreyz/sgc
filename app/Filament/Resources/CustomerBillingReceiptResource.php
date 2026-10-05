@@ -301,10 +301,8 @@ class CustomerBillingReceiptResource extends Resource
                                 $pids = static::normalizeProjectIds($get('project_ids'));
                                 $cid = (int) $get('customer_id');
                                 $oid = (int) $get('organization_id');
-                                $locked = static::getLockedDistributionIds($record?->id);
                                 $all = array_keys(static::buildDistributionOptions($pids, $cid, $oid, $record?->id));
-                                $free = array_values(array_diff($all, $locked));
-                                $set('delivery_ids', array_map('strval', $free));
+                                $set('delivery_ids', array_map('strval', $all));
                             })
                             ->visible(fn (Get $get) => static::normalizeProjectIds($get('project_ids')) !== []
                                 && ((bool) $get('customer_id') || (bool) $get('organization_id'))
@@ -373,12 +371,6 @@ class CustomerBillingReceiptResource extends Resource
                                 $record?->id
                             );
                         })
-                        ->disableOptionWhen(function (int|string $value, Get $get, $record) {
-                            return in_array(
-                                (int) $value,
-                                static::getLockedDistributionIds($record?->id)
-                            );
-                        })
                         ->searchable()->live()->columnSpanFull()
                         ->helperText(function (Get $get, $record) {
                             $pids = static::normalizeProjectIds($get('project_ids'));
@@ -388,10 +380,8 @@ class CustomerBillingReceiptResource extends Resource
                                 return 'Selecione os projetos e um comprador ou organização.';
                             }
                             $total = count(static::buildDistributionOptions($pids, $cid, $oid, $record?->id));
-                            $locked = count(static::getLockedDistributionIds($record?->id));
-                            $free = max(0, $total - $locked);
 
-                            return "{$free} disponível(is) para seleção — {$locked} já em outro comprovante (laranja)";
+                            return "{$total} disponível(is) para seleção. Distribuições já incluídas em outro faturamento ficam ocultas.";
                         })
                         ->noSearchResultsMessage('Nenhuma distribuição encontrada.')
                         ->visible(fn (Get $get) => static::normalizeProjectIds($get('project_ids')) !== []
@@ -437,15 +427,10 @@ class CustomerBillingReceiptResource extends Resource
      */
     public static function getLockedDistributionMap(?int $currentReceiptId): array
     {
-        return ProductionDelivery::withoutGlobalScopes()
-            ->where('tenant_id', session('tenant_id'))
-            ->whereNotNull('billing_receipt_id')
-            ->when($currentReceiptId, fn ($query) => $query->where('billing_receipt_id', '!=', $currentReceiptId))
-            ->with('billingReceipt.project')
-            ->get(['id', 'billing_receipt_id'])
-            ->mapWithKeys(fn (ProductionDelivery $distribution): array => [
-                (int) $distribution->id => $distribution->billingReceipt?->formatted_number ?? 'outro faturamento',
-            ])->all();
+        return app(CustomerBillingSelectionService::class)->lockedDistributionMap(
+            (int) session('tenant_id'),
+            $currentReceiptId,
+        );
     }
 
     /** Options [id => label] para o CheckboxList. */
@@ -472,7 +457,7 @@ class CustomerBillingReceiptResource extends Resource
             ->toArray();
     }
 
-    /** Descriptions [id => label] para o CheckboxList — inclui aviso para itens bloqueados. */
+    /** Descriptions [id => label] para as distribuicoes ainda disponiveis. */
     public static function buildDistributionDescriptions(int|array $projectIds, int $customerId, int $orgId, ?int $currentReceiptId): array
     {
         $query = static::baseDistributionQuery($projectIds, $customerId, $orgId, $currentReceiptId);
@@ -480,19 +465,11 @@ class CustomerBillingReceiptResource extends Resource
             return [];
         }
 
-        // Mapa delivery_id → número do comprovante que o ocupa
-        $lockedMap = static::getLockedDistributionMap($currentReceiptId);
-
         return $query->get()
-            ->mapWithKeys(function ($d) use ($lockedMap) {
+            ->mapWithKeys(function ($d) {
                 $gross = number_format((float) $d->quantity * (float) $d->unit_price, 2, ',', '.');
-                if (isset($lockedMap[$d->id])) {
-                    $label = '⚠ Em comprovante '.$lockedMap[$d->id].' — Bruto: R$ '.$gross;
-                } else {
-                    $label = 'Bruto: R$ '.$gross;
-                }
 
-                return [$d->id => $label];
+                return [$d->id => 'Bruto: R$ '.$gross];
             })
             ->toArray();
     }
@@ -500,8 +477,7 @@ class CustomerBillingReceiptResource extends Resource
     /**
      * Query base: distribuições aprovadas do projeto para o comprador/organização.
      * Inclui as do próprio comprovante em edição (para reexibir sem filtrar).
-     * Distribuições em outros comprovantes são incluídas nas opções mas marcadas
-     * como desabilitadas via disableOptionWhen().
+     * Distribuicoes em outros faturamentos, inclusive rascunhos, nao aparecem.
      */
     private static function baseDistributionQuery(int|array $projectIds, int $customerId, int $orgId, ?int $currentReceiptId)
     {
@@ -510,27 +486,18 @@ class CustomerBillingReceiptResource extends Resource
             return null;
         }
 
-        $tenantId = session('tenant_id');
-        $query = ProductionDelivery::where('tenant_id', $tenantId)
-            ->whereIn('sales_project_id', $projectIds)
-            ->whereNotNull('parent_delivery_id')
-            ->where('status', DeliveryStatus::APPROVED->value)
+        $tenantId = (int) session('tenant_id');
+        $query = app(CustomerBillingSelectionService::class)->eligibleQuery(
+            $tenantId,
+            $projectIds,
+            $customerId ?: null,
+            $orgId ?: null,
+            null,
+            null,
+            $currentReceiptId,
+        )
             ->with(['salesProject:id,title', 'product', 'customer'])
             ->orderBy('sales_project_id')->orderBy('delivery_date');
-
-        if ($customerId) {
-            $query->where('customer_id', $customerId);
-        } elseif ($orgId) {
-            // Todos os compradores da organização com distribuições neste projeto
-            $customerIds = Customer::where('organization_id', $orgId)
-                ->where('tenant_id', $tenantId)
-                ->pluck('id');
-            $query->whereIn('customer_id', $customerIds);
-        }
-
-        // Inclui: sem vínculo OU vinculado ao próprio comprovante (edição)
-        // Distribuições de outros comprovantes também aparecem (serão desabilitadas)
-        // → não filtramos por billing_receipt_id aqui intencionalmente
 
         return $query;
     }
