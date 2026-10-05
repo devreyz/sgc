@@ -1,8 +1,16 @@
 import "./bootstrap";
 import "./pwa-notifications";
 import { Passkeys } from '@laravel/passkeys';
+import {
+    browserSupportsWebAuthn,
+    startAuthentication,
+} from '@simplewebauthn/browser';
 
 window.SgcPasskeys = Passkeys;
+window.SgcPreparedPasskey = Object.freeze({
+    isSupported: () => browserSupportsWebAuthn(),
+    authenticate: options => startAuthentication({ optionsJSON: options }),
+});
 window.dispatchEvent(new CustomEvent('sgc:passkeys-ready'));
 
 function base64FromBlob(blob) {

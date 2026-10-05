@@ -47,4 +47,17 @@ class NativePasskeyIntegrationTest extends TestCase
         $this->assertStringContainsString('await window.SgcPasskeys.verify', $source);
         $this->assertStringContainsString("'X-SGC-Platform': 'android'", $source);
     }
+
+    public function test_destructive_confirmation_opens_a_prepared_passkey_from_an_explicit_click(): void
+    {
+        $app = (string) file_get_contents(dirname(__DIR__, 2).'/resources/js/app.js');
+        $delivery = (string) file_get_contents(
+            dirname(__DIR__, 2).'/resources/views/delivery/project-deliveries.blade.php'
+        );
+
+        $this->assertStringContainsString('startAuthentication', $app);
+        $this->assertStringContainsString('window.SgcPreparedPasskey', $app);
+        $this->assertStringContainsString("confirmLabel: 'Confirmar com passkey'", $delivery);
+        $this->assertStringContainsString('preparedOptions', $delivery);
+    }
 }

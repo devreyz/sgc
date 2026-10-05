@@ -94,6 +94,9 @@ class DeliveryProjectFrontendContractTest extends TestCase
 
         self::assertStringContainsString('window.SgcConfirmDestructiveAction', $view);
         self::assertStringContainsString('nativeAuth.passkeySignIn', $view);
+        self::assertStringContainsString('prepareDeletionPasskey', $view);
+        self::assertStringContainsString("confirmLabel: 'Confirmar com passkey'", $view);
+        self::assertStringContainsString('window.SgcPreparedPasskey.authenticate(preparedOptions)', $view);
         self::assertStringContainsString("'X-SGC-Platform': 'android'", $view);
         self::assertStringContainsString("'passkey_required' => \$passkeyAvailable", $service);
         self::assertStringContainsString("'code' => \$passkeyAvailable ? null : \$code", $service);

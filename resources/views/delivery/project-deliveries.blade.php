@@ -4139,32 +4139,49 @@ async function readSecurityJson(response) {
     return data;
 }
 
-async function reauthenticateDeletionWithPasskey(routes) {
-    let result;
+async function prepareDeletionPasskey(routes) {
+    const optionsData = await fetch(routes.options, {
+        cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(isNativeAndroidDeliveryApp() ? { 'X-SGC-Platform': 'android' } : {}),
+        },
+    }).then(readSecurityJson);
+
+    if (!optionsData?.options) {
+        throw new Error('O servidor não retornou um desafio de passkey válido.');
+    }
+
+    return optionsData.options;
+}
+
+async function reauthenticateDeletionWithPasskey(routes, preparedOptions) {
+    let credential;
     if (isNativeAndroidDeliveryApp()) {
         const nativeAuth = window.Capacitor?.Plugins?.NativeAuth;
         if (!nativeAuth?.passkeySignIn) throw new Error('Passkey nativa indisponível neste aplicativo.');
-        const optionsData = await fetch(routes.options, {
-            cache: 'no-store', credentials: 'same-origin', globalLoader: false,
-            headers: { 'Accept': 'application/json', 'X-SGC-Platform': 'android' },
-        }).then(readSecurityJson);
         const nativeCredential = await nativeAuth.passkeySignIn({
-            requestJson: JSON.stringify(optionsData.options),
+            requestJson: JSON.stringify(preparedOptions),
         });
-        const credential = JSON.parse(nativeCredential.credentialJson);
-        result = await fetch(routes.submit, {
-            method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
-            headers: {
-                'Accept': 'application/json', 'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest', 'X-SGC-Platform': 'android',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
-            },
-            body: JSON.stringify({ credential }),
-        }).then(readSecurityJson);
+        credential = JSON.parse(nativeCredential.credentialJson);
     } else {
-        if (!window.SgcPasskeys?.isSupported?.()) throw new Error('Passkey indisponível neste navegador.');
-        result = await window.SgcPasskeys.verify({ routes });
+        if (!window.SgcPreparedPasskey?.isSupported?.()) {
+            throw new Error('Passkey indisponível neste navegador.');
+        }
+        credential = await window.SgcPreparedPasskey.authenticate(preparedOptions);
     }
+
+    const result = await fetch(routes.submit, {
+        method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json', 'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(isNativeAndroidDeliveryApp() ? { 'X-SGC-Platform': 'android' } : {}),
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
+        },
+        body: JSON.stringify({ credential }),
+    }).then(readSecurityJson);
 
     if (result?.csrf_token) {
         document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', result.csrf_token);
@@ -4187,8 +4204,21 @@ window.SgcConfirmDestructiveAction = async function(distributionId, message, con
 
     if (confirmation.passkey_available) {
         try {
-            pdToast('Confirme com biometria, PIN ou passkey para continuar.', 'info');
-            const reauth = await reauthenticateDeletionWithPasskey(issued.passkey_routes);
+            const preparedOptions = await prepareDeletionPasskey(issued.passkey_routes);
+            const accepted = await customConfirm(
+                `${message}\n\nNa próxima etapa, confirme com sua impressão digital, reconhecimento facial, PIN ou passkey.`,
+                {
+                    title: 'Confirmar identidade',
+                    confirmLabel: 'Confirmar com passkey',
+                    danger: true,
+                }
+            );
+            if (!accepted) return null;
+
+            const reauth = await reauthenticateDeletionWithPasskey(
+                issued.passkey_routes,
+                preparedOptions
+            );
             return {
                 confirmation_id: confirmation.id,
                 csrf_token: reauth.csrf_token || document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
