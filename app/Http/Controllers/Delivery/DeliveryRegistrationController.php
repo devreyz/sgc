@@ -12,6 +12,7 @@ use App\Jobs\SyncAssociateReceiptToDrive;
 use App\Models\Associate;
 use App\Models\AssociateReceipt;
 use App\Models\Customer;
+use App\Models\CustomerBillingReceipt;
 use App\Models\Organization;
 use App\Models\PriceTable;
 use App\Models\PriceTableItem;
@@ -29,6 +30,9 @@ use App\Services\BuyerRequestFulfillmentService;
 use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\DeliveryQuantityAdjustmentService;
+use App\Services\DeletedDistributionService;
+use App\Services\CustomerBillingProjectContextService;
+use App\Services\CustomerBillingReceiptService;
 use App\Services\FinancialDocumentIdentityService;
 use App\Services\NotificationService;
 use App\Services\PricingService;
@@ -1063,12 +1067,26 @@ class DeliveryRegistrationController extends Controller
             ], 422);
         }
 
+        $customerDrafts = CustomerBillingReceipt::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where(function ($query) use ($distribution): void {
+                $query->whereJsonContains('delivery_ids', (int) $distribution->id)
+                    ->orWhereJsonContains('delivery_ids', (string) $distribution->id);
+            })
+            ->get();
+        if ($customerDrafts->contains(fn (CustomerBillingReceipt $customerReceipt): bool => ! $customerReceipt->isEditable())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuição pertence a um faturamento já emitido. Use o fluxo formal de cancelamento ou correção do documento.',
+            ], 422);
+        }
+
         $projectId = $distribution->sales_project_id;
         $organizationId = $distribution->customer?->organization_id;
         $receipt = $distribution->associateReceipt;
 
-        if ($receipt) {
-            if ($receipt->isLocked()) {
+        if ($receipt || $customerDrafts->isNotEmpty()) {
+            if ($receipt?->isLocked()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Esta distribuicao nao pode ser excluida porque esta em um comprovante pago.',
@@ -1079,12 +1097,47 @@ class DeliveryRegistrationController extends Controller
                 return response()->json([
                     'success' => false,
                     'requires_confirmation' => true,
-                    'message' => 'Esta distribuicao ja esta em um comprovante. Confirme 1 + 1 para remover e recalcular o comprovante.',
+                    'message' => 'Esta distribuição está reservada em um comprovante ou faturamento em rascunho. Confirme 1 + 1 para removê-la, recalcular os rascunhos e manter o registro no histórico.',
                 ], 409);
             }
         }
 
-        DB::transaction(function () use ($distribution, $receipt) {
+        DB::transaction(function () use ($distribution, $receipt, $customerDrafts) {
+            foreach ($customerDrafts as $customerDraft) {
+                $lockedDraft = CustomerBillingReceipt::withoutGlobalScopes()
+                    ->where('tenant_id', $distribution->tenant_id)
+                    ->lockForUpdate()
+                    ->findOrFail($customerDraft->id);
+                if (! $lockedDraft->isEditable()) {
+                    throw ValidationException::withMessages([
+                        'distribution' => 'O faturamento deixou de ser rascunho durante a operação. Atualize a página.',
+                    ]);
+                }
+
+                $nextIds = collect($lockedDraft->delivery_ids ?? [])
+                    ->map(fn ($id): int => (int) $id)
+                    ->reject(fn (int $id): bool => $id === (int) $distribution->id)
+                    ->unique()->values();
+                $activeIds = ProductionDelivery::withoutGlobalScopes()
+                    ->where('tenant_id', $lockedDraft->tenant_id)
+                    ->whereNull('deleted_at')
+                    ->whereIn('id', $nextIds)
+                    ->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
+                $projects = app(CustomerBillingProjectContextService::class)->projectsForReceipt($lockedDraft);
+                $snapshot = app(CustomerBillingReceiptService::class)->computeDraftSnapshotForIds(
+                    (int) $lockedDraft->tenant_id,
+                    $activeIds,
+                    $projects,
+                );
+                $lockedDraft->update([
+                    'delivery_ids' => $activeIds,
+                    'total_gross' => $snapshot['total_gross'],
+                    'total_fees' => $snapshot['total_fees'],
+                    'total_net' => $snapshot['total_net'],
+                    'fee_snapshot' => array_merge($snapshot['fee_snapshot'], ['draft_preview' => true]),
+                ]);
+            }
+
             if ($receipt) {
                 $nextIds = collect($receipt->delivery_ids ?? [])
                     ->map(fn ($id) => (int) $id)
@@ -1680,6 +1733,78 @@ class DeliveryRegistrationController extends Controller
             'success' => true,
             'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
         ]);
+    }
+
+    public function deletedDistributions(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        abort_unless($tenantId > 0, 403);
+        $project = SalesProject::where('tenant_id', $tenantId)
+            ->findOrFail((int) $request->route('project'));
+        $service = app(DeletedDistributionService::class);
+
+        $rows = ProductionDelivery::withoutGlobalScopes()->onlyTrashed()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->whereNotNull('parent_delivery_id')
+            ->with([
+                'product:id,name,unit',
+                'customer:id,name,trade_name',
+                'associate.user:id,name',
+                'parentDelivery' => fn ($query) => $query->withTrashed()->select('id', 'quantity', 'deleted_at'),
+            ])
+            ->latest('deleted_at')
+            ->limit(100)
+            ->get()
+            ->map(function (ProductionDelivery $distribution) use ($service): array {
+                $status = $service->restorationStatus($distribution);
+
+                return [
+                    'id' => (int) $distribution->id,
+                    'parent_delivery_id' => (int) $distribution->parent_delivery_id,
+                    'product' => $distribution->product?->name ?? 'Produto',
+                    'unit' => $distribution->product?->unit ?? 'un',
+                    'associate' => $distribution->associate?->display_name ?? 'Membro',
+                    'customer' => $distribution->customer?->trade_name ?: ($distribution->customer?->name ?? 'Destino não informado'),
+                    'quantity' => (float) $distribution->quantity,
+                    'deleted_at' => $distribution->deleted_at?->format('d/m/Y H:i'),
+                    'can_restore' => $status['allowed'],
+                    'restore_reason' => $status['reason'],
+                ];
+            });
+
+        return response()->json(['success' => true, 'distributions' => $rows]);
+    }
+
+    public function restoreDeletedDistribution(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        abort_unless($tenantId > 0, 403);
+        $project = SalesProject::where('tenant_id', $tenantId)
+            ->findOrFail((int) $request->route('project'));
+        $distribution = ProductionDelivery::withoutGlobalScopes()->onlyTrashed()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $project->id)
+            ->whereNotNull('parent_delivery_id')
+            ->findOrFail((int) $request->route('distribution'));
+
+        try {
+            $restored = app(DeletedDistributionService::class)
+                ->restore($distribution, $request->user());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Distribuição restaurada após revalidar o saldo físico e os limites financeiros.',
+                'parent_delivery_id' => (int) $restored->parent_delivery_id,
+                'integrity' => app(DeliveryProjectIntegrityService::class)->inspect($tenantId, $project),
+            ]);
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($exception->errors())->flatten()->first(),
+                'errors' => $exception->errors(),
+            ], 422);
+        }
     }
 
     public function resolveIntegrityIssue(Request $request)

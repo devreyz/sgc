@@ -627,7 +627,7 @@ class CustomerBillingReceiptResource extends Resource
                             Notification::make()->danger()
                                 ->title('Comprovante com vínculos inconsistentes')
                                 ->body($integrity['recoverable'] > 0
-                                    ? "Há {$integrity['recoverable']} registro(s) removido(s) que podem ser restaurados. Abra o comprovante e use Corrigir integridade antes de imprimir."
+                                    ? "Há {$integrity['recoverable']} entrega(s)-pai removida(s) que podem ser restauradas sem reativar distribuições excluídas. Abra o comprovante e use Corrigir integridade antes de imprimir."
                                     : 'Há distribuições com vínculos inválidos. Abra o comprovante para revisar a integridade antes de imprimir.')
                                 ->persistent()
                                 ->send();

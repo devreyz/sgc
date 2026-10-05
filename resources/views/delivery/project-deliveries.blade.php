@@ -2480,6 +2480,17 @@
                     <button
                         type="button"
                         class="pd-tool-action"
+                        onclick="loadDeletedDistributionHistory()"
+                        title="Ver distribuições excluídas"
+                        aria-label="Ver distribuições excluídas"
+                    >
+                        <i class="ph-duotone ph-archive"></i>
+                        <span class="pd-tool-label">Histórico</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="pd-tool-action"
                         onclick="DeliveryReports.open()"
                         title="Gerar relatório"
                         aria-label="Gerar relatório"
@@ -2552,6 +2563,16 @@
                 </div>
 
                 <footer class="pd-integrity-foot">
+                    <button
+                        type="button"
+                        class="btn btn-ghost btn-sm"
+                        id="pd-integrity-history"
+                        onclick="toggleDeletedDistributionHistory()"
+                    >
+                        <i class="ph-duotone ph-archive" aria-hidden="true"></i>
+                        Histórico de excluídas
+                    </button>
+
                     <button
                         type="button"
                         class="btn btn-ghost btn-sm"
@@ -3618,11 +3639,14 @@ const projectListState = {
 };
 
 let integrityFilterDeliveryId = null;
+let integrityHistoryMode = false;
+let latestIntegrityData = null;
 
 function setIntegrityModalScope(deliveryId = null) {
     const modal = document.getElementById('pd-integrity-modal');
     if (!modal) return 0;
 
+    if (integrityHistoryMode) return 0;
     integrityFilterDeliveryId = deliveryId ? String(deliveryId) : null;
 
     const issues = Array.from(
@@ -3688,6 +3712,109 @@ function openIntegrityModal(deliveryId = null) {
     modal.classList.add('open');
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('pd-sheet-open');
+}
+
+function toggleDeletedDistributionHistory() {
+    if (integrityHistoryMode) {
+        integrityHistoryMode = false;
+        renderIntegrityCenter(latestIntegrityData || {});
+        openIntegrityModal();
+        return;
+    }
+
+    loadDeletedDistributionHistory();
+}
+
+async function loadDeletedDistributionHistory() {
+    const modal = document.getElementById('pd-integrity-modal');
+    const body = modal?.querySelector('.pd-integrity-body');
+    if (!modal || !body) return;
+
+    integrityHistoryMode = true;
+    document.getElementById('pd-integrity-title').textContent = 'Histórico de distribuições excluídas';
+    document.getElementById('pd-integrity-sub').textContent = 'Restaurar é uma ação manual e sempre revalida o saldo físico e financeiro.';
+    document.getElementById('pd-integrity-history').innerHTML = '<i class="ph-duotone ph-arrow-left" aria-hidden="true"></i> Voltar às pendências';
+    document.getElementById('pd-integrity-show-all').hidden = true;
+    body.innerHTML = '<div class="pd-integrity-empty">Carregando histórico...</div>';
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('pd-sheet-open');
+
+    try {
+        const response = await fetch(
+            `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/distributions/deleted?_=${Date.now()}`,
+            { cache: 'no-store', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, globalLoader: false }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Não foi possível carregar o histórico.');
+
+        const rows = Array.isArray(data.distributions) ? data.distributions : [];
+        body.innerHTML = rows.length ? `
+            <section class="pd-integrity-column warning">
+                <header class="pd-integrity-column-head">
+                    <i class="ph-duotone ph-archive" aria-hidden="true"></i>
+                    Excluídas (${rows.length})
+                </header>
+                <div class="pd-integrity-items">
+                    ${rows.map(row => `
+                        <article class="pd-integrity-item">
+                            <div class="pd-integrity-item-title">#${Number(row.id)} · ${esc(row.product)}</div>
+                            <div class="pd-integrity-item-message">
+                                ${esc(row.associate)} · ${esc(row.customer)} · ${Number(row.quantity).toLocaleString('pt-BR')} ${esc(row.unit)}
+                                <br>Excluída em ${esc(row.deleted_at || 'data não informada')}
+                            </div>
+                            <div class="pd-integrity-item-action">${esc(row.restore_reason || '')}</div>
+                            <div class="pd-integrity-actions">
+                                <button type="button" class="btn btn-primary btn-sm"
+                                    data-restore-deleted-distribution="${Number(row.id)}"
+                                    ${row.can_restore ? '' : 'disabled'}>
+                                    <i class="ph-duotone ph-arrow-uturn-left" aria-hidden="true"></i>
+                                    ${row.can_restore ? 'Validar e restaurar' : 'Restauração bloqueada'}
+                                </button>
+                            </div>
+                        </article>
+                    `).join('')}
+                </div>
+            </section>
+        ` : `
+            <div class="pd-integrity-empty-state">
+                <i class="ph-duotone ph-archive" aria-hidden="true"></i>
+                <strong>Nenhuma distribuição excluída</strong>
+                <span>O histórico deste projeto está vazio.</span>
+            </div>
+        `;
+        upgradeDuotoneIcons(body);
+    } catch (error) {
+        body.innerHTML = `<div class="pd-integrity-empty-state"><strong>Falha ao carregar</strong><span>${esc(error.message)}</span></div>`;
+    }
+}
+
+async function restoreDeletedDistribution(distributionId) {
+    const confirmed = await customConfirm(
+        'Restaurar esta distribuição? O sistema verificará novamente o recebimento disponível, o destinatário e os limites financeiros.',
+        { title: 'Restaurar do histórico', confirmLabel: 'Validar e restaurar' }
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(
+            `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/distributions/${distributionId}/restore`,
+            { method: 'POST', headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: '{}' }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            pdToast(data.message || 'A distribuição não pode ser restaurada.', 'error');
+            await loadDeletedDistributionHistory();
+            return;
+        }
+
+        pdToast(data.message || 'Distribuição restaurada.');
+        if (data.parent_delivery_id) refreshDeliveryItem(data.parent_delivery_id).catch(() => {});
+        latestIntegrityData = data.integrity || latestIntegrityData;
+        await loadDeletedDistributionHistory();
+    } catch (error) {
+        pdToast('Erro de comunicação ao restaurar a distribuição.', 'error');
+    }
 }
 
 function closeIntegrityModal() {
@@ -3795,6 +3922,13 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
 }
 
 document.addEventListener('click', event => {
+    const restoreButton = event.target.closest('[data-restore-deleted-distribution]');
+    if (restoreButton) {
+        event.preventDefault();
+        restoreDeletedDistribution(Number(restoreButton.dataset.restoreDeletedDistribution || 0));
+        return;
+    }
+
     const button = event.target.closest('[data-pd-integrity-action]');
 
     if (!button) return;
@@ -4198,7 +4332,7 @@ function updateProjectSummary(summary) {
     projectListState.summary = summary || {};
     [['pd-count-all','all'],['pd-count-pending','pending'],['pd-count-approved','approved'],['pd-count-rejected','rejected']].forEach(([id,key]) => { const el=document.getElementById(id); if(el) el.textContent=summary?.[key] || 0; });
     ['pending','approved','rejected'].forEach(status => { const el=document.getElementById('pd-shortcut-'+status); if(el) el.hidden = !(summary?.[status] > 0); });
-    const tools=document.getElementById('pd-tools-bar'); if(tools) tools.hidden = !(summary?.approved > 0 || Number(document.getElementById('pd-integrity-total')?.textContent || 0) > 0);
+    const tools=document.getElementById('pd-tools-bar'); if(tools) tools.hidden = false;
     const text=document.getElementById('pd-tools-summary'); if(text) text.textContent = `${summary?.all || 0} entrega(s)${summary?.net > 0 ? ' · ' + pdMoney(summary.net) + ' líquido' : ''}`;
     refreshOperationalUi();
 }
@@ -4696,6 +4830,12 @@ function integrityActionLabel(actionKey) {
 }
 
 function renderIntegrityCenter(integrity) {
+    latestIntegrityData = integrity || {};
+    integrityHistoryMode = false;
+    const historyButton = document.getElementById('pd-integrity-history');
+    if (historyButton) {
+        historyButton.innerHTML = '<i class="ph-duotone ph-archive" aria-hidden="true"></i> Histórico de excluídas';
+    }
     const modal = document.getElementById('pd-integrity-modal');
     const body = modal?.querySelector('.pd-integrity-body');
     const counts = integrity?.counts || {};

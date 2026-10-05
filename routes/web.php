@@ -527,6 +527,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/projects/{project}/deliveries-data', [DeliveryRegistrationController::class, 'projectDeliveriesData'])->name('projects.deliveries-data');
         Route::get('/projects/{project}/integrity', [DeliveryRegistrationController::class, 'getProjectIntegrity'])->name('projects.integrity');
         Route::post('/projects/{project}/integrity/resolve', [DeliveryRegistrationController::class, 'resolveIntegrityIssue'])->name('projects.integrity.resolve');
+        Route::get('/projects/{project}/distributions/deleted', [DeliveryRegistrationController::class, 'deletedDistributions'])->name('projects.distributions.deleted');
+        Route::post('/projects/{project}/distributions/{distribution}/restore', [DeliveryRegistrationController::class, 'restoreDeletedDistribution'])->name('projects.distributions.restore');
         Route::get('/projects/{project}/stock-summary', [DeliveryRegistrationController::class, 'getProjectStockSummary'])->name('projects.stock-summary');
         Route::get('/projects/{project}/associates/{associate}/deliveries', [DeliveryRegistrationController::class, 'getAssociateDeliveries'])->name('associates.deliveries');
         Route::get('/projects/{project}/associates/{associate}/simulate', [DeliveryRegistrationController::class, 'simulateAssociate'])->name('projects.associates.simulator');

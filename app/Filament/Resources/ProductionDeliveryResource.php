@@ -728,6 +728,38 @@ class ProductionDeliveryResource extends Resource
                 Tables\Actions\DeleteAction::make()
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
 
+                Tables\Actions\Action::make('restoreSafeDistribution')
+                    ->label('Restaurar distribuição')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('warning')
+                    ->visible(fn (ProductionDelivery $record): bool => $record->trashed()
+                        && $record->parent_delivery_id !== null
+                        && (auth()->user()?->can('restore', $record) ?? false))
+                    ->requiresConfirmation()
+                    ->modalHeading('Restaurar distribuição do histórico?')
+                    ->modalDescription(fn (ProductionDelivery $record): string => app(DeletedDistributionService::class)
+                        ->restorationStatus($record)['reason'].' Os limites serão validados novamente no momento da confirmação.')
+                    ->modalSubmitActionLabel('Validar e restaurar')
+                    ->action(function (ProductionDelivery $record): void {
+                        $actor = Auth::user();
+                        if (! $actor || ! $actor->can('restore', $record)) {
+                            Notification::make()->danger()->title('Ação não autorizada')->send();
+
+                            return;
+                        }
+
+                        try {
+                            app(DeletedDistributionService::class)->restore($record, $actor);
+                            Notification::make()->success()
+                                ->title('Distribuição restaurada')
+                                ->body('Quantidade física, destinatário e limites financeiros foram revalidados.')
+                                ->send();
+                        } catch (ValidationException $exception) {
+                            Notification::make()->danger()->title('Restauração bloqueada')
+                                ->body(collect($exception->errors())->flatten()->first())->persistent()->send();
+                        }
+                    }),
+
                 Tables\Actions\Action::make('forceDeleteSafeDistribution')
                     ->label('Excluir definitivamente')
                     ->icon('heroicon-o-trash')

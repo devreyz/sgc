@@ -30,7 +30,7 @@ trait HasCustomerBillingIntegrityAction
                     ->diagnosisForCustomerReceipt($this->record);
                 $parts = [];
                 if ($diagnosis['recoverable'] > 0) {
-                    $parts[] = "{$diagnosis['recoverable']} registro(s) removido(s) podem ser restaurados sem recalcular ou alterar os valores financeiros.";
+                    $parts[] = "{$diagnosis['recoverable']} entrega(s)-pai removida(s) podem ser restauradas sem reativar distribuições excluídas ou alterar valores financeiros.";
                 }
                 if ($diagnosis['unrecoverable'] > 0) {
                     $parts[] = "{$diagnosis['unrecoverable']} distribuição(ões) exigem revisão manual porque o registro não existe ou pertence a outro contexto.";
@@ -41,7 +41,7 @@ trait HasCustomerBillingIntegrityAction
                     : implode(' ', $parts);
             })
             ->requiresConfirmation()
-            ->modalSubmitActionLabel('Restaurar registros seguros')
+            ->modalSubmitActionLabel('Restaurar entregas-pai')
             ->action(function (): void {
                 $actor = auth()->user();
                 if (! $actor || ! $actor->can('update_customer::billing::receipt')) {
@@ -57,7 +57,7 @@ trait HasCustomerBillingIntegrityAction
                 if ($result['restored'] !== []) {
                     Notification::make()->success()
                         ->title('Integridade restaurada')
-                        ->body(count($result['restored']).' registro(s) restaurado(s). O snapshot financeiro foi preservado.')
+                        ->body(count($result['restored']).' entrega(s)-pai restaurada(s). Distribuições excluídas permaneceram no histórico e o snapshot financeiro foi preservado.')
                         ->send();
                 } elseif ($result['unresolved'] === []) {
                     Notification::make()->info()

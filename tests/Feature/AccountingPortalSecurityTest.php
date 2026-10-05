@@ -282,24 +282,44 @@ class AccountingPortalSecurityTest extends TestCase
         self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
     }
 
-    public function test_legacy_soft_deleted_distribution_can_be_restored_without_changing_snapshot(): void
+    public function test_receipt_integrity_never_restores_a_deleted_distribution_automatically(): void
     {
         $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
-        $before = ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
-            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']);
         DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
 
         $diagnosis = app(DeliveryParentRecoveryService::class)->diagnosisForCustomerReceipt($receipt);
-        self::assertSame(['recoverable' => 1, 'unrecoverable' => 0], $diagnosis);
+        self::assertSame(0, $diagnosis['recoverable']);
+        self::assertSame(0, $diagnosis['unrecoverable']);
+        self::assertSame(1, $diagnosis['archived_distributions']);
 
         $result = app(DeliveryParentRecoveryService::class)
             ->restoreForCustomerReceipt($receipt, User::query()->findOrFail(1));
 
-        self::assertSame([301], $result['restored']);
+        self::assertSame([], $result['restored']);
         self::assertSame([], $result['unresolved']);
-        self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
-        self::assertSame($before, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
-            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']));
+        self::assertTrue(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
+    }
+
+    public function test_deleted_distribution_requires_manual_restore_and_revalidates_parent_capacity(): void
+    {
+        DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
+        $distribution = ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301);
+        $service = app(DeletedDistributionService::class);
+
+        self::assertTrue($service->restorationStatus($distribution)['allowed']);
+        DB::table('production_deliveries')->insert([
+            'id' => 302, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'customer_id' => 1, 'product_id' => 1, 'parent_delivery_id' => 300,
+            'associate_receipt_id' => null, 'billing_receipt_id' => null, 'status' => 'approved',
+            'quantity' => 1, 'unit_price' => 10, 'gross_value' => 10, 'admin_fee_amount' => 1,
+            'net_value' => 9, 'billing_status' => 'unbilled', 'paid' => false,
+            'delivery_date' => '2026-08-19', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $distribution = ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301);
+        $status = $service->restorationStatus($distribution);
+
+        self::assertFalse($status['allowed']);
+        self::assertStringContainsString('ultrapassaria o recebimento', $status['reason']);
     }
 
     public function test_receipt_repair_does_not_restore_distribution_from_another_project_context(): void

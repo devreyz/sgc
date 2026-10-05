@@ -11,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 class DeliveryParentRecoveryService
 {
-    /** @return array{recoverable: int, unrecoverable: int} */
+    /** @return array{recoverable: int, unrecoverable: int, archived_distributions: int} */
     public function diagnosisForCustomerReceipt(CustomerBillingReceipt $receipt): array
     {
         $distributions = $this->receiptDistributions($receipt);
@@ -23,18 +23,20 @@ class DeliveryParentRecoveryService
             ->keyBy('id');
         $projectIds = collect($receipt->projectIds());
 
-        $recoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
+        $archivedDistributions = $distributions->filter->trashed();
+        $activeDistributions = $distributions->reject->trashed();
+
+        $recoverable = $activeDistributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
             $parent = $parents->get($distribution->parent_delivery_id);
 
-            return ($distribution->trashed() || $parent?->trashed())
-                && $parent
+            return $parent?->trashed()
                 && $parent->parent_delivery_id === null
                 && (int) $distribution->tenant_id === (int) $receipt->tenant_id
                 && $projectIds->contains((int) $distribution->sales_project_id)
                 && (int) $parent->tenant_id === (int) $distribution->tenant_id
                 && (int) $parent->sales_project_id === (int) $distribution->sales_project_id;
         })->count();
-        $unrecoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
+        $unrecoverable = $activeDistributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
             $parent = $parents->get($distribution->parent_delivery_id);
 
             return ! $parent
@@ -44,7 +46,11 @@ class DeliveryParentRecoveryService
                 || (int) $parent->sales_project_id !== (int) $distribution->sales_project_id;
         })->count() + $expectedIds->diff($distributions->pluck('id')->map(fn ($id): int => (int) $id))->count();
 
-        return compact('recoverable', 'unrecoverable');
+        return [
+            'recoverable' => $recoverable,
+            'unrecoverable' => $unrecoverable,
+            'archived_distributions' => $archivedDistributions->count(),
+        ];
     }
 
     /** @return array{restored: list<int>, unresolved: list<int>} */
@@ -63,7 +69,10 @@ class DeliveryParentRecoveryService
             $invalidContextIds = $distributions
                 ->reject(fn (ProductionDelivery $distribution): bool => $projectIds->contains((int) $distribution->sales_project_id))
                 ->pluck('id')->map(fn ($id): int => (int) $id)->values()->all();
-            $eligible = $distributions->filter(fn (ProductionDelivery $distribution): bool => $projectIds->contains((int) $distribution->sales_project_id));
+            // Uma distribuição excluída representa uma decisão operacional e
+            // nunca pode ser reativada por uma rotina de integridade documental.
+            $eligible = $distributions->reject->trashed()
+                ->filter(fn (ProductionDelivery $distribution): bool => $projectIds->contains((int) $distribution->sales_project_id));
             $result = $this->restoreParents($eligible, $actor, 'customer_billing_receipt', $lockedReceipt->id);
             $result['unresolved'] = collect($result['unresolved'])
                 ->merge($missingIds)->merge($invalidContextIds)->unique()->values()->all();
@@ -115,15 +124,6 @@ class DeliveryParentRecoveryService
 
                 continue;
             }
-            if ($distribution->trashed()) {
-                ProductionDelivery::withoutGlobalScopes()->withTrashed()
-                    ->whereKey($distribution->id)
-                    ->update([
-                        'deleted_at' => null,
-                        'updated_at' => now(),
-                    ]);
-                $restored->push((int) $distribution->id);
-            }
             if ($parent->trashed()) {
                 ProductionDelivery::withoutGlobalScopes()->withTrashed()
                     ->whereKey($parent->id)
@@ -143,7 +143,7 @@ class DeliveryParentRecoveryService
                 'source_id' => $sourceId,
                 'restored_parent_ids' => $restored->all(),
                 'unresolved_distribution_ids' => $unresolved->unique()->values()->all(),
-            ])->log('Registros de entrega restaurados para corrigir vínculos de distribuições');
+            ])->log('Entregas-pai restauradas para corrigir vínculos de distribuições');
         }
 
         return ['restored' => $restored->all(), 'unresolved' => $unresolved->unique()->values()->all()];
