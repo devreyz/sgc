@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 
 use App\Filament\Resources\CustomerBillingReceiptResource;
+use App\Filament\Resources\CustomerBillingReceiptResource\Pages\Concerns\HasCustomerBillingIntegrityAction;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\SalesProject;
@@ -17,6 +18,8 @@ use Illuminate\Validation\ValidationException;
 
 class EditCustomerBillingReceipt extends EditRecord
 {
+    use HasCustomerBillingIntegrityAction;
+
     protected static string $resource = CustomerBillingReceiptResource::class;
 
     public function mount(int|string $record): void
@@ -129,6 +132,8 @@ class EditCustomerBillingReceipt extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->integrityAction(),
+            Actions\ViewAction::make(),
             Actions\DeleteAction::make()
                 ->visible(fn () => $this->record->isEditable())
                 ->using(function (): bool {

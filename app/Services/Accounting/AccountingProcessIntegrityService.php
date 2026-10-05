@@ -25,28 +25,16 @@ class AccountingProcessIntegrityService
         $issues = collect();
         $projectIds = collect($receipt->projectIds());
         $snapshotIds = collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values();
-        $draftIds = $receipt->status === CustomerReceiptStatus::DRAFT ? $snapshotIds : collect();
-        $distributions = $draftIds->isNotEmpty()
-            ? ProductionDelivery::withoutGlobalScopes()
-                ->where('tenant_id', $receipt->tenant_id)
-                ->whereNull('deleted_at')
-                ->whereIn('id', $draftIds)
-                ->get([
-                    'id',
-                    'tenant_id',
-                    'sales_project_id',
-                    'parent_delivery_id',
-                    'customer_id',
-                    'quantity',
-                    'unit_price',
-                    'status',
-                ])
-            : ($receipt->relationLoaded('billingDistributions')
-                ? $receipt->billingDistributions
-                : $receipt->billingDistributions()->get([
-                    'id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'customer_id',
-                    'quantity', 'unit_price', 'status',
-                ]));
+        $distributions = ProductionDelivery::withoutGlobalScopes()->withTrashed()
+            ->where('tenant_id', $receipt->tenant_id)
+            ->where(function ($query) use ($receipt, $snapshotIds): void {
+                $query->where('billing_receipt_id', $receipt->id)
+                    ->when($snapshotIds->isNotEmpty(), fn ($nested) => $nested->orWhereIn('id', $snapshotIds));
+            })
+            ->get([
+                'id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'customer_id',
+                'quantity', 'unit_price', 'status', 'deleted_at',
+            ]);
 
         $missingSnapshotIds = $snapshotIds->diff(
             $distributions->pluck('id')->map(fn ($id): int => (int) $id)
@@ -100,6 +88,10 @@ class AccountingProcessIntegrityService
             }
 
             $prefix = 'Distribuição #'.$distribution->id.': ';
+
+            if ($distribution->trashed()) {
+                $issues->push($this->issue('deleted_distribution', $prefix.'o registro foi excluído e pode ser restaurado sem alterar o snapshot financeiro.'));
+            }
 
             if (! $distribution->parent_delivery_id) {
                 $issues->push($this->issue('parent_as_financial_line', $prefix.'a entrega física não pode ser uma linha financeira.'));

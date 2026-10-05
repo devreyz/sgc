@@ -8,6 +8,7 @@ use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CustomerBillingProjectContextService
 {
@@ -72,6 +73,21 @@ class CustomerBillingProjectContextService
 
         if ($projectIds->all() !== $distributionProjectIds->all()) {
             throw new \RuntimeException('Cada projeto selecionado deve possuir ao menos uma distribuição incluída na cobrança.');
+        }
+
+        $validParentCount = DB::table('production_deliveries as distribution')
+            ->join('production_deliveries as parent', 'parent.id', '=', 'distribution.parent_delivery_id')
+            ->whereIn('distribution.id', $distributions->pluck('id'))
+            ->where('distribution.tenant_id', $tenantId)
+            ->whereNull('distribution.deleted_at')
+            ->whereNull('parent.deleted_at')
+            ->whereNull('parent.parent_delivery_id')
+            ->whereColumn('parent.tenant_id', 'distribution.tenant_id')
+            ->whereColumn('parent.sales_project_id', 'distribution.sales_project_id')
+            ->distinct()
+            ->count('distribution.id');
+        if ($validParentCount !== $distributions->pluck('id')->unique()->count()) {
+            throw new \RuntimeException('Uma ou mais distribuições não possuem uma entrega-pai íntegra no mesmo tenant e projeto.');
         }
 
         $customers = Customer::withoutGlobalScopes()

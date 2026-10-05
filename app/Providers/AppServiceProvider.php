@@ -59,6 +59,7 @@ use App\Policies\ServiceExecutionPolicy;
 use App\Policies\ServiceObligationPolicy;
 use App\Policies\ServicePaymentEventPolicy;
 use App\Services\CustomerHierarchyService;
+use App\Services\CustomerBillingSelectionService;
 use App\Services\GoogleApiIdTokenVerifier;
 use App\Services\TenantIdentityService;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -87,6 +88,9 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(TenantIdentityService::class);
         $this->app->scoped(CustomerHierarchyService::class);
+        // A montagem do formulário consulta as mesmas reservas em vários
+        // componentes reativos. Reutilize o resultado somente nesta requisição.
+        $this->app->scoped(CustomerBillingSelectionService::class);
         $this->app->bind(GoogleIdTokenVerifier::class, GoogleApiIdTokenVerifier::class);
         Passkeys::ignoreRoutes();
         Passkeys::usePasskeyModel(Passkey::class);

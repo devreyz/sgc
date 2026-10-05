@@ -268,6 +268,40 @@ class AccountingPortalSecurityTest extends TestCase
             ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']));
     }
 
+    public function test_billed_distribution_cannot_be_soft_deleted(): void
+    {
+        $distribution = ProductionDelivery::withoutGlobalScopes()->findOrFail(301);
+
+        try {
+            $distribution->delete();
+            self::fail('Uma distribuição faturada deveria estar protegida contra exclusão.');
+        } catch (ValidationException $exception) {
+            self::assertArrayHasKey('delivery', $exception->errors());
+        }
+
+        self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
+    }
+
+    public function test_legacy_soft_deleted_distribution_can_be_restored_without_changing_snapshot(): void
+    {
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $before = ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
+            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']);
+        DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
+
+        $diagnosis = app(DeliveryParentRecoveryService::class)->diagnosisForCustomerReceipt($receipt);
+        self::assertSame(['recoverable' => 1, 'unrecoverable' => 0], $diagnosis);
+
+        $result = app(DeliveryParentRecoveryService::class)
+            ->restoreForCustomerReceipt($receipt, User::query()->findOrFail(1));
+
+        self::assertSame([301], $result['restored']);
+        self::assertSame([], $result['unresolved']);
+        self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(301)->trashed());
+        self::assertSame($before, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
+            ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']));
+    }
+
     public function test_receipt_repair_does_not_restore_distribution_from_another_project_context(): void
     {
         DB::table('production_deliveries')->where('id', 300)->update(['deleted_at' => now()]);

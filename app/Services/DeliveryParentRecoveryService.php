@@ -23,12 +23,15 @@ class DeliveryParentRecoveryService
             ->keyBy('id');
         $projectIds = collect($receipt->projectIds());
 
-        $recoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $projectIds): bool {
+        $recoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
             $parent = $parents->get($distribution->parent_delivery_id);
 
-            return $parent?->trashed()
+            return ($distribution->trashed() || $parent?->trashed())
+                && $parent
                 && $parent->parent_delivery_id === null
+                && (int) $distribution->tenant_id === (int) $receipt->tenant_id
                 && $projectIds->contains((int) $distribution->sales_project_id)
+                && (int) $parent->tenant_id === (int) $distribution->tenant_id
                 && (int) $parent->sales_project_id === (int) $distribution->sales_project_id;
         })->count();
         $unrecoverable = $distributions->filter(function (ProductionDelivery $distribution) use ($parents, $receipt, $projectIds): bool {
@@ -112,6 +115,15 @@ class DeliveryParentRecoveryService
 
                 continue;
             }
+            if ($distribution->trashed()) {
+                ProductionDelivery::withoutGlobalScopes()->withTrashed()
+                    ->whereKey($distribution->id)
+                    ->update([
+                        'deleted_at' => null,
+                        'updated_at' => now(),
+                    ]);
+                $restored->push((int) $distribution->id);
+            }
             if ($parent->trashed()) {
                 ProductionDelivery::withoutGlobalScopes()->withTrashed()
                     ->whereKey($parent->id)
@@ -131,7 +143,7 @@ class DeliveryParentRecoveryService
                 'source_id' => $sourceId,
                 'restored_parent_ids' => $restored->all(),
                 'unresolved_distribution_ids' => $unresolved->unique()->values()->all(),
-            ])->log('Entregas-pai restauradas para corrigir distribuições órfãs');
+            ])->log('Registros de entrega restaurados para corrigir vínculos de distribuições');
         }
 
         return ['restored' => $restored->all(), 'unresolved' => $unresolved->unique()->values()->all()];
@@ -141,9 +153,8 @@ class DeliveryParentRecoveryService
     private function receiptDistributions(CustomerBillingReceipt $receipt, bool $lock = false): Collection
     {
         $ids = collect($receipt->delivery_ids ?? [])->map(fn ($id): int => (int) $id)->filter();
-        $query = ProductionDelivery::withoutGlobalScopes()
+        $query = ProductionDelivery::withoutGlobalScopes()->withTrashed()
             ->where('tenant_id', $receipt->tenant_id)
-            ->whereNull('deleted_at')
             ->whereNotNull('parent_delivery_id')
             ->where(function ($query) use ($receipt, $ids): void {
                 $query->where('billing_receipt_id', $receipt->id)

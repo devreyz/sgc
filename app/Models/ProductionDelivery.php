@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -399,6 +400,22 @@ class ProductionDelivery extends Model
 
         static::deleting(function (ProductionDelivery $delivery): void {
             if ($delivery->parent_delivery_id !== null) {
+                $reservedByReceipt = ! is_null($delivery->billing_receipt_id);
+                if (! $reservedByReceipt && Schema::hasTable('customer_billing_receipts')) {
+                    $reservedByReceipt = CustomerBillingReceipt::withoutGlobalScopes()
+                        ->where('tenant_id', $delivery->tenant_id)
+                        ->where(function ($query) use ($delivery): void {
+                            $query->whereJsonContains('delivery_ids', (int) $delivery->id)
+                                ->orWhereJsonContains('delivery_ids', (string) $delivery->id);
+                        })
+                        ->exists();
+                }
+                if ($reservedByReceipt) {
+                    throw ValidationException::withMessages([
+                        'delivery' => 'Esta distribuição não pode ser excluída porque está reservada ou vinculada a um faturamento de cliente.',
+                    ]);
+                }
+
                 return;
             }
 

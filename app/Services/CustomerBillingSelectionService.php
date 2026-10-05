@@ -16,6 +16,9 @@ use Illuminate\Support\Str;
 /** Resolve selecao de faturamento sem usar o total do comprovante do associado. */
 final class CustomerBillingSelectionService
 {
+    /** @var array<string, array<int, string>> */
+    private array $lockedMapCache = [];
+
     /**
      * Distribuicoes reservadas por outro faturamento, inclusive enquanto ele
      * ainda e um rascunho e so possui a selecao salva em delivery_ids.
@@ -24,6 +27,11 @@ final class CustomerBillingSelectionService
      */
     public function lockedDistributionMap(int $tenantId, ?int $currentReceiptId = null): array
     {
+        $cacheKey = $tenantId.':'.($currentReceiptId ?? 'new');
+        if (array_key_exists($cacheKey, $this->lockedMapCache)) {
+            return $this->lockedMapCache[$cacheKey];
+        }
+
         if (! Schema::hasTable('customer_billing_receipts')) {
             return [];
         }
@@ -70,7 +78,7 @@ final class CustomerBillingSelectionService
 
         ksort($locked);
 
-        return $locked;
+        return $this->lockedMapCache[$cacheKey] = $locked;
     }
 
     /** @return list<int> */
@@ -94,6 +102,15 @@ final class CustomerBillingSelectionService
             ->whereNull('deleted_at')
             ->whereIn('sales_project_id', collect($projectIds)->map(fn ($id): int => (int) $id)->filter()->unique())
             ->whereNotNull('parent_delivery_id')
+            ->whereExists(function ($parent): void {
+                $parent->selectRaw('1')
+                    ->from('production_deliveries as billing_parent')
+                    ->whereColumn('billing_parent.id', 'production_deliveries.parent_delivery_id')
+                    ->whereColumn('billing_parent.tenant_id', 'production_deliveries.tenant_id')
+                    ->whereColumn('billing_parent.sales_project_id', 'production_deliveries.sales_project_id')
+                    ->whereNull('billing_parent.parent_delivery_id')
+                    ->whereNull('billing_parent.deleted_at');
+            })
             ->where('status', DeliveryStatus::APPROVED->value)
             ->where('quantity', '>', 0)
             ->where('unit_price', '>', 0)
@@ -186,6 +203,10 @@ final class CustomerBillingSelectionService
             $rows = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)->whereIn('id', $excluded)
                 ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id', 'deleted_at']);
+            $parents = ProductionDelivery::withoutGlobalScopes()->withTrashed()
+                ->whereIn('id', $rows->pluck('parent_delivery_id')->filter()->unique())
+                ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'deleted_at'])
+                ->keyBy('id');
             $organizationCustomerIds = $organizationId
                 ? Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')->where('organization_id', $organizationId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
                 : [];
@@ -204,6 +225,11 @@ final class CustomerBillingSelectionService
                     $from && $row->delivery_date?->format('Y-m-d') < $from => 'fora_do_periodo',
                     $to && $row->delivery_date?->format('Y-m-d') > $to => 'fora_do_periodo',
                     ! $row->parent_delivery_id => 'nao_e_distribuicao',
+                    ! $parents->has((int) $row->parent_delivery_id) => 'entrega_pai_inexistente',
+                    $parents->get((int) $row->parent_delivery_id)?->deleted_at !== null => 'entrega_pai_removida',
+                    (int) $parents->get((int) $row->parent_delivery_id)?->tenant_id !== $tenantId
+                        || (int) $parents->get((int) $row->parent_delivery_id)?->sales_project_id !== (int) $row->sales_project_id
+                        || $parents->get((int) $row->parent_delivery_id)?->parent_delivery_id !== null => 'entrega_pai_incompativel',
                     ($row->status instanceof DeliveryStatus ? $row->status->value : (string) $row->status) !== DeliveryStatus::APPROVED->value => 'nao_aprovada',
                     bccomp((string) $row->quantity, '0', 8) <= 0 || bccomp((string) $row->unit_price, '0', 8) <= 0 => 'valor_invalido',
                     $row->billing_receipt_id && (int) $row->billing_receipt_id !== $currentReceiptId => 'ja_faturada',

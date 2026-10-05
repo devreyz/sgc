@@ -275,6 +275,15 @@ class CustomerBillingReceiptService
             ->whereNull('deleted_at')
             ->whereIn('sales_project_id', $projectIds)
             ->whereNotNull('parent_delivery_id')
+            ->whereExists(function ($parent): void {
+                $parent->selectRaw('1')
+                    ->from('production_deliveries as billing_parent')
+                    ->whereColumn('billing_parent.id', 'production_deliveries.parent_delivery_id')
+                    ->whereColumn('billing_parent.tenant_id', 'production_deliveries.tenant_id')
+                    ->whereColumn('billing_parent.sales_project_id', 'production_deliveries.sales_project_id')
+                    ->whereNull('billing_parent.parent_delivery_id')
+                    ->whereNull('billing_parent.deleted_at');
+            })
             ->whereIn('id', $ids)
             ->with('product:id,tenant_id,name,unit,ncm')
             ->get();

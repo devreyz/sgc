@@ -627,8 +627,8 @@ class CustomerBillingReceiptResource extends Resource
                             Notification::make()->danger()
                                 ->title('Comprovante com vínculos inconsistentes')
                                 ->body($integrity['recoverable'] > 0
-                                    ? "Há {$integrity['recoverable']} entrega(s)-pai excluída(s). Use a ação Corrigir integridade antes de imprimir."
-                                    : 'Há distribuições sem uma entrega-pai válida. Revise a integridade antes de imprimir.')
+                                    ? "Há {$integrity['recoverable']} registro(s) removido(s) que podem ser restaurados. Abra o comprovante e use Corrigir integridade antes de imprimir."
+                                    : 'Há distribuições com vínculos inválidos. Abra o comprovante para revisar a integridade antes de imprimir.')
                                 ->persistent()
                                 ->send();
 
@@ -781,66 +781,8 @@ class CustomerBillingReceiptResource extends Resource
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
 
-                Tables\Actions\Action::make('repairIntegrity')
-                    ->label('Corrigir integridade')
-                    ->icon('heroicon-o-wrench-screwdriver')
-                    ->color('warning')
-                    ->visible(function (CustomerBillingReceipt $record): bool {
-                        $diagnosis = app(DeliveryParentRecoveryService::class)
-                            ->diagnosisForCustomerReceipt($record);
-
-                        return $diagnosis['recoverable'] > 0 || $diagnosis['unrecoverable'] > 0;
-                    })
-                    ->modalHeading(fn (CustomerBillingReceipt $record): string => 'Verificar '.$record->formatted_number)
-                    ->modalDescription(function (CustomerBillingReceipt $record): string {
-                        $diagnosis = app(DeliveryParentRecoveryService::class)
-                            ->diagnosisForCustomerReceipt($record);
-                        if ($diagnosis['recoverable'] === 0 && $diagnosis['unrecoverable'] === 0) {
-                            return 'Nenhum vínculo quebrado foi encontrado neste comprovante.';
-                        }
-
-                        $message = $diagnosis['recoverable'] > 0
-                            ? "{$diagnosis['recoverable']} entrega(s)-pai excluída(s) podem ser restauradas sem alterar valores, distribuições ou pagamentos."
-                            : '';
-                        if ($diagnosis['unrecoverable'] > 0) {
-                            $message .= " {$diagnosis['unrecoverable']} distribuição(ões) exigem revisão manual porque a entrega-pai não existe ou pertence a outro contexto.";
-                        }
-
-                        return trim($message);
-                    })
-                    ->requiresConfirmation()
-                    ->modalSubmitActionLabel('Restaurar entregas-pai')
-                    ->action(function (CustomerBillingReceipt $record): void {
-                        $actor = auth()->user();
-                        if (! $actor) {
-                            Notification::make()->danger()->title('Sessão expirada')->send();
-
-                            return;
-                        }
-
-                        $result = app(DeliveryParentRecoveryService::class)
-                            ->restoreForCustomerReceipt($record, $actor);
-                        if ($result['restored'] !== []) {
-                            Notification::make()->success()
-                                ->title('Integridade restaurada')
-                                ->body(count($result['restored']).' entrega(s)-pai restaurada(s). Os dados financeiros foram preservados.')
-                                ->send();
-                        } elseif ($result['unresolved'] === []) {
-                            Notification::make()->info()
-                                ->title('Nenhuma correção necessária')
-                                ->body('Os vínculos deste comprovante já estão íntegros.')
-                                ->send();
-                        }
-                        if ($result['unresolved'] !== []) {
-                            Notification::make()->warning()
-                                ->title('Revisão adicional necessária')
-                                ->body(count($result['unresolved']).' distribuição(ões) não puderam ser corrigidas automaticamente.')
-                                ->persistent()
-                                ->send();
-                        }
-                    }),
-
                 // ── Editar (somente DRAFT) ────────────────────────────────────
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn (CustomerBillingReceipt $r) => $r->isEditable()),
 
@@ -1688,6 +1630,7 @@ class CustomerBillingReceiptResource extends Resource
         return [
             'index' => Pages\ListCustomerBillingReceipts::route('/'),
             'create' => Pages\CreateCustomerBillingReceipt::route('/create'),
+            'view' => Pages\ViewCustomerBillingReceipt::route('/{record}'),
             'edit' => Pages\EditCustomerBillingReceipt::route('/{record}/edit'),
         ];
     }

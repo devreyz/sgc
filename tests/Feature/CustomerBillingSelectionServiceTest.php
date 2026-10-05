@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\AssociateReceipt;
+use App\Models\ProductionDelivery;
 use App\Services\CustomerBillingSelectionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class CustomerBillingSelectionServiceTest extends TestCase
@@ -93,6 +95,12 @@ class CustomerBillingSelectionServiceTest extends TestCase
             'documentable_id' => 50,
             'created_at' => now(), 'updated_at' => now(),
         ]);
+        DB::table('production_deliveries')->insert([
+            'id' => 900, 'tenant_id' => 1, 'sales_project_id' => 300, 'associate_id' => 400,
+            'parent_delivery_id' => null, 'customer_id' => null, 'product_id' => 500,
+            'delivery_date' => '2026-09-15', 'quantity' => 18, 'unit_price' => 0, 'status' => 'approved',
+            'associate_receipt_id' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
 
         $rows = [];
         for ($id = 1; $id <= 18; $id++) {
@@ -178,5 +186,17 @@ class CustomerBillingSelectionServiceTest extends TestCase
         self::assertSame([2], $result['selected_ids']);
         self::assertSame(1, $result['excluded_count']);
         self::assertSame(1, $result['reasons']['removida']);
+    }
+
+    public function test_distribution_reserved_by_draft_cannot_be_deleted(): void
+    {
+        DB::table('customer_billing_receipts')->insert([
+            'id' => 700, 'tenant_id' => 1, 'sales_project_id' => 300, 'customer_id' => 10,
+            'receipt_year' => 2026, 'receipt_number' => 7, 'delivery_ids' => json_encode([1]),
+            'status' => 'draft', 'issued_at' => '2026-09-15', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(ValidationException::class);
+        ProductionDelivery::withoutGlobalScopes()->findOrFail(1)->delete();
     }
 }

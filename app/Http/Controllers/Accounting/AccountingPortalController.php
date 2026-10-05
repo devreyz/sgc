@@ -618,7 +618,7 @@ class AccountingPortalController extends Controller
 
         $result = $recovery->restoreForCustomerReceipt($receipt, $request->user());
         $message = $result['restored'] !== []
-            ? count($result['restored']).' entrega(s)-pai restaurada(s). A integridade foi verificada novamente.'
+            ? count($result['restored']).' registro(s) de entrega restaurado(s). A integridade foi verificada novamente.'
             : 'Nenhuma correção automática era necessária.';
 
         return $this->privateJson([
