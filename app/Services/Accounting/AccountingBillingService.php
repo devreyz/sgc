@@ -45,9 +45,11 @@ final class AccountingBillingService
             $draft?->id,
         );
         $rows = $this->distributionRows($tenantId, $selection['selected_ids']);
-        $snapshot = $rows->isEmpty()
-            ? ['total_gross' => '0.00', 'total_fees' => '0.00', 'total_net' => '0.00', 'fee_snapshot' => ['fees' => [], 'document_lines' => []]]
-            : $this->receipts->computeSnapshotForProjects($rows, $projectModels);
+        $snapshot = $this->receipts->computeDraftSnapshotForIds(
+            $tenantId,
+            $selection['selected_ids'],
+            $projectModels,
+        );
 
         $names = $this->identities->namesForUsers($tenantId, $rows->pluck('associate.user_id')->filter());
         $details = $rows->map(fn (ProductionDelivery $row): array => [
@@ -89,7 +91,7 @@ final class AccountingBillingService
     public function saveDraft(int $tenantId, array $data, User $actor, ?CustomerBillingReceipt $draft = null): CustomerBillingReceipt
     {
         $preview = $this->preview($tenantId, $data, $draft);
-        if ($preview['selected_ids'] === []) {
+        if ($preview['selected_ids'] === [] && ! $draft) {
             throw new \RuntimeException('Selecione ao menos uma distribuição elegível para salvar o faturamento.');
         }
         if ($preview['excluded_count'] > 0) {
@@ -213,6 +215,7 @@ final class AccountingBillingService
     private function distributionRows(int $tenantId, array $ids): Collection
     {
         return ProductionDelivery::withoutGlobalScopes()->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
             ->whereIn('id', collect($ids)->map(fn ($id): int => (int) $id)->unique())
             ->with(['product:id,tenant_id,name,unit,ncm', 'customer:id,tenant_id,organization_id,name,trade_name',
                 'associate:id,tenant_id,user_id,nickname', 'salesProject:id,tenant_id,title,type'])

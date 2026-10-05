@@ -2479,12 +2479,12 @@
                                         )}
 
                                         ${
-                                            process.workflow.fiscal.billing_sheet_url
+                                            process.pdf_url || process.workflow.fiscal.billing_sheet_url
                                                 ? `
                                                     <a
                                                         class="acc-button acc-button-primary"
                                                         href="${esc(
-                                                            process.workflow
+                                                            process.pdf_url || process.workflow
                                                                 .fiscal
                                                                 .billing_sheet_url
                                                         )}"
@@ -2832,12 +2832,12 @@
                                             antes de fechar.
                                         </span>
                                     `
-                                    : process.workflow.fiscal.billing_sheet_url
+                                    : process.pdf_url || process.workflow.fiscal.billing_sheet_url
                                     ? `
                                                 <a
                                                     class="acc-button acc-button-primary"
                                                     href="${esc(
-                                                        process.workflow.fiscal
+                                                        process.pdf_url || process.workflow.fiscal
                                                             .billing_sheet_url
                                                     )}"
                                                 >
@@ -2928,6 +2928,19 @@
                                         `
                                 }
                             </ul>
+                            ${
+                                integrity.repair_url
+                                    ? `
+                                        <button class="acc-button" type="button" data-repair-integrity data-url="${esc(
+                                            integrity.repair_url
+                                        )}">
+                                            ${phIcon("ph-wrench")}
+                                            Corrigir vínculos automaticamente
+                                        </button>
+                                        <div class="acc-action-feedback" data-integrity-feedback aria-live="polite"></div>
+                                    `
+                                    : ""
+                            }
                         </div>
                     </section>
 
@@ -3080,6 +3093,26 @@
             const sendButton = target.querySelector(
                 "[data-send-authorization]"
             );
+
+            const repairButton = target.querySelector("[data-repair-integrity]");
+
+            repairButton?.addEventListener("click", async () => {
+                const feedback = target.querySelector("[data-integrity-feedback]");
+
+                repairButton.disabled = true;
+                feedback.textContent = "Verificando e corrigindo vínculos...";
+
+                try {
+                    const result = await postJson(repairButton.dataset.url, {});
+
+                    feedback.textContent = result.message;
+                    await initDossier();
+                } catch (error) {
+                    feedback.textContent = error.message;
+                    feedback.classList.add("is-error");
+                    repairButton.disabled = false;
+                }
+            });
 
             sendButton?.addEventListener("click", async () => {
                 if (

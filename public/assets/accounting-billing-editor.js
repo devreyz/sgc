@@ -125,7 +125,6 @@
         } catch (error) { message(error.message, true); }
     };
     const loadPreview = async () => {
-        if (!selected.size) throw new Error('Selecione ao menos uma distribuição.');
         preview = await request(root.dataset.previewUrl, {method:'POST', body:JSON.stringify(values())});
         selected.clear(); (preview.selected_ids || []).forEach(id => selected.add(Number(id))); updateCount(); renderPreview();
         return preview;

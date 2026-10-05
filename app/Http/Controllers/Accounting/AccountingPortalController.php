@@ -25,6 +25,7 @@ use App\Services\Accounting\AccountingProcessIntegrityService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\BillingAuthorizationWorkflowService;
 use App\Services\Accounting\FiscalGateService;
+use App\Services\DeliveryParentRecoveryService;
 use App\Services\TenantIdentityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -357,6 +358,7 @@ class AccountingPortalController extends Controller
         BillingAuthorizationValidityService $authorizationValidity,
         FiscalGateService $fiscalGate,
         TenantIdentityService $identities,
+        DeliveryParentRecoveryService $recovery,
     ): JsonResponse {
         $tenant = $this->tenant($request);
         $this->authorizeProcesses($request);
@@ -373,6 +375,14 @@ class AccountingPortalController extends Controller
         ]);
 
         $integrityResult = $integrity->inspect($receipt);
+        $recoveryDiagnosis = $recovery->diagnosisForCustomerReceipt($receipt);
+        $integrityResult['repair_url'] = $recoveryDiagnosis['recoverable'] > 0
+            && $request->user()->can('review_accounting_processes')
+                ? route('accounting.data.processes.integrity.repair', [
+                    'tenant' => $tenant->slug,
+                    'receipt' => $receipt->id,
+                ])
+                : null;
         $receipt->load(['authorizationRounds' => fn ($query) => $query->latest('sequence')->limit(50)]);
         $latestRound = $receipt->authorizationRounds->first();
         $isCurrentAuthorizationValid = $latestRound?->status === BillingAuthorizationStatus::AUTHORIZED
@@ -395,6 +405,7 @@ class AccountingPortalController extends Controller
             : collect();
         $distributionQuery = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
+            ->whereNull('deleted_at')
             ->when(
                 $draftDistributionIds->isNotEmpty(),
                 fn (Builder $query) => $query->whereIn('id', $draftDistributionIds),
@@ -529,6 +540,9 @@ class AccountingPortalController extends Controller
                     && $request->user()->can('update_customer::billing::receipt')
                     ? route('accounting.billings.reopen', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
                     : null,
+                'pdf_url' => $receipt->status !== CustomerReceiptStatus::DRAFT
+                    ? route('accounting.fiscal.billing-sheet', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
+                    : null,
                 'workflow' => [
                     'authorization' => $authorization,
                     'fiscal' => $this->fiscalPayload(
@@ -592,6 +606,25 @@ class AccountingPortalController extends Controller
                     ? ($isCurrentAuthorizationValid ? 'Válida' : 'Não corresponde ao estado atual')
                     : null,
             ])->values(),
+        ]);
+    }
+
+    public function repairIntegrity(Request $request, DeliveryParentRecoveryService $recovery): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        abort_unless($request->user()->can('review_accounting_processes'), 403);
+        $receipt = $this->receipt($request, $tenant->id);
+
+        $result = $recovery->restoreForCustomerReceipt($receipt, $request->user());
+        $message = $result['restored'] !== []
+            ? count($result['restored']).' entrega(s)-pai restaurada(s). A integridade foi verificada novamente.'
+            : 'Nenhuma correção automática era necessária.';
+
+        return $this->privateJson([
+            'message' => $message,
+            'restored' => $result['restored'],
+            'unresolved' => $result['unresolved'],
         ]);
     }
 

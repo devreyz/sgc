@@ -143,6 +143,7 @@ class DeliveryParentRecoveryService
         $ids = collect($receipt->delivery_ids ?? [])->map(fn ($id): int => (int) $id)->filter();
         $query = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $receipt->tenant_id)
+            ->whereNull('deleted_at')
             ->whereNotNull('parent_delivery_id')
             ->where(function ($query) use ($receipt, $ids): void {
                 $query->where('billing_receipt_id', $receipt->id)

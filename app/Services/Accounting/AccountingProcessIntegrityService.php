@@ -2,8 +2,8 @@
 
 namespace App\Services\Accounting;
 
-use App\Enums\DeliveryStatus;
 use App\Enums\CustomerReceiptStatus;
+use App\Enums\DeliveryStatus;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use Illuminate\Support\Collection;
@@ -24,29 +24,39 @@ class AccountingProcessIntegrityService
     {
         $issues = collect();
         $projectIds = collect($receipt->projectIds());
-        $draftIds = $receipt->status === CustomerReceiptStatus::DRAFT
-            ? collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values()
-            : collect();
+        $snapshotIds = collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique()->values();
+        $draftIds = $receipt->status === CustomerReceiptStatus::DRAFT ? $snapshotIds : collect();
         $distributions = $draftIds->isNotEmpty()
             ? ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $receipt->tenant_id)
+                ->whereNull('deleted_at')
                 ->whereIn('id', $draftIds)
                 ->get([
-                'id',
-                'tenant_id',
-                'sales_project_id',
-                'parent_delivery_id',
-                'customer_id',
-                'quantity',
-                'unit_price',
-                'status',
-            ])
+                    'id',
+                    'tenant_id',
+                    'sales_project_id',
+                    'parent_delivery_id',
+                    'customer_id',
+                    'quantity',
+                    'unit_price',
+                    'status',
+                ])
             : ($receipt->relationLoaded('billingDistributions')
                 ? $receipt->billingDistributions
                 : $receipt->billingDistributions()->get([
                     'id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'customer_id',
                     'quantity', 'unit_price', 'status',
                 ]));
+
+        $missingSnapshotIds = $snapshotIds->diff(
+            $distributions->pluck('id')->map(fn ($id): int => (int) $id)
+        );
+        if ($missingSnapshotIds->isNotEmpty()) {
+            $issues->push($this->issue(
+                'missing_snapshot_distributions',
+                'Há '.count($missingSnapshotIds).' distribuição(ões) removida(s) ou fora do contexto salvo neste faturamento.',
+            ));
+        }
 
         if (! $receipt->sales_project_id) {
             $issues->push($this->issue('missing_project', 'A cobrança não possui projeto de venda válido.'));

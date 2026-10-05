@@ -360,6 +360,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             Route::get('/data/processes/{receipt}', [AccountingPortalController::class, 'processData'])
                 ->whereNumber('receipt')
                 ->name('data.processes.show');
+            Route::post('/data/processes/{receipt}/integrity/repair', [AccountingPortalController::class, 'repairIntegrity'])
+                ->middleware('throttle:10,1')->whereNumber('receipt')->name('data.processes.integrity.repair');
             Route::post('/data/processes/{receipt}/authorization/send', [AccountingPortalController::class, 'sendAuthorization'])
                 ->middleware('throttle:20,1')->whereNumber('receipt')->name('data.processes.authorization.send');
             Route::post('/data/processes/{receipt}/authorization/access', [AccountingPortalController::class, 'storeAuthorizationAccess'])

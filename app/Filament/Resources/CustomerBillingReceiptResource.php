@@ -653,8 +653,9 @@ class CustomerBillingReceiptResource extends Resource
                         $projectIds = $projects->pluck('id')->map(fn ($id): int => (int) $id)->all();
                         $customer = $record->customer;
                         $organization = $record->organization;
-                        $distributions = ProductionDelivery::query()
+                        $distributions = ProductionDelivery::withoutGlobalScopes()
                             ->where('tenant_id', $record->tenant_id)
+                            ->whereNull('deleted_at')
                             ->whereIn('sales_project_id', $projectIds)
                             ->whereNotNull('parent_delivery_id')
                             ->whereIn('id', $record->delivery_ids)
@@ -663,7 +664,7 @@ class CustomerBillingReceiptResource extends Resource
                         if ($distributions->count() !== count(array_unique(array_map('intval', $record->delivery_ids)))) {
                             Notification::make()->danger()
                                 ->title('Comprovante inconsistente')
-                                ->body('Uma ou mais distribuições não pertencem mais a este tenant ou aos projetos da cobrança.')
+                                ->body('Uma ou mais distribuições foram removidas ou deixaram de pertencer aos projetos deste faturamento. Revise a integridade do documento.')
                                 ->send();
 
                             return null;
@@ -784,6 +785,12 @@ class CustomerBillingReceiptResource extends Resource
                     ->label('Corrigir integridade')
                     ->icon('heroicon-o-wrench-screwdriver')
                     ->color('warning')
+                    ->visible(function (CustomerBillingReceipt $record): bool {
+                        $diagnosis = app(DeliveryParentRecoveryService::class)
+                            ->diagnosisForCustomerReceipt($record);
+
+                        return $diagnosis['recoverable'] > 0 || $diagnosis['unrecoverable'] > 0;
+                    })
                     ->modalHeading(fn (CustomerBillingReceipt $record): string => 'Verificar '.$record->formatted_number)
                     ->modalDescription(function (CustomerBillingReceipt $record): string {
                         $diagnosis = app(DeliveryParentRecoveryService::class)

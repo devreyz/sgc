@@ -91,6 +91,7 @@ final class CustomerBillingSelectionService
         $lockedIds = $this->lockedDistributionIds($tenantId, $currentReceiptId);
         $query = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
             ->whereIn('sales_project_id', collect($projectIds)->map(fn ($id): int => (int) $id)->filter()->unique())
             ->whereNotNull('parent_delivery_id')
             ->where('status', DeliveryStatus::APPROVED->value)
@@ -118,6 +119,7 @@ final class CustomerBillingSelectionService
         } elseif ($organizationId) {
             $customerIds = Customer::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')
                 ->where('organization_id', $organizationId)
                 ->pluck('id');
             $query->whereIn('customer_id', $customerIds);
@@ -146,6 +148,7 @@ final class CustomerBillingSelectionService
         $receipts = $this->resolveAssociateReceipts($tenantId, $codes);
         $candidateIds = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
             ->whereIn('associate_receipt_id', $receipts->pluck('id'))
             ->pluck('id')->map(fn ($id): int => (int) $id)->unique()->values();
 
@@ -182,9 +185,9 @@ final class CustomerBillingSelectionService
             $lockedIds = $this->lockedDistributionIds($tenantId, $currentReceiptId);
             $rows = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)->whereIn('id', $excluded)
-                ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id']);
+                ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id', 'deleted_at']);
             $organizationCustomerIds = $organizationId
-                ? Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->where('organization_id', $organizationId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
+                ? Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')->where('organization_id', $organizationId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
                 : [];
             $foundIds = $rows->pluck('id')->map(fn ($id): int => (int) $id);
             $missingCount = $excluded->diff($foundIds)->count();
@@ -194,6 +197,7 @@ final class CustomerBillingSelectionService
             foreach ($rows as $row) {
                 $reason = match (true) {
                     in_array((int) $row->id, $lockedIds, true) => 'ja_faturada',
+                    $row->deleted_at !== null => 'removida',
                     ! in_array((int) $row->sales_project_id, array_map('intval', $projectIds), true) => 'outro_projeto',
                     $customerId && (int) $row->customer_id !== $customerId => 'outro_destinatario',
                     $organizationId && ! in_array((int) $row->customer_id, $organizationCustomerIds, true) => 'outro_destinatario',

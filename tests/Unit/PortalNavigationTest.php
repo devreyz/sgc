@@ -129,6 +129,7 @@ class PortalNavigationTest extends TestCase
             'accounting.data.processes.authorization.send',
             'accounting.data.processes.authorization.access',
             'accounting.data.processes.authorization.cancel',
+            'accounting.data.processes.integrity.repair',
             'accounting.fiscal.settings.store',
             'accounting.fiscal.prepare',
         ], $writeRoutes->pluck('action.as')->all());

@@ -101,9 +101,13 @@ class AccountingFiscalController extends Controller
 
     public function billingSheet(Request $request, AccountingProcessIntegrityService $integrity): Response
     {
-        abort_unless($request->user()->can('prepare_accounting_fiscal'), 403);
         $tenant = $this->tenant($request);
         $receipt = $this->receipt($request, $tenant->id);
+        abort_unless(
+            $request->user()->can('view_accounting_processes')
+                || $request->user()->can('prepare_accounting_fiscal'),
+            403,
+        );
         abort_if($receipt->status?->value === 'draft', 422, 'Feche o faturamento antes de imprimir a folha.');
         $inspection = $integrity->inspect($receipt);
         abort_if($inspection['blocking_count'] > 0, 422, $inspection['issues'][0]['message'] ?? 'O faturamento possui dados que precisam ser corrigidos.');
@@ -117,7 +121,7 @@ class AccountingFiscalController extends Controller
         }
         abort_if($deliveryIds->isEmpty(), 422, 'O faturamento não possui distribuições para imprimir.');
         $distributions = ProductionDelivery::withoutGlobalScopes()
-            ->where('tenant_id', $tenant->id)->whereIn('sales_project_id', $projectIds)
+            ->where('tenant_id', $tenant->id)->whereNull('deleted_at')->whereIn('sales_project_id', $projectIds)
             ->whereNotNull('parent_delivery_id')->whereIn('id', $deliveryIds)
             ->with(['product', 'customer.priceTable'])->orderBy('delivery_date')->get();
         abort_if($distributions->count() !== $deliveryIds->count(), 422, 'Uma ou mais distribuições da folha não pertencem mais ao faturamento validado.');

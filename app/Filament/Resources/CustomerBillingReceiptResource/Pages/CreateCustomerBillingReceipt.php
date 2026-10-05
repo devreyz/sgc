@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
 use App\Models\Organization;
 use App\Services\CustomerBillingProjectContextService;
+use App\Services\CustomerBillingReceiptService;
 use App\Services\CustomerBillingSelectionService;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
@@ -64,6 +65,19 @@ class CreateCustomerBillingReceipt extends CreateRecord
             ]);
         }
         $data['delivery_ids'] = $selection['selected_ids'];
+        try {
+            $snapshot = app(CustomerBillingReceiptService::class)->computeDraftSnapshotForIds(
+                (int) $tenantId,
+                $data['delivery_ids'],
+                $projects,
+            );
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages(['delivery_ids' => $exception->getMessage()]);
+        }
+        $data['total_gross'] = $snapshot['total_gross'];
+        $data['total_fees'] = $snapshot['total_fees'];
+        $data['total_net'] = $snapshot['total_net'];
+        $data['fee_snapshot'] = array_merge($snapshot['fee_snapshot'], ['draft_preview' => true]);
 
         $data['tenant_id'] = $tenantId;
         $data['sales_project_id'] = $project->id;

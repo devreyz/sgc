@@ -241,6 +241,51 @@ class CustomerBillingReceiptService
         ];
     }
 
+    /**
+     * Calcula o snapshot de um rascunho a partir de IDs já validados, sem
+     * aceitar registros removidos ou pertencentes a outro tenant/projeto.
+     */
+    public function computeDraftSnapshotForIds(int $tenantId, array $distributionIds, Collection $projects): array
+    {
+        $ids = collect($distributionIds)->map(fn ($id): int => (int) $id)->filter()->unique()->values();
+        $projectIds = $projects->pluck('id')->map(fn ($id): int => (int) $id)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [
+                'total_gross' => '0.00',
+                'total_fees' => '0.00',
+                'total_net' => '0.00',
+                'fee_snapshot' => [
+                    'fees' => [],
+                    'total_discounts' => '0.00',
+                    'total_accruals' => '0.00',
+                    'total_fee' => '0.00',
+                    'distribution_count' => 0,
+                    'fee_source' => 'no_fees',
+                    'project_ids' => $projectIds->all(),
+                    'document_lines' => [],
+                    'rounding' => 'HALF_UP_PER_CONSOLIDATED_LINE',
+                    'snapshot_version' => 2,
+                ],
+            ];
+        }
+
+        $distributions = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->whereIn('sales_project_id', $projectIds)
+            ->whereNotNull('parent_delivery_id')
+            ->whereIn('id', $ids)
+            ->with('product:id,tenant_id,name,unit,ncm')
+            ->get();
+
+        if ($distributions->count() !== $ids->count()) {
+            throw new \RuntimeException('Uma ou mais distribuições selecionadas não estão disponíveis neste tenant e conjunto de projetos.');
+        }
+
+        return $this->computeSnapshotForProjects($distributions, $projects);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Congelar comprovante
     // ─────────────────────────────────────────────────────────────────────────

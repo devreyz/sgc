@@ -70,6 +70,7 @@ class AccountingBillingController extends Controller
         if ($validProjectIds->isNotEmpty()) {
             $recipientCustomerIds = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $tenant->id)
+                ->whereNull('deleted_at')
                 ->whereIn('sales_project_id', $validProjectIds)
                 ->whereNotNull('parent_delivery_id')
                 ->whereNotNull('customer_id')
@@ -88,6 +89,7 @@ class AccountingBillingController extends Controller
             $recipientCustomerIds->push((int) $receipt->customer_id);
         }
         $customers = Customer::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->whereNull('deleted_at')
             ->whereIn('id', $recipientCustomerIds->unique())
             ->where('status', true)->orderBy('name')->get(['id', 'name', 'trade_name', 'organization_id']);
         $organizationIds = $customers->pluck('organization_id')->filter()->map(fn ($id): int => (int) $id)->unique();

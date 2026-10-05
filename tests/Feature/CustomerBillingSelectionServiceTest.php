@@ -167,4 +167,16 @@ class CustomerBillingSelectionServiceTest extends TestCase
         self::assertSame([1, 2, 3], $editingSameDraft['selected_ids']);
         self::assertSame(0, $editingSameDraft['excluded_count']);
     }
+
+    public function test_soft_deleted_distribution_is_never_available_for_billing(): void
+    {
+        DB::table('production_deliveries')->where('id', 1)->update(['deleted_at' => now()]);
+
+        $result = app(CustomerBillingSelectionService::class)
+            ->selectDistributionIds(1, [1, 2], [300], 10, null, null, null);
+
+        self::assertSame([2], $result['selected_ids']);
+        self::assertSame(1, $result['excluded_count']);
+        self::assertSame(1, $result['reasons']['removida']);
+    }
 }

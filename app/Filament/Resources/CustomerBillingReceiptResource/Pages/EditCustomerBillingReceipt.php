@@ -6,6 +6,7 @@ use App\Filament\Resources\CustomerBillingReceiptResource;
 use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\SalesProject;
+use App\Services\CustomerBillingProjectContextService;
 use App\Services\CustomerBillingReceiptService;
 use App\Services\CustomerBillingSelectionService;
 use App\Services\ProjectReceiptNumberingService;
@@ -75,6 +76,20 @@ class EditCustomerBillingReceipt extends EditRecord
             ]);
         }
         $data['delivery_ids'] = $selection['selected_ids'];
+        try {
+            $projects = app(CustomerBillingProjectContextService::class)->projectsForReceipt($this->record);
+            $snapshot = app(CustomerBillingReceiptService::class)->computeDraftSnapshotForIds(
+                (int) $this->record->tenant_id,
+                $data['delivery_ids'],
+                $projects,
+            );
+        } catch (\RuntimeException $exception) {
+            throw ValidationException::withMessages(['delivery_ids' => $exception->getMessage()]);
+        }
+        $data['total_gross'] = $snapshot['total_gross'];
+        $data['total_fees'] = $snapshot['total_fees'];
+        $data['total_net'] = $snapshot['total_net'];
+        $data['fee_snapshot'] = array_merge($snapshot['fee_snapshot'], ['draft_preview' => true]);
         $tenantDuplicate = $this->record->newQuery()
             ->where('tenant_id', $this->record->tenant_id)
             ->where('tenant_receipt_year', $data['tenant_receipt_year'])

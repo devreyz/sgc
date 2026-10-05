@@ -7,6 +7,7 @@ use App\Models\BillingAuthorization;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
 use App\Models\User;
+use App\Services\Accounting\AccountingBillingService;
 use App\Services\Accounting\AccountingProcessIntegrityService;
 use App\Services\Accounting\BillingAuthorizationNotificationService;
 use App\Services\Accounting\BillingAuthorizationSnapshotService;
@@ -166,7 +167,28 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('distributions.data.0.gross_value', 200)
             ->assertJsonPath('distributions.data.0.parent.id', 300)
             ->assertJsonPath('process.financial.net', 180)
+            ->assertJsonPath('process.pdf_url', route('accounting.fiscal.billing-sheet', ['tenant' => 'tenant-a', 'receipt' => 10]))
             ->assertJsonPath('process.integrity.critical_count', 0);
+    }
+
+    public function test_empty_draft_selection_clears_previous_financial_snapshot(): void
+    {
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft']);
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+
+        $saved = app(AccountingBillingService::class)->saveDraft(1, [
+            'project_ids' => [10],
+            'organization_id' => 1,
+            'customer_id' => null,
+            'issued_at' => '2026-08-20',
+            'distribution_ids' => [],
+        ], User::query()->findOrFail(1), $receipt);
+
+        self::assertSame([], $saved->delivery_ids);
+        self::assertSame(0, bccomp('0.0000', (string) $saved->total_gross, 4));
+        self::assertSame(0, bccomp('0.0000', (string) $saved->total_fees, 4));
+        self::assertSame(0, bccomp('0.0000', (string) $saved->total_net, 4));
+        self::assertSame([], data_get($saved->fee_snapshot, 'document_lines'));
     }
 
     public function test_parent_delivery_with_active_distribution_cannot_be_soft_deleted(): void
@@ -232,11 +254,15 @@ class AccountingPortalSecurityTest extends TestCase
             collect(app(AccountingProcessIntegrityService::class)->inspect($receipt)['issues'])->pluck('code')->all(),
         );
 
-        $result = app(DeliveryParentRecoveryService::class)
-            ->restoreForCustomerReceipt($receipt, User::query()->findOrFail(1));
+        $user = User::query()->findOrFail(1);
+        $this->actingAs($user)->getJson('/tenant-a/accounting/data/processes/10')
+            ->assertOk()
+            ->assertJsonPath('process.integrity.repair_url', route('accounting.data.processes.integrity.repair', ['tenant' => 'tenant-a', 'receipt' => 10]));
+        $this->actingAs($user)->postJson('/tenant-a/accounting/data/processes/10/integrity/repair')
+            ->assertOk()
+            ->assertJsonPath('restored.0', 300)
+            ->assertJsonPath('unresolved', []);
 
-        self::assertSame([300], $result['restored']);
-        self::assertSame([], $result['unresolved']);
         self::assertFalse(ProductionDelivery::withoutGlobalScopes()->withTrashed()->findOrFail(300)->trashed());
         self::assertSame($before, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)
             ->only(['quantity', 'unit_price', 'gross_value', 'net_value', 'billing_receipt_id']));
