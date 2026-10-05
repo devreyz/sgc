@@ -31,6 +31,7 @@ use App\Services\DeliveryParentRecoveryService;
 use App\Services\DeliveryProjectIntegrityService;
 use App\Services\DeliveryQuantityAdjustmentService;
 use App\Services\DeletedDistributionService;
+use App\Services\DestructiveActionConfirmationService;
 use App\Services\CustomerBillingProjectContextService;
 use App\Services\CustomerBillingReceiptService;
 use App\Services\FinancialDocumentIdentityService;
@@ -1085,21 +1086,32 @@ class DeliveryRegistrationController extends Controller
         $organizationId = $distribution->customer?->organization_id;
         $receipt = $distribution->associateReceipt;
 
-        if ($receipt || $customerDrafts->isNotEmpty()) {
-            if ($receipt?->isLocked()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Esta distribuicao nao pode ser excluida porque esta em um comprovante pago.',
-                ], 422);
-            }
+        if ($receipt?->isLocked()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta distribuicao nao pode ser excluida porque esta em um comprovante pago.',
+            ], 422);
+        }
 
-            if (! $request->boolean('impact_confirmed') || (int) $request->input('math_answer') !== 2) {
-                return response()->json([
-                    'success' => false,
-                    'requires_confirmation' => true,
-                    'message' => 'Esta distribuição está reservada em um comprovante ou faturamento em rascunho. Confirme 1 + 1 para removê-la, recalcular os rascunhos e manter o registro no histórico.',
-                ], 409);
-            }
+        $confirmation = app(DestructiveActionConfirmationService::class);
+        if (! $confirmation->verifyAndConsume(
+            $request,
+            'delete_distribution',
+            (int) $distribution->id,
+            $request->string('confirmation_id')->toString() ?: null,
+            $request->string('confirmation_code')->toString() ?: null,
+        )) {
+            return response()->json([
+                'success' => false,
+                'requires_strong_confirmation' => true,
+                'message' => $receipt || $customerDrafts->isNotEmpty()
+                    ? 'A distribuição está em um comprovante ou faturamento em rascunho. Confirme sua identidade para removê-la e recalcular os documentos.'
+                    : 'Confirme sua identidade ou o código de segurança para excluir esta distribuição.',
+                'confirmation_url' => route('delivery.distributions.confirmation', [
+                    'tenant' => $this->currentTenant()?->slug,
+                    'distribution' => $distribution->id,
+                ]),
+            ], 409);
         }
 
         DB::transaction(function () use ($distribution, $receipt, $customerDrafts) {
@@ -1210,6 +1222,28 @@ class DeliveryRegistrationController extends Controller
             'dist_total_qty' => (float) $distTotal,
             'dist_total_net' => (float) $distNetTotal,
         ]);
+    }
+
+    public function issueDistributionDeleteConfirmation(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        abort_unless($tenantId > 0, 403);
+        $distribution = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNull('deleted_at')
+            ->whereNotNull('parent_delivery_id')
+            ->findOrFail((int) $request->route('distribution'));
+        $challenge = app(DestructiveActionConfirmationService::class)
+            ->issue($request, 'delete_distribution', (int) $distribution->id);
+
+        return response()->json([
+            'success' => true,
+            'confirmation' => $challenge,
+            'passkey_routes' => [
+                'options' => route('security.reauth.passkey.options'),
+                'submit' => route('security.reauth.passkey.store'),
+            ],
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function updateDistribution(Request $request)
@@ -1464,8 +1498,8 @@ class DeliveryRegistrationController extends Controller
             ], 422);
         }
 
-        // Pending/rejected can always be deleted; approved requires explicit confirmation
-        // (frontend sends 'force' flag for approved deliveries)
+        // Only operational statuses can be deleted. Every deletion still requires
+        // the server-bound confirmation checked below.
         $allowedStatuses = [DeliveryStatus::PENDING, DeliveryStatus::REJECTED, DeliveryStatus::APPROVED];
         if (! in_array($delivery->status, $allowedStatuses)) {
             return response()->json(['success' => false, 'message' => 'Esta entrega não pode ser excluída.'], 400);
@@ -1485,6 +1519,24 @@ class DeliveryRegistrationController extends Controller
             ], 422);
         }
 
+        if (! app(DestructiveActionConfirmationService::class)->verifyAndConsume(
+            $request,
+            'delete_delivery',
+            (int) $delivery->id,
+            $request->string('confirmation_id')->toString() ?: null,
+            $request->string('confirmation_code')->toString() ?: null,
+        )) {
+            return response()->json([
+                'success' => false,
+                'requires_strong_confirmation' => true,
+                'message' => 'Confirme sua identidade para excluir esta entrega e suas distribuições.',
+                'confirmation_url' => route('delivery.deliveries.confirmation', [
+                    'tenant' => $this->currentTenant()?->slug,
+                    'delivery' => $delivery->id,
+                ]),
+            ], 409);
+        }
+
         // Also delete child distributions
         ProductionDelivery::where('tenant_id', $tenantId)
             ->where('parent_delivery_id', $deliveryId)
@@ -1493,6 +1545,30 @@ class DeliveryRegistrationController extends Controller
         $delivery->delete();
 
         return response()->json(['success' => true, 'message' => 'Entrega excluída.']);
+    }
+
+    public function issueDeliveryDeleteConfirmation(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        abort_unless($tenantId > 0, 403);
+
+        $delivery = ProductionDelivery::query()
+            ->where('tenant_id', $tenantId)
+            ->where('received_by', $request->user()->id)
+            ->whereNull('parent_delivery_id')
+            ->findOrFail((int) $request->route('delivery'));
+
+        $challenge = app(DestructiveActionConfirmationService::class)
+            ->issue($request, 'delete_delivery', (int) $delivery->id);
+
+        return response()->json([
+            'success' => true,
+            'confirmation' => $challenge,
+            'passkey_routes' => [
+                'options' => route('security.reauth.passkey.options'),
+                'submit' => route('security.reauth.passkey.store'),
+            ],
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -1875,6 +1951,24 @@ class DeliveryRegistrationController extends Controller
                     'success' => false,
                     'message' => 'Esta distribuicao nao pode ser removida por esta rotina de correcao.',
                 ], 422);
+            }
+
+            if (! app(DestructiveActionConfirmationService::class)->verifyAndConsume(
+                $request,
+                'delete_distribution',
+                (int) $distribution->id,
+                $request->string('confirmation_id')->toString() ?: null,
+                $request->string('confirmation_code')->toString() ?: null,
+            )) {
+                return response()->json([
+                    'success' => false,
+                    'requires_strong_confirmation' => true,
+                    'message' => 'Confirme sua identidade para remover definitivamente esta distribuição órfã.',
+                    'confirmation_url' => route('delivery.distributions.confirmation', [
+                        'tenant' => $this->currentTenant()?->slug,
+                        'distribution' => $distribution->id,
+                    ]),
+                ], 409);
             }
 
             $distribution->delete();

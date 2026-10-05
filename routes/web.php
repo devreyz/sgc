@@ -522,6 +522,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/register-batch', [DeliveryRegistrationController::class, 'storeBatch'])->name('store-batch');
         Route::get('/customers', [DeliveryRegistrationController::class, 'getCustomers'])->name('customers');
         Route::delete('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'deleteDelivery'])->name('deliveries.delete');
+        Route::post('/deliveries/{delivery}/confirmation', [DeliveryRegistrationController::class, 'issueDeliveryDeleteConfirmation'])
+            ->middleware('throttle:10,1')->name('deliveries.confirmation');
         Route::get('/projects/{project}/demands', [DeliveryRegistrationController::class, 'getProjectDemands'])->name('projects.demands');
         Route::get('/projects/{project}/deliveries-json', [DeliveryRegistrationController::class, 'getProjectDeliveries'])->name('projects.deliveries-json');
         Route::get('/projects/{project}/deliveries-data', [DeliveryRegistrationController::class, 'projectDeliveriesData'])->name('projects.deliveries-data');
@@ -541,6 +543,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::get('/deliveries/{delivery}/customers/{customer}/price', [DeliveryRegistrationController::class, 'distributionPrice'])->name('deliveries.customers.price');
         Route::put('/deliveries/{delivery}/customers/{customer}/price', [DeliveryRegistrationController::class, 'updateDistributionPrice'])->name('deliveries.customers.price.update');
         Route::delete('/distributions/{distribution}', [DeliveryRegistrationController::class, 'deleteDistribution'])->name('distributions.delete');
+        Route::post('/distributions/{distribution}/confirmation', [DeliveryRegistrationController::class, 'issueDistributionDeleteConfirmation'])
+            ->middleware('throttle:10,1')->name('distributions.confirmation');
         Route::put('/distributions/{distribution}', [DeliveryRegistrationController::class, 'updateDistribution'])->name('distributions.update');
         Route::put('/deliveries/{delivery}', [DeliveryRegistrationController::class, 'updateDelivery'])->name('deliveries.update');
         Route::post('/projects/{project}/start', [DeliveryRegistrationController::class, 'startProject'])->name('projects.start');

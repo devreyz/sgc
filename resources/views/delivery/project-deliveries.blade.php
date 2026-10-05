@@ -3626,6 +3626,7 @@ body.pd-sheet-open {
 <script>
 const PD_TENANT    = '{{ $currentTenant->slug }}';
 const PD_CSRF      = '{{ csrf_token() }}';
+const pdCsrfToken  = () => document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF;
 const PD_PROJECT   = {{ $project->id }};
 const PD_CUSTOMERS = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
 const projectListState = {
@@ -3799,7 +3800,7 @@ async function restoreDeletedDistribution(distributionId) {
     try {
         const response = await fetch(
             `/${PD_TENANT}/delivery/projects/${PD_PROJECT}/distributions/${distributionId}/restore`,
-            { method: 'POST', headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: '{}' }
+            { method: 'POST', headers: { 'X-CSRF-TOKEN': pdCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: '{}' }
         );
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -3809,8 +3810,13 @@ async function restoreDeletedDistribution(distributionId) {
         }
 
         pdToast(data.message || 'Distribuição restaurada.');
-        if (data.parent_delivery_id) refreshDeliveryItem(data.parent_delivery_id).catch(() => {});
-        latestIntegrityData = data.integrity || latestIntegrityData;
+        if (data.parent_delivery_id) {
+            await Promise.allSettled([
+                refreshDeliveryItem(data.parent_delivery_id),
+                refreshIntegrityCenter(),
+            ]);
+        }
+        if (data.integrity) renderIntegrityCenter(data.integrity);
         await loadDeletedDistributionHistory();
     } catch (error) {
         pdToast('Erro de comunicação ao restaurar a distribuição.', 'error');
@@ -3898,14 +3904,22 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
         : actionKey === 'restore_parent_delivery'
             ? 'Restaurar a entrega-pai excluída? Quantidades, valores e comprovantes não serão alterados.'
             : 'Excluir esta distribuição órfã? Esta correção não pode ser desfeita.';
-    const confirmed = await customConfirm(message);
-    if (!confirmed) return;
+    let confirmation = {};
+    if (actionKey === 'delete_orphan_distribution') {
+        confirmation = await window.SgcConfirmDestructiveAction(distributionId, message);
+        if (!confirmation) return;
+    } else {
+        const confirmed = await customConfirm(message);
+        if (!confirmed) return;
+    }
 
     try {
+        const csrfToken = confirmation.csrf_token || pdCsrfToken();
+        delete confirmation.csrf_token;
         const res = await fetch(`/${PD_TENANT}/delivery/projects/${PD_PROJECT}/integrity/resolve`, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ action: actionKey, distribution_id: distributionId }),
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action: actionKey, distribution_id: distributionId, ...confirmation }),
         });
         const data = await res.json();
         if (!data.success) {
@@ -3914,8 +3928,15 @@ async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId =
         }
 
         applyResolvedIntegrity(data.integrity, actionKey, distributionId);
-        if (deliveryId) refreshDeliveryItem(deliveryId).catch(() => {});
-        pdToast(data.message);
+        if (deliveryId) {
+            await syncDeliveryAfterMutation(deliveryId, data.message || 'Pendência resolvida.', {
+                attempts: 4,
+                reloadOnFailure: true,
+            });
+        } else {
+            await refreshIntegrityCenter();
+            pdToast(data.message);
+        }
     } catch (error) {
         pdToast('Erro de comunicação ao aplicar a correção.', 'error');
     }
@@ -4000,16 +4021,15 @@ function customConfirm(message, options = {}) {
         let expectedAnswer = null;
 
         if (options.challenge) {
-            /*
-             * Desafio simples, propositalmente variável. Ele não substitui
-             * as validações do backend; serve como confirmação consciente
-             * antes de uma exclusão de impacto.
-             */
-            const a = Math.floor(Math.random() * 5) + 2;
-            const b = Math.floor(Math.random() * 4) + 1;
-            expectedAnswer = String(a + b);
-
-            questionEl.textContent = `Para continuar, responda: ${a} + ${b} = ?`;
+            if (options.challengeCode) {
+                expectedAnswer = String(options.challengeCode).toUpperCase();
+                questionEl.textContent = `Digite o código de uso único: ${options.challengeCode}`;
+                inputEl.inputMode = 'text';
+            } else {
+                expectedAnswer = '';
+                questionEl.textContent = 'Confirme sua identidade para continuar.';
+                inputEl.inputMode = 'text';
+            }
             inputEl.value = '';
             errorEl.hidden = true;
             errorEl.textContent = '';
@@ -4046,10 +4066,12 @@ function customConfirm(message, options = {}) {
         const validateChallenge = () => {
             if (!options.challenge) return true;
 
-            const answer = String(inputEl.value || '').trim();
+            const answer = String(inputEl.value || '').trim().toUpperCase();
 
             if (answer !== expectedAnswer) {
-                errorEl.textContent = 'Resposta incorreta. Confira a conta antes de continuar.';
+                errorEl.textContent = options.challengeCode
+                    ? 'Código incorreto. Digite exatamente o código exibido.'
+                    : 'Não foi possível validar esta confirmação.';
                 errorEl.hidden = false;
                 inputEl.focus({ preventScroll: true });
                 inputEl.select?.();
@@ -4103,6 +4125,100 @@ function customConfirm(message, options = {}) {
         }
     });
 }
+
+function isNativeAndroidDeliveryApp() {
+    return Boolean(
+        window.Capacitor?.isNativePlatform?.()
+        && window.Capacitor?.getPlatform?.() === 'android'
+    );
+}
+
+async function readSecurityJson(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || 'Não foi possível confirmar a ação.');
+    return data;
+}
+
+async function reauthenticateDeletionWithPasskey(routes) {
+    let result;
+    if (isNativeAndroidDeliveryApp()) {
+        const nativeAuth = window.Capacitor?.Plugins?.NativeAuth;
+        if (!nativeAuth?.passkeySignIn) throw new Error('Passkey nativa indisponível neste aplicativo.');
+        const optionsData = await fetch(routes.options, {
+            cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+            headers: { 'Accept': 'application/json', 'X-SGC-Platform': 'android' },
+        }).then(readSecurityJson);
+        const nativeCredential = await nativeAuth.passkeySignIn({
+            requestJson: JSON.stringify(optionsData.options),
+        });
+        const credential = JSON.parse(nativeCredential.credentialJson);
+        result = await fetch(routes.submit, {
+            method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+            headers: {
+                'Accept': 'application/json', 'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest', 'X-SGC-Platform': 'android',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
+            },
+            body: JSON.stringify({ credential }),
+        }).then(readSecurityJson);
+    } else {
+        if (!window.SgcPasskeys?.isSupported?.()) throw new Error('Passkey indisponível neste navegador.');
+        result = await window.SgcPasskeys.verify({ routes });
+    }
+
+    if (result?.csrf_token) {
+        document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', result.csrf_token);
+    }
+    return result || {};
+}
+
+window.SgcConfirmDestructiveAction = async function(distributionId, message, confirmationUrl = null) {
+    const url = confirmationUrl || `/${PD_TENANT}/delivery/distributions/${distributionId}/confirmation`;
+    const issued = await fetch(url, {
+        method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json', 'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
+        },
+        body: '{}',
+    }).then(readSecurityJson);
+    const confirmation = issued.confirmation || {};
+
+    if (confirmation.passkey_available) {
+        try {
+            pdToast('Confirme com biometria, PIN ou passkey para continuar.', 'info');
+            const reauth = await reauthenticateDeletionWithPasskey(issued.passkey_routes);
+            return {
+                confirmation_id: confirmation.id,
+                csrf_token: reauth.csrf_token || document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
+            };
+        } catch (error) {
+            pdToast(error.message || 'A confirmação por passkey não foi concluída.', 'error');
+            return null;
+        }
+    }
+
+    if (!confirmation.code) {
+        pdToast('Não foi possível emitir a confirmação segura. Atualize a página e tente novamente.', 'error');
+        return null;
+    }
+
+    const accepted = await customConfirm(message, {
+        title: 'Confirmação segura de exclusão',
+        confirmLabel: 'Excluir definitivamente',
+        challenge: true,
+        challengeCode: confirmation.code,
+        danger: true,
+    });
+    if (!accepted) return null;
+
+    return {
+        confirmation_id: confirmation.id,
+        confirmation_code: confirmation.code,
+        csrf_token: document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
+    };
+};
 
 /* ========== TOAST ========== */
 function pdToast(msg, type = 'success') {
@@ -4527,13 +4643,20 @@ document.addEventListener('click', async function(e) {
 
     if (deleteBtn) {
         const id = deleteBtn.dataset.id;
-        const confirmed = await customConfirm('Excluir esta entrega? Esta ação também removerá as distribuicoes associadas quando existirem e nao pode ser desfeita.');
-        if (!confirmed) return;
+        const confirmation = await window.SgcConfirmDestructiveAction(
+            id,
+            'Excluir esta entrega? Esta ação também removerá as distribuições associadas quando existirem e não pode ser desfeita.',
+            `/${PD_TENANT}/delivery/deliveries/${id}/confirmation`
+        );
+        if (!confirmation) return;
         deleteBtn.disabled = true;
         try {
+            const csrfToken = confirmation.csrf_token || pdCsrfToken();
+            delete confirmation.csrf_token;
             const res  = await fetch(`/${PD_TENANT}/delivery/deliveries/${id}`, {
                 method : 'DELETE',
-                headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Accept': 'application/json' }
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(confirmation),
             });
             const data = await res.json();
             if (data.success) {
@@ -4569,7 +4692,7 @@ document.addEventListener('click', async function(e) {
         try {
             const res  = await fetch(`/${PD_TENANT}/delivery/deliveries/${id}/${action}`, {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': PD_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' }
+                headers: { 'X-CSRF-TOKEN': pdCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' }
             });
             const data = await res.json();
             if (data.success) {
@@ -5041,7 +5164,7 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
     if (!deliveryId) return false;
 
     const maxAttempts = Math.max(1, Number(options.attempts || 3));
-    let deliveryError = null;
+    let synchronizationError = null;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -5051,11 +5174,7 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
                 refreshIntegrityCenter(),
             ]);
 
-            if (deliveryResult.status === 'fulfilled') {
-                if (integrityResult.status === 'rejected') {
-                    console.warn('Central de inconsistências não atualizada:', integrityResult.reason);
-                }
-
+            if (deliveryResult.status === 'fulfilled' && integrityResult.status === 'fulfilled') {
                 updateDistributionProgressTone();
                 upgradeDuotoneIcons(document);
 
@@ -5066,7 +5185,9 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
                 return true;
             }
 
-            deliveryError = deliveryResult.reason;
+            synchronizationError = deliveryResult.status === 'rejected'
+                ? deliveryResult.reason
+                : integrityResult.reason;
 
             if (attempt < maxAttempts) {
                 await new Promise(resolve =>
@@ -5074,12 +5195,12 @@ async function syncDeliveryAfterMutation(id, successMessage, options = {}) {
                 );
             }
         } catch (error) {
-            deliveryError = error;
+            synchronizationError = error;
         }
     }
 
     pdToast(
-        deliveryError?.message
+        synchronizationError?.message
             || 'A alteração foi salva, mas a interface não pôde ser sincronizada.',
         'error'
     );
@@ -5451,58 +5572,13 @@ function installComponentUxOverrides() {
         window.DistModal.deleteExisting = async function(distributionId) {
             const row = document.getElementById('dmex-' + distributionId);
             const inReceipt = !!row?.querySelector('.dm-status-badge.receipt');
-
-            if (inReceipt) {
-                const receiptLabel =
-                    row.querySelector('.dm-status-badge.receipt')?.getAttribute('title')
-                    || 'um comprovante';
-
-                const confirmed = await customConfirm(
-                    `Esta distribuição está vinculada a ${receiptLabel}. A exclusão forçada removerá o vínculo e recalculará os totais. Esta ação exige confirmação adicional.`,
-                    {
-                        title: 'Exclusão forçada',
-                        confirmLabel: 'Excluir distribuição',
-                        challenge: true,
-                        danger: true,
-                    }
-                );
-
-                if (!confirmed) return;
-
-                /*
-                 * O backend do componente já exige estas duas flags para
-                 * confirmar o impacto. O desafio acima é uma camada extra
-                 * de UX; a validação do servidor continua intacta.
-                 */
-                const result = await window.DistModal.performDelete(
-                    distributionId,
-                    {
-                        impact_confirmed: true,
-                        math_answer: 2,
-                    }
-                );
-
-                updateDistributionProgressTone();
-                upgradeDuotoneIcons(document);
-
-                return result;
-            }
-
-            const confirmed = await customConfirm(
-                'Remover esta distribuição? Os totais da entrega serão atualizados imediatamente.',
-                {
-                    title: 'Remover distribuição',
-                    confirmLabel: 'Remover',
-                    danger: true,
-                }
-            );
-
-            if (!confirmed) return;
-
-            const result = await window.DistModal.performDelete(
-                distributionId,
-                {}
-            );
+            const receiptLabel = row?.querySelector('.dm-status-badge.receipt')?.getAttribute('title') || 'um rascunho';
+            const message = inReceipt
+                ? `Esta distribuição está vinculada a ${receiptLabel}. A exclusão removerá o vínculo, recalculará os totais e preservará o histórico.`
+                : 'A distribuição será excluída, os totais serão recalculados e o registro continuará disponível no histórico.';
+            const confirmation = await window.SgcConfirmDestructiveAction(distributionId, message);
+            if (!confirmation) return;
+            const result = await window.DistModal.performDelete(distributionId, confirmation);
 
             updateDistributionProgressTone();
             upgradeDuotoneIcons(document);

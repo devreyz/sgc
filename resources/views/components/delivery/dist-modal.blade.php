@@ -828,41 +828,6 @@
     line-height: 1.48;
 }
 
-.dm-confirm-math {
-    display: grid;
-    gap: .28rem;
-    margin-top: .68rem;
-    padding: .52rem;
-    border-radius: 9px;
-    background: var(--dm-red-soft);
-}
-
-.dm-confirm-math label {
-    color: #991b1b;
-    font-size: .64rem;
-    font-weight: 780;
-    line-height: 1.3;
-    text-transform: none;
-}
-
-.dm-confirm-math input {
-    width: 100%;
-    min-height: 40px;
-    padding: .46rem .56rem;
-    border: 1px solid rgba(207, 63, 63, .20);
-    border-radius: 9px;
-    outline: none;
-    background: #fff;
-    color: var(--dm-text);
-    font: inherit;
-    font-size: .8rem;
-}
-
-.dm-confirm-math input:focus {
-    border-color: var(--dm-red);
-    box-shadow: 0 0 0 3px rgba(207, 63, 63, .07);
-}
-
 .dm-confirm-actions {
     display: flex;
     gap: .4rem;
@@ -1831,46 +1796,6 @@ body.dm-page-locked {
     line-height:1.48;
 }
 
-.dm-confirm-math {
-    margin:0 .7rem .64rem;
-    padding:.52rem;
-    border:1px solid rgba(207,63,63,.13);
-    border-radius:10px;
-    background:var(--dm-red-soft);
-}
-
-.dm-confirm-math[hidden] {
-    display:none !important;
-}
-
-.dm-confirm-math-head {
-    display:flex;
-    align-items:center;
-    gap:.26rem;
-    margin-bottom:.3rem;
-    color:var(--dm-red);
-    font-size:.61rem;
-    font-weight:820;
-}
-
-.dm-confirm-math-head .ph-duotone {
-    font-size:14px !important;
-}
-
-.dm-confirm-math input {
-    min-height:42px;
-    margin-top:.28rem;
-    font-size:.85rem;
-    font-weight:850;
-}
-
-.dm-confirm-error {
-    margin-top:.24rem;
-    color:var(--dm-red);
-    font-size:.58rem;
-    font-weight:760;
-}
-
 .dm-confirm-actions {
     display:grid;
     grid-template-columns:1fr 1fr;
@@ -2286,16 +2211,6 @@ body.dm-page-locked {
             </div>
         </div>
 
-        <div class="dm-confirm-math" id="dm-confirm-math" hidden>
-            <div class="dm-confirm-math-head">
-                <i class="ph-duotone ph-shield-warning" aria-hidden="true"></i>
-                <span>Confirmação adicional</span>
-            </div>
-            <label for="dm-confirm-answer">Para continuar, responda: <strong>1 + 1 = ?</strong></label>
-            <input id="dm-confirm-answer" type="number" inputmode="numeric" autocomplete="off" placeholder="Resultado">
-            <div class="dm-confirm-error" id="dm-confirm-error" hidden>Resposta incorreta.</div>
-        </div>
-
         <div class="dm-confirm-actions">
             <button type="button" class="btn btn-ghost btn-sm" onclick="DistModal.cancelDangerConfirm()">Cancelar</button>
             <button type="button" class="btn btn-danger btn-sm" id="dm-confirm-ok" onclick="DistModal.acceptDangerConfirm()">Confirmar</button>
@@ -2335,6 +2250,7 @@ body.dm-page-locked {
 /* ── Config injetada pelo Blade ────────────────────────────────────── */
 const DM_TENANT    = @json($tenantSlug);
 const DM_CSRF      = @json($csrf);
+const dmCsrfToken  = () => document.querySelector('meta[name="csrf-token"]')?.content || DM_CSRF;
 const DM_CUSTOMERS = @json($customers);
 
 /* ── State ─────────────────────────────────────────────────────────── */
@@ -2355,7 +2271,6 @@ let _singleDefaultCustomerId = null;
 
 let _notes = '';
 let _confirmResolver = null;
-let _confirmChallenge = false;
 let _confirmTone = 'danger';
 let _scrollLockY = 0;
 
@@ -2419,7 +2334,6 @@ function openDmConfirm({
     message = 'Deseja continuar?',
     confirmLabel = 'Confirmar',
     tone = 'danger',
-    challenge = false,
     icon = null,
 } = {}) {
     if (_confirmResolver) {
@@ -2427,14 +2341,10 @@ function openDmConfirm({
         _confirmResolver = null;
     }
 
-    _confirmChallenge = !!challenge;
     _confirmTone = tone;
 
     const overlay = $('dm-confirm-overlay');
     const box = $('dm-confirm-box');
-    const math = $('dm-confirm-math');
-    const answer = $('dm-confirm-answer');
-    const error = $('dm-confirm-error');
 
     $('dm-confirm-title').textContent = title;
     $('dm-confirm-text').textContent = message;
@@ -2452,10 +2362,6 @@ function openDmConfirm({
                 : 'trash')
     );
 
-    math.hidden = !_confirmChallenge;
-    answer.value = '';
-    error.hidden = true;
-
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden', 'false');
 
@@ -2464,11 +2370,7 @@ function openDmConfirm({
 
         if (dmShouldAutoFocus()) {
             window.setTimeout(() => {
-                if (_confirmChallenge) {
-                    answer.focus({ preventScroll: true });
-                } else {
-                    $('dm-confirm-ok')?.focus({ preventScroll: true });
-                }
+                $('dm-confirm-ok')?.focus({ preventScroll: true });
             }, 35);
         }
     });
@@ -2480,11 +2382,8 @@ function finishDmConfirm(result) {
     overlay.classList.remove('open');
     overlay.setAttribute('aria-hidden', 'true');
 
-    $('dm-confirm-error').hidden = true;
-
     const resolver = _confirmResolver;
     _confirmResolver = null;
-    _confirmChallenge = false;
 
     resolver?.(result);
 }
@@ -3070,7 +2969,7 @@ window.DistModal = {
         try {
             const res = await fetch(`/${DM_TENANT}/delivery/distributions/${distributionId}`, {
                 method: 'PUT',
-                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': dmCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify({ customer_id: parseInt(customerId), quantity }),
             });
             const data = await res.json();
@@ -3096,45 +2995,19 @@ window.DistModal = {
         const d = _existing.find(item => String(item.id) === String(distributionId));
         if (!d || !distributionCanDelete(d)) return;
 
-        if (d.in_receipt) {
-            _pendingDangerDelete = d;
-
-            const confirmed = await openDmConfirm({
-                title: 'Exclusão forçada',
-                message: `Esta distribuição está no comprovante ${d.receipt_number || '#' + d.receipt_id}. Ao excluir, ela será removida do comprovante e os totais serão recalculados.`,
-                confirmLabel: 'Excluir distribuição',
-                tone: 'danger',
-                challenge: true,
-                icon: 'shield-warning',
-            });
-
-            if (!confirmed) {
-                _pendingDangerDelete = null;
-                return;
-            }
-
-            const current = _pendingDangerDelete;
-            _pendingDangerDelete = null;
-
-            return this.performDelete(
-                current.id,
-                {
-                    impact_confirmed: true,
-                    math_answer: 2,
-                }
-            );
+        const message = d.in_receipt
+            ? `Esta distribuição está no comprovante ${d.receipt_number || '#' + d.receipt_id}. Ao excluir, ela será removida do comprovante e os totais serão recalculados.`
+            : 'A distribuição será excluída e mantida no histórico. Os totais da entrega serão atualizados.';
+        if (typeof window.SgcConfirmDestructiveAction === 'function') {
+            const confirmation = await window.SgcConfirmDestructiveAction(distributionId, message);
+            if (!confirmation) return;
+            return this.performDelete(distributionId, confirmation);
         }
 
         const confirmed = await openDmConfirm({
-            title: 'Remover distribuição',
-            message: 'Deseja remover esta distribuição? Os totais da entrega serão atualizados imediatamente.',
-            confirmLabel: 'Remover',
-            tone: 'danger',
-            icon: 'trash',
+            title: 'Remover distribuição', message, confirmLabel: 'Continuar', tone: 'danger', icon: 'trash',
         });
-
         if (!confirmed) return;
-
         return this.performDelete(distributionId, {});
     },
 
@@ -3144,21 +3017,6 @@ window.DistModal = {
     },
 
     acceptDangerConfirm() {
-        if (_confirmChallenge) {
-            const answer = parseInt($('dm-confirm-answer').value || '', 10);
-
-            if (answer !== 2) {
-                $('dm-confirm-error').hidden = false;
-
-                if (dmShouldAutoFocus()) {
-                    $('dm-confirm-answer')?.focus({ preventScroll: true });
-                    $('dm-confirm-answer')?.select?.();
-                }
-
-                return;
-            }
-        }
-
         finishDmConfirm(true);
     },
 
@@ -3166,10 +3024,13 @@ window.DistModal = {
         const saveBtn = $('dm-save-btn');
         saveBtn.disabled = true;
         try {
+            const csrfToken = payload.csrf_token || dmCsrfToken();
+            const requestPayload = { ...payload };
+            delete requestPayload.csrf_token;
             const res  = await fetch(`/${DM_TENANT}/delivery/distributions/${distributionId}`, {
                 method:  'DELETE',
-                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body: JSON.stringify(payload),
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(requestPayload),
             });
             const data = await res.json();
             if (data.success) {
@@ -3189,32 +3050,13 @@ window.DistModal = {
                     window._DistModalOnDelete(_id, data);
                 }
             } else {
-                if (data.requires_confirmation) {
-                    const d = _existing.find(item => String(item.id) === String(distributionId)) || { id: distributionId };
-                    _pendingDangerDelete = d;
-
-                    const confirmed = await openDmConfirm({
-                        title: 'Confirmação adicional',
-                        message: data.message || 'Esta distribuição exige confirmação antes de excluir.',
-                        confirmLabel: 'Excluir distribuição',
-                        tone: 'danger',
-                        challenge: true,
-                        icon: 'shield-warning',
-                    });
-
-                    if (confirmed) {
-                        _pendingDangerDelete = null;
-
-                        return this.performDelete(
-                            distributionId,
-                            {
-                                impact_confirmed: true,
-                                math_answer: 2,
-                            }
-                        );
-                    }
-
-                    _pendingDangerDelete = null;
+                if (data.requires_strong_confirmation && typeof window.SgcConfirmDestructiveAction === 'function') {
+                    const confirmation = await window.SgcConfirmDestructiveAction(
+                        distributionId,
+                        data.message || 'Confirme a exclusão desta distribuição.',
+                        data.confirmation_url || null
+                    );
+                    if (confirmation) return this.performDelete(distributionId, confirmation);
                     return;
                 }
                 this.handleError(data, 'Erro ao remover.');
@@ -3269,7 +3111,7 @@ window.DistModal = {
         try {
             const res  = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/distribute`, {
                 method:  'POST',
-                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': dmCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body:    JSON.stringify({ distributions }),
             });
             const data = await res.json();
@@ -3342,7 +3184,7 @@ window.DistModal = {
         try {
             const response = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/customers/${_priceEditor.customer_id}/price`, {
                 method: 'PUT',
-                headers: { 'X-CSRF-TOKEN': DM_CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                headers: { 'X-CSRF-TOKEN': dmCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify({ sale_price: salePrice }),
             });
             const data = await response.json();

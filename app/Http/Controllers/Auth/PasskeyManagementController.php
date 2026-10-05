@@ -55,7 +55,10 @@ class PasskeyManagementController extends Controller
                 'context' => ['method' => 'passkey', 'passkey_id' => $passkey->id],
             ], $request);
 
-            return response()->json(['message' => 'Identidade confirmada.']);
+            return response()->json([
+                'message' => 'Identidade confirmada.',
+                'csrf_token' => $request->session()->token(),
+            ]);
         } catch (Throwable $exception) {
             report($exception);
             $audit->record('webauthn_failed', 'denied', [

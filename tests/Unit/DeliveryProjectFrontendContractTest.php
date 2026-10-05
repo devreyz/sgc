@@ -75,4 +75,35 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString("'notes' => array_key_exists('notes', \$validated)", $controller);
         self::assertStringContainsString(': $delivery->notes', $controller);
     }
+
+    public function test_integrity_center_refreshes_from_the_server_after_mutations(): void
+    {
+        $view = file_get_contents(resource_path('views/delivery/project-deliveries.blade.php'));
+
+        self::assertStringContainsString('async function refreshIntegrityCenter()', $view);
+        self::assertStringContainsString('await syncDeliveryAfterMutation(deliveryId', $view);
+        self::assertStringContainsString('refreshIntegrityCenter(),', $view);
+        self::assertStringContainsString("cache: 'no-store'", $view);
+    }
+
+    public function test_delivery_deletions_use_server_bound_confirmation_and_native_passkeys(): void
+    {
+        $view = file_get_contents(resource_path('views/delivery/project-deliveries.blade.php'));
+        $modal = file_get_contents(resource_path('views/components/delivery/dist-modal.blade.php'));
+        $service = file_get_contents(app_path('Services/DestructiveActionConfirmationService.php'));
+
+        self::assertStringContainsString('window.SgcConfirmDestructiveAction', $view);
+        self::assertStringContainsString('nativeAuth.passkeySignIn', $view);
+        self::assertStringContainsString("'X-SGC-Platform': 'android'", $view);
+        self::assertStringContainsString("'passkey_required' => \$passkeyAvailable", $service);
+        self::assertStringContainsString("'code' => \$passkeyAvailable ? null : \$code", $service);
+        self::assertStringNotContainsString('1 + 1 = ?', $modal);
+        self::assertStringNotContainsString('math_answer', $modal);
+
+        foreach (['delivery.deliveries.confirmation', 'delivery.distributions.confirmation'] as $routeName) {
+            $route = app('router')->getRoutes()->getByName($routeName);
+            self::assertNotNull($route);
+            self::assertSame(['POST'], $route->methods());
+        }
+    }
 }
