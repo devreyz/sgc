@@ -726,7 +726,8 @@ class ProductionDeliveryResource extends Resource
                 Tables\Actions\EditAction::make()
                     ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING),
+                    ->visible(fn ($record): bool => $record->status === DeliveryStatus::PENDING
+                        && is_null($record->parent_delivery_id)),
 
                 Tables\Actions\Action::make('restoreSafeDistribution')
                     ->label('Restaurar distribuição')

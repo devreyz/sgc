@@ -400,6 +400,22 @@ class ProductionDelivery extends Model
 
         static::deleting(function (ProductionDelivery $delivery): void {
             if ($delivery->parent_delivery_id !== null) {
+                $reservedByAssociateReceipt = ! is_null($delivery->associate_receipt_id);
+                if (! $reservedByAssociateReceipt && Schema::hasTable('associate_receipts')) {
+                    $reservedByAssociateReceipt = AssociateReceipt::withoutGlobalScopes()
+                        ->where('tenant_id', $delivery->tenant_id)
+                        ->where(function ($query) use ($delivery): void {
+                            $query->whereJsonContains('delivery_ids', (int) $delivery->id)
+                                ->orWhereJsonContains('delivery_ids', (string) $delivery->id);
+                        })
+                        ->exists();
+                }
+                if ($reservedByAssociateReceipt) {
+                    throw ValidationException::withMessages([
+                        'delivery' => 'Esta distribuição pertence a um comprovante do membro. Remova-a pelo fluxo de distribuições para recalcular e preservar o documento corretamente.',
+                    ]);
+                }
+
                 $reservedByReceipt = ! is_null($delivery->billing_receipt_id);
                 if (! $reservedByReceipt && Schema::hasTable('customer_billing_receipts')) {
                     $reservedByReceipt = CustomerBillingReceipt::withoutGlobalScopes()

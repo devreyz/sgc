@@ -109,4 +109,19 @@ class DeliveryProjectFrontendContractTest extends TestCase
             self::assertSame(['POST'], $route->methods());
         }
     }
+
+    public function test_register_revalidates_distributions_and_uses_the_same_passkey_confirmation(): void
+    {
+        $view = file_get_contents(resource_path('views/delivery/register.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/Delivery/DeliveryRegistrationController.php'));
+        $model = file_get_contents(app_path('Models/ProductionDelivery.php'));
+
+        self::assertStringContainsString('window.SgcConfirmDestructiveAction', $view);
+        self::assertStringContainsString("confirmLabel: 'Confirmar com passkey'", $view);
+        self::assertStringContainsString('window.SgcPreparedPasskey.authenticate(preparedOptions)', $view);
+        self::assertStringContainsString("cache: 'no-store'", $view);
+        self::assertStringContainsString('revalidateRegisterAfterExternalChange', $view);
+        self::assertStringContainsString("'Cache-Control', 'no-store, no-cache, must-revalidate, private'", $controller);
+        self::assertStringContainsString('$reservedByAssociateReceipt', $model);
+    }
 }

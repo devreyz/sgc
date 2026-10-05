@@ -4202,6 +4202,12 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
             </div>
         </div>
 
+        <div class="register-confirm-challenge" id="register-confirm-challenge" hidden>
+            <label for="register-confirm-code">Código de confirmação</label>
+            <input id="register-confirm-code" type="text" autocomplete="off" spellcheck="false">
+            <small id="register-confirm-code-error" hidden>Código incorreto.</small>
+        </div>
+
         <div class="register-confirm-footer">
             <button type="button" class="register-confirm-btn cancel" id="register-confirm-cancel">
                 Cancelar
@@ -4769,6 +4775,21 @@ body.register-sheet-open #delivery-notes-overlay.open {
     font-size: .7rem;
     line-height: 1.48;
 }
+
+.register-confirm-challenge {
+    display:grid;
+    gap:.3rem;
+    margin:0 .72rem .7rem;
+    padding:.62rem;
+    border:1px solid rgba(183,121,31,.2);
+    border-radius:12px;
+    background:var(--r-amber-soft,#fff7e8);
+}
+.register-confirm-challenge[hidden] {display:none!important}
+.register-confirm-challenge label {color:var(--r-text-2,#52645a);font-size:.64rem;font-weight:780}
+.register-confirm-challenge input {min-height:44px;padding:.55rem .65rem;border:1px solid var(--r-border,#dce7e0);border-radius:10px;background:#fff;font:800 .85rem/1 system-ui;text-transform:uppercase}
+.register-confirm-challenge input:focus {border-color:var(--r-green,#168a4d);outline:3px solid rgba(22,138,77,.12)}
+.register-confirm-challenge small {color:var(--r-red,#c83f3f);font-size:.6rem;font-weight:750}
 
 .register-confirm-footer {
     display: grid;
@@ -5582,6 +5603,7 @@ body.register-sheet-open #delivery-notes-overlay.open {
 /* ─── Constants ──────────────────────────────────── */
 const TENANT      = @json($currentTenant->slug);
 const CSRF        = @json(csrf_token());
+const registerCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || CSRF;
 const ITEMS_KEY   = 'sgc_items_' + TENANT;
 
 const ROUTES = {
@@ -5614,6 +5636,7 @@ const S = {
     demandsRequestId  : 0,
     loadingDeliveries : false,
     deliveryReloadPending : null,
+    deliveriesSyncedAt : 0,
     dateConfirmed     : false,
     keyboardStage     : 'project',
     listPage          : 1,
@@ -5813,6 +5836,7 @@ let registerBodyLockActive = false;
 let registerTouchStartY = 0;
 let registerConfirmResolver = null;
 let registerConfirmLastFocus = null;
+let registerConfirmExpectedCode = null;
 
 function getRegisterOpenSheets() {
     return Array.from(document.querySelectorAll([
@@ -6008,6 +6032,7 @@ function closeRegisterConfirmDirect(result = false) {
 
     const resolver = registerConfirmResolver;
     registerConfirmResolver = null;
+    registerConfirmExpectedCode = null;
 
     const focusTarget = registerConfirmLastFocus;
     registerConfirmLastFocus = null;
@@ -6023,6 +6048,7 @@ function registerConfirm({
     cancelLabel = 'Cancelar',
     tone = 'default',
     icon = null,
+    challengeCode = null,
 } = {}) {
     const overlay = $('register-confirm-overlay');
     const box = overlay?.querySelector('.register-confirm-box');
@@ -6042,6 +6068,16 @@ function registerConfirm({
     $('register-confirm-message').textContent = message;
     $('register-confirm-ok').textContent = confirmLabel;
     $('register-confirm-cancel').textContent = cancelLabel;
+
+    const challenge = $('register-confirm-challenge');
+    const codeInput = $('register-confirm-code');
+    const codeError = $('register-confirm-code-error');
+    registerConfirmExpectedCode = challengeCode
+        ? String(challengeCode).trim().toUpperCase()
+        : null;
+    challenge.hidden = !registerConfirmExpectedCode;
+    codeInput.value = '';
+    codeError.hidden = true;
 
     box.classList.remove('danger', 'success');
     if (tone === 'danger') box.classList.add('danger');
@@ -6083,12 +6119,23 @@ function registerConfirm({
 }
 
 function resolveRegisterConfirm(value) {
+    if (value && registerConfirmExpectedCode) {
+        const entered = String($('register-confirm-code')?.value || '').trim().toUpperCase();
+        if (entered !== registerConfirmExpectedCode) {
+            $('register-confirm-code-error').hidden = false;
+            $('register-confirm-code')?.focus({ preventScroll: true });
+            $('register-confirm-code')?.select?.();
+            return;
+        }
+    }
+
     if (
         registerCurrentSheet === 'confirm'
         && history.state?.[REGISTER_SHEET_STATE_KEY] === 'confirm'
     ) {
         const resolver = registerConfirmResolver;
         registerConfirmResolver = null;
+        registerConfirmExpectedCode = null;
 
         registerConfirmLastFocus?.focus?.({ preventScroll: true });
         registerConfirmLastFocus = null;
@@ -6119,6 +6166,128 @@ $('register-confirm-overlay')?.addEventListener('click', event => {
         resolveRegisterConfirm(false);
     }
 });
+
+function registerIsNativeAndroid() {
+    return Boolean(
+        window.Capacitor?.isNativePlatform?.()
+        && window.Capacitor?.getPlatform?.() === 'android'
+    );
+}
+
+async function registerSecurityJson(response) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || 'Não foi possível confirmar sua identidade.');
+    return data;
+}
+
+async function prepareRegisterPasskey(routes) {
+    const data = await fetch(routes.options, {
+        cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(registerIsNativeAndroid() ? { 'X-SGC-Platform': 'android' } : {}),
+        },
+    }).then(registerSecurityJson);
+
+    if (!data?.options) throw new Error('O servidor não retornou um desafio de passkey válido.');
+    return data.options;
+}
+
+async function verifyRegisterPasskey(routes, preparedOptions) {
+    let credential;
+
+    if (registerIsNativeAndroid()) {
+        const nativeAuth = window.Capacitor?.Plugins?.NativeAuth;
+        if (!nativeAuth?.passkeySignIn) {
+            throw new Error('Atualize o aplicativo para confirmar com biometria ou passkey.');
+        }
+        const nativeCredential = await nativeAuth.passkeySignIn({
+            requestJson: JSON.stringify(preparedOptions),
+        });
+        credential = JSON.parse(nativeCredential.credentialJson);
+    } else {
+        if (!window.SgcPreparedPasskey?.isSupported?.()) {
+            throw new Error('Este navegador não oferece suporte a passkeys.');
+        }
+        credential = await window.SgcPreparedPasskey.authenticate(preparedOptions);
+    }
+
+    const result = await fetch(routes.submit, {
+        method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json', 'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            ...(registerIsNativeAndroid() ? { 'X-SGC-Platform': 'android' } : {}),
+            'X-CSRF-TOKEN': registerCsrfToken(),
+        },
+        body: JSON.stringify({ credential }),
+    }).then(registerSecurityJson);
+
+    if (result?.csrf_token) {
+        document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', result.csrf_token);
+    }
+
+    return result;
+}
+
+window.SgcConfirmDestructiveAction = async function(subjectId, message, confirmationUrl = null) {
+    const url = confirmationUrl
+        || `/${TENANT}/delivery/distributions/${subjectId}/confirmation`;
+    const issued = await fetch(url, {
+        method: 'POST', cache: 'no-store', credentials: 'same-origin', globalLoader: false,
+        headers: {
+            'Accept': 'application/json', 'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': registerCsrfToken(),
+        },
+        body: '{}',
+    }).then(registerSecurityJson);
+    const confirmation = issued.confirmation || {};
+
+    if (confirmation.passkey_available) {
+        try {
+            const preparedOptions = await prepareRegisterPasskey(issued.passkey_routes);
+            const accepted = await registerConfirm({
+                title: 'Confirmar identidade',
+                message: `${message}\n\nConfirme com impressão digital, reconhecimento facial, PIN ou passkey.`,
+                confirmLabel: 'Confirmar com passkey',
+                tone: 'danger',
+                icon: 'fingerprint',
+            });
+            if (!accepted) return null;
+
+            const reauth = await verifyRegisterPasskey(issued.passkey_routes, preparedOptions);
+            return {
+                confirmation_id: confirmation.id,
+                csrf_token: reauth.csrf_token || registerCsrfToken(),
+            };
+        } catch (error) {
+            toast(error.message || 'A confirmação por passkey não foi concluída.', 'error');
+            return null;
+        }
+    }
+
+    if (!confirmation.code) {
+        toast('Não foi possível emitir a confirmação segura.', 'error');
+        return null;
+    }
+
+    const accepted = await registerConfirm({
+        title: 'Confirmação segura de exclusão',
+        message: `${message}\n\nDigite o código de uso único: ${confirmation.code}`,
+        confirmLabel: 'Excluir definitivamente',
+        tone: 'danger',
+        icon: 'shield-warning',
+        challengeCode: confirmation.code,
+    });
+    if (!accepted) return null;
+
+    return {
+        confirmation_id: confirmation.id,
+        confirmation_code: confirmation.code,
+        csrf_token: registerCsrfToken(),
+    };
+};
 
 
 /* ─── Custom calendar ────────────────────────────── */
@@ -6752,32 +6921,17 @@ if (
 ) {
     window.__registerDistDeleteConfirmInstalled = true;
 
-    const nativeDistDeleteExisting =
-        window.DistModal.deleteExisting.bind(window.DistModal);
-
     window.DistModal.deleteExisting = async function(distributionId) {
         const row = document.getElementById('dmex-' + distributionId);
         const inReceipt = !!row?.querySelector('.dm-status-badge.receipt');
+        const receiptLabel = row?.querySelector('.dm-status-badge.receipt')?.getAttribute('title');
+        const message = inReceipt
+            ? `Esta distribuição está vinculada a ${receiptLabel || 'um comprovante'}. O vínculo e os totais serão recalculados.`
+            : 'Deseja remover esta distribuição? Os totais da entrega serão atualizados.';
+        const confirmation = await window.SgcConfirmDestructiveAction(distributionId, message);
+        if (!confirmation) return;
 
-        /*
-         * Distribuição em comprovante já possui proteção especial no
-         * componente. Mantemos esse fluxo próprio.
-         */
-        if (inReceipt) {
-            return nativeDistDeleteExisting(distributionId);
-        }
-
-        const confirmed = await registerConfirm({
-            title: 'Remover distribuição',
-            message: 'Deseja remover esta distribuição? Os totais da entrega serão atualizados.',
-            confirmLabel: 'Remover',
-            tone: 'danger',
-            icon: 'trash',
-        });
-
-        if (!confirmed) return;
-
-        return window.DistModal.performDelete(distributionId, {});
+        return window.DistModal.performDelete(distributionId, confirmation);
     };
 }
 
@@ -6819,8 +6973,13 @@ async function loadProjectDeliveries(projectId, force = false) {
     const empty = $('session-empty');
     if (empty) { empty.textContent = 'Carregando histórico…'; empty.style.display = 'block'; }
     try {
-        const res = await fetch(ROUTES.deliveries(projectId), {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        const res = await fetch(ROUTES.deliveries(projectId) + '?_=' + Date.now(), {
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cache-Control': 'no-cache',
+            }
         });
         if (!res.ok) throw new Error('Erro ' + res.status);
         S.items = (await res.json()).map(item => ({
@@ -6833,6 +6992,7 @@ async function loadProjectDeliveries(projectId, force = false) {
         S.items = [];
     } finally {
         S.loadingDeliveries = false;
+        S.deliveriesSyncedAt = Date.now();
         renderSessionItems();
         loadRegisterIntegrity(projectId);
         const pendingProjectId = S.deliveryReloadPending;
@@ -6927,21 +7087,29 @@ async function handleRegisterIntegrityAction(button) {
         : action === 'restore_parent_delivery'
             ? 'Restaurar a entrega-pai excluida? Quantidades, valores e comprovantes nao serao alterados.'
             : 'Excluir esta distribuicao orfa? Esta correcao nao pode ser desfeita.';
-    const confirmed = await registerConfirm({
-        title: 'Confirmar correção',
-        message: question,
-        confirmLabel: 'Continuar',
-        tone: action === 'restore_parent_delivery' ? 'default' : 'danger',
-        icon: action === 'restore_parent_delivery' ? 'arrow-counter-clockwise' : 'warning',
-    });
+    let confirmation = {};
+    if (action === 'delete_orphan_distribution') {
+        confirmation = await window.SgcConfirmDestructiveAction(distributionId, question);
+        if (!confirmation) return;
+    } else {
+        const confirmed = await registerConfirm({
+            title: 'Confirmar correção',
+            message: question,
+            confirmLabel: 'Continuar',
+            tone: action === 'restore_parent_delivery' ? 'default' : 'danger',
+            icon: action === 'restore_parent_delivery' ? 'arrow-counter-clockwise' : 'warning',
+        });
+        if (!confirmed) return;
+    }
 
-    if (!confirmed) return;
     button.disabled = true;
     try {
+        const csrfToken = confirmation.csrf_token || registerCsrfToken();
+        delete confirmation.csrf_token;
         const res = await fetch(ROUTES.resolveIntegrity(S.project.id), {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': CSRF, 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ action, distribution_id: distributionId }),
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ action, distribution_id: distributionId, ...confirmation }),
         });
         const data = await res.json();
         if (!data.success) {
@@ -8566,21 +8734,26 @@ async function deleteItem(id, btn, isApproved = false) {
     const msg = isApproved
         ? 'Excluir esta entrega aprovada? As distribuições associadas também serão removidas.'
         : 'Excluir este registro?';
-    const confirmed = await registerConfirm({
-        title: isApproved ? 'Excluir entrega aprovada' : 'Excluir entrega',
-        message: msg,
-        confirmLabel: 'Excluir',
-        tone: 'danger',
-        icon: 'trash',
-    });
-
-    if (!confirmed) return;
+    const confirmation = await window.SgcConfirmDestructiveAction(
+        id,
+        msg,
+        `/${TENANT}/delivery/deliveries/${id}/confirmation`
+    );
+    if (!confirmation) return;
     btn.disabled = true;
 
     try {
+        const csrfToken = confirmation.csrf_token || registerCsrfToken();
+        delete confirmation.csrf_token;
         const res  = await fetch(ROUTES.del(id), {
             method : 'DELETE',
-            headers: { 'X-CSRF-TOKEN': CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(confirmation),
         });
         const data = await res.json();
         if (data.success || res.status === 200) {
@@ -8895,8 +9068,14 @@ window._DistModalOnDelete = function(receptionId, data) {
     item.dist_net_value = data.dist_total_net || 0;
     item.distributions = (item.distributions || []).filter(d => String(d.id) !== String(data.deleted_id));
 
-    renderSessionItems();
-    toast('Distribuicao removida.', 'success');
+    if (S.project) {
+        loadProjectDeliveries(S.project.id, true).then(() => {
+            toast('Distribuição removida.', 'success');
+        });
+    } else {
+        renderSessionItems();
+        toast('Distribuição removida.', 'success');
+    }
 };
 
 window._DistModalOnUpdate = function(receptionId, data) {
@@ -9248,6 +9427,20 @@ init();
 checkFormReady();
 syncEntryNotesUi();
 upgradeRegisterIcons(document);
+
+function revalidateRegisterAfterExternalChange() {
+    if (!S.project || S.loadingDeliveries) return;
+    if (Date.now() - Number(S.deliveriesSyncedAt || 0) < 800) return;
+    loadProjectDeliveries(S.project.id, true);
+}
+
+window.addEventListener('pageshow', event => {
+    if (event.persisted) revalidateRegisterAfterExternalChange();
+});
+window.addEventListener('focus', revalidateRegisterAfterExternalChange);
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') revalidateRegisterAfterExternalChange();
+});
 
 /*
  * Conteúdo de histórico e modais é refeito via innerHTML em vários fluxos.

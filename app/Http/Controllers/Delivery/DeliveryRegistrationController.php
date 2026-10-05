@@ -274,14 +274,14 @@ class DeliveryRegistrationController extends Controller
             'billed' => $d->billing_status instanceof BillingStatus && $d->billing_status !== BillingStatus::UNBILLED,
             'paid' => (bool) $d->paid || $d->billing_status === BillingStatus::PAID,
             'billing_status' => $d->billing_status?->value,
-            'in_receipt' => (bool) $d->associate_receipt_id,
-            'receipt_id' => $d->associate_receipt_id,
-            'receipt_number' => $d->associateReceipt?->formatted_number,
+            'in_receipt' => $this->hasCurrentAssociateReceiptLink($d),
+            'receipt_id' => $this->hasCurrentAssociateReceiptLink($d) ? $d->associate_receipt_id : null,
+            'receipt_number' => $this->hasCurrentAssociateReceiptLink($d) ? $d->associateReceipt?->formatted_number : null,
             'billing_receipt_id' => $d->billing_receipt_id,
             'locked' => (bool) $d->paid
                 || $d->billing_status !== BillingStatus::UNBILLED
                 || (bool) $d->billing_receipt_id
-                || ($d->associateReceipt?->isLocked() ?? false),
+                || ($this->hasCurrentAssociateReceiptLink($d) && ($d->associateReceipt?->isLocked() ?? false)),
         ]);
 
         $distributedQty = (float) $distributions->sum('qty');
@@ -1462,9 +1462,9 @@ class DeliveryRegistrationController extends Controller
                 'net' => (float) $distribution->net_value,
                 'billed' => false,
                 'paid' => false,
-                'in_receipt' => (bool) $distribution->associate_receipt_id,
-                'receipt_id' => $distribution->associate_receipt_id,
-                'receipt_number' => $receipt?->formatted_number,
+                'in_receipt' => $this->hasCurrentAssociateReceiptLink($distribution),
+                'receipt_id' => $this->hasCurrentAssociateReceiptLink($distribution) ? $distribution->associate_receipt_id : null,
+                'receipt_number' => $this->hasCurrentAssociateReceiptLink($distribution) ? $receipt?->formatted_number : null,
                 'billing_receipt_id' => $distribution->billing_receipt_id,
                 'billing_status' => $distribution->billing_status?->value,
                 'locked' => false,
@@ -1717,14 +1717,14 @@ class DeliveryRegistrationController extends Controller
                                          && $dist->billing_status !== BillingStatus::UNBILLED,
                     'paid' => (bool) $dist->paid || $dist->billing_status === BillingStatus::PAID,
                     'billing_status' => $dist->billing_status?->value,
-                    'in_receipt' => (bool) $dist->associate_receipt_id,
-                    'receipt_id' => $dist->associate_receipt_id,
-                    'receipt_number' => $dist->associateReceipt?->formatted_number,
+                    'in_receipt' => $this->hasCurrentAssociateReceiptLink($dist),
+                    'receipt_id' => $this->hasCurrentAssociateReceiptLink($dist) ? $dist->associate_receipt_id : null,
+                    'receipt_number' => $this->hasCurrentAssociateReceiptLink($dist) ? $dist->associateReceipt?->formatted_number : null,
                     'billing_receipt_id' => $dist->billing_receipt_id,
                     'locked' => (bool) $dist->paid
                         || $dist->billing_status !== BillingStatus::UNBILLED
                         || (bool) $dist->billing_receipt_id
-                        || ($dist->associateReceipt?->isLocked() ?? false),
+                        || ($this->hasCurrentAssociateReceiptLink($dist) && ($dist->associateReceipt?->isLocked() ?? false)),
                 ]);
 
                 $hasBilled = $distributions->contains('billed', true);
@@ -1791,7 +1791,9 @@ class DeliveryRegistrationController extends Controller
                 ];
             });
 
-        return response()->json($deliveries);
+        return response()->json($deliveries)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+            ->header('Pragma', 'no-cache');
     }
 
     public function getProjectIntegrity()
@@ -1924,10 +1926,10 @@ class DeliveryRegistrationController extends Controller
         }
 
         if ($validated['action'] === 'detach_missing_associate_receipt') {
-            if (! $distribution->associate_receipt_id || $distribution->associateReceipt) {
+            if (! $distribution->associate_receipt_id || $this->hasCurrentAssociateReceiptLink($distribution)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'O comprovante informado nao esta mais inconsistente. Atualize a lista de pendencias.',
+                    'message' => 'O vínculo com o comprovante não está mais inconsistente. Atualize a lista de pendências.',
                 ], 422);
             }
 
@@ -1989,6 +1991,20 @@ class DeliveryRegistrationController extends Controller
             'message' => $message,
             'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
         ]);
+    }
+
+    private function hasCurrentAssociateReceiptLink(ProductionDelivery $distribution): bool
+    {
+        $receipt = $distribution->associateReceipt;
+        if (! $receipt || ! $distribution->associate_receipt_id) {
+            return false;
+        }
+
+        return in_array(
+            (int) $distribution->id,
+            array_map('intval', (array) ($receipt->delivery_ids ?? [])),
+            true,
+        );
     }
 
     /**

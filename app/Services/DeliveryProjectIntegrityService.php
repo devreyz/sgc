@@ -158,6 +158,20 @@ class DeliveryProjectIntegrityService
                     'detach_missing_associate_receipt',
                     $distribution->id
                 );
+            } elseif ($distribution->associate_receipt_id
+                && ! in_array(
+                    (int) $distribution->id,
+                    array_map('intval', (array) ($distribution->associateReceipt?->delivery_ids ?? [])),
+                    true,
+                )) {
+                $critical[] = $this->item(
+                    'Vínculo antigo de comprovante',
+                    "{$label} foi removida do comprovante, mas ainda conserva um vínculo técnico antigo.",
+                    'Desvincule o registro antigo para atualizar a tela e liberar a distribuição.',
+                    $distribution->parent_delivery_id,
+                    'detach_missing_associate_receipt',
+                    $distribution->id
+                );
             }
         }
 
