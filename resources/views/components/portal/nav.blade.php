@@ -44,6 +44,7 @@
             @php
                 $key = $item['key'] ?? 'default';
                 $type = $item['type'] ?? 'link';
+                $mobileHidden = ($item['mobile'] ?? true) === false;
 
                 $isActive = ($item['active'] ?? null)
                     ?? ($active === $key);
@@ -91,7 +92,7 @@
 
                     <button
                         type="submit"
-                        class="nav-tab {{ $isActive ? 'active' : '' }}"
+                        class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                         data-nav-key="{{ $key }}"
                         @if($isActive)
                             aria-current="page"
@@ -104,7 +105,7 @@
             @elseif($type === 'button')
                 <button
                     type="button"
-                    class="nav-tab {{ $isActive ? 'active' : '' }}"
+                    class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                     data-nav-key="{{ $key }}"
                     data-nav-event="{{ $item['action'] ?? $key }}"
                     @if($isActive)
@@ -117,7 +118,7 @@
             @else
                 <a
                     href="{{ $item['url'] ?? '#' }}"
-                    class="nav-tab {{ $isActive ? 'active' : '' }}"
+                    class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                     data-nav-key="{{ $key }}"
                     @if($isActive)
                         aria-current="page"

@@ -1019,6 +1019,7 @@
         }
 
         @media (max-width: 1023px) {
+            .nav-tabs .nav-tab-mobile-hidden { display: none !important; }
             /*
              * Bottom nav no mesmo idioma visual do Hub:
              * superfície branca flutuante, item ativo discreto e o

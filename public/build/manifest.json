@@ -1,7 +1,19 @@
 {
+  "_pdf-viewer-Bk83fwEO.js": {
+    "file": "assets/pdf-viewer-Bk83fwEO.js",
+    "name": "pdf-viewer",
+    "isDynamicEntry": true,
+    "assets": [
+      "assets/pdf.worker.min-iDqQPrd3.mjs"
+    ]
+  },
   "_vendor-D5gOtv1u.js": {
     "file": "assets/vendor-D5gOtv1u.js",
     "name": "vendor"
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-iDqQPrd3.mjs",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
   },
   "resources/css/app.css": {
     "file": "assets/resources/css/app-D3CV_iz8.css",
@@ -13,12 +25,16 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/resources/js/app.js-Cmxy2BoJ.js",
+    "file": "assets/resources/js/app.js-DVcuEHzf.js",
     "name": "resources/js/app.js",
     "src": "resources/js/app.js",
     "isEntry": true,
     "imports": [
-      "_vendor-D5gOtv1u.js"
+      "_vendor-D5gOtv1u.js",
+      "_pdf-viewer-Bk83fwEO.js"
+    ],
+    "dynamicImports": [
+      "_pdf-viewer-Bk83fwEO.js"
     ]
   }
 }

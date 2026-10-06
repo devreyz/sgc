@@ -274,7 +274,7 @@
     .acc-inline-form { grid-template-columns:1fr; }
     .acc-wizard-steps span{display:none}.acc-form-grid{grid-template-columns:1fr}.acc-span-2{grid-column:auto}.acc-summary-cards{grid-template-columns:1fr}.acc-editor-actions{flex-wrap:wrap}.acc-editor-actions .acc-button{flex:1}.acc-recipient-choice{align-items:start;flex-direction:column}.acc-mode-tabs{overflow-x:auto}.acc-mode-tabs button{white-space:nowrap}
     .acc-scanner{position:relative;max-width:none}.acc-scanner video{min-height:0;height:34vh}.acc-batch-card{align-items:stretch;flex-direction:column}.acc-detail-table{display:block!important;max-width:100%;overflow-x:auto}.acc-dialog{margin:8px auto;max-height:calc(100vh - 16px)}.acc-scanner-video{min-height:0;height:34vh}
-    .acc-scanner-workspace{grid-template-columns:1fr;min-height:0}.acc-scanner-camera,.acc-scanner-camera video{min-height:44vh;height:44vh}.acc-scanner-panel{max-height:30vh}
+    .acc-qr-scanner-dialog{inset:0;width:100vw;max-width:none;height:100dvh;max-height:none;margin:0;padding:.65rem;border:0;border-radius:0}.acc-scanner-workspace{grid-template-columns:1fr;grid-template-rows:minmax(48vh,1fr) auto;min-height:calc(100dvh - 78px)}.acc-scanner-camera,.acc-scanner-camera video{min-height:48vh;height:100%}.acc-scanner-panel{max-height:34vh}
     .acc-tab-panel .acc-table-wrap{display:block;max-width:100%;overflow-x:auto}.acc-tab-panel .acc-table{min-width:720px}.acc-receipt-actions .acc-button{flex:1}
     .acc-dossier-grid>.acc-side-stack{order:-1}.acc-dossier-grid>.acc-side-stack .acc-panel:not(:first-child){display:none}.acc-state-strip{grid-template-columns:repeat(3,minmax(0,1fr))}.acc-state-item:nth-child(2){border-right:1px solid var(--acc-border)}
 }

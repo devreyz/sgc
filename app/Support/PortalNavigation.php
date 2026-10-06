@@ -47,6 +47,7 @@ class PortalNavigation
             ],
             'finance' => [
                 ['key' => 'dashboard', 'label' => 'Visão geral', 'route' => 'finance.index', 'icon' => 'chart-pie-slice'],
+                ['key' => 'document-verification', 'label' => 'Verificar documento', 'route' => 'finance.documents.verify', 'icon' => 'qr-code'],
                 ['key' => 'receipts', 'label' => 'Recebimentos', 'route' => 'finance.receipts.index', 'icon' => 'receipt'],
                 ['key' => 'management', 'label' => 'Cadastros', 'route' => 'finance.management.index', 'parameters' => ['module' => 'accounts'], 'icon' => 'sliders-horizontal'],
                 ['key' => 'new-receipt', 'label' => 'Novo recibo', 'route' => 'finance.receipts.create', 'icon' => 'plus-circle'],
@@ -56,9 +57,9 @@ class PortalNavigation
                 ['key' => 'processes', 'label' => 'Faturamentos', 'route' => 'accounting.processes.index', 'icon' => 'flow-arrow'],
                 ['key' => 'source-receipts', 'label' => 'Documentos de origem', 'route' => 'accounting.source-receipts.index', 'icon' => 'qr-code'],
                 ['key' => 'fiscal', 'label' => 'Documentos fiscais', 'route' => 'accounting.fiscal.index', 'icon' => 'file-text'],
-                ['key' => 'settings', 'label' => 'Configuração', 'route' => 'accounting.fiscal.settings', 'icon' => 'gear'],
+                ['key' => 'settings', 'label' => 'Configuração', 'route' => 'accounting.fiscal.settings', 'icon' => 'gear', 'mobile' => false],
                 ...((auth()->user() && app(\App\Services\Accounting\AccountingAccessService::class)->canManage(auth()->user(), (int) session('tenant_id')))
-                    ? [['key' => 'access', 'label' => 'Acessos', 'route' => 'accounting.access.index', 'icon' => 'shield-check']]
+                    ? [['key' => 'access', 'label' => 'Acessos', 'route' => 'accounting.access.index', 'icon' => 'shield-check', 'mobile' => false]]
                     : []),
             ],
             'secretary' => [

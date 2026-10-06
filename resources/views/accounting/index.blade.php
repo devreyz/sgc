@@ -811,6 +811,13 @@
             <div class="dashboard-section-actions">
                 <a
                     class="dashboard-section-action"
+                    href="{{ route('accounting.documents.verify', ['tenant' => $tenant->slug]) }}"
+                >
+                    <i class="ph-fill ph-qr-code" aria-hidden="true"></i>
+                    <span>Verificar documento</span>
+                </a>
+                <a
+                    class="dashboard-section-action"
                     href="{{ route('accounting.processes.index', ['tenant' => $tenant->slug]) }}"
                 >
                     <span>Processos</span>

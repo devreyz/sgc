@@ -3575,23 +3575,16 @@
 
         const scannerError = document.querySelector("[data-scanner-error]");
 
-        let stream = null;
-
-        let scanning = false;
-
-        let detector = null;
+        let scannerSession = null;
 
         let optionsLoaded = false;
 
         let controller = null;
 
         const stopScanner = () => {
-            scanning = false;
+            scannerSession?.stop?.();
 
-            stream?.getTracks().forEach((track) => track.stop());
-
-            stream = null;
-
+            scannerSession = null;
             if (video) {
                 video.srcObject = null;
             }
@@ -3605,24 +3598,6 @@
             qrDialog?.close();
 
             load(1);
-        };
-
-        const scanFrame = async () => {
-            if (!scanning || !detector || !video) {
-                return;
-            }
-
-            try {
-                const codes = await detector.detect(video);
-
-                if (codes[0]?.rawValue) {
-                    return searchCode(codes[0].rawValue);
-                }
-            } catch (_) {}
-
-            if (scanning) {
-                window.setTimeout(scanFrame, 180);
-            }
         };
 
         async function openDetail(url, receiptNumber = "Comprovante") {
@@ -3823,15 +3798,11 @@
                     scannerError.hidden = true;
                 }
 
-                const nativeScanner =
-                    window.Capacitor?.isNativePlatform?.() &&
-                    window.Capacitor?.getPlatform?.() === "android"
-                        ? window.Capacitor?.Plugins?.NativeQrScanner
-                        : null;
+                const scannerCore = window.SgcQrScanner;
 
-                if (nativeScanner) {
+                if (scannerCore?.nativePlugin()) {
                     try {
-                        const result = await nativeScanner.scan({ batch: false });
+                        const result = await scannerCore.scanNative({ batch: false });
                         if (result?.code) {
                             searchCode(result.code);
                         }
@@ -3849,8 +3820,7 @@
                 qrDialog.showModal();
 
                 if (
-                    !("BarcodeDetector" in window) ||
-                    !navigator.mediaDevices?.getUserMedia
+                    !scannerCore?.supportsWeb()
                 ) {
                     if (scannerError) {
                         scannerError.textContent =
@@ -3863,27 +3833,12 @@
                 }
 
                 try {
-                    detector = new BarcodeDetector({
-                        formats: ["qr_code"],
+                    scannerSession = await scannerCore.openWeb({
+                        video,
+                        single: true,
+                        interval: 180,
+                        onCode: searchCode,
                     });
-
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: {
-                                ideal: "environment",
-                            },
-                        },
-
-                        audio: false,
-                    });
-
-                    video.srcObject = stream;
-
-                    await video.play();
-
-                    scanning = true;
-
-                    scanFrame();
                 } catch (_) {
                     if (scannerError) {
                         scannerError.textContent =

@@ -35,6 +35,9 @@ export default defineConfig({
             },
             output: {
                 manualChunks: (id) => {
+                    if (id.includes("node_modules/pdfjs-dist")) {
+                        return "pdf-viewer";
+                    }
                     if (id.includes("node_modules")) {
                         return "vendor"; // Agrupa pacotes em "vendor.js"
                     }

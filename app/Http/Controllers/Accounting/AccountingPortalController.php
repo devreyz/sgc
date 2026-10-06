@@ -99,7 +99,7 @@ class AccountingPortalController extends Controller
             ->with([
                 'project:id,tenant_id,title,code,receipt_numbering_scope,receipt_number_format,receipt_project_reference',
                 'associate:id,tenant_id,user_id,nickname',
-                'verificationIdentity:id,tenant_id,documentable_type,documentable_id,public_id,reference_code',
+                'verificationIdentity',
             ])->withCount('distributions');
 
         $query->when($filters['project'] ?? null, fn (Builder $query, int $projectId) => $query->where('sales_project_id', $projectId))

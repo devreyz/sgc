@@ -21,6 +21,8 @@ public class NativeQrScannerPlugin extends Plugin {
     public void scan(PluginCall call) {
         Intent intent = new Intent(getContext(), NativeQrScannerActivity.class);
         intent.putExtra(NativeQrScannerActivity.EXTRA_BATCH, call.getBoolean("batch", false));
+        intent.putExtra(NativeQrScannerActivity.EXTRA_VERIFICATION_URL, call.getString("verificationUrl", ""));
+        intent.putExtra(NativeQrScannerActivity.EXTRA_CSRF_TOKEN, call.getString("csrfToken", ""));
         startActivityForResult(call, intent, "scannerResult");
     }
 

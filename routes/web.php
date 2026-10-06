@@ -27,6 +27,7 @@ use App\Http\Controllers\Delivery\DeliveryReportController;
 use App\Http\Controllers\Delivery\DeliverySheetController;
 use App\Http\Controllers\Delivery\DeliveryViewerController;
 use App\Http\Controllers\DocumentVerificationController;
+use App\Http\Controllers\DocumentQuickVerificationController;
 use App\Http\Controllers\Finance\FinanceManagementController;
 use App\Http\Controllers\Finance\FinancialPortalController;
 use App\Http\Controllers\FinancialDocumentController;
@@ -307,6 +308,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
 
     Route::prefix('finance')->name('finance.')->middleware(['any.role:financeiro,tesoureiro,operador_caixa'])->group(function () {
         Route::get('/', [FinancialPortalController::class, 'index'])->name('index');
+        Route::get('/document-verification', [DocumentQuickVerificationController::class, 'index'])->name('documents.verify');
+        Route::post('/document-verification', [DocumentQuickVerificationController::class, 'verify'])->middleware('throttle:90,1')->name('documents.verify.run');
         Route::get('/receipts', [FinancialPortalController::class, 'receipts'])->name('receipts.index');
         Route::get('/receipts/create', [FinancialPortalController::class, 'create'])->name('receipts.create');
         Route::post('/receipts', [FinancialPortalController::class, 'store'])->middleware('throttle:30,1')->name('receipts.store');
@@ -329,6 +332,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         ->name('accounting.')
         ->group(function () {
             Route::get('/', [AccountingPortalController::class, 'index'])->name('index');
+            Route::get('/document-verification', [DocumentQuickVerificationController::class, 'index'])->name('documents.verify');
+            Route::post('/document-verification', [DocumentQuickVerificationController::class, 'verify'])->middleware('throttle:90,1')->name('documents.verify.run');
             Route::get('/data/queue', [AccountingPortalController::class, 'queue'])->name('data.queue');
             Route::get('/processes', [AccountingPortalController::class, 'processes'])->name('processes.index');
             Route::get('/access', [AccountingAccessController::class, 'index'])->name('access.index');

@@ -1,6 +1,7 @@
 import "./bootstrap";
 import "./pwa-notifications";
 import { Passkeys } from '@laravel/passkeys';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
     browserSupportsWebAuthn,
     startAuthentication,
@@ -12,6 +13,17 @@ window.SgcPreparedPasskey = Object.freeze({
     authenticate: options => startAuthentication({ optionsJSON: options }),
 });
 window.dispatchEvent(new CustomEvent('sgc:passkeys-ready'));
+let pdfJsPromise = null;
+
+function loadPdfJs() {
+    if (!pdfJsPromise) {
+        pdfJsPromise = import('pdfjs-dist/build/pdf.mjs').then(module => {
+            module.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+            return module;
+        });
+    }
+    return pdfJsPromise;
+}
 
 function base64FromBlob(blob) {
     return new Promise((resolve, reject) => {
@@ -111,6 +123,8 @@ function closeWebPdfViewer() {
         viewer.hidden = true;
         const frame = viewer.querySelector('[data-sgc-pdf-frame]');
         if (frame) frame.removeAttribute('src');
+        const pages = viewer.querySelector('[data-sgc-pdf-pages]');
+        if (pages) pages.replaceChildren();
     }
     if (webPdfState?.url) URL.revokeObjectURL(webPdfState.url);
     webPdfState = null;
@@ -139,6 +153,7 @@ function ensureWebPdfViewer() {
             </nav>
         </header>
         <iframe title="Conteúdo do PDF" data-sgc-pdf-frame referrerpolicy="no-referrer"></iframe>
+        <div class="sgc-pdf-pages" data-sgc-pdf-pages hidden aria-label="Páginas do PDF"></div>
     `;
     const style = document.createElement('style');
     style.textContent = `
@@ -148,6 +163,7 @@ function ensureWebPdfViewer() {
         .sgc-pdf-heading{display:grid;min-width:0}.sgc-pdf-heading span{font-size:11px;color:#718078}.sgc-pdf-heading strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px}
         .sgc-pdf-toolbar nav{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none}.sgc-pdf-toolbar button{min-height:38px;padding:7px 12px;border:1px solid #b9cec1;border-radius:10px;background:#fff;color:#173d32;font:700 12px/1 system-ui;white-space:nowrap}.sgc-pdf-toolbar button[data-sgc-pdf-close]{background:#173d32;color:#fff;border-color:#173d32}
         #sgc-web-pdf-viewer iframe{width:100%;height:100%;border:0;background:#e7ece9}
+        .sgc-pdf-pages{min-height:0;overflow:auto;padding:12px;background:#dfe7e2;text-align:center;overscroll-behavior:contain}.sgc-pdf-pages[hidden]{display:none}.sgc-pdf-pages canvas{display:block;max-width:100%;height:auto;margin:0 auto 12px;background:#fff;box-shadow:0 2px 10px rgba(15,35,24,.16)}.sgc-pdf-pages>p{padding:24px;color:#53675c;font:600 13px system-ui}
         @media(max-width:720px){.sgc-pdf-toolbar{align-items:stretch;flex-direction:column}.sgc-pdf-toolbar nav{width:100%}.sgc-pdf-toolbar button{flex:1}.sgc-pdf-heading span{display:none}}
     `;
     document.head.appendChild(style);
@@ -164,6 +180,8 @@ function ensureWebPdfViewer() {
     });
     viewer.querySelector('[data-sgc-pdf-print]').addEventListener('click', () => {
         const frame = viewer.querySelector('[data-sgc-pdf-frame]');
+        const pages = viewer.querySelector('[data-sgc-pdf-pages]');
+        if (pages && !pages.hidden) { window.print(); return; }
         try { frame.contentWindow.focus(); frame.contentWindow.print(); }
         catch (_) { window.open(webPdfState?.url, '_blank', 'noopener,noreferrer'); }
     });
@@ -179,10 +197,43 @@ function openInBrowser(blob, fileName, title) {
     // Parâmetros de leitor (#toolbar/#view) fazem alguns WebViews e PWAs
     // exibirem uma página vazia. O blob puro preserva o visualizador nativo
     // do navegador e o botão acima oferece uma saída explícita.
-    viewer.querySelector('[data-sgc-pdf-frame]').src = url;
+    const frame = viewer.querySelector('[data-sgc-pdf-frame]');
+    const pages = viewer.querySelector('[data-sgc-pdf-pages]');
+    if (isInstalledPwa() || isMobileBrowser()) {
+        frame.hidden = true;
+        pages.hidden = false;
+        renderPdfPages(blob, pages);
+    } else {
+        pages.hidden = true;
+        frame.hidden = false;
+        frame.src = url;
+    }
     viewer.hidden = false;
     document.documentElement.style.overflow = 'hidden';
     hideNavigationLoading();
+}
+
+async function renderPdfPages(blob, host) {
+    host.innerHTML = '<p>Renderizando documento…</p>';
+    try {
+        const pdfjsLib = await loadPdfJs();
+        const pdf = await pdfjsLib.getDocument({data: await blob.arrayBuffer()}).promise;
+        host.replaceChildren();
+        const availableWidth = Math.max(280, Math.min(1100, host.clientWidth - 24));
+        for (let number = 1; number <= pdf.numPages; number += 1) {
+            const page = await pdf.getPage(number);
+            const initial = page.getViewport({scale:1});
+            const viewport = page.getViewport({scale:Math.min(2.2, availableWidth / initial.width)});
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d', {alpha:false});
+            canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+            canvas.setAttribute('aria-label', `Página ${number} de ${pdf.numPages}`);
+            host.appendChild(canvas);
+            await page.render({canvasContext:context, viewport}).promise;
+        }
+    } catch (_) {
+        host.innerHTML = '<p>Não foi possível renderizar este PDF. Use “Baixar” ou “Abrir em nova aba”.</p>';
+    }
 }
 
 window.SgcDocuments = {
@@ -267,6 +318,10 @@ function isInstalledPwa() {
         || window.navigator.standalone === true;
 }
 
+function isMobileBrowser() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+}
+
 window.SgcPlatform = Object.freeze({
     kind: isNativeAndroid() ? 'android' : (isInstalledPwa() ? 'pwa' : 'web'),
     nativeAndroid: isNativeAndroid(),
@@ -317,7 +372,7 @@ function installLivewirePdfDownloadBridge() {
     HTMLAnchorElement.prototype.click = function sgcPdfAwareClick() {
         const fileName = String(this.download || '');
         const isPdfBlob = this.href.startsWith('blob:') && /\.pdf$/i.test(fileName);
-        const usesAppViewer = isNativeAndroid() || isInstalledPwa();
+        const usesAppViewer = isNativeAndroid() || isInstalledPwa() || isMobileBrowser();
         if (!usesAppViewer || !isPdfBlob || this.dataset.sgcDirectDownload === 'true') {
             return originalClick.call(this);
         }
@@ -378,7 +433,7 @@ document.addEventListener('click', async (event) => {
     if (href.origin !== window.location.origin || !looksLikePdf) return;
     // No navegador tradicional preserva a resposta inline e o nome fornecido
     // pelo próprio servidor. Android e PWA usam o visualizador unificado.
-    if (!isNativeAndroid() && !isInstalledPwa()) return;
+    if (!isNativeAndroid() && !isInstalledPwa() && !isMobileBrowser()) return;
 
     event.preventDefault();
     link.dataset.sgcPdfHandled = 'true';

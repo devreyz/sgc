@@ -103,6 +103,7 @@ class PortalNavigationTest extends TestCase
         $this->assertStringEndsWith('/organizacao-principal/accounting', $items['queue']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/processes', $items['processes']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/source-receipts', $items['source-receipts']['url']);
+        $this->assertArrayNotHasKey('document-verification', $items);
         $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal', $items['fiscal']['url']);
         $this->assertStringEndsWith('/organizacao-principal/accounting/fiscal/settings', $items['settings']['url']);
         $this->assertArrayNotHasKey('finance', $items);
@@ -132,6 +133,7 @@ class PortalNavigationTest extends TestCase
             'accounting.data.processes.integrity.repair',
             'accounting.fiscal.settings.store',
             'accounting.fiscal.prepare',
+            'accounting.documents.verify.run',
         ], $writeRoutes->pluck('action.as')->all());
         $this->assertTrue($writeRoutes->every(fn ($route) => collect($route->gatherMiddleware())
             ->contains(fn (string $middleware) => str_starts_with($middleware, 'throttle:'))));

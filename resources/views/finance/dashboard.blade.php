@@ -34,6 +34,7 @@
     <section class="fin-card">
         <div class="fin-section-title"><h2>Ferramentas</h2></div>
         <div class="fin-tool-grid">
+            <a class="fin-tool" href="{{ route('finance.documents.verify', ['tenant' => $tenant->slug]) }}"><span class="fin-tool-icon"><i data-lucide="scan-line"></i></span><span><strong>Verificação rápida</strong><span>Escanear e validar comprovantes</span></span></a>
             <a class="fin-tool" href="{{ route('finance.receipts.index', ['tenant' => $tenant->slug]) }}"><span class="fin-tool-icon"><i data-lucide="receipt-text"></i></span><span><strong>Recebimentos e recibos</strong><span>Registrar, emitir e imprimir</span></span></a>
             @foreach($tools as $tool)
                 <a class="fin-tool" href="{{ $tool['url'] }}"><span class="fin-tool-icon"><i data-lucide="{{ $tool['icon'] }}"></i></span><span><strong>{{ $tool['label'] }}</strong><span>{{ $tool['description'] }}</span></span></a>
