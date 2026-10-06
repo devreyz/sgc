@@ -1,3 +1,5 @@
+import './qr-scanner-core';
+
 (function () {
     "use strict";
 
@@ -3874,3 +3876,4 @@
         initSourceReceipts();
     }
 })();
+

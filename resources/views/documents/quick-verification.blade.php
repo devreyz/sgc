@@ -10,7 +10,7 @@
 @endphp
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('assets/document-quick-verification.css') }}">
+    @vite('resources/css/document-quick-verification.css')
 @endpush
 
 @section('content')
@@ -51,6 +51,5 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('assets/qr-scanner-core.js') }}" defer></script>
-    <script src="{{ asset('assets/document-quick-verification.js') }}" defer></script>
+    @vite('resources/js/document-quick-verification.js')
 @endpush

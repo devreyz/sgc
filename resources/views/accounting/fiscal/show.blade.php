@@ -3,7 +3,7 @@
 @section('page-title','Portal Contábil')
 @section('page-subtitle',$tenant->name)
 @php($bentoNavigation=\App\Support\PortalNavigation::make('accounting','fiscal',$tenant->slug))
-@push('styles')<link rel="stylesheet" href="{{ asset('assets/accounting-portal.css') }}">@endpush
+@push('styles')@vite('resources/css/accounting-portal.css')@endpush
 @section('content')
 <main class="acc-shell" data-fiscal-preparation><header class="acc-topbar"><div class="acc-heading"><p class="acc-eyebrow">Resumo auxiliar para emissão externa</p><h1>{{ $receipt->formatted_number }}</h1><p>Consulta de apoio para copiar dados durante a emissão. O documento oficial deste fluxo é o faturamento completo em PDF.</p></div><div class="acc-inline-actions"><a class="acc-button" href="{{ route('accounting.processes.show',['tenant'=>$tenant->slug,'receipt'=>$receipt]) }}"><i data-lucide="arrow-left"></i> Faturamento</a><a class="acc-button acc-button-primary" href="{{ route('accounting.fiscal.billing-sheet',['tenant'=>$tenant->slug,'receipt'=>$receipt]) }}" target="_blank" rel="noopener"><i data-lucide="printer"></i> Abrir faturamento completo</a></div></header>
  @if(session('success'))<div class="acc-alert">{{ session('success') }}</div>@endif

@@ -3,7 +3,7 @@
 @section('page-title','Portal Contábil')
 @section('page-subtitle',$tenant->name)
 @php($bentoNavigation=\App\Support\PortalNavigation::make('accounting','fiscal',$tenant->slug))
-@push('styles')<link rel="stylesheet" href="{{ asset('assets/accounting-portal.css') }}">@endpush
+@push('styles')@vite('resources/css/accounting-portal.css')@endpush
 @section('content')
 <main class="acc-shell" data-fiscal-queue data-url="{{ route('accounting.fiscal.data',['tenant'=>$tenant->slug]) }}" data-csrf="{{ csrf_token() }}">
  <header class="acc-topbar"><div class="acc-heading"><p class="acc-eyebrow">Faturamentos validados</p><h1>Folhas de faturamento</h1><p>Imprima o relatório completo do faturamento que representa as entregas, preços, taxas, descontos e totais usados na emissão externa.</p></div>
@@ -12,4 +12,4 @@
  <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Faturamento</th><th>Destinatário</th><th>Projeto</th><th>Autorização externa</th><th>Valor para emissão</th><th>Situação</th><th>Ação</th></tr></thead><tbody data-fiscal-table><tr><td colspan="7"><div class="acc-empty">Carregando...</div></td></tr></tbody></table></div><div class="acc-mobile-list" data-fiscal-mobile></div><div class="acc-pagination" data-fiscal-pagination></div></section>
 </main>
 @endsection
-@push('scripts')<script src="{{ asset('assets/accounting-fiscal.js') }}" defer></script>@endpush
+@push('scripts')@vite('resources/js/accounting-fiscal.js')@endpush

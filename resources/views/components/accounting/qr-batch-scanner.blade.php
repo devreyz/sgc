@@ -17,7 +17,6 @@
 </dialog>
 @once
     @push('scripts')
-        <script src="{{ asset('assets/qr-scanner-core.js') }}" defer></script>
-        <script src="{{ asset('assets/accounting-qr-scanner.js') }}" defer></script>
+        @vite('resources/js/accounting-qr-scanner.js')
     @endpush
 @endonce

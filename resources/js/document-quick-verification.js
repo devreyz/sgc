@@ -1,3 +1,5 @@
+import './qr-scanner-core';
+
 (() => {
     const root = document.querySelector('[data-quick-verification]');
     if (!root) return;
@@ -77,3 +79,4 @@
     window.addEventListener('popstate', () => { if (historyArmed) { historyArmed = false; closeCamera(false); } });
     window.addEventListener('pagehide', () => closeCamera(false));
 })();
+

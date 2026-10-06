@@ -3,7 +3,7 @@
 @section('page-title','Portal Contábil')
 @section('page-subtitle',$tenant->name)
 @php($bentoNavigation=\App\Support\PortalNavigation::make('accounting','settings',$tenant->slug))
-@push('styles')<link rel="stylesheet" href="{{ asset('assets/accounting-portal.css') }}">@endpush
+@push('styles')@vite('resources/css/accounting-portal.css')@endpush
 @section('content')
 <main class="acc-shell">
  <header class="acc-topbar">

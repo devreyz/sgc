@@ -7,6 +7,10 @@
       "assets/pdf.worker.min-iDqQPrd3.mjs"
     ]
   },
+  "_qr-scanner-core-CdQcKwbA.js": {
+    "file": "assets/qr-scanner-core-CdQcKwbA.js",
+    "name": "qr-scanner-core"
+  },
   "_vendor-D5gOtv1u.js": {
     "file": "assets/vendor-D5gOtv1u.js",
     "name": "vendor"
@@ -15,6 +19,15 @@
     "file": "assets/pdf.worker.min-iDqQPrd3.mjs",
     "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
   },
+  "resources/css/accounting-portal.css": {
+    "file": "assets/resources/css/accounting-portal-CJq5rj1I.css",
+    "src": "resources/css/accounting-portal.css",
+    "isEntry": true,
+    "name": "resources/css/accounting-portal.css",
+    "names": [
+      "resources/css/accounting-portal.css"
+    ]
+  },
   "resources/css/app.css": {
     "file": "assets/resources/css/app-D3CV_iz8.css",
     "src": "resources/css/app.css",
@@ -22,6 +35,45 @@
     "name": "resources/css/app.css",
     "names": [
       "resources/css/app.css"
+    ]
+  },
+  "resources/css/document-quick-verification.css": {
+    "file": "assets/resources/css/document-quick-verification-BKCY0yKi.css",
+    "src": "resources/css/document-quick-verification.css",
+    "isEntry": true,
+    "name": "resources/css/document-quick-verification.css",
+    "names": [
+      "resources/css/document-quick-verification.css"
+    ]
+  },
+  "resources/js/accounting-billing-editor.js": {
+    "file": "assets/resources/js/accounting-billing-editor.js-C_JYsepM.js",
+    "name": "resources/js/accounting-billing-editor.js",
+    "src": "resources/js/accounting-billing-editor.js",
+    "isEntry": true
+  },
+  "resources/js/accounting-fiscal.js": {
+    "file": "assets/resources/js/accounting-fiscal.js-D6ZSS76f.js",
+    "name": "resources/js/accounting-fiscal.js",
+    "src": "resources/js/accounting-fiscal.js",
+    "isEntry": true
+  },
+  "resources/js/accounting-portal.js": {
+    "file": "assets/resources/js/accounting-portal.js-CSVdnqFX.js",
+    "name": "resources/js/accounting-portal.js",
+    "src": "resources/js/accounting-portal.js",
+    "isEntry": true,
+    "imports": [
+      "_qr-scanner-core-CdQcKwbA.js"
+    ]
+  },
+  "resources/js/accounting-qr-scanner.js": {
+    "file": "assets/resources/js/accounting-qr-scanner.js-CgfG_Rjk.js",
+    "name": "resources/js/accounting-qr-scanner.js",
+    "src": "resources/js/accounting-qr-scanner.js",
+    "isEntry": true,
+    "imports": [
+      "_qr-scanner-core-CdQcKwbA.js"
     ]
   },
   "resources/js/app.js": {
@@ -35,6 +87,15 @@
     ],
     "dynamicImports": [
       "_pdf-viewer-Bk83fwEO.js"
+    ]
+  },
+  "resources/js/document-quick-verification.js": {
+    "file": "assets/resources/js/document-quick-verification.js-RKDiDrqR.js",
+    "name": "resources/js/document-quick-verification.js",
+    "src": "resources/js/document-quick-verification.js",
+    "isEntry": true,
+    "imports": [
+      "_qr-scanner-core-CdQcKwbA.js"
     ]
   }
 }

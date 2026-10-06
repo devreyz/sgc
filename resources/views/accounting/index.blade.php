@@ -14,7 +14,7 @@
 @endphp
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('assets/accounting-portal.css') }}">
+    @vite('resources/css/accounting-portal.css')
 @endpush
 
 @section('content')
@@ -955,8 +955,5 @@
 @endsection
 
 @push('scripts')
-    <script
-        src="{{ asset('assets/accounting-portal.js') }}"
-        defer
-    ></script>
+    @vite('resources/js/accounting-portal.js')
 @endpush

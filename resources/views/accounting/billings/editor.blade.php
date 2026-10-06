@@ -11,7 +11,7 @@
 @endphp
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('assets/accounting-portal.css') }}">
+    @vite('resources/css/accounting-portal.css')
     @once
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/regular/style.css">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
@@ -353,5 +353,5 @@
 @endsection
 
 @push('scripts')
-    <script src="{{ asset('assets/accounting-billing-editor.js') }}" defer></script>
+    @vite('resources/js/accounting-billing-editor.js')
 @endpush

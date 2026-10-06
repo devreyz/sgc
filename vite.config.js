@@ -5,7 +5,17 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
     plugins: [
         laravel({
-            input: ["resources/css/app.css", "resources/js/app.js"],
+            input: [
+                "resources/css/app.css",
+                "resources/css/accounting-portal.css",
+                "resources/css/document-quick-verification.css",
+                "resources/js/app.js",
+                "resources/js/accounting-portal.js",
+                "resources/js/accounting-billing-editor.js",
+                "resources/js/accounting-fiscal.js",
+                "resources/js/accounting-qr-scanner.js",
+                "resources/js/document-quick-verification.js",
+            ],
             refresh: true,
         }),
         tailwindcss(),
@@ -31,7 +41,14 @@ export default defineConfig({
             // Evita chaves D:/... no manifest gerado pelo Vite no Windows.
             input: {
                 "resources/css/app.css": "resources/css/app.css",
+                "resources/css/accounting-portal.css": "resources/css/accounting-portal.css",
+                "resources/css/document-quick-verification.css": "resources/css/document-quick-verification.css",
                 "resources/js/app.js": "resources/js/app.js",
+                "resources/js/accounting-portal.js": "resources/js/accounting-portal.js",
+                "resources/js/accounting-billing-editor.js": "resources/js/accounting-billing-editor.js",
+                "resources/js/accounting-fiscal.js": "resources/js/accounting-fiscal.js",
+                "resources/js/accounting-qr-scanner.js": "resources/js/accounting-qr-scanner.js",
+                "resources/js/document-quick-verification.js": "resources/js/document-quick-verification.js",
             },
             output: {
                 manualChunks: (id) => {

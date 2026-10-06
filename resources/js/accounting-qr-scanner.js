@@ -1,3 +1,5 @@
+import './qr-scanner-core';
+
 (() => {
     document.querySelectorAll('[data-qr-batch-scanner]').forEach(scanner => {
         const core = window.SgcQrScanner;
@@ -67,3 +69,4 @@
         });
     });
 })();
+
