@@ -186,6 +186,7 @@ class AccountingBillingController extends Controller
                             'selected_ids' => $batch['selected_ids'], 'selected_count' => count($batch['selected_ids']),
                             'excluded_count' => $batch['excluded_count'], 'exclusion_reasons' => $batch['reasons'],
                             'receipt_found' => ($batch['receipt_count'] ?? 0) > 0,
+                            'documents' => $batch['documents'] ?? [],
                         ];
                     })->values();
                     $selectedIds = $batches->pluck('selected_ids')->flatten()->map(fn ($id): int => (int) $id)->unique()->values();

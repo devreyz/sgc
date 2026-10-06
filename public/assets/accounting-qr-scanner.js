@@ -13,6 +13,9 @@
         let lastAt = 0;
         const video = scanner.querySelector('video');
         const feedback = scanner.querySelector('[data-scan-feedback]');
+        const nativeScanner = () => window.Capacitor?.isNativePlatform?.()
+            && window.Capacitor?.getPlatform?.() === 'android'
+            && window.Capacitor?.Plugins?.NativeQrScanner;
 
         const stop = () => {
             running = false;
@@ -33,6 +36,27 @@
             window.setTimeout(() => loop(detector), 180);
         };
         const start = async () => {
+            const native = nativeScanner();
+            if (native) {
+                feedback.textContent = 'Abrindo a câmera traseira 1x...';
+                feedback.classList.remove('is-error');
+                try {
+                    const result = await native.scan({batch:true});
+                    for (const raw of (result.codes || [])) {
+                        const code = codeFrom(raw);
+                        if (code) scanner.dispatchEvent(new CustomEvent('accounting:qr-code', {bubbles:true, detail:{code}}));
+                    }
+                    if (!scanner.open) scanner.showModal();
+                    feedback.textContent = `${(result.codes || []).length} documento(s) enviados para conferência.`;
+                } catch (error) {
+                    if (error?.code !== 'SCAN_CANCELLED') {
+                        feedback.textContent = error?.message || 'Não foi possível abrir o leitor nativo.';
+                        feedback.classList.add('is-error');
+                        if (!scanner.open) scanner.showModal();
+                    }
+                }
+                return;
+            }
             if (!('BarcodeDetector' in window) || !navigator.mediaDevices?.getUserMedia) {
                 feedback.textContent = 'A leitura automática não está disponível neste navegador. Informe o código manualmente.';
                 feedback.classList.add('is-error');

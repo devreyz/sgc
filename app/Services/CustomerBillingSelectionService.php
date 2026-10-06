@@ -173,7 +173,30 @@ final class CustomerBillingSelectionService
             $tenantId, $candidateIds->all(), $projectIds, $customerId, $organizationId, $from, $to, $currentReceiptId,
         );
 
-        return $selection + ['receipt_count' => $receipts->count()];
+        $selectedIds = collect($selection['selected_ids']);
+        $distributions = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)->whereIn('id', $selectedIds)
+            ->with(['product:id,name,unit'])->orderBy('delivery_date')->orderBy('id')
+            ->get(['id', 'associate_receipt_id', 'product_id', 'delivery_date', 'quantity']);
+
+        $documents = $receipts->loadMissing(['project', 'associate.user'])->map(function (AssociateReceipt $receipt) use ($distributions): array {
+            $items = $distributions->where('associate_receipt_id', $receipt->id)->values();
+
+            return [
+                'id' => (int) $receipt->id,
+                'number' => $receipt->formatted_number,
+                'associate' => $receipt->associate?->display_name ?? 'Associado não identificado',
+                'distributions' => $items->map(fn (ProductionDelivery $row): array => [
+                    'id' => (int) $row->id,
+                    'date' => $row->delivery_date?->format('d/m/Y'),
+                    'product' => $row->product?->name ?? 'Produto',
+                    'quantity' => (string) $row->quantity,
+                    'unit' => $row->product?->unit ?: 'un',
+                ])->all(),
+            ];
+        })->values()->all();
+
+        return $selection + ['receipt_count' => $receipts->count(), 'documents' => $documents];
     }
 
     /**

@@ -83,7 +83,7 @@
                     >
                         {{ $verificationIdentity->reference_code }}
                     </strong>
-                    
+                    a s
                 </span>
             </td>
         </tr>

@@ -3823,6 +3823,29 @@
                     scannerError.hidden = true;
                 }
 
+                const nativeScanner =
+                    window.Capacitor?.isNativePlatform?.() &&
+                    window.Capacitor?.getPlatform?.() === "android"
+                        ? window.Capacitor?.Plugins?.NativeQrScanner
+                        : null;
+
+                if (nativeScanner) {
+                    try {
+                        const result = await nativeScanner.scan({ batch: false });
+                        if (result?.code) {
+                            searchCode(result.code);
+                        }
+                    } catch (error) {
+                        if (error?.code !== "SCAN_CANCELLED" && scannerError) {
+                            qrDialog.showModal();
+                            scannerError.textContent =
+                                error?.message || "Não foi possível abrir o leitor nativo.";
+                            scannerError.hidden = false;
+                        }
+                    }
+                    return;
+                }
+
                 qrDialog.showModal();
 
                 if (

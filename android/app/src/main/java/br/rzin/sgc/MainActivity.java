@@ -40,6 +40,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(NativeDocumentPlugin.class);
         registerPlugin(NativeNavigationPlugin.class);
         registerPlugin(NativeCameraPlugin.class);
+        registerPlugin(NativeQrScannerPlugin.class);
         super.onCreate(savedInstanceState);
         createHighPriorityNotificationChannels();
         getWindow().setStatusBarColor(Color.rgb(17, 92, 66));

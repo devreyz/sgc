@@ -60,7 +60,9 @@
     const updateCount = () => qa('[data-selected-count]').forEach(el => el.textContent = `${selected.size} selecionada(s)`);
     const renderBatches = () => {
         const target = q('[data-scanned-batches]');
-        target.innerHTML = batches.size ? `<h3>Lotes lidos</h3>${[...batches.values()].map(batch => `<article class="acc-batch-card"><div><strong>${escapeHtml(batch.display)}</strong><span>${batch.ids.length} distribuição(ões) selecionada(s)${batch.excluded ? ` · ${batch.excluded} ignorada(s)` : ''}</span></div><button class="acc-button" type="button" data-remove-batch="${escapeHtml(batch.key)}"><i data-lucide="trash-2"></i> Remover lote</button></article>`).join('')}` : '<p class="acc-help">Nenhum lote escaneado.</p>';
+        target.innerHTML = batches.size ? `<h3>Lotes lidos</h3>${[...batches.values()].map(batch => `<article class="acc-batch-card"><div class="acc-batch-main"><strong>${escapeHtml(batch.number || batch.display)}</strong><b>${escapeHtml(batch.associate || 'Associado não identificado')}</b><span>${batch.ids.length} distribuição(ões) selecionada(s)${batch.excluded ? ` · ${batch.excluded} ignorada(s)` : ''}</span>${(batch.distributions || []).length ? `<details><summary>Ver distribuições</summary><ul>${batch.distributions.map(item => `<li>#${item.id} · ${escapeHtml(item.product)} · ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}${item.date ? ` · ${escapeHtml(item.date)}` : ''}</li>`).join('')}</ul></details>` : ''}</div><button class="acc-button" type="button" data-remove-batch="${escapeHtml(batch.key)}"><i data-lucide="trash-2"></i> Remover lote</button></article>`).join('')}` : '<p class="acc-help">Nenhum lote escaneado.</p>';
+        const scannerPreview = q('[data-scanner-batch-preview]');
+        if (scannerPreview) scannerPreview.innerHTML = batches.size ? [...batches.values()].map(batch => `<div class="acc-scan-preview-item"><strong>${escapeHtml(batch.number || batch.display)}</strong><span>${escapeHtml(batch.associate || '')}</span><small>${batch.ids.length} distribuição(ões)</small></div>`).join('') : '<p class="acc-help">Comprovantes e distribuições aparecerão aqui durante a leitura.</p>';
         window.lucide?.createIcons();
     };
     const rebuildBatchSelection = () => {
@@ -101,7 +103,7 @@
             const result = await request(root.dataset.selectUrl, {method:'POST', body:JSON.stringify(selectionPayload())});
             if (mode === 'receipts') {
                 batches.clear();
-                (result.batches || []).forEach(batch => batches.set(batch.key, {key:batch.key, display:batch.label, ids:(batch.selected_ids || []).map(Number), excluded:Number(batch.excluded_count || 0)}));
+                (result.batches || []).forEach(batch => { const doc = batch.documents?.[0] || {}; batches.set(batch.key, {key:batch.key, display:batch.label, number:doc.number, associate:doc.associate, distributions:doc.distributions || [], ids:(batch.selected_ids || []).map(Number), excluded:Number(batch.excluded_count || 0)}); });
                 rebuildBatchSelection();
             } else {
                 selected.clear(); (result.selected_ids || []).forEach(id => selected.add(Number(id))); updateCount();
@@ -159,7 +161,8 @@
             const result = await request(root.dataset.selectUrl, {method:'POST', body:JSON.stringify({...validateContext(), mode:'receipts', receipt_codes:[code], distribution_ids:[]})});
             const batch = result.batches?.[0];
             if (!batch?.receipt_found) throw new Error('Este QR Code não corresponde a um documento de origem desta organização.');
-            batches.set(batch.key, {key:batch.key, display:batch.label, ids:(batch.selected_ids || []).map(Number), excluded:Number(batch.excluded_count || 0)});
+            const doc = batch.documents?.[0] || {};
+            batches.set(batch.key, {key:batch.key, display:batch.label, number:doc.number, associate:doc.associate, distributions:doc.distributions || [], ids:(batch.selected_ids || []).map(Number), excluded:Number(batch.excluded_count || 0)});
             const lines = q('[data-receipt-codes]').value.split(/\n+/).map(value => value.trim()).filter(Boolean); if (!lines.includes(code)) lines.push(code); q('[data-receipt-codes]').value = lines.join('\n');
             rebuildBatchSelection(); feedback.textContent = `Lote adicionado: ${batch.selected_count} distribuição(ões). Continue apontando para outros comprovantes.`;
         } catch (error) { feedback.textContent = error.message; feedback.classList.add('is-error'); }
