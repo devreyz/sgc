@@ -70,7 +70,7 @@ class AccountingPortalController extends Controller
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:180'],
             'project' => ['nullable', 'integer', 'min:1'],
-            'status' => ['nullable', 'in:draft,pending_payment,partially_paid,paid,obsolete'],
+            'status' => ['nullable', 'in:draft,pending_payment,partially_paid,paid,obsolete,cancelled'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'between:10,50'],
         ]);
@@ -491,7 +491,7 @@ class AccountingPortalController extends Controller
             'detail_url' => route('accounting.data.source-receipts.show', [
                 'tenant' => $tenant->slug, 'associateReceipt' => $producerReceipt->id,
             ]),
-            'reprint_url' => $producerReceipt->status?->value === 'obsolete' ? null : route('delivery.projects.receipt-reprint', [
+            'reprint_url' => in_array($producerReceipt->status?->value, ['obsolete', 'cancelled'], true) ? null : route('delivery.projects.receipt-reprint', [
                 'tenant' => $tenant->slug, 'project' => $producerReceipt->sales_project_id,
                 'receipt' => $producerReceipt->id, 'preview' => 1,
             ]),
@@ -1017,7 +1017,7 @@ class AccountingPortalController extends Controller
             'distribution_count' => (int) ($receipt->distributions_count ?? $receipt->distributions()->count()),
             'total_net' => (float) ($receipt->total_net ?? 0),
             'reference_code' => $receipt->verificationIdentity?->reference_code,
-            'reprint_url' => $receipt->status?->value === 'obsolete' ? null : route('delivery.projects.receipt-reprint', [
+            'reprint_url' => in_array($receipt->status?->value, ['obsolete', 'cancelled'], true) ? null : route('delivery.projects.receipt-reprint', [
                 'tenant' => $tenantSlug,
                 'project' => $receipt->sales_project_id,
                 'receipt' => $receipt->id,

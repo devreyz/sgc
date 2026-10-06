@@ -49,6 +49,7 @@
                     <option value="partially_paid">Pago parcialmente</option>
                     <option value="paid">Pago</option>
                     <option value="obsolete">Obsoleto</option>
+                    <option value="cancelled">Cancelado</option>
                 </select>
             </label>
             <div class="acc-filter-actions">

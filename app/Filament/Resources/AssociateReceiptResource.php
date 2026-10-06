@@ -53,12 +53,16 @@ class AssociateReceiptResource extends Resource
 
     public static function canEdit(Model $record): bool
     {
-        return parent::canEdit($record) && ! $record->hasFinancialLocks();
+        return parent::canEdit($record)
+            && $record->status !== ReceiptStatus::CANCELLED
+            && ! $record->hasFinancialLocks();
     }
 
     public static function canDelete(Model $record): bool
     {
-        return parent::canDelete($record) && ! $record->hasFinancialLocks();
+        return parent::canDelete($record)
+            && $record->status !== ReceiptStatus::CANCELLED
+            && ! $record->hasFinancialLocks();
     }
 
     public static function form(Form $form): Form
@@ -354,6 +358,7 @@ class AssociateReceiptResource extends Resource
                     ->label('Imprimir PDF')
                     ->icon('heroicon-o-document-arrow-down')
                     ->color('success')
+                    ->visible(fn (AssociateReceipt $record): bool => ! in_array($record->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true))
                     ->action(function (AssociateReceipt $record): mixed {
                         $tenantId = $record->tenant_id;
                         $tenant = Tenant::find($tenantId);
@@ -567,6 +572,52 @@ class AssociateReceiptResource extends Resource
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fechar'),
 
+                Tables\Actions\Action::make('cancelAndRelease')
+                    ->label('Cancelar e liberar')
+                    ->icon('heroicon-o-link-slash')
+                    ->color('danger')
+                    ->visible(fn (AssociateReceipt $record): bool =>
+                        $record->status !== ReceiptStatus::CANCELLED
+                        && $record->canBeOperationallyUpdated()
+                        && $record->distributions()->exists()
+                    )
+                    ->requiresConfirmation()
+                    ->modalIcon('heroicon-o-exclamation-triangle')
+                    ->modalHeading(fn (AssociateReceipt $record): string => 'Cancelar o comprovante '.$record->formatted_number.'?')
+                    ->modalDescription(fn (AssociateReceipt $record): string =>
+                        'O comprovante será mantido como snapshot histórico cancelado e o QR será invalidado. '
+                        .$record->distributions()->count().' distribuição(ões) serão desvinculadas e poderão entrar em um novo comprovante. '
+                        .'A operação será recusada se existir pagamento ou faturamento.'
+                    )
+                    ->modalSubmitActionLabel('Cancelar e liberar distribuições')
+                    ->form([
+                        Forms\Components\Textarea::make('reason')
+                            ->label('Motivo do cancelamento')
+                            ->default('Cancelado para reemissão consolidada das distribuições.')
+                            ->required()
+                            ->minLength(10)
+                            ->maxLength(500)
+                            ->rows(3),
+                    ])
+                    ->action(function (AssociateReceipt $record, array $data): void {
+                        try {
+                            $result = app(AssociateReceiptService::class)
+                                ->cancelAndReleaseDistributions($record, $data['reason']);
+
+                            Notification::make()
+                                ->success()
+                                ->title('Comprovante cancelado')
+                                ->body(count($result['released']).' distribuição(ões) liberada(s). Agora elas podem ser reunidas em um novo comprovante.')
+                                ->send();
+                        } catch (\Throwable $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Não foi possível cancelar')
+                                ->body($exception->getMessage())
+                                ->send();
+                        }
+                    }),
+
                 // ── CONFIRMAR / DESFAZER ASSINATURA ──────────────────────────
                 Tables\Actions\Action::make('acknowledge')
                     ->label(fn (AssociateReceipt $r) => $r->acknowledged_at ? 'Desfazer Assinatura' : 'Confirmar Assinatura')
@@ -621,6 +672,7 @@ class AssociateReceiptResource extends Resource
                     ->label('Abrir comprovante e QR')
                     ->icon('heroicon-o-qr-code')
                     ->color('info')
+                    ->visible(fn (AssociateReceipt $record): bool => ! in_array($record->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true))
                     ->url(function (AssociateReceipt $record): string {
                         $identity = app(FinancialDocumentIdentityService::class)
                             ->ensure($record, auth()->user());
@@ -636,7 +688,7 @@ class AssociateReceiptResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Atualizar somente o visual?')
                     ->modalDescription('O PDF será atualizado visualmente, preservando o mesmo QR Code. Valores, distribuições e pagamentos não serão recalculados.')
-                    ->visible(fn (AssociateReceipt $record): bool => $record->status !== ReceiptStatus::OBSOLETE)
+                    ->visible(fn (AssociateReceipt $record): bool => ! in_array($record->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true))
                     ->action(function (AssociateReceipt $record): void {
                         $identity = app(FinancialDocumentIdentityService::class)
                             ->ensure($record, auth()->user());

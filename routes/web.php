@@ -584,6 +584,8 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
         Route::post('/projects/{project}/receipt-selected', [DeliveryRegistrationController::class, 'generateSelectedDeliveriesReceipt'])->name('projects.receipt-selected');
         Route::put('/projects/{project}/receipt-print-preferences', [DeliveryRegistrationController::class, 'updateAssociateReceiptPrintPreferences'])->name('projects.receipt-print-preferences.update');
         Route::post('/projects/{project}/receipts/{receipt}/regenerate', [DeliveryRegistrationController::class, 'regenerateReceipt'])->name('projects.receipt-regenerate');
+        Route::post('/projects/{project}/receipts/{receipt}/cancel-release', [DeliveryRegistrationController::class, 'cancelAndReleaseReceipt'])
+            ->middleware('throttle:10,1')->name('projects.receipt-cancel-release');
         Route::post('/projects/{project}/receipts/{receipt}/refresh-document', [DeliveryRegistrationController::class, 'refreshReceiptDocument'])
             ->middleware('throttle:10,1')
             ->name('projects.receipt-document.refresh');

@@ -29,7 +29,8 @@ final class AccountingAccessService
     public function projectIds(User $user, int $tenantId): Collection
     {
         if (! $this->isRestricted($user, $tenantId)) {
-            return SalesProject::withoutGlobalScopes()->where('tenant_id', $tenantId)->pluck('id')->map(fn ($id): int => (int) $id);
+            return SalesProject::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')
+                ->pluck('id')->map(fn ($id): int => (int) $id);
         }
 
         if (! Schema::hasTable('accounting_access_scopes')) {
@@ -40,7 +41,8 @@ final class AccountingAccessService
         $ids = $scopes->where('scope_type', 'project')->pluck('scope_id')->map(fn ($id): int => (int) $id);
         $types = $scopes->where('scope_type', 'project_type')->pluck('scope_value')->filter()->unique();
         if ($types->isNotEmpty()) {
-            $ids = $ids->merge(SalesProject::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereIn('type', $types)->pluck('id'));
+            $ids = $ids->merge(SalesProject::withoutGlobalScopes()->where('tenant_id', $tenantId)
+                ->whereNull('deleted_at')->whereIn('type', $types)->pluck('id'));
         }
 
         return $ids->map(fn ($id): int => (int) $id)->unique()->values();

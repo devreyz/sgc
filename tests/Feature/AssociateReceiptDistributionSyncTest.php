@@ -252,4 +252,62 @@ class AssociateReceiptDistributionSyncTest extends TestCase
         $this->assertSame(11, ProductionDelivery::query()->findOrFail(4)->associate_receipt_id);
         $this->assertSame([4], AssociateReceipt::query()->findOrFail(11)->delivery_ids);
     }
+
+    public function test_cancelling_receipt_preserves_snapshot_and_really_releases_distributions(): void
+    {
+        DB::table('associate_receipts')->insert([
+            'id' => 12, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+            'receipt_year' => 2026, 'receipt_number' => 3, 'issued_at' => '2026-10-06',
+            'delivery_ids' => json_encode([5, 6]), 'status' => ReceiptStatus::PENDING_PAYMENT->value,
+            'total_gross' => 100, 'total_fees' => 10, 'total_net' => 90,
+            'fee_snapshot' => json_encode(['total_fee' => '10']), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        foreach ([5, 6] as $id) {
+            DB::table('production_deliveries')->insert([
+                'id' => $id, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+                'parent_delivery_id' => 100 + $id, 'customer_id' => 200, 'product_id' => 40,
+                'quantity' => 10, 'unit_price' => 5, 'gross_value' => 50, 'status' => 'approved',
+                'paid' => false, 'billing_status' => 'unbilled', 'associate_receipt_id' => 12,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+        }
+
+        $calculator = Mockery::mock(ProjectFinancialCalculator::class);
+        $result = AssociateReceipt::withoutEvents(fn () => (new AssociateReceiptService($calculator))
+            ->cancelAndReleaseDistributions(AssociateReceipt::query()->findOrFail(12), 'Reemissao consolidada.'));
+
+        $this->assertSame([5, 6], $result['released']);
+        $this->assertSame(0, ProductionDelivery::query()->whereNotNull('associate_receipt_id')->count());
+        $receipt = AssociateReceipt::query()->findOrFail(12);
+        $this->assertSame(ReceiptStatus::CANCELLED, $receipt->status);
+        $this->assertSame([5, 6], $receipt->delivery_ids);
+        $this->assertSame('90.0000', $receipt->total_net);
+        $this->assertSame(['total_fee' => '10'], $receipt->fee_snapshot);
+    }
+
+    public function test_receipt_with_billed_distribution_cannot_be_cancelled_or_released(): void
+    {
+        DB::table('associate_receipts')->insert([
+            'id' => 13, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+            'receipt_year' => 2026, 'receipt_number' => 4, 'issued_at' => '2026-10-06',
+            'delivery_ids' => json_encode([7]), 'status' => ReceiptStatus::PENDING_PAYMENT->value,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->insert([
+            'id' => 7, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+            'parent_delivery_id' => 107, 'customer_id' => 200, 'product_id' => 40,
+            'quantity' => 10, 'unit_price' => 5, 'gross_value' => 50, 'status' => 'approved',
+            'paid' => false, 'billing_status' => 'billed', 'associate_receipt_id' => 13,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        try {
+            AssociateReceipt::withoutEvents(fn () => (new AssociateReceiptService(Mockery::mock(ProjectFinancialCalculator::class)))
+                ->cancelAndReleaseDistributions(AssociateReceipt::query()->findOrFail(13), 'Tentativa invalida.'));
+        } finally {
+            $this->assertSame(13, ProductionDelivery::query()->findOrFail(7)->associate_receipt_id);
+            $this->assertSame(ReceiptStatus::PENDING_PAYMENT, AssociateReceipt::query()->findOrFail(13)->status);
+        }
+    }
 }

@@ -3628,7 +3628,7 @@ class DeliveryRegistrationController extends Controller
             'producers' => (clone $base)->distinct('associate_id')->count('associate_id'),
             'pending_distributions' => $available(clone $base)->count(),
             'valid_receipts' => (clone $receiptBase)->where('status', ReceiptStatus::PENDING_PAYMENT->value)->count(),
-            'obsolete_receipts' => (clone $receiptBase)->where('status', ReceiptStatus::OBSOLETE->value)->count(),
+            'obsolete_receipts' => (clone $receiptBase)->whereIn('status', [ReceiptStatus::OBSOLETE->value, ReceiptStatus::CANCELLED->value])->count(),
             'paid_receipts' => (clone $receiptBase)->whereIn('status', [ReceiptStatus::PARTIALLY_PAID->value, ReceiptStatus::PAID->value])->count(),
             'billed_receipts' => (clone $receiptBase)->whereHas('distributions', function ($query) {
                 $query->where('paid', true)
@@ -3702,7 +3702,7 @@ class DeliveryRegistrationController extends Controller
                     ->whereColumn('associate_receipts.associate_id', 'production_deliveries.associate_id')
                     ->where('associate_receipts.tenant_id', $tenantId)
                     ->where('associate_receipts.sales_project_id', $project->id)
-                    ->where('associate_receipts.status', ReceiptStatus::OBSOLETE->value);
+                    ->whereIn('associate_receipts.status', [ReceiptStatus::OBSOLETE->value, ReceiptStatus::CANCELLED->value]);
             }),
             'paid' => $query->whereExists(function ($exists) use ($tenantId, $project) {
                 $exists->selectRaw('1')
@@ -3869,13 +3869,24 @@ class DeliveryRegistrationController extends Controller
             'obsolete_reason' => $r->obsolete_reason,
             'total_net' => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
             'total_net_value' => (float) ($r->total_net ?? 0),
-            'distribution_count' => (int) $r->distributions_count,
+            'distribution_count' => $r->status === ReceiptStatus::CANCELLED
+                ? count($r->delivery_ids ?? [])
+                : (int) $r->distributions_count,
             'is_paid' => $r->status === ReceiptStatus::PAID,
             'can_update' => $r->status !== ReceiptStatus::OBSOLETE
                 && $r->canBeOperationallyUpdated()
                 && ! in_array((int) $r->id, $lockedReceiptIds, true),
             'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
+            'can_cancel_release' => $r->status !== ReceiptStatus::CANCELLED
+                && $r->canBeOperationallyUpdated()
+                && ! in_array((int) $r->id, $lockedReceiptIds, true)
+                && (int) $r->distributions_count > 0,
             'refresh_url' => route('delivery.projects.receipt-document.refresh', [
+                'tenant' => $tenantSlug,
+                'project' => $projectId,
+                'receipt' => $r->id,
+            ]),
+            'cancel_release_url' => route('delivery.projects.receipt-cancel-release', [
                 'tenant' => $tenantSlug,
                 'project' => $projectId,
                 'receipt' => $r->id,
@@ -3925,7 +3936,7 @@ class DeliveryRegistrationController extends Controller
         // As telas atuais enviam Accept: application/json e continuam usando a API.
         if (! $request->expectsJson()) {
             $latestPrintable = $receipts->first(
-                fn (AssociateReceipt $receipt): bool => $receipt->status !== ReceiptStatus::OBSOLETE
+                fn (AssociateReceipt $receipt): bool => ! in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true)
             );
 
             if ($latestPrintable) {
@@ -4419,6 +4430,39 @@ class DeliveryRegistrationController extends Controller
     /**
      * PDF: Comprovante de entrega de um projeto filtrado por associado — com assinatura
      */
+    public function cancelAndReleaseReceipt(Request $request)
+    {
+        $tenantId = (int) session('tenant_id');
+        $projectId = (int) $request->route('project');
+        $receiptId = (int) $request->route('receipt');
+        abort_unless($tenantId, 403, 'Sessao expirada.');
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+        $reason = trim((string) ($validated['reason'] ?? 'Cancelado para reemissao consolidada das distribuicoes.'));
+
+        $receipt = AssociateReceipt::query()
+            ->where('tenant_id', $tenantId)
+            ->where('sales_project_id', $projectId)
+            ->findOrFail($receiptId);
+
+        try {
+            $result = app(AssociateReceiptService::class)
+                ->cancelAndReleaseDistributions($receipt, $reason);
+        } catch (\RuntimeException $exception) {
+            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comprovante cancelado. '.count($result['released']).' distribuicao(oes) liberada(s) para uma nova emissao.',
+            'receipt_id' => $receiptId,
+            'released_count' => count($result['released']),
+            'released_distribution_ids' => $result['released'],
+        ]);
+    }
+
     public function regenerateReceipt(Request $request)
     {
         $projectId = (int) $request->route('project');
@@ -4567,7 +4611,7 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->findOrFail((int) $request->route('receipt'));
 
-        if ($receipt->status === ReceiptStatus::OBSOLETE) {
+        if (in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Este comprovante possui dados operacionais obsoletos. Use “Regenerar” para recalcular uma versão válida.',
@@ -4851,7 +4895,7 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->findOrFail($receiptId);
 
-        if ($receipt->status === ReceiptStatus::OBSOLETE) {
+        if (in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true)) {
             return redirect()->route('delivery.projects.producers', ['tenant' => $request->route('tenant'), 'project' => $projectId])
                 ->with('error', 'Este comprovante esta obsoleto. Regenere o comprovante antes de imprimir uma versao valida.');
         }

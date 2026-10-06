@@ -99,6 +99,24 @@ class FinancialDocumentIdentityService
             || hash_equals($identity->document_hash, $this->hash($this->snapshot($identity->documentable)));
     }
 
+    public function invalidateDocument(Model $document, string $reason, ?User $actor = null): int
+    {
+        if (! Schema::hasTable('financial_document_identities')
+            || ! Schema::hasColumns('financial_document_identities', ['invalidated_at', 'invalidated_by', 'invalidation_reason'])) {
+            return 0;
+        }
+
+        $this->assertSupported($document);
+
+        return $this->documentIdentities($document)
+            ->whereNull('invalidated_at')
+            ->update([
+                'invalidated_at' => now(),
+                'invalidated_by' => $actor?->id,
+                'invalidation_reason' => Str::limit(trim($reason), 255, ''),
+            ]);
+    }
+
     public function find(string $publicId): ?FinancialDocumentIdentity
     {
         if (! Str::isUuid($publicId) || ! Schema::hasTable('financial_document_identities')) {

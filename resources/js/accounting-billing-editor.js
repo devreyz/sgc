@@ -395,8 +395,10 @@
 
         const scannerPreview = q("[data-scanner-batch-preview]");
         if (scannerPreview) {
+            const scannedBatches = [...batches.values()];
             scannerPreview.innerHTML = batches.size
-                ? [...batches.values()]
+                ? `${scannedBatches.length > 3 ? `<small class="acc-scan-preview-total">${scannedBatches.length} comprovantes selecionados · exibindo os 3 mais recentes</small>` : ""}${scannedBatches
+                      .slice(-3)
                       .map(
                           (batch) => `
                     <div class="acc-scan-preview-item">
@@ -408,7 +410,7 @@
                     </div>
                 `
                       )
-                      .join("")
+                      .join("")}`
                 : '<p class="billing-help">Comprovantes e distribuições aparecerão aqui durante a leitura.</p>';
         }
     };
@@ -830,6 +832,13 @@
             if (feedback) {
                 feedback.textContent = `Lote adicionado: ${batch.selected_count} distribuição(ões). Continue apontando para outros comprovantes.`;
             }
+            window.document.dispatchEvent(new CustomEvent("accounting:qr-success", {
+                detail: {
+                    number: document.number || batch.label,
+                    associate: document.associate || "",
+                    count: Number(batch.selected_count || 0),
+                },
+            }));
         } catch (error) {
             if (feedback) {
                 feedback.textContent = error.message;
@@ -1058,9 +1067,25 @@
         }
     });
 
-    root.addEventListener("accounting:qr-code", (event) =>
-        addReceiptBatch(event.detail.code)
-    );
+    root.addEventListener("accounting:qr-code", async (event) => {
+        await addReceiptBatch(event.detail.code);
+        event.detail.onComplete?.();
+    });
+
+    root.addEventListener("accounting:qr-native-config", (event) => {
+        try {
+            event.detail.verificationUrl = root.dataset.selectUrl;
+            event.detail.csrfToken = token;
+            event.detail.selectionPayload = {
+                ...validateContext(),
+                mode: "receipts",
+                receipt_codes: [],
+                distribution_ids: [],
+            };
+        } catch (error) {
+            event.detail.error = error;
+        }
+    });
 
     root.addEventListener("change", (event) => {
         if (event.target.matches('[name="recipient_type"]')) {

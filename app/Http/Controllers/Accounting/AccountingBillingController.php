@@ -61,7 +61,7 @@ class AccountingBillingController extends Controller
         $projectIds = collect($validated['project_ids'] ?? $receipt?->projectIds() ?? [])
             ->map(fn ($id): int => (int) $id)->filter()->unique()->values();
         $validProjectIds = app(AccountingAccessService::class)->scopeProjects(
-            SalesProject::withoutGlobalScopes()->where('tenant_id', $tenant->id), $request->user(), $tenant->id,
+            $this->nonDeletedProjects($tenant), $request->user(), $tenant->id,
         )
             ->whereIn('id', $projectIds)->pluck('id')->map(fn ($id): int => (int) $id);
         abort_if($validProjectIds->count() !== $projectIds->count(), 422, 'Um dos projetos selecionados não pertence à organização atual.');
@@ -99,7 +99,7 @@ class AccountingBillingController extends Controller
 
         return $this->json([
             'projects' => app(AccountingAccessService::class)->scopeProjects(
-                SalesProject::withoutGlobalScopes()->where('tenant_id', $tenant->id), $request->user(), $tenant->id,
+                $this->nonDeletedProjects($tenant), $request->user(), $tenant->id,
             )
                 ->orderByDesc('reference_year')->orderBy('title')->get(['id', 'title', 'code', 'type', 'start_date', 'end_date'])
                 ->map(fn (SalesProject $item): array => ['id' => $item->id, 'name' => $item->title, 'code' => $item->code, 'type' => $item->type]),
@@ -329,9 +329,16 @@ class AccountingBillingController extends Controller
     {
         $requested = collect($projectIds)->map(fn ($id): int => (int) $id)->filter()->unique();
         $allowed = app(AccountingAccessService::class)->scopeProjects(
-            SalesProject::withoutGlobalScopes()->where('tenant_id', $tenant->id), $request->user(), $tenant->id,
+            $this->nonDeletedProjects($tenant), $request->user(), $tenant->id,
         )->whereIn('id', $requested)->count();
         abort_if($allowed !== $requested->count(), 403, 'Você não possui acesso a um dos projetos selecionados.');
+    }
+
+    private function nonDeletedProjects(Tenant $tenant): Builder
+    {
+        return SalesProject::withoutGlobalScopes()
+            ->where('sales_projects.tenant_id', $tenant->id)
+            ->whereNull('sales_projects.deleted_at');
     }
 
     private function json(mixed $data, int $status = 200): JsonResponse

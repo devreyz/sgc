@@ -81,7 +81,7 @@ class AssociateProjectPortalController extends Controller
             ->where('associate_id', $associate->id)
             ->findOrFail((int) $request->route('receipt'));
 
-        abort_if($receipt->status === ReceiptStatus::OBSOLETE, 409, 'Este comprovante esta obsoleto e nao pode ser usado como documento vigente.');
+        abort_if(in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true), 409, 'Este comprovante nao e mais um documento vigente.');
 
         app(FinancialDocumentIdentityService::class)->ensure($receipt, $request->user());
 
@@ -371,7 +371,7 @@ class AssociateProjectPortalController extends Controller
                     ->where('status', DeliveryStatus::APPROVED->value),
             ]);
         $currentReceipt = (clone $baseQuery)
-            ->where('status', '!=', ReceiptStatus::OBSOLETE->value)
+            ->whereNotIn('status', [ReceiptStatus::OBSOLETE->value, ReceiptStatus::CANCELLED->value])
             ->orderByDesc('receipt_year')->orderByDesc('receipt_number')->first();
         $page = $baseQuery
             ->withSum('payments', 'amount')
@@ -393,8 +393,8 @@ class AssociateProjectPortalController extends Controller
                 'status' => $receipt->status?->value,
                 'status_label' => $receipt->status?->getLabel(),
                 'obsolete_reason' => $receipt->obsolete_reason,
-                'current_receipt' => $receipt->status === ReceiptStatus::OBSOLETE ? $currentReceipt?->formatted_number : null,
-                'preview_url' => $receipt->status === ReceiptStatus::OBSOLETE ? null : route('associate.projects.receipts.download', [
+                'current_receipt' => in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true) ? $currentReceipt?->formatted_number : null,
+                'preview_url' => in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true) ? null : route('associate.projects.receipts.download', [
                     'tenant' => request()->route('tenant'),
                     'project' => $project->id,
                     'receipt' => $receipt->id,

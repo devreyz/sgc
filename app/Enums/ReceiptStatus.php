@@ -10,6 +10,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     /** Rascunho — gerado mas ainda sem snapshot financeiro congelado */
     case DRAFT           = 'draft';
     case OBSOLETE        = 'obsolete';
+    case CANCELLED       = 'cancelled';
     case PENDING_PAYMENT  = 'pending_payment';
     case PARTIALLY_PAID   = 'partially_paid';
     case PAID             = 'paid';
@@ -19,6 +20,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
         return match ($this) {
             self::DRAFT           => 'Rascunho',
             self::OBSOLETE        => 'Obsoleto',
+            self::CANCELLED       => 'Cancelado',
             self::PENDING_PAYMENT => 'Aguardando Pagamento',
             self::PARTIALLY_PAID  => 'Parcialmente Pago',
             self::PAID            => 'Pago',
@@ -30,6 +32,7 @@ enum ReceiptStatus: string implements HasColor, HasLabel
         return match ($this) {
             self::DRAFT           => 'gray',
             self::OBSOLETE        => 'danger',
+            self::CANCELLED       => 'danger',
             self::PENDING_PAYMENT => 'warning',
             self::PARTIALLY_PAID  => 'info',
             self::PAID            => 'success',
@@ -45,6 +48,6 @@ enum ReceiptStatus: string implements HasColor, HasLabel
     /** Comprovante está imutável (após pagamento)? */
     public function isLocked(): bool
     {
-        return $this === self::PARTIALLY_PAID || $this === self::PAID;
+        return $this === self::PARTIALLY_PAID || $this === self::PAID || $this === self::CANCELLED;
     }
 }

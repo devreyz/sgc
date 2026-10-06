@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.media.AudioManager;
+import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.util.Size;
 import android.view.Gravity;
@@ -52,6 +54,7 @@ public class NativeQrScannerActivity extends ComponentActivity {
     public static final String EXTRA_BATCH = "batch";
     public static final String EXTRA_VERIFICATION_URL = "verificationUrl";
     public static final String EXTRA_CSRF_TOKEN = "csrfToken";
+    public static final String EXTRA_SELECTION_PAYLOAD = "selectionPayload";
     public static final String RESULT_CODES = "codes";
     private final LinkedHashSet<String> codes = new LinkedHashSet<>();
     private final AtomicBoolean processing = new AtomicBoolean(false);
@@ -62,6 +65,8 @@ public class NativeQrScannerActivity extends ComponentActivity {
     private boolean batch;
     private String verificationUrl;
     private String csrfToken;
+    private String selectionPayload;
+    private String pendingCode;
     private TextView reportView;
     private Button scanAnotherButton;
     private Button finishButton;
@@ -69,6 +74,7 @@ public class NativeQrScannerActivity extends ComponentActivity {
     private Camera camera;
     private ExecutorService executor;
     private BarcodeScanner scanner;
+    private ToneGenerator toneGenerator;
     private final ActivityResultLauncher<String> permission = registerForActivityResult(
         new ActivityResultContracts.RequestPermission(), granted -> { if (granted) bindCamera(); else finishCancelled(); }
     );
@@ -78,12 +84,14 @@ public class NativeQrScannerActivity extends ComponentActivity {
         batch = getIntent().getBooleanExtra(EXTRA_BATCH, false);
         verificationUrl = getIntent().getStringExtra(EXTRA_VERIFICATION_URL);
         csrfToken = getIntent().getStringExtra(EXTRA_CSRF_TOKEN);
+        selectionPayload = getIntent().getStringExtra(EXTRA_SELECTION_PAYLOAD);
         executor = Executors.newSingleThreadExecutor();
         scanner = BarcodeScanning.getClient(new BarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE).build());
+        toneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80);
         buildUi();
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-            @Override public void handleOnBackPressed() { finishCancelled(); }
+            @Override public void handleOnBackPressed() { finishWithLastOrCancel(); }
         });
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) bindCamera();
         else permission.launch(Manifest.permission.CAMERA);
@@ -114,14 +122,14 @@ public class NativeQrScannerActivity extends ComponentActivity {
         countView = label("Traseira 1x · Aponte para o QR Code", 14, true);
         listView = label("Os documentos lidos aparecerão aqui.", 12, false); listView.setMaxLines(4);
         panel.addView(countView); panel.addView(listView);
-        if (batch) { Button done = button("Concluir leitura"); done.setEnabled(false); done.setOnClickListener(v -> finishSuccess()); done.setTag("done"); panel.addView(done, new LinearLayout.LayoutParams(-1, dp(48))); }
+        if (batch && !hasNativeVerification()) { Button done = button("Concluir leitura"); done.setEnabled(false); done.setOnClickListener(v -> finishSuccess()); done.setTag("done"); panel.addView(done, new LinearLayout.LayoutParams(-1, dp(48))); }
         if (hasNativeVerification()) {
             reportView = label("", 13, false); reportView.setVisibility(android.view.View.GONE); reportView.setMaxLines(12); panel.addView(reportView);
             LinearLayout actions = new LinearLayout(this); actions.setPadding(0, dp(8), 0, 0);
-            scanAnotherButton = button("Escanear outro"); scanAnotherButton.setVisibility(android.view.View.GONE);
+            scanAnotherButton = button(hasNativeSelection() ? "Escanear próximo" : "Escanear outro"); scanAnotherButton.setVisibility(android.view.View.GONE);
             scanAnotherButton.setOnClickListener(v -> resetVerification());
-            finishButton = button("Concluir"); finishButton.setVisibility(android.view.View.GONE);
-            finishButton.setOnClickListener(v -> finishSuccess());
+            finishButton = button(hasNativeSelection() ? "Concluir e adicionar" : "Concluir"); finishButton.setVisibility(android.view.View.GONE);
+            finishButton.setOnClickListener(v -> finishCompleted());
             actions.addView(scanAnotherButton, new LinearLayout.LayoutParams(0, dp(48), 1));
             LinearLayout.LayoutParams finishParams = new LinearLayout.LayoutParams(0, dp(48), 1); finishParams.leftMargin = dp(8); actions.addView(finishButton, finishParams);
             panel.addView(actions);
@@ -156,6 +164,7 @@ public class NativeQrScannerActivity extends ComponentActivity {
 
     private void onCode(String code) {
         if (!codes.add(code)) return;
+        pendingCode = code;
         if (hasNativeVerification()) {
             reportOpen.set(true);
             runOnUiThread(() -> { countView.setText("Conferindo documento…"); listView.setText(code); });
@@ -166,6 +175,7 @@ public class NativeQrScannerActivity extends ComponentActivity {
     }
 
     private boolean hasNativeVerification() { return verificationUrl != null && !verificationUrl.isBlank(); }
+    private boolean hasNativeSelection() { return batch && selectionPayload != null && !selectionPayload.isBlank(); }
 
     private void verifyDocument(String code) {
         HttpURLConnection connection = null;
@@ -176,15 +186,67 @@ public class NativeQrScannerActivity extends ComponentActivity {
             connection.setRequestProperty("Accept", "application/json"); connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             if (csrfToken != null && !csrfToken.isBlank()) connection.setRequestProperty("X-CSRF-TOKEN", csrfToken);
             String cookie = CookieManager.getInstance().getCookie(verificationUrl); if (cookie != null) connection.setRequestProperty("Cookie", cookie);
-            byte[] body = new JSONObject().put("code", code).toString().getBytes(StandardCharsets.UTF_8);
+            JSONObject request = hasNativeSelection() ? new JSONObject(selectionPayload) : new JSONObject();
+            if (hasNativeSelection()) {
+                request.put("mode", "receipts");
+                request.put("receipt_codes", new JSONArray().put(code));
+                request.put("distribution_ids", new JSONArray());
+            } else request.put("code", code);
+            byte[] body = request.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(body.length); try (OutputStream output = connection.getOutputStream()) { output.write(body); }
             java.io.InputStream input = connection.getResponseCode() >= 400 ? connection.getErrorStream() : connection.getInputStream();
             StringBuilder json = new StringBuilder(); try (BufferedReader reader = new BufferedReader(new InputStreamReader(input, StandardCharsets.UTF_8))) { String line; while ((line = reader.readLine()) != null) json.append(line); }
             JSONObject result = new JSONObject(json.toString());
-            runOnUiThread(() -> showVerification(result));
+            runOnUiThread(() -> { if (hasNativeSelection()) showSelection(result); else showVerification(result); });
         } catch (Exception exception) {
-            runOnUiThread(() -> showVerificationError("Não foi possível consultar o documento. Confira a conexão e tente novamente."));
+            runOnUiThread(() -> {
+                if (hasNativeSelection()) rejectPendingCode();
+                showVerificationError("Não foi possível consultar o documento. Confira a conexão e tente novamente.");
+            });
         } finally { if (connection != null) connection.disconnect(); }
+    }
+
+    private void showSelection(JSONObject result) {
+        JSONArray batches = result.optJSONArray("batches");
+        JSONObject selectedBatch = batches == null ? null : batches.optJSONObject(0);
+        if (selectedBatch == null || !selectedBatch.optBoolean("receipt_found", false)) {
+            rejectPendingCode();
+            showVerificationError("Comprovante não encontrado ou incompatível com este faturamento. Aponte para outro QR Code.");
+            return;
+        }
+
+        JSONArray documents = selectedBatch.optJSONArray("documents");
+        JSONObject document = documents == null ? null : documents.optJSONObject(0);
+        int selectedCount = selectedBatch.optInt("selected_count", 0);
+        int excludedCount = selectedBatch.optInt("excluded_count", 0);
+        if (selectedCount <= 0) rejectPendingCode();
+        countView.setText(selectedCount > 0 ? "Lote selecionado automaticamente" : "Comprovante sem entregas elegíveis");
+        countView.setTextColor(selectedCount > 0 ? Color.rgb(132, 255, 184) : Color.rgb(255, 210, 91));
+
+        StringBuilder text = new StringBuilder();
+        if (document != null) {
+            text.append(document.optString("number", "Comprovante"));
+            if (!document.optString("associate", "").isBlank()) text.append(" · ").append(document.optString("associate"));
+            JSONArray distributions = document.optJSONArray("distributions");
+            text.append("\n\n").append(selectedCount).append(" distribuição(ões) pronta(s) para adicionar");
+            if (excludedCount > 0) text.append(" · ").append(excludedCount).append(" não elegível(is)");
+            if (distributions != null) {
+                for (int index = 0; index < Math.min(distributions.length(), 5); index++) {
+                    JSONObject row = distributions.optJSONObject(index);
+                    if (row == null) continue;
+                    text.append("\n• ").append(row.optString("date", ""));
+                    text.append(" · ").append(row.optString("product", "Produto"));
+                    text.append(" · ").append(row.optString("quantity", "0")).append(" ").append(row.optString("unit", "un"));
+                }
+                if (distributions.length() > 5) text.append("\n+ ").append(distributions.length() - 5).append(" distribuição(ões)");
+            }
+        } else {
+            text.append(selectedCount).append(" distribuição(ões) pronta(s) para adicionar.");
+        }
+        listView.setVisibility(android.view.View.GONE);
+        reportView.setText(text.toString()); reportView.setVisibility(android.view.View.VISIBLE);
+        scanAnotherButton.setVisibility(android.view.View.VISIBLE); finishButton.setVisibility(android.view.View.VISIBLE);
+        if (selectedCount > 0) playSuccessTone();
     }
 
     private void showVerification(JSONObject result) {
@@ -213,8 +275,14 @@ public class NativeQrScannerActivity extends ComponentActivity {
         scanAnotherButton.setVisibility(android.view.View.VISIBLE); finishButton.setVisibility(android.view.View.VISIBLE);
     }
 
+    private void rejectPendingCode() {
+        if (pendingCode != null) codes.remove(pendingCode);
+        pendingCode = null;
+    }
+
     private void resetVerification() {
-        codes.clear(); reportOpen.set(false); countView.setTextColor(Color.WHITE); reportView.setVisibility(android.view.View.GONE);
+        if (!hasNativeSelection()) codes.clear();
+        pendingCode = null; reportOpen.set(false); countView.setTextColor(Color.WHITE); reportView.setVisibility(android.view.View.GONE);
         scanAnotherButton.setVisibility(android.view.View.GONE); finishButton.setVisibility(android.view.View.GONE);
         listView.setVisibility(android.view.View.VISIBLE); listView.setText("Aponte para o próximo QR Code."); updatePanel();
     }
@@ -228,10 +296,17 @@ public class NativeQrScannerActivity extends ComponentActivity {
     }
 
     private void finishSuccess() { Intent data = new Intent(); data.putStringArrayListExtra(RESULT_CODES, new ArrayList<>(codes)); setResult(Activity.RESULT_OK, data); finish(); }
+    private void finishCompleted() {
+        countView.setText(codes.isEmpty() ? "Leitura encerrada" : "✓ Leitura concluída · " + codes.size() + " documento(s)");
+        countView.setTextColor(Color.rgb(132, 255, 184));
+        playSuccessTone();
+        countView.postDelayed(this::finishSuccess, 450);
+    }
+    private void playSuccessTone() { if (toneGenerator != null) toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 160); }
     private void finishWithLastOrCancel() { if (codes.isEmpty()) finishCancelled(); else finishSuccess(); }
     private void finishCancelled() { setResult(Activity.RESULT_CANCELED); finish(); }
     private Button button(String text) { Button view = new Button(this); view.setText(text); view.setTextColor(Color.WHITE); view.setTextSize(12); view.setAllCaps(false); view.setBackgroundColor(Color.rgb(27, 117, 81)); return view; }
     private TextView label(String text, int size, boolean bold) { TextView view = new TextView(this); view.setText(text); view.setTextColor(Color.WHITE); view.setTextSize(size); view.setPadding(0, dp(5), 0, dp(5)); if (bold) view.setTypeface(null, Typeface.BOLD); return view; }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
-    @Override protected void onDestroy() { if (scanner != null) scanner.close(); if (executor != null) executor.shutdown(); super.onDestroy(); }
+    @Override protected void onDestroy() { if (scanner != null) scanner.close(); if (toneGenerator != null) toneGenerator.release(); if (executor != null) executor.shutdown(); super.onDestroy(); }
 }

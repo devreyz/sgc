@@ -169,6 +169,7 @@ class FinancialDocumentPresenter
         return match ($status) {
             ReceiptStatus::DRAFT->value, CustomerReceiptStatus::DRAFT->value => ['draft', 'Emitido em rascunho', 'neutral'],
             ReceiptStatus::OBSOLETE->value => ['obsolete', 'Documento obsoleto', 'danger'],
+            ReceiptStatus::CANCELLED->value => ['cancelled', 'Documento cancelado · não utilizar', 'danger'],
             ReceiptStatus::PENDING_PAYMENT->value => ['pending_payment', $document instanceof CustomerBillingReceipt ? 'Aguardando recebimento' : 'Aguardando pagamento', 'warning'],
             ReceiptStatus::PARTIALLY_PAID->value => ['partially_paid', 'Em pagamento', 'info'],
             ReceiptStatus::PAID->value => ['paid', $document instanceof CustomerBillingReceipt ? 'Recebido' : 'Pago', 'success'],

@@ -7,6 +7,10 @@
         <div class="acc-scanner-camera">
             <video playsinline muted aria-label="Câmera para leitura de QR Code"></video>
             <div class="acc-scan-guide" aria-hidden="true"></div>
+            <div class="acc-scan-status" data-scan-status aria-live="assertive" hidden>
+                <i class="ph-fill ph-check-circle" aria-hidden="true"></i>
+                <span>Comprovante selecionado</span>
+            </div>
         </div>
         <aside class="acc-scanner-panel">
             <strong>Leitura atual</strong>

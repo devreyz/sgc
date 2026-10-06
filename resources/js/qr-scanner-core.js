@@ -20,6 +20,7 @@
             batch: Boolean(options?.batch),
             verificationUrl: options?.verificationUrl || '',
             csrfToken: options?.csrfToken || '',
+            selectionPayload: options?.selectionPayload || null,
         });
         const codes = (result?.codes || []).map(normalize).filter(Boolean);
         return {code: normalize(result?.code), codes, native: true};

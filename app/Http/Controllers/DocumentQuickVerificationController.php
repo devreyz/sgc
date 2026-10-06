@@ -94,8 +94,11 @@ class DocumentQuickVerificationController extends Controller
             if ($document->status?->value === 'obsolete') {
                 array_unshift($issues, ['severity' => 'critical', 'message' => 'Este comprovante está obsoleto e não deve ser aceito como versão vigente.']);
             }
+            if ($document->status?->value === 'cancelled') {
+                array_unshift($issues, ['severity' => 'critical', 'message' => 'Este comprovante foi cancelado e suas distribuições foram liberadas para outra emissão.']);
+            }
 
-            $printUrl = $document->status?->value !== 'obsolete'
+            $printUrl = ! in_array($document->status?->value, ['obsolete', 'cancelled'], true)
                 ? route('delivery.projects.receipt-reprint', ['tenant' => $tenant->slug, 'project' => $document->sales_project_id, 'receipt' => $document->id, 'preview' => 1])
                 : null;
 

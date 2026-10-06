@@ -416,6 +416,92 @@ class AssociateReceiptService
         return $result;
     }
 
+    /**
+     * Cancela o comprovante como registro historico e libera o vinculo
+     * operacional das distribuicoes para uma nova emissao.
+     *
+     * delivery_ids, valores e fee_snapshot permanecem congelados no documento
+     * cancelado; somente production_deliveries.associate_receipt_id e liberado.
+     *
+     * @return array{released: list<int>, receipt_id: int}
+     */
+    public function cancelAndReleaseDistributions(
+        AssociateReceipt $receipt,
+        string $reason,
+    ): array {
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw new \RuntimeException('Informe o motivo do cancelamento.');
+        }
+
+        $result = DB::transaction(function () use ($receipt, $reason): array {
+            $lockedReceipt = AssociateReceipt::query()
+                ->where('tenant_id', $receipt->tenant_id)
+                ->lockForUpdate()
+                ->findOrFail($receipt->id);
+
+            if ($lockedReceipt->status === ReceiptStatus::CANCELLED) {
+                throw new \RuntimeException('Este comprovante ja foi cancelado.');
+            }
+            if (! $lockedReceipt->canBeOperationallyUpdated()) {
+                throw new \RuntimeException('Este comprovante possui pagamento ou bloqueio financeiro e nao pode ser cancelado.');
+            }
+
+            $distributions = ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('associate_receipt_id', $lockedReceipt->id)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            if ($distributions->isEmpty()) {
+                throw new \RuntimeException('Este comprovante nao possui distribuicoes vinculadas para liberar.');
+            }
+
+            $financiallyLocked = $distributions->first(fn (ProductionDelivery $distribution): bool =>
+                (bool) $distribution->paid
+                || (string) ($distribution->billing_status?->value ?? $distribution->billing_status) !== 'unbilled'
+                || ! is_null($distribution->billing_receipt_id)
+                || ! is_null($distribution->distribution_billing_id)
+                || ! is_null($distribution->project_payment_id)
+            );
+            if ($financiallyLocked) {
+                throw new \RuntimeException("A distribuicao #{$financiallyLocked->id} ja foi faturada ou paga e impede o cancelamento.");
+            }
+
+            $releasedIds = $distributions->pluck('id')->map(fn ($id): int => (int) $id)->values();
+
+            ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->where('associate_receipt_id', $lockedReceipt->id)
+                ->update(['associate_receipt_id' => null]);
+
+            // Mantem delivery_ids e os valores como snapshot temporal imutavel.
+            $lockedReceipt->forceFill([
+                'status' => ReceiptStatus::CANCELLED,
+                'obsolete_at' => now(),
+                'obsolete_by' => Auth::id(),
+                'obsolete_reason' => $reason,
+            ])->save();
+
+            return ['released' => $releasedIds->all(), 'receipt_id' => (int) $lockedReceipt->id];
+        }, 5);
+
+        app(FinancialDocumentIdentityService::class)->invalidateDocument(
+            $receipt->fresh(),
+            'Comprovante cancelado: '.$reason,
+            Auth::user(),
+        );
+
+        activity('associate_receipt')
+            ->performedOn($receipt)
+            ->causedBy(Auth::user())
+            ->withProperties($result + ['reason' => $reason, 'snapshot_preserved' => true])
+            ->log('Comprovante cancelado e distribuicoes liberadas');
+
+        return $result;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Pagar comprovante
     // ─────────────────────────────────────────────────────────────────────────

@@ -70,6 +70,32 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('processes.data.0.distributions', 1);
     }
 
+    public function test_billing_context_excludes_soft_deleted_projects_and_rejects_their_ids(): void
+    {
+        DB::table('sales_projects')->insert([
+            'id' => 11,
+            'tenant_id' => 1,
+            'title' => 'Projeto A',
+            'code' => 'PA-REMOVIDO',
+            'status' => 'active',
+            'deleted_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $user = User::query()->findOrFail(1);
+
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/billings/context')
+            ->assertOk()
+            ->assertJsonCount(1, 'projects')
+            ->assertJsonPath('projects.0.id', 10);
+
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/billings/context?project_ids[]=11')
+            ->assertUnprocessable();
+    }
+
     public function test_accounting_portal_lists_source_receipts_and_shows_their_distributions(): void
     {
         DB::table('associate_receipts')->insert([

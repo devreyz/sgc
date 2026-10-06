@@ -35,7 +35,7 @@ class AssociateReceiptObserver
         ]);
 
         if ($syncChanged
-            && $receipt->status !== ReceiptStatus::OBSOLETE
+            && ! in_array($receipt->status, [ReceiptStatus::OBSOLETE, ReceiptStatus::CANCELLED], true)
             && ! empty($receipt->delivery_ids)
             && (float) ($receipt->total_net ?? 0) > 0) {
             SyncAssociateReceiptToDrive::dispatch($receipt->id)->afterCommit();
