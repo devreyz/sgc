@@ -41,6 +41,28 @@ class AssociateReceiptService
         $this->integrity = $integrity ?? new FinancialDistributionInvariantService;
     }
 
+    public function releaseCancelledDistributionLinks(
+        int $tenantId,
+        ?int $projectId = null,
+        ?int $associateId = null,
+    ): int {
+        $cancelledReceiptIds = AssociateReceipt::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->where('status', ReceiptStatus::CANCELLED->value)
+            ->when($projectId, fn ($query) => $query->where('sales_project_id', $projectId))
+            ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
+            ->pluck('id');
+
+        if ($cancelledReceiptIds->isEmpty()) {
+            return 0;
+        }
+
+        return ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereIn('associate_receipt_id', $cancelledReceiptIds)
+            ->update(['associate_receipt_id' => null]);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  Snapshot financeiro
     // ─────────────────────────────────────────────────────────────────────────
@@ -179,6 +201,27 @@ class AssociateReceiptService
 
             $this->integrity->assertCommon($locked, $project, (int) $receipt->tenant_id);
             $this->integrity->assertAssociate($locked, (int) $lockedReceipt->associate_id);
+
+            $linkedReceiptIds = $locked->pluck('associate_receipt_id')->filter()->map(fn ($id): int => (int) $id)->unique();
+            $cancelledReceiptIds = AssociateReceipt::withoutGlobalScopes()
+                ->where('tenant_id', $lockedReceipt->tenant_id)
+                ->whereIn('id', $linkedReceiptIds)
+                ->where('status', ReceiptStatus::CANCELLED->value)
+                ->lockForUpdate()
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id);
+            if ($cancelledReceiptIds->isNotEmpty()) {
+                ProductionDelivery::withoutGlobalScopes()
+                    ->where('tenant_id', $lockedReceipt->tenant_id)
+                    ->whereIn('id', $ids)
+                    ->whereIn('associate_receipt_id', $cancelledReceiptIds)
+                    ->update(['associate_receipt_id' => null]);
+                $locked->each(function (ProductionDelivery $distribution) use ($cancelledReceiptIds): void {
+                    if ($cancelledReceiptIds->contains((int) $distribution->associate_receipt_id)) {
+                        $distribution->associate_receipt_id = null;
+                    }
+                });
+            }
 
             $alreadyInAnotherReceipt = $locked->filter(function ($d) use ($receipt) {
                 return ! is_null($d->associate_receipt_id)

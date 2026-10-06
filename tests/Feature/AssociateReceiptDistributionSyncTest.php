@@ -310,4 +310,48 @@ class AssociateReceiptDistributionSyncTest extends TestCase
             $this->assertSame(ReceiptStatus::PENDING_PAYMENT, AssociateReceipt::query()->findOrFail(13)->status);
         }
     }
+
+    public function test_cancelled_legacy_link_is_released_and_assigned_to_new_receipt(): void
+    {
+        DB::table('associate_receipts')->insert([
+            ['id' => 14, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+                'receipt_year' => 2026, 'receipt_number' => 5, 'issued_at' => '2026-10-06',
+                'delivery_ids' => json_encode([8]), 'status' => ReceiptStatus::CANCELLED->value,
+                'created_at' => now(), 'updated_at' => now()],
+            ['id' => 15, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+                'receipt_year' => 2026, 'receipt_number' => 6, 'issued_at' => '2026-10-06',
+                'delivery_ids' => json_encode([]), 'status' => ReceiptStatus::DRAFT->value,
+                'created_at' => now(), 'updated_at' => now()],
+        ]);
+        DB::table('production_deliveries')->insert([
+            ['id' => 108, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+                'parent_delivery_id' => null, 'customer_id' => null, 'product_id' => 40,
+                'quantity' => 10, 'unit_price' => 0, 'gross_value' => 0, 'status' => 'approved',
+                'paid' => false, 'billing_status' => 'unbilled', 'associate_receipt_id' => null,
+                'created_at' => now(), 'updated_at' => now()],
+            ['id' => 8, 'tenant_id' => 1, 'sales_project_id' => 20, 'associate_id' => 30,
+                'parent_delivery_id' => 108, 'customer_id' => 200, 'product_id' => 40,
+                'quantity' => 10, 'unit_price' => 5, 'gross_value' => 50, 'status' => 'approved',
+                'paid' => false, 'billing_status' => 'unbilled', 'associate_receipt_id' => 14,
+                'created_at' => now(), 'updated_at' => now()],
+        ]);
+        $calculator = Mockery::mock(ProjectFinancialCalculator::class);
+        $calculator->shouldReceive('calculate')->once()->andReturn([
+            'fees' => [], 'total_fee' => '0', 'net' => '50',
+        ]);
+        $project = new SalesProject;
+        $project->setRawAttributes(['id' => 20, 'tenant_id' => 1, 'admin_fee_percentage' => 0], true);
+        $project->exists = true;
+
+        AssociateReceipt::withoutEvents(fn () => (new AssociateReceiptService($calculator))->freezeReceipt(
+            AssociateReceipt::query()->findOrFail(15),
+            ProductionDelivery::query()->whereKey(8)->get(),
+            $project,
+        ));
+
+        $this->assertSame(15, ProductionDelivery::query()->findOrFail(8)->associate_receipt_id);
+        $this->assertSame([8], AssociateReceipt::query()->findOrFail(14)->delivery_ids);
+        $this->assertSame(ReceiptStatus::CANCELLED, AssociateReceipt::query()->findOrFail(14)->status);
+        $this->assertSame([8], AssociateReceipt::query()->findOrFail(15)->delivery_ids);
+    }
 }

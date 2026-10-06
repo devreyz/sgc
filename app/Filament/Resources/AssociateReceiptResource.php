@@ -65,6 +65,17 @@ class AssociateReceiptResource extends Resource
             && ! $record->hasFinancialLocks();
     }
 
+    public static function canCancelAndRelease(AssociateReceipt $record): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null
+            && $user->hasRoleInTenant(['tesoureiro', 'contador', 'admin'], (int) $record->tenant_id)
+            && $record->status !== ReceiptStatus::CANCELLED
+            && $record->canBeOperationallyUpdated()
+            && $record->distributions()->exists();
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -576,11 +587,7 @@ class AssociateReceiptResource extends Resource
                     ->label('Cancelar e liberar')
                     ->icon('heroicon-o-link-slash')
                     ->color('danger')
-                    ->visible(fn (AssociateReceipt $record): bool =>
-                        $record->status !== ReceiptStatus::CANCELLED
-                        && $record->canBeOperationallyUpdated()
-                        && $record->distributions()->exists()
-                    )
+                    ->visible(fn (AssociateReceipt $record): bool => static::canCancelAndRelease($record))
                     ->requiresConfirmation()
                     ->modalIcon('heroicon-o-exclamation-triangle')
                     ->modalHeading(fn (AssociateReceipt $record): string => 'Cancelar o comprovante '.$record->formatted_number.'?')
@@ -600,6 +607,8 @@ class AssociateReceiptResource extends Resource
                             ->rows(3),
                     ])
                     ->action(function (AssociateReceipt $record, array $data): void {
+                        abort_unless(static::canCancelAndRelease($record), 403);
+
                         try {
                             $result = app(AssociateReceiptService::class)
                                 ->cancelAndReleaseDistributions($record, $data['reason']);

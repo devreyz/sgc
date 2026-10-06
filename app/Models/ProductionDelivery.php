@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\BillingStatus;
 use App\Enums\DeliveryStatus;
+use App\Enums\ReceiptStatus;
 use App\Services\AssociateProjectLimitService;
 use App\Services\ProjectFinancialCalculator;
 use App\Services\TenantResolver;
@@ -404,6 +405,7 @@ class ProductionDelivery extends Model
                 if (! $reservedByAssociateReceipt && Schema::hasTable('associate_receipts')) {
                     $reservedByAssociateReceipt = AssociateReceipt::withoutGlobalScopes()
                         ->where('tenant_id', $delivery->tenant_id)
+                        ->where('status', '!=', ReceiptStatus::CANCELLED->value)
                         ->where(function ($query) use ($delivery): void {
                             $query->whereJsonContains('delivery_ids', (int) $delivery->id)
                                 ->orWhereJsonContains('delivery_ids', (string) $delivery->id);

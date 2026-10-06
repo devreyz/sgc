@@ -464,6 +464,7 @@ class DeliveryRegistrationController extends Controller
 
         $legacyReceipt = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
+            ->where('status', '!=', ReceiptStatus::CANCELLED->value)
             ->when($associateId, fn ($query) => $query->where('associate_id', $associateId))
             ->when($receiptId, fn ($query) => $query->where('id', '!=', $receiptId))
             ->get()
@@ -2037,6 +2038,12 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['message' => $this->memberTerm().' ou projeto não encontrado.'], 404);
         }
 
+        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks(
+            (int) $tenantId,
+            $projectId,
+            $associateId,
+        );
+
         if ($receiptId > 0 && ! AssociateReceipt::query()
             ->where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -3604,6 +3611,7 @@ class DeliveryRegistrationController extends Controller
         }
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
+        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks((int) $tenantId, $projectId);
         $tenantSlug = $this->currentTenant()?->slug ?? '';
         $search = trim((string) $request->query('search', ''));
         $filter = (string) $request->query('filter', 'all');
@@ -3832,6 +3840,7 @@ class DeliveryRegistrationController extends Controller
         if (! $project || ! $associateExists) {
             return response()->json(['success' => false, 'message' => $this->memberTerm().' ou projeto não encontrado.'], 404);
         }
+        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks((int) $tenantId, $projectId, $associateId);
 
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
@@ -3877,16 +3886,7 @@ class DeliveryRegistrationController extends Controller
                 && $r->canBeOperationallyUpdated()
                 && ! in_array((int) $r->id, $lockedReceiptIds, true),
             'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
-            'can_cancel_release' => $r->status !== ReceiptStatus::CANCELLED
-                && $r->canBeOperationallyUpdated()
-                && ! in_array((int) $r->id, $lockedReceiptIds, true)
-                && (int) $r->distributions_count > 0,
             'refresh_url' => route('delivery.projects.receipt-document.refresh', [
-                'tenant' => $tenantSlug,
-                'project' => $projectId,
-                'receipt' => $r->id,
-            ]),
-            'cancel_release_url' => route('delivery.projects.receipt-cancel-release', [
                 'tenant' => $tenantSlug,
                 'project' => $projectId,
                 'receipt' => $r->id,
@@ -4041,6 +4041,7 @@ class DeliveryRegistrationController extends Controller
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $associate = Associate::where('tenant_id', $tenantId)->with('user')->findOrFail($associateId);
         $tenant = $this->currentTenant();
+        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks((int) $tenantId, $projectId, $associateId);
 
         // Comprovante usa DISTRIBUIÇÕES: verdade financeira (customer, price, net_value)
         $distributions = ProductionDelivery::where('tenant_id', $tenantId)
@@ -4154,6 +4155,7 @@ class DeliveryRegistrationController extends Controller
 
         $project = SalesProject::where('tenant_id', $tenantId)->findOrFail($projectId);
         $tenant = $this->currentTenant();
+        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks((int) $tenantId, $projectId);
 
         // Aceitar IDs de DISTRIBUIÇÕES diretamente (parent_delivery_id NOT NULL)
         $distributions = ProductionDelivery::where('tenant_id', $tenantId)
@@ -4430,39 +4432,6 @@ class DeliveryRegistrationController extends Controller
     /**
      * PDF: Comprovante de entrega de um projeto filtrado por associado — com assinatura
      */
-    public function cancelAndReleaseReceipt(Request $request)
-    {
-        $tenantId = (int) session('tenant_id');
-        $projectId = (int) $request->route('project');
-        $receiptId = (int) $request->route('receipt');
-        abort_unless($tenantId, 403, 'Sessao expirada.');
-
-        $validated = $request->validate([
-            'reason' => ['nullable', 'string', 'max:500'],
-        ]);
-        $reason = trim((string) ($validated['reason'] ?? 'Cancelado para reemissao consolidada das distribuicoes.'));
-
-        $receipt = AssociateReceipt::query()
-            ->where('tenant_id', $tenantId)
-            ->where('sales_project_id', $projectId)
-            ->findOrFail($receiptId);
-
-        try {
-            $result = app(AssociateReceiptService::class)
-                ->cancelAndReleaseDistributions($receipt, $reason);
-        } catch (\RuntimeException $exception) {
-            return response()->json(['success' => false, 'message' => $exception->getMessage()], 422);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Comprovante cancelado. '.count($result['released']).' distribuicao(oes) liberada(s) para uma nova emissao.',
-            'receipt_id' => $receiptId,
-            'released_count' => count($result['released']),
-            'released_distribution_ids' => $result['released'],
-        ]);
-    }
-
     public function regenerateReceipt(Request $request)
     {
         $projectId = (int) $request->route('project');

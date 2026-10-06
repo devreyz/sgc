@@ -2445,7 +2445,6 @@
                 <div class="pr-receipt-actions">
                     ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> Alterar distribuições</button>` : ''}
                     ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar</button>` : ''}
-                    ${receipt.can_cancel_release ? `<button class="pr-btn danger" type="button" data-cancel-release="${esc(receipt.cancel_release_url)}"><i class="ph-fill ph-link-break"></i> Cancelar e liberar</button>` : ''}
                     ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-refresh-document="${esc(receipt.refresh_url)}" title="Atualiza o PDF sem trocar o QR Code"><i class="ph-fill ph-arrow-clockwise"></i> Atualizar comprovante</button>` : ''}
                     ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-eye"></i> Visualizar e imprimir</button>` : ''}
                 </div>
@@ -2703,28 +2702,6 @@
         }
     }
 
-    async function cancelAndRelease(url, button) {
-        if (state.busy) return;
-        const confirmed = await confirmAction('Cancelar este comprovante e liberar todas as distribuições? O documento permanecerá no histórico, mas seu QR será invalidado. Esta ação não pode ser desfeita.');
-        if (!confirmed) return;
-        state.busy = true;
-        button.disabled = true;
-        try {
-            const data = await json(url, {
-                method:'POST',
-                headers:{ 'Content-Type':'application/json' },
-                body:JSON.stringify({ reason:'Cancelado para reemissão consolidada das distribuições.' }),
-            });
-            toast(data.message);
-            await openModal(state.associateId, state.associateName);
-            loadProducers();
-        } catch (error) {
-            toast(error.message, 'error');
-        } finally {
-            state.busy = false;
-            button.disabled = false;
-        }
-    }
 
     async function refreshDocument(url, button) {
         if (state.busy) return;
@@ -2912,11 +2889,6 @@
         if (edit) { openSelection(edit.dataset.editReceipt); return; }
         const refresh = event.target.closest('[data-regenerate]');
         if (refresh) regenerate(Number(refresh.dataset.regenerate), refresh);
-        const cancelRelease = event.target.closest('[data-cancel-release]');
-        if (cancelRelease) {
-            cancelAndRelease(cancelRelease.dataset.cancelRelease, cancelRelease);
-            return;
-        }
         const refreshDocumentButton = event.target.closest('[data-refresh-document]');
         if (refreshDocumentButton) {
             refreshDocument(refreshDocumentButton.dataset.refreshDocument, refreshDocumentButton);
