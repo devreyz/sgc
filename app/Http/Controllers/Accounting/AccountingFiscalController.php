@@ -108,9 +108,15 @@ class AccountingFiscalController extends Controller
                 || $request->user()->can('prepare_accounting_fiscal'),
             403,
         );
-        abort_if($receipt->status?->value === 'draft', 422, 'Feche o faturamento antes de imprimir a folha.');
+        $isDraft = $receipt->status?->value === 'draft';
         $inspection = $integrity->inspect($receipt);
-        abort_if($inspection['blocking_count'] > 0, 422, $inspection['issues'][0]['message'] ?? 'O faturamento possui dados que precisam ser corrigidos.');
+        $blockingCount = $isDraft
+            ? (int) $inspection['critical_count']
+            : (int) $inspection['blocking_count'];
+        $blockingIssue = $isDraft
+            ? collect($inspection['issues'])->firstWhere('severity', 'critical')
+            : ($inspection['issues'][0] ?? null);
+        abort_if($blockingCount > 0, 422, $blockingIssue['message'] ?? 'O faturamento possui dados que precisam ser corrigidos.');
 
         $projects = $receipt->includedProjects();
         $projectIds = $projects->pluck('id')->map(fn ($id): int => (int) $id)->all();
@@ -141,6 +147,7 @@ class AccountingFiscalController extends Controller
             );
         }
         $data['table_scale'] = 100;
+        $data['is_draft_preview'] = $isDraft;
         $pdfService = app(TemplatedPdfService::class);
         $pdf = $pdfService->generateSystemPdf($view, $data, $pdfService->systemPdfOptions(
             $view,
@@ -151,8 +158,10 @@ class AccountingFiscalController extends Controller
         $recipient = Str::slug($receipt->recipient_name ?: 'cliente');
         $filename = 'faturamento-'.str_replace('/', '-', $receipt->formatted_number).'-'.$recipient.'.pdf';
         activity()->performedOn($receipt)->causedBy($request->user())->withProperties([
-            'tenant_id' => $tenant->id, 'download' => $request->boolean('download'),
-        ])->log('Folha de faturamento consultada no Portal Contábil');
+            'tenant_id' => $tenant->id,
+            'download' => $request->boolean('download'),
+            'draft_preview' => $isDraft,
+        ])->log($isDraft ? 'Prévia do faturamento consultada no Portal Contábil' : 'Folha de faturamento consultada no Portal Contábil');
 
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',

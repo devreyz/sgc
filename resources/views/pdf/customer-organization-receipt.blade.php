@@ -63,6 +63,9 @@ body {
     background: #fff;
     padding: {{ $manyClients ? '9mm 11mm 8mm 11mm' : '11mm 14mm 10mm 14mm' }};
 }
+.draft-preview { margin-bottom: 8px; padding: 6px 9px; border: 1px solid #b45309;
+    background: #fffbeb; color: #92400e; text-align: center; font-size: 9px; font-weight: bold;
+    text-transform: uppercase; letter-spacing: .5px; }
 
 /* ── Cabeçalho ── */
 .hdr { display: table; width: 100%; padding-bottom: 6px;
@@ -138,6 +141,10 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 </style>
 </head>
 <body>
+
+@if(!empty($is_draft_preview))
+<div class="draft-preview">Prévia de rascunho — documento ainda não emitido</div>
+@endif
 
 {{-- ═══ CABEÇALHO ═══ --}}
 <div class="hdr">

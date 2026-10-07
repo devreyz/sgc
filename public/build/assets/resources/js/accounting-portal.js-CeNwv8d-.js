@@ -1421,7 +1421,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const y=document.querySele
                                                     >
                                                         ${r("ph-printer")}
 
-                                                        Imprimir faturamento completo
+                                                        ${t.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
                                                     </a>
                                                 `:t.workflow.fiscal.settings_url?`
                                                             <a
@@ -1673,16 +1673,18 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const y=document.querySele
                                             Revise as entregas e os valores
                                             antes de fechar.
                                         </span>
-                                    `:t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
-                                                <a
-                                                    class="acc-button acc-button-primary"
-                                                    href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
-                                                >
-                                                    ${r("ph-printer")}
+                                    `:""}
 
-                                                    Imprimir faturamento completo
-                                                </a>
-                                            `:""}
+                            ${t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
+                                    <a
+                                        class="acc-button ${t.edit_url?"":"acc-button-primary"}"
+                                        href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
+                                    >
+                                        ${r("ph-printer")}
+
+                                        ${t.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
+                                    </a>
+                                `:""}
                         </div>
                     </section>
 

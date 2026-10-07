@@ -540,9 +540,10 @@ class AccountingPortalController extends Controller
                     && $request->user()->can('update_customer::billing::receipt')
                     ? route('accounting.billings.reopen', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
                     : null,
-                'pdf_url' => $receipt->status !== CustomerReceiptStatus::DRAFT
-                    ? route('accounting.fiscal.billing-sheet', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
-                    : null,
+                'pdf_url' => route('accounting.fiscal.billing-sheet', [
+                    'tenant' => $tenant->slug,
+                    'receipt' => $receipt->id,
+                ]),
                 'workflow' => [
                     'authorization' => $authorization,
                     'fiscal' => $this->fiscalPayload(

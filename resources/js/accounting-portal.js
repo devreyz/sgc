@@ -2493,7 +2493,11 @@ import './qr-scanner-core';
                                                     >
                                                         ${phIcon("ph-printer")}
 
-                                                        Imprimir faturamento completo
+                                                        ${
+                                                            process.financial.status === "draft"
+                                                                ? "Imprimir prévia do faturamento"
+                                                                : "Imprimir faturamento completo"
+                                                        }
                                                     </a>
                                                 `
                                                 : process.workflow.fiscal
@@ -2817,9 +2821,8 @@ import './qr-scanner-core';
                             class="acc-action-box"
                             data-authorization-action
                         >
-                            ${
-                                process.edit_url
-                                    ? `
+                            ${process.edit_url
+                                ? `
                                         <a
                                             class="acc-button acc-button-primary"
                                             href="${esc(process.edit_url)}"
@@ -2834,22 +2837,24 @@ import './qr-scanner-core';
                                             antes de fechar.
                                         </span>
                                     `
-                                    : process.pdf_url || process.workflow.fiscal.billing_sheet_url
-                                    ? `
-                                                <a
-                                                    class="acc-button acc-button-primary"
-                                                    href="${esc(
-                                                        process.pdf_url || process.workflow.fiscal
-                                                            .billing_sheet_url
-                                                    )}"
-                                                >
-                                                    ${phIcon("ph-printer")}
+                                : ""}
 
-                                                    Imprimir faturamento completo
-                                                </a>
-                                            `
-                                    : ""
-                            }
+                            ${process.pdf_url || process.workflow.fiscal.billing_sheet_url
+                                ? `
+                                    <a
+                                        class="acc-button ${process.edit_url ? "" : "acc-button-primary"}"
+                                        href="${esc(process.pdf_url || process.workflow.fiscal.billing_sheet_url)}"
+                                    >
+                                        ${phIcon("ph-printer")}
+
+                                        ${
+                                            process.financial.status === "draft"
+                                                ? "Imprimir prévia do faturamento"
+                                                : "Imprimir faturamento completo"
+                                        }
+                                    </a>
+                                `
+                                : ""}
                         </div>
                     </section>
 

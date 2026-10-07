@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Jobs\SyncAssociateReceiptToDrive;
+use App\Jobs\SyncCustomerBillingReceiptToDrive;
 use App\Jobs\SyncTenantStoredFileToDrive;
 use App\Models\AssociateReceipt;
+use App\Models\CustomerBillingReceipt;
 use App\Models\TenantCloudStorageConnection;
 
 class GoogleDriveSyncDispatcher
@@ -41,6 +43,18 @@ class GoogleDriveSyncDispatcher
                 }
             });
 
-        return $receipts + SyncTenantStoredFileToDrive::dispatchExistingForTenant($tenantId);
+        $customerReceipts = 0;
+        CustomerBillingReceipt::withoutGlobalScopes()
+            ->where('tenant_id', $tenantId)
+            ->whereNotNull('delivery_ids')
+            ->where('total_net', '>', 0)
+            ->chunkById(100, function ($items) use (&$customerReceipts): void {
+                foreach ($items as $receipt) {
+                    SyncCustomerBillingReceiptToDrive::dispatch((int) $receipt->id);
+                    $customerReceipts++;
+                }
+            });
+
+        return $receipts + $customerReceipts + SyncTenantStoredFileToDrive::dispatchExistingForTenant($tenantId);
     }
 }

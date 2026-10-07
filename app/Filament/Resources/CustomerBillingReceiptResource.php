@@ -8,6 +8,7 @@ use App\Enums\PaymentMethod;
 use App\Exports\CustomerBillingReceiptExport;
 use App\Filament\Resources\CustomerBillingReceiptResource\Pages;
 use App\Filament\Traits\TenantScoped;
+use App\Jobs\SyncCustomerBillingReceiptToDrive;
 use App\Models\BankAccount;
 use App\Models\Customer;
 use App\Models\CustomerBillingReceipt;
@@ -16,6 +17,7 @@ use App\Models\Organization;
 use App\Models\ProductionDelivery;
 use App\Models\SalesProject;
 use App\Models\Tenant;
+use App\Models\TenantCloudStorageConnection;
 use App\Services\CustomerBillingProjectContextService;
 use App\Services\CustomerBillingReceiptService;
 use App\Services\CustomerBillingSelectionService;
@@ -848,16 +850,42 @@ class CustomerBillingReceiptResource extends Resource
                     ->icon('heroicon-o-arrow-path')
                     ->color('gray')
                     ->requiresConfirmation()
-                    ->modalHeading('Atualizar somente o visual?')
-                    ->modalDescription('O PDF será atualizado visualmente, preservando o mesmo QR Code. Valores, itens e recebimentos não serão recalculados.')
+                    ->modalHeading('Atualizar o PDF no Google Drive?')
+                    ->modalDescription('Um novo PDF será gerado com as distribuições e valores atualmente salvos. O arquivo existente será atualizado no Google Drive, preservando o mesmo QR Code.')
                     ->action(function (CustomerBillingReceipt $record): void {
+                        $connected = TenantCloudStorageConnection::query()
+                            ->where('tenant_id', $record->tenant_id)
+                            ->where('provider', 'google_drive')
+                            ->where('status', 'active')
+                            ->exists();
+                        if (! $connected) {
+                            Notification::make()->danger()
+                                ->title('Google Drive não conectado')
+                                ->body('Reconecte a conta da organização antes de atualizar o comprovante.')
+                                ->persistent()
+                                ->send();
+
+                            return;
+                        }
+
+                        if (empty($record->delivery_ids) || (float) ($record->total_net ?? 0) <= 0) {
+                            Notification::make()->warning()
+                                ->title('Comprovante sem distribuições')
+                                ->body('Salve ao menos uma distribuição válida antes de atualizar o PDF.')
+                                ->send();
+
+                            return;
+                        }
+
                         $identity = app(FinancialDocumentIdentityService::class)
                             ->ensure($record, auth()->user());
 
+                        SyncCustomerBillingReceiptToDrive::dispatch((int) $record->id);
+
                         Notification::make()
                             ->success()
-                            ->title('Comprovante atualizado')
-                            ->body('A próxima impressão usará o layout atual e manterá o QR da versão '.((int) ($identity?->revision ?: 1)).'.')
+                            ->title('Atualização enviada')
+                            ->body('O PDF está sendo regenerado com as entregas atuais e substituirá a versão anterior no Drive. O QR da versão '.((int) ($identity?->revision ?: 1)).' será mantido.')
                             ->send();
                     }),
 

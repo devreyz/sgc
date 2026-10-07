@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\SyncCustomerBillingReceiptToDrive;
 use App\Models\CustomerBillingReceipt;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,8 @@ class CustomerBillingReceiptObserver
         $receipt->projects()->syncWithoutDetaching([
             (int) $receipt->sales_project_id => ['tenant_id' => (int) $receipt->tenant_id],
         ]);
+
+        $this->syncToDriveAfterCommit($receipt);
     }
 
     public function updated(CustomerBillingReceipt $receipt): void
@@ -33,6 +36,16 @@ class CustomerBillingReceiptObserver
         }
 
         $this->invalidateAfterCommit((int) $receipt->id, (int) $receipt->tenant_id);
+        $this->syncToDriveAfterCommit($receipt);
+    }
+
+    private function syncToDriveAfterCommit(CustomerBillingReceipt $receipt): void
+    {
+        if (empty($receipt->delivery_ids) || (float) ($receipt->total_net ?? 0) <= 0) {
+            return;
+        }
+
+        SyncCustomerBillingReceiptToDrive::dispatch((int) $receipt->id)->afterCommit();
     }
 
     public function deleting(CustomerBillingReceipt $receipt): void

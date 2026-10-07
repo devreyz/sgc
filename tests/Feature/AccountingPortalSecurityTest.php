@@ -197,6 +197,41 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('process.integrity.critical_count', 0);
     }
 
+    public function test_draft_dossier_exposes_and_renders_a_printable_preview(): void
+    {
+        Schema::create('customer_project_fees', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('sales_project_id');
+            $table->string('name');
+            $table->string('type')->default('percentage');
+            $table->string('nature')->default('discount');
+            $table->decimal('value', 10, 4)->default(0);
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->boolean('active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft']);
+        $user = User::query()->findOrFail(1);
+        $url = route('accounting.fiscal.billing-sheet', ['tenant' => 'tenant-a', 'receipt' => 10]);
+
+        $this->actingAs($user)
+            ->getJson('/tenant-a/accounting/data/processes/10')
+            ->assertOk()
+            ->assertJsonPath('process.pdf_url', $url);
+
+        $this->actingAs($user)
+            ->get($url)
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertDatabaseHas('activity_log', [
+            'subject_id' => 10,
+            'description' => 'Prévia do faturamento consultada no Portal Contábil',
+        ]);
+    }
+
     public function test_empty_draft_selection_clears_previous_financial_snapshot(): void
     {
         DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft']);
