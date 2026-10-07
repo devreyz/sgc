@@ -339,7 +339,7 @@ document.addEventListener('click', (event) => {
     if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
     const target = new URL(link.href, window.location.href);
     if (target.origin !== window.location.origin || target.href === window.location.href || target.hash && target.pathname === window.location.pathname) return;
-    if (link.matches('[data-sgc-pdf]') || /\/(?:pdf|print|preview|reprint)(?:[/?]|$)/i.test(target.pathname)) return;
+    if (link.matches('[data-sgc-pdf]') || /\/(?:pdf|print|preview|reprint|billing-sheet)(?:[/?]|$)/i.test(target.pathname)) return;
     showNavigationLoading('Abrindo', 'Carregando a próxima tela');
 }, true);
 
@@ -428,7 +428,7 @@ document.addEventListener('click', async (event) => {
     const href = new URL(link.href, window.location.href);
     const hint = `${link.textContent || ''} ${link.title || ''}`;
     const looksLikePdf = link.matches('[data-sgc-pdf]')
-        || /\/(?:pdf|print|preview|reprint)(?:[/?]|$)/i.test(href.pathname)
+        || /\/(?:pdf|print|preview|reprint|billing-sheet)(?:[/?]|$)/i.test(href.pathname)
         || (/\/download(?:[/?]|$)/i.test(href.pathname) && /pdf|comprovante|recibo|imprimir|visualizar/i.test(hint));
     if (href.origin !== window.location.origin || !looksLikePdf) return;
     // No navegador tradicional preserva a resposta inline e o nome fornecido

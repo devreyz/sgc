@@ -224,7 +224,9 @@ class AccountingPortalSecurityTest extends TestCase
         $this->actingAs($user)
             ->get($url)
             ->assertOk()
-            ->assertHeader('Content-Type', 'application/pdf');
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-SGC-Document-Origin', 'generated')
+            ->assertHeader('X-SGC-Document-Title', 'Prévia do faturamento COM-A-0001');
 
         $this->assertDatabaseHas('activity_log', [
             'subject_id' => 10,

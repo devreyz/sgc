@@ -2485,6 +2485,8 @@ import './qr-scanner-core';
                                                 ? `
                                                     <a
                                                         class="acc-button acc-button-primary"
+                                                        data-sgc-pdf
+                                                        title="Faturamento ${esc(process.number)}"
                                                         href="${esc(
                                                             process.pdf_url || process.workflow
                                                                 .fiscal
@@ -2843,6 +2845,8 @@ import './qr-scanner-core';
                                 ? `
                                     <a
                                         class="acc-button ${process.edit_url ? "" : "acc-button-primary"}"
+                                        data-sgc-pdf
+                                        title="Faturamento ${esc(process.number)}"
                                         href="${esc(process.pdf_url || process.workflow.fiscal.billing_sheet_url)}"
                                     >
                                         ${phIcon("ph-printer")}

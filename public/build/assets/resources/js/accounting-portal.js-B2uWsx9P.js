@@ -1417,6 +1417,8 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const y=document.querySele
                                         ${t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
                                                     <a
                                                         class="acc-button acc-button-primary"
+                                                        data-sgc-pdf
+                                                        title="Faturamento ${e(t.number)}"
                                                         href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
                                                     >
                                                         ${r("ph-printer")}
@@ -1678,6 +1680,8 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const y=document.querySele
                             ${t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
                                     <a
                                         class="acc-button ${t.edit_url?"":"acc-button-primary"}"
+                                        data-sgc-pdf
+                                        title="Faturamento ${e(t.number)}"
                                         href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
                                     >
                                         ${r("ph-printer")}

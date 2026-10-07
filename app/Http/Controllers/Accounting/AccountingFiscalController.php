@@ -168,6 +168,14 @@ class AccountingFiscalController extends Controller
             'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline').'; filename="'.$filename.'"',
             'Cache-Control' => 'no-store, private',
             'X-Content-Type-Options' => 'nosniff',
+            'X-SGC-Document-Title' => ($isDraft ? 'Prévia do faturamento ' : 'Faturamento ').$receipt->formatted_number,
+            'X-SGC-Document-Path' => implode('/', [
+                'Comprovantes de faturamento',
+                (string) $receipt->receipt_year,
+                $receipt->issued_at?->format('m') ?: now()->format('m'),
+                $receipt->project?->driveFolderName() ?: 'Sem projeto',
+            ]),
+            'X-SGC-Document-Origin' => 'generated',
         ]);
     }
 
