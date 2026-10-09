@@ -8072,11 +8072,9 @@ function applyProductSubstitution() {
     const note =
         `Substituição por equivalência financeira:\n`
         + `• Entregue: ${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
-        + ` × ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}. `
-        + `Tabela: ${PRODUCT_SUBSTITUTION.actualReference.tableName} · Cliente: ${PRODUCT_SUBSTITUTION.actualReference.customerName}.\n`
+        + ` × ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}.\n`
         + `• Lançado na cota: ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit} de ${calculation.target.name}`
-        + ` × ${money(calculation.target.price)} = ${money(calculation.targetTotal)}. `
-        + `Tabela: ${PRODUCT_SUBSTITUTION.targetReference.tableName} · Cliente: ${PRODUCT_SUBSTITUTION.targetReference.customerName}.`;
+        + ` × ${money(calculation.target.price)} = ${money(calculation.targetTotal)}.`;
 
     const noteField = $('f-notes');
     let existing = String(noteField.value || '').trim();

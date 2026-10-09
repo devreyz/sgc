@@ -69,6 +69,8 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString('• Lançado na cota: ${productSubstitutionQuantity(calculation.targetQuantity)', $view);
         self::assertStringContainsString('× ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}', $view);
         self::assertStringContainsString('× ${money(calculation.target.price)} = ${money(calculation.targetTotal)}', $view);
+        self::assertStringNotContainsString('Tabela: ${PRODUCT_SUBSTITUTION.actualReference.tableName}', $view);
+        self::assertStringNotContainsString('Cliente: ${PRODUCT_SUBSTITUTION.targetReference.customerName}', $view);
         self::assertStringContainsString('<textarea', $view);
         self::assertStringContainsString('id="f-notes"', $view);
         self::assertStringContainsString("notes             : $('f-notes').value.trim() || null", $view);
