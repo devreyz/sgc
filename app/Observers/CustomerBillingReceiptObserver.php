@@ -13,7 +13,7 @@ class CustomerBillingReceiptObserver
 {
     private const MATERIAL_FIELDS = [
         'sales_project_id', 'customer_id', 'organization_id', 'issued_at', 'from_date', 'to_date',
-        'notes', 'delivery_ids', 'status', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
+        'notes', 'report_annotations', 'report_annotations_position', 'delivery_ids', 'status', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
     ];
 
     public function created(CustomerBillingReceipt $receipt): void

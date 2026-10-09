@@ -31,6 +31,8 @@ class AssociateReceipt extends Model
         'from_date',
         'to_date',
         'notes',
+        'report_annotations',
+        'report_annotations_position',
         'acknowledged_at',
         'delivery_ids',
         // Novo: status do comprovante no fluxo financeiro
@@ -67,6 +69,7 @@ class AssociateReceipt extends Model
             'project_receipt_number' => 'integer',
             'acknowledged_at' => 'datetime',
             'delivery_ids' => 'array',
+            'report_annotations' => 'array',
             'status' => ReceiptStatus::class,
             'obsolete_at' => 'datetime',
             'total_gross' => 'decimal:4',

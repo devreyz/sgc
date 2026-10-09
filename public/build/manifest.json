@@ -20,7 +20,7 @@
     "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
   },
   "resources/css/accounting-portal.css": {
-    "file": "assets/resources/css/accounting-portal-CxoWm1O0.css",
+    "file": "assets/resources/css/accounting-portal-DheyArlp.css",
     "src": "resources/css/accounting-portal.css",
     "isEntry": true,
     "name": "resources/css/accounting-portal.css",
@@ -47,7 +47,7 @@
     ]
   },
   "resources/js/accounting-billing-editor.js": {
-    "file": "assets/resources/js/accounting-billing-editor.js-D3j8E1NQ.js",
+    "file": "assets/resources/js/accounting-billing-editor.js-pC-aRPQK.js",
     "name": "resources/js/accounting-billing-editor.js",
     "src": "resources/js/accounting-billing-editor.js",
     "isEntry": true

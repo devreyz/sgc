@@ -36,6 +36,8 @@ class CustomerBillingReceipt extends Model
         'from_date',
         'to_date',
         'notes',
+        'report_annotations',
+        'report_annotations_position',
         'delivery_ids',
         // Status do comprovante no fluxo financeiro
         'status',
@@ -69,6 +71,7 @@ class CustomerBillingReceipt extends Model
             'project_receipt_year' => 'integer',
             'project_receipt_number' => 'integer',
             'delivery_ids' => 'array',
+            'report_annotations' => 'array',
             'status' => CustomerReceiptStatus::class,
             'total_gross' => 'decimal:4',
             'total_fees' => 'decimal:4',

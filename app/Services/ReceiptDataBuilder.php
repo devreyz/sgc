@@ -176,7 +176,9 @@ class ReceiptDataBuilder
                         ? (float) array_sum(array_map(fn ($d) => $calcMap[$d->id]['net'] ?? 0, $group->all()))
                         : (float) $group->sum('net_value'),
                     'fee_totals' => self::sumFeeValues($group, $calcMap, $feeColumns),
+                    'distribution_ids' => $group->pluck('id')->map(fn ($id): int => (int) $id)->all(),
                     'distributions' => $group->map(fn ($d) => [
+                        'distribution_ids' => [(int) $d->id],
                         'customer_name' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
                         'quantity' => (float) $d->quantity,
                         'unit_price' => (float) ($d->unit_price ?? 0),
@@ -241,6 +243,7 @@ class ReceiptDataBuilder
                         $row = $rows->first();
 
                         return [
+                            'distribution_ids' => $rows->flatMap(fn (array $item): array => $item['distribution_ids'] ?? [])->unique()->values()->all(),
                             'customer_name' => (string) ($row['customer_name'] ?? '—'),
                             'quantity' => $rows->sum(fn (array $item): float => (float) ($item['quantity'] ?? 0)),
                             'unit_price' => (float) ($row['unit_price'] ?? 0),
@@ -263,6 +266,7 @@ class ReceiptDataBuilder
                     'total_admin_fee' => $groups->sum(fn (array $group): float => (float) ($group['total_admin_fee'] ?? 0)),
                     'total_net' => $groups->sum(fn (array $group): float => (float) ($group['total_net'] ?? 0)),
                     'fee_totals' => self::sumArrayValues($groups->pluck('fee_totals')->all()),
+                    'distribution_ids' => $groups->flatMap(fn (array $group): array => $group['distribution_ids'] ?? [])->unique()->values()->all(),
                     'distributions' => $distributions,
                 ];
             })

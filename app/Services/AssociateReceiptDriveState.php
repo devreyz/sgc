@@ -35,6 +35,8 @@ class AssociateReceiptDriveState
             'fee_snapshot' => $receipt->fee_snapshot,
             'issued_at' => $receipt->issued_at?->format('Y-m-d'),
             'notes' => $receipt->notes,
+            'report_annotations' => $receipt->report_annotations,
+            'report_annotations_position' => $receipt->report_annotations_position,
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
     }
 

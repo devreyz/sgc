@@ -26,6 +26,9 @@ if ($tenant && ! empty($tenant->logo)) {
 $receiptLabel = $receipt->formatted_number ?? '—';
 $issuedAt     = $receipt->issued_at?->format('d/m/Y') ?? now()->format('d/m/Y');
 $pdfSections = $visible_sections ?? ['document_info', 'customer_info', 'project_info', 'deliveries', 'financial', 'signature'];
+$reportAnnotationService = app(\App\Services\ReceiptReportAnnotationService::class);
+$reportAnnotations = isset($receipt) ? $reportAnnotationService->notes($receipt) : [];
+$reportAnnotationPosition = $receipt->report_annotations_position ?? 'after';
 $showSection = fn (string $section): bool => in_array($section, $pdfSections, true);
 $primaryColor = '#0a0a0a';
 $lineColor    = '#c0c8d4';
@@ -220,6 +223,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 
 {{-- ═══ TABELA DE PRODUTOS ═══ --}}
 @if($showSection('deliveries'))
+@if($reportAnnotationPosition === 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 <div class="sec-label">{{ !empty($isMultiProject) ? 'Entregas por Projeto' : 'Entregas por Produto' }}</div>
 @foreach($projectGroups as $projectGroup)
 @php
@@ -253,7 +259,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showDeliveryDate)
                 <td>{{ !empty($row['delivery_date']) && $row['delivery_date'] !== 'sem-data' ? date('d/m/Y', strtotime($row['delivery_date'])) : '—' }}</td>
             @endif
-            <td>{{ $row['product'] }}</td>
+            <td>{{ $row['product'] }}<sup>{{ $reportAnnotationService->markers($reportAnnotations, (int) ($row['product_id'] ?? 0), (array) ($row['distribution_ids'] ?? [])) }}</sup></td>
             <td class="r">{{ $fmtQtyBilling((float) $row['quantity']) }}&nbsp;{{ $row['unit'] }}</td>
             @if($showUnitPrice)<td class="r">R$ {{ number_format($row['unit_price'], 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r">R$ {{ number_format($row['gross'], 2, ',', '.') }}</td>@endif
@@ -279,6 +285,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tfoot>
 </table>
 @endforeach
+@if($reportAnnotationPosition !== 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 @endif
 
 {{-- ═══ TOTAIS GERAIS POR PRODUTO ═══ --}}

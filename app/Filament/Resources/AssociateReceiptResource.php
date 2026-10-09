@@ -250,6 +250,8 @@ class AssociateReceiptResource extends Resource
                     ])
                     ->collapsible()
                     ->collapsed(fn ($record) => empty($record?->delivery_ids)),
+
+                \App\Filament\Forms\ReceiptReportAnnotationFields::section(),
             ]);
     }
 

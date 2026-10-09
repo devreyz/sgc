@@ -27,6 +27,9 @@ $lineColor     = '#c0c8d4';
 $customerCount = $customers->count();
 $manyClients   = collect($priceGroups)->max(fn($g) => $g['customers']->count()) > 4;
 $pdfSections   = $visible_sections ?? ['document_info', 'organization_info', 'project_info', 'deliveries', 'financial', 'signature'];
+$reportAnnotationService = app(\App\Services\ReceiptReportAnnotationService::class);
+$reportAnnotations = isset($receipt) ? $reportAnnotationService->notes($receipt) : [];
+$reportAnnotationPosition = $receipt->report_annotations_position ?? 'after';
 $showSection   = fn (string $section): bool => in_array($section, $pdfSections, true);
 
 /**
@@ -221,6 +224,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 @endif
 
 @if($showSection('deliveries'))
+@if($reportAnnotationPosition === 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 @if(!$multiplePriceTables)
 <div class="sec-label">Entregas</div>
 @endif
@@ -279,7 +285,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showDeliveryDate)
                 <td>{{ !empty($row['delivery_date']) && $row['delivery_date'] !== 'sem-data' ? date('d/m/Y', strtotime($row['delivery_date'])) : '—' }}</td>
             @endif
-            <td>{{ $row['product'] }}</td>
+            <td>{{ $row['product'] }}<sup>{{ $reportAnnotationService->markers($reportAnnotations, (int) ($row['product_id'] ?? 0), (array) ($row['distribution_ids'] ?? [])) }}</sup></td>
             @foreach($groupCustomers as $c)
                 @php $qty = $row['by_customer'][$c->id] ?? null; @endphp
                 @if($qty !== null)
@@ -318,6 +324,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 <div style="border-top:1px dashed #d1d5db; margin:6px 0 2px;"></div>
 @endif
 @endforeach
+@if($reportAnnotationPosition !== 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 @endif
 
 {{-- ═══ TOTAIS GERAIS POR PRODUTO ═══ --}}

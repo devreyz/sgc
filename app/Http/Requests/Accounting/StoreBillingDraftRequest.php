@@ -17,6 +17,7 @@ class StoreBillingDraftRequest extends BillingPreviewRequest
         return array_merge(parent::rules(), [
             'issued_at' => ['required', 'date'],
             'operation_key' => ['required', 'uuid'],
+            'finalize' => ['sometimes', 'boolean'],
         ]);
     }
 }

@@ -410,6 +410,8 @@ class CustomerBillingReceiptResource extends Resource
                         })
                         ->visible(fn (Get $get) => ! empty(array_filter((array) $get('delivery_ids')))),
                 ]),
+
+            \App\Filament\Forms\ReceiptReportAnnotationFields::section(),
         ]);
     }
 
@@ -1012,6 +1014,7 @@ class CustomerBillingReceiptResource extends Resource
             : $presentation['lines'];
         $productRows = $frozenLines->isNotEmpty()
             ? $frozenLines->map(fn (array $line): array => [
+                'distribution_ids' => (array) ($line['distribution_ids'] ?? []),
                 'project_id' => (int) ($line['project_id'] ?? 0),
                 'project' => (string) ($line['project'] ?? '—'),
                 'product_id' => (int) ($line['product_id'] ?? 0),
@@ -1049,6 +1052,7 @@ class CustomerBillingReceiptResource extends Resource
                     }
 
                     return [
+                        'distribution_ids' => $group->pluck('id')->map(fn ($id): int => (int) $id)->all(),
                         'project_id' => (int) $first->sales_project_id,
                         'project' => $rowProject?->title ?? 'Projeto #'.$first->sales_project_id,
                         'product_id' => (int) $first->product_id,
@@ -1201,6 +1205,7 @@ class CustomerBillingReceiptResource extends Resource
                         }
 
                         return [
+                            'distribution_ids' => $rows->pluck('id')->map(fn ($id): int => (int) $id)->all(),
                             'project_id' => (int) $rowProject->id,
                             'project' => (string) $rowProject->title,
                             'product_id' => (int) $first->product_id,
@@ -1229,6 +1234,7 @@ class CustomerBillingReceiptResource extends Resource
                 )->all();
 
                 return [
+                    'distribution_ids' => (array) ($line['distribution_ids'] ?? $matching->pluck('id')->all()),
                     'product_id' => (int) ($line['product_id'] ?? 0),
                     'product' => (string) ($line['product'] ?? '—'),
                     'delivery_date' => $line['delivery_date'] ?? null,

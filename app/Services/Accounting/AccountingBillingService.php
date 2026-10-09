@@ -54,6 +54,7 @@ final class AccountingBillingService
         $names = $this->identities->namesForUsers($tenantId, $rows->pluck('associate.user_id')->filter());
         $details = $rows->map(fn (ProductionDelivery $row): array => [
             'id' => (int) $row->id,
+            'product_id' => (int) $row->product_id,
             'date' => $row->delivery_date?->format('d/m/Y'),
             'product' => $row->product?->name ?? 'Produto não identificado',
             'unit' => $row->product?->unit ?: 'un',
@@ -110,6 +111,10 @@ final class AccountingBillingService
                 'from_date' => $data['from_date'] ?? null,
                 'to_date' => $data['to_date'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'report_annotations' => app(\App\Services\ReceiptReportAnnotationService::class)->validateTargets(
+                    $data['report_annotations'] ?? [], $preview['selected_ids'], $tenantId,
+                ),
+                'report_annotations_position' => ($data['report_annotations_position'] ?? 'after') === 'before' ? 'before' : 'after',
                 'delivery_ids' => $preview['selected_ids'],
                 'status' => CustomerReceiptStatus::DRAFT->value,
                 'total_gross' => $preview['totals']['gross'],

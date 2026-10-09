@@ -31,7 +31,7 @@ class AssociateReceiptObserver
 
         $syncChanged = $receipt->wasRecentlyCreated || $receipt->wasChanged([
             'delivery_ids', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
-            'issued_at', 'notes', 'status', 'amount_paid',
+            'issued_at', 'notes', 'report_annotations', 'report_annotations_position', 'status', 'amount_paid',
         ]);
 
         if ($syncChanged

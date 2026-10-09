@@ -54,10 +54,10 @@
     </header>
 
     <nav class="billing-flow" aria-label="Etapas do faturamento">
-        <button type="button" class="billing-flow-btn is-active" data-step-button="1"><b>1</b><span>Contexto</span></button>
-        <button type="button" class="billing-flow-btn" data-step-button="2"><b>2</b><span>Distribuições</span></button>
-        <button type="button" class="billing-flow-btn" data-step-button="3"><b>3</b><span>Conferência</span></button>
-        <button type="button" class="billing-flow-btn" data-step-button="4"><b>4</b><span>Emissão</span></button>
+        <button type="button" class="billing-flow-btn is-active" data-step-button="1"><b>1</b><span><strong>Dados</strong><small>Projetos e destinatário</small></span></button>
+        <button type="button" class="billing-flow-btn" data-step-button="2"><b>2</b><span><strong>Itens</strong><small>Escolher distribuições</small></span></button>
+        <button type="button" class="billing-flow-btn" data-step-button="3"><b>3</b><span><strong>Revisão</strong><small>Conferir e observar</small></span></button>
+        <button type="button" class="billing-flow-btn" data-step-button="4"><b>4</b><span><strong>Emitir</strong><small>Valores e conclusão</small></span></button>
     </nav>
 
     <div class="billing-message" data-editor-message role="status" aria-live="polite" hidden></div>
@@ -68,8 +68,8 @@
                 <div class="billing-section-start">
                     <span class="billing-section-icon" aria-hidden="true"><i class="ph-fill ph-folder-open"></i></span>
                     <div class="billing-section-copy">
-                        <h2>Contexto do faturamento</h2>
-                        <p>Defina os projetos, quem será cobrado e o período das distribuições.</p>
+                        <h2>1. Informe os dados do faturamento</h2>
+                        <p>Defina os projetos, quem será cobrado e o período. Depois, avance para selecionar os itens.</p>
                     </div>
                 </div>
             </header>
@@ -160,8 +160,8 @@
                 <div class="billing-section-start">
                     <span class="billing-section-icon is-blue" aria-hidden="true"><i class="ph-fill ph-package"></i></span>
                     <div class="billing-section-copy">
-                        <h2>Selecionar distribuições</h2>
-                        <p>Escolha a forma mais prática de localizar os itens que farão parte do faturamento.</p>
+                        <h2>2. Escolha as distribuições</h2>
+                        <p>Use o período, os comprovantes de origem ou a seleção manual. Você poderá revisar tudo no próximo passo.</p>
                     </div>
                 </div>
                 <strong class="billing-section-count" data-selected-count>0 selecionadas</strong>
@@ -222,8 +222,8 @@
                 <div class="billing-section-start">
                     <span class="billing-section-icon is-cyan" aria-hidden="true"><i class="ph-fill ph-check-circle"></i></span>
                     <div class="billing-section-copy">
-                        <h2>Conferência das distribuições</h2>
-                        <p>Revise a origem e remova qualquer item que não deva compor este faturamento.</p>
+                        <h2>3. Revise o que será faturado</h2>
+                        <p>Confira os itens, remova o que não pertence ao faturamento e inclua observações opcionais no comprovante.</p>
                     </div>
                 </div>
                 <strong class="billing-section-count" data-review-count></strong>
@@ -237,6 +237,23 @@
                         <tbody data-review-rows></tbody>
                     </table>
                 </div>
+                <section class="billing-subsection" style="margin-top:1rem">
+                    <header class="billing-subsection-head">
+                        <strong>Observações</strong>
+                        <span>Notas gerais ou referências a produto/distribuição. São independentes das observações das entregas.</span>
+                    </header>
+                    <div class="billing-subsection-body">
+                        <label class="billing-field">
+                            <span>Posição no PDF</span>
+                            <select class="billing-select" name="report_annotations_position">
+                                <option value="after">Depois da tabela</option>
+                                <option value="before">Antes da tabela</option>
+                            </select>
+                        </label>
+                        <div data-report-annotations></div>
+                        <button class="billing-btn" type="button" data-add-report-annotation><i class="ph ph-plus"></i> Adicionar observação</button>
+                    </div>
+                </section>
             </div>
         </section>
 
@@ -245,8 +262,8 @@
                 <div class="billing-section-start">
                     <span class="billing-section-icon is-green" aria-hidden="true"><i class="ph-fill ph-calculator"></i></span>
                     <div class="billing-section-copy">
-                        <h2>Valores e emissão</h2>
-                        <p>Confira a consolidação calculada no servidor antes de salvar ou emitir.</p>
+                        <h2>4. Confira os valores e emita</h2>
+                        <p>Esta é a última etapa. Os valores abaixo foram recalculados no servidor com a seleção atual.</p>
                     </div>
                 </div>
             </header>
@@ -265,7 +282,10 @@
                 <h3 class="billing-subtitle">Taxas, descontos e acréscimos</h3>
                 <div data-financial-fees></div>
                 <div class="billing-totals" data-financial-totals></div>
-                <p class="billing-help">Após a emissão, o snapshot é congelado e passa a ser a referência dos documentos, da autorização e do recebimento.</p>
+                <div class="billing-emission-guide">
+                    <i class="ph-fill ph-shield-check" aria-hidden="true"></i>
+                    <div><strong>Pronto para emitir</strong><span>Ao emitir, o sistema salva a versão atual, valida novamente todos os itens e congela o snapshot usado nos documentos, autorizações e recebimentos.</span></div>
+                </div>
             </div>
         </section>
 
@@ -281,14 +301,12 @@
             </button>
             <button class="billing-btn" type="button" data-save hidden>
                 <i class="ph ph-floppy-disk" aria-hidden="true"></i>
-                Salvar rascunho
+                Salvar para continuar depois
             </button>
-            @if($receipt)
-                <button class="billing-btn billing-btn-primary" type="button" data-freeze hidden>
-                    <i class="ph ph-lock-key" aria-hidden="true"></i>
-                    Conferir e emitir
-                </button>
-            @endif
+            <button class="billing-btn billing-btn-primary" type="button" data-freeze hidden>
+                <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
+                Emitir faturamento
+            </button>
         </footer>
     </form>
 
@@ -330,15 +348,15 @@
         <div class="billing-dialog-shell">
             <header class="billing-dialog-head">
                 <div>
-                    <h3 id="billing-freeze-dialog-title">Conferir e emitir?</h3>
-                    <p>Esta ação finaliza a preparação do faturamento.</p>
+                    <h3 id="billing-freeze-dialog-title">Emitir este faturamento?</h3>
+                    <p>Você não precisa salvar antes: a versão atual será salva e validada agora.</p>
                 </div>
                 <button class="billing-btn" type="button" data-cancel-freeze aria-label="Fechar confirmação" title="Fechar">
                     <i class="ph ph-x" aria-hidden="true"></i>
                 </button>
             </header>
             <div class="billing-confirm-copy">
-                As distribuições e os valores serão <strong>congelados no snapshot</strong> e passarão a ser a referência dos documentos, da autorização e do recebimento.
+                O sistema fará uma última conferência de integridade. Se estiver tudo correto, as distribuições e os valores serão <strong>congelados no snapshot</strong>. Se houver alguma mudança ou inconsistência, nada será emitido e você receberá a orientação para corrigir.
             </div>
             <footer class="billing-dialog-foot">
                 <span></span>

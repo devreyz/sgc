@@ -223,6 +223,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 
 @php
     // Colunas opcionais — padrão: unit_price + gross (admin_fee e net ficam no resumo abaixo)
+    $reportAnnotationService = app(\App\Services\ReceiptReportAnnotationService::class);
+    $reportAnnotations = isset($receipt) ? $reportAnnotationService->notes($receipt) : [];
+    $reportAnnotationPosition = $receipt->report_annotations_position ?? 'after';
     $vcols         = $visible_columns ?? ['delivery_date', 'unit_price', 'gross'];
     $showDeliveryDate = in_array('delivery_date', $vcols, true);
     $displayProducts = $showDeliveryDate
@@ -279,6 +282,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
 {{-- ═══ ENTREGAS POR CLIENTE ═══ --}}
 
 @if($showSection('deliveries'))
+@if($reportAnnotationPosition === 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 <table class="tbl receipt-data-table">
     @include('pdf.partials.associate-receipt-table-head')
     <tbody>
@@ -311,10 +317,11 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         <tr class="group-{{ $groupPosition }}">
             <td class="group-cell">
                 @if($isFirstGroupRow)
-                    <strong>{{ $ps['product_name'] }}</strong>
+                    <strong>{{ $ps['product_name'] }}</strong><sup>{{ $reportAnnotationService->markers($reportAnnotations, (int) ($ps['product_id'] ?? 0), (array) ($dist['distribution_ids'] ?? [])) }}</sup>
                 @else
                     <span class="group-continuation-context">{{ $ps['product_name'] }}</span>
                     <span class="group-continuation-label"></span>
+                    @if($hideCustomerColumn)<sup>{{ $reportAnnotationService->markers($reportAnnotations, 0, (array) ($dist['distribution_ids'] ?? [])) }}</sup>@endif
                 @endif
             </td>
             @if($showDeliveryDate)
@@ -327,7 +334,7 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
                 @endif
             </td>
             @endif
-            @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}</td>@endunless
+            @unless($hideCustomerColumn)<td>{{ $dist['customer_name'] }}@unless($isFirstGroupRow)<sup>{{ $reportAnnotationService->markers($reportAnnotations, 0, (array) ($dist['distribution_ids'] ?? [])) }}</sup>@endunless</td>@endunless
             <td class="r">{{ number_format($dist['quantity'], 3, ',', '.') }}&nbsp;{{ $ps['unit'] }}</td>
             @if($showUnitPrice)<td class="r money-col">R$&nbsp;{{ number_format($dist['unit_price'] ?? 0, 2, ',', '.') }}</td>@endif
             @if($showGross)<td class="r money-col">R$&nbsp;{{ number_format($dist['gross'], 2, ',', '.') }}</td>@endif
@@ -378,6 +385,9 @@ table.tbl .money-col { width: 1%; white-space: nowrap; }
         </tr>
     </tfoot>
 </table>
+@if($reportAnnotationPosition !== 'before')
+@include('pdf.partials.receipt-report-annotations')
+@endif
 @endif
 
 {{-- ═══ TOTAIS GERAIS POR PRODUTO ═══ --}}

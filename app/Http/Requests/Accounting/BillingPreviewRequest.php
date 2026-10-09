@@ -25,6 +25,10 @@ class BillingPreviewRequest extends FormRequest
             'to_date' => ['nullable', 'date', 'after_or_equal:from_date'],
             'issued_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'report_annotations_position' => ['nullable', 'in:before,after'],
+            'report_annotations' => ['nullable', 'array', 'max:30'],
+            'report_annotations.*.target' => ['required', 'string', 'max:50'],
+            'report_annotations.*.text' => ['required', 'string', 'max:1000'],
             'distribution_ids' => ['required', 'array', 'max:5000'],
             'distribution_ids.*' => ['required', 'integer', 'distinct', 'min:1'],
         ];

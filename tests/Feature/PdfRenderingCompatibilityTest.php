@@ -601,6 +601,60 @@ class PdfRenderingCompatibilityTest extends TestCase
         $this->assertStringContainsString('- R$ 2,50', $html);
     }
 
+    public function test_customer_receipt_places_reference_notes_after_the_table(): void
+    {
+        $receipt = new CustomerBillingReceipt([
+            'receipt_year' => 2026,
+            'receipt_number' => 3,
+            'issued_at' => '2026-08-05',
+            'report_annotations_position' => 'after',
+            'report_annotations' => [
+                ['target' => 'product:7', 'text' => 'Produto substituído.'],
+                ['target' => 'distribution:19', 'text' => 'Conferir esta distribuição.'],
+                ['target' => 'global', 'text' => 'Observação geral.'],
+            ],
+        ]);
+
+        $html = view('pdf.customer-billing-receipt', [
+            'tenant' => new Tenant(['name' => 'Cooperativa Teste']),
+            'project' => new SalesProject(['title' => 'PNAE 2026']),
+            'customer' => new Customer(['name' => 'Escola Central']),
+            'receipt' => $receipt,
+            'productRows' => [[
+                'product_id' => 7,
+                'distribution_ids' => [19],
+                'product' => 'Milho', 'unit' => 'kg', 'quantity' => 2,
+                'unit_price' => 5, 'gross' => 10, 'net' => 10,
+            ]],
+            'totalGross' => 10, 'totalFees' => 0, 'totalNet' => 10,
+            'feeBreakdown' => [], 'feeColumns' => [],
+            'visibleColumns' => ['unit_price', 'gross'],
+            'visible_sections' => ['deliveries'],
+        ])->render();
+
+        self::assertStringContainsString('Milho<sup>¹²</sup>', $html);
+        self::assertStringContainsString('Produto substituído.', $html);
+        self::assertStringContainsString('Observação geral.', $html);
+        self::assertGreaterThan(strpos($html, 'Milho<sup>¹²</sup>'), strpos($html, 'Observações'));
+
+        $receipt->report_annotations_position = 'before';
+        $beforeHtml = view('pdf.customer-billing-receipt', [
+            'tenant' => new Tenant(['name' => 'Cooperativa Teste']),
+            'project' => new SalesProject(['title' => 'PNAE 2026']),
+            'customer' => new Customer(['name' => 'Escola Central']),
+            'receipt' => $receipt,
+            'productRows' => [[
+                'product_id' => 7, 'distribution_ids' => [19], 'product' => 'Milho',
+                'unit' => 'kg', 'quantity' => 2, 'unit_price' => 5, 'gross' => 10, 'net' => 10,
+            ]],
+            'totalGross' => 10, 'totalFees' => 0, 'totalNet' => 10,
+            'feeBreakdown' => [], 'feeColumns' => [],
+            'visibleColumns' => ['unit_price', 'gross'], 'visible_sections' => ['deliveries'],
+        ])->render();
+
+        self::assertLessThan(strpos($beforeHtml, 'Milho<sup>¹²</sup>'), strpos($beforeHtml, 'Observações'));
+    }
+
     public function test_customer_receipt_renders_optional_product_totals_section(): void
     {
         $html = view('pdf.customer-billing-receipt', [

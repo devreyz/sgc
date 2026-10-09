@@ -61,7 +61,13 @@ class DeliverySheetController extends Controller
 
         $customerModel = Customer::where('tenant_id', $tenantId)
             ->with('priceTable.items')
-            ->find($customerId);
+            ->where('status', true)
+            ->findOrFail($customerId);
+
+        $table = $customerModel->priceTable;
+        if ($request->boolean('substitution') && (! $table || ! $table->active || (int) $table->tenant_id !== (int) $tenantId)) {
+            return response()->json(['message' => 'Este cliente não possui tabela de preços ativa.'], 422);
+        }
 
         $products = Product::where('tenant_id', $tenantId)
             ->where('status', true)
@@ -82,7 +88,15 @@ class DeliverySheetController extends Controller
             ];
         })->filter(fn ($item) => $item['sale_price'] > 0);
 
-        return response()->json($result->values());
+        if (! $request->boolean('substitution')) {
+            return response()->json($result->values());
+        }
+
+        return response()->json([
+            'customer' => ['id' => $customerModel->id, 'name' => $customerModel->trade_name ?: $customerModel->name],
+            'price_table' => ['id' => $table->id, 'name' => $table->name],
+            'products' => $result->values(),
+        ]);
     }
 
     /**

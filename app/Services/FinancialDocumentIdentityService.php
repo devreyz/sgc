@@ -262,12 +262,14 @@ class FinancialDocumentIdentityService
             AssociateReceipt::class => [
                 'sales_project_id', 'associate_id', 'receipt_year', 'receipt_number',
                 'receipt_label', 'issued_at', 'from_date', 'to_date', 'notes',
+                'report_annotations', 'report_annotations_position',
                 'delivery_ids', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
             ],
             CustomerBillingReceipt::class => [
                 'sales_project_id', 'customer_id', 'organization_id', 'receipt_year',
                 'receipt_number', 'receipt_label', 'issued_at', 'from_date', 'to_date',
-                'notes', 'delivery_ids', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
+                'notes', 'report_annotations', 'report_annotations_position',
+                'delivery_ids', 'total_gross', 'total_fees', 'total_net', 'fee_snapshot',
             ],
             FinancialReceipt::class => [
                 'receipt_year', 'receipt_number', 'payer_type', 'payer_name',

@@ -121,6 +121,8 @@ class AccountingBillingController extends Controller
                 'from_date' => $receipt->from_date?->format('Y-m-d'),
                 'to_date' => $receipt->to_date?->format('Y-m-d'),
                 'notes' => $receipt->notes,
+                'report_annotations' => $receipt->report_annotations ?? [],
+                'report_annotations_position' => $receipt->report_annotations_position ?? 'after',
                 'distribution_ids' => collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->values(),
             ] : null,
             'permissions' => [
@@ -238,8 +240,19 @@ class AccountingBillingController extends Controller
     {
         $tenant = $this->tenant($request);
         $this->authorize('create', CustomerBillingReceipt::class);
+        abort_if($request->boolean('finalize') && ! $request->user()?->can('update_customer::billing::receipt'), 403);
         try {
             $receipt = $service->saveDraft($tenant->id, $request->validated(), $request->user());
+
+            if ($request->boolean('finalize')) {
+                $receipt = $service->freeze($receipt, $request->user());
+
+                return $this->json([
+                    'message' => 'Faturamento conferido e emitido.',
+                    'id' => $receipt->id,
+                    'redirect_url' => route('accounting.processes.show', [$tenant, $receipt]),
+                ], 201);
+            }
 
             return $this->json(['message' => 'Rascunho salvo.', 'id' => $receipt->id,
                 'redirect_url' => route('accounting.billings.edit', [$tenant, $receipt])], 201);
@@ -256,6 +269,16 @@ class AccountingBillingController extends Controller
         $this->assertProjectAccess($request, $tenant, $request->validated('project_ids'));
         try {
             $saved = $service->saveDraft($tenant->id, $request->validated(), $request->user(), $receipt);
+
+            if ($request->boolean('finalize')) {
+                $saved = $service->freeze($saved, $request->user());
+
+                return $this->json([
+                    'message' => 'Faturamento conferido e emitido.',
+                    'id' => $saved->id,
+                    'redirect_url' => route('accounting.processes.show', [$tenant, $saved]),
+                ]);
+            }
 
             return $this->json(['message' => 'Alterações salvas.', 'id' => $saved->id]);
         } catch (\RuntimeException $exception) {

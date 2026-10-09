@@ -13,9 +13,11 @@
     let step = 1;
     let mode = "period";
     let preview = null;
+    let reportAnnotations = [];
     let recipientRequest = 0;
     let activeDialog = null;
     let dialogHistoryPushed = false;
+    const operationKey = crypto.randomUUID();
 
     const q = (selector) => root.querySelector(selector);
     const qa = (selector) => [...root.querySelectorAll(selector)];
@@ -83,6 +85,45 @@
             .map((option) => Number(option.value))
             .filter(Boolean);
 
+    const readReportAnnotations = () => {
+        const entries = qa('[data-report-annotation]').map((row) => ({
+            target: row.querySelector('[data-annotation-target]').value,
+            text: row.querySelector('[data-annotation-text]').value.trim(),
+        }));
+        if (entries.length) reportAnnotations = entries;
+        return reportAnnotations;
+    };
+
+    const renderReportAnnotations = () => {
+        const current = qa('[data-report-annotation]').length
+            ? readReportAnnotations()
+            : reportAnnotations;
+        const products = new Map();
+        (preview?.distributions || []).forEach((row) => {
+            if (row.product_id) products.set(Number(row.product_id), row.product);
+        });
+        const options = [
+            ['global', 'Observação geral'],
+            ...[...products].map(([id, name]) => [`product:${id}`, `Produto: ${name}`]),
+            ...(preview?.distributions || []).map((row) => [`distribution:${row.id}`, `Distribuição #${row.id} · ${row.product} · ${row.date}`]),
+        ];
+        current.forEach((entry) => {
+            if (entry.target && !options.some(([value]) => value === entry.target)) {
+                options.push([entry.target, 'Referência selecionada (fora da seleção atual)']);
+            }
+        });
+        q('[data-report-annotations]').innerHTML = current.map((entry, index) => `
+            <div data-report-annotation class="billing-fields-3" style="margin:.6rem 0;padding:.75rem;border:1px solid #dce7e0;border-radius:10px">
+                <label class="billing-field"><span>Aplicar a</span><select class="billing-select" data-annotation-target>
+                    ${options.map(([value, label]) => `<option value="${escapeHtml(value)}" ${value === entry.target ? 'selected' : ''}>${escapeHtml(label)}</option>`).join('')}
+                </select></label>
+                <label class="billing-field" style="grid-column:span 2"><span>Observação</span><textarea class="billing-textarea" data-annotation-text maxlength="1000" rows="2">${escapeHtml(entry.text)}</textarea></label>
+                <button class="billing-btn" type="button" data-remove-report-annotation="${index}">Remover</button>
+            </div>
+        `).join('');
+        reportAnnotations = current;
+    };
+
     const values = () => {
         const recipientType = form.querySelector(
             '[name="recipient_type"]:checked'
@@ -102,6 +143,8 @@
             from_date: form.from_date.value || null,
             to_date: form.to_date.value || null,
             notes: form.notes.value || null,
+            report_annotations_position: form.report_annotations_position.value,
+            report_annotations: readReportAnnotations().filter((entry) => entry.text),
             distribution_ids: [...selected],
         };
     };
@@ -681,6 +724,7 @@
         `
             )
             .join("");
+        renderReportAnnotations();
 
         const reasons = Object.entries(preview.exclusion_reasons || {});
         q("[data-exclusions]").innerHTML = reasons.length
@@ -745,11 +789,14 @@
     };
 
     const save = async () => {
+        const button = q("[data-save]");
         try {
+            button.disabled = true;
+            button.setAttribute("aria-busy", "true");
             await loadPreview();
             const payload = {
                 ...values(),
-                operation_key: crypto.randomUUID(),
+                operation_key: operationKey,
             };
 
             const result = await request(root.dataset.saveUrl, {
@@ -761,6 +808,9 @@
             if (result.redirect_url) location.assign(result.redirect_url);
         } catch (error) {
             message(error.message, true);
+        } finally {
+            button.disabled = false;
+            button.removeAttribute("aria-busy");
         }
     };
 
@@ -770,15 +820,27 @@
 
     const confirmFreeze = async () => {
         closeDialog(freezeDialog);
+        const button = q("[data-freeze]");
 
         try {
-            const result = await request(root.dataset.freezeUrl, {
-                method: "POST",
-                body: "{}",
+            button.disabled = true;
+            button.setAttribute("aria-busy", "true");
+            message("Salvando, validando e emitindo o faturamento...");
+            await loadPreview();
+
+            const result = await request(root.dataset.saveUrl, {
+                method: root.dataset.saveMethod,
+                body: JSON.stringify({
+                    ...values(),
+                    operation_key: operationKey,
+                    finalize: true,
+                }),
             });
             location.assign(result.redirect_url);
         } catch (error) {
             message(error.message, true);
+            button.disabled = false;
+            button.removeAttribute("aria-busy");
         }
     };
 
@@ -891,6 +953,9 @@
                         form[key].value = data.draft[key] || "";
                     }
                 );
+                reportAnnotations = data.draft.report_annotations || [];
+                form.report_annotations_position.value = data.draft.report_annotations_position || 'after';
+                renderReportAnnotations();
 
                 (data.draft.distribution_ids || []).forEach((id) =>
                     selected.add(Number(id))
@@ -1019,6 +1084,22 @@
                 setStep(2);
                 message(error.message, true);
             }
+            return;
+        }
+
+        if (button.matches('[data-add-report-annotation]')) {
+            readReportAnnotations();
+            if (reportAnnotations.length >= 30) return;
+            reportAnnotations.push({target: 'global', text: ''});
+            renderReportAnnotations();
+            return;
+        }
+
+        if (button.matches('[data-remove-report-annotation]')) {
+            readReportAnnotations();
+            reportAnnotations.splice(Number(button.dataset.removeReportAnnotation), 1);
+            q('[data-report-annotations]').replaceChildren();
+            renderReportAnnotations();
             return;
         }
 

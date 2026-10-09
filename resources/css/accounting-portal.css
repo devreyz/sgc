@@ -681,7 +681,10 @@
     color:var(--bw-muted);
     font-size:.65rem;
 }
-.billing-flow-btn span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.68rem; font-weight:790; }
+.billing-flow-btn span { min-width:0; display:grid; gap:.03rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.billing-flow-btn span strong { overflow:hidden; text-overflow:ellipsis; font-size:.68rem; font-weight:810; }
+.billing-flow-btn span small { overflow:hidden; text-overflow:ellipsis; color:var(--bw-muted); font-size:.56rem; font-weight:620; }
+.billing-flow-btn.is-active span small { color:currentColor; opacity:.78; }
 .billing-flow-btn.is-active { border-color:var(--bw-green-border); background:var(--bw-green-soft); color:var(--bw-green-strong); }
 .billing-flow-btn.is-active b { background:var(--bw-green); color:#fff; }
 .billing-flow-btn.is-done { border-color:#d9e8de; color:#42614d; }
@@ -940,6 +943,20 @@
 .billing-totals { margin-top:.6rem; border:1px solid var(--bw-border); border-radius:9px; overflow:hidden; }
 .billing-totals .is-total { background:var(--bw-green-soft); color:var(--bw-green-strong); font-size:.76rem; font-weight:840; }
 .billing-totals .is-total span { color:var(--bw-green-strong); }
+.billing-emission-guide {
+    display:flex;
+    align-items:flex-start;
+    gap:.58rem;
+    margin-top:.7rem;
+    padding:.65rem .7rem;
+    border-left:4px solid var(--bw-green);
+    border-radius:0 9px 9px 0;
+    background:var(--bw-green-soft);
+    color:var(--bw-green-strong);
+}
+.billing-emission-guide > i { margin-top:.05rem; font-size:1rem; }
+.billing-emission-guide strong { display:block; font-size:.72rem; }
+.billing-emission-guide span { display:block; margin-top:.12rem; font-size:.64rem; line-height:1.45; }
 
 .billing-alert {
     margin-bottom:.6rem;
@@ -1038,7 +1055,8 @@
     .billing-flow { gap:.28rem; margin:.55rem 0; }
     .billing-flow-btn { min-height:42px; justify-content:center; gap:.28rem; padding:.38rem .25rem; }
     .billing-flow-btn b { width:22px; height:22px; border-radius:6px; font-size:.59rem; }
-    .billing-flow-btn span { font-size:.59rem; }
+    .billing-flow-btn span strong { font-size:.59rem; }
+    .billing-flow-btn span small { display:none; }
     .billing-section-head { min-height:58px; padding:.58rem .62rem; }
     .billing-section-icon { width:36px; height:36px; }
     .billing-section-copy p { display:none; }
