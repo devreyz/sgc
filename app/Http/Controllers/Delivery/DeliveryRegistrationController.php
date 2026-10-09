@@ -552,6 +552,13 @@ class DeliveryRegistrationController extends Controller
             ])
             ->get(['id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
 
+        $customerPriceReferences = $customers->map(fn (Customer $customer): array => [
+            'id' => (int) $customer->id,
+            'name' => $customer->trade_name ?: $customer->name,
+            'price_table_id' => $customer->price_table_id ? (int) $customer->price_table_id : null,
+            'price_table_name' => $customer->priceTable?->active ? $customer->priceTable->name : null,
+        ])->values();
+
         return view('delivery.dashboard', compact('projects', 'stats', 'currentTenant', 'customers'));
     }
 
@@ -611,7 +618,7 @@ class DeliveryRegistrationController extends Controller
         $currentTenant = $this->currentTenant();
 
         return view('delivery.register', compact(
-            'projects', 'associates', 'currentTenant', 'selectedProject', 'customers'
+            'projects', 'associates', 'currentTenant', 'selectedProject', 'customers', 'customerPriceReferences'
         ));
     }
 

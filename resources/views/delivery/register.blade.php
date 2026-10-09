@@ -5634,12 +5634,7 @@ const ROUTES = {
 /* ─── PHP data ───────────────────────────────────── */
 const ALL_PROJECTS   = @json($projects);
 const ALL_ASSOCIATES = @json($associates);
-const ALL_CUSTOMERS  = @json($customers->map(fn($c) => [
-    'id' => $c->id,
-    'name' => $c->trade_name ?: $c->name,
-    'price_table_id' => $c->price_table_id,
-    'price_table_name' => $c->priceTable?->active ? $c->priceTable->name : null,
-]));
+const ALL_CUSTOMERS  = {{ Illuminate\Support\Js::from($customerPriceReferences) }};
 const INITIAL_PROJECT = @json($selectedProject);  // null or project object
 const INITIAL_ASSOCIATE_ID = Number(@json(request()->integer('associate'))) || null;
 
