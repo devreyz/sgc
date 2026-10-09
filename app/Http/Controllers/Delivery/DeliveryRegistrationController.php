@@ -546,8 +546,11 @@ class DeliveryRegistrationController extends Controller
         $customers = Customer::where('tenant_id', $tenantId)
             ->where('status', true)
             ->orderBy('name')
-            ->with('organization:id,name,short_name')
-            ->get(['id', 'name', 'trade_name', 'organization_id']);
+            ->with([
+                'organization:id,name,short_name',
+                'priceTable:id,tenant_id,name,code,active',
+            ])
+            ->get(['id', 'name', 'trade_name', 'organization_id', 'price_table_id']);
 
         return view('delivery.dashboard', compact('projects', 'stats', 'currentTenant', 'customers'));
     }

@@ -4429,9 +4429,18 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
             </div>
 
             <label class="product-substitution-field" id="product-substitution-customer-field">
-                <span>Cliente e tabela de preços de referência</span>
+                <span>Tabela do produto lançado</span>
                 <select class="field-input" id="product-substitution-customer" onchange="changeProductSubstitutionCustomer(this.value)"></select>
-                <small>Escolha explicitamente a tabela do cliente cuja cota será substituída. Os dois produtos usarão essa mesma tabela.</small>
+                <small>É a tabela usada para valorar o produto da cota que ficará registrado na entrega.</small>
+            </label>
+            <label class="product-substitution-advanced-toggle">
+                <input type="checkbox" id="product-substitution-advanced" onchange="toggleAdvancedProductSubstitution(this.checked)">
+                <span><strong>Usar duas tabelas diferentes</strong><small>Opção avançada para valorar o produto realmente entregue por outra tabela.</small></span>
+            </label>
+            <label class="product-substitution-field" id="product-substitution-actual-customer-field" hidden>
+                <span>Tabela do produto realmente entregue</span>
+                <select class="field-input" id="product-substitution-actual-customer" onchange="changeActualProductSubstitutionCustomer(this.value)"></select>
+                <small>Use quando o produto entregue não tiver preço na tabela do contrato original.</small>
             </label>
             <div class="product-substitution-notice" id="product-substitution-price-source" aria-live="polite"></div>
 
@@ -5568,6 +5577,11 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .product-substitution-target small {color:var(--r-violet,#7c3aed);font-size:.64rem;font-weight:780}
 .product-substitution-field {display:grid;gap:.24rem;color:var(--r-text-2,#52645a);font-size:.64rem;font-weight:750}
 .product-substitution-field small {color:var(--r-text-3,#809087);font-size:.58rem;font-weight:500;line-height:1.4}
+.product-substitution-advanced-toggle {display:flex;align-items:flex-start;gap:.48rem;padding:.5rem .58rem;border:1px solid var(--r-border,#dce7e0);border-radius:10px;background:#fff;cursor:pointer}
+.product-substitution-advanced-toggle input {width:16px;height:16px;margin:.08rem 0 0;accent-color:var(--r-violet,#7c3aed)}
+.product-substitution-advanced-toggle span {display:grid;gap:.08rem}
+.product-substitution-advanced-toggle strong {color:var(--r-text,#102018);font-size:.65rem}
+.product-substitution-advanced-toggle small {color:var(--r-text-3,#809087);font-size:.58rem;line-height:1.35}
 .product-substitution-picker {display:grid;min-height:0;gap:.35rem}
 .product-substitution-list {display:grid;max-height:220px;gap:.24rem;overflow-y:auto;overscroll-behavior:contain}
 .product-substitution-item {display:grid;width:100%;grid-template-columns:auto minmax(0,1fr) auto;gap:.46rem;align-items:center;padding:.48rem .54rem;border:1px solid var(--r-border,#dce7e0);border-radius:9px;background:#fff;color:var(--r-text,#102018);cursor:pointer;text-align:left}
@@ -5620,7 +5634,12 @@ const ROUTES = {
 /* ─── PHP data ───────────────────────────────────── */
 const ALL_PROJECTS   = @json($projects);
 const ALL_ASSOCIATES = @json($associates);
-const ALL_CUSTOMERS  = @json($customers->map(fn($c) => ['id' => $c->id, 'name' => $c->trade_name ?: $c->name]));
+const ALL_CUSTOMERS  = @json($customers->map(fn($c) => [
+    'id' => $c->id,
+    'name' => $c->trade_name ?: $c->name,
+    'price_table_id' => $c->price_table_id,
+    'price_table_name' => $c->priceTable?->active ? $c->priceTable->name : null,
+]));
 const INITIAL_PROJECT = @json($selectedProject);  // null or project object
 const INITIAL_ASSOCIATE_ID = Number(@json(request()->integer('associate'))) || null;
 
@@ -5657,7 +5676,12 @@ const Q = {
 
 const PRODUCT_SUBSTITUTION = {
     customerId: null,
-    products: [],
+    actualCustomerId: null,
+    useDifferentTables: false,
+    targetProducts: [],
+    actualProducts: [],
+    targetReference: null,
+    actualReference: null,
     actualProduct: null,
     loading: false,
     requestId: 0,
@@ -7626,14 +7650,27 @@ function resetProductSelector() {
 }
 
 /* ─── Substituição auxiliar por equivalência financeira ───────── */
-function productSubstitutionCustomers() {
+function productSubstitutionCustomers(onlyProjectCustomers = true) {
     const allowed = new Set(
         (S.project?.customerIds || []).map(Number)
     );
+    const tables = new Set();
 
-    return ALL_CUSTOMERS.filter(customer =>
-        allowed.has(Number(customer.id))
-    );
+    return ALL_CUSTOMERS.filter(customer => {
+        const tableId = Number(customer.price_table_id || 0);
+        if ((onlyProjectCustomers && !allowed.has(Number(customer.id))) || !tableId || !customer.price_table_name || tables.has(tableId)) {
+            return false;
+        }
+        tables.add(tableId);
+        return true;
+    });
+}
+
+function productSubstitutionReferenceOptions(references, placeholder = true) {
+    return (placeholder ? '<option value="">Selecione a tabela de preços</option>' : '')
+        + references.map(reference =>
+            `<option value="${Number(reference.id)}">${escHtml(reference.price_table_name)} · ${escHtml(reference.name)}</option>`
+        ).join('');
 }
 
 function clearAppliedProductSubstitution() {
@@ -7665,9 +7702,15 @@ function clearAppliedProductSubstitution() {
 }
 
 function resetProductSubstitutionModal() {
-    PRODUCT_SUBSTITUTION.products = [];
+    PRODUCT_SUBSTITUTION.targetProducts = [];
+    PRODUCT_SUBSTITUTION.actualProducts = [];
+    PRODUCT_SUBSTITUTION.targetReference = null;
+    PRODUCT_SUBSTITUTION.actualReference = null;
     PRODUCT_SUBSTITUTION.actualProduct = null;
     PRODUCT_SUBSTITUTION.loading = false;
+    PRODUCT_SUBSTITUTION.useDifferentTables = false;
+    $('product-substitution-advanced').checked = false;
+    $('product-substitution-actual-customer-field').hidden = true;
     $('product-substitution-search').value = '';
     $('product-substitution-quantity').value = '';
     $('product-substitution-calculation').hidden = true;
@@ -7692,9 +7735,17 @@ function openProductSubstitution() {
         return;
     }
 
-    const customers = productSubstitutionCustomers();
-    if (customers.length === 0) {
-        toast('Este projeto não possui cliente disponível para consultar os preços.', 'error');
+    const projectReferences = productSubstitutionCustomers(true);
+    const actualReferenceTables = new Set();
+    const references = [...projectReferences, ...productSubstitutionCustomers(false)].filter(reference => {
+        const tableId = Number(reference.price_table_id);
+        if (actualReferenceTables.has(tableId)) return false;
+        actualReferenceTables.add(tableId);
+        return true;
+    });
+    const actualReferences = references;
+    if (references.length === 0) {
+        toast('Este projeto não possui tabela de preços ativa para calcular a substituição.', 'error');
         return;
     }
 
@@ -7703,17 +7754,19 @@ function openProductSubstitution() {
     $('product-substitution-target-unit').textContent = 'Unidade: ' + (S.product.product_unit || 'un');
 
     const select = $('product-substitution-customer');
-    select.innerHTML = (customers.length > 1 ? '<option value="">Selecione o cliente e sua tabela de preços</option>' : '') + customers.map(customer =>
-        `<option value="${Number(customer.id)}">${escHtml(customer.name)}</option>`
-    ).join('');
-    PRODUCT_SUBSTITUTION.customerId = customers.length === 1
-        ? Number(customers[0].id)
-        : null;
+    const actualSelect = $('product-substitution-actual-customer');
+    select.innerHTML = productSubstitutionReferenceOptions(references, references.length > 1);
+    actualSelect.innerHTML = productSubstitutionReferenceOptions(actualReferences);
+    PRODUCT_SUBSTITUTION.customerId = projectReferences.length === 1
+        ? Number(projectReferences[0].id)
+        : (references.length === 1 ? Number(references[0].id) : null);
+    PRODUCT_SUBSTITUTION.actualCustomerId = PRODUCT_SUBSTITUTION.customerId;
     select.value = PRODUCT_SUBSTITUTION.customerId ? String(PRODUCT_SUBSTITUTION.customerId) : '';
-    $('product-substitution-customer-field').hidden = customers.length === 1;
-    $('product-substitution-price-source').textContent = customers.length === 1
-        ? 'Consultando a tabela de preços do cliente…'
-        : 'Selecione o cliente e confira a tabela de preços antes de calcular.';
+    actualSelect.value = PRODUCT_SUBSTITUTION.actualCustomerId ? String(PRODUCT_SUBSTITUTION.actualCustomerId) : '';
+    $('product-substitution-customer-field').hidden = references.length === 1;
+    $('product-substitution-price-source').textContent = references.length === 1
+        ? 'Consultando a tabela de preços…'
+        : 'Selecione a tabela do produto lançado. Por padrão, ela também será usada no produto entregue.';
 
     const key = 'product-substitution';
     registerSheet(
@@ -7744,51 +7797,114 @@ function closeProductSubstitution() {
 
 function changeProductSubstitutionCustomer(customerId) {
     PRODUCT_SUBSTITUTION.customerId = Number(customerId);
+    if (!PRODUCT_SUBSTITUTION.useDifferentTables) {
+        PRODUCT_SUBSTITUTION.actualCustomerId = PRODUCT_SUBSTITUTION.customerId;
+        $('product-substitution-actual-customer').value = customerId || '';
+    }
     PRODUCT_SUBSTITUTION.actualProduct = null;
     $('product-substitution-calculation').hidden = true;
     $('product-substitution-quantity').value = '';
     $('product-substitution-apply').disabled = true;
-    $('product-substitution-price-source').textContent = 'Consultando a tabela de preços do cliente…';
+    $('product-substitution-price-source').textContent = 'Consultando as tabelas de preços…';
     loadProductSubstitutionProducts();
 }
 
+function toggleAdvancedProductSubstitution(enabled) {
+    PRODUCT_SUBSTITUTION.useDifferentTables = Boolean(enabled);
+    $('product-substitution-actual-customer-field').hidden = !enabled;
+    if (!enabled) {
+        PRODUCT_SUBSTITUTION.actualCustomerId = PRODUCT_SUBSTITUTION.customerId;
+        $('product-substitution-actual-customer').value = PRODUCT_SUBSTITUTION.customerId
+            ? String(PRODUCT_SUBSTITUTION.customerId)
+            : '';
+    }
+    PRODUCT_SUBSTITUTION.actualProduct = null;
+    $('product-substitution-calculation').hidden = true;
+    $('product-substitution-quantity').value = '';
+    $('product-substitution-apply').disabled = true;
+    loadProductSubstitutionProducts();
+}
+
+function changeActualProductSubstitutionCustomer(customerId) {
+    PRODUCT_SUBSTITUTION.actualCustomerId = Number(customerId);
+    PRODUCT_SUBSTITUTION.actualProduct = null;
+    $('product-substitution-calculation').hidden = true;
+    $('product-substitution-quantity').value = '';
+    $('product-substitution-apply').disabled = true;
+    $('product-substitution-price-source').textContent = 'Consultando as tabelas de preços…';
+    loadProductSubstitutionProducts();
+}
+
+async function fetchProductSubstitutionReference(customerId) {
+    const response = await fetch(
+        ROUTES.substitutionProducts(customerId) + '?substitution=1',
+        { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(data.message || data.error || 'Não foi possível consultar os preços.');
+    }
+
+    return {
+        customerId: Number(data.customer?.id || customerId),
+        customerName: data.customer?.name || '',
+        tableId: Number(data.price_table?.id || 0),
+        tableName: data.price_table?.name || '',
+        products: (data.products || []).map(product => ({
+            id: Number(product.id),
+            name: product.name || 'Produto',
+            unit: product.unit || 'un',
+            price: Number(product.sale_price || 0),
+        })).filter(product => product.price > 0),
+    };
+}
+
 async function loadProductSubstitutionProducts() {
-    const customerId = Number(PRODUCT_SUBSTITUTION.customerId || 0);
-    if (!customerId) return;
+    const targetCustomerId = Number(PRODUCT_SUBSTITUTION.customerId || 0);
+    const actualCustomerId = PRODUCT_SUBSTITUTION.useDifferentTables
+        ? Number(PRODUCT_SUBSTITUTION.actualCustomerId || 0)
+        : targetCustomerId;
+    if (!targetCustomerId) {
+        PRODUCT_SUBSTITUTION.targetProducts = [];
+        PRODUCT_SUBSTITUTION.actualProducts = [];
+        $('product-substitution-price-source').textContent = 'Selecione a tabela do produto lançado.';
+        $('product-substitution-list').innerHTML = '<div class="product-substitution-empty">Escolha uma tabela para ver os produtos disponíveis.</div>';
+        return;
+    }
+    if (!actualCustomerId) {
+        PRODUCT_SUBSTITUTION.actualProducts = [];
+        $('product-substitution-price-source').textContent = 'Selecione a tabela do produto realmente entregue.';
+        renderProductSubstitutionProducts();
+        return;
+    }
 
     const requestId = ++PRODUCT_SUBSTITUTION.requestId;
     PRODUCT_SUBSTITUTION.loading = true;
     $('product-substitution-list').innerHTML = '<div class="product-substitution-empty">Carregando produtos e preços…</div>';
 
     try {
-        const response = await fetch(
-            ROUTES.substitutionProducts(customerId) + '?substitution=1',
-            { headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }
-        );
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || data.error || 'Não foi possível consultar os preços.');
-        }
+        const targetPromise = fetchProductSubstitutionReference(targetCustomerId);
+        const [targetReference, actualReference] = await Promise.all([
+            targetPromise,
+            actualCustomerId === targetCustomerId
+                ? targetPromise
+                : fetchProductSubstitutionReference(actualCustomerId),
+        ]);
         if (requestId !== PRODUCT_SUBSTITUTION.requestId) return;
 
-        const rows = Array.isArray(data) ? data : (data.products || []);
-        PRODUCT_SUBSTITUTION.priceTableId = Number(data.price_table?.id || 0);
-        PRODUCT_SUBSTITUTION.priceTableName = data.price_table?.name || '';
-        PRODUCT_SUBSTITUTION.customerName = data.customer?.name || '';
-        $('product-substitution-price-source').textContent = PRODUCT_SUBSTITUTION.priceTableId
-            ? `Referência: ${PRODUCT_SUBSTITUTION.customerName} · ${PRODUCT_SUBSTITUTION.priceTableName}. Confira os preços do produto lançado e do entregue.`
-            : 'Este cliente não possui tabela de preços ativa. Escolha outro cliente.';
-        PRODUCT_SUBSTITUTION.products = rows.map(product => ({
-            id: Number(product.id),
-            name: product.name || 'Produto',
-            unit: product.unit || 'un',
-            price: Number(product.sale_price || 0),
-        })).filter(product => product.price > 0);
+        PRODUCT_SUBSTITUTION.targetReference = targetReference;
+        PRODUCT_SUBSTITUTION.actualReference = actualReference;
+        PRODUCT_SUBSTITUTION.targetProducts = targetReference.products;
+        PRODUCT_SUBSTITUTION.actualProducts = actualReference.products;
+        PRODUCT_SUBSTITUTION.loading = false;
+        $('product-substitution-price-source').innerHTML = PRODUCT_SUBSTITUTION.useDifferentTables
+            ? `<i class="ph-duotone ph-scales"></i><span><strong>Lançado:</strong> ${escHtml(targetReference.tableName)} · ${escHtml(targetReference.customerName)}<br><strong>Entregue:</strong> ${escHtml(actualReference.tableName)} · ${escHtml(actualReference.customerName)}</span>`
+            : `<i class="ph-duotone ph-tag"></i><span><strong>Mesma tabela nos dois produtos:</strong> ${escHtml(targetReference.tableName)} · ${escHtml(targetReference.customerName)}</span>`;
         renderProductSubstitutionProducts();
     } catch (error) {
         if (requestId !== PRODUCT_SUBSTITUTION.requestId) return;
-        PRODUCT_SUBSTITUTION.products = [];
+        PRODUCT_SUBSTITUTION.targetProducts = [];
+        PRODUCT_SUBSTITUTION.actualProducts = [];
         $('product-substitution-price-source').textContent = error.message;
         $('product-substitution-list').innerHTML = `<div class="product-substitution-empty">${escHtml(error.message)}</div>`;
     } finally {
@@ -7806,13 +7922,13 @@ function renderProductSubstitutionProducts() {
         $('product-substitution-search')?.value || ''
     );
     const targetId = Number(S.product?.product_id || 0);
-    const products = PRODUCT_SUBSTITUTION.products.filter(product =>
+    const products = PRODUCT_SUBSTITUTION.actualProducts.filter(product =>
         product.id !== targetId
         && (!term || normalizeSearch(product.name).includes(term))
     );
 
     if (products.length === 0) {
-        list.innerHTML = '<div class="product-substitution-empty">Nenhum outro produto com preço foi encontrado para este cliente.</div>';
+        list.innerHTML = '<div class="product-substitution-empty">Nenhum outro produto com preço foi encontrado na tabela selecionada.</div>';
         return;
     }
 
@@ -7839,7 +7955,7 @@ function renderProductSubstitutionProducts() {
 }
 
 function selectProductSubstitutionProduct(productId) {
-    PRODUCT_SUBSTITUTION.actualProduct = PRODUCT_SUBSTITUTION.products.find(
+    PRODUCT_SUBSTITUTION.actualProduct = PRODUCT_SUBSTITUTION.actualProducts.find(
         product => product.id === Number(productId)
     ) || null;
 
@@ -7855,7 +7971,7 @@ function selectProductSubstitutionProduct(productId) {
 
 function productSubstitutionCalculation() {
     const actual = PRODUCT_SUBSTITUTION.actualProduct;
-    const target = PRODUCT_SUBSTITUTION.products.find(product =>
+    const target = PRODUCT_SUBSTITUTION.targetProducts.find(product =>
         product.id === Number(S.product?.product_id || 0)
     );
     const actualQuantity = Number(
@@ -7898,15 +8014,15 @@ function updateProductSubstitutionCalculation() {
     const equation = $('product-substitution-equation');
     const result = $('product-substitution-result');
     const apply = $('product-substitution-apply');
-    const target = PRODUCT_SUBSTITUTION.products.find(product =>
+    const target = PRODUCT_SUBSTITUTION.targetProducts.find(product =>
         product.id === Number(S.product?.product_id || 0)
     );
 
     result.classList.remove('warning');
 
     if (!target) {
-        equation.textContent = 'O produto que será lançado não possui preço para o cliente selecionado.';
-        result.innerHTML = '<strong>Escolha outro cliente de referência</strong><span>O cálculo exige preço nos dois produtos.</span>';
+        equation.textContent = 'O produto que será lançado não possui preço na tabela selecionada.';
+        result.innerHTML = '<strong>Escolha outra tabela para o produto lançado</strong><span>O cálculo exige um preço válido para cada produto.</span>';
         result.classList.add('warning');
         apply.disabled = true;
         return;
@@ -7955,7 +8071,9 @@ function applyProductSubstitution() {
     const note =
         `Substituição: entregue ${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
         + ` no lugar de ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit} de ${calculation.target.name} lançado, `
-        + `valor equivalente ${money(calculation.actualTotal)}. Referência: ${PRODUCT_SUBSTITUTION.customerName}, tabela ${PRODUCT_SUBSTITUTION.priceTableName} (preços ${money(calculation.actual.price)} e ${money(calculation.target.price)}).`;
+        + `valor equivalente ${money(calculation.actualTotal)}. Referências: lançado pela tabela ${PRODUCT_SUBSTITUTION.targetReference.tableName}`
+        + ` (${PRODUCT_SUBSTITUTION.targetReference.customerName}, ${money(calculation.target.price)}); entregue pela tabela ${PRODUCT_SUBSTITUTION.actualReference.tableName}`
+        + ` (${PRODUCT_SUBSTITUTION.actualReference.customerName}, ${money(calculation.actual.price)}).`;
 
     const noteField = $('f-notes');
     let existing = String(noteField.value || '').trim();

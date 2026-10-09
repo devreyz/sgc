@@ -45,7 +45,12 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertSame(['GET', 'HEAD'], $priceRoute->methods());
         self::assertStringContainsString('id="product-substitution-trigger"', $view);
         self::assertStringContainsString('id="modal-product-substitution"', $view);
+        self::assertStringContainsString('id="product-substitution-advanced"', $view);
+        self::assertStringContainsString('id="product-substitution-actual-customer"', $view);
         self::assertStringContainsString("'/delivery/sheet/products/' + customerId", $view);
+        self::assertStringContainsString('PRODUCT_SUBSTITUTION.targetProducts.find', $view);
+        self::assertStringContainsString('PRODUCT_SUBSTITUTION.actualProducts.find', $view);
+        self::assertStringContainsString('actualCustomerId === targetCustomerId', $view);
         self::assertStringContainsString('const rawTargetQuantity = actualTotal / target.price;', $view);
         self::assertStringContainsString('const targetQuantity = Number(rawTargetQuantity.toFixed(3));', $view);
         self::assertStringContainsString('Substituição: entregue ${productSubstitutionQuantity', $view);
