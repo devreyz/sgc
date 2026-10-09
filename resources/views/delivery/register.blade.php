@@ -4546,6 +4546,11 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
         </div>
 
         <div class="reg-edit-body register-sheet-scroll">
+            <div class="reg-edit-context">
+                <span class="reg-edit-context-icon" aria-hidden="true"><i class="ph-duotone ph-package"></i></span>
+                <div><strong id="edit-context-product">Produto</strong><small id="edit-context-associate">Associado</small></div>
+            </div>
+
             <div>
                 <label class="field-label">Quantidade <span id="edit-unit-lbl"></span></label>
                 <input class="field-input reg-number-input" type="number" id="edit-qty" min="0.001" step="0.001">
@@ -4564,6 +4569,18 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                     <button type="button" class="q-pill" data-q="C">C</button>
                 </div>
             </div>
+
+            <div>
+                <label class="field-label" for="edit-notes">Observações <span id="edit-notes-count">0/1000</span></label>
+                <textarea class="field-input reg-edit-notes" id="edit-notes" rows="4" maxlength="1000" placeholder="Registre substituições, condições do produto ou outras informações úteis."></textarea>
+                <div class="reg-edit-note-actions">
+                    <small>As observações ficam visíveis no histórico da entrega.</small>
+                    <button type="button" onclick="clearRegisterEditNotes()">Limpar</button>
+                </div>
+            </div>
+
+            <div class="reg-edit-warning" id="edit-quantity-warning" hidden role="status" aria-live="polite"></div>
+            <div class="reg-edit-linked" id="edit-linked-summary" hidden></div>
         </div>
 
         <div class="reg-edit-footer">
@@ -4902,6 +4919,18 @@ body.register-sheet-open #delivery-notes-overlay.open {
     margin: 0 !important;
     min-height: 44px;
 }
+.reg-edit-context {display:grid;grid-template-columns:36px minmax(0,1fr);gap:.5rem;align-items:center;padding:.52rem .58rem;border:1px solid var(--rv-border);border-left:3px solid var(--rv-blue);border-radius:9px;background:var(--rv-blue-soft)}
+.reg-edit-context-icon {display:grid;width:34px;height:34px;place-items:center;border-radius:8px;background:#fff;color:var(--rv-blue)}
+.reg-edit-context strong,.reg-edit-context small {display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reg-edit-context strong {font-size:.72rem;color:var(--rv-text)}
+.reg-edit-context small {margin-top:.05rem;font-size:.61rem;color:var(--rv-text-3)}
+.reg-edit-notes {min-height:92px!important;resize:vertical;line-height:1.45}
+.reg-edit-note-actions {display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.25rem}
+.reg-edit-note-actions small {color:var(--rv-text-3);font-size:.58rem;line-height:1.35}
+.reg-edit-note-actions button {padding:.12rem .2rem;border:0;background:transparent;color:var(--rv-blue);font:inherit;font-size:.6rem;font-weight:780;cursor:pointer}
+.reg-edit-warning {padding:.48rem .55rem;border:1px solid rgba(200,116,8,.2);border-radius:8px;background:var(--rv-amber-soft);color:#8a5a13;font-size:.63rem;line-height:1.4}
+.reg-edit-warning[hidden],.reg-edit-linked[hidden] {display:none!important}
+.reg-edit-linked {padding:.45rem .55rem;border-radius:8px;background:var(--rv-soft);color:var(--rv-text-2);font-size:.62rem;line-height:1.4}
 
 .reg-number-input {
     font-weight: 850 !important;
@@ -9011,16 +9040,50 @@ async function approveItem(id, btn) {
 /* ─── Edit modal ─────────────────────────────────── */
 let editingId = null;
 
+function updateRegisterEditFeedback() {
+    const item = S.items.find(i => i.id === editingId);
+    if (!item) return;
+
+    const quantity = Number($('edit-qty').value || 0);
+    const distributed = Number(item.distributedQty || 0);
+    const warning = $('edit-quantity-warning');
+    const notes = $('edit-notes');
+    $('edit-notes-count').textContent = `${String(notes?.value || '').length}/1000`;
+
+    const inconsistent = distributed > 0 && quantity + 0.0005 < distributed;
+    warning.hidden = !inconsistent;
+    warning.textContent = inconsistent
+        ? `A quantidade não pode ficar abaixo dos ${productSubstitutionQuantity(distributed)} ${item.productUnit || 'un'} já distribuídos. Ajuste primeiro as distribuições vinculadas.`
+        : '';
+}
+
+function clearRegisterEditNotes() {
+    const field = $('edit-notes');
+    if (!field) return;
+    field.value = '';
+    updateRegisterEditFeedback();
+    field.focus({ preventScroll: true });
+}
+
 function openEditModal(id) {
     const item = S.items.find(i => i.id === id);
     if (!item) return;
     editingId = id;
     $('edit-qty').value  = item.qty;
     $('edit-date').value = item.date;
+    $('edit-notes').value = item.notes || '';
+    $('edit-context-product').textContent = item.productName || 'Produto';
+    $('edit-context-associate').textContent = item.associateName || 'Associado';
     $('edit-unit-lbl').textContent = '(' + (item.productUnit || 'un') + ')';
     document.querySelectorAll('#edit-quality-pills .q-pill').forEach(b => {
         b.classList.toggle('active', b.dataset.q === (item.quality || 'A'));
     });
+    const distributed = Number(item.distributedQty || 0);
+    $('edit-linked-summary').hidden = distributed <= 0;
+    $('edit-linked-summary').textContent = distributed > 0
+        ? `${item.distributions?.length || 0} distribuição(ões) vinculada(s), totalizando ${productSubstitutionQuantity(distributed)} ${item.productUnit || 'un'}.`
+        : '';
+    updateRegisterEditFeedback();
     openModal('edit');
 }
 
@@ -9029,8 +9092,14 @@ async function saveEdit() {
     if (!editingId || !item) return;
     const qty  = parseFloat($('edit-qty').value || 0);
     const date = $('edit-date').value;
+    const notes = $('edit-notes').value.trim();
     const qual = document.querySelector('#edit-quality-pills .q-pill.active')?.dataset.q || 'A';
     if (qty <= 0) { toast('Quantidade inválida.', 'error'); return; }
+    if (!date) { toast('Informe a data da entrega.', 'error'); return; }
+    if (qty + 0.0005 < Number(item.distributedQty || 0)) {
+        toast('A quantidade não pode ser menor que o total já distribuído.', 'error');
+        return;
+    }
     const saveBtn = $('edit-save-btn');
     saveBtn.disabled = true;
     try {
@@ -9041,7 +9110,7 @@ async function saveEdit() {
                 quantity: qty,
                 delivery_date: date,
                 quality_grade: qual,
-                notes: item.notes || null,
+                notes: notes || null,
             }),
         });
         const data = await res.json();
@@ -9049,6 +9118,7 @@ async function saveEdit() {
             item.qty     = qty;
             item.date    = date;
             item.quality = qual;
+            item.notes   = notes;
             if (S.project) await loadProjectDeliveries(S.project.id, true);
             else renderSessionItems();
             closeModal('edit');
@@ -9062,6 +9132,9 @@ async function saveEdit() {
         saveBtn.disabled = false;
     }
 }
+
+$('edit-qty')?.addEventListener('input', updateRegisterEditFeedback);
+$('edit-notes')?.addEventListener('input', updateRegisterEditFeedback);
 
 /* ─── Distribute modal ───────────────────────────── */
 let distRegId = null;
@@ -9606,6 +9679,7 @@ window.submitEntry          = submitEntry;
 window.toggleEntryNotes      = toggleEntryNotes;
 window.deleteItem           = deleteItem;
 window.saveEdit             = saveEdit;
+window.clearRegisterEditNotes = clearRegisterEditNotes;
 window.focusDateInput       = focusDateInput;
 window.openCalendarSheet     = openCalendarSheet;
 window.closeCalendarSheet    = closeCalendarSheet;

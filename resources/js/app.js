@@ -7,6 +7,100 @@ import {
     startAuthentication,
 } from '@simplewebauthn/browser';
 
+const nativeFetch = window.fetch.bind(window);
+let csrfRefreshPromise = null;
+let csrfLastRefreshAt = 0;
+
+function currentCsrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.content || '';
+}
+
+function applyCsrfToken(token) {
+    if (!token) return '';
+
+    document.querySelector('meta[name="csrf-token"]')?.setAttribute('content', token);
+    document.querySelectorAll('input[name="_token"]').forEach(input => {
+        input.value = token;
+    });
+    window.dispatchEvent(new CustomEvent('sgc:csrf-refreshed', {
+        detail: { token },
+    }));
+
+    return token;
+}
+
+async function refreshCsrfToken(options = {}) {
+    const force = options.force === true;
+    if (!force && Date.now() - csrfLastRefreshAt < 15000 && currentCsrfToken()) {
+        return currentCsrfToken();
+    }
+    if (csrfRefreshPromise) return csrfRefreshPromise;
+
+    csrfRefreshPromise = nativeFetch(`/session/csrf-token?_=${Date.now()}`, {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {
+            Accept: 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    }).then(async response => {
+        if (!response.ok) {
+            throw new Error('Não foi possível atualizar a sessão.');
+        }
+        const payload = await response.json();
+        csrfLastRefreshAt = Date.now();
+        return applyCsrfToken(payload.csrf_token);
+    }).finally(() => {
+        csrfRefreshPromise = null;
+    });
+
+    return csrfRefreshPromise;
+}
+
+function isUnsafeSameOriginRequest(input, init = {}) {
+    const url = new URL(input instanceof Request ? input.url : String(input), window.location.href);
+    const method = String(init.method || (input instanceof Request ? input.method : 'GET')).toUpperCase();
+    return url.origin === window.location.origin && !['GET', 'HEAD', 'OPTIONS'].includes(method);
+}
+
+function csrfRequestOptions(input, init, token) {
+    const existing = init.headers || (input instanceof Request ? input.headers : undefined);
+    const headers = new Headers(existing || {});
+    if (token) headers.set('X-CSRF-TOKEN', token);
+    headers.set('X-Requested-With', headers.get('X-Requested-With') || 'XMLHttpRequest');
+    return { ...init, credentials: init.credentials || 'same-origin', headers };
+}
+
+window.fetch = async function csrfAwareFetch(input, init = {}) {
+    if (!isUnsafeSameOriginRequest(input, init)) {
+        return nativeFetch(input, init);
+    }
+
+    const requestInput = input instanceof Request ? input.clone() : input;
+    const retryInput = input instanceof Request ? input.clone() : input;
+    let response = await nativeFetch(
+        requestInput,
+        csrfRequestOptions(requestInput, init, currentCsrfToken()),
+    );
+
+    if (response.status !== 419) return response;
+
+    const token = await refreshCsrfToken({ force: true });
+    response = await nativeFetch(
+        retryInput,
+        csrfRequestOptions(retryInput, init, token),
+    );
+
+    return response;
+};
+
+window.SgcCsrf = Object.freeze({
+    token: currentCsrfToken,
+    refresh: refreshCsrfToken,
+    fetch: (...args) => window.fetch(...args),
+});
+
 window.SgcPasskeys = Passkeys;
 window.SgcPreparedPasskey = Object.freeze({
     isSupported: () => browserSupportsWebAuthn(),
@@ -350,10 +444,19 @@ document.addEventListener('submit', (event) => {
     showNavigationLoading('Processando', 'Aguarde um instante');
 }, true);
 
-window.addEventListener('pageshow', hideNavigationLoading);
-window.addEventListener('focus', hideNavigationLoading);
+window.addEventListener('pageshow', event => {
+    hideNavigationLoading();
+    refreshCsrfToken({ force: event.persisted }).catch(() => {});
+});
+window.addEventListener('focus', () => {
+    hideNavigationLoading();
+    refreshCsrfToken().catch(() => {});
+});
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') hideNavigationLoading();
+    if (document.visibilityState === 'visible') {
+        hideNavigationLoading();
+        refreshCsrfToken().catch(() => {});
+    }
 });
 window.addEventListener('offline', hideNavigationLoading);
 

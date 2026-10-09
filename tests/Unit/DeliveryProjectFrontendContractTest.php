@@ -81,6 +81,7 @@ class DeliveryProjectFrontendContractTest extends TestCase
     {
         $registerView = file_get_contents(resource_path('views/delivery/register.blade.php'));
         $listingView = file_get_contents(resource_path('views/delivery/project-deliveries.blade.php'));
+        $editModal = file_get_contents(resource_path('views/components/delivery/edit-delivery-modal.blade.php'));
         $controller = file_get_contents(app_path('Http/Controllers/Delivery/DeliveryRegistrationController.php'));
 
         self::assertLessThan(
@@ -93,7 +94,14 @@ class DeliveryProjectFrontendContractTest extends TestCase
         );
         self::assertStringContainsString("const notes = rowEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';", $listingView);
         self::assertStringContainsString("const notes = cardEl?.querySelector('.delivery-note-trigger')?.outerHTML || '';", $listingView);
-        self::assertStringContainsString('notes: item.notes || null', $registerView);
+        self::assertStringContainsString('id="edit-notes"', $registerView);
+        self::assertStringContainsString("notes: notes || null", $registerView);
+        self::assertStringContainsString('item.notes   = notes;', $registerView);
+        self::assertStringContainsString('id="edit-quantity-warning"', $registerView);
+        self::assertStringContainsString('id="edit-linked-summary"', $registerView);
+        self::assertStringContainsString('data-em-notes-count', $editModal);
+        self::assertStringContainsString('clearNotes()', $editModal);
+        self::assertStringContainsString("notes:$('em-notes').value || null", $editModal);
         self::assertStringContainsString("'notes' => array_key_exists('notes', \$validated)", $controller);
         self::assertStringContainsString(': $delivery->notes', $controller);
     }

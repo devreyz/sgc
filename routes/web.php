@@ -10,6 +10,7 @@ use App\Http\Controllers\Associate\AssociateProjectPortalController;
 use App\Http\Controllers\Auth\AccessInvitationAdminController;
 use App\Http\Controllers\Auth\AccessInvitationController;
 use App\Http\Controllers\Auth\AuthenticationStateController;
+use App\Http\Controllers\Auth\CsrfTokenController;
 use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Auth\GoogleDriveOAuthController;
 use App\Http\Controllers\Auth\InvitationPasskeyController;
@@ -210,6 +211,10 @@ Route::middleware('invitation.headers')->group(function () {
     Route::get('/acesso/{token}', [AccessInvitationController::class, 'consume'])
         ->middleware('throttle:invitation-token')->name('access.invitation.consume');
 });
+
+Route::get('/session/csrf-token', CsrfTokenController::class)
+    ->middleware('throttle:60,1')
+    ->name('session.csrf-token');
 
 // Tenant Selection Routes (authenticated users)
 Route::middleware('auth')->group(function () {

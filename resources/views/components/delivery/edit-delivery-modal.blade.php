@@ -85,6 +85,9 @@
     box-shadow: 0 0 0 2px rgba(79,70,229,.15);
 }
 textarea.em-input { resize: vertical; min-height: 56px; }
+.em-notes-tools {display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.12rem}
+.em-notes-tools small {color:var(--color-text-muted);font-size:.62rem}
+.em-notes-tools button {padding:.12rem .2rem;border:0;background:transparent;color:var(--color-primary);font:inherit;font-size:.62rem;font-weight:700;cursor:pointer}
 
 /* ── Warning banner ───────────────────────────────────────────────────── */
 #em-qty-warning {
@@ -226,6 +229,7 @@ textarea.em-input{min-height:72px;max-height:170px;line-height:1.45}
             <div class="em-group">
                 <label class="em-label">Observações</label>
                 <textarea id="em-notes" class="em-input" rows="2" maxlength="1000" placeholder="Observações opcionais…"></textarea>
+                <div class="em-notes-tools"><small data-em-notes-count>0/1000</small><button type="button" onclick="EditModal.clearNotes()">Limpar observações</button></div>
             </div>
 
             {{-- Warning: qty reduces below distributed --}}
@@ -319,6 +323,13 @@ function checkQtyWarning() {
     } else {
         $('em-qty-warning').classList.remove('visible');
     }
+}
+
+function updateEmNotesCount() {
+    const length = String($('em-notes')?.value || '').length;
+    document.querySelectorAll('[data-em-notes-count]').forEach(element => {
+        element.textContent = `${length}/1000`;
+    });
 }
 
 window.EditModal = {
@@ -1429,6 +1440,7 @@ textarea.em-input {
                         maxlength="1000"
                         placeholder="Observações opcionais…"
                     ></textarea>
+                    <div class="em-notes-tools"><small data-em-notes-count>0/1000</small><button type="button" onclick="EditModal.clearNotes()">Limpar observações</button></div>
                 </div>
             </section>
 
@@ -1723,6 +1735,13 @@ function checkQtyWarning() {
     }
 }
 
+function updateEmNotesCount() {
+    const length = String($('em-notes')?.value || '').length;
+    document.querySelectorAll('[data-em-notes-count]').forEach(element => {
+        element.textContent = `${length}/1000`;
+    });
+}
+
 window.EditModal = {
     openFromBtn(btn) {
         let dists = [];
@@ -1752,6 +1771,7 @@ window.EditModal = {
         $('em-price').value = cfg.price || '';
         $('em-quality').value = cfg.quality || '';
         $('em-notes').value = cfg.notes || '';
+        updateEmNotesCount();
         $('em-unit').value = cfg.unit || 'un';
 
         $('em-unit-lbl').textContent =
@@ -1801,6 +1821,14 @@ window.EditModal = {
     closeNotice() {
         $('em-notice-overlay').classList.remove('open');
         $('em-notice-overlay').setAttribute('aria-hidden', 'true');
+    },
+
+    clearNotes() {
+        const notes = $('em-notes');
+        if (!notes) return;
+        notes.value = '';
+        updateEmNotesCount();
+        notes.focus({ preventScroll:true });
     },
 
     async save() {
@@ -1893,6 +1921,7 @@ window.EditModal = {
 };
 
 $('em-qty')?.addEventListener('input', checkQtyWarning);
+$('em-notes')?.addEventListener('input', updateEmNotesCount);
 
 $('em-overlay')?.addEventListener('click', event => {
     if (event.target === $('em-overlay')) {
