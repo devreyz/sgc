@@ -5573,7 +5573,7 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .product-substitution-heading {display:flex;min-width:0;gap:.48rem;align-items:center}
 .product-substitution-heading-icon {display:inline-flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:9px;background:var(--r-violet-soft,#f4f0ff);color:var(--r-violet,#7c3aed)}
 .product-substitution-heading-icon i {font-size:18px}
-.product-substitution-body {display:grid;gap:.62rem;padding:.7rem}
+.product-substitution-body {display:grid;grid-auto-rows:max-content;align-content:start;gap:.62rem;padding:.7rem}
 .product-substitution-notice {display:grid;grid-template-columns:auto minmax(0,1fr);gap:.4rem;align-items:start;padding:.52rem .58rem;border:1px solid rgba(2,132,199,.14);border-radius:10px;background:var(--r-sky-soft,#edf8fe);color:var(--r-text-2,#52645a);font-size:.67rem;line-height:1.45}
 .product-substitution-notice i {color:var(--r-sky,#0284c7);font-size:17px}
 .product-substitution-target {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.12rem .5rem;padding:.55rem .62rem;border:1px solid var(--r-border,#dce7e0);border-left:3px solid var(--r-violet,#7c3aed);border-radius:10px;background:#fff}
@@ -5609,9 +5609,9 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .product-substitution-footer .reg-sheet-action {min-height:42px}
 @media(max-width:767px) {
     .product-substitution-trigger {width:36px;min-width:36px;height:36px}
-    .product-substitution-box {width:100%;max-width:none;height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))!important;max-height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))!important;border-right:0;border-bottom:0;border-left:0;border-radius:18px 18px 0 0!important}
-    .product-substitution-body {flex:1 1 auto;padding:.54rem}
-    .product-substitution-list {max-height:190px}
+    .product-substitution-box {width:100%;max-width:none;height:auto!important;max-height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))!important;border-right:0;border-bottom:0;border-left:0;border-radius:18px 18px 0 0!important}
+    .product-substitution-body {flex:0 1 auto;grid-auto-rows:max-content;align-content:start;padding:.54rem}
+    .product-substitution-list {max-height:min(32dvh,280px)}
     .product-substitution-item {min-height:50px}
     .product-substitution-footer {grid-template-columns:1fr 1.45fr;padding-bottom:calc(.52rem + env(safe-area-inset-bottom))}
 }

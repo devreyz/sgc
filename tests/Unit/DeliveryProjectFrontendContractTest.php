@@ -55,7 +55,8 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString('window.toggleAdvancedProductSubstitution = toggleAdvancedProductSubstitution;', $view);
         self::assertStringContainsString('window.changeActualProductSubstitutionCustomer = changeActualProductSubstitutionCustomer;', $view);
         self::assertStringContainsString('.product-substitution-field[hidden] {display:none!important}', $view);
-        self::assertStringContainsString('height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))', $view);
+        self::assertStringContainsString('height:auto!important;max-height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))', $view);
+        self::assertStringContainsString('grid-auto-rows:max-content;align-content:start', $view);
         $registerMethod = strpos($controller, 'public function register(Request $request)');
         $referenceDefinition = strpos($controller, '$customerPriceReferences = $customers->map', $registerMethod);
         $registerReturn = strpos($controller, "return view('delivery.register'", $registerMethod);
