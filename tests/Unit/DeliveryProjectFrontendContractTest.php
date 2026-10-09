@@ -52,6 +52,10 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString('PRODUCT_SUBSTITUTION.targetProducts.find', $view);
         self::assertStringContainsString('PRODUCT_SUBSTITUTION.actualProducts.find', $view);
         self::assertStringContainsString('actualCustomerId === targetCustomerId', $view);
+        self::assertStringContainsString('window.toggleAdvancedProductSubstitution = toggleAdvancedProductSubstitution;', $view);
+        self::assertStringContainsString('window.changeActualProductSubstitutionCustomer = changeActualProductSubstitutionCustomer;', $view);
+        self::assertStringContainsString('.product-substitution-field[hidden] {display:none!important}', $view);
+        self::assertStringContainsString('height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))', $view);
         $registerMethod = strpos($controller, 'public function register(Request $request)');
         $referenceDefinition = strpos($controller, '$customerPriceReferences = $customers->map', $registerMethod);
         $registerReturn = strpos($controller, "return view('delivery.register'", $registerMethod);
@@ -59,9 +63,13 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertLessThan($registerReturn, $referenceDefinition);
         self::assertStringContainsString('const rawTargetQuantity = actualTotal / target.price;', $view);
         self::assertStringContainsString('const targetQuantity = Number(rawTargetQuantity.toFixed(3));', $view);
-        self::assertStringContainsString('Substituição: entregue ${productSubstitutionQuantity', $view);
-        self::assertStringContainsString(' no lugar de ${productSubstitutionQuantity(calculation.targetQuantity)', $view);
-        self::assertStringContainsString('valor equivalente ${money(calculation.actualTotal)}.', $view);
+        self::assertStringContainsString('Substituição por equivalência financeira:', $view);
+        self::assertStringContainsString('• Entregue: ${productSubstitutionQuantity', $view);
+        self::assertStringContainsString('• Lançado na cota: ${productSubstitutionQuantity(calculation.targetQuantity)', $view);
+        self::assertStringContainsString('× ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}', $view);
+        self::assertStringContainsString('× ${money(calculation.target.price)} = ${money(calculation.targetTotal)}', $view);
+        self::assertStringContainsString('<textarea', $view);
+        self::assertStringContainsString('id="f-notes"', $view);
         self::assertStringContainsString("notes             : $('f-notes').value.trim() || null", $view);
         self::assertStringNotContainsString('substitution_product_id', $view);
     }

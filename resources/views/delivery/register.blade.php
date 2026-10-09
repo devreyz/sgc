@@ -2224,6 +2224,12 @@
     margin-top: .32rem;
 }
 
+.reg-notes-field textarea.field-input {
+    min-height: 76px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
 .reg-notes-field[hidden] {
     display: none !important;
 }
@@ -4025,14 +4031,13 @@ tr.status-rejected .reg-table-state {background:var(--rv-red-soft);color:var(--r
                         </button>
 
                         <div class="reg-notes-field" id="reg-notes-field" hidden>
-                            <input
+                            <textarea
                                 class="field-input"
-                                type="text"
                                 id="f-notes"
                                 placeholder="Digite uma observação opcional"
-                                maxlength="500"
-                                autocomplete="off"
-                            >
+                                maxlength="1000"
+                                rows="3"
+                            ></textarea>
                         </div>
                     </div>
                 </div>
@@ -5576,6 +5581,7 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .product-substitution-target strong {min-width:0;overflow:hidden;color:var(--r-text,#102018);font-size:.76rem;text-overflow:ellipsis;white-space:nowrap}
 .product-substitution-target small {color:var(--r-violet,#7c3aed);font-size:.64rem;font-weight:780}
 .product-substitution-field {display:grid;gap:.24rem;color:var(--r-text-2,#52645a);font-size:.64rem;font-weight:750}
+.product-substitution-field[hidden] {display:none!important}
 .product-substitution-field small {color:var(--r-text-3,#809087);font-size:.58rem;font-weight:500;line-height:1.4}
 .product-substitution-advanced-toggle {display:flex;align-items:flex-start;gap:.48rem;padding:.5rem .58rem;border:1px solid var(--r-border,#dce7e0);border-radius:10px;background:#fff;cursor:pointer}
 .product-substitution-advanced-toggle input {width:16px;height:16px;margin:.08rem 0 0;accent-color:var(--r-violet,#7c3aed)}
@@ -5603,8 +5609,8 @@ body.register-sheet-open #delivery-notes-overlay.open {
 .product-substitution-footer .reg-sheet-action {min-height:42px}
 @media(max-width:767px) {
     .product-substitution-trigger {width:36px;min-width:36px;height:36px}
-    .product-substitution-box {width:100%;max-width:none;max-height:calc(var(--reg-vv-height) - 4px)!important;border-right:0;border-bottom:0;border-left:0;border-radius:18px 18px 0 0!important}
-    .product-substitution-body {padding:.54rem}
+    .product-substitution-box {width:100%;max-width:none;height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))!important;max-height:min(90dvh,calc(var(--reg-vv-height,100dvh) - 4px))!important;border-right:0;border-bottom:0;border-left:0;border-radius:18px 18px 0 0!important}
+    .product-substitution-body {flex:1 1 auto;padding:.54rem}
     .product-substitution-list {max-height:190px}
     .product-substitution-item {min-height:50px}
     .product-substitution-footer {grid-template-columns:1fr 1.45fr;padding-bottom:calc(.52rem + env(safe-area-inset-bottom))}
@@ -8064,11 +8070,13 @@ function applyProductSubstitution() {
     }
 
     const note =
-        `Substituição: entregue ${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
-        + ` no lugar de ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit} de ${calculation.target.name} lançado, `
-        + `valor equivalente ${money(calculation.actualTotal)}. Referências: lançado pela tabela ${PRODUCT_SUBSTITUTION.targetReference.tableName}`
-        + ` (${PRODUCT_SUBSTITUTION.targetReference.customerName}, ${money(calculation.target.price)}); entregue pela tabela ${PRODUCT_SUBSTITUTION.actualReference.tableName}`
-        + ` (${PRODUCT_SUBSTITUTION.actualReference.customerName}, ${money(calculation.actual.price)}).`;
+        `Substituição por equivalência financeira:\n`
+        + `• Entregue: ${productSubstitutionQuantity(calculation.actualQuantity)} ${calculation.actual.unit} de ${calculation.actual.name}`
+        + ` × ${money(calculation.actual.price)} = ${money(calculation.actualTotal)}. `
+        + `Tabela: ${PRODUCT_SUBSTITUTION.actualReference.tableName} · Cliente: ${PRODUCT_SUBSTITUTION.actualReference.customerName}.\n`
+        + `• Lançado na cota: ${productSubstitutionQuantity(calculation.targetQuantity)} ${calculation.target.unit} de ${calculation.target.name}`
+        + ` × ${money(calculation.target.price)} = ${money(calculation.targetTotal)}. `
+        + `Tabela: ${PRODUCT_SUBSTITUTION.targetReference.tableName} · Cliente: ${PRODUCT_SUBSTITUTION.targetReference.customerName}.`;
 
     const noteField = $('f-notes');
     let existing = String(noteField.value || '').trim();
@@ -8080,7 +8088,7 @@ function applyProductSubstitution() {
     }
     const combined = [existing, note].filter(Boolean).join('\n');
 
-    if (combined.length > 500) {
+    if (combined.length > 1000) {
         toast('A observação ficou muito longa. Reduza o texto atual antes de aplicar.', 'error');
         return;
     }
@@ -9621,6 +9629,8 @@ window.refreshProductList   = refreshProductList;
 window.openProductSubstitution = openProductSubstitution;
 window.closeProductSubstitution = closeProductSubstitution;
 window.changeProductSubstitutionCustomer = changeProductSubstitutionCustomer;
+window.toggleAdvancedProductSubstitution = toggleAdvancedProductSubstitution;
+window.changeActualProductSubstitutionCustomer = changeActualProductSubstitutionCustomer;
 window.renderProductSubstitutionProducts = renderProductSubstitutionProducts;
 window.updateProductSubstitutionCalculation = updateProductSubstitutionCalculation;
 window.applyProductSubstitution = applyProductSubstitution;

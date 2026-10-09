@@ -2260,7 +2260,7 @@ class DeliveryRegistrationController extends Controller
             'quantity' => 'required|numeric|min:0.001',
             'quality_grade' => 'nullable|string|max:50',
             'quality_notes' => 'nullable|string|max:500',
-            'notes' => 'nullable|string|max:500',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $projectId = (int) $request->route('project');
@@ -4726,7 +4726,7 @@ class DeliveryRegistrationController extends Controller
             'entries.*.delivery_date' => 'required|date',
             'entries.*.quantity' => 'required|numeric|min:0.001',
             'entries.*.quality_grade' => 'nullable|string|max:50',
-            'entries.*.notes' => 'nullable|string|max:500',
+            'entries.*.notes' => 'nullable|string|max:1000',
         ]);
 
         $projectId = (int) $request->route('project');
