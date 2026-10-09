@@ -39,6 +39,7 @@ class DeliveryProjectFrontendContractTest extends TestCase
     public function test_register_calculates_product_substitution_with_existing_customer_prices(): void
     {
         $view = file_get_contents(resource_path('views/delivery/register.blade.php'));
+        $controller = file_get_contents(app_path('Http/Controllers/Delivery/DeliveryRegistrationController.php'));
         $priceRoute = app('router')->getRoutes()->getByName('delivery.sheet.products');
 
         self::assertNotNull($priceRoute);
@@ -51,6 +52,11 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString('PRODUCT_SUBSTITUTION.targetProducts.find', $view);
         self::assertStringContainsString('PRODUCT_SUBSTITUTION.actualProducts.find', $view);
         self::assertStringContainsString('actualCustomerId === targetCustomerId', $view);
+        $registerMethod = strpos($controller, 'public function register(Request $request)');
+        $referenceDefinition = strpos($controller, '$customerPriceReferences = $customers->map', $registerMethod);
+        $registerReturn = strpos($controller, "return view('delivery.register'", $registerMethod);
+        self::assertNotFalse($referenceDefinition);
+        self::assertLessThan($registerReturn, $referenceDefinition);
         self::assertStringContainsString('const rawTargetQuantity = actualTotal / target.price;', $view);
         self::assertStringContainsString('const targetQuantity = Number(rawTargetQuantity.toFixed(3));', $view);
         self::assertStringContainsString('Substituição: entregue ${productSubstitutionQuantity', $view);
