@@ -33,6 +33,8 @@ class FinancialDocumentIdentityVersioningTest extends TestCase
             $table->date('from_date')->nullable();
             $table->date('to_date')->nullable();
             $table->text('notes')->nullable();
+            $table->json('report_annotations')->nullable();
+            $table->string('report_annotations_position', 10)->default('after');
             $table->json('delivery_ids')->nullable();
             $table->string('status')->nullable();
             $table->decimal('total_gross', 14, 4)->default(0);
@@ -168,6 +170,28 @@ class FinancialDocumentIdentityVersioningTest extends TestCase
         self::assertTrue($view['is_equivalent_to_current']);
         self::assertSame('equivalent', $view['technical_status']);
         self::assertSame([], $view['actions']);
+    }
+
+    public function test_empty_annotation_position_added_by_a_migration_does_not_break_equivalence(): void
+    {
+        $service = app(FinancialDocumentIdentityService::class);
+        $receipt = AssociateReceipt::withoutGlobalScopes()->findOrFail(10);
+        $legacy = $service->ensure($receipt);
+        $legacySnapshot = $legacy->document_snapshot;
+        unset(
+            $legacySnapshot['fields']['report_annotations'],
+            $legacySnapshot['fields']['report_annotations_position'],
+        );
+        $legacy->forceFill(['document_snapshot' => $legacySnapshot])->save();
+
+        $receipt->forceFill(['total_net' => 450])->saveQuietly();
+        $service->ensure($receipt->fresh());
+        $receipt->forceFill(['total_net' => 475])->saveQuietly();
+        $current = $service->ensure($receipt->fresh());
+        $legacy->refresh()->setRelation('documentable', $receipt->fresh());
+
+        self::assertSame(3, $current->revision);
+        self::assertSame($current->id, $service->actionableIdentity($legacy)?->id);
     }
 
     public function test_manually_invalidated_qr_is_never_accepted_as_equivalent(): void

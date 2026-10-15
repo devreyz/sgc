@@ -12,6 +12,7 @@ use App\Models\FinancialReceipt;
 use App\Models\ServiceObligation;
 use App\Models\ServicePaymentPlanInstallment;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
 
 class FinancialDocumentPresenter
 {
@@ -23,22 +24,27 @@ class FinancialDocumentPresenter
     public function present(FinancialDocumentIdentity $identity, ?User $user): array
     {
         $document = $identity->documentable;
-        $latestCheck = $identity->checks->first();
         $isCurrent = $this->identityService()->isCurrent($identity);
         $equivalentIdentity = ! $isCurrent
             ? $this->identityService()->equivalentCurrentIdentity($identity)
             : null;
         $isEquivalent = $equivalentIdentity !== null;
+        $actionIdentity = $equivalentIdentity ?? $identity;
+        $latestCheck = $actionIdentity->relationLoaded('checks')
+            ? $actionIdentity->checks->first()
+            : (Schema::hasTable('financial_check_instruments')
+                ? $actionIdentity->checks()->latest('id')->first()
+                : null);
         [$technicalStatus, $humanStatus, $tone] = match (true) {
             $isCurrent => $this->status($document, $latestCheck),
             $isEquivalent => ['equivalent', 'Versão anterior equivalente à vigente', 'success'],
             default => ['obsolete', 'Versão substituída · não utilizar', 'danger'],
         };
         $canView = $user ? $this->canView($user, $identity) : false;
-        $canPay = $isCurrent && $user && $canView ? $this->canPay($user, $identity) : false;
+        $canPay = $user && $canView ? $this->canPay($user, $actionIdentity) : false;
         $details = $canView ? $this->inTenant((int) $identity->tenant_id, fn (): array => [
-            'total' => $this->payments->total($identity),
-            'balance' => $this->payments->balance($identity),
+            'total' => $this->payments->total($actionIdentity),
+            'balance' => $this->payments->balance($actionIdentity),
             'party' => $this->party($document),
             'project' => $this->project($document),
             'payments' => $this->paymentHistory($document),
@@ -68,6 +74,7 @@ class FinancialDocumentPresenter
             'is_current' => $isCurrent,
             'is_equivalent_to_current' => $isEquivalent,
             'current_identity' => $equivalentIdentity,
+            'action_identity' => $actionIdentity,
             'invalidation_reason' => $identity->invalidation_reason
                 ?: ($isCurrent ? null : ($isEquivalent
                     ? 'O conteúdo material desta via é idêntico ao documento vigente.'
@@ -88,7 +95,9 @@ class FinancialDocumentPresenter
             'party' => $details['party'],
             'project' => $details['project'],
             'payments' => $details['payments'],
-            'checks' => $canView ? $identity->checks : collect(),
+            'checks' => $canView
+                ? ($actionIdentity->relationLoaded('checks') ? $actionIdentity->checks : $actionIdentity->checks()->latest('id')->get())
+                : collect(),
             'pending_check' => $canView ? $pendingCheck : null,
             'actions' => $actions,
             'primary_action' => collect($actions)->firstWhere('primary', true),
@@ -97,7 +106,8 @@ class FinancialDocumentPresenter
 
     public function canPay(User $user, FinancialDocumentIdentity $identity): bool
     {
-        if (! $this->identityService()->isCurrent($identity)) {
+        $identity = $this->identityService()->actionableIdentity($identity);
+        if (! $identity) {
             return false;
         }
 

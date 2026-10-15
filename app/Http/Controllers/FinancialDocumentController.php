@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\PaymentMethod;
 use App\Models\BankAccount;
 use App\Models\FinancialCheckInstrument;
+use App\Models\FinancialDocumentIdentity;
 use App\Services\FinancialCheckService;
 use App\Services\FinancialDocumentIdentityService;
 use App\Services\FinancialDocumentPaymentService;
@@ -49,7 +50,7 @@ class FinancialDocumentController extends Controller
 
     public function pay(Request $request, string $publicId, FinancialDocumentIdentityService $identities, FinancialDocumentPresenter $presenter, FinancialDocumentPaymentService $payments): JsonResponse|RedirectResponse
     {
-        $identity = $identities->find($publicId);
+        $identity = $this->actionableIdentity($identities, $publicId);
         abort_unless($identity && $request->user() && $presenter->canPay($request->user(), $identity), 403);
         $data = $request->validate($this->paymentRules($identity->tenant_id));
 
@@ -60,7 +61,7 @@ class FinancialDocumentController extends Controller
 
     public function issueCheck(Request $request, string $publicId, FinancialDocumentIdentityService $identities, FinancialDocumentPresenter $presenter, FinancialCheckService $checks): JsonResponse|RedirectResponse
     {
-        $identity = $identities->find($publicId);
+        $identity = $this->actionableIdentity($identities, $publicId);
         abort_unless($identity && $request->user() && $presenter->canPay($request->user(), $identity), 403);
         $data = $request->validate([
             'operation_key' => ['required', 'uuid'],
@@ -80,7 +81,7 @@ class FinancialDocumentController extends Controller
 
     public function deliverCheck(Request $request, string $publicId, int $check, FinancialDocumentIdentityService $identities, FinancialDocumentPresenter $presenter, FinancialCheckService $checks): JsonResponse|RedirectResponse
     {
-        $identity = $identities->find($publicId);
+        $identity = $this->actionableIdentity($identities, $publicId);
         abort_unless($identity && $request->user() && $presenter->canPay($request->user(), $identity), 403);
         $instrument = FinancialCheckInstrument::withoutGlobalScopes()
             ->where('tenant_id', $identity->tenant_id)->where('financial_document_identity_id', $identity->id)->findOrFail($check);
@@ -98,7 +99,7 @@ class FinancialDocumentController extends Controller
 
     public function cancelCheck(Request $request, string $publicId, int $check, FinancialDocumentIdentityService $identities, FinancialDocumentPresenter $presenter, FinancialCheckService $checks): JsonResponse|RedirectResponse
     {
-        $identity = $identities->find($publicId);
+        $identity = $this->actionableIdentity($identities, $publicId);
         abort_unless($identity && $request->user() && $presenter->canPay($request->user(), $identity), 403);
         $instrument = FinancialCheckInstrument::withoutGlobalScopes()
             ->where('tenant_id', $identity->tenant_id)->where('financial_document_identity_id', $identity->id)->findOrFail($check);
@@ -120,6 +121,13 @@ class FinancialDocumentController extends Controller
             'document_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:2000'],
         ];
+    }
+
+    private function actionableIdentity(FinancialDocumentIdentityService $identities, string $publicId): ?FinancialDocumentIdentity
+    {
+        $scanned = $identities->find($publicId);
+
+        return $scanned ? $identities->actionableIdentity($scanned) : null;
     }
 
     private function execute(Request $request, callable $callback, string $message): JsonResponse|RedirectResponse

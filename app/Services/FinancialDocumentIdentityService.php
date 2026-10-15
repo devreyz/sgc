@@ -143,6 +143,18 @@ class FinancialDocumentIdentityService
         return $this->equivalentCurrentIdentity($identity) !== null;
     }
 
+    /**
+     * Resolve a identidade que pode receber ações financeiras. Uma via antiga
+     * nunca é reativada: quando equivalente, a operação é vinculada à revisão
+     * vigente e a equivalência é conferida novamente no momento da ação.
+     */
+    public function actionableIdentity(FinancialDocumentIdentity $identity): ?FinancialDocumentIdentity
+    {
+        return $this->isCurrent($identity)
+            ? $identity
+            : $this->equivalentCurrentIdentity($identity);
+    }
+
     public function invalidateDocument(Model $document, string $reason, ?User $actor = null): int
     {
         if (! Schema::hasTable('financial_document_identities')
@@ -377,6 +389,19 @@ class FinancialDocumentIdentityService
      */
     private function essentialSnapshot(array $snapshot): array
     {
+        // A posição só produz conteúdo quando existem anotações. Esse campo foi
+        // adicionado depois do início do versionamento com valor padrão "after"
+        // e, sozinho, invalidou vias antigas que renderizavam o mesmo documento.
+        if (isset($snapshot['fields']) && is_array($snapshot['fields'])) {
+            $annotations = $snapshot['fields']['report_annotations'] ?? null;
+            if ($annotations === null || $annotations === '' || $annotations === []) {
+                unset(
+                    $snapshot['fields']['report_annotations'],
+                    $snapshot['fields']['report_annotations_position'],
+                );
+            }
+        }
+
         $technicalKeys = [
             'renderer_version', 'snapshot_version', 'rounding', 'fee_source',
             'draft_preview', 'generated_at', 'generated_by',

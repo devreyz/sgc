@@ -1059,7 +1059,7 @@
                         </strong>
                         <span style="display:block;color:var(--text-2);line-height:1.5">
                             Este QR Code pertence à versão {{ $documentView['revision'] }}, mas o conteúdo material é idêntico ao da versão {{ $documentView['current_identity']?->revision }} vigente.
-                            A via impressa pode ser autenticada para conferência. Por segurança, pagamentos e outras ações continuam disponíveis somente no código vigente.
+                            A via impressa pode ser autenticada para conferência. Pagamentos e outras ações iniciadas por esta página são registrados com segurança na versão vigente.
                             <a href="{{ route('financial-documents.show', $documentView['current_identity']->public_id) }}">Abrir versão vigente</a>.
                         </span>
                     </section>
@@ -1388,7 +1388,7 @@
                             method="post"
                             action="{{ route(
                                 'financial-documents.pay',
-                                $documentView['identity']->public_id
+                                $documentView['action_identity']->public_id
                             ) }}"
                         >
                             @csrf
@@ -1546,7 +1546,7 @@
                             method="post"
                             action="{{ route(
                                 'financial-documents.checks.issue',
-                                $documentView['identity']->public_id
+                                $documentView['action_identity']->public_id
                             ) }}"
                         >
                             @csrf
@@ -1725,7 +1725,7 @@
                             action="{{ route(
                                 'financial-documents.checks.deliver',
                                 [
-                                    $documentView['identity']->public_id,
+                                    $documentView['action_identity']->public_id,
                                     $documentView['pending_check'],
                                 ]
                             ) }}"
@@ -1847,7 +1847,7 @@
                             action="{{ route(
                                 'financial-documents.checks.cancel',
                                 [
-                                    $documentView['identity']->public_id,
+                                    $documentView['action_identity']->public_id,
                                     $documentView['pending_check'],
                                 ]
                             ) }}"
