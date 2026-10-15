@@ -25,9 +25,15 @@ class FinancialDocumentPresenter
         $document = $identity->documentable;
         $latestCheck = $identity->checks->first();
         $isCurrent = $this->identityService()->isCurrent($identity);
-        [$technicalStatus, $humanStatus, $tone] = $isCurrent
-            ? $this->status($document, $latestCheck)
-            : ['obsolete', 'Versão substituída · não utilizar', 'danger'];
+        $equivalentIdentity = ! $isCurrent
+            ? $this->identityService()->equivalentCurrentIdentity($identity)
+            : null;
+        $isEquivalent = $equivalentIdentity !== null;
+        [$technicalStatus, $humanStatus, $tone] = match (true) {
+            $isCurrent => $this->status($document, $latestCheck),
+            $isEquivalent => ['equivalent', 'Versão anterior equivalente à vigente', 'success'],
+            default => ['obsolete', 'Versão substituída · não utilizar', 'danger'],
+        };
         $canView = $user ? $this->canView($user, $identity) : false;
         $canPay = $isCurrent && $user && $canView ? $this->canPay($user, $identity) : false;
         $details = $canView ? $this->inTenant((int) $identity->tenant_id, fn (): array => [
@@ -60,8 +66,12 @@ class FinancialDocumentPresenter
             'reference' => $identity->reference_code,
             'revision' => (int) ($identity->revision ?: 1),
             'is_current' => $isCurrent,
+            'is_equivalent_to_current' => $isEquivalent,
+            'current_identity' => $equivalentIdentity,
             'invalidation_reason' => $identity->invalidation_reason
-                ?: ($isCurrent ? null : 'O conteúdo deste documento foi alterado e uma nova versão deve ser consultada.'),
+                ?: ($isCurrent ? null : ($isEquivalent
+                    ? 'O conteúdo material desta via é idêntico ao documento vigente.'
+                    : 'O conteúdo deste documento foi alterado e uma nova versão deve ser consultada.')),
             'invalidated_at' => $identity->invalidated_at,
             'number' => $this->number($document),
             'kind' => $this->kind($document),

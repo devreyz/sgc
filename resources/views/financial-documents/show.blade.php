@@ -1051,7 +1051,19 @@
                     </div>
                 </section>
 
-                @if(!$documentView['is_current'])
+                @if($documentView['is_equivalent_to_current'])
+                    <section style="margin:0;padding:1rem 1.15rem;background:var(--green-soft);border-bottom:1px solid #b9dfc8;color:var(--green)">
+                        <strong style="display:block;margin-bottom:.3rem">
+                            <i class="ph-fill ph-seal-check"></i>
+                            Via histórica equivalente à versão vigente
+                        </strong>
+                        <span style="display:block;color:var(--text-2);line-height:1.5">
+                            Este QR Code pertence à versão {{ $documentView['revision'] }}, mas o conteúdo material é idêntico ao da versão {{ $documentView['current_identity']?->revision }} vigente.
+                            A via impressa pode ser autenticada para conferência. Por segurança, pagamentos e outras ações continuam disponíveis somente no código vigente.
+                            <a href="{{ route('financial-documents.show', $documentView['current_identity']->public_id) }}">Abrir versão vigente</a>.
+                        </span>
+                    </section>
+                @elseif(!$documentView['is_current'])
                     <section style="margin:0;padding:1rem 1.15rem;background:var(--red-soft);border-bottom:1px solid #f2c7c5;color:var(--red)">
                         <strong style="display:block;margin-bottom:.3rem">
                             <i class="ph-fill ph-warning-circle"></i>

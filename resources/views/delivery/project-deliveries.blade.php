@@ -4202,7 +4202,7 @@ window.SgcConfirmDestructiveAction = async function(distributionId, message, con
     }).then(readSecurityJson);
     const confirmation = issued.confirmation || {};
 
-    if (confirmation.passkey_available) {
+    if (confirmation.passkey_available && isNativeAndroidDeliveryApp()) {
         try {
             const preparedOptions = await prepareDeletionPasskey(issued.passkey_routes);
             const accepted = await customConfirm(
@@ -4224,8 +4224,7 @@ window.SgcConfirmDestructiveAction = async function(distributionId, message, con
                 csrf_token: reauth.csrf_token || document.querySelector('meta[name="csrf-token"]')?.content || PD_CSRF,
             };
         } catch (error) {
-            pdToast(error.message || 'A confirmação por passkey não foi concluída.', 'error');
-            return null;
+            pdToast('A passkey não foi concluída. Use o código de confirmação.', 'info');
         }
     }
 

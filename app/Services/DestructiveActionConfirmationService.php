@@ -12,7 +12,7 @@ class DestructiveActionConfirmationService
 
     private const TTL_SECONDS = 300;
 
-    /** @return array{id: string, code: ?string, expires_in: int, passkey_available: bool} */
+    /** @return array{id: string, code: string, expires_in: int, passkey_available: bool} */
     public function issue(Request $request, string $action, int $subjectId): array
     {
         $user = $request->user();
@@ -32,13 +32,15 @@ class DestructiveActionConfirmationService
             'issued_at' => $issuedAt,
             'expires_at' => $issuedAt + self::TTL_SECONDS,
             'attempts' => 0,
-            'passkey_required' => $passkeyAvailable,
+            // A passkey e um atalho forte, nao uma dependencia do dispositivo.
+            // O codigo continua vinculado a esta sessao, usuario, tenant, acao
+            // e registro, expira em cinco minutos e possui limite de tentativas.
+            'passkey_required' => false,
         ]);
 
         return [
             'id' => $id,
-            // A conta com passkey não recebe uma rota alternativa mais fraca.
-            'code' => $passkeyAvailable ? null : $code,
+            'code' => $code,
             'expires_in' => self::TTL_SECONDS,
             'passkey_available' => $passkeyAvailable,
         ];
@@ -71,8 +73,7 @@ class DestructiveActionConfirmationService
 
         $issuedAt = (int) ($challenge['issued_at'] ?? 0);
         $confirmedByPasskey = $user->last_authenticated_at?->timestamp >= $issuedAt;
-        $confirmedByCode = ! (bool) ($challenge['passkey_required'] ?? false)
-            && filled($confirmationCode)
+        $confirmedByCode = filled($confirmationCode)
             && hash_equals(
                 (string) ($challenge['code_hash'] ?? ''),
                 hash('sha256', strtoupper(trim((string) $confirmationCode))),

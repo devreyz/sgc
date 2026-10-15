@@ -138,6 +138,69 @@ class FinancialDocumentIdentityVersioningTest extends TestCase
         self::assertNotNull($printed->fresh()->invalidated_at);
     }
 
+    public function test_old_qr_is_accepted_as_equivalent_when_material_content_returns_to_original_state(): void
+    {
+        $service = app(FinancialDocumentIdentityService::class);
+        $receipt = AssociateReceipt::withoutGlobalScopes()->findOrFail(10);
+        $original = $service->ensure($receipt);
+
+        $receipt->forceFill(['total_net' => 450])->saveQuietly();
+        $changed = $service->ensure($receipt->fresh());
+
+        $receipt->forceFill(['total_net' => 475])->saveQuietly();
+        $current = $service->ensure($receipt->fresh());
+
+        $document = $receipt->fresh();
+        $original->refresh()->setRelation('documentable', $document);
+        $changed->refresh()->setRelation('documentable', $document);
+
+        self::assertSame(3, $current->revision);
+        self::assertTrue($service->isEquivalentToCurrent($original));
+        self::assertSame($current->id, $service->equivalentCurrentIdentity($original)?->id);
+        self::assertFalse($service->isEquivalentToCurrent($changed));
+
+        $original->setRelation('checks', new Collection);
+        $document->setRelation('project', null);
+        $view = (new FinancialDocumentPresenter(app(FinancialDocumentPaymentService::class), $service))
+            ->present($original, null);
+
+        self::assertFalse($view['is_current']);
+        self::assertTrue($view['is_equivalent_to_current']);
+        self::assertSame('equivalent', $view['technical_status']);
+        self::assertSame([], $view['actions']);
+    }
+
+    public function test_manually_invalidated_qr_is_never_accepted_as_equivalent(): void
+    {
+        $service = app(FinancialDocumentIdentityService::class);
+        $receipt = AssociateReceipt::withoutGlobalScopes()->findOrFail(10);
+        $cancelled = $service->ensure($receipt);
+
+        $service->invalidateDocument($receipt, 'Comprovante cancelado pelo tesoureiro.');
+        $current = $service->ensure($receipt->fresh());
+        $cancelled->refresh()->setRelation('documentable', $receipt->fresh());
+
+        self::assertSame(2, $current->revision);
+        self::assertFalse($service->isEquivalentToCurrent($cancelled));
+    }
+
+    public function test_cancelled_document_never_accepts_a_historical_qr_as_equivalent(): void
+    {
+        $service = app(FinancialDocumentIdentityService::class);
+        $receipt = AssociateReceipt::withoutGlobalScopes()->findOrFail(10);
+        $original = $service->ensure($receipt);
+
+        $receipt->forceFill(['total_net' => 450])->saveQuietly();
+        $service->ensure($receipt->fresh());
+        $receipt->forceFill(['total_net' => 475])->saveQuietly();
+        $service->ensure($receipt->fresh());
+
+        $receipt->forceFill(['status' => 'cancelled'])->saveQuietly();
+        $original->refresh()->setRelation('documentable', $receipt->fresh());
+
+        self::assertFalse($service->isEquivalentToCurrent($original));
+    }
+
     public function test_visual_age_and_renderer_changes_never_rotate_the_qr_identity(): void
     {
         config([

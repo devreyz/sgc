@@ -62,6 +62,7 @@ final class AccountingBillingService
             'recipient' => $row->customer?->trade_name ?: $row->customer?->name ?: 'Destino não identificado',
             'quantity' => (string) $row->quantity,
             'unit_price' => (string) $row->unit_price,
+            'delivery_notes' => trim((string) ($row->parentDelivery?->notes ?: $row->notes ?: '')),
             'associate_receipt_id' => $row->associate_receipt_id ? (int) $row->associate_receipt_id : null,
         ])->values();
 
@@ -191,25 +192,48 @@ final class AccountingBillingService
 
     public function reopenForCorrection(CustomerBillingReceipt $receipt, User $actor): CustomerBillingReceipt
     {
+        $inspection = app(AccountingProcessIntegrityService::class)->inspect($receipt);
+        $hasSnapshotChanges = (bool) ($inspection['snapshot_changed'] ?? false);
+        if ($hasSnapshotChanges && (float) $receipt->amount_paid <= 0) {
+            app(BillingAuthorizationValidityService::class)->invalidateIfChanged(
+                $receipt,
+                $actor,
+                'As distribuições vinculadas ao faturamento mudaram depois da geração do comprovante.'
+            );
+        }
+
         return DB::transaction(function () use ($receipt, $actor): CustomerBillingReceipt {
             $locked = CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $receipt->tenant_id)
                 ->lockForUpdate()->findOrFail($receipt->id);
             $round = $locked->latestAuthorizationRound()->lockForUpdate()->first();
-            if (! $round || ! in_array($round->status, [
+            $lockedInspection = app(AccountingProcessIntegrityService::class)->inspect($locked);
+            $hasSnapshotChanges = (bool) ($lockedInspection['snapshot_changed'] ?? false);
+            $correctionAuthorized = $round && in_array($round->status, [
                 BillingAuthorizationStatus::CORRECTION_REQUESTED,
                 BillingAuthorizationStatus::INVALIDATED,
                 BillingAuthorizationStatus::CANCELLED,
-            ], true)) {
+            ], true);
+            if (! $correctionAuthorized && ! $hasSnapshotChanges) {
                 throw new \RuntimeException('Este faturamento não possui uma solicitação de correção editável.');
             }
             if ((float) $locked->amount_paid > 0) {
                 throw new \RuntimeException('Um faturamento com recebimentos não pode ser reaberto.');
             }
-            $locked->forceFill(['status' => CustomerReceiptStatus::DRAFT])->save();
+            $currentIds = ProductionDelivery::withoutGlobalScopes()
+                ->where('tenant_id', $locked->tenant_id)
+                ->where('billing_receipt_id', $locked->id)
+                ->whereNull('deleted_at')
+                ->orderBy('id')
+                ->pluck('id')->map(fn ($id): int => (int) $id)->all();
+            $locked->forceFill([
+                'status' => CustomerReceiptStatus::DRAFT,
+                'delivery_ids' => $hasSnapshotChanges ? $currentIds : $locked->delivery_ids,
+            ])->save();
             activity()->performedOn($locked)->causedBy($actor)->withProperties([
                 'tenant_id' => $locked->tenant_id,
-                'authorization_id' => $round->id,
-                'authorization_sequence' => $round->sequence,
+                'authorization_id' => $round?->id,
+                'authorization_sequence' => $round?->sequence,
+                'snapshot_changes' => $lockedInspection['snapshot_changes'] ?? null,
             ])->log('Faturamento reaberto para correção');
 
             return $locked->fresh();
@@ -223,6 +247,7 @@ final class AccountingBillingService
             ->whereNull('deleted_at')
             ->whereIn('id', collect($ids)->map(fn ($id): int => (int) $id)->unique())
             ->with(['product:id,tenant_id,name,unit,ncm', 'customer:id,tenant_id,organization_id,name,trade_name',
+                'parentDelivery:id,notes',
                 'associate:id,tenant_id,user_id,nickname', 'salesProject:id,tenant_id,title,type'])
             ->orderBy('id')->get();
     }

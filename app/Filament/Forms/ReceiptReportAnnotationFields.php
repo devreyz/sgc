@@ -5,13 +5,14 @@ namespace App\Filament\Forms;
 use App\Services\ReceiptReportAnnotationService;
 use Filament\Forms;
 use Filament\Forms\Get;
+use Filament\Forms\Set;
 
 class ReceiptReportAnnotationFields
 {
     public static function section(): Forms\Components\Section
     {
         return Forms\Components\Section::make('Observações')
-            ->description('Anotações exclusivas deste PDF. Associe uma nota a um produto ou distribuição para criar um marcador numerado na tabela; notas gerais aparecem sem referência.')
+            ->description('Anotações exclusivas deste PDF. Associe uma nota a produto/distribuição ou selecione uma observação da entrega para importá-la com marcador; notas gerais aparecem sem referência.')
             ->schema([
                 Forms\Components\Select::make('report_annotations_position')
                     ->label('Posição das observações')
@@ -27,6 +28,20 @@ class ReceiptReportAnnotationFields
 
                                 return app(ReceiptReportAnnotationService::class)
                                     ->targetOptions($ids, (int) ($record?->tenant_id ?: session('tenant_id')));
+                            })
+                            ->live()
+                            ->afterStateUpdated(function (?string $state, Set $set, Get $get, $record): void {
+                                if (! str_starts_with((string) $state, 'delivery-note:')) {
+                                    return;
+                                }
+                                $ids = (array) ($get('../../delivery_ids') ?: $record?->delivery_ids ?: []);
+                                $text = app(ReceiptReportAnnotationService::class)->deliveryNoteTexts(
+                                    $ids,
+                                    (int) ($record?->tenant_id ?: session('tenant_id')),
+                                )[$state] ?? null;
+                                if ($text !== null) {
+                                    $set('text', $text);
+                                }
                             })
                             ->default('global')->required()->searchable(),
                         Forms\Components\Textarea::make('text')

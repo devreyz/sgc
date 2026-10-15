@@ -211,6 +211,24 @@ class AccountingPortalController extends Controller
 
         $critical = $this->criticalProcessQuery(clone $base)->count();
 
+        $accessibleProjectIds = app(AccountingAccessService::class)->projectIds($request->user(), $tenant->id);
+        $lockedDistributionIds = app(\App\Services\CustomerBillingSelectionService::class)
+            ->lockedDistributionIds($tenant->id);
+        $unbilledQuery = ProductionDelivery::withoutGlobalScopes()
+            ->where('tenant_id', $tenant->id)
+            ->whereNull('deleted_at')
+            ->whereIn('sales_project_id', $accessibleProjectIds)
+            ->whereNotNull('parent_delivery_id')
+            ->where('status', DeliveryStatus::APPROVED->value)
+            ->whereNull('billing_receipt_id');
+        if ($lockedDistributionIds !== []) {
+            $unbilledQuery->whereNotIn('id', $lockedDistributionIds);
+        }
+        $unbilledDistributions = $unbilledQuery->count();
+        $unbilledUrl = $request->user()->can('create_customer::billing::receipt')
+            ? route('accounting.billings.create', ['tenant' => $tenant->slug])
+            : route('accounting.source-receipts.index', ['tenant' => $tenant->slug]);
+
         $validBase = $this->structurallyValidQuery(clone $base);
         $drafts = $this->draftPreparationQuery(clone $base)->count();
         $closed = (clone $validBase)->where('status', CustomerReceiptStatus::PENDING_PAYMENT->value)
@@ -221,6 +239,7 @@ class AccountingPortalController extends Controller
             $this->queueItem('critical', 'Erros de integridade', $critical, 'alert-triangle', 'danger', [
                 'pending' => 'review_inconsistency',
             ]),
+            $this->queueItem('unbilled_distributions', 'Distribuições aguardando faturamento do comprador', $unbilledDistributions, 'receipt', 'warning', [], $unbilledUrl),
             $this->queueItem('drafts', 'Rascunhos para completar', $drafts, 'file-pen-line', 'neutral', [
                 'financial_status' => CustomerReceiptStatus::DRAFT->value,
             ]),
@@ -536,7 +555,8 @@ class AccountingPortalController extends Controller
                     ? route('accounting.billings.edit', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
                     : null,
                 'reopen_url' => $receipt->status !== CustomerReceiptStatus::DRAFT
-                    && in_array($authorization['state'], ['correction_requested', 'invalidated', 'cancelled'], true)
+                    && (in_array($authorization['state'], ['correction_requested', 'invalidated', 'cancelled'], true)
+                        || (($integrityResult['snapshot_changed'] ?? false) && (float) $receipt->amount_paid <= 0))
                     && $request->user()->can('update_customer::billing::receipt')
                     ? route('accounting.billings.reopen', ['tenant' => $tenant->slug, 'receipt' => $receipt->id])
                     : null,
@@ -712,6 +732,7 @@ class AccountingPortalController extends Controller
                 'customer:id,tenant_id,name,trade_name,organization_id',
                 'organization:id,tenant_id,name',
                 'latestAuthorizationRound',
+                'billingDistributions:id,billing_receipt_id',
             ])
             ->withCount('billingDistributions')
             ->withCount([
@@ -829,6 +850,17 @@ class AccountingPortalController extends Controller
         $critical += ! $isDraft && $distributionCount < 1 ? 1 : 0;
         $critical += ! $isDraft ? $incompleteCount : 0;
         $critical += ! $isDraft && (float) $receipt->total_net <= 0 ? 1 : 0;
+        $snapshotIds = collect($receipt->delivery_ids)->map(fn ($id): int => (int) $id)->filter()->unique();
+        $currentIds = $isDraft
+            ? $snapshotIds
+            : $receipt->billingDistributions->pluck('id')->map(fn ($id): int => (int) $id)->unique();
+        $snapshotChanges = [
+            'added' => $isDraft ? 0 : $currentIds->diff($snapshotIds)->count(),
+            'removed' => $isDraft ? 0 : $snapshotIds->diff($currentIds)->count(),
+        ];
+        $snapshotChanged = $snapshotChanges['added'] > 0 || $snapshotChanges['removed'] > 0;
+        $critical += $snapshotChanges['added'] > 0 ? 1 : 0;
+        $critical += $snapshotChanges['removed'] > 0 ? 1 : 0;
         $preparation = $isDraft
             ? $incompleteCount + ($distributionCount < 1 ? 1 : 0)
             : 0;
@@ -853,6 +885,8 @@ class AccountingPortalController extends Controller
             'distributions' => $distributionCount,
             'critical_issues' => $critical,
             'preparation_issues' => $preparation,
+            'snapshot_changed' => $snapshotChanged,
+            'snapshot_changes' => $snapshotChanges,
             'state' => $state,
             'authorization' => $authorization,
             'fiscal' => $this->fiscalPayload($fiscal, $tenantSlug, $receipt->id),
@@ -1115,9 +1149,9 @@ class AccountingPortalController extends Controller
         ]);
     }
 
-    private function queueItem(string $key, string $label, int $count, string $icon, string $tone, array $filters): array
+    private function queueItem(string $key, string $label, int $count, string $icon, string $tone, array $filters, ?string $url = null): array
     {
-        return compact('key', 'label', 'count', 'icon', 'tone', 'filters');
+        return compact('key', 'label', 'count', 'icon', 'tone', 'filters', 'url');
     }
 
     private function periodLabel(CustomerBillingReceipt $receipt): string

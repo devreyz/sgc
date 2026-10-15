@@ -35,7 +35,7 @@ import './qr-scanner-core';
         ].filter(([,value]) => value !== null && value !== undefined && value !== '').map(([label,value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('') : '';
         const issues = data.issues || [];
         q('[data-issue-count]').textContent = issues.length ? `${issues.length} ponto(s)` : 'Nenhuma falha';
-        q('[data-issues]').innerHTML = issues.length ? issues.map(issue => `<div class="qv-issue" data-tone="${escapeHtml(issue.severity)}"><i data-lucide="${issue.severity === 'critical' ? 'octagon-alert' : 'triangle-alert'}"></i><span>${escapeHtml(issue.message)}</span></div>`).join('') : '<div class="qv-clean"><i data-lucide="badge-check"></i><span>Nenhuma inconsistência conhecida foi encontrada.</span></div>';
+        q('[data-issues]').innerHTML = issues.length ? issues.map(issue => `<div class="qv-issue" data-tone="${escapeHtml(issue.severity)}"><i data-lucide="${issue.severity === 'critical' ? 'octagon-alert' : issue.severity === 'info' ? 'seal-check' : 'triangle-alert'}"></i><span>${escapeHtml(issue.message)}</span></div>`).join('') : '<div class="qv-clean"><i data-lucide="badge-check"></i><span>Nenhuma inconsistência conhecida foi encontrada.</span></div>';
         const distributions = data.distributions || [];
         q('[data-distributions-section]').hidden = !distributions.length;
         q('[data-distributions]').hidden = true;

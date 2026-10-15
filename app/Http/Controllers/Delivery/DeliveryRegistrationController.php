@@ -3892,8 +3892,7 @@ class DeliveryRegistrationController extends Controller
                 ? count($r->delivery_ids ?? [])
                 : (int) $r->distributions_count,
             'is_paid' => $r->status === ReceiptStatus::PAID,
-            'can_update' => $r->status !== ReceiptStatus::OBSOLETE
-                && $r->canBeOperationallyUpdated()
+            'can_update' => $r->canBeOperationallyUpdated()
                 && ! in_array((int) $r->id, $lockedReceiptIds, true),
             'can_regenerate' => $r->status === ReceiptStatus::OBSOLETE && $r->canBeOperationallyUpdated(),
             'refresh_url' => route('delivery.projects.receipt-document.refresh', [
@@ -4328,7 +4327,7 @@ class DeliveryRegistrationController extends Controller
                     ->lockForUpdate()
                     ->findOrFail($receiptId);
 
-                if (! $receipt->isEditable() || $receipt->status === ReceiptStatus::PARTIALLY_PAID || $receipt->status === ReceiptStatus::PAID || (float) ($receipt->amount_paid ?? 0) > 0) {
+                if (! $receipt->canBeOperationallyUpdated() || $receipt->status === ReceiptStatus::PARTIALLY_PAID || $receipt->status === ReceiptStatus::PAID || (float) ($receipt->amount_paid ?? 0) > 0) {
                     throw new \RuntimeException('Este comprovante ja possui pagamento ou esta bloqueado e nao pode ser atualizado.');
                 }
 

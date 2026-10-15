@@ -148,12 +148,18 @@ class DocumentQuickVerificationController extends Controller
 
     private function result(FinancialDocumentIdentity $identity, ?array $summary, array $items, array $issues, ?FinancialDocumentIdentity $currentIdentity = null, ?string $printUrl = null): JsonResponse
     {
-        if ($identity->invalidated_at) {
+        $isOldVersion = $currentIdentity && (int) $currentIdentity->id !== (int) $identity->id;
+        $equivalentIdentity = $isOldVersion
+            ? app(\App\Services\FinancialDocumentIdentityService::class)->equivalentCurrentIdentity($identity)
+            : null;
+        $isEquivalent = $equivalentIdentity !== null;
+        if ($identity->invalidated_at && ! $isEquivalent) {
             array_unshift($issues, ['severity' => 'critical', 'message' => 'Esta via foi invalidada'.($identity->invalidation_reason ? ': '.$identity->invalidation_reason : '.').'']);
         }
-        $isOldVersion = $currentIdentity && (int) $currentIdentity->id !== (int) $identity->id;
-        if ($isOldVersion) {
+        if ($isOldVersion && ! $isEquivalent) {
             array_unshift($issues, ['severity' => 'critical', 'message' => 'O QR Code pertence a uma versão antiga. Utilize a versão vigente indicada abaixo.']);
+        } elseif ($isEquivalent) {
+            array_unshift($issues, ['severity' => 'info', 'message' => 'QR Code de uma versão anterior com conteúdo material idêntico à versão vigente. A via pode ser aceita para conferência.']);
         }
         if ($summary && ($summary['distribution_count'] ?? 0) === 0 && in_array($summary['type'], ['Comprovante do associado', 'Faturamento do cliente'], true)) {
             $issues[] = ['severity' => 'warning', 'message' => 'Nenhuma distribuição ativa está vinculada ao documento.'];
@@ -161,14 +167,29 @@ class DocumentQuickVerificationController extends Controller
         $critical = collect($issues)->contains(fn (array $issue): bool => $issue['severity'] === 'critical');
         $warning = collect($issues)->contains(fn (array $issue): bool => $issue['severity'] === 'warning');
         $verdict = $critical ? 'invalid' : ($warning ? 'attention' : 'valid');
+        $headline = match ($verdict) {
+            'valid' => $isEquivalent ? 'Documento íntegro · versão equivalente' : 'Documento íntegro',
+            'attention' => 'Documento equivalente · exige atenção',
+            default => 'Documento inválido',
+        };
+        $message = match ($verdict) {
+            'valid' => $isEquivalent
+                ? 'Esta via é histórica, mas seus dados materiais coincidem integralmente com a versão vigente.'
+                : 'Identidade, situação e vínculos conferidos sem falhas conhecidas.',
+            'attention' => $isEquivalent
+                ? 'A versão é materialmente equivalente à vigente, mas há pontos operacionais que precisam de conferência.'
+                : 'A leitura é autêntica, mas há pontos que precisam de conferência.',
+            default => 'Não utilize este documento antes de corrigir ou confirmar as falhas.',
+        };
 
         return response()->json([
             'ok' => ! $critical, 'verdict' => $verdict,
-            'headline' => match ($verdict) { 'valid' => 'Documento íntegro', 'attention' => 'Documento exige atenção', default => 'Documento inválido' },
-            'message' => match ($verdict) { 'valid' => 'Identidade, situação e vínculos conferidos sem falhas conhecidas.', 'attention' => 'A leitura é autêntica, mas há pontos que precisam de conferência.', default => 'Não utilize este documento antes de corrigir ou confirmar as falhas.' },
+            'headline' => $headline,
+            'message' => $message,
             'identity' => [
                 'reference' => $identity->reference_code, 'revision' => $identity->revision,
                 'invalidated_at' => $identity->invalidated_at?->format('d/m/Y H:i'), 'is_current' => ! $isOldVersion,
+                'equivalent_to_current' => $isEquivalent,
                 'current_reference' => $currentIdentity?->reference_code, 'current_revision' => $currentIdentity?->revision,
             ],
             'document' => $summary, 'issues' => array_values($issues), 'distributions' => $items,

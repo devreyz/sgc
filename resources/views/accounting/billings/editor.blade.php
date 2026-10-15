@@ -240,7 +240,7 @@
                 <section class="billing-subsection" style="margin-top:1rem">
                     <header class="billing-subsection-head">
                         <strong>Observações</strong>
-                        <span>Notas gerais ou referências a produto/distribuição. São independentes das observações das entregas.</span>
+                        <span>Notas gerais, referências a produto/distribuição ou observações importadas das entregas selecionadas.</span>
                     </header>
                     <div class="billing-subsection-body">
                         <label class="billing-field">
@@ -251,7 +251,10 @@
                             </select>
                         </label>
                         <div data-report-annotations></div>
-                        <button class="billing-btn" type="button" data-add-report-annotation><i class="ph ph-plus"></i> Adicionar observação</button>
+                        <div class="billing-inline-actions">
+                            <button class="billing-btn" type="button" data-add-report-annotation><i class="ph ph-plus"></i> Adicionar observação</button>
+                            <button class="billing-btn" type="button" data-import-delivery-notes><i class="ph ph-quotes"></i> Importar observações das entregas</button>
+                        </div>
                     </div>
                 </section>
             </div>

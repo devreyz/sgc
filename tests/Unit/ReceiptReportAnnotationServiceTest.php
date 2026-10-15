@@ -15,6 +15,7 @@ class ReceiptReportAnnotationServiceTest extends TestCase
             ['target' => 'global', 'text' => 'Conferido no relatório.'],
             ['target' => 'product:7', 'text' => 'Milho substituído.'],
             ['target' => 'distribution:19', 'text' => 'Entrega ajustada.'],
+            ['target' => 'delivery-note:20', 'text' => 'Observação importada da entrega.'],
         ];
 
         $service = new ReceiptReportAnnotationService;
@@ -23,8 +24,9 @@ class ReceiptReportAnnotationServiceTest extends TestCase
         self::assertNull($notes[0]['marker']);
         self::assertSame('¹', $notes[1]['marker']);
         self::assertSame('²', $notes[2]['marker']);
+        self::assertSame('³', $notes[3]['marker']);
         self::assertSame('¹²', $service->markers($notes, 7, [19]));
         self::assertSame('²', $service->markers($notes, 8, [19]));
-        self::assertSame('', $service->markers($notes, 8, [20]));
+        self::assertSame('³', $service->markers($notes, 8, [20]));
     }
 }

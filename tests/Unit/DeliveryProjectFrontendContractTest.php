@@ -128,8 +128,9 @@ class DeliveryProjectFrontendContractTest extends TestCase
         self::assertStringContainsString("confirmLabel: 'Confirmar com passkey'", $view);
         self::assertStringContainsString('window.SgcPreparedPasskey.authenticate(preparedOptions)', $view);
         self::assertStringContainsString("'X-SGC-Platform': 'android'", $view);
-        self::assertStringContainsString("'passkey_required' => \$passkeyAvailable", $service);
-        self::assertStringContainsString("'code' => \$passkeyAvailable ? null : \$code", $service);
+        self::assertStringContainsString("'passkey_required' => false", $service);
+        self::assertStringContainsString("'code' => \$code", $service);
+        self::assertStringContainsString('confirmation.passkey_available && isNativeAndroidDeliveryApp()', $view);
         self::assertStringNotContainsString('1 + 1 = ?', $modal);
         self::assertStringNotContainsString('math_answer', $modal);
 

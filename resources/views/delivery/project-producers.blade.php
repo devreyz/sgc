@@ -2443,8 +2443,8 @@
                 </div>
                 ${['obsolete','cancelled'].includes(receipt.status) ? `<div class="pr-receipt-note">${esc(receipt.obsolete_reason || (receipt.status === 'cancelled' ? 'Comprovante cancelado; snapshot mantido para histórico.' : 'Este comprovante precisa ser regenerado.'))}${receipt.obsolete_at ? ` · ${esc(receipt.obsolete_at)}` : ''}</div>` : ''}
                 <div class="pr-receipt-actions">
-                    ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> Alterar distribuições</button>` : ''}
-                    ${receipt.can_regenerate ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar</button>` : ''}
+                    ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> ${receipt.status === 'obsolete' ? 'Editar e regenerar' : 'Alterar distribuições'}</button>` : ''}
+                    ${receipt.can_regenerate && receipt.distribution_count > 0 ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar agora</button>` : ''}
                     ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-refresh-document="${esc(receipt.refresh_url)}" title="Atualiza o PDF sem trocar o QR Code"><i class="ph-fill ph-arrow-clockwise"></i> Atualizar comprovante</button>` : ''}
                     ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-eye"></i> Visualizar e imprimir</button>` : ''}
                 </div>

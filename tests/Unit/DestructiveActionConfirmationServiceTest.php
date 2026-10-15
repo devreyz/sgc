@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 class DestructiveActionConfirmationServiceTest extends TestCase
 {
-    public function test_code_cannot_bypass_a_required_passkey(): void
+    public function test_code_is_available_even_when_account_has_a_passkey(): void
     {
         [$request, $user] = $this->requestWithUser();
         $this->putChallenge($request, passkeyRequired: true);
@@ -24,8 +24,8 @@ class DestructiveActionConfirmationServiceTest extends TestCase
             'ABC-123',
         );
 
-        self::assertFalse($verified);
-        self::assertSame(1, $request->session()->get('sgc.destructive_confirmation.attempts'));
+        self::assertTrue($verified);
+        self::assertFalse($request->session()->has('sgc.destructive_confirmation'));
         self::assertNull($user->last_authenticated_at);
     }
 

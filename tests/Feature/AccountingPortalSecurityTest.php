@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\BillingAuthorizationStatus;
+use App\Enums\CustomerReceiptStatus;
 use App\Models\BillingAuthorization;
 use App\Models\CustomerBillingReceipt;
 use App\Models\ProductionDelivery;
@@ -426,6 +427,27 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('summary.open_amount', 180);
     }
 
+    public function test_work_queue_warns_about_approved_distributions_without_customer_billing(): void
+    {
+        DB::table('production_deliveries')->insert([
+            'id' => 302, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'customer_id' => 1, 'product_id' => 1, 'parent_delivery_id' => 300,
+            'associate_receipt_id' => null, 'billing_receipt_id' => null, 'status' => 'approved',
+            'quantity' => 1, 'unit_price' => 10, 'gross_value' => 10, 'admin_fee_amount' => 1,
+            'net_value' => 9, 'billing_status' => 'unbilled', 'paid' => false,
+            'delivery_date' => '2026-08-19', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $queue = $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/accounting/data/queue')
+            ->assertOk();
+
+        $item = collect($queue->json('queue'))->firstWhere('key', 'unbilled_distributions');
+        self::assertNotNull($item);
+        self::assertSame(1, $item['count']);
+        self::assertSame(route('accounting.billings.create', ['tenant' => 'tenant-a']), $item['url']);
+    }
+
     public function test_incomplete_draft_is_preparation_work_and_not_a_critical_inconsistency(): void
     {
         DB::table('customer_billing_receipts')->where('id', 10)->update([
@@ -481,6 +503,54 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertOk()
             ->assertJsonPath('processes.data.0.distributions', 1)
             ->assertJsonPath('processes.data.0.preparation_issues', 0);
+    }
+
+    public function test_closed_billing_reports_distributions_added_or_removed_after_snapshot(): void
+    {
+        DB::table('production_deliveries')->insert([
+            'id' => 302, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'customer_id' => 1, 'product_id' => 1, 'parent_delivery_id' => 300,
+            'associate_receipt_id' => null, 'billing_receipt_id' => 10, 'status' => 'approved',
+            'quantity' => 1, 'unit_price' => 10, 'gross_value' => 10, 'admin_fee_amount' => 1,
+            'net_value' => 9, 'billing_status' => 'billed', 'paid' => false,
+            'delivery_date' => '2026-08-19', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $inspection = app(AccountingProcessIntegrityService::class)->inspect($receipt);
+
+        self::assertTrue($inspection['snapshot_changed']);
+        self::assertSame([302], $inspection['snapshot_changes']['added_ids']);
+        self::assertSame([], $inspection['snapshot_changes']['removed_ids']);
+        self::assertContains(
+            'billing_snapshot_added_distributions',
+            collect($inspection['issues'])->pluck('code')->all(),
+        );
+
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null]);
+        $inspection = app(AccountingProcessIntegrityService::class)->inspect($receipt->fresh());
+        self::assertSame([302], $inspection['snapshot_changes']['added_ids']);
+        self::assertSame([301], $inspection['snapshot_changes']['removed_ids']);
+
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/accounting/data/processes/10')
+            ->assertOk()
+            ->assertJsonPath('process.integrity.snapshot_changed', true)
+            ->assertJsonPath('process.integrity.snapshot_changes.added_ids.0', 302)
+            ->assertJsonPath('process.integrity.snapshot_changes.removed_ids.0', 301)
+            ->assertJsonPath('process.reopen_url', route('accounting.billings.reopen', ['tenant' => 'tenant-a', 'receipt' => 10]));
+    }
+
+    public function test_snapshot_change_can_reopen_unpaid_billing_using_current_links(): void
+    {
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null]);
+        $receipt = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+
+        $draft = app(AccountingBillingService::class)
+            ->reopenForCorrection($receipt, User::query()->findOrFail(1));
+
+        self::assertSame(CustomerReceiptStatus::DRAFT, $draft->status);
+        self::assertSame([], $draft->delivery_ids);
     }
 
     public function test_filters_cannot_expand_results_to_another_tenant(): void

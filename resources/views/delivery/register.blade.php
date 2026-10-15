@@ -6299,7 +6299,7 @@ window.SgcConfirmDestructiveAction = async function(subjectId, message, confirma
     }).then(registerSecurityJson);
     const confirmation = issued.confirmation || {};
 
-    if (confirmation.passkey_available) {
+    if (confirmation.passkey_available && registerIsNativeAndroid()) {
         try {
             const preparedOptions = await prepareRegisterPasskey(issued.passkey_routes);
             const accepted = await registerConfirm({
@@ -6317,8 +6317,7 @@ window.SgcConfirmDestructiveAction = async function(subjectId, message, confirma
                 csrf_token: reauth.csrf_token || registerCsrfToken(),
             };
         } catch (error) {
-            toast(error.message || 'A confirmação por passkey não foi concluída.', 'error');
-            return null;
+            toast('A passkey não foi concluída. Use o código de confirmação.', 'info');
         }
     }
 

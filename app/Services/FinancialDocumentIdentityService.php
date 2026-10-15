@@ -20,6 +20,8 @@ use SimpleSoftwareIO\QrCode\Generator;
 
 class FinancialDocumentIdentityService
 {
+    private const SUPERSEDED_REASON = 'Uma nova versão do documento foi emitida após alteração de seu conteúdo.';
+
     /** @var list<class-string<Model>> */
     public const SUPPORTED_TYPES = [
         AssociateReceipt::class,
@@ -72,7 +74,7 @@ class FinancialDocumentIdentityService
             if ($current) {
                 $this->invalidateIdentity(
                     $current,
-                    'Uma nova versão do documento foi emitida após alteração de seu conteúdo.',
+                    self::SUPERSEDED_REASON,
                     $actor,
                 );
             }
@@ -97,6 +99,48 @@ class FinancialDocumentIdentityService
         // status do próprio documento continua sendo a fonte de validade.
         return blank($identity->document_hash)
             || hash_equals($identity->document_hash, $this->hash($this->snapshot($identity->documentable)));
+    }
+
+    /**
+     * Retorna a identidade vigente quando uma via histórica possui exatamente
+     * o mesmo conteúdo material. A identidade antiga permanece invalidada no
+     * histórico e nunca ganha permissão para movimentações financeiras.
+     */
+    public function equivalentCurrentIdentity(FinancialDocumentIdentity $identity): ?FinancialDocumentIdentity
+    {
+        if (! $this->supportsVersioning() || ! is_array($identity->document_snapshot)
+            || ! $identity->invalidated_at
+            || (filled($identity->invalidation_reason) && $identity->invalidation_reason !== self::SUPERSEDED_REASON)) {
+            return null;
+        }
+
+        $document = $identity->relationLoaded('documentable')
+            ? $identity->documentable
+            : $identity->documentable()->withoutGlobalScopes()->first();
+        if (! $document || $this->documentCannotBeValidated($document)) {
+            return null;
+        }
+
+        $current = $this->documentIdentities($document)
+            ->whereNull('invalidated_at')
+            ->latest('revision')->latest('id')->first();
+        if (! $current || (int) $current->id === (int) $identity->id) {
+            return null;
+        }
+
+        $current->setRelation('documentable', $document);
+        if (! $this->isCurrent($current)) {
+            return null;
+        }
+
+        return $this->sameEssentialSnapshot($identity->document_snapshot, $this->snapshot($document))
+            ? $current
+            : null;
+    }
+
+    public function isEquivalentToCurrent(FinancialDocumentIdentity $identity): bool
+    {
+        return $this->equivalentCurrentIdentity($identity) !== null;
     }
 
     public function invalidateDocument(Model $document, string $reason, ?User $actor = null): int
@@ -312,6 +356,83 @@ class FinancialDocumentIdentityService
         unset($stored['renderer_version']);
 
         return hash_equals($this->hash($this->normalize($stored)), $this->hash($current));
+    }
+
+    private function sameEssentialSnapshot(mixed $stored, array $current): bool
+    {
+        if (! is_array($stored)) {
+            return false;
+        }
+
+        return hash_equals(
+            $this->hash($this->essentialSnapshot($stored)),
+            $this->hash($this->essentialSnapshot($current)),
+        );
+    }
+
+    /**
+     * Remove somente metadados de implementação. Campos vazios adicionados em
+     * versões futuras não tornam comprovantes antigos divergentes; qualquer
+     * dado financeiro, parte, distribuição ou observação preenchida permanece.
+     */
+    private function essentialSnapshot(array $snapshot): array
+    {
+        $technicalKeys = [
+            'renderer_version', 'snapshot_version', 'rounding', 'fee_source',
+            'draft_preview', 'generated_at', 'generated_by',
+        ];
+
+        $clean = function (mixed $value) use (&$clean, $technicalKeys): mixed {
+            if (! is_array($value)) {
+                if (is_int($value) || is_float($value) || (is_string($value) && preg_match('/^-?\d+(?:\.\d+)?$/', $value))) {
+                    $number = rtrim(rtrim(number_format((float) $value, 8, '.', ''), '0'), '.');
+
+                    return $number === '-0' || $number === '' ? '0' : $number;
+                }
+
+                return $value;
+            }
+
+            if (array_is_list($value)) {
+                $items = array_map($clean, $value);
+                $items = array_values(array_filter($items, fn (mixed $item): bool => ! $this->emptyMaterialValue($item)));
+                usort($items, fn (mixed $left, mixed $right): int => strcmp(
+                    json_encode($left, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    json_encode($right, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                ));
+
+                return $items;
+            }
+
+            $result = [];
+            foreach ($value as $key => $item) {
+                if (in_array((string) $key, $technicalKeys, true)) {
+                    continue;
+                }
+                $normalized = $clean($item);
+                if (! $this->emptyMaterialValue($normalized)) {
+                    $result[(string) $key] = $normalized;
+                }
+            }
+            ksort($result);
+
+            return $result;
+        };
+
+        return $clean($snapshot);
+    }
+
+    private function emptyMaterialValue(mixed $value): bool
+    {
+        return $value === null || $value === '' || $value === [];
+    }
+
+    private function documentCannotBeValidated(Model $document): bool
+    {
+        $status = $document->getAttribute('status');
+        $status = $status instanceof \BackedEnum ? $status->value : (string) $status;
+
+        return in_array($status, ['draft', 'obsolete', 'cancelled', 'canceled'], true);
     }
 
     private function normalize(mixed $value): mixed

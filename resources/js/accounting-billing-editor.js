@@ -106,6 +106,7 @@
             ['global', 'Observação geral'],
             ...[...products].map(([id, name]) => [`product:${id}`, `Produto: ${name}`]),
             ...(preview?.distributions || []).map((row) => [`distribution:${row.id}`, `Distribuição #${row.id} · ${row.product} · ${row.date}`]),
+            ...(preview?.distributions || []).filter((row) => row.delivery_notes).map((row) => [`delivery-note:${row.id}`, `Observação da entrega · ${row.product} · ${row.date}`]),
         ];
         current.forEach((entry) => {
             if (entry.target && !options.some(([value]) => value === entry.target)) {
@@ -1094,6 +1095,21 @@
             renderReportAnnotations();
             return;
         }
+        if (button.matches('[data-import-delivery-notes]')) {
+            const existing = new Set(readReportAnnotations().map((entry) => entry.target));
+            const imported = (preview?.distributions || [])
+                .filter((row) => row.delivery_notes && !existing.has(`delivery-note:${row.id}`))
+                .map((row) => ({ target: `delivery-note:${row.id}`, text: row.delivery_notes }));
+            if (!imported.length) {
+                message('Não há novas observações de entregas na seleção atual.', true);
+                return;
+            }
+            reportAnnotations = [...readReportAnnotations(), ...imported].slice(0, 30);
+            q('[data-report-annotations]').replaceChildren();
+            renderReportAnnotations();
+            message(`${imported.length} observação(ões) de entrega importada(s).`);
+            return;
+        }
 
         if (button.matches('[data-remove-report-annotation]')) {
             readReportAnnotations();
@@ -1130,6 +1146,15 @@
         if (button.matches("[data-confirm-freeze]")) {
             confirmFreeze();
         }
+    });
+
+    root.addEventListener("change", (event) => {
+        const select = event.target.closest('[data-annotation-target]');
+        if (!select || !select.value.startsWith('delivery-note:')) return;
+        const distributionId = Number(select.value.split(':')[1]);
+        const source = (preview?.distributions || []).find((row) => Number(row.id) === distributionId);
+        const textarea = select.closest('[data-report-annotation]')?.querySelector('[data-annotation-text]');
+        if (textarea && source?.delivery_notes) textarea.value = source.delivery_notes;
     });
 
     root.addEventListener("input", (event) => {

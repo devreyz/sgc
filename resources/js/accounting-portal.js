@@ -634,7 +634,7 @@ import './qr-scanner-core';
 
             target.innerHTML = queueItems
                 .map((item) => {
-                    const url = filtersUrl(baseProcesses, item.filters);
+                    const url = item.url || filtersUrl(baseProcesses, item.filters);
 
                     const tone = String(item.tone || "neutral");
 
@@ -2841,6 +2841,24 @@ import './qr-scanner-core';
                                     `
                                 : ""}
 
+                            ${process.reopen_url && integrity.snapshot_changed
+                                ? `
+                                    <button
+                                        class="acc-button acc-button-primary"
+                                        type="button"
+                                        data-reopen-billing
+                                        data-url="${esc(process.reopen_url)}"
+                                    >
+                                        ${phIcon("ph-arrows-clockwise")}
+                                        Atualizar e gerar nova versão
+                                    </button>
+
+                                    <span class="acc-muted">
+                                        O comprovante atual será preservado no histórico e a seleção será reaberta com os vínculos atuais.
+                                    </span>
+                                `
+                                : ""}
+
                             ${process.pdf_url || process.workflow.fiscal.billing_sheet_url
                                 ? `
                                     <a
@@ -2908,6 +2926,18 @@ import './qr-scanner-core';
                         </div>
 
                         <div class="acc-side-panel-body">
+                            ${integrity.snapshot_changed
+                                ? `
+                                    <div class="acc-alert is-error acc-snapshot-warning">
+                                        <strong>Comprovante desatualizado</strong>
+                                        <span>
+                                            ${esc(integrity.snapshot_changes?.added_ids?.length || 0)} adicionada(s) e
+                                            ${esc(integrity.snapshot_changes?.removed_ids?.length || 0)} removida(s).
+                                            É necessário revisar o faturamento e gerar uma nova versão.
+                                        </span>
+                                    </div>
+                                `
+                                : ""}
                             <ul class="acc-integrity-list">
                                 ${
                                     integrity.issues.length
@@ -3106,6 +3136,29 @@ import './qr-scanner-core';
             );
 
             const repairButton = target.querySelector("[data-repair-integrity]");
+
+            const reopenButton = target.querySelector("[data-reopen-billing]");
+
+            reopenButton?.addEventListener("click", async () => {
+                if (!window.confirm(
+                    "Reabrir este faturamento com as distribuições atualmente vinculadas? A versão anterior continuará preservada no histórico."
+                )) {
+                    return;
+                }
+
+                reopenButton.disabled = true;
+                try {
+                    const result = await postJson(reopenButton.dataset.url, {});
+                    if (result.redirect_url) {
+                        window.location.assign(result.redirect_url);
+                        return;
+                    }
+                    await initDossier();
+                } catch (error) {
+                    window.alert(error.message);
+                    reopenButton.disabled = false;
+                }
+            });
 
             repairButton?.addEventListener("click", async () => {
                 const feedback = target.querySelector("[data-integrity-feedback]");
