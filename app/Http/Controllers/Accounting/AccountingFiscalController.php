@@ -134,6 +134,9 @@ class AccountingFiscalController extends Controller
 
         $feeColumns = collect($receipt->documentLines())->flatMap(fn (array $line): array => array_keys((array) ($line['fee_values'] ?? [])))->unique()->values()->all();
         $columns = array_values(array_unique(['unit_price', 'gross', ...$feeColumns, 'net']));
+        if ($request->boolean('quantity_totals', true)) {
+            $columns[] = 'quantity_total';
+        }
         $organizationReport = $receipt->organization && ! $receipt->customer;
         if ($organizationReport) {
             $view = 'pdf.customer-organization-receipt';

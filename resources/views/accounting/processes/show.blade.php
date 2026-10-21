@@ -62,6 +62,10 @@
         </div>
 
         <div class="dossier-head-actions">
+            <label class="acc-button" style="cursor:pointer">
+                <input type="checkbox" data-pdf-quantity-totals checked>
+                <span>Somar quantidades no PDF</span>
+            </label>
             @can('create', \App\Models\AssociateReceipt::class)
                 <a class="acc-button" href="{{ route('accounting.billings.member-receipts', ['tenant' => $tenant->slug, 'receipt' => $receiptId]) }}">
                     <i class="ph-fill ph-users-three" aria-hidden="true"></i>
@@ -111,5 +115,21 @@
 @endsection
 
 @push('scripts')
+    <script>
+    (() => {
+        const toggle = document.querySelector('[data-pdf-quantity-totals]');
+        const dossier = document.querySelector('[data-dossier]');
+        if (!toggle || !dossier) return;
+        const apply = () => dossier.querySelectorAll('a[href]').forEach(link => {
+            const url = new URL(link.href, location.href);
+            if (url.origin !== location.origin || !url.pathname.endsWith('/billing-sheet')) return;
+            url.searchParams.set('quantity_totals', toggle.checked ? '1' : '0');
+            link.href = url.href;
+        });
+        toggle.addEventListener('change', apply);
+        new MutationObserver(apply).observe(dossier, { childList: true, subtree: true });
+        apply();
+    })();
+    </script>
     @vite('resources/js/accounting-portal.js')
 @endpush

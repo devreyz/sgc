@@ -601,10 +601,11 @@ class CustomerBillingReceiptResource extends Resource
                                     'unit_price' => 'Valor unitário',
                                     'gross' => 'Valor bruto',
                                     'net' => 'Valor líquido',
+                                    'quantity_total' => 'Somar quantidade entregue (por unidade)',
                                 ] + $service->options($definitions))
                                 ->default(fn (): array => session(
                                     "receipt_print.customer.{$record->tenant_id}.{$record->sales_project_id}.columns",
-                                    ['unit_price', 'gross'],
+                                    ['unit_price', 'gross', 'quantity_total'],
                                 ))
                                 ->columns(2)
                                 ->bulkToggleable(),
@@ -1004,7 +1005,7 @@ class CustomerBillingReceiptResource extends Resource
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
             $feeColumns,
-            ['delivery_date', 'unit_price', 'gross', 'net'],
+            ['delivery_date', 'unit_price', 'gross', 'net', 'quantity_total'],
         );
         $groupByDate = in_array('delivery_date', $visibleColumns, true);
         $projectMap = $projects->keyBy('id');
@@ -1156,7 +1157,7 @@ class CustomerBillingReceiptResource extends Resource
         $visibleColumns = $feeColumnService->sanitize(
             $requestedColumns,
             $feeColumns,
-            ['delivery_date', 'unit_price', 'gross', 'net'],
+            ['delivery_date', 'unit_price', 'gross', 'net', 'quantity_total'],
         );
         $groupByDate = in_array('delivery_date', $visibleColumns, true);
         // Todos os compradores distintos (para o rodapé)

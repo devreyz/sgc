@@ -50,7 +50,7 @@ class CustomerBillingReceiptArchiveService
         $view = $organizationReport
             ? 'pdf.customer-organization-receipt'
             : 'pdf.customer-billing-receipt';
-        $columns = ['unit_price', 'gross'];
+        $columns = ['unit_price', 'gross', 'quantity_total'];
         $data = $organizationReport
             ? CustomerBillingReceiptResource::buildOrganizationReportData(
                 $distributions, $receipt, $receipt->tenant, $receipt->project,

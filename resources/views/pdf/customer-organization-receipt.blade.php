@@ -237,6 +237,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     $showUnitPrice = in_array('unit_price', $pdfColumns, true);
     $showGross = in_array('gross', $pdfColumns, true);
     $showNet = in_array('net', $pdfColumns, true);
+    $showQuantityTotal = in_array('quantity_total', $pdfColumns, true);
     $selectedFeeColumns = collect($feeColumns ?? [])
         ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
         ->values();
@@ -308,8 +309,15 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ 1 + $groupCustomers->count() + ($showDeliveryDate ? 1 : 0) }}">{{ ($multiplePriceTables || !empty($isMultiProject)) ? 'Subtotal — '.$group['project_name'] : 'Total Geral' }}</td>
-            <td></td>
+            <td colspan="{{ 1 + ($showDeliveryDate ? 1 : 0) + ($showQuantityTotal ? 0 : $groupCustomers->count()) }}">{{ ($multiplePriceTables || !empty($isMultiProject)) ? 'Subtotal — '.$group['project_name'] : 'Total Geral' }}</td>
+            @if($showQuantityTotal)
+                @foreach($groupCustomers as $c)
+                    <td class="r">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => $group['table'], 'quantityKey' => 'total_qty', 'quantityCustomerId' => $c->id])</td>
+                @endforeach
+                <td class="r">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => $group['table'], 'quantityKey' => 'total_qty'])</td>
+            @else
+                <td></td>
+            @endif
             @if($showUnitPrice)<td></td>@endif
             @if($showGross)<td class="r">R$&nbsp;{{ number_format($group['subtotal_gross'], 2, ',', '.') }}</td>@endif
             @foreach($selectedFeeColumns as $fee)
@@ -324,6 +332,9 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 <div style="border-top:1px dashed #d1d5db; margin:6px 0 2px;"></div>
 @endif
 @endforeach
+@if($showQuantityTotal)
+<div class="strip" style="page-break-inside:avoid"><div class="strip-label">Quantidade total entregue no período</div><div class="strip-value">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => collect($priceGroups)->flatMap(fn ($quantityGroup) => $quantityGroup['table']), 'quantityKey' => 'total_qty'])</div></div>
+@endif
 @if($reportAnnotationPosition !== 'before')
 @include('pdf.partials.receipt-report-annotations')
 @endif

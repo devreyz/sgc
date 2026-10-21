@@ -195,6 +195,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     $showUnitPrice = in_array('unit_price', $pdfColumns, true);
     $showGross = in_array('gross', $pdfColumns, true);
     $showNet = in_array('net', $pdfColumns, true);
+    $showQuantityTotal = in_array('quantity_total', $pdfColumns, true);
     $selectedFeeColumns = collect($feeColumns ?? [])
         ->filter(fn ($fee) => in_array($fee['key'], $pdfColumns, true))
         ->values();
@@ -274,7 +275,8 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="{{ $showDeliveryDate ? 3 : 2 }}"><strong>{{ !empty($isMultiProject) ? 'SUBTOTAL DO PROJETO' : 'TOTAL' }}</strong></td>
+            <td colspan="{{ ($showDeliveryDate ? 3 : 2) - ($showQuantityTotal ? 1 : 0) }}"><strong>{{ !empty($isMultiProject) ? 'SUBTOTAL DO PROJETO' : 'TOTAL' }}</strong></td>
+            @if($showQuantityTotal)<td class="r">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => $projectGroup['rows']])</td>@endif
             @if($showUnitPrice)<td></td>@endif
             @if($showGross)<td class="r">R$ {{ number_format($projectGroup['subtotal_gross'], 2, ',', '.') }}</td>@endif
             @foreach($groupFeeColumns as $fee)
@@ -285,6 +287,9 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
     </tfoot>
 </table>
 @endforeach
+@if($showQuantityTotal)
+<div class="strip" style="page-break-inside:avoid"><div class="strip-label">Quantidade total entregue no período</div><div class="strip-value">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => $productRows ?? []])</div></div>
+@endif
 @if($reportAnnotationPosition !== 'before')
 @include('pdf.partials.receipt-report-annotations')
 @endif
