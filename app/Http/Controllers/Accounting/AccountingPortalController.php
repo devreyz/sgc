@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Accounting\AccountingAccessService;
 use App\Services\Accounting\AccountingNextActionResolver;
 use App\Services\Accounting\AccountingProcessIntegrityService;
+use App\Services\Accounting\BillingDocumentReconciliationService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\BillingAuthorizationWorkflowService;
 use App\Services\Accounting\FiscalGateService;
@@ -150,11 +151,16 @@ class AccountingPortalController extends Controller
             ->findOrFail((int) $request->route('associateReceipt'));
         $names = $identities->namesForUsers($tenant->id, collect([$receipt->associate?->user_id])->filter());
 
-        $distributions = ProductionDelivery::withoutGlobalScopes()
+        $distributionRows = ProductionDelivery::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)->where('associate_receipt_id', $receipt->id)
-            ->with(['product:id,tenant_id,name,unit', 'customer:id,tenant_id,name,trade_name', 'parentDelivery:id,tenant_id,delivery_date'])
-            ->orderByDesc('delivery_date')->orderByDesc('id')->get()
-            ->map(fn (ProductionDelivery $row): array => [
+            ->with(['product:id,tenant_id,name,unit', 'customer:id,tenant_id,name,trade_name', 'parentDelivery'])
+            ->orderByDesc('delivery_date')->orderByDesc('id')->get();
+        $billingReferences = app(\App\Services\DistributionBillingReferenceService::class)->forDistributions($tenant->id, $distributionRows);
+        $accessibleBillings = app(AccountingAccessService::class)->scopeBillings(
+            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id), $request->user(), $tenant->id,
+        )->whereIn('id', collect($billingReferences)->flatten(1)->pluck('id')->unique())->get();
+        $accessibleIds = $accessibleBillings->pluck('id');
+        $distributions = $distributionRows->map(fn (ProductionDelivery $row): array => [
                 'id' => $row->id,
                 'date' => $row->delivery_date?->format('d/m/Y'),
                 'product' => $row->product?->name ?? 'Produto não identificado',
@@ -164,15 +170,25 @@ class AccountingPortalController extends Controller
                 'unit_price' => (float) $row->unit_price,
                 'gross' => (float) $row->gross_value,
                 'net' => (float) $row->net_value,
+                'fees' => (float) $row->admin_fee_amount,
+                'status' => $row->status?->getLabel() ?? 'Não informada',
+                'paid' => (bool) $row->paid,
+                'notes' => trim((string) ($row->parentDelivery?->notes ?: $row->notes ?: '')),
+                'parent' => $row->parentDelivery ? [
+                    'id' => (int) $row->parentDelivery->id,
+                    'date' => $row->parentDelivery->delivery_date?->format('d/m/Y'),
+                    'quantity' => (float) $row->parentDelivery->quantity,
+                ] : null,
+                'billing_references' => collect($billingReferences[(int) $row->id] ?? [])
+                    ->filter(fn ($reference) => $accessibleIds->contains($reference['id']))
+                    ->map(fn ($reference) => $reference + [
+                        'url' => route('accounting.processes.show', ['tenant' => $tenant->slug, 'receipt' => $reference['id']]),
+                    ])->values()->all(),
+                'billing_restricted' => collect($billingReferences[(int) $row->id] ?? [])
+                    ->contains(fn ($reference) => ! $accessibleIds->contains($reference['id'])),
                 'billing_receipt_id' => $row->billing_receipt_id ? (int) $row->billing_receipt_id : null,
             ]);
-        $processIds = $distributions->pluck('billing_receipt_id')->filter()->unique();
-        $processes = app(AccountingAccessService::class)->scopeBillings(
-            CustomerBillingReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id),
-            $request->user(),
-            $tenant->id,
-        )->whereIn('id', $processIds)
-            ->get()->map(fn (CustomerBillingReceipt $process): array => [
+        $processes = $accessibleBillings->map(fn (CustomerBillingReceipt $process): array => [
                 'id' => $process->id,
                 'number' => $process->formatted_number,
                 'status' => $process->status?->getLabel() ?? 'Rascunho',
@@ -378,6 +394,7 @@ class AccountingPortalController extends Controller
         FiscalGateService $fiscalGate,
         TenantIdentityService $identities,
         DeliveryParentRecoveryService $recovery,
+        BillingDocumentReconciliationService $reconciliation,
     ): JsonResponse {
         $tenant = $this->tenant($request);
         $this->authorizeProcesses($request);
@@ -595,6 +612,7 @@ class AccountingPortalController extends Controller
                 ],
             ],
             'consolidated_lines' => $consolidatedLines,
+            'reconciliation' => $reconciliation->inspect($receipt),
             'distributions' => $distributions,
             'payments' => $receipt->payments()
                 ->with('bankAccount:id,tenant_id,name')

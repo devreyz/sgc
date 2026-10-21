@@ -1,40 +1,40 @@
-import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySelector("[data-accounting-page]");if(!w)return;const z=w.dataset.accountingPage,p=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}),P=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:4}),e=a=>String(a??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"),F={"circle-check":"ph-check-circle","chevron-left":"ph-caret-left","chevron-right":"ph-caret-right","list-tree":"ph-tree-structure","file-text":"ph-file-text","alert-triangle":"ph-warning","circle-alert":"ph-warning-circle",clock:"ph-clock",wallet:"ph-wallet",receipt:"ph-receipt","receipt-text":"ph-receipt",files:"ph-files","file-clock":"ph-file-dashed",send:"ph-paper-plane-tilt",search:"ph-magnifying-glass","folder-search":"ph-folder-open",settings:"ph-gear",printer:"ph-printer","key-round":"ph-key","external-link":"ph-arrow-square-out","pencil-line":"ph-pencil-line",x:"ph-x"},V=a=>{const s=String(a||"").trim();return s?s.startsWith("ph-")?s:F[s]||`ph-${s}`:"ph-circle"},r=a=>`
+import"../../qr-scanner-core-CTBFOQOA.js";(function(){const _=document.querySelector("[data-accounting-page]");if(!_)return;const A=_.dataset.accountingPage,m=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}),S=new Intl.NumberFormat("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:4}),a=t=>String(t??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"),F={"circle-check":"ph-check-circle","chevron-left":"ph-caret-left","chevron-right":"ph-caret-right","list-tree":"ph-tree-structure","file-text":"ph-file-text","alert-triangle":"ph-warning","circle-alert":"ph-warning-circle",clock:"ph-clock",wallet:"ph-wallet",receipt:"ph-receipt","receipt-text":"ph-receipt",files:"ph-files","file-clock":"ph-file-dashed",send:"ph-paper-plane-tilt",search:"ph-magnifying-glass","folder-search":"ph-folder-open",settings:"ph-gear",printer:"ph-printer","key-round":"ph-key","external-link":"ph-arrow-square-out","pencil-line":"ph-pencil-line",x:"ph-x"},Q=t=>{const s=String(t||"").trim();return s?s.startsWith("ph-")?s:F[s]||`ph-${s}`:"ph-circle"},d=t=>`
         <i
-            class="ph-fill ${e(V(a))}"
+            class="ph-fill ${a(Q(t))}"
             aria-hidden="true"
         ></i>
-    `;(()=>{if(document.querySelector('link[href*="@phosphor-icons"][href*="fill"]'))return;const a=document.createElement("link");a.rel="stylesheet",a.href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css",document.head.appendChild(a)})();const S=(a,s="neutral")=>`
+    `;(()=>{if(document.querySelector('link[href*="@phosphor-icons"][href*="fill"]'))return;const t=document.createElement("link");t.rel="stylesheet",t.href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css",document.head.appendChild(t)})();const w=(t,s="neutral")=>`
         <span
-            class="acc-badge acc-badge-${e(s)}"
+            class="acc-badge acc-badge-${a(s)}"
         >
-            ${e(a)}
+            ${a(t)}
         </span>
-    `,q=(a=4)=>Array.from({length:a},()=>'<div class="acc-skeleton"></div>').join("");async function L(a,s){const t=await fetch(a,{headers:{Accept:"application/json","X-Requested-With":"XMLHttpRequest"},credentials:"same-origin",cache:"no-store",signal:s}),c=await t.json().catch(()=>({}));if(!t.ok)throw new Error(c.message||"Não foi possível carregar os dados.");return c}async function D(a,s){const t=document.querySelector('meta[name="csrf-token"]')?.content||"",c=await fetch(a,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json","X-Requested-With":"XMLHttpRequest","X-CSRF-TOKEN":t},credentials:"same-origin",cache:"no-store",body:JSON.stringify(s||{})}),o=await c.json().catch(()=>({}));if(!c.ok){const d=Array.isArray(o.issues)?o.issues.map(u=>u.message).join(" "):"";throw new Error(d||o.message||"Não foi possível concluir a ação.")}return o}function x(a,s){a&&(a.innerHTML=`
+    `,L=(t=4)=>Array.from({length:t},()=>'<div class="acc-skeleton"></div>').join("");async function C(t,s){const n=await fetch(t,{headers:{Accept:"application/json","X-Requested-With":"XMLHttpRequest"},credentials:"same-origin",cache:"no-store",signal:s}),e=await n.json().catch(()=>({}));if(!n.ok)throw new Error(e.message||"Não foi possível carregar os dados.");return e}async function z(t,s){const n=document.querySelector('meta[name="csrf-token"]')?.content||"",e=await fetch(t,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json","X-Requested-With":"XMLHttpRequest","X-CSRF-TOKEN":n},credentials:"same-origin",cache:"no-store",body:JSON.stringify(s||{})}),o=await e.json().catch(()=>({}));if(!e.ok){const l=Array.isArray(o.issues)?o.issues.map(v=>v.message).join(" "):"";throw new Error(l||o.message||"Não foi possível concluir a ação.")}return o}function j(t,s){t&&(t.innerHTML=`
             <div
                 class="acc-error"
                 role="alert"
             >
-                ${e(s.message||s)}
+                ${a(s.message||s)}
             </div>
-        `)}function j(a,s){const t=new URL(a,window.location.origin);return Object.entries(s||{}).forEach(([c,o])=>{o!==""&&o!==null&&o!==void 0&&t.searchParams.set(c,o)}),t.toString()}const U=a=>encodeURIComponent(String(a??"")),M=(a,s="Copiar",t="")=>`
+        `)}function P(t,s){const n=new URL(t,window.location.origin);return Object.entries(s||{}).forEach(([e,o])=>{o!==""&&o!==null&&o!==void 0&&n.searchParams.set(e,o)}),n.toString()}const U=t=>encodeURIComponent(String(t??"")),D=(t,s="Copiar",n="")=>`
         <button
-            class="acc-button acc-copy-button ${e(t)}"
+            class="acc-button acc-copy-button ${a(n)}"
             type="button"
-            data-copy-text="${e(U(a))}"
+            data-copy-text="${a(U(t))}"
         >
-            ${r("ph-copy")}
+            ${d("ph-copy")}
 
             <span data-copy-label>
-                ${e(s)}
+                ${a(s)}
             </span>
         </button>
-    `;async function I(a){const s=String(a??"");if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(s);return}const t=document.createElement("textarea");t.value=s,t.setAttribute("readonly",""),t.style.position="fixed",t.style.opacity="0",t.style.pointerEvents="none",document.body.appendChild(t),t.select();try{document.execCommand("copy")}finally{t.remove()}}function O(a){const s=a.querySelector("[data-copy-label]"),t=s?.textContent||"Copiar";a.classList.add("is-copied"),s&&(s.textContent="Copiado"),window.clearTimeout(a._copyTimer),a._copyTimer=window.setTimeout(()=>{a.classList.remove("is-copied"),s&&(s.textContent=t)},1400)}document.addEventListener("click",async a=>{const s=a.target.closest("[data-copy-text], [data-copy-value]");if(!s)return;a.preventDefault(),a.stopPropagation();const t=s.dataset.copyText?decodeURIComponent(s.dataset.copyText):s.dataset.copyValue||"";try{await I(t),O(s)}catch{const o=s.querySelector("[data-copy-label]");o&&(o.textContent="Falhou",window.setTimeout(()=>{o.textContent="Copiar"},1400))}});async function Q(){const a=document.querySelector("[data-queue-list]"),s=document.querySelector("[data-queue-summary]"),t=document.querySelector("[data-queue-total]");if(!a||!s)return;a.innerHTML=q(4);const c=d=>{const u=String(d?.label||"").toLowerCase();if(/erro|integridade|corrigir|falha|inconsist/.test(u))return"ph-warning-circle";if(/rascunho|prepar|completar/.test(u))return"ph-receipt";if(/autoriza|aprova/.test(u))return"ph-check-circle";if(/saldo|receb|pagamento/.test(u))return"ph-clock-countdown";switch(String(d?.tone||"")){case"danger":case"warning":return"ph-warning-circle";case"success":return"ph-check-circle";case"info":case"cyan":return"ph-folder-open";case"violet":case"purple":return"ph-receipt";default:return"ph-folder"}},o=d=>{switch(String(d?.tone||"")){case"danger":return"Corrigir";case"warning":return"Preparar";case"success":return"Pronto";case"info":case"cyan":return"Acompanhar";case"violet":case"purple":return"Revisar";default:return"Pendente"}};try{const d=await L(w.dataset.queueUrl),u=w.dataset.processesUrl,$=Number(d.summary?.open_processes||0),k=Number(d.summary?.open_amount||0),m=d.summary?.workflow_label||"Fluxo contábil",f=d.queue||[],n=f.reduce((i,l)=>i+Number(l.count||0),0);if(t&&(t.innerHTML=`
+    `;async function V(t){const s=String(t??"");if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(s);return}const n=document.createElement("textarea");n.value=s,n.setAttribute("readonly",""),n.style.position="fixed",n.style.opacity="0",n.style.pointerEvents="none",document.body.appendChild(n),n.select();try{document.execCommand("copy")}finally{n.remove()}}function O(t){const s=t.querySelector("[data-copy-label]"),n=s?.textContent||"Copiar";t.classList.add("is-copied"),s&&(s.textContent="Copiado"),window.clearTimeout(t._copyTimer),t._copyTimer=window.setTimeout(()=>{t.classList.remove("is-copied"),s&&(s.textContent=n)},1400)}document.addEventListener("click",async t=>{const s=t.target.closest("[data-copy-text], [data-copy-value]");if(!s)return;t.preventDefault(),t.stopPropagation();const n=s.dataset.copyText?decodeURIComponent(s.dataset.copyText):s.dataset.copyValue||"";try{await V(n),O(s)}catch{const o=s.querySelector("[data-copy-label]");o&&(o.textContent="Falhou",window.setTimeout(()=>{o.textContent="Copiar"},1400))}});async function I(){const t=document.querySelector("[data-queue-list]"),s=document.querySelector("[data-queue-summary]"),n=document.querySelector("[data-queue-total]");if(!t||!s)return;t.innerHTML=L(4);const e=l=>{const v=String(l?.label||"").toLowerCase();if(/erro|integridade|corrigir|falha|inconsist/.test(v))return"ph-warning-circle";if(/rascunho|prepar|completar/.test(v))return"ph-receipt";if(/autoriza|aprova/.test(v))return"ph-check-circle";if(/saldo|receb|pagamento/.test(v))return"ph-clock-countdown";switch(String(l?.tone||"")){case"danger":case"warning":return"ph-warning-circle";case"success":return"ph-check-circle";case"info":case"cyan":return"ph-folder-open";case"violet":case"purple":return"ph-receipt";default:return"ph-folder"}},o=l=>{switch(String(l?.tone||"")){case"danger":return"Corrigir";case"warning":return"Preparar";case"success":return"Pronto";case"info":case"cyan":return"Acompanhar";case"violet":case"purple":return"Revisar";default:return"Pendente"}};try{const l=await C(_.dataset.queueUrl),v=_.dataset.processesUrl,r=Number(l.summary?.open_processes||0),c=Number(l.summary?.open_amount||0),u=l.summary?.workflow_label||"Fluxo contábil",b=l.queue||[],q=b.reduce((i,p)=>i+Number(p.count||0),0);if(n&&(n.innerHTML=`
                     <i
                         class="ph-fill ph-folder"
                         aria-hidden="true"
                     ></i>
 
-                    ${e(n)}
+                    ${a(q)}
                 `),s.innerHTML=`
                 <article class="accounting-primary">
                     <div>
@@ -48,7 +48,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         </div>
 
                         <div class="accounting-primary-value">
-                            ${p.format(k)}
+                            ${m.format(c)}
                         </div>
 
                         <div class="accounting-primary-helper">
@@ -62,12 +62,12 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             Processos em andamento:
 
                             <strong>
-                                ${e($)}
+                                ${a(r)}
                             </strong>
                         </span>
 
                         <span>
-                            ${e(m)}
+                            ${a(u)}
                         </span>
                     </div>
                 </article>
@@ -91,7 +91,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </div>
 
                             <strong>
-                                ${e($)}
+                                ${a(r)}
                             </strong>
                         </article>
 
@@ -126,7 +126,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </strong>
 
                             <span>
-                                ${e(m)}
+                                ${a(u)}
                             </span>
                         </div>
 
@@ -147,7 +147,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </strong>
 
                                     <span>
-                                        ${e($)}
+                                        ${a(r)}
                                         faturamento(s)
                                         em acompanhamento
                                     </span>
@@ -170,7 +170,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </strong>
 
                                     <span>
-                                        ${e(n)}
+                                        ${a(q)}
                                         processo(s)
                                         exigindo atenção
                                     </span>
@@ -193,14 +193,14 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </strong>
 
                                     <span>
-                                        ${e(m)}
+                                        ${a(u)}
                                     </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            `,d.empty||!f.length){a.innerHTML=`
+            `,l.empty||!b.length){t.innerHTML=`
                     <div class="acc-empty">
                         <div>
                             <span
@@ -222,10 +222,10 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </span>
                         </div>
                     </div>
-                `;return}a.innerHTML=f.map(i=>{const l=i.url||j(u,i.filters),g=String(i.tone||"neutral"),b=c(i),E=o(i);return`
+                `;return}t.innerHTML=b.map(i=>{const p=i.url||P(v,i.filters),g=String(i.tone||"neutral"),h=e(i),x=o(i);return`
                                 <a
-                                    class="acc-queue-row acc-tone-${e(g)}"
-                                    href="${e(l)}"
+                                    class="acc-queue-row acc-tone-${a(g)}"
+                                    href="${a(p)}"
                                 >
                                     <span class="queue-main">
                                         <span
@@ -233,13 +233,13 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             aria-hidden="true"
                                         >
                                             <i
-                                                class="ph-fill ${e(b)}"
+                                                class="ph-fill ${a(h)}"
                                             ></i>
                                         </span>
 
                                         <span class="acc-queue-copy">
                                             <strong>
-                                                ${e(i.label)}
+                                                ${a(i.label)}
                                             </strong>
 
                                             <span>
@@ -249,11 +249,11 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </span>
 
                                     <span class="queue-status">
-                                        ${e(E)}
+                                        ${a(x)}
                                     </span>
 
                                     <span class="acc-queue-count">
-                                        ${e(i.count)}
+                                        ${a(i.count)}
                                     </span>
 
                                     <span
@@ -265,60 +265,60 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         ></i>
                                     </span>
                                 </a>
-                            `}).join("")}catch(d){t&&(t.innerHTML=`
+                            `}).join("")}catch(l){n&&(n.innerHTML=`
                     <i
                         class="ph-fill ph-warning-circle"
                         aria-hidden="true"
                     ></i>
 
                     —
-                `),x(a,d)}}function B(a){const s=a.critical_issues?S(`${a.critical_issues} erro(s)`,"danger"):a.preparation_issues?S(`${a.preparation_issues} item(ns)`,"warning"):S("Pronto","success");return`
+                `),j(t,l)}}function W(t){const s=t.critical_issues?w(`${t.critical_issues} erro(s)`,"danger"):t.preparation_issues?w(`${t.preparation_issues} item(ns)`,"warning"):w("Pronto","success");return`
             <tr>
                 <td>
                     <a
                         class="acc-link"
-                        href="${e(a.url)}"
+                        href="${a(t.url)}"
                     >
-                        ${e(a.number)}
+                        ${a(t.number)}
                     </a>
 
                     <div class="acc-muted">
-                        ${e(a.issued_at||"")}
+                        ${a(t.issued_at||"")}
                     </div>
                 </td>
 
                 <td>
                     <strong>
-                        ${e(a.project)}
+                        ${a(t.project)}
                     </strong>
 
                     <div class="acc-muted">
-                        ${e(a.project_code||"")}
+                        ${a(t.project_code||"")}
                     </div>
                 </td>
 
                 <td>
-                    ${e(a.recipient)}
+                    ${a(t.recipient)}
 
                     <div class="acc-muted">
-                        ${e(a.recipient_type)}
+                        ${a(t.recipient_type)}
                     </div>
                 </td>
 
                 <td>
-                    ${S(a.state.label,a.state.tone)}
+                    ${w(t.state.label,t.state.tone)}
 
                     <div class="acc-muted">
-                        ${e(a.state.next_action)}
+                        ${a(t.state.next_action)}
                     </div>
                 </td>
 
                 <td class="acc-money">
-                    ${p.format(a.net||0)}
+                    ${m.format(t.net||0)}
 
                     <div class="acc-muted">
                         Saldo
-                        ${p.format(a.remaining||0)}
+                        ${m.format(t.remaining||0)}
                     </div>
                 </td>
 
@@ -329,8 +329,8 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                 <td class="process-action-column">
                     <a
                         class="process-open"
-                        href="${e(a.url)}"
-                        aria-label="Acessar ${e(a.number)}"
+                        href="${a(t.url)}"
+                        aria-label="Acessar ${a(t.number)}"
                     >
                         Acessar
 
@@ -341,26 +341,26 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                     </a>
                 </td>
             </tr>
-        `}function W(a){const s=a.critical_issues?`${e(a.critical_issues)} erro(s)`:a.preparation_issues?`${e(a.preparation_issues)} item(ns) a completar`:"Pronto";return`
+        `}function X(t){const s=t.critical_issues?`${a(t.critical_issues)} erro(s)`:t.preparation_issues?`${a(t.preparation_issues)} item(ns) a completar`:"Pronto";return`
             <article
                 class="acc-mobile-row"
-                data-tone="${e(a.state.tone||"neutral")}"
+                data-tone="${a(t.state.tone||"neutral")}"
             >
                 <div class="acc-mobile-head">
                     <div class="mobile-process-main">
                         <a
                             class="acc-link"
-                            href="${e(a.url)}"
+                            href="${a(t.url)}"
                         >
-                            ${e(a.number)}
+                            ${a(t.number)}
                         </a>
 
                         <span class="acc-muted">
-                            ${e(a.project)}
+                            ${a(t.project)}
                         </span>
                     </div>
 
-                    ${S(a.state.label,a.state.tone)}
+                    ${w(t.state.label,t.state.tone)}
                 </div>
 
                 <div class="acc-mobile-meta">
@@ -368,7 +368,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         Destinatário
 
                         <strong>
-                            ${e(a.recipient)}
+                            ${a(t.recipient)}
                         </strong>
                     </span>
 
@@ -376,7 +376,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         Valor líquido
 
                         <strong>
-                            ${p.format(a.net||0)}
+                            ${m.format(t.net||0)}
                         </strong>
                     </span>
 
@@ -384,7 +384,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         Próxima ação
 
                         <strong>
-                            ${e(a.state.next_action)}
+                            ${a(t.state.next_action)}
                         </strong>
                     </span>
 
@@ -400,7 +400,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                 <div class="mobile-process-actions">
                     <a
                         class="process-open"
-                        href="${e(a.url)}"
+                        href="${a(t.url)}"
                     >
                         Acessar
 
@@ -411,25 +411,25 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                     </a>
                 </div>
             </article>
-        `}async function X(){const a=document.querySelector("[data-process-filters]"),s=document.querySelector("[data-process-table]"),t=document.querySelector("[data-process-mobile]"),c=document.querySelector("[data-process-pagination]");if(!a||!s||!t||!c)return;const o=a.elements.project,d=a.elements.organization,u=a.elements.customer;let $,k=!1;const m=new URLSearchParams(window.location.search);["search","project","organization","customer","from","until","financial_status","authorization_status","fiscal_status","accountability_status","pending"].forEach(i=>{m.has(i)&&a.elements[i]&&(a.elements[i].value=m.get(i))});async function f(i=1){$?.abort(),$=new AbortController,s.innerHTML=`
+        `}async function J(){const t=document.querySelector("[data-process-filters]"),s=document.querySelector("[data-process-table]"),n=document.querySelector("[data-process-mobile]"),e=document.querySelector("[data-process-pagination]");if(!t||!s||!n||!e)return;const o=t.elements.project,l=t.elements.organization,v=t.elements.customer;let r,c=!1;const u=new URLSearchParams(window.location.search);["search","project","organization","customer","from","until","financial_status","authorization_status","fiscal_status","accountability_status","pending"].forEach(i=>{u.has(i)&&t.elements[i]&&(t.elements[i].value=u.get(i))});async function b(i=1){r?.abort(),r=new AbortController,s.innerHTML=`
                 <tr>
                     <td colspan="7">
-                        ${q(5)}
+                        ${L(5)}
                     </td>
                 </tr>
-            `,t.innerHTML=q(5),c.innerHTML="";const l=Object.fromEntries(new FormData(a).entries());l.page=i;try{const g=await L(j(w.dataset.processesDataUrl,l),$.signal),b=g.processes;k||(o&&(o.innerHTML='<option value="">Todos os projetos</option>'+(g.filters?.projects||[]).map(v=>`
-                                        <option value="${e(v.id)}">
-                                            ${e(v.label)}
+            `,n.innerHTML=L(5),e.innerHTML="";const p=Object.fromEntries(new FormData(t).entries());p.page=i;try{const g=await C(P(_.dataset.processesDataUrl,p),r.signal),h=g.processes;c||(o&&(o.innerHTML='<option value="">Todos os projetos</option>'+(g.filters?.projects||[]).map(f=>`
+                                        <option value="${a(f.id)}">
+                                            ${a(f.label)}
                                         </option>
-                                    `).join(""),o.value=l.project||""),d&&(d.innerHTML='<option value="">Todas as organizações</option>'+(g.filters?.organizations||[]).map(v=>`
-                                        <option value="${e(v.id)}">
-                                            ${e(v.label)}
+                                    `).join(""),o.value=p.project||""),l&&(l.innerHTML='<option value="">Todas as organizações</option>'+(g.filters?.organizations||[]).map(f=>`
+                                        <option value="${a(f.id)}">
+                                            ${a(f.label)}
                                         </option>
-                                    `).join(""),d.value=l.organization||""),u&&(u.innerHTML='<option value="">Todos os clientes</option>'+(g.filters?.customers||[]).map(v=>`
-                                        <option value="${e(v.id)}">
-                                            ${e(v.label)}
+                                    `).join(""),l.value=p.organization||""),v&&(v.innerHTML='<option value="">Todos os clientes</option>'+(g.filters?.customers||[]).map(f=>`
+                                        <option value="${a(f.id)}">
+                                            ${a(f.label)}
                                         </option>
-                                    `).join(""),u.value=l.customer||""),k=!0),b.data.length?(s.innerHTML=b.data.map(B).join(""),t.innerHTML=b.data.map(W).join("")):(s.innerHTML=`
+                                    `).join(""),v.value=p.customer||""),c=!0),h.data.length?(s.innerHTML=h.data.map(W).join(""),n.innerHTML=h.data.map(X).join("")):(s.innerHTML=`
                         <tr>
                             <td colspan="7">
                                 <div class="acc-empty">
@@ -437,27 +437,27 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </div>
                             </td>
                         </tr>
-                    `,t.innerHTML=`
+                    `,n.innerHTML=`
                         <div class="acc-empty">
                             Nenhum processo encontrado.
                         </div>
-                    `),c.innerHTML=`
+                    `),e.innerHTML=`
                     <span>
-                        ${e(b.from||0)}
+                        ${a(h.from||0)}
                         –
-                        ${e(b.to||0)}
+                        ${a(h.to||0)}
                         de
-                        ${e(b.total||0)}
+                        ${a(h.total||0)}
                     </span>
 
                     <div class="acc-pagination-actions">
                         <button
                             class="acc-button"
                             type="button"
-                            data-page="${b.current_page-1}"
-                            ${b.current_page<=1?"disabled":""}
+                            data-page="${h.current_page-1}"
+                            ${h.current_page<=1?"disabled":""}
                         >
-                            ${r("ph-caret-left")}
+                            ${d("ph-caret-left")}
 
                             Anterior
                         </button>
@@ -465,31 +465,31 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         <button
                             class="acc-button"
                             type="button"
-                            data-page="${b.current_page+1}"
-                            ${b.current_page>=b.last_page?"disabled":""}
+                            data-page="${h.current_page+1}"
+                            ${h.current_page>=h.last_page?"disabled":""}
                         >
                             Próxima
 
-                            ${r("ph-caret-right")}
+                            ${d("ph-caret-right")}
                         </button>
                     </div>
-                `,c.querySelectorAll("[data-page]").forEach(v=>v.addEventListener("click",()=>f(Number(v.dataset.page))));const E=new URL(window.location.href);Object.entries(l).forEach(([v,h])=>h?E.searchParams.set(v,h):E.searchParams.delete(v)),E.searchParams.delete("page"),history.replaceState({},"",E)}catch(g){g.name!=="AbortError"&&(s.innerHTML=`
+                `,e.querySelectorAll("[data-page]").forEach(f=>f.addEventListener("click",()=>b(Number(f.dataset.page))));const x=new URL(window.location.href);Object.entries(p).forEach(([f,$])=>$?x.searchParams.set(f,$):x.searchParams.delete(f)),x.searchParams.delete("page"),history.replaceState({},"",x)}catch(g){g.name!=="AbortError"&&(s.innerHTML=`
                         <tr>
                             <td colspan="7">
                                 <div class="acc-error">
-                                    ${e(g.message)}
+                                    ${a(g.message)}
                                 </div>
                             </td>
                         </tr>
-                    `,x(t,g))}}let n;a.addEventListener("input",i=>{clearTimeout(n),n=setTimeout(()=>f(1),i.target.name==="search"?320:0)}),a.addEventListener("change",i=>{i.target.matches('select, input[type="date"]')&&f(1)}),a.addEventListener("submit",i=>{i.preventDefault(),f(1)}),a.querySelector("[data-clear-filters]")?.addEventListener("click",()=>{a.reset(),f(1)}),f(Number(m.get("page")||1))}function N(a){const s=a.data||[];if(!s.length)return`
+                    `,j(n,g))}}let q;t.addEventListener("input",i=>{clearTimeout(q),q=setTimeout(()=>b(1),i.target.name==="search"?320:0)}),t.addEventListener("change",i=>{i.target.matches('select, input[type="date"]')&&b(1)}),t.addEventListener("submit",i=>{i.preventDefault(),b(1)}),t.querySelector("[data-clear-filters]")?.addEventListener("click",()=>{t.reset(),b(1)}),b(Number(u.get("page")||1))}function M(t){const s=t.data||[];if(!s.length)return`
                 <div class="acc-empty">
                     Nenhuma distribuição vinculada.
                 </div>
-            `;const t=`
+            `;const n=`
             <div class="acc-data-table-block acc-data-table-distributions">
                 <div class="acc-table-tools">
                     <div class="acc-table-tools-copy">
-                        ${r("ph-arrows-left-right")}
+                        ${d("ph-arrows-left-right")}
 
                         <div>
                             <strong>
@@ -535,52 +535,52 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         </thead>
 
                         <tbody>
-                            ${s.map(c=>{const o=[`Data: ${c.parent?.date||"Sem origem"}`,`Entrega: ${c.parent?.id?`#${c.parent.id}`:"—"}`,`Produto: ${c.product||""}`,`Destino: ${c.customer||""}`,`Membro: ${c.member||""}`,`Quantidade: ${P.format(c.quantity||0)} ${c.unit||""}`.trim(),`Valor: ${p.format(c.gross_value||0)}`,`Preço unitário: ${p.format(c.unit_price||0)} / ${c.unit||""}`].join(`
+                            ${s.map(e=>{const o=[`Data: ${e.parent?.date||"Sem origem"}`,`Entrega: ${e.parent?.id?`#${e.parent.id}`:"—"}`,`Produto: ${e.product||""}`,`Destino: ${e.customer||""}`,`Membro: ${e.member||""}`,`Quantidade: ${S.format(e.quantity||0)} ${e.unit||""}`.trim(),`Valor: ${m.format(e.gross_value||0)}`,`Preço unitário: ${m.format(e.unit_price||0)} / ${e.unit||""}`].join(`
 `);return`
                                                 <tr>
                                                     <td>
-                                                        ${e(c.parent?.date||"Sem origem")}
+                                                        ${a(e.parent?.date||"Sem origem")}
 
                                                         <div class="acc-muted">
                                                             Entrega #
-                                                            ${e(c.parent?.id||"—")}
+                                                            ${a(e.parent?.id||"—")}
                                                         </div>
                                                     </td>
 
                                                     <td>
                                                         <strong>
-                                                            ${e(c.product)}
+                                                            ${a(e.product)}
                                                         </strong>
 
                                                         <div class="acc-muted">
-                                                            ${e(c.customer)}
+                                                            ${a(e.customer)}
                                                         </div>
                                                     </td>
 
                                                     <td>
-                                                        ${e(c.member)}
+                                                        ${a(e.member)}
                                                     </td>
 
                                                     <td>
-                                                        ${P.format(c.quantity||0)}
+                                                        ${S.format(e.quantity||0)}
 
-                                                        ${e(c.unit)}
+                                                        ${a(e.unit)}
                                                     </td>
 
                                                     <td class="acc-money">
-                                                        ${p.format(c.gross_value||0)}
+                                                        ${m.format(e.gross_value||0)}
 
                                                         <div class="acc-muted">
-                                                            ${p.format(c.unit_price||0)}
+                                                            ${m.format(e.unit_price||0)}
 
                                                             /
 
-                                                            ${e(c.unit)}
+                                                            ${a(e.unit)}
                                                         </div>
                                                     </td>
 
                                                     <td class="acc-copy-column">
-                                                        ${M(o,"Copiar","acc-button-icon-copy")}
+                                                        ${D(o,"Copiar","acc-button-icon-copy")}
                                                     </td>
                                                 </tr>
                                             `}).join("")}
@@ -588,24 +588,24 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                     </table>
                 </div>
             </div>
-        `;return(a.last_page||1)<=1?t:t+`
+        `;return(t.last_page||1)<=1?n:n+`
             <div class="acc-pagination">
                 <span>
-                    ${e(a.from||0)}
+                    ${a(t.from||0)}
                     –
-                    ${e(a.to||0)}
+                    ${a(t.to||0)}
                     de
-                    ${e(a.total||0)}
+                    ${a(t.total||0)}
                 </span>
 
                 <div class="acc-pagination-actions">
                     <button
                         class="acc-button"
                         type="button"
-                        data-dist-page="${a.current_page-1}"
-                        ${a.current_page<=1?"disabled":""}
+                        data-dist-page="${t.current_page-1}"
+                        ${t.current_page<=1?"disabled":""}
                     >
-                        ${r("ph-caret-left")}
+                        ${d("ph-caret-left")}
 
                         Anterior
                     </button>
@@ -613,20 +613,25 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                     <button
                         class="acc-button"
                         type="button"
-                        data-dist-page="${a.current_page+1}"
-                        ${a.current_page>=a.last_page?"disabled":""}
+                        data-dist-page="${t.current_page+1}"
+                        ${t.current_page>=t.last_page?"disabled":""}
                     >
                         Próxima
 
-                        ${r("ph-caret-right")}
+                        ${d("ph-caret-right")}
                     </button>
                 </div>
             </div>
-        `}function J(a){return a?.length?`
+        `}function K(t){if(!t?.length)return`
+                <div class="acc-empty">
+                    Este registro legado ainda não possui
+                    linhas consolidadas no snapshot.
+                </div>
+            `;const s=new Map;return t.forEach(n=>{const e=String(n.unit||"un").trim()||"un",o=e.toLocaleLowerCase("pt-BR"),l=s.get(o)||{unit:e,quantity:0};l.quantity+=Math.round(Number(n.quantity||0)*1e8),s.set(o,l)}),`
             <div class="acc-data-table-block acc-data-table-delivered">
                 <div class="acc-table-tools">
                     <div class="acc-table-tools-copy">
-                        ${r("ph-package")}
+                        ${d("ph-package")}
 
                         <div>
                             <strong>
@@ -668,99 +673,108 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         </thead>
 
                         <tbody>
-                            ${a.map(s=>{const t=[`Produto: ${s.product||""}`,s.project?`Projeto: ${s.project}`:"",`Quantidade: ${P.format(Number(s.quantity||0))} ${s.unit||""}`.trim(),`Preço unitário: ${p.format(Number(s.unit_price||0))}`,`Valor documental: ${p.format(Number(s.document_amount||0))}`].filter(Boolean).join(`
+                            ${t.map(n=>{const e=[`Produto: ${n.product||""}`,n.project?`Projeto: ${n.project}`:"",`Quantidade: ${S.format(Number(n.quantity||0))} ${n.unit||""}`.trim(),`Preço unitário: ${m.format(Number(n.unit_price||0))}`,`Valor documental: ${m.format(Number(n.document_amount||0))}`].filter(Boolean).join(`
 `);return`
                                                 <tr>
                                                     <td>
                                                         <strong>
-                                                            ${e(s.product)}
+                                                            ${a(n.product)}
                                                         </strong>
 
                                                         <div class="acc-muted">
-                                                            ${e(s.project||"")}
+                                                            ${a(n.project||"")}
                                                         </div>
                                                     </td>
 
                                                     <td>
-                                                        ${P.format(Number(s.quantity||0))}
+                                                        ${S.format(Number(n.quantity||0))}
 
-                                                        ${e(s.unit)}
+                                                        ${a(n.unit)}
                                                     </td>
 
                                                     <td class="acc-money">
-                                                        ${p.format(Number(s.unit_price||0))}
+                                                        ${m.format(Number(n.unit_price||0))}
                                                     </td>
 
                                                     <td class="acc-money">
                                                         <strong>
-                                                            ${p.format(Number(s.document_amount||0))}
+                                                            ${m.format(Number(n.document_amount||0))}
                                                         </strong>
                                                     </td>
 
                                                     <td class="acc-copy-column">
-                                                        ${M(t,"Copiar","acc-button-icon-copy")}
+                                                        ${D(e,"Copiar","acc-button-icon-copy")}
                                                     </td>
                                                 </tr>
                                             `}).join("")}
                         </tbody>
                     </table>
                 </div>
+                <section class="acc-delivered-totals" aria-label="Total entregue por unidade">
+                    <div>
+                        <strong>Total entregue por unidade</strong>
+                        <span>Quantidades somadas sem misturar unidades de medida.</span>
+                    </div>
+                    <dl>
+                        ${Array.from(s.values()).map(n=>`
+                            <div>
+                                <dt>${a(n.unit)}</dt>
+                                <dd>${S.format(n.quantity/1e8)} ${a(n.unit)}</dd>
+                            </div>
+                        `).join("")}
+                    </dl>
+                </section>
             </div>
-        `:`
-                <div class="acc-empty">
-                    Este registro legado ainda não possui
-                    linhas consolidadas no snapshot.
-                </div>
-            `}function K(a){return a?.length?`
+        `}function Z(t){return t?.length?`
             <ul class="acc-simple-list">
-                ${a.map(s=>`
+                ${t.map(s=>`
                                 <li class="acc-simple-item">
                                     <strong>
                                         Versão
-                                        ${e(s.sequence)}
+                                        ${a(s.sequence)}
                                         ·
-                                        ${e(s.label)}
+                                        ${a(s.label)}
                                     </strong>
 
                                     ${s.organization?`
                                                 <span>
                                                     Organização:
-                                                    ${e(s.organization)}
+                                                    ${a(s.organization)}
                                                 </span>
                                             `:""}
 
                                     <span>
                                         Enviada em
-                                        ${e(s.sent_at||"—")}
+                                        ${a(s.sent_at||"—")}
                                         por
-                                        ${e(s.sent_by||"Membro não identificado")}
+                                        ${a(s.sent_by||"Membro não identificado")}
                                     </span>
 
                                     ${s.responded_at?`
                                                 <span>
                                                     Resposta em
-                                                    ${e(s.responded_at)}
+                                                    ${a(s.responded_at)}
                                                     por
-                                                    ${e(s.responded_by||"Representante autorizado")}
+                                                    ${a(s.responded_by||"Representante autorizado")}
                                                 </span>
                                             `:""}
 
                                     ${s.validity?`
                                                 <span>
                                                     Validade atual:
-                                                    ${e(s.validity)}
+                                                    ${a(s.validity)}
                                                 </span>
                                             `:""}
 
                                     ${s.message?`
                                                 <p class="acc-auth-message">
-                                                    ${e(s.message)}
+                                                    ${a(s.message)}
                                                 </p>
                                             `:""}
 
                                     ${s.invalidation_reason?`
                                                 <p class="acc-auth-message acc-auth-warning">
-                                                    ${e(s.invalidation_reason)}
+                                                    ${a(s.invalidation_reason)}
                                                 </p>
                                             `:""}
                                 </li>
@@ -770,7 +784,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                 <div class="acc-empty">
                     Processo anterior ao workflow de autorização.
                 </div>
-            `}function G(a){const s=a.access||{};if(s.applicable===!1)return`
+            `}function G(t){const s=t.access||{};if(s.applicable===!1)return`
                 <div class="acc-guidance">
                     <strong>
                         Destinatário individual
@@ -781,26 +795,26 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         por representante de uma organização compradora.
                     </span>
                 </div>
-            `;const t=s.recipients||[];return`
+            `;const n=s.recipients||[];return`
             <section class="acc-auth-access">
                 <h3 class="acc-section-title">
                     Quem responde pela organização
                 </h3>
 
-                ${t.length?`
+                ${n.length?`
                             <ul class="acc-simple-list">
-                                ${t.map(c=>`
+                                ${n.map(e=>`
                                                 <li class="acc-simple-item">
                                                     <strong>
-                                                        ${e(c.name||"Representante autorizado")}
+                                                        ${a(e.name||"Representante autorizado")}
                                                         ·
-                                                        ${e(c.email)}
+                                                        ${a(e.email)}
                                                     </strong>
 
                                                     <span>
-                                                        ${c.has_account?"Conta ativa":"Aguardando primeiro acesso"}
+                                                        ${e.has_account?"Conta ativa":"Aguardando primeiro acesso"}
 
-                                                        ${c.last_access_at?` · último acesso ${e(c.last_access_at)}`:""}
+                                                        ${e.last_access_at?` · último acesso ${a(e.last_access_at)}`:""}
                                                     </span>
                                                 </li>
                                             `).join("")}
@@ -815,7 +829,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </div>
                         `}
 
-                ${w.dataset.canSendAuthorization==="1"?`
+                ${_.dataset.canSendAuthorization==="1"?`
                             <form
                                 class="acc-inline-form"
                                 data-access-form
@@ -831,7 +845,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         name="email"
                                         required
                                         maxlength="255"
-                                        value="${e(s.organization_email||"")}"
+                                        value="${a(s.organization_email||"")}"
                                         placeholder="representante@organizacao.gov.br"
                                     >
                                 </label>
@@ -845,7 +859,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         class="acc-input"
                                         name="name"
                                         maxlength="255"
-                                        value="${e(s.organization_contact||"")}"
+                                        value="${a(s.organization_contact||"")}"
                                     >
                                 </label>
 
@@ -853,7 +867,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     class="acc-button"
                                     type="submit"
                                 >
-                                    ${r("ph-key")}
+                                    ${d("ph-key")}
 
                                     Autorizar e-mail
                                 </button>
@@ -865,7 +879,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </form>
                         `:""}
 
-                ${a.state==="sent"?`
+                ${t.state==="sent"?`
                             <div class="acc-guidance">
                                 <strong>
                                     Solicitação enviada.
@@ -883,9 +897,9 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 ${s.buyer_url?`
                                             <a
                                                 class="acc-button"
-                                                href="${e(s.buyer_url)}"
+                                                href="${a(s.buyer_url)}"
                                             >
-                                                ${r("ph-arrow-square-out")}
+                                                ${d("ph-arrow-square-out")}
 
                                                 Abrir tela da organização
                                             </a>
@@ -893,7 +907,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </div>
                         `:""}
             </section>
-        `}function H(a){const s=a.data||[],t=`
+        `}function R(t){const s=t.data||[],n=`
             <p
                 class="acc-muted"
                 style="padding:.72rem .72rem 0"
@@ -903,49 +917,49 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
             </p>
 
             <div class="acc-receipt-results">
-                ${s.length?s.map(c=>`
+                ${s.length?s.map(e=>`
                                     <article class="acc-receipt-card">
                                         <div class="acc-receipt-card-main">
                                             <div>
                                                 <strong>
-                                                    ${e(c.number)}
+                                                    ${a(e.number)}
                                                     ·
-                                                    ${e(c.member)}
+                                                    ${a(e.member)}
                                                 </strong>
 
                                                 <div class="acc-muted">
-                                                    ${e(c.included_distributions||0)}
+                                                    ${a(e.included_distributions||0)}
                                                     distribuição(ões)
                                                     incluída(s)
                                                     neste faturamento
                                                 </div>
                                             </div>
 
-                                            ${S(c.status_label,c.status==="paid"?"success":"warning")}
+                                            ${w(e.status_label,e.status==="paid"?"success":"warning")}
                                         </div>
 
                                         <div class="acc-receipt-actions">
-                                            ${c.detail_url?`
+                                            ${e.detail_url?`
                                                         <button
                                                             class="acc-button"
                                                             type="button"
-                                                            data-related-detail="${e(c.detail_url)}"
-                                                            data-related-title="${e(c.number)}"
+                                                            data-related-detail="${a(e.detail_url)}"
+                                                            data-related-title="${a(e.number)}"
                                                         >
-                                                            ${r("ph-list-bullets")}
+                                                            ${d("ph-list-bullets")}
 
                                                             Ver distribuições
                                                         </button>
                                                     `:""}
 
-                                            ${c.reprint_url?`
+                                            ${e.reprint_url?`
                                                         <a
                                                             class="acc-button"
-                                                            href="${e(c.reprint_url)}"
+                                                            href="${a(e.reprint_url)}"
                                                             target="_blank"
                                                             rel="noopener"
                                                         >
-                                                            ${r("ph-file-text")}
+                                                            ${d("ph-file-text")}
 
                                                             Abrir documento
                                                         </a>
@@ -959,24 +973,24 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </div>
                         `}
             </div>
-        `;return(a.last_page||1)<=1?t:t+`
+        `;return(t.last_page||1)<=1?n:n+`
             <div class="acc-pagination">
                 <span>
-                    ${e(a.from||0)}
+                    ${a(t.from||0)}
                     –
-                    ${e(a.to||0)}
+                    ${a(t.to||0)}
                     de
-                    ${e(a.total||0)}
+                    ${a(t.total||0)}
                 </span>
 
                 <div class="acc-pagination-actions">
                     <button
                         class="acc-button"
                         type="button"
-                        data-producer-page="${a.current_page-1}"
-                        ${a.current_page<=1?"disabled":""}
+                        data-producer-page="${t.current_page-1}"
+                        ${t.current_page<=1?"disabled":""}
                     >
-                        ${r("ph-caret-left")}
+                        ${d("ph-caret-left")}
 
                         Anterior
                     </button>
@@ -984,20 +998,20 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                     <button
                         class="acc-button"
                         type="button"
-                        data-producer-page="${a.current_page+1}"
-                        ${a.current_page>=a.last_page?"disabled":""}
+                        data-producer-page="${t.current_page+1}"
+                        ${t.current_page>=t.last_page?"disabled":""}
                     >
                         Próxima
 
-                        ${r("ph-caret-right")}
+                        ${d("ph-caret-right")}
                     </button>
                 </div>
             </div>
-        `}async function Y(a,s){let t=document.querySelector("[data-related-receipt-dialog]");if(!t){t=document.createElement("dialog"),t.className="acc-dialog acc-dialog-wide acc-related-dialog",t.dataset.relatedReceiptDialog="",t.innerHTML=`
+        `}async function Y(t,s){let n=document.querySelector("[data-related-receipt-dialog]");if(!n){n=document.createElement("dialog"),n.className="acc-dialog acc-dialog-wide acc-related-dialog",n.dataset.relatedReceiptDialog="",n.innerHTML=`
                 <div class="acc-dialog-head">
                     <div class="acc-dialog-title">
                         <span class="acc-dialog-icon">
-                            ${r("ph-arrows-left-right")}
+                            ${d("ph-arrows-left-right")}
                         </span>
 
                         <div>
@@ -1018,7 +1032,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         data-related-close
                         aria-label="Fechar"
                     >
-                        ${r("ph-x")}
+                        ${d("ph-x")}
                     </button>
                 </div>
 
@@ -1033,12 +1047,72 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         type="button"
                         data-related-footer-close
                     >
-                        ${r("ph-x-circle")}
+                        ${d("ph-x-circle")}
 
                         Fechar
                     </button>
                 </footer>
-            `,document.body.appendChild(t);const o=()=>t.close();t.querySelector("[data-related-close]").addEventListener("click",o),t.querySelector("[data-related-footer-close]").addEventListener("click",o),t.addEventListener("click",d=>{d.target===t&&o()})}t.querySelector("[data-related-receipt-title]").textContent=s||"Documento de origem";const c=t.querySelector("[data-related-receipt-content]");c.innerHTML=q(4),t.showModal();try{c.innerHTML=R(await L(a))}catch(o){x(c,o)}}async function T(){const a=document.querySelector("[data-dossier]");if(a){a.innerHTML=q(7);try{const s=await L(w.dataset.processDataUrl),t=s.process,c=t.integrity;a.innerHTML=`
+            `,document.body.appendChild(n);const o=()=>n.close();n.querySelector("[data-related-close]").addEventListener("click",o),n.querySelector("[data-related-footer-close]").addEventListener("click",o),n.addEventListener("click",l=>{l.target===n&&o()})}n.querySelector("[data-related-receipt-title]").textContent=s||"Documento de origem";const e=n.querySelector("[data-related-receipt-content]");e.innerHTML=L(4),n.showModal();try{e.innerHTML=H(await C(t))}catch(o){j(e,o)}}function aa(t){if(!t)return'<div class="acc-empty">Conferência indisponível.</div>';const s=t.summary,n=o=>S.format(Number(o||0)),e=o=>o==null?"Não disponível":m.format(Number(o));return`
+            <div class="acc-reconciliation">
+                <header class="acc-reconciliation-head">
+                    <div><h3>Conferência de valores e quantidades</h3>
+                        <p>Somente orientação: estes alertas não criam bloqueios nem alteram documentos. As regras de segurança já existentes permanecem.</p>
+                        <small>Conferido em ${a(t.checked_at)} · Dados de toda a folha, sem limite de paginação.</small>
+                    </div>
+                    <div class="acc-reconciliation-actions">
+                        <button type="button" class="acc-button" data-recheck-documents>${d("ph-arrows-clockwise")} Conferir novamente</button>
+                        <button type="button" class="acc-button" data-export-reconciliation>${d("ph-download-simple")} Exportar relatório CSV</button>
+                    </div>
+                </header>
+                <div class="acc-reconciliation-cards">
+                    <div><span>Distribuições na folha</span><strong>${a(s.distributions)}</strong></div>
+                    <div><span>Nos comprovantes dos membros</span><strong>${a(s.covered)} / ${a(s.distributions)}</strong></div>
+                    <div><span>Sem comprovante do membro</span><strong>${a(s.uncovered)}</strong></div>
+                    <div><span>Comprovantes analisados</span><strong>${a(s.member_documents)}</strong></div>
+                </div>
+                <section class="acc-reconciliation-section">
+                    <h4>${t.warning_count?`${a(t.warning_count)} alerta(s) para revisar`:"Nenhuma divergência detectada nas verificações disponíveis"} · ${a(t.info_count)} aviso(s) de contexto</h4>
+                    <ul class="acc-reconciliation-alerts">
+                        ${t.alerts.map(o=>`
+                            <li class="is-${o.level==="info"?"info":"warning"}">
+                                <strong>${d(o.level==="info"?"ph-info":"ph-warning")} ${a(o.message)}</strong>
+                                <p><b>Como revisar:</b> ${a(o.solution)}</p>
+                                ${o.ids.length?`<details><summary>Ver ${a(o.ids.length)} distribuição(ões)</summary><p>${o.ids.map(l=>`#${a(l)}`).join(", ")}</p></details>`:""}
+                            </li>
+                        `).join("")||'<li class="is-info">Os conjuntos e totais conferidos correspondem. Consulte os limites da análise abaixo.</li>'}
+                    </ul>
+                </section>
+                <section class="acc-reconciliation-section">
+                    <h4>Quantidades por unidade de medida</h4>
+                    <p>“Coberta” considera cada distribuição uma única vez, pela seleção salva dos comprovantes ativos, usando sua quantidade atual.</p>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Unidade</th><th>Folha documental</th><th>Registros atuais da folha</th><th>Coberta por comprovantes</th><th>Sem comprovante</th></tr></thead><tbody>
+                    ${t.units.map(o=>`<tr><td>${a(o.unit)}</td><td>${t.sheet_quantities_available?n(o.sheet_quantity):"Não disponível"}</td><td>${n(o.current_quantity)}</td><td>${n(o.covered_quantity)}</td><td>${n(o.uncovered_quantity)}</td></tr>`).join("")||'<tr><td colspan="5">Nenhuma quantidade disponível.</td></tr>'}
+                    </tbody></table></div>
+                </section>
+                <section class="acc-reconciliation-section">
+                    <h4>Comparativo financeiro · mesmo conjunto de distribuições</h4>
+                    <div class="acc-reconciliation-cards">
+                        <div><span>Bruto salvo na folha</span><strong>${e(s.sheet_gross)}</strong></div>
+                        <div><span>Bruto atual dos itens da folha</span><strong>${e(s.current_gross)}</strong></div>
+                        <div><span>Bruto coberto por comprovantes</span><strong>${e(s.covered_gross)}</strong></div>
+                        <div><span>Líquido salvo na folha</span><strong>${e(s.sheet_net)}</strong></div>
+                    </div>
+                    <p>O bruto atual é quantidade × preço, antes de taxas. A folha pode arredondar por linha consolidada; os líquidos usam regras de taxas próprias.</p>
+                </section>
+                <details class="acc-reconciliation-section"><summary>Relatório por produto e projeto</summary>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Produto / projeto</th><th>Unidade</th><th>Qtd. documental</th><th>Qtd. atual</th><th>Qtd. coberta</th><th>Bruto documental¹</th><th>Bruto atual¹</th></tr></thead><tbody>
+                    ${t.products.map(o=>`<tr><td><strong>${a(o.product)}</strong><div class="acc-muted">Projeto #${a(o.project_id)}</div></td><td>${a(o.unit)}</td><td>${t.sheet_quantities_available?n(o.sheet_quantity):"—"}</td><td>${n(o.current_quantity)}</td><td>${n(o.covered_quantity)}</td><td>${t.sheet_quantities_available?e(o.sheet_gross):"—"}</td><td>${e(o.current_gross)}</td></tr>`).join("")}
+                    </tbody></table></div><p>¹ Antes do arredondamento por linha e das taxas.</p>
+                </details>
+                <details class="acc-reconciliation-section"><summary>Relatório dos comprovantes dos membros · documentos integrais</summary>
+                    <p>Inclui itens de outras folhas/períodos. Quantidades reconstruídas dos registros atuais; valores financeiros salvos nos documentos.</p>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Comprovante / membro</th><th>Situação</th><th>Nesta folha</th><th>Fora desta folha</th><th>Quantidades integrais</th><th>Bruto salvo</th><th>Líquido salvo</th></tr></thead><tbody>
+                    ${t.members.map(o=>`<tr><td><strong>${a(o.number)}</strong><div>${a(o.member)}</div></td><td>${a(o.status)}</td><td>${a(o.in_billing)}</td><td>${a(o.outside_billing)}</td><td>${o.quantities.map(l=>`${n(l.quantity)} ${a(l.unit)}`).join(" · ")}</td><td>${e(o.gross)}</td><td>${e(o.net)}</td></tr>`).join("")||'<tr><td colspan="7">Nenhum comprovante ativo relacionado.</td></tr>'}
+                    </tbody><tfoot><tr><th colspan="4">Soma integral dos comprovantes</th><td>${s.all_members_quantities.map(o=>`${n(o.quantity)} ${a(o.unit)}`).join(" · ")||"—"}</td><td>${e(s.all_members_gross)}</td><td>${e(s.all_members_net)}</td></tr></tfoot></table></div>
+                </details>
+                <details class="acc-reconciliation-section" open><summary>Critérios e limites desta conferência</summary><ul>${t.limitations.map(o=>`<li>${a(o)}</li>`).join("")}</ul></details>
+            </div>`}function ta(t,s){const n={distributions:"Distribuições na folha",covered:"Nos comprovantes dos membros",uncovered:"Sem comprovante do membro",member_documents:"Comprovantes analisados",sheet_gross:"Bruto salvo na folha",sheet_net:"Líquido salvo na folha",current_gross:"Bruto atual dos itens da folha",covered_gross:"Bruto coberto por comprovantes",all_members_gross:"Bruto salvo dos comprovantes integrais",all_members_net:"Líquido salvo dos comprovantes integrais"},o=[["Conferência não bloqueante",s,t.checked_at],["Resumo","Valor"],...Object.entries(n).map(([r,c])=>[c,t.summary[r]??"Não disponível"]),[],["Unidade","Quantidade documental","Quantidade atual","Quantidade coberta","Quantidade sem comprovante"],...t.units.map(r=>[r.unit,t.sheet_quantities_available?r.sheet_quantity:"Não disponível",r.current_quantity,r.covered_quantity,r.uncovered_quantity]),[],["Projeto","Produto","Unidade","Quantidade documental","Quantidade atual","Quantidade coberta","Bruto documental","Bruto atual"],...t.products.map(r=>[r.project_id,r.product,r.unit,t.sheet_quantities_available?r.sheet_quantity:"",r.current_quantity,r.covered_quantity,t.sheet_quantities_available?r.sheet_gross:"",r.current_gross]),[],["Comprovante","Membro","Situação","Nesta folha","Fora da folha","Quantidades integrais (atuais)","Bruto salvo","Líquido salvo"],...t.members.map(r=>[r.number,r.member,r.status,r.in_billing,r.outside_billing,r.quantities.map(c=>`${c.quantity} ${c.unit}`).join(" / "),r.gross,r.net]),[],["Tipo","Alerta","Como revisar","Distribuições"],...t.alerts.map(r=>[r.level,r.message,r.solution,r.ids.join(", ")]),[],["Limites da análise"],...t.limitations.map(r=>[r])].map(r=>r.map(c=>{let u=String(c??"");return/^-?\d+\.\d+$/.test(u)?u=u.replace(".",","):/^[\s]*[=+\-@]/.test(u)&&(u="'"+u),`"${u.replaceAll('"','""')}"`}).join(";")).join(`\r
+`),l=URL.createObjectURL(new Blob(["\uFEFF",o],{type:"text/csv;charset=utf-8"})),v=document.createElement("a");v.href=l,v.download=`conferencia-${String(s).replace(/[^a-zA-Z0-9-]/g,"-")}.csv`,v.click(),setTimeout(()=>URL.revokeObjectURL(l),1e3)}async function N(t="overview"){const s=document.querySelector("[data-dossier]");if(s){s.innerHTML=L(7);try{const n=await C(_.dataset.processDataUrl),e=n.process,o=e.integrity;s.innerHTML=`
                 <section class="acc-panel">
                     <div class="acc-state-strip">
                         <div class="acc-state-item">
@@ -1047,7 +1121,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </span>
 
                             <strong>
-                                ${e(t.state.label)}
+                                ${a(e.state.label)}
                             </strong>
                         </div>
 
@@ -1057,7 +1131,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </span>
 
                             <strong>
-                                ${e(t.workflow.authorization.label)}
+                                ${a(e.workflow.authorization.label)}
                             </strong>
                         </div>
 
@@ -1067,7 +1141,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                             </span>
 
                             <strong>
-                                ${e(t.workflow.fiscal.label)}
+                                ${a(e.workflow.fiscal.label)}
                             </strong>
                         </div>
                     </div>
@@ -1170,6 +1244,15 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         <button
                             class="acc-tab"
                             type="button"
+                            data-tab="reconciliation"
+                            data-tone="warning"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            ${d("ph-scales")}
+                            <span>Conferência ${n.reconciliation?`(${a(n.reconciliation.warning_count+n.reconciliation.info_count)})`:""}</span>
+                        </button>
+                        <button class="acc-tab" type="button"
                             data-tab="timeline"
                             data-tone="neutral"
                             role="tab"
@@ -1197,7 +1280,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.project?.title||"Não identificado")}
+                                    ${a(e.project?.title||"Não identificado")}
                                 </strong>
                             </div>
 
@@ -1207,7 +1290,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.recipient.name)}
+                                    ${a(e.recipient.name)}
                                 </strong>
                             </div>
 
@@ -1217,7 +1300,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.period)}
+                                    ${a(e.period)}
                                 </strong>
                             </div>
 
@@ -1227,7 +1310,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${p.format(t.financial.gross||0)}
+                                    ${m.format(e.financial.gross||0)}
                                 </strong>
                             </div>
 
@@ -1237,7 +1320,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${p.format(t.financial.fees||0)}
+                                    ${m.format(e.financial.fees||0)}
                                 </strong>
                             </div>
 
@@ -1247,7 +1330,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${p.format(t.financial.net||0)}
+                                    ${m.format(e.financial.net||0)}
                                 </strong>
                             </div>
 
@@ -1257,7 +1340,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.summary.distributions)}
+                                    ${a(e.summary.distributions)}
                                 </strong>
                             </div>
 
@@ -1267,7 +1350,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.summary.producers)}
+                                    ${a(e.summary.producers)}
                                 </strong>
                             </div>
 
@@ -1277,7 +1360,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.summary.products)}
+                                    ${a(e.summary.products)}
                                 </strong>
                             </div>
 
@@ -1287,7 +1370,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.summary.recipient_units)}
+                                    ${a(e.summary.recipient_units)}
                                 </strong>
                             </div>
 
@@ -1297,7 +1380,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.summary.source_receipts)}
+                                    ${a(e.summary.source_receipts)}
                                 </strong>
                             </div>
                         </div>
@@ -1307,7 +1390,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         class="acc-tab-panel"
                         data-panel="delivered"
                     >
-                        ${J(s.consolidated_lines)}
+                        ${K(n.consolidated_lines)}
                     </div>
 
                     <div
@@ -1315,7 +1398,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         data-panel="distributions"
                     >
                         <div data-distributions-panel>
-                            ${N(s.distributions)}
+                            ${M(n.distributions)}
                         </div>
                     </div>
 
@@ -1330,7 +1413,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${p.format(t.financial.received||0)}
+                                    ${m.format(e.financial.received||0)}
                                 </strong>
                             </div>
 
@@ -1340,7 +1423,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${p.format(t.financial.remaining||0)}
+                                    ${m.format(e.financial.remaining||0)}
                                 </strong>
                             </div>
 
@@ -1350,7 +1433,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </span>
 
                                 <strong>
-                                    ${e(t.financial.status_label)}
+                                    ${a(e.financial.status_label)}
                                 </strong>
                             </div>
                         </div>
@@ -1363,16 +1446,16 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         </h3>
 
                         <ul class="acc-simple-list">
-                            ${s.payments.length?s.payments.map(n=>`
+                            ${n.payments.length?n.payments.map(i=>`
                                                 <li class="acc-simple-item">
                                                     <strong>
-                                                        ${p.format(n.amount||0)}
+                                                        ${m.format(i.amount||0)}
                                                         ·
-                                                        ${e(n.date)}
+                                                        ${a(i.date)}
                                                     </strong>
 
                                                     <span>
-                                                        ${e(n.account||n.method||"Sem conta informada")}
+                                                        ${a(i.account||i.method||"Sem conta informada")}
                                                     </span>
                                                 </li>
                                             `).join(""):`
@@ -1396,7 +1479,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         <span
                                             class="acc-subsection-icon acc-subsection-icon-purple"
                                         >
-                                            ${r("ph-file-text")}
+                                            ${d("ph-file-text")}
                                         </span>
 
                                         <div>
@@ -1411,26 +1494,26 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </div>
 
                                     <div class="acc-subsection-actions">
-                                        ${M([`Projeto: ${t.project?.title||"Não identificado"}`,`Destinatário: ${t.recipient.name||""}`,`Período: ${t.period||""}`,`Valor bruto: ${p.format(t.financial.gross||0)}`,`Taxas: ${p.format(t.financial.fees||0)}`,`Valor líquido: ${p.format(t.financial.net||0)}`,`Situação fiscal: ${t.workflow.fiscal.label||""}`,`Documento esperado: ${t.workflow.fiscal.document_type||"Não configurado"}`].join(`
+                                        ${D([`Projeto: ${e.project?.title||"Não identificado"}`,`Destinatário: ${e.recipient.name||""}`,`Período: ${e.period||""}`,`Valor bruto: ${m.format(e.financial.gross||0)}`,`Taxas: ${m.format(e.financial.fees||0)}`,`Valor líquido: ${m.format(e.financial.net||0)}`,`Situação fiscal: ${e.workflow.fiscal.label||""}`,`Documento esperado: ${e.workflow.fiscal.document_type||"Não configurado"}`].join(`
 `),"Copiar dados")}
 
-                                        ${t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
+                                        ${e.pdf_url||e.workflow.fiscal.billing_sheet_url?`
                                                     <a
                                                         class="acc-button acc-button-primary"
                                                         data-sgc-pdf
-                                                        title="Faturamento ${e(t.number)}"
-                                                        href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
+                                                        title="Faturamento ${a(e.number)}"
+                                                        href="${a(e.pdf_url||e.workflow.fiscal.billing_sheet_url)}"
                                                     >
-                                                        ${r("ph-printer")}
+                                                        ${d("ph-printer")}
 
-                                                        ${t.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
+                                                        ${e.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
                                                     </a>
-                                                `:t.workflow.fiscal.settings_url?`
+                                                `:e.workflow.fiscal.settings_url?`
                                                             <a
                                                                 class="acc-button acc-button-primary"
-                                                                href="${e(t.workflow.fiscal.settings_url)}"
+                                                                href="${a(e.workflow.fiscal.settings_url)}"
                                                             >
-                                                                ${r("ph-gear")}
+                                                                ${d("ph-gear")}
 
                                                                 Configurar folha
                                                             </a>
@@ -1444,7 +1527,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             <span
                                                 class="acc-metric-icon acc-tone-purple"
                                             >
-                                                ${r("ph-seal-check")}
+                                                ${d("ph-seal-check")}
                                             </span>
 
                                             <div class="acc-metric-copy">
@@ -1453,7 +1536,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                 </span>
 
                                                 <strong>
-                                                    ${e(t.workflow.fiscal.label)}
+                                                    ${a(e.workflow.fiscal.label)}
                                                 </strong>
                                             </div>
                                         </div>
@@ -1462,7 +1545,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             <span
                                                 class="acc-metric-icon acc-tone-blue"
                                             >
-                                                ${r("ph-file-search")}
+                                                ${d("ph-file-search")}
                                             </span>
 
                                             <div class="acc-metric-copy">
@@ -1471,7 +1554,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                 </span>
 
                                                 <strong>
-                                                    ${e(t.workflow.fiscal.document_type||"Não configurado")}
+                                                    ${a(e.workflow.fiscal.document_type||"Não configurado")}
                                                 </strong>
                                             </div>
                                         </div>
@@ -1480,7 +1563,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             <span
                                                 class="acc-metric-icon acc-tone-green"
                                             >
-                                                ${r("ph-currency-circle-dollar")}
+                                                ${d("ph-currency-circle-dollar")}
                                             </span>
 
                                             <div class="acc-metric-copy">
@@ -1489,18 +1572,18 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                 </span>
 
                                                 <strong>
-                                                    ${t.workflow.fiscal.expected_amount==null?"Não determinado":p.format(t.workflow.fiscal.expected_amount)}
+                                                    ${e.workflow.fiscal.expected_amount==null?"Não determinado":m.format(e.workflow.fiscal.expected_amount)}
                                                 </strong>
                                             </div>
                                         </div>
                                     </div>
 
-                                    ${t.workflow.fiscal.blocks?.length?`
+                                    ${e.workflow.fiscal.blocks?.length?`
                                                 <div class="acc-document-alerts">
-                                                    ${t.workflow.fiscal.blocks.map(n=>`
+                                                    ${e.workflow.fiscal.blocks.map(i=>`
                                                                     <div class="acc-document-alert">
                                                                         <span>
-                                                                            ${r("ph-warning-circle")}
+                                                                            ${d("ph-warning-circle")}
                                                                         </span>
 
                                                                         <div>
@@ -1509,7 +1592,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                                             </strong>
 
                                                                             <p>
-                                                                                ${e(n.message)}
+                                                                                ${a(i.message)}
                                                                             </p>
                                                                         </div>
                                                                     </div>
@@ -1519,7 +1602,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 </div>
                             </section>
 
-                            ${t.workflow.authorization.access?.applicable===!1&&!s.authorizations.length?"":`
+                            ${e.workflow.authorization.access?.applicable===!1&&!n.authorizations.length?"":`
                                         <section
                                             class="acc-subsection acc-subsection-authorization"
                                         >
@@ -1528,7 +1611,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                     <span
                                                         class="acc-subsection-icon acc-subsection-icon-blue"
                                                     >
-                                                        ${r("ph-seal-check")}
+                                                        ${d("ph-seal-check")}
                                                     </span>
 
                                                     <div>
@@ -1543,13 +1626,13 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                     </div>
                                                 </div>
 
-                                                ${w.dataset.canSendAuthorization==="1"&&["legacy_unsubmitted","cancelled"].includes(t.workflow.authorization.state)?`
+                                                ${_.dataset.canSendAuthorization==="1"&&["legacy_unsubmitted","cancelled"].includes(e.workflow.authorization.state)?`
                                                             <button
                                                                 class="acc-button"
                                                                 type="button"
                                                                 data-send-authorization
                                                             >
-                                                                ${r("ph-paper-plane-tilt")}
+                                                                ${d("ph-paper-plane-tilt")}
 
                                                                 Enviar autorização
                                                             </button>
@@ -1557,7 +1640,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             </header>
 
                                             <div class="acc-subsection-body">
-                                                ${G(t.workflow.authorization)}
+                                                ${G(e.workflow.authorization)}
 
                                                 <div
                                                     class="acc-action-feedback"
@@ -1565,7 +1648,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                                     aria-live="polite"
                                                 ></div>
 
-                                                ${K(s.authorizations)}
+                                                ${Z(n.authorizations)}
                                             </div>
                                         </section>
                                     `}
@@ -1578,7 +1661,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         <span
                                             class="acc-subsection-icon acc-subsection-icon-violet"
                                         >
-                                            ${r("ph-receipt")}
+                                            ${d("ph-receipt")}
                                         </span>
 
                                         <div>
@@ -1594,14 +1677,14 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </div>
 
                                     <span class="acc-section-counter">
-                                        ${e(t.summary.source_receipts||0)}
+                                        ${a(e.summary.source_receipts||0)}
                                     </span>
                                 </header>
 
                                 <div
                                     class="acc-subsection-body acc-subsection-body-flush"
                                 >
-                                    ${H(s.producer_receipts)}
+                                    ${R(n.producer_receipts)}
                                 </div>
                             </section>
                         </div>
@@ -1609,19 +1692,24 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
 
                     <div
                         class="acc-tab-panel"
+                        data-panel="reconciliation"
+                    >
+                        ${aa(n.reconciliation)}
+                    </div>
+                    <div class="acc-tab-panel"
                         data-panel="timeline"
                     >
                         <ul class="acc-simple-list">
-                            ${s.timeline.length?s.timeline.map(n=>`
+                            ${n.timeline.length?n.timeline.map(i=>`
                                                 <li class="acc-simple-item">
                                                     <strong>
-                                                        ${e(n.description)}
+                                                        ${a(i.description)}
                                                     </strong>
 
                                                     <span>
-                                                        ${e(n.date)}
+                                                        ${a(i.date)}
                                                         ·
-                                                        ${e(n.actor)}
+                                                        ${a(i.actor)}
                                                     </span>
                                                 </li>
                                             `).join(""):`
@@ -1640,7 +1728,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 <span
                                     class="acc-panel-icon acc-panel-icon-green"
                                 >
-                                    ${r("ph-arrow-circle-right")}
+                                    ${d("ph-arrow-circle-right")}
                                 </span>
 
                                 <div>
@@ -1649,24 +1737,24 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </h2>
 
                                     <p>
-                                        ${e(t.state.next_action)}
+                                        ${a(e.state.next_action)}
                                     </p>
                                 </div>
                             </div>
 
-                            ${S(t.state.label,t.state.tone)}
+                            ${w(e.state.label,e.state.tone)}
                         </div>
 
                         <div
                             class="acc-action-box"
                             data-authorization-action
                         >
-                            ${t.edit_url?`
+                            ${e.edit_url?`
                                         <a
                                             class="acc-button acc-button-primary"
-                                            href="${e(t.edit_url)}"
+                                            href="${a(e.edit_url)}"
                                         >
-                                            ${r("ph-pencil-line")}
+                                            ${d("ph-pencil-line")}
 
                                             Continuar e conferir faturamento
                                         </a>
@@ -1677,14 +1765,14 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                         </span>
                                     `:""}
 
-                            ${t.reopen_url&&c.snapshot_changed?`
+                            ${e.reopen_url&&o.snapshot_changed?`
                                     <button
                                         class="acc-button acc-button-primary"
                                         type="button"
                                         data-reopen-billing
-                                        data-url="${e(t.reopen_url)}"
+                                        data-url="${a(e.reopen_url)}"
                                     >
-                                        ${r("ph-arrows-clockwise")}
+                                        ${d("ph-arrows-clockwise")}
                                         Atualizar e gerar nova versão
                                     </button>
 
@@ -1693,16 +1781,16 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </span>
                                 `:""}
 
-                            ${t.pdf_url||t.workflow.fiscal.billing_sheet_url?`
+                            ${e.pdf_url||e.workflow.fiscal.billing_sheet_url?`
                                     <a
-                                        class="acc-button ${t.edit_url?"":"acc-button-primary"}"
+                                        class="acc-button ${e.edit_url?"":"acc-button-primary"}"
                                         data-sgc-pdf
-                                        title="Faturamento ${e(t.number)}"
-                                        href="${e(t.pdf_url||t.workflow.fiscal.billing_sheet_url)}"
+                                        title="Faturamento ${a(e.number)}"
+                                        href="${a(e.pdf_url||e.workflow.fiscal.billing_sheet_url)}"
                                     >
-                                        ${r("ph-printer")}
+                                        ${d("ph-printer")}
 
-                                        ${t.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
+                                        ${e.financial.status==="draft"?"Imprimir prévia do faturamento":"Imprimir faturamento completo"}
                                     </a>
                                 `:""}
                         </div>
@@ -1714,7 +1802,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 <span
                                     class="acc-panel-icon acc-panel-icon-amber"
                                 >
-                                    ${r("ph-checks")}
+                                    ${d("ph-checks")}
                                 </span>
 
                                 <div>
@@ -1723,31 +1811,31 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </h2>
 
                                     <p>
-                                        ${c.critical_count?`${e(c.critical_count)} erro(s) de integridade`:c.preparation_count?`${e(c.preparation_count)} item(ns) a completar`:"Dados prontos para avançar"}
+                                        ${o.critical_count?`${a(o.critical_count)} erro(s) de integridade`:o.preparation_count?`${a(o.preparation_count)} item(ns) a completar`:"Dados prontos para avançar"}
                                     </p>
                                 </div>
                             </div>
 
-                            ${S(c.critical_count?"Corrigir erro":c.preparation_count?"Em preparação":"Pronto",c.critical_count?"danger":c.preparation_count?"warning":"success")}
+                            ${w(o.critical_count?"Corrigir erro":o.preparation_count?"Em preparação":"Pronto",o.critical_count?"danger":o.preparation_count?"warning":"success")}
                         </div>
 
                         <div class="acc-side-panel-body">
-                            ${c.snapshot_changed?`
+                            ${o.snapshot_changed?`
                                     <div class="acc-alert is-error acc-snapshot-warning">
                                         <strong>Comprovante desatualizado</strong>
                                         <span>
-                                            ${e(c.snapshot_changes?.added_ids?.length||0)} adicionada(s) e
-                                            ${e(c.snapshot_changes?.removed_ids?.length||0)} removida(s).
+                                            ${a(o.snapshot_changes?.added_ids?.length||0)} adicionada(s) e
+                                            ${a(o.snapshot_changes?.removed_ids?.length||0)} removida(s).
                                             É necessário revisar o faturamento e gerar uma nova versão.
                                         </span>
                                     </div>
                                 `:""}
                             <ul class="acc-integrity-list">
-                                ${c.issues.length?c.issues.map(n=>`
+                                ${o.issues.length?o.issues.map(i=>`
                                                     <li class="acc-integrity-item">
-                                                        ${S(n.severity==="critical"?"Erro":"Preparação",n.severity==="critical"?"danger":"warning")}
+                                                        ${w(i.severity==="critical"?"Erro":"Preparação",i.severity==="critical"?"danger":"warning")}
 
-                                                        ${e(n.message)}
+                                                        ${a(i.message)}
                                                     </li>
                                                 `).join(""):`
                                             <li class="acc-simple-item">
@@ -1755,9 +1843,9 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                             </li>
                                         `}
                             </ul>
-                            ${c.repair_url?`
-                                        <button class="acc-button" type="button" data-repair-integrity data-url="${e(c.repair_url)}">
-                                            ${r("ph-wrench")}
+                            ${o.repair_url?`
+                                        <button class="acc-button" type="button" data-repair-integrity data-url="${a(o.repair_url)}">
+                                            ${d("ph-wrench")}
                                             Corrigir vínculos automaticamente
                                         </button>
                                         <div class="acc-action-feedback" data-integrity-feedback aria-live="polite"></div>
@@ -1771,7 +1859,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                 <span
                                     class="acc-panel-icon acc-panel-icon-purple"
                                 >
-                                    ${r("ph-files")}
+                                    ${d("ph-files")}
                                 </span>
 
                                 <div>
@@ -1780,7 +1868,7 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                                     </h2>
 
                                     <p>
-                                        ${e(s.documents.length)}
+                                        ${a(n.documents.length)}
                                         arquivo(s)
                                     </p>
                                 </div>
@@ -1789,25 +1877,25 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
 
                         <div class="acc-side-panel-body">
                             <ul class="acc-simple-list acc-document-list">
-                                ${s.documents.length?s.documents.map(n=>`
+                                ${n.documents.length?n.documents.map(i=>`
                                                     <li
                                                         class="acc-simple-item acc-document-row"
                                                     >
                                                         <span
                                                             class="acc-document-row-icon"
                                                         >
-                                                            ${r("ph-file")}
+                                                            ${d("ph-file")}
                                                         </span>
 
                                                         <div>
                                                             <strong>
-                                                                ${e(n.name)}
+                                                                ${a(i.name)}
                                                             </strong>
 
                                                             <span>
-                                                                ${e(n.category)}
+                                                                ${a(i.category)}
                                                                 ·
-                                                                ${e(n.date)}
+                                                                ${a(i.date)}
                                                             </span>
                                                         </div>
                                                     </li>
@@ -1820,168 +1908,86 @@ import"../../qr-scanner-core-CTBFOQOA.js";(function(){const w=document.querySele
                         </div>
                     </section>
                 </aside>
-            `,a.querySelectorAll("[data-tab]").forEach(n=>n.addEventListener("click",()=>{a.querySelectorAll("[data-tab]").forEach(i=>{const l=i===n;i.classList.toggle("is-active",l),i.setAttribute("aria-selected",l?"true":"false"),l?i.setAttribute("aria-current","page"):i.removeAttribute("aria-current")}),a.querySelectorAll("[data-panel]").forEach(i=>i.classList.toggle("is-active",i.dataset.panel===n.dataset.tab)),window.innerWidth<760&&n.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"})}));const o=a.querySelector("[data-access-form]");o?.addEventListener("submit",async n=>{n.preventDefault();const i=o.querySelector('button[type="submit"]'),l=o.querySelector("[data-access-feedback]");i.disabled=!0,l.textContent="Salvando...";try{const g=await D(w.dataset.authorizationAccessUrl,Object.fromEntries(new FormData(o).entries()));l.textContent=g.message,await T()}catch(g){l.textContent=g.message,l.classList.add("is-error"),i.disabled=!1}});const d=a.querySelector("[data-send-authorization]"),u=a.querySelector("[data-repair-integrity]"),$=a.querySelector("[data-reopen-billing]");$?.addEventListener("click",async()=>{if(window.confirm("Reabrir este faturamento com as distribuições atualmente vinculadas? A versão anterior continuará preservada no histórico.")){$.disabled=!0;try{const n=await D($.dataset.url,{});if(n.redirect_url){window.location.assign(n.redirect_url);return}await T()}catch(n){window.alert(n.message),$.disabled=!1}}}),u?.addEventListener("click",async()=>{const n=a.querySelector("[data-integrity-feedback]");u.disabled=!0,n.textContent="Verificando e corrigindo vínculos...";try{const i=await D(u.dataset.url,{});n.textContent=i.message,await T()}catch(i){n.textContent=i.message,n.classList.add("is-error"),u.disabled=!1}}),d?.addEventListener("click",async()=>{if(!window.confirm(`Enviar esta cobrança para autorização?
+            `,s.querySelectorAll("[data-tab]").forEach(i=>i.addEventListener("click",()=>{s.querySelectorAll("[data-tab]").forEach(p=>{const g=p===i;p.classList.toggle("is-active",g),p.setAttribute("aria-selected",g?"true":"false"),g?p.setAttribute("aria-current","page"):p.removeAttribute("aria-current")}),s.querySelectorAll("[data-panel]").forEach(p=>p.classList.toggle("is-active",p.dataset.panel===i.dataset.tab)),window.innerWidth<760&&i.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"})})),t!=="overview"&&s.querySelector(`[data-tab="${t}"]`)?.click(),s.querySelector("[data-export-reconciliation]")?.addEventListener("click",()=>ta(n.reconciliation,e.number)),s.querySelector("[data-recheck-documents]")?.addEventListener("click",()=>N("reconciliation"));const l=s.querySelector("[data-access-form]");l?.addEventListener("submit",async i=>{i.preventDefault();const p=l.querySelector('button[type="submit"]'),g=l.querySelector("[data-access-feedback]");p.disabled=!0,g.textContent="Salvando...";try{const h=await z(_.dataset.authorizationAccessUrl,Object.fromEntries(new FormData(l).entries()));g.textContent=h.message,await N()}catch(h){g.textContent=h.message,g.classList.add("is-error"),p.disabled=!1}});const v=s.querySelector("[data-send-authorization]"),r=s.querySelector("[data-repair-integrity]"),c=s.querySelector("[data-reopen-billing]");c?.addEventListener("click",async()=>{if(window.confirm("Reabrir este faturamento com as distribuições atualmente vinculadas? A versão anterior continuará preservada no histórico.")){c.disabled=!0;try{const i=await z(c.dataset.url,{});if(i.redirect_url){window.location.assign(i.redirect_url);return}await N()}catch(i){window.alert(i.message),c.disabled=!1}}}),r?.addEventListener("click",async()=>{const i=s.querySelector("[data-integrity-feedback]");r.disabled=!0,i.textContent="Verificando e corrigindo vínculos...";try{const p=await z(r.dataset.url,{});i.textContent=p.message,await N()}catch(p){i.textContent=p.message,i.classList.add("is-error"),r.disabled=!1}}),v?.addEventListener("click",async()=>{if(!window.confirm(`Enviar esta cobrança para autorização?
 
-Valor: ${p.format(t.financial.net||0)}
-Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feedback]");d.disabled=!0,n.textContent="Enviando...";try{await D(w.dataset.authorizationSendUrl,{operation_key:crypto.randomUUID()}),n.textContent="Cobrança enviada.",await T()}catch(i){n.textContent=i.message,n.classList.add("is-error"),d.disabled=!1}});const k=()=>a.querySelectorAll("[data-dist-page]").forEach(n=>n.addEventListener("click",async()=>{const i=a.querySelector("[data-distributions-panel]");if(i){i.innerHTML=q(3);try{const l=await L(j(w.dataset.processDataUrl,{distributions_page:n.dataset.distPage}));i.innerHTML=N(l.distributions),k()}catch(l){x(i,l)}}}));k();const m=()=>a.querySelectorAll("[data-producer-page]").forEach(n=>n.addEventListener("click",async()=>{const l=a.querySelector('[data-panel="documents"]')?.querySelector(".acc-subsection-source .acc-subsection-body");if(l){l.innerHTML=q(3);try{const g=await L(j(w.dataset.processDataUrl,{producer_receipts_page:n.dataset.producerPage}));l.innerHTML=H(g.producer_receipts),m(),f()}catch(g){x(l,g)}}})),f=()=>a.querySelectorAll("[data-related-detail]").forEach(n=>n.addEventListener("click",()=>Y(n.dataset.relatedDetail,n.dataset.relatedTitle)));m(),f()}catch(s){x(a,s)}}}function R(a){const s=a.receipt,t=a.distributions||[],c=a.processes||[];return`
-            <div class="acc-detail-grid acc-receipt-summary">
-                <div class="acc-detail">
-                    <span>
-                        Produtor
-                    </span>
-
-                    <strong>
-                        ${e(s.member)}
-                    </strong>
+Valor: ${m.format(e.financial.net||0)}
+Período: ${e.period}`))return;const i=s.querySelector("[data-authorization-feedback]");v.disabled=!0,i.textContent="Enviando...";try{await z(_.dataset.authorizationSendUrl,{operation_key:crypto.randomUUID()}),i.textContent="Cobrança enviada.",await N()}catch(p){i.textContent=p.message,i.classList.add("is-error"),v.disabled=!1}});const u=()=>s.querySelectorAll("[data-dist-page]").forEach(i=>i.addEventListener("click",async()=>{const p=s.querySelector("[data-distributions-panel]");if(p){p.innerHTML=L(3);try{const g=await C(P(_.dataset.processDataUrl,{distributions_page:i.dataset.distPage}));p.innerHTML=M(g.distributions),u()}catch(g){j(p,g)}}}));u();const b=()=>s.querySelectorAll("[data-producer-page]").forEach(i=>i.addEventListener("click",async()=>{const g=s.querySelector('[data-panel="documents"]')?.querySelector(".acc-subsection-source .acc-subsection-body");if(g){g.innerHTML=L(3);try{const h=await C(P(_.dataset.processDataUrl,{producer_receipts_page:i.dataset.producerPage}));g.innerHTML=R(h.producer_receipts),b(),q()}catch(h){j(g,h)}}})),q=()=>s.querySelectorAll("[data-related-detail]").forEach(i=>i.addEventListener("click",()=>Y(i.dataset.relatedDetail,i.dataset.relatedTitle)));b(),q()}catch(n){j(s,n)}}}function H(t){const s=t.receipt,n=t.distributions||[],e=new Map((t.processes||[]).map(c=>[Number(c.id),c])),o=Number(_.dataset.receiptId||0),l=new Map;n.forEach(c=>l.set(c.unit||"un",(l.get(c.unit||"un")||0)+Math.round(Number(c.quantity||0)*1e4)));const v=c=>n.reduce((u,b)=>u+Math.round(Number(b[c]||0)*1e4),0)/1e4,r=[...l].map(([c,u])=>`${S.format(u/1e4)} ${a(c)}`).join(" · ")||"—";return`
+            <section class="acc-source-detail" data-source-detail>
+                <div class="acc-detail-grid acc-receipt-summary">
+                    <div class="acc-detail"><span>Produtor</span><strong>${a(s.member)}</strong></div>
+                    <div class="acc-detail"><span>Comprovante</span><strong>${a(s.number)}</strong><small>${a(s.status_label)}</small></div>
+                    <div class="acc-detail"><span>Emissão / projeto</span><strong>${a(s.issued_at||"—")}</strong><small>${a(s.project)}</small></div>
                 </div>
-
-                <div class="acc-detail">
-                    <span>
-                        Projeto
-                    </span>
-
-                    <strong>
-                        ${e(s.project)}
-                    </strong>
+                <div class="acc-source-totals">
+                    <div><span>Distribuições</span><strong>${n.length}</strong></div>
+                    <div><span>Quantidade entregue</span><strong>${r}</strong></div>
+                    <div><span>Bruto das distribuições</span><strong>${m.format(v("gross"))}</strong></div>
+                    <div><span>Taxas das distribuições</span><strong>${m.format(v("fees"))}</strong></div>
+                    <div><span>Líquido das distribuições</span><strong>${m.format(v("net"))}</strong></div>
+                    <div><span>Valor do comprovante</span><strong>${m.format(s.total_net||0)}</strong></div>
                 </div>
-
-                <div class="acc-detail">
-                    <span>
-                        Situação
-                    </span>
-
-                    <strong>
-                        ${e(s.status_label)}
-                    </strong>
+                <div class="acc-source-tools">
+                    <label class="acc-field"><span>Buscar distribuição</span><input class="acc-input" type="search" data-source-search placeholder="Produto, cliente, data, ID ou observação"></label>
+                    <label class="acc-field"><span>Faturamento</span><select class="acc-input" data-source-coverage>
+                        <option value="all">Todas as distribuições</option>
+                        ${o?'<option value="current">Neste faturamento</option>':""}
+                        <option value="draft">Em faturamento rascunho</option>
+                        <option value="without">Sem faturamento identificado</option>
+                    </select></label>
                 </div>
-            </div>
-
-            ${t.length?`
-                        <div class="acc-table-wrap acc-detail-table">
-                            <table class="acc-table">
-                                <thead>
-                                    <tr>
-                                        <th>
-                                            Data
-                                        </th>
-
-                                        <th>
-                                            Produto e destino
-                                        </th>
-
-                                        <th>
-                                            Quantidade
-                                        </th>
-
-                                        <th>
-                                            Preço
-                                        </th>
-
-                                        <th>
-                                            Valor
-                                        </th>
-
-                                        <th>
-                                            Faturamento
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    ${t.map(o=>`
-                                                    <tr>
-                                                        <td>
-                                                            ${e(o.date||"—")}
-                                                        </td>
-
-                                                        <td>
-                                                            <strong>
-                                                                ${e(o.product)}
-                                                            </strong>
-
-                                                            <div class="acc-muted">
-                                                                ${e(o.customer)}
-                                                            </div>
-                                                        </td>
-
-                                                        <td>
-                                                            ${P.format(o.quantity||0)}
-
-                                                            ${e(o.unit)}
-                                                        </td>
-
-                                                        <td>
-                                                            ${p.format(o.unit_price||0)}
-                                                        </td>
-
-                                                        <td class="acc-money">
-                                                            ${p.format(o.gross||0)}
-                                                        </td>
-
-                                                        <td>
-                                                            ${o.billing_receipt_id?`Processo #${e(o.billing_receipt_id)}`:"Ainda não faturada"}
-                                                        </td>
-                                                    </tr>
-                                                `).join("")}
-                                </tbody>
-                            </table>
-                        </div>
-                    `:`
-                        <div class="acc-empty">
-                            Este comprovante não possui distribuições vinculadas.
-                        </div>
-                    `}
-
-            <section class="acc-related-processes">
-                <h3>
-                    Processos contábeis relacionados
-                </h3>
-
-                ${c.length?`
-                            <ul class="acc-simple-list">
-                                ${c.map(o=>`
-                                                <li class="acc-simple-item">
-                                                    <a
-                                                        class="acc-link"
-                                                        href="${e(o.url)}"
-                                                    >
-                                                        ${e(o.number)}
-                                                    </a>
-
-                                                    <span>
-                                                        ${e(o.status)}
-                                                    </span>
-                                                </li>
-                                            `).join("")}
-                            </ul>
-                        `:`
-                            <p class="acc-muted">
-                                Nenhuma distribuição deste comprovante
-                                entrou em um processo contábil.
-                            </p>
-                        `}
+                <div class="acc-source-list">
+                    ${n.length?n.map(c=>{const u=c.billing_references||(e.has(Number(c.billing_receipt_id))?[{...e.get(Number(c.billing_receipt_id)),source:"linked"}]:[]),b=u.some(i=>Number(i.id)===o&&i.source!=="snapshot"),q=[c.id,c.product,c.customer,c.date,c.notes,...u.map(i=>i.number)].join(" ").toLocaleLowerCase("pt-BR");return`<article class="acc-source-distribution" data-source-distribution
+                            data-search="${a(q)}" data-current="${b?"1":"0"}"
+                            data-draft="${u.some(i=>i.source==="draft")?"1":"0"}"
+                            data-without="${!u.length&&!c.billing_restricted&&!c.billing_receipt_id?"1":"0"}"
+                            data-gross="${Number(c.gross||0)}">
+                            <header><div><small>Distribuição #${a(c.id)} · ${a(c.date||"Sem data")}</small><h4>${a(c.product)}</h4><p>${a(c.customer)}</p></div>
+                                <div class="acc-source-badges">${w(c.status||"Não informada","neutral")}
+                                ${b?w("Neste faturamento","info"):""}
+                                ${c.paid?w("Paga ao membro","success"):""}</div></header>
+                            <div class="acc-source-values">
+                                <div><span>Quantidade</span><strong>${S.format(c.quantity||0)} ${a(c.unit)}</strong></div>
+                                <div><span>Preço unitário</span><strong>${m.format(c.unit_price||0)}</strong></div>
+                                <div><span>Valor bruto</span><strong>${m.format(c.gross||0)}</strong></div>
+                                <div><span>Taxas</span><strong>${m.format(c.fees||0)}</strong></div>
+                                <div class="is-net"><span>Valor líquido</span><strong>${m.format(c.net||0)}</strong></div>
+                            </div>
+                            <div class="acc-source-links">
+                                <div><span>Comprovante do membro</span><strong>${a(s.number)}</strong><small>${a(s.status_label)}</small></div>
+                                <div><span>Faturamento do cliente</span>
+                                    ${u.map(i=>`<div class="acc-source-billing" data-source="${a(i.source)}">
+                                        <a class="acc-link" href="${a(i.url)}">Folha ${a(i.number)}</a>
+                                        <small>${i.source==="snapshot"?"Referência histórica · sem vínculo atual":i.source==="draft"?"Rascunho · seleção salva":a(i.status)}</small>
+                                    </div>`).join("")||"<strong>"+(c.billing_restricted||c.billing_receipt_id?"Faturamento com acesso restrito":"Sem faturamento identificado")+"</strong>"}
+                                </div>
+                            </div>
+                            ${c.parent?`<div class="acc-source-parent">Entrega de origem #${a(c.parent.id)} · ${a(c.parent.date||"Sem data")} · Quantidade recebida: ${S.format(c.parent.quantity||0)} ${a(c.unit)}</div>`:""}
+                            ${c.notes?`<details class="acc-source-notes"><summary>Observações da entrega</summary><p>${a(c.notes)}</p></details>`:""}
+                        </article>`}).join(""):'<div class="acc-empty">Este comprovante não possui distribuições vinculadas.</div>'}
+                </div>
+                <p class="acc-muted" data-source-visible-summary>${n.length} distribuição(ões) · Bruto ${m.format(v("gross"))}</p>
             </section>
-        `}function Z(a){return`
+        `}function B(t){const s=t.closest("[data-source-detail]");if(!s)return;const n=s.querySelector("[data-source-search]").value.trim().toLocaleLowerCase("pt-BR"),e=s.querySelector("[data-source-coverage]").value,o=[...s.querySelectorAll("[data-source-distribution]")],l=o.filter(r=>(r.hidden=!r.dataset.search.includes(n)||e!=="all"&&r.dataset[e]!=="1",!r.hidden)),v=l.reduce((r,c)=>r+Math.round(Number(c.dataset.gross||0)*1e4),0)/1e4;s.querySelector("[data-source-visible-summary]").textContent=`${l.length} de ${o.length} distribuição(ões) · Bruto ${m.format(v)}`}document.addEventListener("input",t=>{t.target.matches("[data-source-search]")&&B(t.target)}),document.addEventListener("change",t=>{t.target.matches("[data-source-coverage]")&&B(t.target)});function ea(t){return`
             <article class="acc-receipt-card">
                 <div class="acc-receipt-card-main">
                     <div>
                         <button
                             class="acc-link acc-link-button"
                             type="button"
-                            data-source-receipt="${e(a.id)}"
-                            data-detail-url="${e(a.detail_url)}"
+                            data-source-receipt="${a(t.id)}"
+                            data-detail-url="${a(t.detail_url)}"
                         >
-                            ${e(a.number)}
+                            ${a(t.number)}
                         </button>
 
                         <div class="acc-muted">
-                            ${e(a.member)}
+                            ${a(t.member)}
                             ·
-                            ${e(a.project)}
+                            ${a(t.project)}
                         </div>
                     </div>
 
-                    ${S(a.status_label,a.status==="paid"?"success":a.status==="obsolete"?"danger":"warning")}
+                    ${w(t.status_label,t.status==="paid"?"success":t.status==="obsolete"?"danger":"warning")}
                 </div>
 
                 <div class="acc-receipt-meta">
@@ -1989,7 +1995,7 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                         Emissão
 
                         <strong>
-                            ${e(a.issued_at||"—")}
+                            ${a(t.issued_at||"—")}
                         </strong>
                     </span>
 
@@ -1997,7 +2003,7 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                         Distribuições
 
                         <strong>
-                            ${e(a.distribution_count)}
+                            ${a(t.distribution_count)}
                         </strong>
                     </span>
 
@@ -2005,7 +2011,7 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                         Valor do comprovante
 
                         <strong>
-                            ${p.format(a.total_net||0)}
+                            ${m.format(t.total_net||0)}
                         </strong>
                     </span>
 
@@ -2013,7 +2019,7 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                         Referência QR
 
                         <strong>
-                            ${e(a.reference_code||"Não gerada")}
+                            ${a(t.reference_code||"Não gerada")}
                         </strong>
                     </span>
                 </div>
@@ -2022,54 +2028,54 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                     <button
                         class="acc-button"
                         type="button"
-                        data-source-receipt="${e(a.id)}"
-                        data-detail-url="${e(a.detail_url)}"
+                        data-source-receipt="${a(t.id)}"
+                        data-detail-url="${a(t.detail_url)}"
                     >
-                        ${r("ph-tree-structure")}
+                        ${d("ph-tree-structure")}
 
                         Ver entregas
                     </button>
 
-                    ${a.reprint_url?`
+                    ${t.reprint_url?`
                                 <a
                                     class="acc-button"
-                                    href="${e(a.reprint_url)}"
+                                    href="${a(t.reprint_url)}"
                                     target="_blank"
                                     rel="noopener"
                                 >
-                                    ${r("ph-file-text")}
+                                    ${d("ph-file-text")}
 
                                     Abrir comprovante
                                 </a>
                             `:""}
                 </div>
             </article>
-        `}async function aa(){const a=document.querySelector("[data-source-receipt-filters]");if(!a)return;const s=document.querySelector("[data-source-receipt-results]"),t=document.querySelector("[data-source-receipt-pagination]"),c=a.elements.project,o=document.querySelector("[data-qr-dialog]"),d=document.querySelector("[data-receipt-dialog]"),u=document.querySelector("[data-receipt-detail]"),$=document.querySelector("[data-receipt-title]"),k=document.querySelector("[data-scanner-video]"),m=document.querySelector("[data-scanner-error]");let f=null,n=!1,i=null;const l=()=>{f?.stop?.(),f=null,k&&(k.srcObject=null)},g=h=>{a.elements.search.value=String(h||"").trim(),l(),o?.close(),v(1)};async function b(h,y="Comprovante"){if(!(!d||!u)){$&&($.textContent=y),u.innerHTML=q(5),d.showModal();try{u.innerHTML=R(await L(h))}catch(C){x(u,C)}}}const E=()=>s?.querySelectorAll("[data-source-receipt]").forEach(h=>h.addEventListener("click",()=>b(h.dataset.detailUrl,h.textContent.trim())));async function v(h=1){i?.abort(),i=new AbortController,s.innerHTML=q(5),t.innerHTML="";const y=Object.fromEntries(new FormData(a).entries());y.page=h;try{const C=await L(j(w.dataset.sourceReceiptsUrl,y),i.signal);!n&&c&&(c.innerHTML='<option value="">Todos os projetos</option>'+(C.filters?.projects||[]).map(A=>`
-                                    <option value="${e(A.id)}">
-                                        ${e(A.label)}
+        `}async function sa(){const t=document.querySelector("[data-source-receipt-filters]");if(!t)return;const s=document.querySelector("[data-source-receipt-results]"),n=document.querySelector("[data-source-receipt-pagination]"),e=t.elements.project,o=document.querySelector("[data-qr-dialog]"),l=document.querySelector("[data-receipt-dialog]"),v=document.querySelector("[data-receipt-detail]"),r=document.querySelector("[data-receipt-title]"),c=document.querySelector("[data-scanner-video]"),u=document.querySelector("[data-scanner-error]");let b=null,q=!1,i=null;const p=()=>{b?.stop?.(),b=null,c&&(c.srcObject=null)},g=$=>{t.elements.search.value=String($||"").trim(),p(),o?.close(),f(1)};async function h($,y="Comprovante"){if(!(!l||!v)){r&&(r.textContent=y),v.innerHTML=L(5),l.showModal();try{v.innerHTML=H(await C($))}catch(E){j(v,E)}}}const x=()=>s?.querySelectorAll("[data-source-receipt]").forEach($=>$.addEventListener("click",()=>h($.dataset.detailUrl,$.textContent.trim())));async function f($=1){i?.abort(),i=new AbortController,s.innerHTML=L(5),n.innerHTML="";const y=Object.fromEntries(new FormData(t).entries());y.page=$;try{const E=await C(P(_.dataset.sourceReceiptsUrl,y),i.signal);!q&&e&&(e.innerHTML='<option value="">Todos os projetos</option>'+(E.filters?.projects||[]).map(T=>`
+                                    <option value="${a(T.id)}">
+                                        ${a(T.label)}
                                     </option>
-                                `).join(""),c.value=y.project||"",n=!0);const _=C.receipts;s.innerHTML=_.data.length?_.data.map(Z).join(""):`
+                                `).join(""),e.value=y.project||"",q=!0);const k=E.receipts;s.innerHTML=k.data.length?k.data.map(ea).join(""):`
                             <div class="acc-empty">
                                 Nenhum comprovante encontrado.
                                 Confira o número ou leia novamente o QR Code.
                             </div>
-                        `,t.innerHTML=`
+                        `,n.innerHTML=`
                     <span>
-                        ${e(_.from||0)}
+                        ${a(k.from||0)}
                         –
-                        ${e(_.to||0)}
+                        ${a(k.to||0)}
                         de
-                        ${e(_.total||0)}
+                        ${a(k.total||0)}
                     </span>
 
                     <div class="acc-pagination-actions">
                         <button
                             class="acc-button"
                             type="button"
-                            data-page="${_.current_page-1}"
-                            ${_.current_page<=1?"disabled":""}
+                            data-page="${k.current_page-1}"
+                            ${k.current_page<=1?"disabled":""}
                         >
-                            ${r("ph-caret-left")}
+                            ${d("ph-caret-left")}
 
                             Anterior
                         </button>
@@ -2077,12 +2083,12 @@ Período: ${t.period}`))return;const n=a.querySelector("[data-authorization-feed
                         <button
                             class="acc-button"
                             type="button"
-                            data-page="${_.current_page+1}"
-                            ${_.current_page>=_.last_page?"disabled":""}
+                            data-page="${k.current_page+1}"
+                            ${k.current_page>=k.last_page?"disabled":""}
                         >
                             Próxima
 
-                            ${r("ph-caret-right")}
+                            ${d("ph-caret-right")}
                         </button>
                     </div>
-                `,t.querySelectorAll("[data-page]").forEach(A=>A.addEventListener("click",()=>v(Number(A.dataset.page)))),E(),y.search&&(/\bCP-/i.test(y.search)||/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(y.search))&&_.data.length===1&&await b(_.data[0].detail_url,_.data[0].number)}catch(C){C.name!=="AbortError"&&x(s,C)}}a.addEventListener("submit",h=>{h.preventDefault(),v(1)}),a.elements.status?.addEventListener("change",()=>v(1)),a.elements.project?.addEventListener("change",()=>v(1)),document.querySelector("[data-close-receipt]")?.addEventListener("click",()=>d?.close()),document.querySelector("[data-close-scanner]")?.addEventListener("click",()=>{l(),o?.close()}),o?.addEventListener("close",l),document.querySelector("[data-use-manual]")?.addEventListener("click",()=>g(document.querySelector("[data-scanner-manual]")?.value)),document.querySelector("[data-open-scanner]")?.addEventListener("click",async()=>{if(!o)return;m&&(m.hidden=!0);const h=window.SgcQrScanner;if(h?.nativePlugin()){try{const y=await h.scanNative({batch:!1});y?.code&&g(y.code)}catch(y){y?.code!=="SCAN_CANCELLED"&&m&&(o.showModal(),m.textContent=y?.message||"Não foi possível abrir o leitor nativo.",m.hidden=!1)}return}if(o.showModal(),!h?.supportsWeb()){m&&(m.textContent="A leitura automática não está disponível neste navegador. Cole o código ou link no campo abaixo.",m.hidden=!1);return}try{f=await h.openWeb({video:k,single:!0,interval:180,onCode:g})}catch{m&&(m.textContent="Não foi possível acessar a câmera. Autorize o uso ou cole o código manualmente.",m.hidden=!1),l()}}),v(1)}z==="queue"&&Q(),z==="processes"&&X(),z==="dossier"&&T(),z==="source-receipts"&&aa()})();
+                `,n.querySelectorAll("[data-page]").forEach(T=>T.addEventListener("click",()=>f(Number(T.dataset.page)))),x(),y.search&&(/\bCP-/i.test(y.search)||/[0-9a-f]{8}-[0-9a-f-]{27,}/i.test(y.search))&&k.data.length===1&&await h(k.data[0].detail_url,k.data[0].number)}catch(E){E.name!=="AbortError"&&j(s,E)}}t.addEventListener("submit",$=>{$.preventDefault(),f(1)}),t.elements.status?.addEventListener("change",()=>f(1)),t.elements.project?.addEventListener("change",()=>f(1)),document.querySelector("[data-close-receipt]")?.addEventListener("click",()=>l?.close()),document.querySelector("[data-close-scanner]")?.addEventListener("click",()=>{p(),o?.close()}),o?.addEventListener("close",p),document.querySelector("[data-use-manual]")?.addEventListener("click",()=>g(document.querySelector("[data-scanner-manual]")?.value)),document.querySelector("[data-open-scanner]")?.addEventListener("click",async()=>{if(!o)return;u&&(u.hidden=!0);const $=window.SgcQrScanner;if($?.nativePlugin()){try{const y=await $.scanNative({batch:!1});y?.code&&g(y.code)}catch(y){y?.code!=="SCAN_CANCELLED"&&u&&(o.showModal(),u.textContent=y?.message||"Não foi possível abrir o leitor nativo.",u.hidden=!1)}return}if(o.showModal(),!$?.supportsWeb()){u&&(u.textContent="A leitura automática não está disponível neste navegador. Cole o código ou link no campo abaixo.",u.hidden=!1);return}try{b=await $.openWeb({video:c,single:!0,interval:180,onCode:g})}catch{u&&(u.textContent="Não foi possível acessar a câmera. Autorize o uso ou cole o código manualmente.",u.hidden=!1),p()}}),f(1)}A==="queue"&&I(),A==="processes"&&J(),A==="dossier"&&N(),A==="source-receipts"&&sa()})();

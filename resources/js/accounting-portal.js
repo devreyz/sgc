@@ -1359,6 +1359,15 @@ import './qr-scanner-core';
             `;
         }
 
+        const totalsByUnit = new Map();
+        lines.forEach((line) => {
+            const unit = String(line.unit || "un").trim() || "un";
+            const key = unit.toLocaleLowerCase("pt-BR");
+            const total = totalsByUnit.get(key) || { unit, quantity: 0 };
+            total.quantity += Math.round(Number(line.quantity || 0) * 100000000);
+            totalsByUnit.set(key, total);
+        });
+
         return `
             <div class="acc-data-table-block acc-data-table-delivered">
                 <div class="acc-table-tools">
@@ -1489,6 +1498,20 @@ import './qr-scanner-core';
                         </tbody>
                     </table>
                 </div>
+                <section class="acc-delivered-totals" aria-label="Total entregue por unidade">
+                    <div>
+                        <strong>Total entregue por unidade</strong>
+                        <span>Quantidades somadas sem misturar unidades de medida.</span>
+                    </div>
+                    <dl>
+                        ${Array.from(totalsByUnit.values()).map((total) => `
+                            <div>
+                                <dt>${esc(total.unit)}</dt>
+                                <dd>${quantity.format(total.quantity / 100000000)} ${esc(total.unit)}</dd>
+                            </div>
+                        `).join("")}
+                    </dl>
+                </section>
             </div>
         `;
     }
@@ -2026,7 +2049,106 @@ import './qr-scanner-core';
        DOSSIER
        ========================================================= */
 
-    async function initDossier() {
+    function renderReconciliation(report) {
+        if (!report) return '<div class="acc-empty">Conferência indisponível.</div>';
+        const summary = report.summary;
+        const q = (value) => quantity.format(Number(value || 0));
+        const m = (value) => value == null ? 'Não disponível' : money.format(Number(value));
+        return `
+            <div class="acc-reconciliation">
+                <header class="acc-reconciliation-head">
+                    <div><h3>Conferência de valores e quantidades</h3>
+                        <p>Somente orientação: estes alertas não criam bloqueios nem alteram documentos. As regras de segurança já existentes permanecem.</p>
+                        <small>Conferido em ${esc(report.checked_at)} · Dados de toda a folha, sem limite de paginação.</small>
+                    </div>
+                    <div class="acc-reconciliation-actions">
+                        <button type="button" class="acc-button" data-recheck-documents>${phIcon('ph-arrows-clockwise')} Conferir novamente</button>
+                        <button type="button" class="acc-button" data-export-reconciliation>${phIcon('ph-download-simple')} Exportar relatório CSV</button>
+                    </div>
+                </header>
+                <div class="acc-reconciliation-cards">
+                    <div><span>Distribuições na folha</span><strong>${esc(summary.distributions)}</strong></div>
+                    <div><span>Nos comprovantes dos membros</span><strong>${esc(summary.covered)} / ${esc(summary.distributions)}</strong></div>
+                    <div><span>Sem comprovante do membro</span><strong>${esc(summary.uncovered)}</strong></div>
+                    <div><span>Comprovantes analisados</span><strong>${esc(summary.member_documents)}</strong></div>
+                </div>
+                <section class="acc-reconciliation-section">
+                    <h4>${report.warning_count ? `${esc(report.warning_count)} alerta(s) para revisar` : 'Nenhuma divergência detectada nas verificações disponíveis'} · ${esc(report.info_count)} aviso(s) de contexto</h4>
+                    <ul class="acc-reconciliation-alerts">
+                        ${report.alerts.map((alert) => `
+                            <li class="is-${alert.level === 'info' ? 'info' : 'warning'}">
+                                <strong>${phIcon(alert.level === 'info' ? 'ph-info' : 'ph-warning')} ${esc(alert.message)}</strong>
+                                <p><b>Como revisar:</b> ${esc(alert.solution)}</p>
+                                ${alert.ids.length ? `<details><summary>Ver ${esc(alert.ids.length)} distribuição(ões)</summary><p>${alert.ids.map((id) => `#${esc(id)}`).join(', ')}</p></details>` : ''}
+                            </li>
+                        `).join('') || '<li class="is-info">Os conjuntos e totais conferidos correspondem. Consulte os limites da análise abaixo.</li>'}
+                    </ul>
+                </section>
+                <section class="acc-reconciliation-section">
+                    <h4>Quantidades por unidade de medida</h4>
+                    <p>“Coberta” considera cada distribuição uma única vez, pela seleção salva dos comprovantes ativos, usando sua quantidade atual.</p>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Unidade</th><th>Folha documental</th><th>Registros atuais da folha</th><th>Coberta por comprovantes</th><th>Sem comprovante</th></tr></thead><tbody>
+                    ${report.units.map((unit) => `<tr><td>${esc(unit.unit)}</td><td>${report.sheet_quantities_available ? q(unit.sheet_quantity) : 'Não disponível'}</td><td>${q(unit.current_quantity)}</td><td>${q(unit.covered_quantity)}</td><td>${q(unit.uncovered_quantity)}</td></tr>`).join('') || '<tr><td colspan="5">Nenhuma quantidade disponível.</td></tr>'}
+                    </tbody></table></div>
+                </section>
+                <section class="acc-reconciliation-section">
+                    <h4>Comparativo financeiro · mesmo conjunto de distribuições</h4>
+                    <div class="acc-reconciliation-cards">
+                        <div><span>Bruto salvo na folha</span><strong>${m(summary.sheet_gross)}</strong></div>
+                        <div><span>Bruto atual dos itens da folha</span><strong>${m(summary.current_gross)}</strong></div>
+                        <div><span>Bruto coberto por comprovantes</span><strong>${m(summary.covered_gross)}</strong></div>
+                        <div><span>Líquido salvo na folha</span><strong>${m(summary.sheet_net)}</strong></div>
+                    </div>
+                    <p>O bruto atual é quantidade × preço, antes de taxas. A folha pode arredondar por linha consolidada; os líquidos usam regras de taxas próprias.</p>
+                </section>
+                <details class="acc-reconciliation-section"><summary>Relatório por produto e projeto</summary>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Produto / projeto</th><th>Unidade</th><th>Qtd. documental</th><th>Qtd. atual</th><th>Qtd. coberta</th><th>Bruto documental¹</th><th>Bruto atual¹</th></tr></thead><tbody>
+                    ${report.products.map((product) => `<tr><td><strong>${esc(product.product)}</strong><div class="acc-muted">Projeto #${esc(product.project_id)}</div></td><td>${esc(product.unit)}</td><td>${report.sheet_quantities_available ? q(product.sheet_quantity) : '—'}</td><td>${q(product.current_quantity)}</td><td>${q(product.covered_quantity)}</td><td>${report.sheet_quantities_available ? m(product.sheet_gross) : '—'}</td><td>${m(product.current_gross)}</td></tr>`).join('')}
+                    </tbody></table></div><p>¹ Antes do arredondamento por linha e das taxas.</p>
+                </details>
+                <details class="acc-reconciliation-section"><summary>Relatório dos comprovantes dos membros · documentos integrais</summary>
+                    <p>Inclui itens de outras folhas/períodos. Quantidades reconstruídas dos registros atuais; valores financeiros salvos nos documentos.</p>
+                    <div class="acc-table-wrap"><table class="acc-table"><thead><tr><th>Comprovante / membro</th><th>Situação</th><th>Nesta folha</th><th>Fora desta folha</th><th>Quantidades integrais</th><th>Bruto salvo</th><th>Líquido salvo</th></tr></thead><tbody>
+                    ${report.members.map((member) => `<tr><td><strong>${esc(member.number)}</strong><div>${esc(member.member)}</div></td><td>${esc(member.status)}</td><td>${esc(member.in_billing)}</td><td>${esc(member.outside_billing)}</td><td>${member.quantities.map((unit) => `${q(unit.quantity)} ${esc(unit.unit)}`).join(' · ')}</td><td>${m(member.gross)}</td><td>${m(member.net)}</td></tr>`).join('') || '<tr><td colspan="7">Nenhum comprovante ativo relacionado.</td></tr>'}
+                    </tbody><tfoot><tr><th colspan="4">Soma integral dos comprovantes</th><td>${summary.all_members_quantities.map((unit) => `${q(unit.quantity)} ${esc(unit.unit)}`).join(' · ') || '—'}</td><td>${m(summary.all_members_gross)}</td><td>${m(summary.all_members_net)}</td></tr></tfoot></table></div>
+                </details>
+                <details class="acc-reconciliation-section" open><summary>Critérios e limites desta conferência</summary><ul>${report.limitations.map((text) => `<li>${esc(text)}</li>`).join('')}</ul></details>
+            </div>`;
+    }
+
+    function exportReconciliation(report, number) {
+        const labels = {
+            distributions: 'Distribuições na folha', covered: 'Nos comprovantes dos membros', uncovered: 'Sem comprovante do membro',
+            member_documents: 'Comprovantes analisados', sheet_gross: 'Bruto salvo na folha', sheet_net: 'Líquido salvo na folha',
+            current_gross: 'Bruto atual dos itens da folha', covered_gross: 'Bruto coberto por comprovantes',
+            all_members_gross: 'Bruto salvo dos comprovantes integrais', all_members_net: 'Líquido salvo dos comprovantes integrais',
+        };
+        const rows = [['Conferência não bloqueante', number, report.checked_at],
+            ['Resumo', 'Valor'], ...Object.entries(labels).map(([key, label]) => [label, report.summary[key] ?? 'Não disponível']),
+            [], ['Unidade', 'Quantidade documental', 'Quantidade atual', 'Quantidade coberta', 'Quantidade sem comprovante'],
+            ...report.units.map((unit) => [unit.unit, report.sheet_quantities_available ? unit.sheet_quantity : 'Não disponível', unit.current_quantity, unit.covered_quantity, unit.uncovered_quantity]),
+            [], ['Projeto', 'Produto', 'Unidade', 'Quantidade documental', 'Quantidade atual', 'Quantidade coberta', 'Bruto documental', 'Bruto atual'],
+            ...report.products.map((product) => [product.project_id, product.product, product.unit, report.sheet_quantities_available ? product.sheet_quantity : '', product.current_quantity, product.covered_quantity, report.sheet_quantities_available ? product.sheet_gross : '', product.current_gross]),
+            [], ['Comprovante', 'Membro', 'Situação', 'Nesta folha', 'Fora da folha', 'Quantidades integrais (atuais)', 'Bruto salvo', 'Líquido salvo'],
+            ...report.members.map((member) => [member.number, member.member, member.status, member.in_billing, member.outside_billing, member.quantities.map((unit) => `${unit.quantity} ${unit.unit}`).join(' / '), member.gross, member.net]),
+            [], ['Tipo', 'Alerta', 'Como revisar', 'Distribuições'],
+            ...report.alerts.map((alert) => [alert.level, alert.message, alert.solution, alert.ids.join(', ')]),
+            [], ['Limites da análise'], ...report.limitations.map((text) => [text])];
+        const csv = rows.map((row) => row.map((value) => {
+            let cell = String(value ?? '');
+            if (/^-?\d+\.\d+$/.test(cell)) cell = cell.replace('.', ',');
+            else if (/^[\s]*[=+\-@]/.test(cell)) cell = "'" + cell;
+            return `"${cell.replaceAll('"', '""')}"`;
+        }).join(';')).join('\r\n');
+        const url = URL.createObjectURL(new Blob(['\uFEFF', csv], {type: 'text/csv;charset=utf-8'}));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `conferencia-${String(number).replace(/[^a-zA-Z0-9-]/g, '-')}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function initDossier(activeTab = 'overview') {
         const target = document.querySelector("[data-dossier]");
 
         if (!target) {
@@ -2174,6 +2296,15 @@ import './qr-scanner-core';
                         <button
                             class="acc-tab"
                             type="button"
+                            data-tab="reconciliation"
+                            data-tone="warning"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            ${phIcon('ph-scales')}
+                            <span>Conferência ${payload.reconciliation ? `(${esc(payload.reconciliation.warning_count + payload.reconciliation.info_count)})` : ''}</span>
+                        </button>
+                        <button class="acc-tab" type="button"
                             data-tab="timeline"
                             data-tone="neutral"
                             role="tab"
@@ -2761,6 +2892,11 @@ import './qr-scanner-core';
 
                     <div
                         class="acc-tab-panel"
+                        data-panel="reconciliation"
+                    >
+                        ${renderReconciliation(payload.reconciliation)}
+                    </div>
+                    <div class="acc-tab-panel"
                         data-panel="timeline"
                     >
                         <ul class="acc-simple-list">
@@ -3095,6 +3231,10 @@ import './qr-scanner-core';
                 })
             );
 
+            if (activeTab !== 'overview') target.querySelector(`[data-tab="${activeTab}"]`)?.click();
+            target.querySelector('[data-export-reconciliation]')?.addEventListener('click', () => exportReconciliation(payload.reconciliation, process.number));
+            target.querySelector('[data-recheck-documents]')?.addEventListener('click', () => initDossier('reconciliation'));
+
             const accessForm = target.querySelector("[data-access-form]");
 
             accessForm?.addEventListener("submit", async (event) => {
@@ -3325,189 +3465,100 @@ import './qr-scanner-core';
 
     function renderSourceReceiptDetail(payload) {
         const receipt = payload.receipt;
-
         const rows = payload.distributions || [];
-
-        const processes = payload.processes || [];
-
+        const processes = new Map((payload.processes || []).map(process => [Number(process.id), process]));
+        const currentBillingId = Number(root.dataset.receiptId || 0);
+        const quantities = new Map();
+        rows.forEach(row => quantities.set(row.unit || 'un',
+            (quantities.get(row.unit || 'un') || 0) + Math.round(Number(row.quantity || 0) * 10000)));
+        const sum = key => rows.reduce((total, row) => total + Math.round(Number(row[key] || 0) * 10000), 0) / 10000;
+        const quantityLabel = [...quantities].map(([unit, amount]) => `${quantity.format(amount / 10000)} ${esc(unit)}`).join(' · ') || '—';
         return `
-            <div class="acc-detail-grid acc-receipt-summary">
-                <div class="acc-detail">
-                    <span>
-                        Produtor
-                    </span>
-
-                    <strong>
-                        ${esc(receipt.member)}
-                    </strong>
+            <section class="acc-source-detail" data-source-detail>
+                <div class="acc-detail-grid acc-receipt-summary">
+                    <div class="acc-detail"><span>Produtor</span><strong>${esc(receipt.member)}</strong></div>
+                    <div class="acc-detail"><span>Comprovante</span><strong>${esc(receipt.number)}</strong><small>${esc(receipt.status_label)}</small></div>
+                    <div class="acc-detail"><span>Emissão / projeto</span><strong>${esc(receipt.issued_at || '—')}</strong><small>${esc(receipt.project)}</small></div>
                 </div>
-
-                <div class="acc-detail">
-                    <span>
-                        Projeto
-                    </span>
-
-                    <strong>
-                        ${esc(receipt.project)}
-                    </strong>
+                <div class="acc-source-totals">
+                    <div><span>Distribuições</span><strong>${rows.length}</strong></div>
+                    <div><span>Quantidade entregue</span><strong>${quantityLabel}</strong></div>
+                    <div><span>Bruto das distribuições</span><strong>${money.format(sum('gross'))}</strong></div>
+                    <div><span>Taxas das distribuições</span><strong>${money.format(sum('fees'))}</strong></div>
+                    <div><span>Líquido das distribuições</span><strong>${money.format(sum('net'))}</strong></div>
+                    <div><span>Valor do comprovante</span><strong>${money.format(receipt.total_net || 0)}</strong></div>
                 </div>
-
-                <div class="acc-detail">
-                    <span>
-                        Situação
-                    </span>
-
-                    <strong>
-                        ${esc(receipt.status_label)}
-                    </strong>
+                <div class="acc-source-tools">
+                    <label class="acc-field"><span>Buscar distribuição</span><input class="acc-input" type="search" data-source-search placeholder="Produto, cliente, data, ID ou observação"></label>
+                    <label class="acc-field"><span>Faturamento</span><select class="acc-input" data-source-coverage>
+                        <option value="all">Todas as distribuições</option>
+                        ${currentBillingId ? '<option value="current">Neste faturamento</option>' : ''}
+                        <option value="draft">Em faturamento rascunho</option>
+                        <option value="without">Sem faturamento identificado</option>
+                    </select></label>
                 </div>
-            </div>
-
-            ${
-                rows.length
-                    ? `
-                        <div class="acc-table-wrap acc-detail-table">
-                            <table class="acc-table">
-                                <thead>
-                                    <tr>
-                                        <th>
-                                            Data
-                                        </th>
-
-                                        <th>
-                                            Produto e destino
-                                        </th>
-
-                                        <th>
-                                            Quantidade
-                                        </th>
-
-                                        <th>
-                                            Preço
-                                        </th>
-
-                                        <th>
-                                            Valor
-                                        </th>
-
-                                        <th>
-                                            Faturamento
-                                        </th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    ${rows
-                                        .map(
-                                            (row) => `
-                                                    <tr>
-                                                        <td>
-                                                            ${esc(
-                                                                row.date || "—"
-                                                            )}
-                                                        </td>
-
-                                                        <td>
-                                                            <strong>
-                                                                ${esc(
-                                                                    row.product
-                                                                )}
-                                                            </strong>
-
-                                                            <div class="acc-muted">
-                                                                ${esc(
-                                                                    row.customer
-                                                                )}
-                                                            </div>
-                                                        </td>
-
-                                                        <td>
-                                                            ${quantity.format(
-                                                                row.quantity ||
-                                                                    0
-                                                            )}
-
-                                                            ${esc(row.unit)}
-                                                        </td>
-
-                                                        <td>
-                                                            ${money.format(
-                                                                row.unit_price ||
-                                                                    0
-                                                            )}
-                                                        </td>
-
-                                                        <td class="acc-money">
-                                                            ${money.format(
-                                                                row.gross || 0
-                                                            )}
-                                                        </td>
-
-                                                        <td>
-                                                            ${
-                                                                row.billing_receipt_id
-                                                                    ? `Processo #${esc(
-                                                                          row.billing_receipt_id
-                                                                      )}`
-                                                                    : "Ainda não faturada"
-                                                            }
-                                                        </td>
-                                                    </tr>
-                                                `
-                                        )
-                                        .join("")}
-                                </tbody>
-                            </table>
-                        </div>
-                    `
-                    : `
-                        <div class="acc-empty">
-                            Este comprovante não possui distribuições vinculadas.
-                        </div>
-                    `
-            }
-
-            <section class="acc-related-processes">
-                <h3>
-                    Processos contábeis relacionados
-                </h3>
-
-                ${
-                    processes.length
-                        ? `
-                            <ul class="acc-simple-list">
-                                ${processes
-                                    .map(
-                                        (process) => `
-                                                <li class="acc-simple-item">
-                                                    <a
-                                                        class="acc-link"
-                                                        href="${esc(
-                                                            process.url
-                                                        )}"
-                                                    >
-                                                        ${esc(process.number)}
-                                                    </a>
-
-                                                    <span>
-                                                        ${esc(process.status)}
-                                                    </span>
-                                                </li>
-                                            `
-                                    )
-                                    .join("")}
-                            </ul>
-                        `
-                        : `
-                            <p class="acc-muted">
-                                Nenhuma distribuição deste comprovante
-                                entrou em um processo contábil.
-                            </p>
-                        `
-                }
+                <div class="acc-source-list">
+                    ${rows.length ? rows.map(row => {
+                        const references = row.billing_references || (processes.has(Number(row.billing_receipt_id))
+                            ? [{ ...processes.get(Number(row.billing_receipt_id)), source: 'linked' }] : []);
+                        const inCurrent = references.some(reference => Number(reference.id) === currentBillingId && reference.source !== 'snapshot');
+                        const sourceSearch = [row.id, row.product, row.customer, row.date, row.notes, ...references.map(reference => reference.number)].join(' ').toLocaleLowerCase('pt-BR');
+                        return `<article class="acc-source-distribution" data-source-distribution
+                            data-search="${esc(sourceSearch)}" data-current="${inCurrent ? '1' : '0'}"
+                            data-draft="${references.some(reference => reference.source === 'draft') ? '1' : '0'}"
+                            data-without="${!references.length && !row.billing_restricted && !row.billing_receipt_id ? '1' : '0'}"
+                            data-gross="${Number(row.gross || 0)}">
+                            <header><div><small>Distribuição #${esc(row.id)} · ${esc(row.date || 'Sem data')}</small><h4>${esc(row.product)}</h4><p>${esc(row.customer)}</p></div>
+                                <div class="acc-source-badges">${badge(row.status || 'Não informada', 'neutral')}
+                                ${inCurrent ? badge('Neste faturamento', 'info') : ''}
+                                ${row.paid ? badge('Paga ao membro', 'success') : ''}</div></header>
+                            <div class="acc-source-values">
+                                <div><span>Quantidade</span><strong>${quantity.format(row.quantity || 0)} ${esc(row.unit)}</strong></div>
+                                <div><span>Preço unitário</span><strong>${money.format(row.unit_price || 0)}</strong></div>
+                                <div><span>Valor bruto</span><strong>${money.format(row.gross || 0)}</strong></div>
+                                <div><span>Taxas</span><strong>${money.format(row.fees || 0)}</strong></div>
+                                <div class="is-net"><span>Valor líquido</span><strong>${money.format(row.net || 0)}</strong></div>
+                            </div>
+                            <div class="acc-source-links">
+                                <div><span>Comprovante do membro</span><strong>${esc(receipt.number)}</strong><small>${esc(receipt.status_label)}</small></div>
+                                <div><span>Faturamento do cliente</span>
+                                    ${references.map(reference => `<div class="acc-source-billing" data-source="${esc(reference.source)}">
+                                        <a class="acc-link" href="${esc(reference.url)}">Folha ${esc(reference.number)}</a>
+                                        <small>${reference.source === 'snapshot' ? 'Referência histórica · sem vínculo atual' : reference.source === 'draft' ? 'Rascunho · seleção salva' : esc(reference.status)}</small>
+                                    </div>`).join('') || '<strong>' + (row.billing_restricted || row.billing_receipt_id ? 'Faturamento com acesso restrito' : 'Sem faturamento identificado') + '</strong>'}
+                                </div>
+                            </div>
+                            ${row.parent ? `<div class="acc-source-parent">Entrega de origem #${esc(row.parent.id)} · ${esc(row.parent.date || 'Sem data')} · Quantidade recebida: ${quantity.format(row.parent.quantity || 0)} ${esc(row.unit)}</div>` : ''}
+                            ${row.notes ? `<details class="acc-source-notes"><summary>Observações da entrega</summary><p>${esc(row.notes)}</p></details>` : ''}
+                        </article>`;
+                    }).join('') : '<div class="acc-empty">Este comprovante não possui distribuições vinculadas.</div>'}
+                </div>
+                <p class="acc-muted" data-source-visible-summary>${rows.length} distribuição(ões) · Bruto ${money.format(sum('gross'))}</p>
             </section>
         `;
     }
+
+    function filterSourceReceiptDetails(target) {
+        const detail = target.closest('[data-source-detail]');
+        if (!detail) return;
+        const term = detail.querySelector('[data-source-search]').value.trim().toLocaleLowerCase('pt-BR');
+        const coverage = detail.querySelector('[data-source-coverage]').value;
+        const cards = [...detail.querySelectorAll('[data-source-distribution]')];
+        const visible = cards.filter(card => {
+            card.hidden = !card.dataset.search.includes(term) || (coverage !== 'all' && card.dataset[coverage] !== '1');
+            return !card.hidden;
+        });
+        const gross = visible.reduce((total, card) => total + Math.round(Number(card.dataset.gross || 0) * 10000), 0) / 10000;
+        detail.querySelector('[data-source-visible-summary]').textContent =
+            `${visible.length} de ${cards.length} distribuição(ões) · Bruto ${money.format(gross)}`;
+    }
+
+    document.addEventListener('input', event => {
+        if (event.target.matches('[data-source-search]')) filterSourceReceiptDetails(event.target);
+    });
+    document.addEventListener('change', event => {
+        if (event.target.matches('[data-source-coverage]')) filterSourceReceiptDetails(event.target);
+    });
 
     /* =========================================================
        SOURCE RECEIPTS PAGE

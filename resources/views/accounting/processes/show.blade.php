@@ -21,6 +21,7 @@
 <main
     class="acc-shell accounting-dossier accounting-dossier-v3 ui-page"
     data-accounting-page="dossier"
+    data-receipt-id="{{ $receiptId }}"
     data-receipt-number="{{ $receiptNumber }}"
     data-process-data-url="{{ route('accounting.data.processes.show', ['tenant' => $tenant->slug, 'receipt' => $receiptId]) }}"
     data-authorization-send-url="{{ route('accounting.data.processes.authorization.send', ['tenant' => $tenant->slug, 'receipt' => $receiptId]) }}"

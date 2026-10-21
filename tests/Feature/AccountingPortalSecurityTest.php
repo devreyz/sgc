@@ -306,6 +306,31 @@ class AccountingPortalSecurityTest extends TestCase
         $this->actingAs($user)->getJson('/tenant-a/accounting/data/source-receipts/40')
             ->assertOk()->assertJsonCount(1, 'distributions')
             ->assertJsonPath('distributions.0.id', 301)
+            ->assertJsonPath('distributions.0.parent.id', 300)
+            ->assertJsonPath('distributions.0.parent.quantity', 20)
+            ->assertJsonPath('distributions.0.fees', 20)
+            ->assertJsonPath('distributions.0.net', 180)
+            ->assertJsonPath('distributions.0.billing_references.0.number', 'COM-A-0001')
+            ->assertJsonPath('distributions.0.billing_references.0.source', 'linked')
+            ->assertJsonPath('processes.0.id', 10);
+    }
+
+    public function test_source_receipt_detail_includes_draft_billings_and_delivery_observations(): void
+    {
+        Schema::table('production_deliveries', fn (Blueprint $table) => $table->text('notes')->nullable());
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'receipt_year' => 2026, 'receipt_number' => 8, 'issued_at' => '2026-08-19',
+            'status' => 'pending_payment', 'total_net' => 180, 'delivery_ids' => json_encode([301]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 300)->update(['notes' => 'Conferir acondicionamento.']);
+        DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => 40, 'billing_receipt_id' => null]);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft', 'delivery_ids' => json_encode([301])]);
+        $this->actingAs(User::query()->findOrFail(1))->getJson('/tenant-a/accounting/data/source-receipts/40')
+            ->assertOk()->assertJsonPath('distributions.0.notes', 'Conferir acondicionamento.')
+            ->assertJsonPath('distributions.0.billing_references.0.source', 'draft')
+            ->assertJsonPath('distributions.0.billing_references.0.number', 'COM-A-0001')
             ->assertJsonPath('processes.0.id', 10);
     }
 
@@ -1244,6 +1269,191 @@ class AccountingPortalSecurityTest extends TestCase
         self::assertSame(2, $resolved->id);
         self::assertSame('nfse', $resolved->document_type->value);
         self::assertSame('nfe', DB::table('fiscal_profiles')->where('id', 1)->value('document_type'));
+    }
+
+    private function reconciliationScenario(): void
+    {
+        Schema::table('associate_receipts', function (Blueprint $table): void {
+            $table->decimal('total_gross', 14, 4)->nullable();
+        });
+        DB::table('customer_billing_receipts')->where('id', 10)->update([
+            'delivery_ids' => json_encode([301]),
+            'fee_snapshot' => json_encode(['document_lines' => [[
+                'project_id' => 10, 'product_id' => 1, 'product' => 'Banana', 'unit' => 'kg',
+                'quantity' => '20', 'unit_price' => '10', 'distribution_ids' => [301],
+                'raw_amount' => '200', 'document_gross' => '200', 'document_amount' => '180',
+            ]]]),
+        ]);
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'receipt_year' => 2026, 'receipt_number' => 6, 'receipt_label' => 'MEM-0006',
+            'issued_at' => '2026-08-19', 'status' => 'pending_payment', 'total_gross' => 200,
+            // Different member/customer fees are legitimate.
+            'total_net' => 160, 'delivery_ids' => json_encode([301]),
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => 40]);
+    }
+
+    public function test_reconciliation_matches_quantities_and_gross_without_blocking_or_mutating_documents(): void
+    {
+        $this->reconciliationScenario();
+        $before = (array) DB::table('customer_billing_receipts')->where('id', 10)->first();
+        $response = $this->actingAs(User::findOrFail(1))->getJson('/tenant-a/accounting/data/processes/10');
+        $response->assertOk()->assertJsonPath('reconciliation.advisory_only', true)
+            ->assertJsonPath('reconciliation.warning_count', 0)
+            ->assertJsonPath('reconciliation.summary.covered', 1)
+            ->assertJsonPath('reconciliation.units.0.unit', 'kg')
+            ->assertJsonPath('reconciliation.units.0.covered_quantity', '20.00000000')
+            ->assertJsonPath('reconciliation.summary.all_members_net', '160.00000000');
+        self::assertSame($before, (array) DB::table('customer_billing_receipts')->where('id', 10)->first());
+        self::assertSame(0, (int) $response->json('process.integrity.critical_count'));
+        $this->getJson('/tenant-a/accounting/data/processes/20')->assertNotFound();
+    }
+
+    public function test_reconciliation_reports_missing_rows_cancelled_documents_and_broken_origins(): void
+    {
+        $this->reconciliationScenario();
+        DB::table('associate_receipts')->where('id', 40)->update(['status' => 'cancelled']);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['delivery_ids' => json_encode([301, 9999])]);
+        DB::table('production_deliveries')->where('id', 300)->update(['deleted_at' => now()]);
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        $codes = collect($report['alerts'])->pluck('code');
+        foreach (['missing_distribution', 'cancelled_member_link', 'invalid_parent', 'billing_only_distributions'] as $code) {
+            self::assertContains($code, $codes);
+        }
+        self::assertSame(0, $report['summary']['member_documents']);
+        self::assertSame(2, $report['summary']['uncovered']);
+        foreach ($report['alerts'] as $alert) self::assertNotEmpty($alert['solution']);
+    }
+
+    public function test_reconciliation_distinguishes_whole_member_document_from_the_current_billing_scope(): void
+    {
+        $this->reconciliationScenario();
+        DB::table('customers')->insert(['id' => 3, 'tenant_id' => 1, 'name' => 'Outro cliente']);
+        $billing = (array) DB::table('customer_billing_receipts')->where('id', 10)->first();
+        DB::table('customer_billing_receipts')->insert(array_merge($billing, [
+            'id' => 11, 'receipt_number' => 2, 'receipt_label' => 'FOLHA-MESMO-CLIENTE',
+            'delivery_ids' => json_encode([302]),
+        ]));
+        DB::table('customer_billing_receipts')->insert(array_merge($billing, [
+            'id' => 12, 'receipt_number' => 3, 'receipt_label' => 'FOLHA-OUTRO-CLIENTE',
+            'customer_id' => 3, 'organization_id' => null, 'delivery_ids' => json_encode([303]),
+        ]));
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        DB::table('production_deliveries')->insert(array_merge($row, [
+            'id' => 302, 'quantity' => '5', 'gross_value' => '50', 'billing_receipt_id' => 11,
+        ]));
+        DB::table('production_deliveries')->insert(array_merge($row, [
+            'id' => 303, 'quantity' => '5', 'gross_value' => '50', 'billing_receipt_id' => 12, 'customer_id' => 3,
+        ]));
+        DB::table('production_deliveries')->where('id', 300)->update(['quantity' => 30]);
+        DB::table('associate_receipts')->where('id', 40)->update([
+            'delivery_ids' => json_encode([301, 302, 303]), 'total_gross' => 300,
+        ]);
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(0, $report['warning_count']);
+        self::assertSame('member_only_distributions', $report['alerts'][0]['code']);
+        self::assertSame('info', $report['alerts'][0]['level']);
+        self::assertSame('200.00000000', $report['summary']['covered_gross']);
+        self::assertSame('300.00000000', $report['summary']['all_members_gross']);
+        self::assertSame(2, $report['members'][0]['outside_billing']);
+        self::assertStringContainsString('nenhuma correção é necessária', $report['alerts'][0]['solution']);
+        $this->actingAs(User::findOrFail(1))->getJson('/tenant-a/accounting/data/processes/10')
+            ->assertOk()->assertJsonPath('process.integrity.blocking_count', 0)
+            ->assertJsonPath('reconciliation.warning_count', 0)
+            ->assertJsonPath('reconciliation.info_count', 1);
+    }
+
+    public function test_reconciliation_finds_snapshot_only_documents_duplicates_and_stale_values(): void
+    {
+        $this->reconciliationScenario();
+        $member = (array) DB::table('associate_receipts')->where('id', 40)->first();
+        DB::table('associate_receipts')->insert(array_merge($member, [
+            'id' => 41, 'receipt_label' => 'MEM-0007', 'receipt_number' => 7,
+        ]));
+        // No current link to either receipt: snapshot intersection must still find both.
+        DB::table('production_deliveries')->where('id', 301)->update([
+            'associate_receipt_id' => null, 'quantity' => 21,
+        ]);
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        $codes = collect($report['alerts'])->pluck('code');
+        foreach (['duplicate_member_distributions', 'member_links_changed', 'product_totals_changed', 'member_gross_changed', 'overallocated_parent', 'distribution_gross_mismatch'] as $code) {
+            self::assertContains($code, $codes);
+        }
+        self::assertSame(2, $report['summary']['member_documents']);
+        self::assertSame('21.00000000', $report['units'][0]['covered_quantity']);
+        self::assertSame('42.00000000', $report['summary']['all_members_quantities'][0]['quantity']);
+    }
+
+    public function test_reconciliation_keeps_units_separate_and_includes_more_than_one_page(): void
+    {
+        $this->reconciliationScenario();
+        DB::table('products')->insert(['id' => 2, 'tenant_id' => 1, 'name' => 'Ovos', 'unit' => 'un']);
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        $ids = [301];
+        for ($index = 0; $index < 26; $index++) {
+            $id = 400 + $index;
+            $ids[] = $id;
+            DB::table('production_deliveries')->insert(array_merge($row, [
+                'id' => $id, 'product_id' => 2, 'parent_delivery_id' => 700,
+                'quantity' => '0.1', 'gross_value' => 1,
+            ]));
+        }
+        DB::table('production_deliveries')->insert(array_merge($row, [
+            'id' => 700, 'product_id' => 2, 'parent_delivery_id' => null, 'quantity' => '2.6',
+            'associate_receipt_id' => null, 'billing_receipt_id' => null,
+        ]));
+        DB::table('associate_receipts')->where('id', 40)->update(['delivery_ids' => json_encode($ids), 'total_gross' => 226]);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['delivery_ids' => json_encode($ids), 'status' => 'draft']);
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(27, $report['summary']['distributions']);
+        $units = collect($report['units'])->keyBy('unit');
+        self::assertSame('20.00000000', $units['kg']['current_quantity']);
+        self::assertSame('2.60000000', $units['un']['covered_quantity']);
+    }
+
+    public function test_reconciliation_never_uses_other_tenant_snapshots_or_deleted_rows_as_valid_coverage(): void
+    {
+        $this->reconciliationScenario();
+        $member = (array) DB::table('associate_receipts')->where('id', 40)->first();
+        DB::table('associate_receipts')->where('id', 40)->delete();
+        DB::table('associate_receipts')->insert(array_merge($member, [
+            'id' => 41, 'tenant_id' => 2, 'receipt_label' => 'SECRET-MEMBER',
+        ]));
+        DB::table('production_deliveries')->where('id', 301)->update(['deleted_at' => now()]);
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(0, $report['summary']['member_documents']);
+        self::assertSame(1, $report['summary']['uncovered']);
+        self::assertContains('deleted_distribution', collect($report['alerts'])->pluck('code'));
+        self::assertStringNotContainsString('SECRET-MEMBER', json_encode($report));
+    }
+
+    public function test_reconciliation_missing_member_warning_does_not_change_workflow_or_blocking_counts(): void
+    {
+        $this->reconciliationScenario();
+        $this->actingAs(User::findOrFail(1));
+        $before = $this->getJson('/tenant-a/accounting/data/processes/10')->assertOk();
+        DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => null]);
+        DB::table('associate_receipts')->where('id', 40)->delete();
+        $after = $this->getJson('/tenant-a/accounting/data/processes/10')->assertOk()
+            ->assertJsonPath('reconciliation.warning_count', 1)
+            ->assertJsonPath('reconciliation.summary.uncovered', 1);
+        self::assertSame($before->json('process.state'), $after->json('process.state'));
+        self::assertSame($before->json('process.integrity.blocking_count'), $after->json('process.integrity.blocking_count'));
+    }
+
+    public function test_reconciliation_ignores_cancelled_history_without_a_current_link(): void
+    {
+        $this->reconciliationScenario();
+        $member = (array) DB::table('associate_receipts')->where('id', 40)->first();
+        DB::table('associate_receipts')->insert(array_merge($member, [
+            'id' => 41, 'status' => 'cancelled', 'delivery_ids' => json_encode([301, 99999]),
+        ]));
+        $report = app(\App\Services\Accounting\BillingDocumentReconciliationService::class)->inspect(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(0, $report['warning_count']);
+        self::assertSame(1, $report['summary']['member_documents']);
+        self::assertSame([], $report['alerts']);
     }
 
     private function createFiscalProfile(array $overrides = []): void
