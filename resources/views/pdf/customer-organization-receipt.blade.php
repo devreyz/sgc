@@ -333,7 +333,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 @endif
 @endforeach
 @if($showQuantityTotal)
-<div class="strip" style="page-break-inside:avoid"><div class="strip-label">Quantidade total entregue no período</div><div class="strip-value">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => collect($priceGroups)->flatMap(fn ($quantityGroup) => $quantityGroup['table']), 'quantityKey' => 'total_qty'])</div></div>
+@include('pdf.partials.receipt-quantity-summary', ['quantityRows' => collect($priceGroups)->flatMap(fn ($quantityGroup) => $quantityGroup['table']), 'quantityKey' => 'total_qty'])
 @endif
 @if($reportAnnotationPosition !== 'before')
 @include('pdf.partials.receipt-report-annotations')

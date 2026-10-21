@@ -288,7 +288,7 @@ table.tbl tfoot td.r { text-align: right; color: #059669; }
 </table>
 @endforeach
 @if($showQuantityTotal)
-<div class="strip" style="page-break-inside:avoid"><div class="strip-label">Quantidade total entregue no período</div><div class="strip-value">@include('pdf.partials.receipt-quantity-total', ['quantityRows' => $productRows ?? []])</div></div>
+@include('pdf.partials.receipt-quantity-summary', ['quantityRows' => $productRows ?? []])
 @endif
 @if($reportAnnotationPosition !== 'before')
 @include('pdf.partials.receipt-report-annotations')
