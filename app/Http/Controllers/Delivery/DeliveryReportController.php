@@ -49,7 +49,16 @@ class DeliveryReportController extends Controller
     public function export(Request $request, TemplatedPdfService $pdfService)
     {
         $project = $this->project($request)->load('tenant');
+        if ($request->input('analysis_mode') === 'menu') {
+            abort_unless(\Illuminate\Support\Facades\Schema::hasTable('project_menus'), 422, 'Aplique a migração de cardápios.');
+            foreach (['date_from', 'date_to', 'customer_ids', 'beneficiary_group_ids', 'product_ids', 'associate_ids'] as $key) {
+                abort_if($request->filled($key), 422, 'A análise do cardápio usa o período, cliente e público da versão selecionada.');
+            }
+        }
         $validated = $request->validate([
+            'analysis_mode' => ['nullable', Rule::in(['standard', 'consumption', 'compliance', 'nutrition', 'menu'])],
+            'competency' => ['nullable', Rule::in(['delivery', 'consumption', 'planning'])],
+            'menu_id' => ['nullable', 'required_if:analysis_mode,menu', 'integer', 'min:1'],
             'type' => ['required', Rule::in(DeliveryReportService::TYPES)],
             'format' => ['required', Rule::in(['pdf', 'xlsx'])],
             'date_from' => ['nullable', 'date'],
@@ -60,7 +69,13 @@ class DeliveryReportController extends Controller
             'product_ids.*' => ['integer', 'min:1'],
             'customer_ids' => ['nullable', 'array', 'max:1000'],
             'customer_ids.*' => ['integer', 'min:1'],
+            'beneficiary_group_ids' => ['nullable', 'array', 'max:1000'],
+            'beneficiary_group_ids.*' => ['integer', 'min:1'],
         ]);
+        if (in_array($validated['analysis_mode'] ?? 'standard', ['consumption', 'compliance', 'nutrition', 'menu'], true)) {
+            return $this->exportPlanning($project, $validated, $pdfService);
+        }
+        abort_if(($validated['competency'] ?? 'delivery') !== 'delivery', 422, 'Use análise de consumo para competência de consumo.');
         $report = $this->reports->build($project, $validated);
 
         abort_if($report['rows']->isEmpty(), 422, 'Nenhum registro corresponde aos filtros selecionados.');
@@ -109,6 +124,34 @@ class DeliveryReportController extends Controller
             $filename.'.pdf',
             ['Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, private'],
         );
+    }
+
+    private function exportPlanning(SalesProject $project, array $filters, TemplatedPdfService $pdfService)
+    {
+        $service = app(\App\Services\Planning\ConsumptionReportService::class);
+        $filters['competency'] = $filters['competency'] ?? 'consumption';
+        $isMenu = $filters['analysis_mode'] === 'menu';
+        $report = $isMenu ? app(\App\Services\Planning\MenuReportService::class)->build($project, (int) $filters['menu_id'])
+            : ($filters['analysis_mode'] === 'nutrition' ? app(\App\Services\Planning\NutritionReportService::class) : $service)->build($project, $filters);
+        abort_if(empty($report['rows']), 422, $isMenu ? 'Cadastre refeições no cardápio.' : 'Nenhuma distribuição corresponde ao período.');
+        abort_if($report['blocks_report'], 422, 'Há um critério configurado para bloquear a emissão. Revise a conformidade no planejamento.');
+        $snapshot = $service->snapshot($project, $report);
+        $report['snapshot_id'] = $snapshot->id;
+        $filename = ($isMenu ? 'cardapio' : ($filters['analysis_mode'] === 'nutrition' ? 'nutricao' : 'consumo')).'-projeto-'.$project->id.'-snapshot-'.$snapshot->id;
+        if ($filters['format'] === 'xlsx') {
+            $response = Excel::download($isMenu ? new \App\Exports\MenuReportExport($report) : new \App\Exports\ConsumptionReportExport($report), $filename.'.xlsx');
+            $response->headers->set('Cache-Control', 'no-store, private');
+
+            return $response;
+        }
+        $pdf = $pdfService->generateSystemPdf($isMenu ? 'pdf.menu-report' : 'pdf.consumption-report', [
+            'report' => $report, 'project' => $project, 'tenant' => $project->tenant,
+            'title' => $isMenu ? 'Cardápio e demanda' : ($filters['analysis_mode'] === 'nutrition' ? 'Nutrição e conformidade' : 'Consumo e conformidade'),
+        ], ['paper' => 'a4', 'orientation' => 'landscape']);
+
+        return response()->streamDownload(fn () => print $pdf->output(), $filename.'.pdf', [
+            'Content-Type' => 'application/pdf', 'Cache-Control' => 'no-store, private',
+        ]);
     }
 
     private function project(Request $request): SalesProject

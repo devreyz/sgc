@@ -2546,7 +2546,7 @@ function excludeCustomer(customerId) {
 }
 
 function focusQtyInput(currentInput, direction) {
-    const inputs = Array.from($('dm-new-rows').querySelectorAll('.dm-row input[type=number]'));
+    const inputs = Array.from($('dm-new-rows').querySelectorAll('.dm-row > input[type=number]'));
     const currentIndex = inputs.indexOf(currentInput);
     if (currentIndex < 0) return;
 
@@ -2584,6 +2584,7 @@ function normalizeExisting(d) {
         receipt_id: d.receipt_id || null,
         receipt_number: d.receipt_number || null,
         billing_receipt_id: d.billing_receipt_id || null,
+        billing_receipt_number: d.billing_receipt_number || null,
         locked: !!d.locked,
         billing_status: d.billing_status || null,
     };
@@ -2601,6 +2602,7 @@ function statusBadges(d) {
     const badges = [];
     if (d.price_inconsistent) badges.push('<span class="dm-status-badge" style="background:#fff7ed;color:#9a3412" title="Edite e salve para recalcular o preco pela tabela do cliente">Recalcular preco</span>');
     if (d.in_receipt) badges.push(`<span class="dm-status-badge receipt" title="${d.receipt_number ? 'Comprovante ' + esc(d.receipt_number) : 'Em comprovante'}">Em comprovante</span>`);
+    if (d.billing_receipt_id) badges.push(`<span class="dm-status-badge billed">Folha ${esc(d.billing_receipt_number || '#' + d.billing_receipt_id)}</span>`);
     if (d.billed && !d.paid) badges.push('<span class="dm-status-badge billed">Faturada</span>');
     if (d.paid) badges.push('<span class="dm-status-badge paid">Paga</span>');
     return badges.length ? `<span class="dm-status-badges">${badges.join('')}</span>` : '';
@@ -2741,6 +2743,13 @@ function buildRow(preselectId = null, autofocus = false, initialQuantity = null)
     const price = document.createElement('div');
     price.className = 'dm-row-price';
     row.appendChild(price);
+    const consumption = document.createElement('details');
+    consumption.style.gridColumn = '1 / -1';
+    consumption.innerHTML = '<summary>Atendimento e consumo (opcional)</summary>' +
+        '<label>Pessoas efetivamente atendidas <input data-served-people type="number" min="1" max="100000000" aria-label="Pessoas efetivamente atendidas"></label>' +
+        '<label>Cobertura (dias) <input data-coverage-days type="number" min="1" max="3660" aria-label="Dias de cobertura"></label>' +
+        '<small>Deixe vazio para registrar somente a distribuição. Grupos, datas e atendimento diário podem ser ajustados no planejamento do projeto.</small>';
+    row.appendChild(consumption);
     if (preselectId) queueMicrotask(() => loadRowPrice(row, preselectId));
     return row;
 }
@@ -3084,7 +3093,13 @@ window.DistModal = {
             if (cid && qty <= 0) continue;
             // Qty informed but no customer — warn
             if (!cid && qty > 0) { showNotice('Selecione o cliente para a linha com quantidade informada.', { type: 'error' }); return; }
-            distributions.push({ customer_id: parseInt(cid), quantity: qty });
+            const distribution = { customer_id: parseInt(cid), quantity: qty };
+            const people = row.querySelector('[data-served-people]')?.value;
+            const coverage = row.querySelector('[data-coverage-days]')?.value;
+            if (people || coverage) {
+                distribution.consumption = {count_method: 'served_people', served_people: people || null, coverage_days: coverage || null};
+            }
+            distributions.push(distribution);
         }
         if (!distributions.length) { 
                 this.close();

@@ -14,6 +14,16 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Product extends Model
 {
+    public function planningProfiles(): HasMany
+    {
+        return $this->hasMany(ProductPlanningProfile::class);
+    }
+
+    public function foodProfiles(): HasMany
+    {
+        return $this->hasMany(FoodProfile::class);
+    }
+
     use BelongsToTenant, HasFactory, SoftDeletes, LogsActivity;
 
     protected $hidden = [

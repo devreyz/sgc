@@ -62,6 +62,12 @@
         </div>
 
         <div class="dossier-head-actions">
+            @can('create', \App\Models\AssociateReceipt::class)
+                <a class="acc-button" href="{{ route('accounting.billings.member-receipts', ['tenant' => $tenant->slug, 'receipt' => $receiptId]) }}">
+                    <i class="ph-fill ph-users-three" aria-hidden="true"></i>
+                    <span>Criar comprovantes dos membros</span>
+                </a>
+            @endcan
             <button
                 class="acc-button dossier-copy-number"
                 type="button"

@@ -71,6 +71,194 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('processes.data.0.distributions', 1);
     }
 
+    public function test_reverse_receipts_screen_requires_create_permission_and_is_tenant_scoped(): void
+    {
+        $user = User::query()->findOrFail(1);
+        $this->actingAs($user)->get('/tenant-a/accounting/billings/10/member-receipts')->assertForbidden();
+        $permission = \Spatie\Permission\Models\Permission::findOrCreate('create_associate::receipt', 'web');
+        $user->givePermissionTo($permission);
+        $this->get('/tenant-a/accounting/billings/10/member-receipts')->assertOk()
+            ->assertSee('Comprovantes dos membros')->assertSee('Bruto R$');
+        $this->get('/tenant-a/accounting/billings/20/member-receipts')->assertNotFound();
+    }
+
+    public function test_producer_can_inspect_paid_distributions_and_both_document_links_without_mutating_them(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)
+            ->update(['roles' => json_encode(['registrador_entregas'])]);
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'receipt_year' => 2026, 'receipt_number' => 6, 'receipt_label' => 'MEM-0006',
+            'issued_at' => '2026-08-19', 'status' => 'paid', 'total_net' => 180,
+            'amount_paid' => 180, 'delivery_ids' => json_encode([301]), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => 40, 'paid' => true, 'billing_status' => 'paid']);
+        $before = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?inspect=1&receipt_id=40')
+            ->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonCount(1)->assertJsonPath('0.id', 301)
+            ->assertJsonPath('0.associate_receipt_number', 'MEM-0006')
+            ->assertJsonPath('0.billing_receipt_number', 'COM-A-0001')
+            ->assertJsonPath('0.paid', true)->assertJsonPath('0.available_for_receipt', false);
+        self::assertSame($before, (array) DB::table('production_deliveries')->where('id', 301)->first());
+    }
+
+    public function test_producer_inspection_includes_billed_uncovered_items_and_rejects_another_members_receipt(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)
+            ->update(['roles' => json_encode(['registrador_entregas'])]);
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 99,
+            'receipt_year' => 2026, 'receipt_number' => 6, 'issued_at' => '2026-08-19', 'status' => 'paid',
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?inspect=1')
+            ->assertOk()->assertJsonCount(1)->assertJsonPath('0.billing_receipt_id', 10)
+            ->assertJsonPath('0.associate_receipt_id', null)->assertJsonPath('0.available_for_receipt', true);
+        $this->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?inspect=1&receipt_id=40')->assertNotFound();
+        $this->getJson('/tenant-a/delivery/projects/20/associates/1/deliveries?inspect=1')->assertNotFound();
+    }
+
+    public function test_producer_edit_selection_displays_draft_billing_saved_without_a_distribution_foreign_key(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)
+            ->update(['roles' => json_encode(['registrador_entregas'])]);
+        DB::table('associate_receipts')->insert([
+            'id' => 40, 'tenant_id' => 1, 'sales_project_id' => 10, 'associate_id' => 1,
+            'receipt_year' => 2026, 'receipt_number' => 6, 'issued_at' => '2026-08-19',
+            'status' => 'pending_payment', 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null, 'associate_receipt_id' => 40]);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft', 'delivery_ids' => json_encode([301])]);
+        // Um snapshot de outro tenant não deve vazar nem gerar falso conflito.
+        DB::table('customer_billing_receipts')->where('id', 20)->update(['delivery_ids' => json_encode([301])]);
+
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?approved_only=1&receipt_id=40')
+            ->assertOk()->assertJsonPath('0.in_current_receipt', true)
+            ->assertJsonPath('0.billing_receipt_id', null)
+            ->assertJsonCount(1, '0.billing_references')
+            ->assertJsonPath('0.billing_references.0.id', 10)
+            ->assertJsonPath('0.billing_references.0.number', 'COM-A-0001')
+            ->assertJsonPath('0.billing_references.0.source', 'draft');
+        self::assertNull(DB::table('production_deliveries')->where('id', 301)->value('billing_receipt_id'));
+    }
+
+    public function test_producer_distinguishes_historical_billing_snapshot_from_a_current_link(): void
+    {
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)
+            ->update(['roles' => json_encode(['registrador_entregas'])]);
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => null]);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['delivery_ids' => json_encode([301])]);
+        $this->actingAs(User::query()->findOrFail(1))
+            ->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?inspect=1')
+            ->assertOk()->assertJsonPath('0.billing_references.0.source', 'snapshot')
+            ->assertJsonPath('0.billing_receipt_id', null);
+        DB::table('production_deliveries')->where('id', 301)->update(['billing_receipt_id' => 10]);
+        $this->getJson('/tenant-a/delivery/projects/10/associates/1/deliveries?inspect=1')
+            ->assertOk()->assertJsonCount(1, '0.billing_references')
+            ->assertJsonPath('0.billing_references.0.source', 'linked');
+    }
+
+    public function test_reverse_receipts_uses_only_the_billings_current_distributions_and_draft_selection(): void
+    {
+        $service = app(\App\Services\Accounting\BillingAssociateReceiptService::class);
+        $billing = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        self::assertSame([301], $service->distributions($billing)->pluck('id')->all());
+
+        $billing->forceFill(['status' => CustomerReceiptStatus::DRAFT, 'delivery_ids' => []])->saveQuietly();
+        self::assertSame([], $service->distributions($billing)->pluck('id')->all());
+
+        $billing->forceFill(['delivery_ids' => [300, 301, 401]])->saveQuietly();
+        self::assertSame([301], $service->distributions($billing)->pluck('id')->all());
+    }
+
+    public function test_reverse_receipts_creates_member_snapshot_without_changing_customer_billing_and_rejects_replay(): void
+    {
+        $this->prepareReverseReceiptSchema();
+        $billing = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $before = $billing->getRawOriginal();
+        $service = app(\App\Services\Accounting\BillingAssociateReceiptService::class);
+        $receipts = \App\Models\AssociateReceipt::withoutEvents(fn () => $service->create($billing, [301], '2026-10-21'));
+
+        self::assertCount(1, $receipts);
+        self::assertSame('pending_payment', $receipts[0]->status->value);
+        self::assertSame([301], $receipts[0]->delivery_ids);
+        self::assertSame('200.0000', $receipts[0]->total_net);
+        self::assertSame($receipts[0]->id, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)->associate_receipt_id);
+        self::assertSame(10, ProductionDelivery::withoutGlobalScopes()->findOrFail(301)->billing_receipt_id);
+        self::assertSame($before, $billing->fresh()->getRawOriginal());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Já pertence ao comprovante');
+        $service->create($billing, [301], '2026-10-21');
+    }
+
+    public function test_reverse_receipts_rejects_foreign_selection_without_creating_any_receipt(): void
+    {
+        $service = app(\App\Services\Accounting\BillingAssociateReceiptService::class);
+        try {
+            $service->create(CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10), [301, 401], '2026-10-21');
+            self::fail('A seleção de outro tenant deve ser rejeitada.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('seleção do faturamento mudou', $exception->getMessage());
+        }
+        self::assertSame(0, DB::table('associate_receipts')->count());
+        self::assertNull(DB::table('production_deliveries')->where('id', 301)->value('associate_receipt_id'));
+    }
+
+    public function test_reverse_receipts_groups_by_member_and_rolls_back_all_groups_on_invalid_parent(): void
+    {
+        $this->prepareReverseReceiptSchema();
+        $parent = (array) DB::table('production_deliveries')->where('id', 300)->first();
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        DB::table('associates')->insert(['id' => 2, 'tenant_id' => 1, 'user_id' => 2, 'nickname' => 'Outro produtor', 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('production_deliveries')->insert(array_replace($parent, ['id' => 302, 'associate_id' => 2]));
+        DB::table('production_deliveries')->insert(array_replace($row, ['id' => 303, 'associate_id' => 2, 'parent_delivery_id' => 302, 'product_id' => 999]));
+        $billing = CustomerBillingReceipt::withoutGlobalScopes()->findOrFail(10);
+        $service = app(\App\Services\Accounting\BillingAssociateReceiptService::class);
+        try {
+            \App\Models\AssociateReceipt::withoutEvents(fn () => $service->create($billing, [301, 303], '2026-10-21'));
+            self::fail('A entrega-pai incompatível deve reverter todo o lote.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('entrega-pai', $exception->getMessage());
+        }
+        self::assertSame(0, DB::table('associate_receipts')->count());
+        self::assertNull(DB::table('production_deliveries')->where('id', 301)->value('associate_receipt_id'));
+
+        DB::table('production_deliveries')->where('id', 303)->update(['product_id' => 1]);
+        $receipts = \App\Models\AssociateReceipt::withoutEvents(fn () => $service->create($billing, [301, 303], '2026-10-21'));
+        self::assertCount(2, $receipts);
+        self::assertSame([1, 2], $receipts->pluck('associate_id')->all());
+        self::assertSame([[301], [303]], $receipts->pluck('delivery_ids')->all());
+        self::assertSame(2, $receipts->pluck('receipt_number')->unique()->count());
+    }
+
+    private function prepareReverseReceiptSchema(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+        Schema::table('associate_receipts', function (Blueprint $table): void {
+            $table->date('from_date')->nullable();
+            $table->date('to_date')->nullable();
+            $table->decimal('total_gross', 14, 4)->default(0);
+            $table->decimal('total_fees', 14, 4)->default(0);
+            $table->json('fee_snapshot')->nullable();
+            $table->timestamp('obsolete_at')->nullable();
+            $table->unsignedBigInteger('obsolete_by')->nullable();
+            $table->text('obsolete_reason')->nullable();
+        });
+        Schema::create('project_fees', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('sales_project_id');
+            $table->boolean('active')->default(true);
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->softDeletes();
+        });
+    }
+
     public function test_billing_context_excludes_soft_deleted_projects_and_rejects_their_ids(): void
     {
         DB::table('sales_projects')->insert([

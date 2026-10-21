@@ -17,6 +17,21 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class SalesProject extends Model
 {
+    public function beneficiaryGroups(): HasMany
+    {
+        return $this->hasMany(BeneficiaryGroup::class);
+    }
+
+    public function planningRuleSets(): HasMany
+    {
+        return $this->hasMany(PlanningRuleSet::class);
+    }
+
+    public function menus(): HasMany
+    {
+        return $this->hasMany(ProjectMenu::class);
+    }
+
     use BelongsToTenant, HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [

@@ -345,6 +345,12 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             Route::post('/access', [AccountingAccessController::class, 'store'])->middleware('throttle:20,1')->name('access.store');
             Route::delete('/access/{scope}', [AccountingAccessController::class, 'destroy'])->middleware('throttle:20,1')->whereNumber('scope')->name('access.destroy');
             Route::get('/billings/create', [AccountingBillingController::class, 'create'])->name('billings.create');
+            Route::get('/billings/{receipt}/member-receipts', [\App\Http\Controllers\Accounting\AccountingAssociateReceiptController::class, 'index'])
+                ->whereNumber('receipt')->name('billings.member-receipts');
+            Route::post('/billings/{receipt}/member-receipts', [\App\Http\Controllers\Accounting\AccountingAssociateReceiptController::class, 'store'])
+                ->middleware('throttle:10,1')->whereNumber('receipt')->name('billings.member-receipts.store');
+            Route::get('/billings/{receipt}/member-receipts/{associateReceipt}/print', [\App\Http\Controllers\Accounting\AccountingAssociateReceiptController::class, 'print'])
+                ->whereNumber('receipt')->whereNumber('associateReceipt')->name('billings.member-receipts.print');
             Route::get('/billings/context', [AccountingBillingController::class, 'context'])->name('billings.context');
             Route::get('/billings/manual', [AccountingBillingController::class, 'manual'])->name('billings.manual');
             Route::post('/billings/select', [AccountingBillingController::class, 'select'])->middleware('throttle:60,1')->name('billings.select');
@@ -563,6 +569,13 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
 
         // Relatórios operacionais (filtros e dados resolvidos no backend do projeto)
         Route::get('/projects/{project}/reports/options', [DeliveryReportController::class, 'options'])->name('projects.reports.options');
+        Route::get('/projects/{project}/planning', [\App\Http\Controllers\Delivery\ProjectPlanningController::class, 'index'])->name('projects.planning');
+        Route::post('/projects/{project}/planning/{action}', [\App\Http\Controllers\Delivery\ProjectPlanningController::class, 'store'])
+            ->whereIn('action', ['settings', 'groups', 'population', 'products', 'rules', 'consumption', 'nutrients', 'food-profiles', 'nutrition-targets', 'recipes', 'menus'])->name('projects.planning.store');
+        Route::get('/projects/{project}/planning/menus/{menu}', [\App\Http\Controllers\Delivery\ProjectMenuController::class, 'show'])->name('projects.menus.show');
+        Route::post('/projects/{project}/planning/menus/{menu}/{action}', [\App\Http\Controllers\Delivery\ProjectMenuController::class, 'store'])
+            ->whereIn('action', ['meal', 'remove-meal', 'transition', 'clone'])->name('projects.menus.store');
+        Route::get('/projects/{project}/planning/snapshots/{snapshot}', [\App\Http\Controllers\Delivery\ProjectPlanningController::class, 'snapshot'])->name('projects.planning.snapshot');
         Route::put('/projects/{project}/reports/preferences', [DeliveryReportController::class, 'updatePreferences'])->name('projects.reports.preferences');
         Route::get('/projects/{project}/reports/export', [DeliveryReportController::class, 'export'])->name('projects.reports.export');
 

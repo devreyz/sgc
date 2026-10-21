@@ -278,6 +278,7 @@ class DeliveryRegistrationController extends Controller
             'receipt_id' => $this->hasCurrentAssociateReceiptLink($d) ? $d->associate_receipt_id : null,
             'receipt_number' => $this->hasCurrentAssociateReceiptLink($d) ? $d->associateReceipt?->formatted_number : null,
             'billing_receipt_id' => $d->billing_receipt_id,
+            'billing_receipt_number' => $d->billingReceipt?->formatted_number,
             'locked' => (bool) $d->paid
                 || $d->billing_status !== BillingStatus::UNBILLED
                 || (bool) $d->billing_receipt_id
@@ -844,6 +845,7 @@ class DeliveryRegistrationController extends Controller
             'distributions' => 'required|array|min:1|max:50',
             'distributions.*.customer_id' => 'required|integer|exists:customers,id',
             'distributions.*.quantity' => 'required|numeric|min:0.001',
+            'distributions.*.consumption' => 'sometimes|array',
         ]);
 
         $reception = ProductionDelivery::where('tenant_id', $tenantId)
@@ -1010,6 +1012,9 @@ class DeliveryRegistrationController extends Controller
                     'paid' => false,
                 ]);
                 $created[] = $child->id;
+                if (! empty($dist['consumption'])) {
+                    app(\App\Services\Planning\ProjectPlanningService::class)->saveConsumption($project, (int) $child->id, $dist['consumption']);
+                }
                 if ($customer->organization_id) {
                     $affectedOrganizations->push((int) $customer->organization_id);
                 }
@@ -1698,7 +1703,7 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->whereNull('parent_delivery_id')
             ->with(array_merge(
-                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt'],
+                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer.organization', 'distributions.associateReceipt', 'distributions.billingReceipt.project'],
                 $this->deliveryAdjustmentRelations(),
             ))
             ->orderBy('delivery_date', 'desc')
@@ -1732,6 +1737,7 @@ class DeliveryRegistrationController extends Controller
                     'receipt_id' => $this->hasCurrentAssociateReceiptLink($dist) ? $dist->associate_receipt_id : null,
                     'receipt_number' => $this->hasCurrentAssociateReceiptLink($dist) ? $dist->associateReceipt?->formatted_number : null,
                     'billing_receipt_id' => $dist->billing_receipt_id,
+                    'billing_receipt_number' => $dist->billingReceipt?->formatted_number,
                     'locked' => (bool) $dist->paid
                         || $dist->billing_status !== BillingStatus::UNBILLED
                         || (bool) $dist->billing_receipt_id
@@ -1820,7 +1826,9 @@ class DeliveryRegistrationController extends Controller
 
         return response()->json([
             'success' => true,
-            'integrity' => app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project),
+            'integrity' => app(\App\Services\Planning\PlanningIntegrityService::class)->append(
+                $project, app(DeliveryProjectIntegrityService::class)->inspect((int) $tenantId, $project)
+            ),
         ]);
     }
 
@@ -2034,6 +2042,7 @@ class DeliveryRegistrationController extends Controller
         $toDate = request()->query('to_date');
         $approvedOnly = (bool) request()->query('approved_only', false);
         $receiptId = (int) request()->query('receipt_id', 0);
+        $inspect = request()->boolean('inspect');
 
         $projectExists = SalesProject::query()
             ->where('tenant_id', $tenantId)
@@ -2048,11 +2057,13 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['message' => $this->memberTerm().' ou projeto não encontrado.'], 404);
         }
 
-        app(AssociateReceiptService::class)->releaseCancelledDistributionLinks(
-            (int) $tenantId,
-            $projectId,
-            $associateId,
-        );
+        if (! $inspect) {
+            app(AssociateReceiptService::class)->releaseCancelledDistributionLinks(
+                (int) $tenantId,
+                $projectId,
+                $associateId,
+            );
+        }
 
         if ($receiptId > 0 && ! AssociateReceipt::query()
             ->where('tenant_id', $tenantId)
@@ -2068,17 +2079,26 @@ class DeliveryRegistrationController extends Controller
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
             ->whereNotNull('parent_delivery_id')
-            ->with(['product', 'customer', 'parentDelivery.projectDemand.product'])
+            ->with(['product', 'customer', 'parentDelivery.projectDemand.product', 'billingReceipt.project', 'associateReceipt.project'])
             ->orderBy('delivery_date', 'asc');
 
-        if ($approvedOnly) {
+        if ($inspect) {
+            $query->withTrashed();
+            if ($receiptId > 0) {
+                $inspectedReceipt = AssociateReceipt::where('tenant_id', $tenantId)
+                    ->where('sales_project_id', $projectId)->where('associate_id', $associateId)->findOrFail($receiptId);
+                if ($inspectedReceipt->status === ReceiptStatus::CANCELLED) {
+                    $query->whereIn('id', $inspectedReceipt->delivery_ids ?? []);
+                } else {
+                    $query->where('associate_receipt_id', $receiptId);
+                }
+            }
+        } elseif ($approvedOnly) {
             $query->where('status', DeliveryStatus::APPROVED);
 
-            // Excluir distribuições já pagas — via fluxo legado (paid=true)
-            // ou via novo fluxo (associado a comprovante PAGO)
+            // O recebimento do cliente não liquida o membro. Distribuições já
+            // faturadas continuam disponíveis para criar o comprovante dele.
             $query->where('paid', false)
-                ->where('billing_status', BillingStatus::UNBILLED->value)
-                ->whereNull('billing_receipt_id')
                 ->where(function ($query) use ($receiptId) {
                     $query->whereNull('associate_receipt_id');
 
@@ -2094,7 +2114,10 @@ class DeliveryRegistrationController extends Controller
             $query->whereDate('delivery_date', '<=', $toDate);
         }
 
-        $deliveries = $query->get()->map(function ($delivery) use ($receiptId) {
+        $deliveryRows = $query->get();
+        $billingReferences = app(\App\Services\DistributionBillingReferenceService::class)
+            ->forDistributions((int) $tenantId, $deliveryRows);
+        $deliveries = $deliveryRows->map(function ($delivery) use ($receiptId, $billingReferences) {
             // Nome do produto: via demanda da recepção pai, ou diretamente
             $productName = $delivery->parentDelivery?->projectDemand?->product?->name
                 ?? $delivery->product?->name
@@ -2117,19 +2140,33 @@ class DeliveryRegistrationController extends Controller
                 'gross_value' => (float) $delivery->gross_value,
                 'net_value' => (float) $delivery->net_value,
                 'unit_price' => (float) $delivery->unit_price,
+                'billing_receipt_id' => $delivery->billing_receipt_id,
+                'billing_receipt_number' => $delivery->billingReceipt?->formatted_number,
+                'billing_receipt_status' => $delivery->billingReceipt?->status?->getLabel(),
+                'billing_references' => $billingReferences[(int) $delivery->id] ?? [],
+                'associate_receipt_id' => $delivery->associate_receipt_id,
+                'associate_receipt_number' => $delivery->associateReceipt?->formatted_number,
+                'associate_receipt_status' => $delivery->associateReceipt?->status?->getLabel(),
+                'paid' => (bool) $delivery->paid,
+                'removed' => $delivery->trashed(),
+                'available_for_receipt' => ! $delivery->trashed() && ! $delivery->paid
+                    && ! $delivery->associate_receipt_id && ! $delivery->distribution_billing_id && ! $delivery->project_payment_id
+                    && $delivery->status === DeliveryStatus::APPROVED && (bool) $delivery->customer_id
+                    && (float) $delivery->quantity > 0 && (float) $delivery->unit_price > 0,
                 'parent_delivery_id' => (int) $delivery->parent_delivery_id,
                 'notes' => $delivery->parentDelivery?->notes ?? '',
                 'status' => $delivery->status->getLabel(),
                 'status_value' => $delivery->status->value,
                 'selectable' => (bool) $delivery->customer_id
                     && (float) $delivery->quantity > 0
-                    && (float) $delivery->unit_price > 0,
+                    && (float) $delivery->unit_price > 0
+                    && ($receiptId === 0 || (! $delivery->billing_receipt_id && $delivery->billing_status === BillingStatus::UNBILLED)),
                 'in_current_receipt' => $receiptId > 0
                     && (int) $delivery->associate_receipt_id === $receiptId,
             ];
         });
 
-        return response()->json($deliveries);
+        return response()->json($deliveries, 200, ['Cache-Control' => 'no-store, private']);
     }
 
     /**
@@ -2526,7 +2563,7 @@ class DeliveryRegistrationController extends Controller
 
         $paginator = $query
             ->with(array_merge(
-                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt'],
+                ['associate.user', 'projectDemand.product', 'product', 'distributions.customer', 'distributions.associateReceipt', 'distributions.billingReceipt.project'],
                 $this->deliveryAdjustmentRelations(),
             ))
             ->orderByDesc('delivery_date')->orderByDesc('id')
@@ -3635,9 +3672,7 @@ class DeliveryRegistrationController extends Controller
             ->whereNotNull('production_deliveries.parent_delivery_id');
         $available = fn ($query) => $query
             ->whereNull('associate_receipt_id')
-            ->where('paid', false)
-            ->where('billing_status', BillingStatus::UNBILLED->value)
-            ->whereNull('billing_receipt_id');
+            ->where('paid', false);
 
         $receiptBase = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $project->id);
@@ -3688,11 +3723,9 @@ class DeliveryRegistrationController extends Controller
                 SUM(CASE
                     WHEN production_deliveries.associate_receipt_id IS NULL
                         AND production_deliveries.paid = 0
-                        AND production_deliveries.billing_status = ?
-                        AND production_deliveries.billing_receipt_id IS NULL
                     THEN 1 ELSE 0
                 END) as pending_distributions
-            ', [BillingStatus::UNBILLED->value])
+            ')
             ->groupBy('production_deliveries.associate_id', 'associate_members.user_id', 'associate_members.tenant_name', 'associates.cpf_cnpj', 'associates.registration_number');
 
         if ($search !== '') {
@@ -3855,7 +3888,7 @@ class DeliveryRegistrationController extends Controller
         $receipts = AssociateReceipt::where('tenant_id', $tenantId)
             ->where('sales_project_id', $projectId)
             ->where('associate_id', $associateId)
-            ->with('project')
+            ->with(['project', 'distributions.billingReceipt.project'])
             ->withCount('distributions')
             ->orderByDesc('receipt_year')
             ->orderByDesc('receipt_number')
@@ -3878,6 +3911,8 @@ class DeliveryRegistrationController extends Controller
 
         $tenantSlug = $this->currentTenant()?->slug ?? '';
 
+        $billingReferences = app(\App\Services\DistributionBillingReferenceService::class)
+            ->forDistributions((int) $tenantId, $receipts->flatMap(fn ($receipt) => $receipt->distributions));
         $receiptData = $receipts->map(fn ($r) => [
             'id' => $r->id,
             'number' => $r->formatted_number,
@@ -3888,6 +3923,8 @@ class DeliveryRegistrationController extends Controller
             'obsolete_reason' => $r->obsolete_reason,
             'total_net' => $r->total_net ? number_format((float) $r->total_net, 2, ',', '.') : null,
             'total_net_value' => (float) ($r->total_net ?? 0),
+            'billing_receipts' => $r->distributions->flatMap(fn ($row) => $billingReferences[(int) $row->id] ?? [])
+                ->unique('id')->values()->all(),
             'distribution_count' => $r->status === ReceiptStatus::CANCELLED
                 ? count($r->delivery_ids ?? [])
                 : (int) $r->distributions_count,
@@ -3914,8 +3951,6 @@ class DeliveryRegistrationController extends Controller
             ->where('status', DeliveryStatus::APPROVED)
             ->whereNotNull('parent_delivery_id')
             ->where('paid', false)
-            ->where('billing_status', BillingStatus::UNBILLED->value)
-            ->whereNull('billing_receipt_id')
             ->whereNull('associate_receipt_id')
             ->count();
 
@@ -4187,7 +4222,7 @@ class DeliveryRegistrationController extends Controller
             return response()->json(['success' => false, 'message' => 'Selecione distribuições de um mesmo '.mb_strtolower($this->memberTerm()).' para gerar o comprovante.'], 422);
         }
 
-        if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $associateIds->first())) {
+        if ($message = $this->receiptDistributionIntegrityMessage($distributions, (int) $tenantId, $projectId, (int) $associateIds->first(), null, false)) {
             return response()->json(['success' => false, 'message' => $message], 422);
         }
 

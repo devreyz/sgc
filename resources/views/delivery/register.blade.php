@@ -9240,6 +9240,7 @@ function openDistributeModal(id) {
             receipt_id: d.receipt_id || null,
             receipt_number: d.receipt_number || null,
             billing_receipt_id: d.billing_receipt_id || null,
+            billing_receipt_number: d.billing_receipt_number || null,
             locked: !!d.locked,
             billing_status: d.billing_status || null,
         })),

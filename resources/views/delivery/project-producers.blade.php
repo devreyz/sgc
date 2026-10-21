@@ -1801,6 +1801,44 @@
             transition-duration: .01ms !important;
         }
     }
+    /* Hierarquia dos documentos: resumo, vínculos e ações. */
+    .pr-document-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem;margin:0 0 1rem}
+    .pr-document-summary>div{padding:.8rem;border:1px solid var(--pr-border);border-radius:12px;background:#fff}
+    .pr-document-summary small{display:block;color:var(--pr-muted-text);font-size:.68rem;line-height:1.4}
+    .pr-document-summary strong{display:block;margin-top:.2rem;font-size:1.2rem;color:var(--pr-text)}
+    .pr-document-summary>div:last-child{background:#eff6ff;border-color:#dbeafe}
+    .pr-receipts{gap:.9rem}.pr-sheet .pr-receipt{padding:1rem;border-radius:15px;box-shadow:0 3px 12px #0f172a04}
+    .pr-receipt-heading{display:flex;align-items:center;gap:.65rem;min-width:0}
+    .pr-receipt-emblem{display:grid;place-items:center;flex:none;width:39px;height:45px;background:#eef2ff;border:1px solid #e0e7ff;border-radius:10px;color:#6366f1;font-size:1.2rem}
+    .pr-receipt-heading small{display:block;color:var(--pr-muted-text);font-size:.65rem;margin-bottom:.1rem}
+    .pr-sheet .pr-receipt h4{font-size:1rem}.pr-sheet .pr-receipt-link{color:var(--pr-text)}
+    .pr-receipt-metrics{display:grid;grid-template-columns:1fr 1fr 1.3fr;margin:.9rem 0;gap:.5rem}
+    .pr-receipt-metrics>div{min-width:0;padding:.55rem .65rem;border-radius:9px;background:#f8fafc}
+    .pr-receipt-metrics small{display:block;color:var(--pr-muted-text);font-size:.65rem}
+    .pr-receipt-metrics strong{display:block;margin-top:.2rem;font-size:.8rem;overflow-wrap:anywhere}
+    .pr-receipt-metrics .is-amount{background:#ecfdf5;color:#166534}.pr-receipt-metrics .is-amount strong{font-size:1rem}
+    .pr-reference-heading{display:block;font-size:.65rem;color:var(--pr-muted-text);margin:0 0 .35rem;font-weight:750;letter-spacing:.03em}
+    .pr-documents{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin:.75rem 0}
+    .pr-document-stack{display:grid;gap:.4rem;align-content:start;min-width:0}
+    .pr-document-chip{display:flex;gap:.5rem;align-items:flex-start;padding:.65rem .7rem;border:1px solid #dbeafe;border-left:3px solid #60a5fa;border-radius:9px;background:#eff6ff;color:#1e40af;font-size:.75rem;min-width:0}
+    .pr-document-chip>i{font-size:1rem;margin-top:.05rem;flex:none}.pr-document-chip>div{min-width:0}
+    .pr-document-chip strong,.pr-document-chip small{display:block;overflow-wrap:anywhere;line-height:1.4}
+    .pr-document-chip strong{font-size:.8rem}.pr-document-chip small{margin-top:.15rem;font-size:.66rem;opacity:.85}
+    .pr-document-chip[data-tone=neutral]{background:#f8fafc;border-color:#e2e8f0;border-left-color:#cbd5e1;color:#64748b}
+    .pr-document-chip[data-tone=warning]{background:#fffbeb;border-color:#fde68a;border-left-color:#fbbf24;color:#92400e}
+    .pr-document-chip[data-tone=success]{background:#f0fdf4;border-color:#bbf7d0;border-left-color:#4ade80;color:#166534}
+    .pr-receipt-main-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.9rem}.pr-receipt-main-actions>.pr-btn{flex:1;min-height:40px}
+    .pr-receipt-secondary{margin-top:.65rem;padding-top:.6rem;border-top:1px solid var(--pr-border)}
+    .pr-receipt-secondary>summary{cursor:pointer;font-size:.72rem;color:var(--pr-muted-text);padding:.25rem 0}
+    .pr-sheet .pr-dist{padding:.85rem;border-radius:13px;gap:.7rem}.pr-sheet .pr-dist h4{font-size:.9rem}
+    .pr-dist.disabled{opacity:.8}.pr-dist.disabled .pr-dist-check{opacity:.5}
+    .pr-dist-meta{margin-top:.25rem;color:var(--pr-muted-text);font-size:.72rem;line-height:1.5}
+    .pr-dist-readonly{grid-template-columns:minmax(0,1fr);cursor:default}
+    .pr-dist-readonly .pr-dist-values{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .pr-inspection-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;padding:.8rem;background:#f8fafc}
+    .pr-inspection-filters label{display:grid;gap:.35rem;font-size:.7rem;color:var(--pr-secondary);min-width:0}.pr-inspection-filters select{width:100%;min-width:0}
+    .pr-sheet .pr-section-head{align-items:center;margin:.8rem 0;flex-wrap:wrap}
+    @media(max-width:520px){.pr-documents{grid-template-columns:1fr}.pr-sheet .pr-receipt{padding:.8rem}.pr-receipt-top{flex-wrap:wrap}.pr-receipt-metrics{grid-template-columns:1fr 1fr}.pr-receipt-metrics .is-amount{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:.5rem}.pr-document-summary{gap:.35rem}.pr-document-summary>div{padding:.6rem .5rem}.pr-inspection-filters{grid-template-columns:1fr}.pr-sheet .pr-dist{padding:.7rem}.pr-document-summary strong{font-size:1.1rem}}
 </style>
 
 
@@ -2076,16 +2114,30 @@
             </div>
 
             <div id="pr-overview" hidden>
+                <div class="pr-document-summary" id="pr-document-summary"></div>
                 <div id="pr-issues-slot"></div>
 
                 <div class="pr-section-head">
                     <div>
                         <h3>Histórico de comprovantes</h3>
-                        <p>Consulte, atualize ou gere uma nova via.</p>
+                        <p>Consulte as distribuições, atualize ou gere uma nova via.</p>
                     </div>
+                    <button class="pr-btn" type="button" data-inspect-distributions="all"><i class="ph-fill ph-list-magnifying-glass"></i> Todas as distribuições</button>
                 </div>
 
                 <div class="pr-receipts" id="pr-receipts"></div>
+            </div>
+
+            <div id="pr-inspection" hidden>
+                <div class="pr-selection-tools">
+                    <div><strong id="pr-inspection-title">Distribuições</strong><div class="pr-sub" id="pr-inspection-help">Consulte os vínculos sem alterar os documentos.</div></div>
+                    <button class="pr-btn primary" id="pr-inspection-create" type="button" hidden><i class="ph-fill ph-plus"></i> Criar com disponíveis deste filtro</button>
+                </div>
+                <div class="pr-selection-tools pr-inspection-filters">
+                    <label>Folha de faturamento <select class="pr-control" id="pr-inspection-billing"></select></label>
+                    <label>Comprovante do membro <select class="pr-control" id="pr-inspection-coverage"><option value="all">Todos</option><option value="without">Sem comprovante</option><option value="with">Com comprovante</option></select></label>
+                </div>
+                <div class="pr-selection-list" id="pr-inspection-list"></div>
             </div>
 
             <div id="pr-selection" hidden>
@@ -2107,6 +2159,9 @@
                         Marcar disponíveis
                     </button>
                 </div>
+
+                <label class="pr-selection-tools">Folha de faturamento <select class="pr-control" id="pr-selection-billing"></select></label>
+                <button class="pr-btn" type="button" data-inspect-distributions="all"><i class="ph-fill ph-list-magnifying-glass"></i> Consultar todas as distribuições e vínculos</button>
 
                 <div
                     class="pr-selection-list"
@@ -2188,6 +2243,7 @@
     const state = {
         page: 1, lastPage: 1, filter: 'all', timer: null, busy: false,
         associateId: null, associateName: '', check: null, receiptId: null, distributions: [],
+        inspectionRows: [], inspectionRequest: 0,
         preferenceTimer: null, preferencePromise: null,
         confirmResolver: null,
         confirmDecision: null,
@@ -2375,10 +2431,11 @@
         $('pr-modal-loading').hidden = view !== 'loading';
         $('pr-overview').hidden = view !== 'overview';
         $('pr-selection').hidden = view !== 'selection';
+        $('pr-inspection').hidden = view !== 'inspection';
         $('pr-modal-primary').hidden = view !== 'selection';
         $('pr-footer-label').textContent = view === 'selection' ? 'Distribuições selecionadas' : `Situação do ${memberTermLower}`;
         if (view !== 'selection') $('pr-footer-value').textContent = state.check?.uncovered_count ? `${state.check.uncovered_count} pendente(s)` : 'Sem distribuições pendentes';
-        $('pr-modal-back').textContent = view === 'selection' && state.check?.has_receipts ? 'Voltar' : 'Fechar';
+        $('pr-modal-back').textContent = view === 'inspection' || (view === 'selection' && state.check?.has_receipts) ? 'Voltar' : 'Fechar';
     }
 
     function actionableIssues() {
@@ -2428,30 +2485,42 @@
     function renderReceipts() {
         renderIssues('pr-issues-slot');
         const receipts = state.check?.receipts || [];
+        $('pr-document-summary').innerHTML = `
+            <div><small>Comprovantes</small><strong>${receipts.length}</strong></div>
+            <div><small>Distribuições cobertas</small><strong>${receipts.filter(receipt => receipt.status !== 'cancelled').reduce((total, receipt) => total + Number(receipt.distribution_count || 0), 0)}</strong></div>
+            <div><small>A incluir em comprovante</small><strong>${Number(state.check?.uncovered_count || 0)}</strong></div>`;
         $('pr-receipts').innerHTML = receipts.length ? receipts.map(receipt => `
             <article class="pr-receipt">
                 <div class="pr-receipt-top">
-                    <div>
-                        <h4><button class="pr-receipt-link" type="button" data-preview-url="${esc(receipt.reprint_url)}?preview=1">Comprovante ${esc(receipt.number)}</button></h4>
-                        <div class="pr-receipt-meta">
-                            <span>${esc(receipt.issued_at)}</span>
-                            <span>${receipt.distribution_count} distribuição(ões)</span>
-                            ${receipt.total_net_value > 0 ? `<strong>${money(receipt.total_net_value)}</strong>` : ''}
-                        </div>
+                    <div class="pr-receipt-heading">
+                        <span class="pr-receipt-emblem" aria-hidden="true"><i class="ph-fill ph-receipt"></i></span>
+                        <div><small>Comprovante do ${esc(memberTermLower)}</small><h4><button class="pr-receipt-link" type="button" data-inspect-distributions="${receipt.id}">${esc(receipt.number)}</button></h4></div>
                     </div>
                     ${badge(receipt.status, receipt.status_label, !receipt.can_update)}
                 </div>
+                <div class="pr-receipt-metrics">
+                    <div><small>Emissão</small><strong>${esc(receipt.issued_at)}</strong></div>
+                    <div><small>Distribuições</small><strong>${Number(receipt.distribution_count || 0)} itens</strong></div>
+                    <div class="is-amount"><small>Valor líquido</small><strong>${money(receipt.total_net_value)}</strong></div>
+                </div>
                 ${['obsolete','cancelled'].includes(receipt.status) ? `<div class="pr-receipt-note">${esc(receipt.obsolete_reason || (receipt.status === 'cancelled' ? 'Comprovante cancelado; snapshot mantido para histórico.' : 'Este comprovante precisa ser regenerado.'))}${receipt.obsolete_at ? ` · ${esc(receipt.obsolete_at)}` : ''}</div>` : ''}
-                <div class="pr-receipt-actions">
+                <span class="pr-reference-heading">FATURAMENTO DO CLIENTE</span>
+                <div class="pr-document-stack">${billingReferencesHtml({billing_references:receipt.billing_receipts || []})}</div>
+                <div class="pr-receipt-main-actions">
+                    <button class="pr-btn primary" type="button" data-inspect-distributions="${receipt.id}"><i class="ph-fill ph-list-magnifying-glass"></i> Ver distribuições</button>
+                    ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-printer"></i> Abrir PDF / imprimir</button>` : ''}
+                </div>
+                ${(receipt.can_update || receipt.can_regenerate || !['obsolete','cancelled'].includes(receipt.status)) ? `<details class="pr-receipt-secondary"><summary>Editar ou atualizar documento</summary><div class="pr-receipt-actions">
                     ${receipt.can_update ? `<button class="pr-btn" type="button" data-edit-receipt="${receipt.id}"><i class="ph-fill ph-list-checks"></i> ${receipt.status === 'obsolete' ? 'Editar e regenerar' : 'Alterar distribuições'}</button>` : ''}
                     ${receipt.can_regenerate && receipt.distribution_count > 0 ? `<button class="pr-btn danger" type="button" data-regenerate="${receipt.id}"><i class="ph-fill ph-arrows-clockwise"></i> Regenerar agora</button>` : ''}
-                    ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-refresh-document="${esc(receipt.refresh_url)}" title="Atualiza o PDF sem trocar o QR Code"><i class="ph-fill ph-arrow-clockwise"></i> Atualizar comprovante</button>` : ''}
-                    ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-reprint-url="${esc(receipt.reprint_url)}?preview=1"><i class="ph-fill ph-eye"></i> Visualizar e imprimir</button>` : ''}
-                </div>
+                    ${!['obsolete','cancelled'].includes(receipt.status) ? `<button class="pr-btn" type="button" data-refresh-document="${esc(receipt.refresh_url)}" title="Atualiza o PDF sem trocar o QR Code"><i class="ph-fill ph-arrow-clockwise"></i> Atualizar PDF</button>` : ''}
+                </div></details>` : ''}
             </article>`).join('') : `<div class="pr-empty">Nenhum comprovante gerado para este ${esc(memberTermLower)}.</div>`;
         $('pr-modal-primary').hidden = false;
         $('pr-modal-primary').innerHTML = '<i class="ph-fill ph-plus"></i> Novo comprovante';
         $('pr-modal-primary').dataset.action = 'new';
+        $('pr-modal-primary').disabled = false;
+        $('pr-modal-primary').title = '';
         setModalView('overview');
         $('pr-modal-primary').hidden = false;
         icons();
@@ -2489,14 +2558,16 @@
         const checked = item.in_current_receipt && !invalid;
         const reason = !item.customer_name || item.customer_name === '—'
             ? 'Informe um cliente para esta distribuição.'
-            : Number(item.unit_price) <= 0 ? 'Configure um preço válido antes de incluir.' : '';
+            : Number(item.unit_price) <= 0 ? 'Configure um preço válido antes de incluir.'
+            : invalid && item.billing_receipt_id ? 'A alteração de um comprovante existente com itens faturados exige conferência financeira.' : '';
         return `<label class="pr-dist ${invalid ? 'disabled' : ''}">
             <input class="pr-dist-check" type="checkbox" value="${item.id}" data-net="${item.net_value}" ${checked ? 'checked' : ''} ${invalid ? 'disabled' : ''}>
             <div>
                 <div class="pr-dist-head">
                     <div><h4>${esc(item.product_name)}</h4><div class="pr-dist-client">${esc(item.customer_name || 'Cliente não informado')}</div></div>
-                    ${item.in_current_receipt ? '<span class="pr-badge blue">Neste comprovante</span>' : '<span class="pr-badge">Disponível</span>'}
+                    ${item.in_current_receipt ? '<span class="pr-badge blue">Incluída</span>' : '<span class="pr-badge">Disponível</span>'}
                 </div>
+                <div class="pr-documents">${memberReferenceHtml(item)}<div><span class="pr-reference-heading">FATURAMENTO DO CLIENTE</span><div class="pr-document-stack">${billingReferencesHtml(item)}</div></div></div>
                 <div class="pr-dist-values">
                     <div class="pr-dist-value"><span>Data</span><strong>${esc(item.delivery_date)}</strong></div>
                     <div class="pr-dist-value"><span>Quantidade</span><strong>${qty(item.quantity)} ${esc(item.unit)}</strong></div>
@@ -2512,7 +2583,104 @@
         </label>`;
     }
 
-    async function openSelection(receiptId = null) {
+    function billingReferences(row) {
+        return row.billing_references?.length ? row.billing_references : (row.billing_receipt_id ? [{
+            id: row.billing_receipt_id, number: row.billing_receipt_number || '#' + row.billing_receipt_id,
+            status: row.billing_receipt_status || '', source: 'linked',
+        }] : []);
+    }
+
+    function billingReferenceLabel(reference) {
+        if (reference.source === 'snapshot') return `Referência histórica na folha ${reference.number} · sem vínculo atual`;
+        return `Folha de faturamento ${reference.number}${reference.source === 'draft' ? ' · Rascunho' : reference.status ? ' · ' + reference.status : ''}`;
+    }
+
+    function billingReferencesHtml(row) {
+        const references = billingReferences(row);
+        return references.length ? references.map(reference => `<div class="pr-document-chip" data-tone="${reference.source === 'linked' ? 'info' : 'warning'}"><i class="ph-fill ph-files" aria-hidden="true"></i><div><strong>Folha ${esc(reference.number)}</strong><small>${reference.source === 'snapshot' ? 'Referência histórica · sem vínculo atual' : reference.source === 'draft' ? 'Em rascunho · seleção salva' : esc(reference.status || 'Vinculada')}</small></div></div>`).join('')
+            : '<div class="pr-document-chip" data-tone="neutral"><i class="ph-fill ph-file-dashed" aria-hidden="true"></i><div><strong>Sem folha vinculada</strong><small>Nenhum faturamento identificado</small></div></div>';
+    }
+
+    function memberReferenceHtml(row) {
+        const included = Boolean(row.associate_receipt_id || row.in_current_receipt);
+        return `<div><span class="pr-reference-heading">COMPROVANTE DO ${esc(memberTerm.toUpperCase())}</span><div class="pr-document-chip" data-tone="${included ? 'success' : 'neutral'}"><i class="ph-fill ${included ? 'ph-receipt' : 'ph-plus-circle'}" aria-hidden="true"></i><div><strong>${included ? esc(row.associate_receipt_number || 'Neste comprovante') : 'Sem comprovante'}</strong><small>${included ? esc(row.associate_receipt_status || 'Distribuição incluída') : 'Ainda não incluída em comprovante'}</small></div></div></div>`;
+    }
+
+    function billingOptions(rows) {
+        const billings = new Map();
+        rows.forEach(row => {
+            billingReferences(row).forEach(reference => billings.set(String(reference.id), reference));
+        });
+        return '<option value="all">Todas as folhas</option><option value="none">Sem folha de faturamento</option>'
+            + [...billings].map(([id, reference]) => `<option value="${esc(id)}">${esc(billingReferenceLabel(reference))}</option>`).join('');
+    }
+
+    function matchesBilling(row, value) {
+        const references = billingReferences(row);
+        return value === 'all' || (value === 'none' ? !references.length : references.some(reference => String(reference.id) === value));
+    }
+
+    function filteredInspectionRows() {
+        const coverage = $('pr-inspection-coverage').value;
+        return state.inspectionRows.filter(row => matchesBilling(row, $('pr-inspection-billing').value)
+            && (coverage === 'all' || (coverage === 'with' ? row.associate_receipt_id : !row.associate_receipt_id)));
+    }
+
+    function renderInspection() {
+        const rows = filteredInspectionRows();
+        $('pr-inspection-list').innerHTML = rows.map(row => `<article class="pr-dist pr-dist-readonly">
+            <div>
+                <div class="pr-dist-head"><div><h4>${esc(row.product_name)}</h4><div class="pr-dist-meta">${esc(row.customer_name)} · ${esc(row.delivery_date)} · #${row.id}</div></div>${row.removed ? '<span class="pr-badge">Removida</span>' : row.paid ? '<span class="pr-badge blue">Paga ao membro</span>' : ''}</div>
+                <div class="pr-documents">${memberReferenceHtml(row)}<div><span class="pr-reference-heading">FATURAMENTO DO CLIENTE</span><div class="pr-document-stack">${billingReferencesHtml(row)}</div></div></div>
+                <div class="pr-dist-values">
+                    <div class="pr-dist-value"><span>Quantidade</span><strong>${qty(row.quantity)} ${esc(row.unit)}</strong></div>
+                    <div class="pr-dist-value"><span>Preço unitário</span><strong>${money(row.unit_price)}</strong></div>
+                    <div class="pr-dist-value"><span>Valor bruto</span><strong>${money(row.gross_value)}</strong></div>
+                </div>
+                <a class="pr-btn" href="/${tenant}/delivery/projects/${project}/deliveries?open_delivery=${row.parent_delivery_id}"><i class="ph-fill ph-arrow-square-out"></i> Abrir entrega de origem</a>
+            </div>
+        </article>`).join('') || '<div class="pr-empty">Nenhuma distribuição neste filtro.</div>';
+        $('pr-inspection-create').hidden = !rows.some(row => row.available_for_receipt);
+        $('pr-footer-label').textContent = 'Distribuições exibidas · valor bruto';
+        $('pr-footer-value').textContent = `${rows.length} item(ns) · ${money(rows.reduce((sum, row) => sum + Number(row.gross_value || 0), 0))}`;
+    }
+
+    async function openInspection(receiptId = null) {
+        const requestId = ++state.inspectionRequest;
+        const associateId = state.associateId;
+        setModalView('loading');
+        const params = new URLSearchParams({ inspect: '1' });
+        if (receiptId) params.set('receipt_id', String(receiptId));
+        try {
+            const rows = await json(`/${tenant}/delivery/projects/${project}/associates/${associateId}/deliveries?${params}`);
+            if (requestId !== state.inspectionRequest || associateId !== state.associateId) return;
+            state.inspectionRows = rows;
+            const receipt = state.check?.receipts?.find(item => Number(item.id) === Number(receiptId));
+            $('pr-inspection-title').textContent = receipt ? `Distribuições · comprovante ${receipt.number}` : 'Todas as distribuições do membro';
+            $('pr-inspection-help').textContent = receipt?.status === 'cancelled'
+                ? 'Comprovante cancelado: itens históricos identificados pelo registro salvo. Os vínculos abaixo são os atuais.'
+                : 'Consulte comprovantes e folhas, inclusive de itens pagos. Para criar, use somente os itens disponíveis.';
+            $('pr-inspection-billing').innerHTML = billingOptions(rows);
+            $('pr-inspection-coverage').value = 'all';
+            setModalView('inspection');
+            renderInspection();
+        } catch (error) {
+            if (associateId !== state.associateId) return;
+            toast(error.message, 'error');
+            state.check?.has_receipts ? renderReceipts() : closeModal();
+        }
+    }
+
+    function renderSelectionRows(preselected = null) {
+        const ids = preselected || selectedIds();
+        const rows = state.distributions.filter(row => matchesBilling(row, $('pr-selection-billing').value));
+        $('pr-distributions').innerHTML = rows.length ? rows.map(distributionCard).join('')
+            : '<div class="pr-empty">Não há distribuições disponíveis neste filtro.</div>';
+        $('pr-distributions').querySelectorAll('.pr-dist-check:not(:disabled)').forEach(input => input.checked = ids.includes(Number(input.value)));
+        updateSelection();
+    }
+
+    async function openSelection(receiptId = null, preselected = null, billingFilter = 'all') {
         state.receiptId = receiptId ? Number(receiptId) : null;
         setModalView('loading');
         const params = new URLSearchParams({ approved_only:'1' });
@@ -2524,15 +2692,16 @@
                 ? 'Os itens marcados permanecerão no comprovante.'
                 : 'Marque somente as distribuições que deseja incluir.';
             renderIssues('pr-selection-issues');
-            $('pr-distributions').innerHTML = state.distributions.length
-                ? state.distributions.map(distributionCard).join('')
-                : '<div class="pr-empty">Não há distribuições disponíveis para este comprovante.</div>';
+            $('pr-selection-billing').innerHTML = billingOptions(state.distributions);
+            $('pr-selection-billing').closest('label').hidden = !!state.receiptId;
+            $('pr-selection-billing').value = billingFilter;
+            if (!$('pr-selection-billing').value) $('pr-selection-billing').value = 'all';
             $('pr-modal-primary').innerHTML = state.receiptId
                 ? '<i class="ph-fill ph-floppy-disk"></i> Salvar e gerar PDF'
                 : '<i class="ph-fill ph-file-arrow-down"></i> Gerar comprovante';
             $('pr-modal-primary').dataset.action = 'save';
             setModalView('selection');
-            updateSelection();
+            renderSelectionRows(preselected || state.distributions.filter(row => row.in_current_receipt).map(row => Number(row.id)));
             icons();
         } catch (error) {
             toast(error.message, 'error');
@@ -2820,6 +2989,8 @@
         state.check = null;
         state.receiptId = null;
         state.distributions = [];
+        state.inspectionRows = [];
+        ++state.inspectionRequest;
     }
 
     root.addEventListener('click', event => {
@@ -2845,9 +3016,21 @@
     $('pr-next').addEventListener('click', () => { state.page = Math.min(state.lastPage, state.page + 1); loadProducers(); });
     $('pr-modal-close').addEventListener('click', closeModal);
     $('pr-modal-back').addEventListener('click', () => {
-        if (! $('pr-selection').hidden && state.check?.has_receipts) renderReceipts();
+        if ((! $('pr-selection').hidden || ! $('pr-inspection').hidden) && state.check?.has_receipts) renderReceipts();
+        else if (! $('pr-inspection').hidden) openSelection();
         else closeModal();
     });
+    $('pr-modal').addEventListener('click', event => {
+        const button = event.target.closest('[data-inspect-distributions]');
+        if (button) openInspection(button.dataset.inspectDistributions === 'all' ? null : Number(button.dataset.inspectDistributions));
+    });
+    $('pr-inspection-billing').addEventListener('change', renderInspection);
+    $('pr-inspection-coverage').addEventListener('change', renderInspection);
+    $('pr-inspection-create').addEventListener('click', () => {
+        const ids = filteredInspectionRows().filter(row => row.available_for_receipt).map(row => Number(row.id));
+        openSelection(null, ids, $('pr-inspection-billing').value);
+    });
+    $('pr-selection-billing').addEventListener('change', () => renderSelectionRows());
     $('pr-modal-primary').addEventListener('click', () => {
         if ($('pr-modal-primary').dataset.action === 'new') openSelection();
         else saveReceipt();

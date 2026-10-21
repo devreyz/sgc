@@ -168,6 +168,13 @@
             </header>
 
             <div class="billing-section-body">
+                <div class="billing-summary" aria-label="Totais das distribuições selecionadas" aria-live="polite">
+                    <article><span>Total bruto entregue</span><strong data-selection-gross>R$ 0,00</strong></article>
+                    <article><span>Taxas e ajustes</span><strong data-selection-fees>R$ 0,00</strong></article>
+                    <article><span>Total a faturar</span><strong data-selection-net>R$ 0,00</strong></article>
+                </div>
+                <p class="billing-help" data-selection-quantities>Nenhuma distribuição selecionada.</p>
+                <p class="billing-help" data-selection-totals-status role="status"></p>
                 <div class="billing-mode-tabs" role="tablist" aria-label="Forma de seleção">
                     <button type="button" class="billing-mode-btn is-active" data-mode="period"><i class="ph ph-calendar-dots" aria-hidden="true"></i><span>Todo o período</span></button>
                     <button type="button" class="billing-mode-btn" data-mode="receipts"><i class="ph ph-receipt" aria-hidden="true"></i><span>Documentos de origem</span></button>

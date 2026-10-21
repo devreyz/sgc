@@ -108,8 +108,17 @@ final class CustomerBillingSelectionService
                     ->whereColumn('billing_parent.id', 'production_deliveries.parent_delivery_id')
                     ->whereColumn('billing_parent.tenant_id', 'production_deliveries.tenant_id')
                     ->whereColumn('billing_parent.sales_project_id', 'production_deliveries.sales_project_id')
+                    ->whereColumn('billing_parent.product_id', 'production_deliveries.product_id')
+                    ->whereColumn('billing_parent.associate_id', 'production_deliveries.associate_id')
+                    ->where('billing_parent.status', DeliveryStatus::APPROVED->value)
                     ->whereNull('billing_parent.parent_delivery_id')
                     ->whereNull('billing_parent.deleted_at');
+            })
+            ->whereExists(function ($customer): void {
+                $customer->selectRaw('1')->from('customers as billing_customer')
+                    ->whereColumn('billing_customer.id', 'production_deliveries.customer_id')
+                    ->whereColumn('billing_customer.tenant_id', 'production_deliveries.tenant_id')
+                    ->whereNull('billing_customer.deleted_at');
             })
             ->where('status', DeliveryStatus::APPROVED->value)
             ->where('quantity', '>', 0)
@@ -225,10 +234,10 @@ final class CustomerBillingSelectionService
             $lockedIds = $this->lockedDistributionIds($tenantId, $currentReceiptId);
             $rows = ProductionDelivery::withoutGlobalScopes()
                 ->where('tenant_id', $tenantId)->whereIn('id', $excluded)
-                ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id', 'deleted_at']);
+                ->get(['id', 'sales_project_id', 'customer_id', 'parent_delivery_id', 'product_id', 'associate_id', 'delivery_date', 'quantity', 'unit_price', 'status', 'billing_receipt_id', 'deleted_at']);
             $parents = ProductionDelivery::withoutGlobalScopes()->withTrashed()
                 ->whereIn('id', $rows->pluck('parent_delivery_id')->filter()->unique())
-                ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'deleted_at'])
+                ->get(['id', 'tenant_id', 'sales_project_id', 'parent_delivery_id', 'product_id', 'associate_id', 'status', 'deleted_at'])
                 ->keyBy('id');
             $organizationCustomerIds = $organizationId
                 ? Customer::withoutGlobalScopes()->where('tenant_id', $tenantId)->whereNull('deleted_at')->where('organization_id', $organizationId)->pluck('id')->map(fn ($id): int => (int) $id)->all()
@@ -253,6 +262,9 @@ final class CustomerBillingSelectionService
                     (int) $parents->get((int) $row->parent_delivery_id)?->tenant_id !== $tenantId
                         || (int) $parents->get((int) $row->parent_delivery_id)?->sales_project_id !== (int) $row->sales_project_id
                         || $parents->get((int) $row->parent_delivery_id)?->parent_delivery_id !== null => 'entrega_pai_incompativel',
+                    (int) $parents->get((int) $row->parent_delivery_id)?->product_id !== (int) $row->product_id
+                        || (int) $parents->get((int) $row->parent_delivery_id)?->associate_id !== (int) $row->associate_id => 'entrega_pai_incompativel',
+                    $parents->get((int) $row->parent_delivery_id)?->status !== DeliveryStatus::APPROVED => 'entrega_pai_nao_aprovada',
                     ($row->status instanceof DeliveryStatus ? $row->status->value : (string) $row->status) !== DeliveryStatus::APPROVED->value => 'nao_aprovada',
                     bccomp((string) $row->quantity, '0', 8) <= 0 || bccomp((string) $row->unit_price, '0', 8) <= 0 => 'valor_invalido',
                     $row->billing_receipt_id && (int) $row->billing_receipt_id !== $currentReceiptId => 'ja_faturada',

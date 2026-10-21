@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             // 1. Tenants e Roles/Permissions primeiro
             TenantSeeder::class,
             RolesAndPermissionsSeeder::class,
+            PlanningMenuPermissionsSeeder::class,
             RolesSeeder::class,
             
             // 2. Usuários e associados

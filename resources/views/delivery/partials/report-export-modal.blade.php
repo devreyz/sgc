@@ -1461,6 +1461,10 @@
                         </div>
 
                         <div class="dr-field">
+                            <label class="dr-label" for="dr-analysis">Análise</label>
+                            <select class="dr-select" id="dr-analysis"><option value="standard">Operacional</option><option value="consumption">Consumo</option><option value="compliance">Conformidade</option><option value="nutrition">Nutrição</option></select>
+                            <label class="dr-label" for="dr-competency">Competência</label>
+                            <select class="dr-select" id="dr-competency"><option value="delivery">Distribuição</option><option value="consumption">Consumo</option></select>
                             <label class="dr-label" for="dr-date-from">
                                 Data inicial
                             </label>
@@ -1962,6 +1966,8 @@
             grouping:type === 'customer' ? document.getElementById('dr-grouping').value : 'delivery',
         };
         const params = new URLSearchParams({format, type});
+        params.set('analysis_mode', document.getElementById('dr-analysis').value);
+        params.set('competency', document.getElementById('dr-competency').value);
         const from = document.getElementById('dr-date-from').value;
         const to = document.getElementById('dr-date-to').value;
         if (from) params.set('date_from', from);
@@ -2013,6 +2019,12 @@
     project.addEventListener('change', loadOptions);
     modal.querySelectorAll('[name="dr-type"]').forEach(input => input.addEventListener('change', applyPreferences));
     modal.querySelectorAll('[data-dr-close]').forEach(button => button.addEventListener('click', close));
+    document.getElementById('dr-analysis').addEventListener('change', function () {
+        const competency = document.getElementById('dr-competency');
+        competency.value = this.value === 'standard' ? 'delivery' : 'consumption';
+        competency.querySelector('[value="consumption"]').disabled = this.value === 'standard';
+    });
+    document.getElementById('dr-competency').querySelector('[value="consumption"]').disabled = true;
     modal.querySelectorAll('[data-dr-export]').forEach(button => button.addEventListener('click', () => exportReport(button.dataset.drExport)));
     modal.querySelectorAll('[data-dr-search]').forEach(input => input.addEventListener('input', () => {
         const query = input.value.trim().toLocaleLowerCase('pt-BR');

@@ -76,6 +76,7 @@
 @endphp
 
 @section('content')
+<p><a class="btn btn-primary" href="{{ route('delivery.projects.planning', ['tenant' => $currentTenant->slug, 'project' => $project->id]) }}">Planejamento, atendimento e consumo</a></p>
 <style>
     .pd-page,
     .pd-modal-scope,
@@ -3884,7 +3885,15 @@ function applyResolvedIntegrity(integrity) {
     }
 }
 
-async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0, associateId = 0, associateName = '') {
+async function handleIntegrityAction(actionKey, deliveryId = 0, distributionId = 0, associateId = 0, associateName = '', menuId = 0) {
+    if (actionKey === 'open_menu') {
+        if (menuId > 0) window.location.href = `/${encodeURIComponent(PD_TENANT)}/delivery/projects/${Number(PD_PROJECT)}/planning/menus/${Number(menuId)}`;
+        return;
+    }
+    if (actionKey === 'open_planning') {
+        window.location.href = @json(route('delivery.projects.planning', ['tenant' => $currentTenant->slug, 'project' => $project->id])) + (distributionId ? '?distribution=' + Number(distributionId) + '#distribution-' + Number(distributionId) : '');
+        return;
+    }
     if (actionKey === 'open_distribution') {
         openIntegrityDistribution(deliveryId, distributionId);
         return;
@@ -3961,7 +3970,8 @@ document.addEventListener('click', event => {
         Number(button.dataset.deliveryId || 0),
         Number(button.dataset.distributionId || 0),
         Number(button.dataset.associateId || 0),
-        button.dataset.associateName || ''
+        button.dataset.associateName || '',
+        Number(button.dataset.menuId || 0)
     );
 });
 
@@ -4975,6 +4985,8 @@ function integrityActionLabel(actionKey) {
         open_distribution: 'Distribuir',
         edit_distribution: 'Corrigir distribuição',
         open_producers: 'Abrir produtor',
+        open_planning: 'Abrir planejamento',
+        open_menu: 'Abrir cardápio',
         detach_missing_associate_receipt: 'Desvincular',
         delete_orphan_distribution: 'Excluir órfã',
         restore_parent_delivery: 'Restaurar entrega-pai',
@@ -5060,6 +5072,7 @@ function renderIntegrityCenter(integrity) {
                                 data-delivery-id="${deliveryId}"
                                 data-distribution-id="${distributionId}"
                                 data-associate-id="${associateId}"
+                                data-menu-id="${Number(issue.menuId || 0)}"
                                 data-associate-name="${esc(associateName)}"
                             >
                                 <i class="ph-duotone ph-wrench" aria-hidden="true"></i>

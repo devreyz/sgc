@@ -13,6 +13,8 @@
     let step = 1;
     let mode = "period";
     let preview = null;
+    let selectionSummaryTimer = null;
+    let selectionSummaryRequest = 0;
     let reportAnnotations = [];
     let recipientRequest = 0;
     let activeDialog = null;
@@ -193,7 +195,58 @@
         root.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
-    const updateCount = () => {
+    const renderSelectionTotals = (data = null) => {
+        ['gross', 'fees', 'net'].forEach(key => {
+            const target = q(`[data-selection-${key}]`);
+            if (target) target.textContent = money(data?.totals?.[key] || 0);
+        });
+        const quantities = new Map();
+        (data?.distributions || []).forEach(row => {
+            const unit = row.unit || 'un';
+            quantities.set(unit, (quantities.get(unit) || 0) + Math.round(Number(row.quantity || 0) * 10000));
+        });
+        const target = q('[data-selection-quantities]');
+        if (target) target.textContent = quantities.size
+            ? `Quantidade entregue: ${[...quantities].map(([unit, amount]) => `${(amount / 10000).toLocaleString('pt-BR', { maximumFractionDigits: 4 })} ${unit}`).join(' · ')}`
+            : 'Nenhuma distribuição selecionada.';
+    };
+
+    const scheduleSelectionTotals = () => {
+        clearTimeout(selectionSummaryTimer);
+        const requestId = ++selectionSummaryRequest;
+        const status = q('[data-selection-totals-status]');
+        if (!selected.size) {
+            renderSelectionTotals();
+            if (status) status.textContent = '';
+            return;
+        }
+        // O resumo usa o mesmo cálculo do faturamento, incluindo consolidação,
+        // arredondamento e taxas do cliente, também na leitura de lotes por QR.
+        ['gross', 'fees', 'net'].forEach(key => {
+            const target = q(`[data-selection-${key}]`);
+            if (target) target.textContent = '…';
+        });
+        if (q('[data-selection-quantities]')) q('[data-selection-quantities]').textContent = '';
+        if (status) status.textContent = 'Calculando seleção…';
+        selectionSummaryTimer = setTimeout(async () => {
+            try {
+                validateContext();
+                const data = await request(root.dataset.previewUrl, {
+                    method: 'POST', body: JSON.stringify(values()),
+                });
+                if (requestId !== selectionSummaryRequest) return;
+                renderSelectionTotals(data);
+                if (status) status.textContent = data.excluded_count
+                    ? `${data.excluded_count} distribuição(ões) incompatível(is) não entram nestes totais.`
+                    : 'Totais das distribuições selecionadas.';
+            } catch (error) {
+                if (requestId !== selectionSummaryRequest) return;
+                if (status) status.textContent = `Não foi possível calcular a seleção: ${error.message}`;
+            }
+        }, 350);
+    };
+
+    const updateCount = (refreshTotals = true) => {
         const label =
             selected.size === 1
                 ? "1 selecionada"
@@ -201,6 +254,7 @@
         qa("[data-selected-count]").forEach((element) => {
             element.textContent = label;
         });
+        if (refreshTotals) scheduleSelectionTotals();
     };
 
     const renderProjectSummary = () => {
@@ -693,7 +747,11 @@
 
         selected.clear();
         (preview.selected_ids || []).forEach((id) => selected.add(Number(id)));
-        updateCount();
+        clearTimeout(selectionSummaryTimer);
+        ++selectionSummaryRequest;
+        updateCount(false);
+        renderSelectionTotals(preview);
+        if (q('[data-selection-totals-status]')) q('[data-selection-totals-status]').textContent = '';
         renderPreview();
         return preview;
     };

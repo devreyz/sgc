@@ -86,7 +86,7 @@ class ProductionDelivery extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['quantity', 'unit_price', 'status', 'admin_fee_amount', 'net_value'])
+            ->logOnly(['sales_project_id', 'parent_delivery_id', 'product_id', 'customer_id', 'quantity', 'unit_price', 'status', 'admin_fee_amount', 'net_value'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
@@ -105,6 +105,11 @@ class ProductionDelivery extends Model
     public function distributions(): HasMany
     {
         return $this->hasMany(ProductionDelivery::class, 'parent_delivery_id');
+    }
+
+    public function consumptionProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(DistributionConsumptionProfile::class, 'distribution_id');
     }
 
     public function quantityAdjustments(): HasMany
@@ -317,6 +322,10 @@ class ProductionDelivery extends Model
                     $delivery->product_id = $demand->product_id;
                 }
             }
+        });
+
+        static::updating(function (ProductionDelivery $delivery): void {
+            app(\App\Services\Planning\DistributionPlanningContext::class)->preserveOriginalContext($delivery);
         });
 
         // Calculate admin fee, cost price and net value before saving (BCMath)
