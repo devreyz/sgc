@@ -53,6 +53,6 @@ final class BillingReportContentRenderer
 
     private function quantity(string $value): string
     {
-        return rtrim(rtrim(number_format((float) $value, 4, ',', '.'), '0'), ',');
+        return \App\Support\PdfQuantityFormatter::format($value);
     }
 }

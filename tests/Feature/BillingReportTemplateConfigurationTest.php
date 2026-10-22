@@ -79,7 +79,7 @@ class BillingReportTemplateConfigurationTest extends TestCase
             'gross' => '10', 'documents' => []];
         $html = (string) app(BillingReportContentRenderer::class)->render('intro', $report, $template);
         self::assertStringContainsString('&lt;script&gt;', $html);
-        self::assertStringContainsString('5 kg · 2 un', $html);
+        self::assertStringContainsString('5,000 kg · 2,000 un', $html);
         self::assertStringContainsString('001/2026', $html);
         self::assertStringNotContainsString('<script>', $html);
     }

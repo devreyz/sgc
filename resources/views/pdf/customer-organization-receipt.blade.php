@@ -32,25 +32,7 @@ $reportAnnotations = isset($receipt) ? $reportAnnotationService->notes($receipt)
 $reportAnnotationPosition = $receipt->report_annotations_position ?? 'after';
 $showSection   = fn (string $section): bool => in_array($section, $pdfSections, true);
 
-/**
- * Formata quantidade sem zeros decimais desnecessários.
- * Ex: 10 → "10" | 10.5 → "10,5" | 10.123 → "10,123" | 10.1234 → "10,1234"
- */
-$fmtQtyOrg = function (float $n): string {
-    if ($n == floor($n)) {
-        return number_format((int) $n, 0, ',', '.');
-    }
-    // Tenta 2 casas; se arredondar sem perda, usa 2
-    if (round($n, 2) == $n) {
-        return number_format($n, 2, ',', '.');
-    }
-    // Senão até 4, mas remove zeros à direita
-    $str = number_format($n, 4, ',', '.');
-    // Remove zeros após a vírgula decimal
-    $str = rtrim($str, '0');
-    $str = rtrim($str, ',');
-    return $str;
-};
+$fmtQtyOrg = static fn (float $number): string => \App\Support\PdfQuantityFormatter::format($number);
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">

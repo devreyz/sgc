@@ -34,11 +34,7 @@ $primaryColor = '#0a0a0a';
 $lineColor    = '#c0c8d4';
 $textColor    = '#000000';
 
-$fmtQtyBilling = static function (float $number): string {
-    if ($number == floor($number)) return number_format((int) $number, 0, ',', '.');
-    if (round($number, 2) == $number) return number_format($number, 2, ',', '.');
-    return rtrim(rtrim(number_format($number, 4, ',', '.'), '0'), ',');
-};
+$fmtQtyBilling = static fn (float $number): string => \App\Support\PdfQuantityFormatter::format($number);
 @endphp
 <!DOCTYPE html>
 <html lang="pt-BR">

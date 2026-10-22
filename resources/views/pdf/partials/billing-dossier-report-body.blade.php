@@ -11,7 +11,7 @@
     $showCol = fn ($column) => in_array($column, $columns, true);
     $sectionOrder = collect(array_merge($system_pdf_template?->section_order ?? [], array_keys($definition['sections'])))
         ->unique()->filter(fn ($section) => $showSection($section) && isset($definition['sections'][$section]));
-    $fmtQuantity = fn ($quantity) => rtrim(rtrim(number_format((float) $quantity, 4, ',', '.'), '0'), ',');
+    $fmtQuantity = fn ($quantity) => \App\Support\PdfQuantityFormatter::format($quantity);
     $renderContent = fn ($slot) => app(\App\Services\Accounting\BillingReportContentRenderer::class)->render($slot, $report, $system_pdf_template ?? null);
 @endphp
 <div class="billing-dossier-report">

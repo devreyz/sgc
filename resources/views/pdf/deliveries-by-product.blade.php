@@ -56,7 +56,7 @@
         <div class="group-subtitle">
             Unidade: {{ $group['unit'] ?? 'un' }} |
             {{ $group['deliveries_count'] }} distribuição(s) |
-            Qtd Total: {{ number_format($group['total_quantity'], 2, ',', '.') }} {{ $group['unit'] ?? '' }} |
+            Qtd Total: {{ \App\Support\PdfQuantityFormatter::format($group['total_quantity']) }} {{ $group['unit'] ?? '' }} |
             Bruto: R$ {{ number_format($group['gross_value'], 2, ',', '.') }} |
             Líquido: R$ {{ number_format($group['net_value'], 2, ',', '.') }}
         </div>
@@ -84,7 +84,7 @@
                 @if($showCol('project'))<td>{{ \Illuminate\Support\Str::limit($d['project'], 22) }}</td>@endif
                 @if($showCol('associate'))<td>{{ $d['associate'] }}</td>@endif
                 <td>{{ $d['customer'] ?? '—' }}</td>
-                @if($showCol('quantity'))<td class="text-right">{{ number_format($d['quantity'], 2, ',', '.') }}</td>@endif
+                @if($showCol('quantity'))<td class="text-right">{{ \App\Support\PdfQuantityFormatter::format($d['quantity']) }}</td>@endif
                 @if($showCol('unit_price'))<td class="text-right">R$ {{ number_format($d['unit_price'], 2, ',', '.') }}</td>@endif
                 @if($showCol('gross_value'))<td class="text-right">R$ {{ number_format($d['gross_value'], 2, ',', '.') }}</td>@endif
                 @if($showCol('admin_fee'))<td class="text-right">R$ {{ number_format($d['admin_fee'], 2, ',', '.') }}</td>@endif
@@ -110,7 +110,7 @@
             <tr>
                 @php $colspan = collect(['date','project','associate'])->filter(fn($c) => $showCol($c))->count() + 1; @endphp
                 <td colspan="{{ max(1, $colspan) }}"><strong>SUBTOTAL — {{ $group['product_name'] }}</strong></td>
-                @if($showCol('quantity'))<td class="text-right"><strong>{{ number_format($group['total_quantity'], 2, ',', '.') }}</strong></td>@endif
+                @if($showCol('quantity'))<td class="text-right"><strong>{{ \App\Support\PdfQuantityFormatter::format($group['total_quantity']) }}</strong></td>@endif
                 @if($showCol('unit_price'))<td></td>@endif
                 @if($showCol('gross_value'))<td class="text-right"><strong>R$ {{ number_format($group['gross_value'], 2, ',', '.') }}</strong></td>@endif
                 @if($showCol('admin_fee'))<td class="text-right"><strong>R$ {{ number_format($group['admin_fee'], 2, ',', '.') }}</strong></td>@endif
@@ -136,7 +136,7 @@
         </tr>
         <tr>
             <td class="label">Quantidade Total:</td>
-            <td class="value">{{ number_format($totals['total_quantity'], 2, ',', '.') }}</td>
+            <td class="value">{{ \App\Support\PdfQuantityFormatter::format($totals['total_quantity']) }}</td>
             <td class="label">Valor Bruto Total:</td>
             <td class="value">R$ {{ number_format($totals['total_gross'], 2, ',', '.') }}</td>
         </tr>

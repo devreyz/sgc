@@ -685,7 +685,7 @@ class PdfRenderingCompatibilityTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Totais gerais por produto no período', $html);
-        $this->assertStringContainsString('25&nbsp;kg', $html);
+        $this->assertStringContainsString('25,000&nbsp;kg', $html);
         $this->assertStringContainsString('R$ 125,00', $html);
         $this->assertStringContainsString('- R$ 5,00', $html);
         $this->assertStringNotContainsString('Entregas por Produto', $html);

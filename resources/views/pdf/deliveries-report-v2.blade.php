@@ -62,7 +62,7 @@
                 <td>{{ $delivery->product->name ?? '—' }}</td>
             @endif
             @if($showCol('quantity'))
-                <td class="text-right">{{ number_format($delivery->quantity, 2, ',', '.') }} {{ $delivery->product->unit ?? '' }}</td>
+                <td class="text-right">{{ \App\Support\PdfQuantityFormatter::format($delivery->quantity) }} {{ $delivery->product->unit ?? '' }}</td>
             @endif
             @if($showCol('unit_price'))
                 <td class="text-right">R$ {{ number_format($delivery->unit_price, 2, ',', '.') }}</td>
@@ -112,7 +112,7 @@
             <td class="label">Total de Entregas:</td>
             <td class="value">{{ $deliveries->count() }}</td>
             <td class="label">Quantidade Total:</td>
-            <td class="value">{{ number_format($totals['quantity'] ?? 0, 2, ',', '.') }}</td>
+            <td class="value">{{ \App\Support\PdfQuantityFormatter::format($totals['quantity'] ?? 0) }}</td>
         </tr>
         <tr>
             <td class="label">Valor Bruto Total:</td>

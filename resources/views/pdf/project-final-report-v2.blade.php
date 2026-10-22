@@ -39,7 +39,7 @@
         <div class="card-label">Entregas</div>
     </div>
     <div class="summary-card">
-        <div class="card-value">{{ number_format($totals['quantity'], 2, ',', '.') }}</div>
+        <div class="card-value">{{ \App\Support\PdfQuantityFormatter::format($totals['quantity']) }}</div>
         <div class="card-label">Quantidade Total</div>
     </div>
     <div class="summary-card">
@@ -102,7 +102,7 @@
         <tr>
             <td><strong>{{ $associate['name'] }}</strong></td>
             <td class="text-center">{{ $associate['deliveries_count'] }}</td>
-            <td class="text-right">{{ number_format($associate['total_quantity'], 2, ',', '.') }}</td>
+            <td class="text-right">{{ \App\Support\PdfQuantityFormatter::format($associate['total_quantity']) }}</td>
             <td class="text-right">R$ {{ number_format($associate['gross_value'], 2, ',', '.') }}</td>
             <td class="text-right"><strong class="text-success">R$ {{ number_format($associate['net_value'], 2, ',', '.') }}</strong></td>
         </tr>
@@ -117,7 +117,7 @@
         <tr>
             <td><strong>TOTAL</strong></td>
             <td class="text-center"><strong>{{ $totals['deliveries'] }}</strong></td>
-            <td class="text-right"><strong>{{ number_format($totals['quantity'], 2, ',', '.') }}</strong></td>
+            <td class="text-right"><strong>{{ \App\Support\PdfQuantityFormatter::format($totals['quantity']) }}</strong></td>
             <td class="text-right"><strong>R$ {{ number_format($totals['gross'], 2, ',', '.') }}</strong></td>
             <td class="text-right"><strong class="text-success">R$ {{ number_format($totals['net'], 2, ',', '.') }}</strong></td>
         </tr>

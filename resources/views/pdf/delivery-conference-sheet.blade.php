@@ -11,7 +11,7 @@ $detailed = ($snapshot['grouping_mode'] ?? '') === 'organization_detailed';
 $groups = $detailed
     ? $rows->groupBy(fn (array $row): string => (string) data_get($row, 'customer.id', data_get($row, 'customer.name')))
     : collect(['single' => $rows]);
-$fmtQty = static fn ($value): string => rtrim(rtrim(number_format((float) $value, 4, ',', '.'), '0'), ',');
+$fmtQty = static fn ($value): string => \App\Support\PdfQuantityFormatter::format($value);
 $fmtMoney = static fn ($value): string => 'R$ '.number_format((float) $value, 2, ',', '.');
 $fmtDate = static fn ($value): string => $value ? \Carbon\Carbon::parse($value)->format('d/m/Y') : '—';
 $pdfSections = $visible_sections ?? ['document_info', 'recipient_info', 'distributions', 'signature'];

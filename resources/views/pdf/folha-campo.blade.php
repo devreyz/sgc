@@ -103,7 +103,7 @@
             @forelse ($demands as $demand)
             <tr>
                 <td><strong>{{ $demand->product->name ?? '-' }}</strong></td>
-                <td>{{ number_format($demand->target_quantity, 2, ',', '.') }} {{ $demand->product->unit ?? '' }}</td>
+                <td>{{ \App\Support\PdfQuantityFormatter::format($demand->target_quantity) }} {{ $demand->product->unit ?? '' }}</td>
                 <td>
                     @switch($demand->frequency)
                         @case('unica') Única @break

@@ -148,6 +148,22 @@ class BillingDossierPdfRenderingTest extends TestCase
         }
     }
 
+    public function test_delivery_report_quantities_keep_trailing_zeroes_and_monetary_columns_keep_their_precision(): void
+    {
+        foreach (['members', 'acceptance'] as $type) {
+            $data = $this->data($type);
+            $product = $data['report']['products'][0];
+            $products = [];
+            foreach (['23.347', '6.9', '13.1', '34'] as $quantity) $products[] = array_merge($product, ['quantity' => $quantity, 'unit_price' => '7.18', 'gross' => '244.1']);
+            $data['report']['customers'][0]['members'][0]['products'] = $products;
+            $data['report']['commercial_products'] = $products;
+            $before = $data['report'];
+            $html = view(BillingDossierReportService::TYPES[$type]['view'], $data)->render();
+            foreach (['23,347', '6,900', '13,100', '34,000', '7,1800', '244,10'] as $text) self::assertStringContainsString($text, $html);
+            self::assertSame($before, $data['report']);
+        }
+    }
+
     public function test_system_pdf_omits_template_generation_dates_but_direct_views_keep_their_timestamp(): void
     {
         $data = $this->data('members');

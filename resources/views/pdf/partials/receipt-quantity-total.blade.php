@@ -10,7 +10,7 @@
     ksort($quantityTotals);
 @endphp
 @forelse($quantityTotals as $quantityUnit => $quantityValue)
-    <span style="display:block;white-space:nowrap">{{ rtrim(rtrim(number_format((float) $quantityValue, 4, ',', '.'), '0'), ',') }}&nbsp;{{ $quantityUnit }}</span>
+    <span style="display:block;white-space:nowrap">{{ \App\Support\PdfQuantityFormatter::format($quantityValue) }}&nbsp;{{ $quantityUnit }}</span>
 @empty
     <span>—</span>
 @endforelse
