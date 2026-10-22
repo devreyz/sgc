@@ -83,7 +83,7 @@ body { margin: 0; color: #111; font-family: 'DejaVu Sans', Arial, sans-serif; fo
 </style>
 </head>
 <body>
-<div class="footer">SGC · Folha de Conferência de Entregas · Página <span class="pagenum"></span></div>
+<div class="footer">SGC · Folha de Conferência de Entregas@unless($suppress_internal_pagination ?? false) · Página <span class="pagenum"></span>@endunless</div>
 
 @foreach($groups as $groupRows)
     @php $clientName = $detailed ? data_get($groupRows->first(), 'customer.name') : null; @endphp

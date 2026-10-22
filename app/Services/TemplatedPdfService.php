@@ -47,7 +47,9 @@ class TemplatedPdfService
             allVars: $allVars,
         );
 
-        return Pdf::loadHTML($html)->setPaper($template->paper_size ?? 'a4', $template->paper_orientation ?? 'portrait');
+        return app(PdfUpdateFooterService::class)->paginate(
+            Pdf::loadHTML($html)->setPaper($template->paper_size ?? 'a4', $template->paper_orientation ?? 'portrait'),
+        );
     }
 
     /**
@@ -165,7 +167,7 @@ class TemplatedPdfService
             // fail silently if canvas not available or method names differ
         }
 
-        return $pdf;
+        return app(PdfUpdateFooterService::class)->paginate($pdf, true);
     }
 
     /**
@@ -187,7 +189,7 @@ class TemplatedPdfService
         $allVars['{{cor.destaque}}'] = $accentColor;
 
         $headerHtml = $this->resolveLayoutHtml($template->header_layout_id, $title, $primaryColor, $accentColor, 'header', $allVars, $tenant);
-        $footerHtml = $this->resolveLayoutHtml($template->footer_layout_id, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant);
+        $footerHtml = $this->resolveLayoutHtml($template->footer_layout_id, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant, false, true);
         $coverHtml = $this->resolveCoverHtml($template->cover_layout_id, $allVars);
         $backHtml = $this->resolveCoverHtml($template->back_cover_layout_id, $allVars);
 
@@ -313,7 +315,8 @@ HTML;
         string $type = 'header',
         array $allVars = [],
         ?Tenant $tenant = null,
-        bool $suppressGenerationTimestamp = false
+        bool $suppressGenerationTimestamp = false,
+        bool $suppressPagination = false
     ): string {
         if ($layoutId) {
             $layout = PdfLayoutTemplate::find($layoutId);
@@ -338,12 +341,13 @@ HTML;
             $generated = $this->today();
             $cnpjLine = $orgCnpj ? " | {$orgCnpj}" : '';
             $generationLine = $suppressGenerationTimestamp ? $orgCnpj : "Gerado em: {$generated}{$cnpjLine}";
+            $paginationHtml = $suppressPagination ? '' : '<div style="font-size:9px;color:#9ca3af;margin-top:2px;">Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span></div>';
 
             return <<<HTML
 <div class="pdf-footer-custom" style="text-align:center;font-family:Arial, sans-serif;">
     <div style="font-weight:700;color:#334155;font-size:11px;">{$orgName}</div>
     <div style="font-size:9px;color:#6b7280;margin-top:3px;">{$generationLine}</div>
-    <div style="font-size:9px;color:#9ca3af;margin-top:2px;">Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span></div>
+    {$paginationHtml}
 </div>
 HTML;
         }
@@ -406,6 +410,7 @@ HTML;
         $renderedAt = now();
         // The canvas footer owns generation time. Keep issue/receipt dates in the document.
         $viewData['suppress_generation_timestamp'] = true;
+        $viewData['suppress_internal_pagination'] = true;
         $tenant = $options['tenant'] ?? $viewData['tenant'] ?? null;
         $tenantId = (int) ($tenant?->id ?? session('tenant_id'));
         $projectType = $options['project_type'] ?? data_get($viewData, 'project.type');
@@ -499,8 +504,8 @@ HTML;
         }
 
         // Build header/footer HTML via existing resolver (uses custom layout or fallback with pagination)
-        $headerHtml = $this->resolveLayoutHtml($headerLayoutId, $title, $primaryColor, $accentColor, 'header', $allVars, $tenant, true);
-        $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant, true);
+        $headerHtml = $this->resolveLayoutHtml($headerLayoutId, $title, $primaryColor, $accentColor, 'header', $allVars, $tenant, true, true);
+        $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant, true, true);
 
         $fixedHeader = "<div id=\"page-header\">{$headerHtml}</div>";
         $fixedFooter = "<div id=\"page-footer\">{$footerHtml}</div>";
@@ -575,7 +580,7 @@ HTMLDOC;
                 // Inject concrete total back into footer
                 $allVars['{{pagina.total}}'] = (string) $pageCount;
 
-                $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant);
+                $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant, true, true);
                 $fixedFooter = "<div id=\"page-footer\">{$footerHtml}</div>";
 
                 // Replace only the footer placeholder in the HTML for speed

@@ -402,7 +402,7 @@
         <br>
         <span style="font-size:6px;">SGC — Sistema de Gestão Cooperativa</span>
         <br>
-        Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span>
+        @unless($suppress_internal_pagination ?? false)Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span>@endunless
     </div>
     @endunless
 </body>
