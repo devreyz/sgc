@@ -129,7 +129,23 @@ class BillingDossierPdfRenderingTest extends TestCase
         self::assertStringNotContainsString('RELATÓRIO DE ENTREGAS · CLIENTE', $html);
         self::assertStringContainsString('Escola Municipal', $html);
         self::assertStringContainsString('Outro cliente', $html);
-        self::assertStringContainsString('CNPJ: 00.000.000/0001-00', $html);
+        self::assertStringNotContainsString('00.000.000/0001-00', $html);
+    }
+
+    public function test_reports_omit_client_cnpj_without_hiding_tenant_or_member_identification(): void
+    {
+        foreach (BillingDossierReportService::TYPES as $type => $definition) {
+            $data = $this->data($type);
+            $data['tenant']->cnpj = '11.111.111/0001-11';
+            $data['report']['billing']['recipient_document'] = '22.222.222/0001-22';
+            $data['report']['customers'][0]['document'] = '33.333.333/0001-33';
+            $data['report']['customers'][0]['members'][0]['document'] = '111.222.333-44';
+            $html = view($definition['view'], $data)->render();
+            self::assertStringNotContainsString('22.222.222/0001-22', $html);
+            self::assertStringNotContainsString('33.333.333/0001-33', $html);
+            self::assertStringContainsString('11.111.111/0001-11', $html);
+            if ($type === 'members') self::assertStringContainsString('111.222.333-44', $html);
+        }
     }
 
     public function test_system_pdf_omits_template_generation_dates_but_direct_views_keep_their_timestamp(): void

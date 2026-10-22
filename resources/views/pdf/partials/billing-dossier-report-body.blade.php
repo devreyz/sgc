@@ -24,7 +24,7 @@
             <div class="br-muted"><strong>Referência:</strong> {{ $report['billing']['number'] }} · {{ $report['billing']['projects'] }}<br><strong>Período:</strong> {{ $report['period'] }}</div>
             @else
             <div class="br-context"><strong>Referência:</strong> {{ $report['billing']['number'] }}<br>
-                <strong>Destinatário:</strong> {{ $report['billing']['recipient'] }} @if($report['billing']['recipient_document']) · {{ $report['billing']['recipient_document'] }}@endif<br>
+                <strong>Destinatário:</strong> {{ $report['billing']['recipient'] }}<br>
                 <strong>Projeto(s):</strong> {{ $report['billing']['projects'] }}<br><strong>Período:</strong> {{ $report['period'] }}</div>
             @endif
             <div class="br-custom">{{ $renderContent('intro') }}</div>
@@ -39,7 +39,6 @@
             @if($report['report_type'] === 'members')
                 @foreach($report['customers'] as $customer)
                 <div class="br-client-heading {{ !$loop->first ? 'br-next-client' : '' }}"><strong>{{ $customer['name'] }}</strong>
-                    @if($customer['document'])<div>CNPJ: {{ $customer['document'] }}</div>@endif
                 </div>
                 @foreach($customer['members'] as $member)
                     @include('pdf.partials.billing-member-product-table', ['reportProducts' => $member['products']])
