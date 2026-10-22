@@ -2127,8 +2127,8 @@ import './qr-scanner-core';
             </div>
             <p class="acc-muted">A relação de documentos sempre se refere à folha completa. Os demais relatórios respeitam o escopo e o projeto selecionados. Para aplicar um modelo de projeto específico em folhas com vários projetos, selecione o projeto acima.</p>
             <div class="acc-report-export-list">${exports.documents.map(report => `<article><h4>${esc(report.title)}</h4><p>${esc(descriptions[report.type])}</p>
-                <div class="acc-document-actions-buttons"><a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" href="${esc(report.url)}?download=1" download>${phIcon('ph-download-simple')} Baixar PDF</a>
-                <a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" data-preview-report href="${esc(report.url)}?download=0" target="_blank" rel="noopener">${phIcon('ph-eye')} Visualizar</a></div>
+                <div class="acc-document-actions-buttons"><a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" href="${esc(freshDossierReportUrl(report.url + '?download=1'))}" download>${phIcon('ph-download-simple')} Baixar PDF</a>
+                <a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" data-preview-report data-sgc-pdf href="${esc(freshDossierReportUrl(report.url + '?download=0'))}" target="_blank" rel="noopener">${phIcon('ph-eye')} Visualizar</a></div>
             </article>`).join('')}</div>
             ${exports.settings_url ? `<a class="acc-button" href="${esc(exports.settings_url)}">${phIcon('ph-gear')} Personalizar nos PDFs do Sistema</a>` : ''}
         </section>`;
@@ -2144,8 +2144,19 @@ import './qr-scanner-core';
                 url.searchParams.set('scope', scope);
                 if (project) url.searchParams.set('project', project);
             }
-            link.href = url.href;
+            link.href = freshDossierReportUrl(url.href);
         });
+    }
+
+    function freshDossierReportUrl(value) {
+        const url = new URL(value, location.href);
+        url.searchParams.set('_sgc_report', globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        return url.href;
+    }
+
+    function prepareDossierReportOpen(event) {
+        const link = event.target.closest?.('[data-report-export]');
+        if (link) link.href = freshDossierReportUrl(link.href);
     }
 
     function renderReconciliation(report) {
@@ -3348,6 +3359,8 @@ import './qr-scanner-core';
             if (activeTab !== 'overview') target.querySelector(`[data-tab="${activeTab}"]`)?.click();
             const reportExports = target.querySelector('[data-report-exports]');
             reportExports?.addEventListener('change', () => updateDossierReportLinks(reportExports));
+            // Capture before the shared mobile/PWA PDF handler reads the URL.
+            ['click', 'auxclick', 'contextmenu'].forEach(type => reportExports?.addEventListener(type, prepareDossierReportOpen, true));
             target.querySelector('[data-export-reconciliation]')?.addEventListener('click', () => exportReconciliation(payload.reconciliation, process.number));
             target.querySelector('[data-recheck-documents]')?.addEventListener('click', () => initDossier('reconciliation'));
 

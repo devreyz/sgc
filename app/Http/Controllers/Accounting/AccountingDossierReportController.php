@@ -42,7 +42,9 @@ class AccountingDossierReportController extends Controller
         return response($pdf->output(), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => ($request->boolean('download', true) ? 'attachment' : 'inline').'; filename="'.$filename.'"',
-            'Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, private, max-age=0',
+            'Pragma' => 'no-cache', 'Expires' => 'Thu, 01 Jan 1970 00:00:00 GMT',
+            'X-Content-Type-Options' => 'nosniff',
             'X-SGC-Document-Origin' => 'generated', 'X-SGC-Document-Title' => $definition['title'],
         ]);
     }

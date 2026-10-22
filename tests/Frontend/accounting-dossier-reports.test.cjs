@@ -17,6 +17,22 @@ test('oferece os três relatórios e não sugere escopo amplo sem acesso ao proj
     assert.ok(!html.includes('value="project_period"'));
     assert.ok(html.includes('Projeto &lt;seguro>'));
     assert.ok(html.includes('sem emitir comprovantes'));
+    assert.equal((html.match(/data-sgc-pdf/g) || []).length, 3);
+    assert.equal((html.match(/_sgc_report=/g) || []).length, 6);
+});
+
+test('cada abertura de visualização usa uma URL nova sem perder os filtros ou o modo inline', () => {
+    const link = { href: 'https://sgc.test/reports/members?download=0&scope=project_period&project=10' };
+    const event = { target: { closest: () => link } };
+    context.prepareDossierReportOpen(event);
+    const first = new URL(link.href);
+    context.prepareDossierReportOpen(event);
+    const second = new URL(link.href);
+    assert.notEqual(first.searchParams.get('_sgc_report'), second.searchParams.get('_sgc_report'));
+    assert.equal(second.searchParams.get('download'), '0');
+    assert.equal(second.searchParams.get('scope'), 'project_period');
+    assert.equal(second.searchParams.get('project'), '10');
+    assert.equal(second.searchParams.getAll('_sgc_report').length, 1);
 });
 
 test('escopo e projeto alteram apenas os relatórios físicos, preservando o inventário da folha inteira', () => {

@@ -382,7 +382,10 @@ window.SgcDocuments = {
         openInBrowser(blob, fileName, 'Documento SGC');
     },
     async fetchPdf(url, title = 'Documento SGC') {
-        const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/pdf' } });
+        const response = await fetch(url, {
+            credentials: 'same-origin', cache: 'no-store',
+            headers: { Accept: 'application/pdf', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+        });
         if (!response.ok) throw new Error('Não foi possível carregar o PDF.');
         const type = response.headers.get('content-type') || '';
         if (!type.includes('pdf')) return null;

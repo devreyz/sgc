@@ -1411,15 +1411,23 @@ class AccountingPortalSecurityTest extends TestCase
         $pdfService = Mockery::mock(\App\Services\TemplatedPdfService::class);
         foreach (\App\Services\Accounting\BillingDossierReportService::TYPES as $type => $definition) {
             $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
-            $pdf->shouldReceive('output')->once()->andReturn('%PDF-report-'.$type);
-            $pdfService->shouldReceive('generateSystemPdf')->once()->withArgs(fn ($view, $data, $options) =>
+            $pdf->shouldReceive('output')->times(3)->andReturn('%PDF-report-'.$type, '%PDF-preview-1-'.$type, '%PDF-preview-2-'.$type);
+            $pdfService->shouldReceive('generateSystemPdf')->times(3)->withArgs(fn ($view, $data, $options) =>
                 $view === $definition['view'] && $data['report']['distribution_count'] === 1 && $options['report_context']['sales_project_id'] === 10)->andReturn($pdf);
         }
         $this->app->instance(\App\Services\TemplatedPdfService::class, $pdfService);
         $this->actingAs(User::findOrFail(1));
         foreach (array_keys(\App\Services\Accounting\BillingDossierReportService::TYPES) as $type) {
             $this->get('/tenant-a/accounting/processes/10/reports/'.$type.'?download=1')->assertOk()
-                ->assertHeader('Content-Type', 'application/pdf')->assertContent('%PDF-report-'.$type);
+                ->assertHeader('Content-Type', 'application/pdf')->assertHeader('Pragma', 'no-cache')->assertContent('%PDF-report-'.$type);
+            foreach ([1, 2] as $version) {
+                $response = $this->get('/tenant-a/accounting/processes/10/reports/'.$type.'?download=0&_sgc_report='.$version)
+                    ->assertOk()->assertContent('%PDF-preview-'.$version.'-'.$type)->assertHeader('Pragma', 'no-cache')
+                    ->assertHeader('Expires', 'Thu, 01 Jan 1970 00:00:00 GMT');
+                self::assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+                self::assertStringContainsString('no-cache', $response->headers->get('Cache-Control'));
+                self::assertStringContainsString('inline;', $response->headers->get('Content-Disposition'));
+            }
         }
         $this->get('/tenant-a/accounting/processes/20/reports/members')->assertNotFound();
         $this->get('/tenant-a/accounting/processes/10/reports/members?project=20')->assertNotFound();
