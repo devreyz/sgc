@@ -370,9 +370,21 @@ Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(funct
             Route::get('/data/source-receipts', [AccountingPortalController::class, 'sourceReceiptsData'])->name('data.source-receipts');
             Route::get('/data/source-receipts/{associateReceipt}', [AccountingPortalController::class, 'sourceReceiptData'])
                 ->whereNumber('associateReceipt')->name('data.source-receipts.show');
+            Route::get('/source-receipts/{associateReceipt}/document', [AccountingPortalController::class, 'sourceDocument'])
+                ->whereNumber('associateReceipt')->name('source-receipts.document');
+            Route::post('/source-receipts/{associateReceipt}/document/refresh', [AccountingPortalController::class, 'refreshSourceDocument'])
+                ->middleware('throttle:10,1')->whereNumber('associateReceipt')->name('source-receipts.document.refresh');
+            Route::get('/source-receipts/{associateReceipt}/document/status', [AccountingPortalController::class, 'sourceDocumentStatus'])
+                ->whereNumber('associateReceipt')->name('source-receipts.document.status');
+            Route::post('/processes/{receipt}/document/refresh', [AccountingPortalController::class, 'refreshBillingDocument'])
+                ->middleware('throttle:10,1')->whereNumber('receipt')->name('processes.document.refresh');
+            Route::get('/processes/{receipt}/document/status', [AccountingPortalController::class, 'billingDocumentStatus'])
+                ->whereNumber('receipt')->name('processes.document.status');
             Route::get('/processes/{receipt}', [AccountingPortalController::class, 'show'])
                 ->whereNumber('receipt')
                 ->name('processes.show');
+            Route::get('/processes/{receipt}/reports/{reportType}', [\App\Http\Controllers\Accounting\AccountingDossierReportController::class, 'export'])
+                ->middleware('throttle:20,1')->whereNumber('receipt')->whereIn('reportType', ['members', 'acceptance', 'documents'])->name('processes.reports.export');
             Route::get('/data/processes/{receipt}', [AccountingPortalController::class, 'processData'])
                 ->whereNumber('receipt')
                 ->name('data.processes.show');

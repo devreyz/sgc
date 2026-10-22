@@ -4,5 +4,5 @@
 </style></head><body>
 <header><h1>{{ $title }}</h1><p>{{ $tenant->name }} · Registro #{{ $record['id'] }}</p></header>
 <table class="detail"><tbody>@foreach($record as $key=>$value)<tr><th>{{ $labels[$key] ?? \Illuminate\Support\Str::headline($key) }}</th><td>{{ is_bool($value) ? ($value ? 'Sim' : 'Nao') : ($value === null || $value === '' ? '-' : $value) }}</td></tr>@endforeach</tbody></table>
-<footer>Emitido em {{ now()->format('d/m/Y H:i') }}</footer>
+@unless($suppress_generation_timestamp ?? false)<footer>Emitido em {{ now()->format('d/m/Y H:i') }}</footer>@endunless
 </body></html>

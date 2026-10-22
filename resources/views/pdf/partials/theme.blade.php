@@ -5,6 +5,7 @@
     $pdfThemeMuted = '#687078';
     $pdfThemeBorder = '#cfd3d6';
     $pdfThemeSurface = '#fafafa';
+    $pdfThemeHighlight = '#f3f6f4';
 @endphp
 
 /* SGC operational PDF design system. Keep selectors DomPDF-compatible. */
@@ -213,3 +214,70 @@ table.main.compact tbody td { font-size: 8.6px !important; padding: 5px 6px !imp
 .avoid-break, tr, .summary-row, .summary-cards, .totals-box, .fin-summary {
     page-break-inside: avoid;
 }
+
+/* Dossier reports share the receipt palette, typography, section labels and tables. */
+@php($pdfReportScale = max(.7, min(1, ((int) ($table_scale ?? 100)) / 100)))
+.billing-dossier-report { font-size: 10px; line-height: 1.45; color: {{ $pdfThemeText }}; }
+.billing-dossier-report h2 {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    color: {{ $pdfThemePrimary }}; border-left: 3px solid {{ $pdfThemeAccent }};
+    padding-left: 7px; margin: 12px 0 8px; page-break-after: avoid;
+}
+.billing-dossier-report h3 { font-size: 10px; margin: 9px 0 3px; page-break-after: avoid; }
+.br-context, .br-client-heading, .br-notice {
+    background: {{ $pdfThemeSurface }}; color: {{ $pdfThemeText }};
+    border: 1px solid {{ $pdfThemeBorder }}; border-left: 3px solid {{ $pdfThemeAccent }};
+    padding: 7px 9px; margin: 7px 0 9px;
+}
+.br-context strong, .br-client-heading strong { color: {{ $pdfThemePrimary }}; }
+.br-client-heading { page-break-after: avoid; }
+.br-client-heading strong { font-size: 12px; }
+.br-muted, .br-member-meta, .br-adjustments, .br-identity-label, .br-notice {
+    color: {{ $pdfThemeMuted }}; font-size: 8px;
+}
+.br-member-meta { margin-bottom: 6px; page-break-after: avoid; }
+.br-custom { margin: 9px 0; line-height: 1.6; }
+.br-custom:empty { margin: 0; }
+.br-cover { page-break-after: always; }
+.br-back-cover, .br-next-client { page-break-before: always; }
+.billing-dossier-report .right { text-align: right; white-space: nowrap; }
+.billing-dossier-report .br-date { white-space: nowrap; }
+.billing-dossier-report table.report-table thead { display: table-header-group; }
+.billing-dossier-report table.report-table tbody { page-break-inside: auto; }
+.billing-dossier-report table.report-table th {
+    font-size: {{ 8.4 * $pdfReportScale }}px !important;
+    padding: {{ 6 * $pdfReportScale }}px {{ 7 * $pdfReportScale }}px !important;
+}
+.billing-dossier-report table.report-table td {
+    font-size: {{ 9.4 * $pdfReportScale }}px !important;
+    padding: {{ 6 * $pdfReportScale }}px {{ 7 * $pdfReportScale }}px !important;
+    overflow-wrap: break-word;
+}
+.br-unit-label { font-size: 7px; text-transform: none; font-weight: normal; }
+.br-totals {
+    border: 1px solid {{ $pdfThemeBorder }}; border-left: 3px solid {{ $pdfThemeAccent }};
+    background: #ffffff; color: {{ $pdfThemePrimary }};
+    padding: 9px 11px; margin: 10px 0; page-break-inside: avoid; font-size: 9.6px;
+}
+.br-signature { margin-top: 24px; page-break-inside: avoid; }
+.br-signature td { width: 50%; padding: 15px 15px 0; text-align: center; font-size: 9px; }
+.br-signature-line { border-top: 1px solid {{ $pdfThemeBorder }}; padding-top: 5px; }
+.billing-dossier-report table.br-member-table { margin-top: 9px; table-layout: auto; }
+.billing-dossier-report table.br-member-table td.br-identity {
+    padding: 0 !important; background: {{ $pdfThemeHighlight }};
+    border: 1px solid {{ $pdfThemeBorder }}; border-left: 4px solid {{ $pdfThemeAccent }};
+}
+.billing-dossier-report table.br-identity-grid { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
+.billing-dossier-report table.br-identity-grid td {
+    border: 0; background: {{ $pdfThemeHighlight }};
+    padding: 5px 8px !important; font-size: 9px !important; line-height: 1.35;
+    vertical-align: top;
+}
+.billing-dossier-report table.br-identity-grid td + td {
+    border-left: 1px solid {{ $pdfThemeBorder }};
+}
+.br-beneficiary-name { font-size: 10px; font-weight: 700; color: {{ $pdfThemePrimary }}; margin: 3px 0 0; }
+.br-beneficiary-detail { font-size: 9px; margin-top: 3px; }
+.br-beneficiary-signature-space { height: 4mm; }
+.br-beneficiary-signature-line { border-top: 1px solid {{ $pdfThemeAccent }}; margin: 0 4px; }
+.br-identity-label { font-size: 7px; margin-bottom: 2px; }

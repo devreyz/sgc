@@ -67,14 +67,14 @@
             <div class="doc-title">EXTRATO DE SERVIÇOS PRESTADOS</div>
             <div class="doc-subtitle">{{ $provider->name }}</div>
             <div class="doc-subtitle">Período: {{ $start_date }} a {{ $end_date }}</div>
-            <div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>
+            @unless($suppress_generation_timestamp ?? false)<div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>@endunless
         </div>
     </div>
     @else
     <div class="header">
         <h1>EXTRATO DE SERVIÇOS PRESTADOS</h1>
         <h2>{{ $provider->name }}</h2>
-        <p>Período: {{ $start_date }} a {{ $end_date }} | Gerado em: {{ $generated_at }}</p>
+        <p>Período: {{ $start_date }} a {{ $end_date }}@unless($suppress_generation_timestamp ?? false) | Gerado em: {{ $generated_at }}@endunless</p>
     </div>
     @endif
     @endunless
@@ -231,7 +231,7 @@
 
     @unless($suppress_internal_footer ?? false)
     <div class="footer">
-        SGC - Sistema de Gestão Cooperativa | Extrato de Serviços | {{ $generated_at }}
+        SGC - Sistema de Gestão Cooperativa | Extrato de Serviços@unless($suppress_generation_timestamp ?? false) | {{ $generated_at }}@endunless
     </div>
     @endunless
 </body>

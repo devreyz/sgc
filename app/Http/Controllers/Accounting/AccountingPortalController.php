@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Services\Accounting\AccountingAccessService;
 use App\Services\Accounting\AccountingNextActionResolver;
 use App\Services\Accounting\AccountingProcessIntegrityService;
+use App\Services\Accounting\AccountingReceiptDocumentService;
 use App\Services\Accounting\BillingDocumentReconciliationService;
 use App\Services\Accounting\BillingAuthorizationValidityService;
 use App\Services\Accounting\BillingAuthorizationWorkflowService;
@@ -40,6 +41,68 @@ use Illuminate\View\View;
 
 class AccountingPortalController extends Controller
 {
+    public function refreshBillingDocument(Request $request, AccountingReceiptDocumentService $documents): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        $receipt = $this->receipt($request, $tenant->id);
+        abort_unless($request->user()->can('review_accounting_processes') || $request->user()->can('update_customer::billing::receipt'), 403);
+        $documents->requestRefresh($receipt);
+
+        return $this->privateJson(['message' => 'Atualização do PDF enviada para a fila documents. A cópia no Drive será substituída após o processamento; valores e pagamentos não foram alterados.'], 202);
+    }
+
+    public function refreshSourceDocument(Request $request, AccountingReceiptDocumentService $documents): JsonResponse
+    {
+        $receipt = $this->sourceDocumentReceipt($request);
+        abort_unless($request->user()->can('review_accounting_processes') || $request->user()->can('update_associate::receipt'), 403);
+        $documents->requestRefresh($receipt);
+
+        return $this->privateJson(['message' => 'Atualização do PDF enviada para a fila documents. A cópia no Drive será substituída após o processamento; valores e pagamentos não foram alterados.'], 202);
+    }
+
+    public function billingDocumentStatus(Request $request): JsonResponse
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+        return $this->privateJson($this->documentActions($this->receipt($request, $tenant->id), $tenant->slug));
+    }
+
+    public function sourceDocumentStatus(Request $request): JsonResponse
+    {
+        return $this->privateJson($this->documentActions($this->sourceDocumentReceipt($request), $this->tenant($request)->slug));
+    }
+
+    public function sourceDocument(Request $request, \App\Services\AssociateReceiptArchiveService $archive)
+    {
+        $receipt = $this->sourceDocumentReceipt($request);
+        abort_if(in_array($receipt->status?->value, ['draft', 'obsolete', 'cancelled'], true), 409, 'Confira e atualize o conteúdo do comprovante antes de baixar uma via válida.');
+        try {
+            $pdf = $archive->generatePdf($receipt);
+        } catch (\RuntimeException $exception) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['document' => $exception->getMessage()]);
+        }
+        $filename = 'comprovante-'.preg_replace('/[^A-Za-z0-9._-]+/', '-', $receipt->formatted_number).'.pdf';
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('download') ? 'attachment' : 'inline').'; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, private', 'X-Content-Type-Options' => 'nosniff',
+            'X-SGC-Document-Title' => 'Comprovante '.$receipt->formatted_number,
+            'X-SGC-Document-Origin' => 'generated',
+        ]);
+    }
+
+    private function sourceDocumentReceipt(Request $request): AssociateReceipt
+    {
+        $tenant = $this->tenant($request);
+        $this->authorizeProcesses($request);
+
+        return AssociateReceipt::withoutGlobalScopes()->where('tenant_id', $tenant->id)
+            ->whereIn('id', $this->billingSourceReceiptIds($tenant->id, $request->user()))
+            ->findOrFail((int) $request->route('associateReceipt'));
+    }
+
     public function index(Request $request): View
     {
         $tenant = $this->tenant($request);
@@ -524,6 +587,7 @@ class AccountingPortalController extends Controller
             'net' => (float) $producerReceipt->total_net,
             'paid' => (float) $producerReceipt->amount_paid,
             'included_distributions' => (int) ($includedByProducerReceipt[$producerReceipt->id] ?? 0),
+            'document_actions' => $this->documentActions($producerReceipt, $tenant->slug),
             'detail_url' => route('accounting.data.source-receipts.show', [
                 'tenant' => $tenant->slug, 'associateReceipt' => $producerReceipt->id,
             ]),
@@ -581,6 +645,7 @@ class AccountingPortalController extends Controller
                     'tenant' => $tenant->slug,
                     'receipt' => $receipt->id,
                 ]),
+                'document_actions' => $this->documentActions($receipt, $tenant->slug),
                 'workflow' => [
                     'authorization' => $authorization,
                     'fiscal' => $this->fiscalPayload(
@@ -612,6 +677,16 @@ class AccountingPortalController extends Controller
                 ],
             ],
             'consolidated_lines' => $consolidatedLines,
+            'report_exports' => [
+                'projects' => $receipt->includedProjects()->map(fn ($project) => ['id' => $project->id, 'title' => $project->title])->values(),
+                'can_project_period' => collect($receipt->projectIds())->diff(app(AccountingAccessService::class)->projectIds($request->user(), $tenant->id))->isEmpty(),
+                'documents' => collect(\App\Services\Accounting\BillingDossierReportService::TYPES)->map(fn ($definition, $type) => [
+                    'type' => $type, 'title' => $definition['title'],
+                    'url' => route('accounting.processes.reports.export', ['tenant' => $tenant->slug, 'receipt' => $receipt->id, 'reportType' => $type]),
+                ])->values(),
+                'settings_url' => $request->user()->can('viewAny', \App\Models\DocumentTemplate::class)
+                    ? \App\Filament\Resources\SystemPdfResource::getUrl('index') : null,
+            ],
             'reconciliation' => $reconciliation->inspect($receipt),
             'distributions' => $distributions,
             'payments' => $receipt->payments()
@@ -1070,6 +1145,7 @@ class AccountingPortalController extends Controller
             'distribution_count' => (int) ($receipt->distributions_count ?? $receipt->distributions()->count()),
             'total_net' => (float) ($receipt->total_net ?? 0),
             'reference_code' => $receipt->verificationIdentity?->reference_code,
+            'document_actions' => $this->documentActions($receipt, $tenantSlug),
             'reprint_url' => in_array($receipt->status?->value, ['obsolete', 'cancelled'], true) ? null : route('delivery.projects.receipt-reprint', [
                 'tenant' => $tenantSlug,
                 'project' => $receipt->sales_project_id,
@@ -1080,6 +1156,29 @@ class AccountingPortalController extends Controller
                 'tenant' => $tenantSlug,
                 'associateReceipt' => $receipt->id,
             ]),
+        ];
+    }
+
+    private function documentActions(AssociateReceipt|CustomerBillingReceipt $receipt, string $tenantSlug): array
+    {
+        $member = $receipt instanceof AssociateReceipt;
+        $active = $member ? ! in_array($receipt->status?->value, ['draft', 'obsolete', 'cancelled'], true) : true;
+        $parameters = ['tenant' => $tenantSlug, $member ? 'associateReceipt' : 'receipt' => $receipt->id];
+        $document = app(AccountingReceiptDocumentService::class)->document($receipt);
+        $canUpdate = auth()->user()?->can('review_accounting_processes')
+            || auth()->user()?->can($member ? 'update_associate::receipt' : 'update_customer::billing::receipt');
+        $prefix = $member ? 'accounting.source-receipts.document' : 'accounting.processes.document';
+
+        return [
+            'download_url' => $active ? route($member ? 'accounting.source-receipts.document' : 'accounting.fiscal.billing-sheet', [...$parameters, 'download' => 1]) : null,
+            'refresh_url' => $canUpdate && $active && $receipt->status?->value !== 'draft' ? route($prefix.'.refresh', $parameters) : null,
+            'status_url' => route($prefix.'.status', $parameters),
+            'drive_status' => $document?->status,
+            'drive_updated_at' => $document?->synced_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s'),
+            'drive_status_label' => match ($document?->status) {
+                'pending' => 'Atualização aguardando processamento', 'synced' => 'Cópia sincronizada no Drive',
+                'failed', 'rejected' => 'A última atualização não foi concluída', default => 'Nenhuma cópia sincronizada no Drive',
+            },
         ];
     }
 

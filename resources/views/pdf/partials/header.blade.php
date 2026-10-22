@@ -374,8 +374,8 @@
                 @endif
                 <div class="org-contact">
                     @if($tenant->address){{ $tenant->address }}@if($tenant->address_number), {{ $tenant->address_number }}@endif @if($tenant->neighborhood) - {{ $tenant->neighborhood }}@endif @if($tenant->city) | {{ $tenant->city }}@endif @if($tenant->state)/{{ $tenant->state }}@endif @if($tenant->zip_code) - CEP: {{ $tenant->zip_code }}@endif @endif
-                    @if($tenant->phone || $tenant->email)
-                        <br>@if($tenant->phone)Tel: {{ $tenant->phone }} @endif @if($tenant->email)| {{ $tenant->email }}@endif
+                    @if($tenant->phone || ($tenant->email && !($hide_header_email ?? false)))
+                        <br>@if($tenant->phone)Tel: {{ $tenant->phone }} @endif @if($tenant->email && !($hide_header_email ?? false)){{ $tenant->phone ? '| ' : '' }}{{ $tenant->email }}@endif
                     @endif
                 </div>
             @endif
@@ -385,7 +385,7 @@
             @if(isset($subtitle))
                 <div class="doc-subtitle">{{ $subtitle }}</div>
             @endif
-            <div class="doc-date">Gerado em: {{ $generated_at ?? now()->format('d/m/Y H:i') }}</div>
+            @unless($suppress_generation_timestamp ?? false)<div class="doc-date">Gerado em: {{ $generated_at ?? now()->format('d/m/Y H:i') }}</div>@endunless
         </div>
     </div>
     @endunless
@@ -398,7 +398,7 @@
         <span class="footer-org">{{ $tenant->name ?? 'SGC' }}</span>
         @if($tenant && $tenant->cnpj) — CNPJ: {{ $tenant->cnpj }} @endif
         <br>
-        {{ $title ?? 'Relatório' }} — Gerado em {{ $generated_at ?? now()->format('d/m/Y H:i') }}
+        {{ $title ?? 'Relatório' }}@unless($suppress_generation_timestamp ?? false) — Gerado em {{ $generated_at ?? now()->format('d/m/Y H:i') }}@endunless
         <br>
         <span style="font-size:6px;">SGC — Sistema de Gestão Cooperativa</span>
         <br>

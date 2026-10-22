@@ -61,7 +61,7 @@
     <div class="header">
         <h1>FOLHA DE CAMPO</h1>
         <h2>{{ $project->title }}</h2>
-        <p>Data: {{ $date }} | Gerado em: {{ now()->format('d/m/Y H:i') }}</p>
+        <p>Data: {{ $date }}@unless($suppress_generation_timestamp ?? false) | Gerado em: {{ now()->format('d/m/Y H:i') }}@endunless</p>
     </div>
     @endif
     @endunless

@@ -10,8 +10,8 @@
         <tr>
             <td class="label">Registros exportados</td>
             <td class="value">{{ count($data ?? []) }}</td>
-            <td class="label">Gerado em</td>
-            <td class="value">{{ $generatedAt ?? now()->format('d/m/Y H:i') }}</td>
+            @unless($suppress_generation_timestamp ?? false)<td class="label">Gerado em</td>
+            <td class="value">{{ $generatedAt ?? now()->format('d/m/Y H:i') }}</td>@endunless
         </tr>
     </table>
 </div>

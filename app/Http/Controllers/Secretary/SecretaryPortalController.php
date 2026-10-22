@@ -109,6 +109,9 @@ class SecretaryPortalController extends Controller
             'name' => $template->name, 'description' => $template->description, 'type' => $template->type,
             'template_category' => $template->template_category, 'system_template_key' => $template->system_template_key,
             'project_type' => $template->project_type,
+            'sales_project_id' => $template->sales_project_id, 'customer_id' => $template->customer_id,
+            'organization_id' => $template->organization_id, 'report_contents' => $template->report_contents ?? [],
+            'section_order' => $template->section_order ?? [],
             'content' => $template->content, 'paper_size' => $template->paper_size ?: 'a4',
             'paper_orientation' => $template->paper_orientation ?: 'portrait', 'table_scale' => $template->table_scale ?: 100,
             'header_layout_id' => $template->header_layout_id, 'footer_layout_id' => $template->footer_layout_id,
@@ -375,6 +378,13 @@ class SecretaryPortalController extends Controller
                 'show_recipient_signature' => ['required', 'boolean'], 'show_representative_signature' => ['required', 'boolean'],
                 'color_theme' => ['required', Rule::in(array_keys(DocumentTemplate::COLOR_THEMES))]];
             $rules['project_type'] = ['nullable', 'string', 'max:80'];
+            if (Schema::hasColumn('document_templates', 'report_contents')) {
+                $rules += ['report_contents' => ['nullable', 'array'], 'report_contents.*' => ['nullable', 'string', 'max:100000'],
+                    'section_order' => ['nullable', 'array', 'max:30'], 'section_order.*' => ['string', 'max:60']];
+                foreach (['sales_project_id' => 'sales_projects', 'customer_id' => 'customers', 'organization_id' => 'organizations'] as $field => $table) {
+                    $rules[$field] = ['nullable', 'integer', Rule::exists($table, 'id')->where('tenant_id', $tenant->id)->whereNull('deleted_at')];
+                }
+            }
         } else {
             $rules += ['type' => ['required', Rule::in(array_keys(DocumentTemplate::TYPES))], 'content' => ['required', 'string', 'max:1500000']];
         }
@@ -453,6 +463,7 @@ class SecretaryPortalController extends Controller
                 $record[$htmlField] = $this->sanitizer->sanitize((string) $record[$htmlField]);
             }
         }
+        $record['report_contents'] = collect($record['report_contents'] ?? [])->map(fn ($html) => $this->sanitizer->sanitize((string) $html))->all();
         $layouts = PdfLayoutTemplate::query()->where('tenant_id', $tenant->id)->where('is_active', true)
             ->orderBy('name')->get(['id', 'name', 'layout_type'])->groupBy('layout_type');
         $templates = DocumentTemplate::query()->where('tenant_id', $tenant->id)->where('template_category', 'custom')
@@ -462,9 +473,16 @@ class SecretaryPortalController extends Controller
 
         $variables = DocumentTemplate::getAvailableVariables();
         $variables['Layout e página'] = PdfLayoutTemplate::getAvailableVariables();
+        $reportScopes = [];
+        if (\App\Services\Accounting\BillingDossierReportService::isReportKey($record['system_template_key'] ?? null)) {
+            foreach (['sales_project_id' => \App\Models\SalesProject::class, 'customer_id' => \App\Models\Customer::class, 'organization_id' => \App\Models\Organization::class] as $field => $model) {
+                $column = $field === 'sales_project_id' ? 'title' : 'name';
+                $reportScopes[$field] = $model::query()->where('tenant_id', $tenant->id)->orderBy($column)->pluck($column, 'id');
+            }
+        }
 
         return view('secretary.editor', compact('tenant', 'mode', 'recordId', 'record', 'layouts', 'templates', 'definition') + [
-            'variables' => $variables,
+            'variables' => $variables, 'reportScopes' => $reportScopes,
         ]);
     }
 

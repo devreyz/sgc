@@ -68,6 +68,7 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
                 'tenant_id' => $receipt->tenant_id,
                 'receipt_id' => $receipt->id,
             ]);
+            app(\App\Services\Accounting\AccountingReceiptDocumentService::class)->recordFailure($receipt);
 
             return;
         }
@@ -134,6 +135,7 @@ class SyncAssociateReceiptToDrive implements ShouldBeUniqueUntilProcessing, Shou
                 'receipt_id' => $receipt->id,
                 'provider' => 'google_drive',
             ])->log('Falha ao sincronizar comprovante');
+            app(\App\Services\Accounting\AccountingReceiptDocumentService::class)->recordFailure($receipt);
 
             Log::error('Google Drive receipt synchronization failed.', [
                 'tenant_id' => $receipt->tenant_id,

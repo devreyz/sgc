@@ -420,7 +420,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 {{-- ═══ RODAPÉ ═══ --}}
 <div class="ftr">
     {{ $tenant->name ?? '' }}
-    &nbsp;|&nbsp; Emitido em {{ now()->format('d/m/Y H:i') }}
+    @unless($suppress_generation_timestamp ?? false)&nbsp;|&nbsp; Emitido em {{ now()->format('d/m/Y H:i') }}@endunless
 </div>
 
 </body>

@@ -84,7 +84,7 @@ table.tbl tfoot td.r { text-align: right; }
         @if(!empty($subtitle))<span class="doc-sub">{{ $subtitle }}</span>@endif
         @if(!empty($filters['organization']))<span class="doc-sub">OrganizaÃ§Ã£o: {{ $filters['organization'] }}</span>@endif
         @if($periodLabel)<span class="doc-sub">PerÃ­odo: {{ $periodLabel }}</span>@endif
-        <span class="doc-gen">Emitido em {{ $generated_at }}</span>
+        @unless($suppress_generation_timestamp ?? false)<span class="doc-gen">Emitido em {{ $generated_at }}</span>@endunless
     </div>
 </div>
 
@@ -201,7 +201,7 @@ table.tbl tfoot td.r { text-align: right; }
 <div class="ftr">
     {{ $tenant->name ?? '' }}
     @if($tenant?->cnpj) &middot; CNPJ: {{ $tenant->cnpj }}@endif
-    &middot; Gerado em {{ $generated_at }}
+    @unless($suppress_generation_timestamp ?? false)&middot; Gerado em {{ $generated_at }}@endunless
 </div>
 
 </body>

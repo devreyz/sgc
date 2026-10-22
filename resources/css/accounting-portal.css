@@ -23,6 +23,8 @@
 }
 
 .acc-shell *, .acc-shell *::before, .acc-shell *::after { box-sizing: border-box; }
+.acc-document-actions{width:100%;min-width:0;margin:.4rem 0 .75rem;padding:.75rem;border:1px solid var(--acc-border,#dbe4df);border-left:3px solid var(--acc-primary,#16733c);border-radius:8px;background:var(--acc-soft,#f7f9f8)}
+.acc-document-actions-buttons{display:flex;flex-wrap:wrap;gap:.4rem}.acc-document-feedback{margin:.5rem 0 0;font-size:.7rem;line-height:1.5;color:var(--acc-secondary,#596a60);overflow-wrap:anywhere}.acc-document-feedback.is-error{color:#b45309}
 
 .acc-topbar {
     display: flex;
@@ -384,6 +386,8 @@
 .accounting-dossier-v3 .acc-tab[data-tab="finance"]{--tone:var(--green);--tone-soft:var(--green-soft);--tone-border:var(--green-border)}
 .accounting-dossier-v3 .acc-tab[data-tab="documents"]{--tone:var(--purple);--tone-soft:var(--purple-soft);--tone-border:var(--purple-border)}
 .accounting-dossier-v3 .acc-tab[data-tab="reconciliation"]{--tone:var(--amber);--tone-soft:var(--amber-soft);--tone-border:var(--amber-border)}
+.accounting-dossier-v3 .acc-tab[data-tab="reports"]{--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-border:var(--blue-border)}
+.acc-report-exports{display:grid;gap:.85rem;padding:.75rem}.acc-report-exports h3,.acc-report-exports h4{margin:0;font-size:.92rem}.acc-report-exports p{margin:.35rem 0;font-size:.74rem;line-height:1.6;color:var(--acc-secondary)}.acc-report-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;padding:.8rem;border:1px solid var(--acc-border);border-radius:9px;background:var(--acc-soft)}.acc-report-filters select{width:100%;min-width:0}.acc-report-export-list{display:grid;gap:.7rem}.acc-report-export-list article{padding:.95rem;border:1px solid var(--acc-border);border-left:3px solid var(--acc-primary);border-radius:9px;background:var(--acc-surface)}.acc-report-export-list .acc-document-actions-buttons{margin-top:.65rem}@media(max-width:600px){.acc-report-filters{grid-template-columns:1fr}.acc-report-exports{padding:.35rem}}
 .accounting-dossier-v3 .acc-tab[data-tab="timeline"]{--tone:var(--slate);--tone-soft:var(--slate-soft);--tone-border:var(--border)}
 .accounting-dossier-v3 .acc-tab i{color:var(--tone);font-size:.92rem}
 .accounting-dossier-v3 .acc-tab:hover,.accounting-dossier-v3 .acc-tab:focus-visible{background:#f7f9f8;color:var(--tone);outline:0}

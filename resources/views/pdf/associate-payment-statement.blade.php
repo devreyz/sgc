@@ -224,7 +224,7 @@
     </div>
 
     <div class="footer-note">
-        Emitido em: {{ $genAt }} &bull; Documento não fiscal &bull; Extrato Nº {{ $receiptNum }}
+        @unless($suppress_generation_timestamp ?? false)Emitido em: {{ $genAt }} &bull; @endunless Documento não fiscal &bull; Extrato Nº {{ $receiptNum }}
     </div>
 
 </div>

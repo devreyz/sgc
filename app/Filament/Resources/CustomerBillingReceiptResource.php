@@ -1069,6 +1069,8 @@ class CustomerBillingReceiptResource extends Resource
                 })
                 ->values()->toArray();
 
+        $productRows = static::alphabeticalPdfRows($productRows);
+
         $totalGross = (float) $presentation['total_gross'];
         $totalFees = (float) $presentation['total_fees'];
         $totalNet = (float) $presentation['total_net'];
@@ -1248,6 +1250,7 @@ class CustomerBillingReceiptResource extends Resource
                     'net' => (string) ($line['document_amount'] ?? '0.00'),
                 ];
             })->all();
+            $table = static::alphabeticalPdfRows($table);
 
             $feeTotals = collect($rowFeeColumns)->mapWithKeys(fn (array $fee): array => [
                 $fee['key'] => $lines->reduce(
@@ -1384,6 +1387,15 @@ class CustomerBillingReceiptResource extends Resource
                 (string) ($line['unit_price'] ?? 0),
             ]))
             ->values();
+    }
+
+    /** Presentation only: keep frozen document lines and their financial values unchanged. */
+    private static function alphabeticalPdfRows(array $rows): array
+    {
+        return collect($rows)->sortBy(
+            fn (array $row): string => mb_strtolower(\Illuminate\Support\Str::ascii(trim((string) ($row['product'] ?? '')))),
+            SORT_NATURAL,
+        )->values()->all();
     }
 
     /** @param array<string, float> $weights @return array<string, string> */

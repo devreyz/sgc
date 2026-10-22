@@ -33,6 +33,8 @@ class ListSystemPdfs extends ListRecords
 
                         // Check for existing (non-trashed) template
                         $active = DocumentTemplate::where('system_template_key', $key)
+                            ->when(\Illuminate\Support\Facades\Schema::hasColumn('document_templates', 'sales_project_id'), fn ($query) => $query
+                                ->whereNull('sales_project_id')->whereNull('customer_id')->whereNull('organization_id'))
                             ->where('template_category', 'system')
                             ->where('tenant_id', $tenantId)
                             ->whereNull('project_type')
@@ -45,6 +47,8 @@ class ListSystemPdfs extends ListRecords
 
                         // Check for soft-deleted template and restore it
                         $trashed = DocumentTemplate::onlyTrashed()
+                            ->when(\Illuminate\Support\Facades\Schema::hasColumn('document_templates', 'sales_project_id'), fn ($query) => $query
+                                ->whereNull('sales_project_id')->whereNull('customer_id')->whereNull('organization_id'))
                             ->where('system_template_key', $key)
                             ->where('template_category', 'system')
                             ->where('tenant_id', $tenantId)

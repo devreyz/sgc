@@ -9,6 +9,7 @@
     $isTemplate = $mode === 'template';
     $isLayout = $mode === 'layout';
     $isSystem = $isTemplate && (($record['template_category'] ?? 'custom') === 'system');
+    $isDossierReport = $isSystem && \App\Services\Accounting\BillingDossierReportService::isReportKey($record['system_template_key'] ?? null);
     $editing = $recordId !== null;
     $bentoNavigation = \App\Support\PortalNavigation::make('secretary', $isLayout ? 'new-layout' : ($isTemplate ? 'new-template' : 'new-document'), $tenant->slug);
     $saveUrl = $isLayout
@@ -122,6 +123,21 @@
                 <div class="se-field"><label for="se-footer">Rodapé</label><select id="se-footer" class="se-control"><option value="">Sem rodapé personalizado</option>@foreach(($layouts['footer'] ?? collect()) as $layout)<option value="{{ $layout->id }}" @selected((int)($record['footer_layout_id'] ?? 0) === (int)$layout->id)>{{ $layout->name }}</option>@endforeach</select></div>
             </div></details>@endif
             @if($isSystem)
+                @if($isDossierReport)
+                <details class="se-panel" open><summary>Relatório do dossiê · personalização</summary><div class="se-panel-body">
+                    <p class="se-help">Contexto opcional. Projeto e destinatário específicos prevalecem sobre o modelo padrão. Os relatórios são informativos.</p>
+                    @foreach(['sales_project_id' => 'Projeto específico', 'customer_id' => 'Cliente específico', 'organization_id' => 'Organização compradora específica'] as $field => $label)
+                        <div class="se-field"><label for="se-scope-{{ $field }}">{{ $label }}</label><select id="se-scope-{{ $field }}" class="se-control" data-report-scope="{{ $field }}"><option value="">Todos (padrão)</option>@foreach(($reportScopes[$field] ?? []) as $id => $name)<option value="{{ $id }}" @selected((int)($record[$field] ?? 0) === (int)$id)>{{ $name }}</option>@endforeach</select></div>
+                    @endforeach
+                    <div class="se-field"><label>Ordem das seções (separadas por vírgula)</label><input id="se-report-order" class="se-control" value="{{ implode(', ', $record['section_order'] ?? []) }}" placeholder="{{ implode(', ', array_keys($definition['sections'])) }}"></div>
+                    @foreach(\App\Services\Accounting\BillingDossierReportService::CONTENT_SLOTS as $slot => $label)
+                        <div class="se-field"><span class="se-label">{{ $label }}</span><div class="se-mini-editor" data-report-content="{{ $slot }}" contenteditable="true" spellcheck="true">{!! data_get($record, 'report_contents.'.$slot, '') !!}</div></div>
+                    @endforeach
+                    <p class="se-help">É possível colar conteúdo formatado. Use os tokens abaixo e as variáveis gerais da organização e data.</p>
+                    @foreach(\App\Services\Accounting\BillingReportContentRenderer::availableVariables() as $token => $label)<div class="se-help"><code>{{ $token }}</code> · {{ $label }}</div>@endforeach
+                    <details><summary>Variáveis gerais da organização e data</summary>@foreach($variables as $group => $items)<strong>{{ $group }}</strong>@foreach($items as $token => $label)<div class="se-help"><code>{{ $token }}</code> · {{ $label }}</div>@endforeach @endforeach</details>
+                </div></details>
+                @endif
                 <details class="se-panel" open><summary>Seções <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-checks">@foreach(($definition['sections'] ?? []) as $key => $label)<label class="se-check"><input type="checkbox" name="sections" value="{{ $key }}" @checked(in_array($key, $record['visible_sections'] ?? array_keys($definition['sections'] ?? []), true))> {{ $label }}</label>@endforeach</div></div></details>
                 <details class="se-panel" open><summary>Colunas <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body"><div class="se-checks">@foreach(($definition['columns'] ?? []) as $key => $label)<label class="se-check"><input type="checkbox" name="columns" value="{{ $key }}" @checked(in_array($key, $record['visible_columns'] ?? ($definition['default_columns'] ?? array_keys($definition['columns'] ?? [])), true))> {{ $label }}</label>@endforeach</div></div></details>
                 <details class="se-panel"><summary>Mensagem e assinaturas <i data-lucide="chevron-down" style="width:15px"></i></summary><div class="se-panel-body">
@@ -168,7 +184,11 @@
         if (config.mode === 'layout') return {name:document.getElementById('se-title').value.trim(),layout_type:document.getElementById('se-layout-type').value,content:editor.innerHTML,estimated_height_mm:Number(document.getElementById('se-layout-height').value),is_active:document.getElementById('se-active').checked};
         const common = {paper_size:document.getElementById('se-paper').value,paper_orientation:document.getElementById('se-orientation').value,header_layout_id:nullableValue('se-header'),footer_layout_id:nullableValue('se-footer')};
         if (config.mode === 'document') return {...common,title:document.getElementById('se-title').value.trim(),content:editor.innerHTML,template_id:nullableValue('se-template')};
-        if (config.system) return {...common,name:document.getElementById('se-title').value.trim(),description:document.getElementById('se-description').value.trim(),project_type:document.getElementById('se-project-type').value.trim()||null,is_active:document.getElementById('se-active').checked,visible_sections:selectedValues('sections'),visible_columns:selectedValues('columns'),table_scale:Number(document.getElementById('se-scale').value),consent_enabled:document.getElementById('se-consent-enabled').checked,consent_position:document.getElementById('se-consent-position').value,consent_content_before:document.getElementById('se-consent-before').innerHTML,consent_content:document.getElementById('se-consent-after').innerHTML,show_recipient_signature:document.getElementById('se-recipient-signature').checked,show_representative_signature:document.getElementById('se-representative-signature').checked,color_theme:document.getElementById('se-color-theme').value};
+        if (config.system) return {...common,...(document.getElementById('se-report-order') ? {
+            ...Object.fromEntries([...document.querySelectorAll('[data-report-scope]')].map(input=>[input.dataset.reportScope,Number(input.value)||null])),
+            report_contents:Object.fromEntries([...document.querySelectorAll('[data-report-content]')].map(editor=>[editor.dataset.reportContent,editor.innerHTML])),
+            section_order:document.getElementById('se-report-order').value.split(',').map(key=>key.trim()).filter(Boolean)
+        } : {}),name:document.getElementById('se-title').value.trim(),description:document.getElementById('se-description').value.trim(),project_type:document.getElementById('se-project-type').value.trim()||null,is_active:document.getElementById('se-active').checked,visible_sections:selectedValues('sections'),visible_columns:selectedValues('columns'),table_scale:Number(document.getElementById('se-scale').value),consent_enabled:document.getElementById('se-consent-enabled').checked,consent_position:document.getElementById('se-consent-position').value,consent_content_before:document.getElementById('se-consent-before').innerHTML,consent_content:document.getElementById('se-consent-after').innerHTML,show_recipient_signature:document.getElementById('se-recipient-signature').checked,show_representative_signature:document.getElementById('se-representative-signature').checked,color_theme:document.getElementById('se-color-theme').value};
         return {...common,name:document.getElementById('se-title').value.trim(),description:document.getElementById('se-description').value.trim(),is_active:document.getElementById('se-active').checked,type:document.getElementById('se-type').value,content:editor.innerHTML};
     }
     async function request(url, options = {}) {

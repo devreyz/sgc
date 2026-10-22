@@ -312,7 +312,8 @@ HTML;
         string $accentColor,
         string $type = 'header',
         array $allVars = [],
-        ?Tenant $tenant = null
+        ?Tenant $tenant = null,
+        bool $suppressGenerationTimestamp = false
     ): string {
         if ($layoutId) {
             $layout = PdfLayoutTemplate::find($layoutId);
@@ -336,16 +337,18 @@ HTML;
         if ($type === 'footer') {
             $generated = $this->today();
             $cnpjLine = $orgCnpj ? " | {$orgCnpj}" : '';
+            $generationLine = $suppressGenerationTimestamp ? $orgCnpj : "Gerado em: {$generated}{$cnpjLine}";
 
             return <<<HTML
 <div class="pdf-footer-custom" style="text-align:center;font-family:Arial, sans-serif;">
     <div style="font-weight:700;color:#334155;font-size:11px;">{$orgName}</div>
-    <div style="font-size:9px;color:#6b7280;margin-top:3px;">Gerado em: {$generated}{$cnpjLine}</div>
+    <div style="font-size:9px;color:#6b7280;margin-top:3px;">{$generationLine}</div>
     <div style="font-size:9px;color:#9ca3af;margin-top:2px;">Página <span class="pdf-pgnum"></span> / <span class="pdf-pgtot"></span></div>
 </div>
 HTML;
         }
 
+        $generationHtml = $suppressGenerationTimestamp ? '' : '<div style="font-size:8px;color:#9ca3af;">Gerado em: '.$this->today().'</div>';
         return <<<HTML
 <div class="pdf-header-custom" style="display:table;width:100%;border-bottom:2px solid {$primaryColor};padding-bottom:7px;">
     <div style="display:table-cell;width:58px;vertical-align:middle;">{$logoHtml}</div>
@@ -355,7 +358,7 @@ HTML;
     </div>
     <div style="display:table-cell;width:34%;text-align:right;vertical-align:middle;">
         <div style="font-size:11px;font-weight:bold;color:#334155;text-transform:uppercase;">{$docTitle}</div>
-        <div style="font-size:8px;color:#9ca3af;">Gerado em: {$this->today()}</div>
+        {$generationHtml}
     </div>
 </div>
 HTML;
@@ -400,12 +403,17 @@ HTML;
      */
     public function generateSystemPdf(string $view, array $viewData, array $options = []): DomPDF
     {
+        $renderedAt = now();
+        // The canvas footer owns generation time. Keep issue/receipt dates in the document.
+        $viewData['suppress_generation_timestamp'] = true;
         $tenant = $options['tenant'] ?? $viewData['tenant'] ?? null;
         $tenantId = (int) ($tenant?->id ?? session('tenant_id'));
         $projectType = $options['project_type'] ?? data_get($viewData, 'project.type');
         $configurationView = (string) ($options['configuration_view'] ?? $view);
         $configured = $tenantId > 0
-            ? $this->systemPdfConfiguration->resolve($configurationView, $tenantId, $projectType)
+            ? (isset($options['report_context'])
+                ? $this->systemPdfConfiguration->resolveForContext($configurationView, $tenantId, $projectType, $options['report_context'])
+                : $this->systemPdfConfiguration->resolve($configurationView, $tenantId, $projectType))
             : [];
 
         // The active system template is authoritative. Call-site options may
@@ -453,7 +461,9 @@ HTML;
         // internal header/footer exactly as they were before this feature was added.
         $hasCustomLayout = $headerLayoutId !== null || $footerLayoutId !== null;
         if (! $hasCustomLayout) {
-            return Pdf::loadView($view, $viewData)->setPaper($paper, $orientation);
+            return app(PdfUpdateFooterService::class)->apply(
+                Pdf::loadView($view, $viewData)->setPaper($paper, $orientation), $renderedAt,
+            );
         }
 
         // --- Custom layout path: suppress the blade-internal header/footer and
@@ -489,8 +499,8 @@ HTML;
         }
 
         // Build header/footer HTML via existing resolver (uses custom layout or fallback with pagination)
-        $headerHtml = $this->resolveLayoutHtml($headerLayoutId, $title, $primaryColor, $accentColor, 'header', $allVars, $tenant);
-        $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant);
+        $headerHtml = $this->resolveLayoutHtml($headerLayoutId, $title, $primaryColor, $accentColor, 'header', $allVars, $tenant, true);
+        $footerHtml = $this->resolveLayoutHtml($footerLayoutId, $title, $primaryColor, $accentColor, 'footer', $allVars, $tenant, true);
 
         $fixedHeader = "<div id=\"page-header\">{$headerHtml}</div>";
         $fixedFooter = "<div id=\"page-footer\">{$footerHtml}</div>";
@@ -590,7 +600,7 @@ HTMLDOC;
             // fail silently
         }
 
-        return $pdf;
+        return app(PdfUpdateFooterService::class)->apply($pdf, $renderedAt, true);
     }
 
     /**

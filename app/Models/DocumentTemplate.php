@@ -17,6 +17,26 @@ class DocumentTemplate extends Model
     protected static function booted(): void
     {
         static::saving(function (self $template): void {
+            $template->tenant_id = $template->tenant_id ?: session('tenant_id');
+            if ($template->customer_id && $template->organization_id) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['organization_id' => 'Escolha um cliente específico ou uma organização compradora, não ambos.']);
+            }
+            foreach (['sales_project_id' => SalesProject::class, 'customer_id' => Customer::class, 'organization_id' => Organization::class] as $field => $model) {
+                if ($template->getAttribute($field) && ! $model::withoutGlobalScopes()->where('tenant_id', $template->tenant_id)
+                    ->whereNull('deleted_at')->whereKey($template->getAttribute($field))->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([$field => 'O contexto deve pertencer à organização atual.']);
+                }
+            }
+            if ($template->isDirty('report_contents') && is_array($template->report_contents)) {
+                $template->report_contents = collect($template->report_contents)
+                    ->only(array_keys(\App\Services\Accounting\BillingDossierReportService::CONTENT_SLOTS))
+                    ->map(fn ($html) => filled($html) ? app(\App\Services\DocumentContentSanitizer::class)->sanitize((string) $html) : null)->all();
+            }
+            if (\App\Services\Accounting\BillingDossierReportService::isReportKey($template->system_template_key)
+                && $template->isDirty('section_order') && is_array($template->section_order)) {
+                $allowed = array_keys(self::getSystemTemplateDefinitions()[$template->system_template_key]['sections'] ?? []);
+                $template->section_order = array_values(array_unique(array_intersect($template->section_order, $allowed)));
+            }
             if (! $template->is_active || $template->template_category !== 'system' || ! $template->system_template_key) {
                 return;
             }
@@ -26,6 +46,10 @@ class DocumentTemplate extends Model
                 ->where('template_category', 'system')
                 ->where('system_template_key', $template->system_template_key)
                 ->where('project_type', $template->project_type)
+                ->when(\Illuminate\Support\Facades\Schema::hasColumn('document_templates', 'sales_project_id'), fn ($query) => $query
+                    ->where('sales_project_id', $template->sales_project_id)
+                    ->where('customer_id', $template->customer_id)
+                    ->where('organization_id', $template->organization_id))
                 ->when($template->exists, fn ($query) => $query->whereKeyNot($template->getKey()))
                 ->update(['is_active' => false]);
         });
@@ -38,6 +62,10 @@ class DocumentTemplate extends Model
         'template_category',
         'system_template_key',
         'project_type',
+        'sales_project_id',
+        'customer_id',
+        'organization_id',
+        'report_contents',
         'consent_enabled',
         'consent_position',
         'consent_content_before',
@@ -71,6 +99,7 @@ class DocumentTemplate extends Model
             'visible_columns' => 'array',
             'custom_fields' => 'array',
             'section_order' => 'array',
+            'report_contents' => 'array',
             'is_active' => 'boolean',
             'consent_enabled' => 'boolean',
             'show_recipient_signature' => 'boolean',
@@ -170,6 +199,33 @@ class DocumentTemplate extends Model
     public static function getSystemTemplateDefinitions(): array
     {
         return [
+            'billing_member_deliveries' => [
+                'label' => 'Relatório de Entregas por Associado do Faturamento',
+                'blade_view' => 'pdf.billing-member-deliveries', 'type' => 'report',
+                'description' => 'Seções por cliente, com associados, produtos, quantidades, preços e ajustes, sem registro financeiro.',
+                'sections' => ['context' => 'Cliente, projeto e período', 'summary' => 'Resumo do período', 'members' => 'Dados dos associados', 'table' => 'Produtos por associado', 'signature' => 'Responsável pelo relatório'],
+                'default_sections' => ['context', 'members', 'table'],
+                'columns' => ['quantity' => 'Quantidade entregue', 'unit_price' => 'Valor unitário', 'gross' => 'Valor total', 'adjustments' => 'Taxas, descontos e acréscimos do cliente', 'dates' => 'Período das entregas', 'count' => 'Número de distribuições'],
+                'default_columns' => ['quantity', 'unit_price', 'gross', 'adjustments'],
+            ],
+            'billing_acceptance_term' => [
+                'label' => 'Termo de Recebimento e Aceitabilidade',
+                'blade_view' => 'pdf.billing-acceptance-term', 'type' => 'report',
+                'description' => 'Relação física de produtos entregues ao destinatário para conferência, sem quitação financeira.',
+                'sections' => ['context' => 'Cliente, projeto e período', 'summary' => 'Resumo', 'declaration' => 'Texto do termo', 'table' => 'Produtos recebidos', 'signature' => 'Conferência e assinaturas'],
+                'default_sections' => ['context', 'table'],
+                'columns' => ['quantity' => 'Quantidade comercializada', 'unit_price' => 'Valor unitário', 'gross' => 'Valor total', 'dates' => 'Período das entregas', 'count' => 'Número de distribuições'],
+                'default_columns' => ['quantity', 'unit_price', 'gross'],
+            ],
+            'billing_document_register' => [
+                'label' => 'Relação de Documentos do Faturamento',
+                'blade_view' => 'pdf.billing-document-register', 'type' => 'report',
+                'description' => 'Inventário dos comprovantes e anexos vinculados, com identificação de seus titulares.',
+                'sections' => ['context' => 'Faturamento e destinatário', 'summary' => 'Resumo dos documentos', 'table' => 'Relação de documentos e titulares', 'signature' => 'Responsável pela conferência'],
+                'default_sections' => ['context', 'summary', 'table'],
+                'columns' => ['status' => 'Situação', 'date' => 'Data', 'quantity' => 'Distribuições nesta folha'],
+                'default_columns' => ['status', 'date', 'quantity'],
+            ],
             'deliveries_associate' => [
                 'label' => 'Entregas por Membro',
                 'blade_view' => 'pdf.deliveries-by-associate',

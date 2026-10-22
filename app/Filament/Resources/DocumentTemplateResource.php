@@ -89,7 +89,12 @@ class DocumentTemplateResource extends Resource
                         ->live()
                         ->disabled(fn ($record) => $record && $record->isSystem())
                         ->dehydrated()
-                        ->helperText('Selecione qual PDF do sistema este modelo configurará.'),
+                        ->helperText('Selecione qual PDF do sistema este modelo configurará.')
+                        ->afterStateUpdated(function (\Filament\Forms\Set $set, $state): void {
+                            $definition = DocumentTemplate::getSystemTemplateDefinitions()[$state] ?? [];
+                            $set('visible_sections', $definition['default_sections'] ?? array_keys($definition['sections'] ?? []));
+                            $set('visible_columns', $definition['default_columns'] ?? array_keys($definition['columns'] ?? []));
+                        }),
                     Forms\Components\Select::make('project_type')
                         ->label('Tipo de projeto')
                         ->options(fn (): array => SalesProjectType::options((int) session('tenant_id'), false))
@@ -99,6 +104,34 @@ class DocumentTemplateResource extends Resource
                 ])
                 ->visible(fn (Get $get) => $get('template_category') === 'system')
                 ->columns(1),
+
+            Forms\Components\Section::make('Personalização dos relatórios do dossiê')
+                ->description('Sem contexto específico, usa o padrão da organização. Prioridade: projeto + destinatário, projeto, destinatário, tipo de projeto e padrão. Os relatórios não criam registros financeiros.')
+                ->visible(fn (Get $get) => $get('template_category') === 'system'
+                    && \App\Services\Accounting\BillingDossierReportService::isReportKey($get('system_template_key')))
+                ->schema([
+                    Forms\Components\Select::make('sales_project_id')->label('Projeto específico')->searchable()
+                        ->options(fn () => \App\Models\SalesProject::query()->where('tenant_id', session('tenant_id'))->orderBy('title')->pluck('title', 'id')),
+                    Forms\Components\Select::make('customer_id')->label('Cliente específico')->searchable()
+                        ->options(fn () => \App\Models\Customer::query()->where('tenant_id', session('tenant_id'))->orderBy('name')->pluck('name', 'id')),
+                    Forms\Components\Select::make('organization_id')->label('Organização compradora específica')->searchable()
+                        ->options(fn () => \App\Models\Organization::query()->where('tenant_id', session('tenant_id'))->orderBy('name')->pluck('name', 'id')),
+                    Forms\Components\TagsInput::make('section_order')->label('Ordem das seções (identificadores)')
+                        ->helperText('Adicione os identificadores na ordem desejada. Seções não informadas aparecem depois, na ordem padrão.')
+                        ->suggestions(fn (Get $get) => array_keys(self::getSectionsForKey($get('system_template_key')))),
+                    Forms\Components\Toggle::make('show_recipient_signature')->label('Assinatura do destinatário')->default(true),
+                    Forms\Components\Toggle::make('show_representative_signature')->label('Assinatura do representante')->default(true),
+                    Forms\Components\Placeholder::make('report_variables')->label('Variáveis do relatório')
+                        ->content(fn () => new HtmlString(collect(\App\Services\Accounting\BillingReportContentRenderer::availableVariables())
+                            ->map(fn ($label, $token) => '<div><code>'.e($token).'</code> '.e($label).'</div>')->implode('')))->columnSpanFull(),
+                    Forms\Components\Placeholder::make('report_general_variables')->label('Variáveis gerais disponíveis')
+                        ->content(fn () => new HtmlString(self::buildVariablesHelpHtml()))->columnSpanFull(),
+                    ...collect(\App\Services\Accounting\BillingDossierReportService::CONTENT_SLOTS)->map(fn ($label, $slot) =>
+                        Forms\Components\RichEditor::make('report_contents.'.$slot)->label($label)
+                            ->toolbarButtons(['bold', 'italic', 'underline', 'h2', 'h3', 'bulletList', 'orderedList', 'table', 'undo', 'redo'])
+                            ->helperText('Use as variáveis do relatório e as variáveis gerais da organização/data. Conteúdo opcional.')
+                            ->columnSpanFull())->values()->all(),
+                ])->columns(2),
 
             Forms\Components\Section::make('Declaração e assinaturas')
                 ->description('Personalize a declaração do comprovante. Este texto confirma o fato documentado e não é um consentimento geral de tratamento de dados.')

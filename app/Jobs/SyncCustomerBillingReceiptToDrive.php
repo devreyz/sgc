@@ -54,6 +54,7 @@ class SyncCustomerBillingReceiptToDrive implements ShouldBeUniqueUntilProcessing
                 'tenant_id' => $receipt->tenant_id,
                 'receipt_id' => $receipt->id,
             ]);
+            app(\App\Services\Accounting\AccountingReceiptDocumentService::class)->recordFailure($receipt);
 
             return;
         }
@@ -61,6 +62,7 @@ class SyncCustomerBillingReceiptToDrive implements ShouldBeUniqueUntilProcessing
         try {
             $archive->sync($receipt);
         } catch (Throwable $exception) {
+            app(\App\Services\Accounting\AccountingReceiptDocumentService::class)->recordFailure($receipt);
             Log::error('Customer billing receipt Drive synchronization failed.', [
                 'tenant_id' => $receipt->tenant_id,
                 'receipt_id' => $receipt->id,

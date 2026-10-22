@@ -61,7 +61,7 @@
         <div class="org-header-right">
             <div class="doc-title">ORDEM DE SERVIÇO</div>
             <div class="doc-subtitle">{{ $order->number }}</div>
-            <div class="doc-subtitle">Emitido: {{ now()->format('d/m/Y H:i') }}</div>
+            @unless($suppress_generation_timestamp ?? false)<div class="doc-subtitle">Emitido: {{ now()->format('d/m/Y H:i') }}</div>@endunless
         </div>
     </div>
     @endif
@@ -256,7 +256,7 @@
 
     {{-- Footer --}}
     <div class="footer">
-        Documento gerado em {{ now()->format('d/m/Y H:i') }} | {{ $tenant->name ?? 'SGC' }}
+        @unless($suppress_generation_timestamp ?? false)Documento gerado em {{ now()->format('d/m/Y H:i') }} | @endunless{{ $tenant->name ?? 'SGC' }}
     </div>
 </body>
 </html>

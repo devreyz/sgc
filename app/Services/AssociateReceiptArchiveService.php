@@ -7,12 +7,13 @@ use App\Models\AssociateReceipt;
 use App\Models\ProductionDelivery;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Barryvdh\DomPDF\PDF;
 
 class AssociateReceiptArchiveService
 {
     public function __construct(private readonly TenantGoogleDriveService $drive) {}
 
-    public function sync(AssociateReceipt $receipt): void
+    public function generatePdf(AssociateReceipt $receipt): PDF
     {
         $receipt->loadMissing(['tenant', 'project', 'associate.user', 'payments.bankAccount']);
 
@@ -38,6 +39,9 @@ class AssociateReceiptArchiveService
         if ($distributions->isEmpty()) {
             throw new RuntimeException('O comprovante nao possui distribuicoes financeiras validas.');
         }
+        if ($ids->isNotEmpty() && $distributions->count() !== $ids->count()) {
+            throw new RuntimeException('Uma ou mais distribuições do comprovante não estão disponíveis. Confira os vínculos antes de gerar o PDF.');
+        }
 
         $data = ReceiptDataBuilder::fromDeliveries(
             $distributions,
@@ -57,7 +61,7 @@ class AssociateReceiptArchiveService
             ? (int) $receipt->project->associate_receipt_table_scale
             : 100;
         $pdfService = app(TemplatedPdfService::class);
-        $pdf = $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
+        return $pdfService->generateSystemPdf('pdf.project-associate-receipt', [
             'tenant' => $receipt->tenant,
             'project' => $receipt->project,
             'associate' => $receipt->associate,
@@ -77,7 +81,12 @@ class AssociateReceiptArchiveService
             $receipt->project->type,
             (int) $receipt->tenant_id,
         ));
+    }
 
+    public function sync(AssociateReceipt $receipt): void
+    {
+        $pdf = $this->generatePdf($receipt);
+        $pdfService = app(TemplatedPdfService::class);
         $label = str_replace('/', '-', $receipt->formatted_number);
         $associate = Str::slug($receipt->associate->display_name ?: 'associado');
         $projectFolder = $receipt->project->driveFolderName();

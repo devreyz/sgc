@@ -34,7 +34,7 @@ class AccountingPortalSecurityTest extends TestCase
         parent::setUp();
 
         foreach ([
-            'activity_log', 'documents', 'customer_receipt_payments', 'associate_receipts',
+            'activity_log', 'documents', 'cloud_documents', 'tenant_cloud_storage_connections', 'accounting_access_scopes', 'customer_project_fees', 'customer_receipt_payments', 'associate_receipts',
             'financial_document_identities',
             'fiscal_profiles', 'billing_authorizations', 'organization_authorized_emails', 'sales_project_organizations',
             'production_deliveries', 'products', 'associates', 'customer_billing_receipts',
@@ -411,8 +411,9 @@ class AccountingPortalSecurityTest extends TestCase
             ->assertJsonPath('process.integrity.critical_count', 0);
     }
 
-    public function test_draft_dossier_exposes_and_renders_a_printable_preview(): void
+    private function createReportFeeSchema(): void
     {
+        Schema::dropIfExists('customer_project_fees');
         Schema::create('customer_project_fees', function (Blueprint $table): void {
             $table->id();
             $table->unsignedBigInteger('tenant_id');
@@ -426,6 +427,11 @@ class AccountingPortalSecurityTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+    }
+
+    public function test_draft_dossier_exposes_and_renders_a_printable_preview(): void
+    {
+        $this->createReportFeeSchema();
         DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft']);
         $user = User::query()->findOrFail(1);
         $url = route('accounting.fiscal.billing-sheet', ['tenant' => 'tenant-a', 'receipt' => 10]);
@@ -1293,6 +1299,244 @@ class AccountingPortalSecurityTest extends TestCase
             'created_at' => now(), 'updated_at' => now(),
         ]);
         DB::table('production_deliveries')->where('id', 301)->update(['associate_receipt_id' => 40]);
+    }
+
+    public function test_dossier_reports_capture_alphabetical_members_group_products_and_keep_units_separate_without_writes(): void
+    {
+        $this->createReportFeeSchema();
+        $this->reconciliationScenario();
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)->update(['tenant_name' => 'Zélia Souza']);
+        $user = (array) DB::table('users')->where('id', 1)->first();
+        DB::table('users')->insert(array_merge($user, ['id' => 9, 'email' => 'ana@example.test']));
+        $membership = (array) DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)->first();
+        unset($membership['id']);
+        DB::table('tenant_user')->insert(array_merge($membership, ['user_id' => 9, 'tenant_name' => 'Ána Silva']));
+        DB::table('associates')->insert(['id' => 2, 'tenant_id' => 1, 'user_id' => 9, 'nickname' => 'Ana']);
+        DB::table('products')->insert(['id' => 2, 'tenant_id' => 1, 'name' => 'Milho Verde', 'unit' => 'un']);
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 302, 'quantity' => '0.1', 'unit_price' => 10]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 303, 'quantity' => '0.2', 'unit_price' => 20]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 304, 'quantity' => 5, 'product_id' => 2, 'associate_id' => 2, 'associate_receipt_id' => null]));
+        $before = DB::table('production_deliveries')->orderBy('id')->get()->toJson();
+        $receiptBefore = DB::table('customer_billing_receipts')->where('id', 10)->first();
+        $report = app(\App\Services\Accounting\BillingDossierReportService::class)->capture(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(['Ána Silva', 'Zélia Souza'], array_column($report['members'], 'name'));
+        self::assertCount(1, $report['members'][1]['products']);
+        self::assertSame('20.30000000', $report['members'][1]['products'][0]['quantity']);
+        self::assertSame('205.00000000', $report['members'][1]['products'][0]['gross']);
+        $commercial = collect($report['commercial_products'])->where('name', 'Banana')->values();
+        self::assertCount(2, $commercial);
+        self::assertSame(['10.0000', '20.0000'], $commercial->pluck('unit_price')->sort()->values()->all());
+        self::assertSame('20.30000000', collect($report['units'])->keyBy('unit')['kg']['quantity']);
+        self::assertSame('5.00000000', collect($report['units'])->keyBy('unit')['un']['quantity']);
+        self::assertSame($before, DB::table('production_deliveries')->orderBy('id')->get()->toJson());
+        self::assertEquals($receiptBefore, DB::table('customer_billing_receipts')->where('id', 10)->first());
+    }
+
+    public function test_dossier_report_separates_clients_and_prices_without_duplicating_fixed_customer_fees(): void
+    {
+        $this->createReportFeeSchema();
+        $this->reconciliationScenario();
+        DB::table('customers')->insert(['id' => 3, 'tenant_id' => 1, 'organization_id' => 1, 'name' => 'Escola B']);
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 302, 'customer_id' => 3, 'quantity' => 10]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 303, 'customer_id' => 3, 'quantity' => 2, 'unit_price' => 15]));
+        DB::table('customer_project_fees')->insert([
+            ['tenant_id' => 1, 'sales_project_id' => 10, 'name' => 'Frete', 'type' => 'fixed', 'nature' => 'discount', 'value' => 9, 'active' => true],
+            ['tenant_id' => 1, 'sales_project_id' => 10, 'name' => 'Bônus', 'type' => 'percentage', 'nature' => 'accrual', 'value' => 10, 'active' => true],
+        ]);
+        $report = app(\App\Services\Accounting\BillingDossierReportService::class)->capture(CustomerBillingReceipt::findOrFail(10));
+        self::assertSame(['Escola A', 'Escola B'], array_column($report['customers'], 'name'));
+        self::assertCount(2, $report['customers'][1]['members'][0]['products']);
+        self::assertSame('200.00', $report['customers'][0]['totals']['gross']);
+        self::assertSame('6.00', $report['customers'][0]['totals']['discounts']);
+        self::assertSame('130.00', $report['customers'][1]['totals']['gross']);
+        self::assertSame('12.00', $report['customers'][1]['totals']['discounts']);
+        self::assertSame('13.00', $report['customers'][1]['totals']['accruals']);
+        self::assertSame('131.00', $report['customers'][1]['totals']['net']);
+    }
+
+    public function test_dossier_reports_distinguish_invoice_selection_from_recipient_project_period_and_ignore_other_contexts(): void
+    {
+        $this->createReportFeeSchema();
+        $this->reconciliationScenario();
+        $row = (array) DB::table('production_deliveries')->where('id', 301)->first();
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 302, 'quantity' => 5, 'billing_receipt_id' => null]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 303, 'tenant_id' => 2, 'quantity' => 999]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 304, 'delivery_date' => '2025-01-01', 'billing_receipt_id' => null]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 305, 'status' => 'pending', 'billing_receipt_id' => null]));
+        DB::table('production_deliveries')->insert(array_merge($row, ['id' => 306, 'customer_id' => 2, 'billing_receipt_id' => null]));
+        $service = app(\App\Services\Accounting\BillingDossierReportService::class);
+        $billing = CustomerBillingReceipt::findOrFail(10);
+        self::assertSame(1, $service->capture($billing)['distribution_count']);
+        self::assertSame(2, $service->capture($billing, 'project_period')['distribution_count']);
+        DB::table('customer_billing_receipts')->where('id', 10)->update(['status' => 'draft', 'delivery_ids' => json_encode([302])]);
+        self::assertSame('5.00000000', $service->capture($billing->fresh())['units'][0]['quantity']);
+    }
+
+    public function test_dossier_document_register_includes_all_linked_files_and_correct_owners_without_creating_identities(): void
+    {
+        $this->createReportFeeSchema();
+        $this->reconciliationScenario();
+        DB::table('documents')->insert([
+            'tenant_id' => 1, 'name' => 'Anexo do membro', 'documentable_type' => \App\Models\AssociateReceipt::class,
+            'documentable_id' => 40, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('documents')->insert([
+            'tenant_id' => 2, 'name' => 'SECRET', 'documentable_type' => CustomerBillingReceipt::class,
+            'documentable_id' => 10, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        $before = DB::table('financial_document_identities')->count();
+        $report = app(\App\Services\Accounting\BillingDossierReportService::class)->capture(CustomerBillingReceipt::findOrFail(10));
+        self::assertCount(3, $report['documents']);
+        self::assertSame('MEM-0006', $report['documents'][1]['number']);
+        self::assertSame('180.00', $report['documents'][0]['amount']);
+        self::assertSame('160.00', $report['documents'][1]['amount']);
+        self::assertNull($report['documents'][2]['amount']);
+        $totals = collect($report['document_totals'])->keyBy('type');
+        self::assertSame('180.00', $totals['Folha de faturamento']['amount']);
+        self::assertSame('160.00', $totals['Comprovante do associado']['amount']);
+        self::assertNull($totals['Anexo']['amount']);
+        self::assertSame(1, $totals['Anexo']['missing']);
+        self::assertSame($report['documents'][1]['owner'], $report['documents'][2]['owner']);
+        self::assertStringNotContainsString('SECRET', json_encode($report));
+        self::assertSame($before, DB::table('financial_document_identities')->count());
+    }
+
+    public function test_dossier_report_download_is_tenant_scoped_and_never_issues_or_persists_a_document(): void
+    {
+        $this->createReportFeeSchema();
+        $this->reconciliationScenario();
+        $before = DB::table('financial_document_identities')->count();
+        $pdfService = Mockery::mock(\App\Services\TemplatedPdfService::class);
+        foreach (\App\Services\Accounting\BillingDossierReportService::TYPES as $type => $definition) {
+            $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+            $pdf->shouldReceive('output')->once()->andReturn('%PDF-report-'.$type);
+            $pdfService->shouldReceive('generateSystemPdf')->once()->withArgs(fn ($view, $data, $options) =>
+                $view === $definition['view'] && $data['report']['distribution_count'] === 1 && $options['report_context']['sales_project_id'] === 10)->andReturn($pdf);
+        }
+        $this->app->instance(\App\Services\TemplatedPdfService::class, $pdfService);
+        $this->actingAs(User::findOrFail(1));
+        foreach (array_keys(\App\Services\Accounting\BillingDossierReportService::TYPES) as $type) {
+            $this->get('/tenant-a/accounting/processes/10/reports/'.$type.'?download=1')->assertOk()
+                ->assertHeader('Content-Type', 'application/pdf')->assertContent('%PDF-report-'.$type);
+        }
+        $this->get('/tenant-a/accounting/processes/20/reports/members')->assertNotFound();
+        $this->get('/tenant-a/accounting/processes/10/reports/members?project=20')->assertNotFound();
+        self::assertSame($before, DB::table('financial_document_identities')->count());
+    }
+
+    public function test_dossier_reports_cannot_expand_a_receipt_only_grant_into_project_period_access(): void
+    {
+        $this->reconciliationScenario();
+        Schema::create('accounting_access_scopes', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('tenant_id'); $table->unsignedBigInteger('user_id');
+            $table->string('scope_type'); $table->unsignedBigInteger('scope_id')->nullable();
+            $table->string('scope_value')->nullable(); $table->boolean('active')->default(true);
+        });
+        DB::table('accounting_access_scopes')->insert(['tenant_id' => 1, 'user_id' => 1, 'scope_type' => 'customer_billing_receipt', 'scope_id' => 10]);
+        DB::table('tenant_user')->where('tenant_id', 1)->where('user_id', 1)->update(['roles' => json_encode(['contador'])]);
+        $user = User::findOrFail(1);
+        $user->givePermissionTo('view_accounting_processes');
+        $this->actingAs($user);
+        $this->getJson('/tenant-a/accounting/processes/10/reports/members?scope=project_period')->assertForbidden();
+        $this->getJson('/tenant-a/accounting/processes/20/reports/members?scope=billing')->assertNotFound();
+        self::assertSame(10, app(\App\Services\Accounting\AccountingAccessService::class)->scopeBillings(CustomerBillingReceipt::query(), $user, 1)->first()?->id);
+    }
+
+    private function accountingDriveScenario(): void
+    {
+        $this->reconciliationScenario();
+        config(['queue.default' => 'database']);
+        \Illuminate\Support\Facades\Queue::fake();
+        Schema::create('tenant_cloud_storage_connections', function (Blueprint $table): void {
+            $table->id(); $table->unsignedBigInteger('tenant_id'); $table->string('provider'); $table->string('status');
+        });
+        Schema::create('cloud_documents', function (Blueprint $table): void {
+            $table->string('id')->primary(); $table->unsignedBigInteger('tenant_id');
+            $table->string('provider'); $table->string('document_type'); $table->string('documentable_type');
+            $table->string('remote_path')->nullable();
+            $table->unsignedBigInteger('documentable_id'); $table->string('status');
+            $table->json('metadata')->nullable(); $table->text('last_error')->nullable();
+            $table->timestamp('synced_at')->nullable(); $table->timestamps();
+        });
+        DB::table('tenant_cloud_storage_connections')->insert(['tenant_id' => 1, 'provider' => 'google_drive', 'status' => 'active']);
+        DB::table('cloud_documents')->insert([
+            'id' => 'member-document', 'tenant_id' => 1, 'provider' => 'google_drive', 'document_type' => 'associate_receipt',
+            'documentable_type' => (new \App\Models\AssociateReceipt)->getMorphClass(), 'documentable_id' => 40,
+            'status' => 'synced', 'synced_at' => now(), 'metadata' => json_encode(['source_fingerprint' => 'same-version']),
+        ]);
+    }
+
+    public function test_accounting_can_queue_pdf_refresh_without_changing_financial_data_and_observe_drive_status(): void
+    {
+        $this->accountingDriveScenario();
+        $before = (array) DB::table('associate_receipts')->where('id', 40)->first();
+        $this->actingAs(User::findOrFail(1))->postJson('/tenant-a/accounting/source-receipts/40/document/refresh')
+            ->assertStatus(202)->assertSee('fila documents');
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncAssociateReceiptToDrive::class, fn ($job) => $job->receiptId === 40);
+        self::assertSame('pending', DB::table('cloud_documents')->where('id', 'member-document')->value('status'));
+        self::assertSame($before, (array) DB::table('associate_receipts')->where('id', 40)->first());
+        $this->getJson('/tenant-a/accounting/source-receipts/40/document/status')->assertOk()
+            ->assertJsonPath('drive_status', 'pending')->assertJsonMissing(['source_fingerprint' => 'same-version']);
+        $this->postJson('/tenant-a/accounting/processes/10/document/refresh')->assertStatus(202);
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SyncCustomerBillingReceiptToDrive::class, fn ($job) => $job->receiptId === 10);
+        $this->getJson('/tenant-a/accounting/processes/10/document/status')->assertOk()->assertJsonPath('drive_status', 'pending');
+        app(\App\Services\Accounting\AccountingReceiptDocumentService::class)->recordFailure(CustomerBillingReceipt::findOrFail(10));
+        $this->getJson('/tenant-a/accounting/processes/10/document/status')->assertOk()->assertJsonPath('drive_status', 'failed');
+        $this->postJson('/tenant-a/accounting/processes/20/document/refresh')->assertNotFound();
+        $this->getJson('/tenant-a/accounting/processes/20/document/status')->assertNotFound();
+    }
+
+    public function test_accounting_pdf_refresh_requires_review_permission_and_an_async_connected_drive(): void
+    {
+        $this->accountingDriveScenario();
+        $user = User::findOrFail(1);
+        $this->actingAs($user);
+        DB::table('role_has_permissions')->whereIn('permission_id', DB::table('permissions')->where('name', 'review_accounting_processes')->pluck('id'))->delete();
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $user->unsetRelation('roles')->unsetRelation('permissions');
+        $this->postJson('/tenant-a/accounting/processes/10/document/refresh')->assertForbidden();
+        $permission = \Spatie\Permission\Models\Permission::findOrCreate('review_accounting_processes', 'web');
+        $user->givePermissionTo($permission);
+        config(['queue.default' => 'sync']);
+        $this->postJson('/tenant-a/accounting/processes/10/document/refresh')->assertUnprocessable();
+        config(['queue.default' => 'database']);
+        DB::table('tenant_cloud_storage_connections')->update(['status' => 'inactive']);
+        $this->postJson('/tenant-a/accounting/processes/10/document/refresh')->assertUnprocessable();
+        \Illuminate\Support\Facades\Queue::assertNothingPushed();
+    }
+
+    public function test_accounting_never_refreshes_cancelled_or_obsolete_member_documents_and_restricts_download_scope(): void
+    {
+        $this->accountingDriveScenario();
+        $this->actingAs(User::findOrFail(1));
+        foreach (['cancelled', 'obsolete'] as $status) {
+            DB::table('associate_receipts')->where('id', 40)->update(['status' => $status]);
+            $this->postJson('/tenant-a/accounting/source-receipts/40/document/refresh')->assertUnprocessable();
+            $this->getJson('/tenant-a/accounting/source-receipts/40/document?download=1')->assertStatus(409);
+        }
+        DB::table('associate_receipts')->where('id', 40)->update(['tenant_id' => 2, 'status' => 'paid']);
+        $this->postJson('/tenant-a/accounting/source-receipts/40/document/refresh')->assertNotFound();
+        $this->getJson('/tenant-a/accounting/source-receipts/40/document?download=1')->assertNotFound();
+        \Illuminate\Support\Facades\Queue::assertNothingPushed();
+    }
+
+    public function test_accounting_download_renders_a_fresh_member_pdf_instead_of_reading_the_drive_archive(): void
+    {
+        $this->accountingDriveScenario();
+        $pdf = Mockery::mock(\Barryvdh\DomPDF\PDF::class);
+        $pdf->shouldReceive('output')->once()->andReturn('%PDF-fresh-document');
+        $archive = Mockery::mock(\App\Services\AssociateReceiptArchiveService::class);
+        $archive->shouldReceive('generatePdf')->once()->withArgs(fn ($receipt) => $receipt->id === 40)->andReturn($pdf);
+        $archive->shouldNotReceive('sync');
+        $this->app->instance(\App\Services\AssociateReceiptArchiveService::class, $archive);
+        $this->actingAs(User::findOrFail(1))->get('/tenant-a/accounting/source-receipts/40/document?download=1')
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-SGC-Document-Origin', 'generated')
+            ->assertHeader('Content-Disposition', 'attachment; filename="comprovante-MEM-0006.pdf"')
+            ->assertContent('%PDF-fresh-document');
+        \Illuminate\Support\Facades\Queue::assertNothingPushed();
     }
 
     public function test_reconciliation_matches_quantities_and_gross_without_blocking_or_mutating_documents(): void

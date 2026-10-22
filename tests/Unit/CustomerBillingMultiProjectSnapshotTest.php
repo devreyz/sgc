@@ -595,6 +595,37 @@ class CustomerBillingMultiProjectSnapshotTest extends TestCase
             'gross_value' => $quantity * $price, 'status' => 'approved', 'created_at' => now(), 'updated_at' => now()];
     }
 
+    public function test_customer_and_consolidated_pdf_items_are_alphabetical_without_mutating_receipt_data(): void
+    {
+        $project = $this->project(10, 'PNAE Agosto');
+        $customer = new Customer;
+        $customer->setRawAttributes(['id' => 50, 'tenant_id' => 1, 'name' => 'Escola Central'], true);
+        $distributions = collect();
+        foreach (['Tomate', 'rúcula', 'Banana', 'Ábobora'] as $index => $name) {
+            $product = new Product;
+            $product->setRawAttributes(['id' => 90 + $index, 'tenant_id' => 1, 'name' => $name, 'unit' => 'kg'], true);
+            $row = $this->distribution(100 + $index, 10, '2026-08-18');
+            $row->product_id = $product->id;
+            $row->customer_id = 50;
+            $row->setRelation('product', $product);
+            $row->setRelation('customer', $customer);
+            $distributions->push($row);
+        }
+        $receipt = new CustomerBillingReceipt(['tenant_id' => 1, 'sales_project_id' => 10, 'customer_id' => 50,
+            'status' => 'draft', 'delivery_ids' => [100, 101, 102, 103]]);
+        $before = $receipt->getAttributes();
+        $customerData = CustomerBillingReceiptResource::buildCustomerReceiptData($distributions, $receipt, null, $project, $customer, collect([$project]));
+        $organizationData = CustomerBillingReceiptResource::buildOrganizationReportData($distributions, $receipt, null, $project, new Organization(['name' => 'Prefeitura']), collect([$project]));
+        $expected = ['Ábobora', 'Banana', 'rúcula', 'Tomate'];
+        self::assertSame($expected, array_column($customerData['productRows'], 'product'));
+        self::assertSame($expected, array_column($customerData['projectGroups'][0]['rows'], 'product'));
+        self::assertSame($expected, array_column($organizationData['priceGroups'][0]['table'], 'product'));
+        self::assertSame(400.0, $customerData['totalGross']);
+        self::assertSame(400.0, $organizationData['totalGross']);
+        self::assertSame($before, $receipt->getAttributes());
+        self::assertSame(['Tomate', 'rúcula', 'Banana', 'Ábobora'], $distributions->pluck('product.name')->all());
+    }
+
     private function project(int $id, string $title): SalesProject
     {
         $project = new SalesProject;

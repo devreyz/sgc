@@ -10,12 +10,17 @@ class SystemPdfConfigurationResolver
 {
     public function resolve(string $view, int $tenantId, ?string $projectType = null): array
     {
+        return $this->resolveForContext($view, $tenantId, $projectType);
+    }
+
+    public function resolveForContext(string $view, int $tenantId, ?string $projectType = null, array $context = []): array
+    {
         $definition = DocumentTemplate::systemDefinitionForView($view);
         if (! $definition) {
             return [];
         }
 
-        $template = $this->templateForKey($definition['key'], $tenantId, $projectType);
+        $template = $this->templateForKey($definition['key'], $tenantId, $projectType, $context);
 
         $sections = $this->allowedSelection(
             $template?->visible_sections,
@@ -49,7 +54,7 @@ class SystemPdfConfigurationResolver
         ];
     }
 
-    public function templateForKey(string $key, int $tenantId, ?string $projectType = null): ?DocumentTemplate
+    public function templateForKey(string $key, int $tenantId, ?string $projectType = null, array $context = []): ?DocumentTemplate
     {
         if (! Schema::hasTable('document_templates')) {
             return null;
@@ -59,7 +64,20 @@ class SystemPdfConfigurationResolver
             ->where('tenant_id', $tenantId)
             ->where('template_category', 'system')
             ->where('system_template_key', $key)
+            ->whereNull('deleted_at')
             ->where('is_active', true);
+
+        if (Schema::hasColumn('document_templates', 'sales_project_id')) {
+            foreach (['sales_project_id', 'customer_id', 'organization_id'] as $field) {
+                $base->where(fn ($query) => $query->whereNull($field)
+                    ->when(! empty($context[$field]), fn ($query) => $query->orWhere($field, (int) $context[$field])));
+            }
+            return $base->where(fn ($query) => $query->whereNull('project_type')
+                ->when(filled($projectType), fn ($query) => $query->orWhere('project_type', $projectType)))
+                ->latest('id')->get()->sortByDesc(fn ($template) =>
+                    ($template->sales_project_id ? 8 : 0) + ($template->customer_id ? 4 : 0)
+                    + ($template->organization_id ? 2 : 0) + ($template->project_type ? 1 : 0))->first();
+        }
 
         $template = filled($projectType)
             ? (clone $base)->where('project_type', $projectType)->latest('id')->first()

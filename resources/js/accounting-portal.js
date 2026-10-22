@@ -125,6 +125,63 @@ import './qr-scanner-core';
             () => '<div class="acc-skeleton"></div>'
         ).join("");
 
+    function renderDocumentActions(actions) {
+        if (!actions) return '';
+        return `<div class="acc-document-actions" data-document-actions>
+            <div class="acc-document-actions-buttons">
+                ${actions.download_url ? `<a class="acc-button" href="${esc(actions.download_url)}" download>${phIcon('ph-download-simple')} Baixar PDF atualizado</a>` : ''}
+                ${actions.refresh_url ? `<button type="button" class="acc-button" data-refresh-document="${esc(actions.refresh_url)}" data-status-url="${esc(actions.status_url)}">${phIcon('ph-arrows-clockwise')} Atualizar PDF no Drive</button>` : ''}
+            </div>
+            <p class="acc-document-feedback" data-document-feedback aria-live="polite">${esc(actions.drive_status_label)}${actions.drive_updated_at ? ` · Última sincronização: ${esc(actions.drive_updated_at)} (Brasília)` : ''}</p>
+        </div>`;
+    }
+
+    const pendingDocumentRefreshes = new Set();
+    document.addEventListener('click', async (event) => {
+        const button = event.target.closest?.('[data-refresh-document]');
+        if (!button || pendingDocumentRefreshes.has(button.dataset.refreshDocument)) return;
+        const wrapper = button.closest('[data-document-actions]');
+        const feedback = wrapper.querySelector('[data-document-feedback]');
+        const url = button.dataset.refreshDocument;
+        pendingDocumentRefreshes.add(url);
+        button.disabled = true;
+        feedback.classList.remove('is-error');
+        feedback.textContent = 'Agendando atualização do PDF…';
+        const finish = () => { button.disabled = false; pendingDocumentRefreshes.delete(url); };
+        try {
+            const result = await postJson(url, {});
+            feedback.textContent = result.message;
+            let attempts = 0;
+            const poll = async () => {
+                if (!wrapper.isConnected) { finish(); return; }
+                try {
+                    const status = await getJson(button.dataset.statusUrl);
+                    if (status.drive_status === 'synced') {
+                        feedback.textContent = `PDF atualizado no Drive · ${status.drive_updated_at || ''} (Brasília)`;
+                        finish();
+                    } else if (['failed', 'rejected'].includes(status.drive_status)) {
+                        feedback.textContent = 'A atualização do Drive não foi concluída. Confira a conexão ou os dados do comprovante. Você pode tentar novamente ou baixar o PDF atualizado.';
+                        feedback.classList.add('is-error');
+                        finish();
+                    } else if (++attempts < 12) {
+                        setTimeout(poll, 5000);
+                    } else {
+                        feedback.textContent = 'Atualização ainda pendente. O worker da fila documents precisa estar ativo. O download atualizado pode ser usado sem aguardar o Drive.';
+                        finish();
+                    }
+                } catch {
+                    feedback.textContent = 'Não foi possível consultar a conclusão. Confira o status ao reabrir a página; a solicitação já foi enviada.';
+                    finish();
+                }
+            };
+            setTimeout(poll, 5000);
+        } catch (error) {
+            feedback.textContent = error.message;
+            feedback.classList.add('is-error');
+            finish();
+        }
+    });
+
     async function getJson(url, signal) {
         const response = await fetch(url, {
             headers: {
@@ -1843,6 +1900,7 @@ import './qr-scanner-core';
                                         </div>
 
                                         <div class="acc-receipt-actions">
+                                            ${renderDocumentActions(receipt.document_actions)}
                                             ${
                                                 receipt.detail_url
                                                     ? `
@@ -2048,6 +2106,47 @@ import './qr-scanner-core';
     /* =========================================================
        DOSSIER
        ========================================================= */
+
+    function renderDossierReports(exports) {
+        if (!exports) return '';
+        const descriptions = {
+            members: 'Uma seção por cliente, com associados em ordem alfabética, produtos por preço, quantidades, valores e ajustes.',
+            acceptance: 'Produtos entregues, unidade de comercialização, quantidades, valores unitários e total. Textos e assinaturas são opcionais no modelo.',
+            documents: 'Folha, comprovantes dos associados e anexos relacionados, identificando o titular de cada documento.',
+        };
+        return `<section class="acc-report-exports" data-report-exports>
+            <header><h3>Relatórios do faturamento</h3><p>Gerados com a captura atual dos dados, sem emitir comprovantes, registrar aceite ou movimentar pagamentos.</p></header>
+            <div class="acc-report-filters">
+                <label class="acc-field">Escopo das entregas<select data-report-scope>
+                    <option value="billing">Somente distribuições desta folha</option>
+                    ${exports.can_project_period ? '<option value="project_period">Destinatário no período e projeto(s) da folha</option>' : ''}
+                </select></label>
+                <label class="acc-field">Projeto<select data-report-project><option value="">Todos os projetos desta folha</option>
+                    ${exports.projects.map(project => `<option value="${esc(project.id)}">${esc(project.title)}</option>`).join('')}
+                </select></label>
+            </div>
+            <p class="acc-muted">A relação de documentos sempre se refere à folha completa. Os demais relatórios respeitam o escopo e o projeto selecionados. Para aplicar um modelo de projeto específico em folhas com vários projetos, selecione o projeto acima.</p>
+            <div class="acc-report-export-list">${exports.documents.map(report => `<article><h4>${esc(report.title)}</h4><p>${esc(descriptions[report.type])}</p>
+                <div class="acc-document-actions-buttons"><a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" href="${esc(report.url)}?download=1" download>${phIcon('ph-download-simple')} Baixar PDF</a>
+                <a class="acc-button" data-report-export="${esc(report.type)}" data-report-base-url="${esc(report.url)}" data-preview-report href="${esc(report.url)}?download=0" target="_blank" rel="noopener">${phIcon('ph-eye')} Visualizar</a></div>
+            </article>`).join('')}</div>
+            ${exports.settings_url ? `<a class="acc-button" href="${esc(exports.settings_url)}">${phIcon('ph-gear')} Personalizar nos PDFs do Sistema</a>` : ''}
+        </section>`;
+    }
+
+    function updateDossierReportLinks(container) {
+        const scope = container.querySelector('[data-report-scope]').value;
+        const project = container.querySelector('[data-report-project]').value;
+        container.querySelectorAll('[data-report-export]').forEach(link => {
+            const url = new URL(link.dataset.reportBaseUrl, location.href);
+            url.searchParams.set('download', link.hasAttribute('data-preview-report') ? '0' : '1');
+            if (link.dataset.reportExport !== 'documents') {
+                url.searchParams.set('scope', scope);
+                if (project) url.searchParams.set('project', project);
+            }
+            link.href = url.href;
+        });
+    }
 
     function renderReconciliation(report) {
         if (!report) return '<div class="acc-empty">Conferência indisponível.</div>';
@@ -2296,6 +2395,15 @@ import './qr-scanner-core';
                         <button
                             class="acc-tab"
                             type="button"
+                            data-tab="reports"
+                            data-tone="info"
+                            role="tab"
+                            aria-selected="false"
+                        >
+                            ${phIcon('ph-files')}
+                            <span>Relatórios</span>
+                        </button>
+                        <button class="acc-tab" type="button"
                             data-tab="reconciliation"
                             data-tone="warning"
                             role="tab"
@@ -2545,6 +2653,7 @@ import './qr-scanner-core';
                         class="acc-tab-panel"
                         data-panel="documents"
                     >
+                        ${renderDocumentActions(process.document_actions)}
                         <div class="acc-documents-workspace">
                             <section
                                 class="acc-subsection acc-subsection-fiscal"
@@ -2892,6 +3001,11 @@ import './qr-scanner-core';
 
                     <div
                         class="acc-tab-panel"
+                        data-panel="reports"
+                    >
+                        ${renderDossierReports(payload.report_exports)}
+                    </div>
+                    <div class="acc-tab-panel"
                         data-panel="reconciliation"
                     >
                         ${renderReconciliation(payload.reconciliation)}
@@ -3232,6 +3346,8 @@ import './qr-scanner-core';
             );
 
             if (activeTab !== 'overview') target.querySelector(`[data-tab="${activeTab}"]`)?.click();
+            const reportExports = target.querySelector('[data-report-exports]');
+            reportExports?.addEventListener('change', () => updateDossierReportLinks(reportExports));
             target.querySelector('[data-export-reconciliation]')?.addEventListener('click', () => exportReconciliation(payload.reconciliation, process.number));
             target.querySelector('[data-recheck-documents]')?.addEventListener('click', () => initDossier('reconciliation'));
 
@@ -3475,6 +3591,7 @@ import './qr-scanner-core';
         const quantityLabel = [...quantities].map(([unit, amount]) => `${quantity.format(amount / 10000)} ${esc(unit)}`).join(' · ') || '—';
         return `
             <section class="acc-source-detail" data-source-detail>
+                ${renderDocumentActions(receipt.document_actions)}
                 <div class="acc-detail-grid acc-receipt-summary">
                     <div class="acc-detail"><span>Produtor</span><strong>${esc(receipt.member)}</strong></div>
                     <div class="acc-detail"><span>Comprovante</span><strong>${esc(receipt.number)}</strong><small>${esc(receipt.status_label)}</small></div>
@@ -3631,6 +3748,7 @@ import './qr-scanner-core';
                 </div>
 
                 <div class="acc-receipt-actions">
+                    ${renderDocumentActions(receipt.document_actions)}
                     <button
                         class="acc-button"
                         type="button"

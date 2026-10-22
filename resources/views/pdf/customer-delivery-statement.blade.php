@@ -243,7 +243,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
 <div class="ftr">
     {{ $tenant->name ?? '' }}
     @if($tenant?->cnpj) &middot; CNPJ: {{ $tenant->cnpj }}@endif
-    &middot; Gerado em {{ $generated_at }}
+    @unless($suppress_generation_timestamp ?? false)&middot; Gerado em {{ $generated_at }}@endunless
 </div>
 
 </body>

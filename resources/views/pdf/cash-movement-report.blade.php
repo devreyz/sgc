@@ -62,13 +62,13 @@
         </div>
         <div class="org-header-right">
             <div class="doc-title">RELATÓRIO DE MOVIMENTOS DE CAIXA</div>
-            <div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>
+            @unless($suppress_generation_timestamp ?? false)<div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>@endunless
         </div>
     </div>
     @else
     <div class="header">
         <h1>RELATÓRIO DE MOVIMENTOS DE CAIXA</h1>
-        <p>Período: {{ $period['from'] }} a {{ $period['until'] }} | Gerado em: {{ $generated_at }}</p>
+        <p>Período: {{ $period['from'] }} a {{ $period['until'] }}@unless($suppress_generation_timestamp ?? false) | Gerado em: {{ $generated_at }}@endunless</p>
     </div>
     @endif
     @endunless
@@ -230,7 +230,7 @@
 
     @unless($suppress_internal_footer ?? false)
     <div class="footer">
-        SGC - Sistema de Gestão Cooperativa | Relatório de Movimentos de Caixa | {{ $generated_at }}
+        SGC - Sistema de Gestão Cooperativa | Relatório de Movimentos de Caixa@unless($suppress_generation_timestamp ?? false) | {{ $generated_at }}@endunless
     </div>
     @endunless
 </body>

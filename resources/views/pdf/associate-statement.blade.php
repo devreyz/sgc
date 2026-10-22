@@ -64,14 +64,14 @@
         <div class="org-header-right">
             <div class="doc-title">EXTRATO DE CONTA - {{ mb_strtoupper($associateTerm, 'UTF-8') }}</div>
             <div class="doc-subtitle">{{ $associate->display_name ?? $associate->property_name ?? "#".$associate->id }}</div>
-            <div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>
+            @unless($suppress_generation_timestamp ?? false)<div class="doc-subtitle">Gerado em: {{ $generated_at }}</div>@endunless
         </div>
     </div>
     @else
     <div class="header">
         <h1>EXTRATO DE CONTA - {{ mb_strtoupper($associateTerm, 'UTF-8') }}</h1>
         <h2>{{ $associate->display_name ?? $associate->property_name ?? "#{$associate->id}" }}</h2>
-        <p>Período: {{ $period['from'] }} a {{ $period['until'] }} | Gerado em: {{ $generated_at }}</p>
+        <p>Período: {{ $period['from'] }} a {{ $period['until'] }}@unless($suppress_generation_timestamp ?? false) | Gerado em: {{ $generated_at }}@endunless</p>
     </div>
     @endif
     @endunless
@@ -191,7 +191,7 @@
 
     @unless($suppress_internal_footer ?? false)
     <div class="footer">
-        SGC - Sistema de Gestão Cooperativa | Extrato de Conta | {{ $generated_at }}
+        SGC - Sistema de Gestão Cooperativa | Extrato de Conta@unless($suppress_generation_timestamp ?? false) | {{ $generated_at }}@endunless
     </div>
     @endunless
 </body>

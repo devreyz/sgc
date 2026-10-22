@@ -259,7 +259,7 @@ body {
 @include('pdf.partials.financial-document-qr')
 
 <div class="portal-footer">
-    {{ $tenant->name ?? '' }} · Documento consultado em {{ now()->format('d/m/Y H:i') }}
+    {{ $tenant->name ?? '' }}@unless($suppress_generation_timestamp ?? false) · Documento consultado em {{ now()->format('d/m/Y H:i') }}@endunless
 </div>
 </body>
 </html>
