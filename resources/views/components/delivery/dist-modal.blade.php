@@ -2101,6 +2101,31 @@ body.dm-page-locked {
         grid-column:2;
     }
 }
+.dm-value-label {
+    display: block;
+    margin-bottom: .15rem;
+    font-size: .72rem;
+    font-weight: 600;
+    color: var(--color-text-secondary, #52665b);
+}
+
+.dm-inline-edit {
+    grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr);
+    gap: .65rem;
+}
+
+.dm-inline-edit-title, .dm-inline-edit-actions { grid-column: 1 / -1; }
+.dm-inline-edit label { display: grid; gap: .3rem; min-width: 0; font-size: .82rem; }
+.dm-inline-edit select, .dm-inline-edit input { width: 100%; min-width: 0; font-size: .9rem; }
+.dm-inline-edit-actions { flex-wrap: wrap; justify-content: flex-end; }
+.dm-planning-link { margin-top: .6rem; }
+.dm-planning-link[hidden] { display: none; }
+
+@media (max-width: 560px) {
+    .dm-inline-edit { grid-template-columns: minmax(0, 1fr); }
+    .dm-inline-edit select, .dm-inline-edit input, .dm-row select, .dm-row input[type=number] { font-size: 16px; }
+    .dm-inline-edit-actions > button { flex: 1 1 auto; min-height: 44px; }
+}
 </style>
 
 {{-- ══ HTML ═════════════════════════════════════════════════════════════ --}}
@@ -2157,11 +2182,20 @@ body.dm-page-locked {
             <div id="dm-existing-section" style="display:none">
                 <div class="dm-section-lbl">Já distribuído</div>
                 <div class="dm-existing-block" id="dm-existing-list"></div>
+                <a class="dm-add-btn dm-planning-link" id="dm-planning-link" target="_blank" rel="noopener" hidden>
+                    <i class="ph-duotone ph-users-three" aria-hidden="true"></i> Atendimento no planejamento
+                </a>
             </div>
 
             {{-- New rows --}}
             <div id="dm-new-section">
                 <div class="dm-section-lbl">Adicionar distribuições</div>
+                @if(config('pre_distributions.enabled') && auth()->user()?->checkPermissionTo('manage_pre_distributions'))
+                <div style="margin-bottom:.75rem">
+                    <button type="button" class="dm-add-btn" onclick="DistModal.loadPreDistributions()"><i class="ph-duotone ph-list-checks"></i> Utilizar pré-distribuições</button>
+                    <div id="dm-pre-distributions" aria-live="polite"></div>
+                </div>
+                @endif
                 <div id="dm-new-rows" style="display:flex;flex-direction:column;gap:.4rem"></div>
                 <div class="dm-add-actions">
                     <button type="button" class="dm-add-btn primary" onclick="DistModal.addRow()" aria-label="Adicionar cliente">
@@ -2187,7 +2221,7 @@ body.dm-page-locked {
             <span class="dm-shortcuts">Enter: salvar · Esc: fechar · Alt+A: adicionar cliente</span>
             <button class="btn btn-ghost btn-sm" onclick="DistModal.close()" aria-label="Cancelar e fechar">
                 <i class="ph-duotone ph-x"></i>
-                <span>Cancelar</span>
+                <span>Fechar</span>
             </button>
             <button class="btn btn-primary btn-sm" id="dm-save-btn" onclick="DistModal.save()" aria-label="Salvar distribuições">
                 <i class="ph-duotone ph-check-circle"></i>
@@ -2249,6 +2283,8 @@ body.dm-page-locked {
 
 /* ── Config injetada pelo Blade ────────────────────────────────────── */
 const DM_TENANT    = @json($tenantSlug);
+const DM_PRE_ENABLED = @json((bool) (config('pre_distributions.enabled') && auth()->user()?->checkPermissionTo('manage_pre_distributions')));
+let _preOperation = null;
 const DM_CSRF      = @json($csrf);
 const dmCsrfToken  = () => document.querySelector('meta[name="csrf-token"]')?.content || DM_CSRF;
 const DM_CUSTOMERS = @json($customers);
@@ -2670,8 +2706,8 @@ function renderExisting(existing) {
                 ${statusBadges(d)}
             </span>
 
-            <span class="dm-existing-qty">${fmt(d.qty, _unit)}</span>
-            <span class="dm-existing-net">${d.net > 0 ? fmtR(d.net) : ''}</span>
+            <span class="dm-existing-qty"><small class="dm-value-label">Quantidade</small>${fmt(d.qty, _unit)}</span>
+            <span class="dm-existing-net"><small class="dm-value-label">Líquido</small>${fmtR(d.net)}</span>
 
             <span class="dm-existing-actions">
                 ${distributionIsEditable(d)
@@ -2710,7 +2746,7 @@ function buildRow(preselectId = null, autofocus = false, initialQuantity = null)
     inp.type        = 'number';
     inp.min         = '0.001';
     inp.step        = '0.001';
-    inp.placeholder = '0';
+    inp.placeholder = 'Qtd. (' + _unit + ')';
     if (initialQuantity !== null && Number(initialQuantity) > 0) {
         inp.value = Number(initialQuantity).toFixed(3).replace(/\.?0+$/, '');
     }
@@ -2743,13 +2779,6 @@ function buildRow(preselectId = null, autofocus = false, initialQuantity = null)
     const price = document.createElement('div');
     price.className = 'dm-row-price';
     row.appendChild(price);
-    const consumption = document.createElement('details');
-    consumption.style.gridColumn = '1 / -1';
-    consumption.innerHTML = '<summary>Atendimento e consumo (opcional)</summary>' +
-        '<label>Pessoas efetivamente atendidas <input data-served-people type="number" min="1" max="100000000" aria-label="Pessoas efetivamente atendidas"></label>' +
-        '<label>Cobertura (dias) <input data-coverage-days type="number" min="1" max="3660" aria-label="Dias de cobertura"></label>' +
-        '<small>Deixe vazio para registrar somente a distribuição. Grupos, datas e atendimento diário podem ser ajustados no planejamento do projeto.</small>';
-    row.appendChild(consumption);
     if (preselectId) queueMicrotask(() => loadRowPrice(row, preselectId));
     return row;
 }
@@ -2796,11 +2825,18 @@ window.DistModal = {
     /** Open with explicit config */
     open(cfg) {
         _id       = cfg.id;
+        _preOperation = null;
+        if ($('dm-pre-distributions')) $('dm-pre-distributions').replaceChildren();
         _unit     = cfg.unit      || 'un';
         _totalQty = cfg.qty       || 0;
         _distQty  = cfg.distributed || 0;
         _defaultCustomerId = cfg.defaultCustomerId ? String(cfg.defaultCustomerId) : null;
         _notes = String(cfg.notes || '').trim();
+        const projectId = String(cfg.context || '').match(/^([1-9]\d*):/)?.[1];
+        const planningLink = $('dm-planning-link');
+        planningLink.hidden = !projectId;
+        if (projectId) planningLink.href = `/${DM_TENANT}/delivery/projects/${projectId}/planning#atendimento`;
+        else planningLink.removeAttribute('href');
 
         // Subtitle
         $('dm-subtitle').textContent =
@@ -2925,14 +2961,21 @@ window.DistModal = {
 
         const row = document.getElementById('dmex-' + distributionId);
         if (!row) return;
+        const editing = $('dm-existing-list').querySelector('.dm-inline-edit');
+        if (editing) {
+            editing.querySelector('input')?.focus();
+            if (!row.contains(editing)) showNotice('Salve ou cancele a edição em andamento antes de editar outra distribuição.');
+            return;
+        }
 
         row.innerHTML = `
             <div class="dm-inline-edit">
-                <select aria-label="Cliente da distribuicao">${customerOptions(d.customer_id)}</select>
-                <input type="number" min="0.001" step="0.001" value="${d.qty}" aria-label="Quantidade da distribuicao">
+                <strong class="dm-inline-edit-title">Editar distribuição</strong>
+                <label>Cliente<select>${customerOptions(d.customer_id)}</select></label>
+                <label>Quantidade (${esc(_unit)})<input type="number" min="0.001" step="0.001" value="${d.qty}"></label>
                 <span class="dm-inline-edit-actions">
-                    <button type="button" class="dm-mini-btn save" title="Salvar alteração" aria-label="Salvar alteração" onclick="DistModal.saveExistingEdit(${d.id})"><i class="ph-duotone ph-check"></i></button>
-                    <button type="button" class="dm-mini-btn cancel" title="Cancelar edição" aria-label="Cancelar edição" onclick="DistModal.cancelExistingEdit()"><i class="ph-duotone ph-x"></i></button>
+                    <button type="button" class="dm-add-btn" onclick="DistModal.cancelExistingEdit()">Cancelar edição</button>
+                    <button type="button" class="dm-add-btn primary save" onclick="DistModal.saveExistingEdit(${d.id})">Salvar alteração</button>
                 </span>
             </div>
         `;
@@ -2948,34 +2991,31 @@ window.DistModal = {
     async saveExistingEdit(distributionId) {
         const row = document.getElementById('dmex-' + distributionId);
         if (!row) return;
+        const saveBtn = row.querySelector('.dm-inline-edit .save');
+        if (!saveBtn || saveBtn.disabled) return;
         const customerId = row.querySelector('select')?.value;
         const quantity = parseFloat(row.querySelector('input')?.value || 0);
-        if (!customerId || quantity <= 0) {
-            showNotice('Informe cliente e quantidade validos.', { type: 'error' });
+        if (!customerId || !Number.isFinite(quantity) || quantity < 0.001) {
+            showNotice('Informe o cliente e uma quantidade válida.', { type: 'error' });
             return;
         }
 
         const existing = _existing.find(item => String(item.id) === String(distributionId));
-
-        if (existing?.in_receipt) {
-            const confirmed = await openDmConfirm({
-                title: 'Editar distribuição vinculada',
-                message: 'Esta distribuição já está em um comprovante. Ao editar, o comprovante será marcado como obsoleto e precisará ser conferido.',
-                confirmLabel: 'Continuar edição',
-                tone: 'warning',
-                icon: 'warning',
-            });
-
-            if (!confirmed) {
-                renderExisting(_existing);
-                return;
-            }
-        }
-
-        const saveBtn = row.querySelector('.dm-mini-btn.save');
-        if (saveBtn) saveBtn.disabled = true;
+        const controls = row.querySelectorAll('button, input, select');
+        controls.forEach(control => { control.disabled = true; });
 
         try {
+            if (existing?.in_receipt) {
+                const confirmed = await openDmConfirm({
+                    title: 'Editar distribuição vinculada',
+                    message: 'Esta distribuição já está em um comprovante. Ao editar, o comprovante será marcado como obsoleto e precisará ser conferido.',
+                    confirmLabel: 'Continuar edição',
+                    tone: 'warning',
+                    icon: 'warning',
+                });
+                if (!confirmed) return;
+            }
+
             const res = await fetch(`/${DM_TENANT}/delivery/distributions/${distributionId}`, {
                 method: 'PUT',
                 headers: { 'X-CSRF-TOKEN': dmCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -2991,11 +3031,11 @@ window.DistModal = {
                 }
             } else {
                 this.handleError(data, 'Erro ao editar distribuicao.');
-                renderExisting(_existing);
             }
         } catch (e) {
             showNotice(e.message, { type: 'error', title: 'Erro de comunicacao' });
-            renderExisting(_existing);
+        } finally {
+            controls.forEach(control => { control.disabled = false; });
         }
     },
 
@@ -3077,8 +3117,55 @@ window.DistModal = {
         }
     },
 
+    async loadPreDistributions(page = 1) {
+        if (!DM_PRE_ENABLED || !_id) return;
+        const target = $('dm-pre-distributions'); const reception = _id;
+        if (!target) return;
+        target.textContent = 'Buscando planilhas concluídas…';
+        try {
+            const response = await fetch(`/${DM_TENANT}/pre-distributions/snippets?reception=${reception}&page=${page}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+            const result = await response.json();
+            if (String(_id) !== String(reception)) return;
+            if (!response.ok) throw new Error(result.message || 'Não foi possível consultar os registros preliminares.');
+            target.replaceChildren();
+            const note = document.createElement('p'); note.textContent = 'Adicione os itens desejados e revise as linhas manuais antes de salvar. Os preços continuam sendo os oficiais.'; target.append(note);
+            if (!result.data.length) { const empty = document.createElement('p'); empty.textContent = 'Nenhum item compatível em planilhas concluídas.'; target.append(empty); }
+            for (const item of result.data) {
+                const box = document.createElement('div'); box.style.cssText = 'padding:.6rem;border-bottom:1px solid #d8dfdc';
+                const label = document.createElement('p'); label.textContent = `PD-${item.sheet_id} · ${item.sheet.title} · ${item.sheet.operational_date.slice(0,10)} · ${item.customer?.name || 'Cliente indisponível'} · Saldo ${fmt(item.progress.remaining, item.unit)}`;
+                box.append(label);
+                for (const warning of item.progress.warnings) { const text = document.createElement('p'); text.textContent = warning.message; text.style.color = '#965500'; box.append(text); }
+                const button = document.createElement('button'); button.type = 'button'; button.className = 'dm-add-btn'; button.textContent = 'Adicionar à distribuição';
+                button.disabled = Number(item.progress.remaining) <= 0 || item.progress.state === 'divergent';
+                button.onclick = () => {
+                    if ([...$('dm-new-rows').querySelectorAll('[data-pre-item]')].some(row => Number(row.dataset.preItem) === item.id)) { showNotice('Esta linha preliminar já foi adicionada. Ajuste a quantidade na linha existente.', {type:'error'}); return; }
+                    const row = buildRow(item.customer_id);
+                    const select = row.querySelector('select');
+                    if (!select.value && DM_CUSTOMERS.some(customer => Number(customer.id) === Number(item.customer_id))) {
+                        select.append(new Option(item.customer?.name || `Cliente #${item.customer_id}`, item.customer_id, true, true));
+                    }
+                    if (!select.value) { showNotice('O cliente não está entre os destinos permitidos desta entrega.', {type:'error'}); return; }
+                    select.disabled = true;
+                    const input = row.querySelector('input'); input.value = item.progress.remaining;
+                    row.dataset.preItem = item.id; row.dataset.preVersion = item.sheet.version;
+                    const source = document.createElement('small'); source.textContent = `Origem: PD-${item.sheet_id} · linha #${item.id} · saldo ${fmt(item.progress.remaining, item.unit)}`; source.style.gridColumn = '1 / -1'; row.append(source);
+                    $('dm-new-rows').append(row); updateProgress(); button.textContent = 'Adicionado';
+                };
+                box.append(button); target.append(box);
+            }
+            for (const [label, number] of [['Anterior', page - 1], ['Próxima', page + 1]]) {
+                const button = document.createElement('button'); button.type = 'button'; button.className = 'dm-add-btn'; button.textContent = label;
+                button.disabled = number < 1 || number > result.last_page; button.onclick = () => this.loadPreDistributions(number); target.append(button);
+            }
+        } catch (error) { if (String(_id) === String(reception)) target.textContent = error.message; }
+    },
+
     async save() {
         if (!_id || $('dm-save-btn').disabled) return;
+        if ($('dm-existing-list').querySelector('.dm-inline-edit')) {
+            showNotice('Salve ou cancele a edição em andamento antes de salvar novas distribuições.');
+            return;
+        }
 
         const rows = $('dm-new-rows').querySelectorAll('.dm-row');
         const distributions = [];
@@ -3094,23 +3181,16 @@ window.DistModal = {
             // Qty informed but no customer — warn
             if (!cid && qty > 0) { showNotice('Selecione o cliente para a linha com quantidade informada.', { type: 'error' }); return; }
             const distribution = { customer_id: parseInt(cid), quantity: qty };
-            const people = row.querySelector('[data-served-people]')?.value;
-            const coverage = row.querySelector('[data-coverage-days]')?.value;
-            if (people || coverage) {
-                distribution.consumption = {count_method: 'served_people', served_people: people || null, coverage_days: coverage || null};
+            if (row.dataset.preItem) {
+                distribution.pre_distribution_item_id = Number(row.dataset.preItem);
+                distribution.pre_distribution_version = Number(row.dataset.preVersion);
             }
             distributions.push(distribution);
         }
-        if (!distributions.length) { 
-                this.close();
-                if (typeof window._DistModalReload === 'function') {
-                    window._DistModalReload(data);
-                } else {
-                    location.reload();
-                }
-                
-            
-         }
+        if (!distributions.length) {
+            showNotice('Informe a quantidade de pelo menos um cliente para salvar.', { type: 'warning' });
+            return;
+        }
 
         const newTotal = distributions.reduce((s, d) => s + d.quantity, 0);
         const avail    = _totalQty - _distQty;
@@ -3123,11 +3203,14 @@ window.DistModal = {
         saveBtn.disabled  = true;
         saveBtn.textContent = 'Salvando…';
 
+        const usingPre = distributions.some(row => row.pre_distribution_item_id);
+        const signature = JSON.stringify(distributions);
+        if (usingPre && (!_preOperation || _preOperation.signature !== signature)) _preOperation = { signature, key: crypto.randomUUID() };
         try {
             const res  = await fetch(`/${DM_TENANT}/delivery/deliveries/${_id}/distribute`, {
                 method:  'POST',
                 headers: { 'X-CSRF-TOKEN': dmCsrfToken(), 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                body:    JSON.stringify({ distributions }),
+                body:    JSON.stringify({ distributions, ...(usingPre ? { operation_key: _preOperation.key } : {}) }),
             });
             const data = await res.json();
             if (data.success) {

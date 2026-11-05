@@ -63,6 +63,7 @@ class DeliveryRegistrationController extends Controller
     public function __construct()
     {
         $this->middleware(['auth', 'any.role:registrador_entregas']);
+        $this->middleware(\App\Http\Middleware\AuditPreDistributionFailures::class)->only('distribute');
     }
 
     private function currentTenant(): ?Tenant
@@ -846,7 +847,16 @@ class DeliveryRegistrationController extends Controller
             'distributions.*.customer_id' => 'required|integer|exists:customers,id',
             'distributions.*.quantity' => 'required|numeric|min:0.001',
             'distributions.*.consumption' => 'sometimes|array',
+            'distributions.*.pre_distribution_item_id' => 'sometimes|nullable|integer|min:1',
+            'distributions.*.pre_distribution_version' => 'required_with:distributions.*.pre_distribution_item_id|integer|min:1',
         ]);
+
+        $hasSnippets = collect($validated['distributions'])->contains(fn ($row) => ! empty($row['pre_distribution_item_id']));
+        $reconciliation = $hasSnippets ? app(\App\Services\PreDistributions\PreDistributionReconciliationService::class) : null;
+        $operationKey = (string) ($request->header('Idempotency-Key') ?: $request->input('operation_key', ''));
+        if ($reconciliation && ($replay = $reconciliation->replay((int) $tenantId, $request->user(), $operationKey, $deliveryId, $validated['distributions'])) !== null) {
+            return response()->json($replay);
+        }
 
         $reception = ProductionDelivery::where('tenant_id', $tenantId)
             ->whereNull('parent_delivery_id')
@@ -899,10 +909,19 @@ class DeliveryRegistrationController extends Controller
         try {
             DB::beginTransaction();
 
+            $preContext = $reconciliation?->begin((int) $tenantId, $request->user(), $operationKey, $deliveryId, $validated['distributions']);
+            if (isset($preContext['replay'])) {
+                DB::commit();
+                return response()->json($preContext['replay']);
+            }
+
             $reception = ProductionDelivery::where('tenant_id', $tenantId)
                 ->whereNull('parent_delivery_id')
                 ->lockForUpdate()
                 ->findOrFail($deliveryId);
+            if ($reconciliation && ($reception->status !== DeliveryStatus::APPROVED || ! $reception->sales_project_id)) {
+                throw ValidationException::withMessages(['distributions' => 'A entrega oficial deixou de estar aprovada. Atualize os dados antes de conciliar.']);
+            }
             $lockedDistributed = (float) ProductionDelivery::where('tenant_id', $tenantId)
                 ->where('parent_delivery_id', $reception->id)
                 ->whereNotIn('status', [DeliveryStatus::REJECTED->value, DeliveryStatus::CANCELLED->value])
@@ -1012,6 +1031,7 @@ class DeliveryRegistrationController extends Controller
                     'paid' => false,
                 ]);
                 $created[] = $child->id;
+                if ($reconciliation) $reconciliation->attach($preContext, $dist, $child, $request->user());
                 if (! empty($dist['consumption'])) {
                     app(\App\Services\Planning\ProjectPlanningService::class)->saveConsumption($project, (int) $child->id, $dist['consumption']);
                 }
@@ -1020,6 +1040,9 @@ class DeliveryRegistrationController extends Controller
                 }
             }
 
+            $result = ['success' => true, 'message' => count($created).' distribuição(ões) criada(s).',
+                'delivery_id' => $reception->id, 'created_ids' => $created];
+            if ($reconciliation) $reconciliation->finish($preContext, $request->user(), $result);
             DB::commit();
 
             app(NotificationService::class)
@@ -1031,19 +1054,24 @@ class DeliveryRegistrationController extends Controller
                 }
             });
 
-            return response()->json([
-                'success' => true,
-                'message' => count($created).' distribuição(ões) criada(s).',
-                'delivery_id' => $reception->id,
-                'created_ids' => $created,
-            ]);
+            return response()->json($result);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $e->getStatusCode());
         } catch (ValidationException $e) {
             DB::rollBack();
 
             return response()->json(['success' => false, 'message' => collect($e->errors())->flatten()->first(), 'errors' => $e->errors()], 422);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
 
+            if ($reconciliation) {
+                Log::error('Falha na confirmação de distribuições com pré-distribuições.', [
+                    'tenant_id' => $tenantId, 'delivery_id' => $deliveryId, 'operation_key' => $operationKey,
+                    'exception' => get_class($e), 'code' => $e->getCode(),
+                ]);
+                return response()->json(['success' => false, 'message' => 'Não foi possível retornar a confirmação. Tente novamente; a chave da operação impede duplicação.'], 500);
+            }
             return response()->json(['success' => false, 'message' => 'Erro: '.$e->getMessage()], 500);
         }
     }

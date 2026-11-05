@@ -29,7 +29,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/resources/css/app-C80KODfU.css",
+    "file": "assets/resources/css/app-CbX5tzz8.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "resources/css/app.css",
@@ -96,6 +96,15 @@
     "isEntry": true,
     "imports": [
       "_qr-scanner-core-CTBFOQOA.js"
+    ]
+  },
+  "resources/js/pre-distributions.js": {
+    "file": "assets/resources/js/pre-distributions.js-DntMT3xk.js",
+    "name": "resources/js/pre-distributions.js",
+    "src": "resources/js/pre-distributions.js",
+    "isEntry": true,
+    "css": [
+      "assets/pre-distributions-CWuMYrwB.css"
     ]
   }
 }

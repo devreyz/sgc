@@ -17,10 +17,16 @@ class PortalNavigation
                 ['key' => 'ledger', 'label' => 'Extrato', 'route' => 'associate.ledger', 'icon' => 'wallet'],
             ],
             'delivery' => [
+                ...((config('pre_distributions.enabled') && (auth()->user()?->checkPermissionTo('manage_pre_distributions') ?? false))
+                    ? [['key' => 'pre-distributions', 'label' => 'Pré-distribuições', 'route' => 'pre-distributions.index', 'icon' => 'clipboard-text', 'mobile' => false]] : []),
                 ['key' => 'dashboard', 'label' => 'Inicio', 'route' => 'delivery.dashboard', 'icon' => 'house'],
                 ['key' => 'projects', 'label' => 'Projetos', 'route' => 'delivery.projects-list', 'icon' => 'folder-open'],
                 ['key' => 'conference', 'label' => 'Conferência', 'route' => 'delivery.conference-sheets.index', 'icon' => 'checks'],
                 ['key' => 'printables', 'label' => 'Imprimíveis', 'route' => 'delivery.sheet.index', 'icon' => 'printer'],
+            ],
+            'pre-distributions' => [
+                ['key' => 'sheets', 'label' => 'Planilhas', 'route' => 'pre-distributions.index', 'icon' => 'clipboard-text'],
+                ['key' => 'home', 'label' => 'Painéis', 'route' => 'home', 'icon' => 'house'],
             ],
             'delivery-viewer' => [
                 ['key' => 'home', 'label' => 'Inicio', 'route' => 'home', 'icon' => 'house'],

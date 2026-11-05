@@ -156,6 +156,7 @@ class TenantUserResource extends Resource
                                         $name => match ($name) {
                                             'visualizador_entregas' => 'Visualizador de Entregas',
                                             'registrador_entregas' => 'Registrador de Entregas',
+                                            'entregador' => 'Entregador (planilhas operacionais)',
                                             'secretario' => 'Secretário',
                                             'operador_caixa' => 'Operador de Caixa',
                                             'service_provider' => 'Prestador de Servicos',

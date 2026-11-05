@@ -41,6 +41,8 @@ class ProductionDeliveryObserver
      */
     public function updating(ProductionDelivery $delivery): void
     {
+        if ($delivery->isDirty('status') && $delivery->status === DeliveryStatus::APPROVED
+            && in_array($delivery->getRawOriginal('status'), ['cancelled', 'rejected'], true)) $this->assertReconciliationNotReversed($delivery);
         // Skip if already processing to prevent infinite loops
         if (self::$processing) {
             return;
@@ -133,6 +135,19 @@ class ProductionDeliveryObserver
         $delivery->projectDemand?->updateDeliveredQuantity();
         $this->invalidateBillingAuthorizations($delivery);
         $this->invalidateConferenceSheets($delivery);
+    }
+
+    public function restoring(ProductionDelivery $delivery): void
+    {
+        $this->assertReconciliationNotReversed($delivery);
+    }
+
+    private function assertReconciliationNotReversed(ProductionDelivery $delivery): void
+    {
+        if (Schema::hasTable('pre_distribution_links') && DB::table('pre_distribution_links')
+            ->where('tenant_id', $delivery->tenant_id)->where('distribution_id', $delivery->id)->whereNotNull('reversed_at')->exists()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['distribution' => 'Esta distribuição possui conciliação revertida e não pode ser reativada automaticamente. Revise a origem pelo fluxo oficial para evitar duplicar as quantidades liberadas.']);
+        }
     }
 
     private function invalidateBillingAuthorizations(ProductionDelivery $delivery): void

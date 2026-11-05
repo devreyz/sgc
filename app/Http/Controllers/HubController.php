@@ -150,6 +150,16 @@ class HubController extends Controller
             ];
         }
 
+        if (config('pre_distributions.enabled') && $user->checkPermissionTo('view_pre_distributions')) {
+            $roles[] = [
+                'name' => 'Planejamento e Pré-distribuições',
+                'description' => 'Planilhas operacionais e rotas dos entregadores',
+                'icon' => 'package',
+                'url' => route('pre-distributions.index', ['tenant' => $currentTenant->slug]),
+                'color' => 'info',
+            ];
+        }
+
         if ($user->hasRoleInTenant('visualizador_entregas', $currentTenant->id)) {
             $roles[] = [
                 'name' => 'Acompanhamento de Entregas',

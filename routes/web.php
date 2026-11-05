@@ -269,6 +269,35 @@ Route::get('/validate-card/{token}', [MemberCardValidationController::class, 've
 
 Route::prefix('{tenant:slug}')->middleware(['auth', 'tenant.slug'])->group(function () {
 
+    // Isolated operational API. Services fail closed while the rollout flag is disabled.
+    Route::prefix('pre-distributions')->name('pre-distributions.')->middleware(\App\Http\Middleware\AuditPreDistributionFailures::class)->group(function () {
+        $controller = \App\Http\Controllers\Delivery\PreDistributionController::class;
+        Route::get('/', [$controller, 'index'])->name('index');
+        Route::get('/catalog', [$controller, 'catalog'])->name('catalog');
+        Route::get('/reference-price', [$controller, 'referencePrice'])->name('reference-price');
+        Route::post('/', [$controller, 'store'])->middleware('throttle:30,1')->name('store');
+        Route::get('/consolidated', [$controller, 'consolidate'])->name('consolidated');
+        Route::get('/origins', [$controller, 'origins'])->name('origins');
+        Route::get('/snippets', [$controller, 'snippets'])->name('snippets');
+        Route::post('/links', [$controller, 'linkExisting'])->middleware('throttle:30,1')->name('links.store');
+        Route::post('/reports', [$controller, 'createReport'])->middleware('throttle:10,1')->name('reports.store');
+        Route::get('/reports', [$controller, 'reports'])->name('reports.index');
+        Route::get('/reports/{report}/pdf', [$controller, 'reportPdf'])->whereNumber('report')->name('reports.pdf');
+        Route::get('/reports/{report}', [$controller, 'reportSource'])->whereNumber('report')->name('reports.source');
+        Route::post('/links/{link}/reverse', [$controller, 'reverseLink'])->whereNumber('link')->middleware('throttle:30,1')->name('links.reverse');
+        Route::get('/{sheet}', [$controller, 'show'])->whereNumber('sheet')->name('show');
+        Route::get('/{sheet}/pdf', [$controller, 'sheetPdf'])->whereNumber('sheet')->middleware('throttle:30,1')->name('sheets.pdf');
+        Route::get('/{sheet}/table', [$controller, 'sheetTable'])->whereNumber('sheet')->name('sheets.table');
+        Route::put('/{sheet}', [$controller, 'update'])->whereNumber('sheet')->middleware('throttle:60,1')->name('update');
+        Route::put('/{sheet}/details', [$controller, 'updateDetails'])->whereNumber('sheet')->name('details');
+        Route::post('/{sheet}/duplicate', [$controller, 'duplicate'])->whereNumber('sheet')->middleware('throttle:30,1')->name('duplicate');
+        Route::post('/{sheet}/transition', [$controller, 'transition'])->whereNumber('sheet')->middleware('throttle:30,1')->name('transition');
+        Route::post('/{sheet}/items/{item}/cancel', [$controller, 'cancelItem'])->whereNumber('sheet')->whereNumber('item')->name('items.cancel');
+        Route::get('/{sheet}/history', [$controller, 'history'])->whereNumber('sheet')->name('history');
+        Route::get('/{sheet}/reconciliation', [$controller, 'reconciliation'])->whereNumber('sheet')->name('reconciliation');
+        Route::get('/{sheet}/items/{item}/officials', [$controller, 'officialCandidates'])->whereNumber('sheet')->whereNumber('item')->name('items.officials');
+    });
+
     Route::prefix('notifications')->name('notifications.')->group(function () {
         Route::get('/', [NotificationCenterController::class, 'index'])->name('index');
         Route::get('/unread-count', [NotificationCenterController::class, 'unreadCount'])->name('unread-count');

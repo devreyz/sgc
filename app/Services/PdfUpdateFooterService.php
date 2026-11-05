@@ -8,10 +8,11 @@ use Illuminate\Support\Carbon;
 final class PdfUpdateFooterService
 {
     /** Stamp the actual rendering time, not the receipt's original issue date. */
-    public function apply(PDF $pdf, ?Carbon $renderedAt = null, bool $alreadyRendered = false): PDF
+    public function apply(PDF $pdf, ?Carbon $renderedAt = null, bool $alreadyRendered = false, ?string $prefix = null): PDF
     {
         $renderedAt ??= now();
         $label = 'Gerado em '.$renderedAt->copy()->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s').' (Brasília)';
+        if ($prefix !== null && $prefix !== '') $label = $prefix.' | '.$label;
         if (! $alreadyRendered) $pdf->render();
         $dompdf = $pdf->getDomPDF();
         $canvas = $dompdf->getCanvas();
