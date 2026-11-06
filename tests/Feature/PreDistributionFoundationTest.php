@@ -763,6 +763,25 @@ class PreDistributionFoundationTest extends TestCase
             File::ensureDirectoryExists(base_path('tmp/pdfs'));
             file_put_contents(base_path('tmp/pdfs/pre-distribution-sheet-print.pdf'), $managerPdf->getContent());
         }
+
+        $reports = app(PreDistributionReportService::class);
+        $savedSheet = PreDistributionSheet::withoutGlobalScopes()->findOrFail($sheet['sheet_id']);
+        $tenant = \App\Models\Tenant::findOrFail(1);
+        session(['tenant_id' => $tenant->id]);
+        $render = fn (bool $showPrices) => view('pdf.pre-distribution-sheet', [
+            'tenant' => $tenant, 'sheet' => $savedSheet, 'showPrices' => $showPrices,
+            'groups' => $reports->sheetGroups($tenant, $savedSheet, $showPrices),
+        ])->render();
+        $document = $render(true);
+        self::assertStringContainsString('U.C.', $document);
+        self::assertStringContainsString('Creche Municipal', $document);
+        self::assertStringContainsString('Vlr. Unit. Ref.', $document);
+        self::assertStringContainsString('Total R$', $document);
+
+        $operatorDocument = $render(false);
+        self::assertStringContainsString('Qtd. Total', $operatorDocument);
+        self::assertStringNotContainsString('Vlr. Unit. Ref.', $operatorDocument);
+        self::assertStringNotContainsString('Total R$', $operatorDocument);
     }
 
     public function test_pdf_integrity_failure_is_explicit_and_does_not_regenerate_over_the_snapshot(): void

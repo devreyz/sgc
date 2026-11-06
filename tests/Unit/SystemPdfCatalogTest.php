@@ -20,6 +20,7 @@ class SystemPdfCatalogTest extends TestCase
             'pdf.associate-receipt-payments',
             'pdf.customer-billing-receipt',
             'pdf.customer-organization-receipt',
+            'pdf.pre-distribution-sheet',
             'pdf.billing-member-deliveries',
             'pdf.billing-acceptance-term',
             'pdf.billing-document-register',

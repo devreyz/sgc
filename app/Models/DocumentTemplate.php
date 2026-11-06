@@ -199,6 +199,14 @@ class DocumentTemplate extends Model
     public static function getSystemTemplateDefinitions(): array
     {
         return [
+            'pre_distribution_sheet' => [
+                'label' => 'Relação de Produtos Entregues (Pré-distribuições)',
+                'blade_view' => 'pdf.pre-distribution-sheet',
+                'type' => 'report',
+                'description' => 'Planilha operacional com produtos entregues e quantidades por cliente e projeto.',
+                'sections' => ['context' => 'Planilha, projeto e destinatário', 'notes' => 'Observações da planilha', 'table' => 'Relação de produtos entregues', 'totals' => 'Subtotal estimado'],
+                'columns' => ['unit' => 'U.C.', 'customers' => 'Quantidade por cliente', 'unit_price' => 'Valor unitário de referência', 'gross' => 'Valor total estimado'],
+            ],
             'billing_member_deliveries' => [
                 'label' => 'Relatório de Entregas por Associado do Faturamento',
                 'blade_view' => 'pdf.billing-member-deliveries', 'type' => 'report',

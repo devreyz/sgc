@@ -938,7 +938,7 @@ function initialize(root) {
             ${showPrices ? `<td>${row.price === null ? '—' : unitMoney.format(Number(row.price))}</td><td>${row.amount === null ? '—' : money.format(Number(row.amount))}</td>` : ""}
         </tr>`).join("");
         const footer = showPrices && table.rows.some(row => row.amount !== null)
-            ? `<tfoot><tr><th scope="row" colspan="${table.customers.length + 3}">Total estimado dos itens com preço</th><td>${money.format(Number(table.total))}</td></tr></tfoot>` : "";
+            ? `<tfoot><tr><th scope="row" colspan="${table.customers.length + 3}">Total</th><td>${money.format(Number(table.total))}</td></tr></tfoot>` : "";
         return `<div class="pd-table-wrap pd-sheet-report-wrap" tabindex="0" role="region" aria-label="Tabela de entregas">
             <table class="pd-table pd-sheet-report"><thead><tr><th scope="col">Produto</th>
                 ${table.customers.map(customer => `<th scope="col">${esc(customer.name)}</th>`).join("")}

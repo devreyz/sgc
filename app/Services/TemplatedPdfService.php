@@ -433,6 +433,8 @@ HTML;
         $orientation = $preferRuntimeLayout
             ? ($options['orientation'] ?? ($configured['orientation'] ?? 'portrait'))
             : ($configured['orientation'] ?? ($options['orientation'] ?? 'portrait'));
+        $configurePdf = fn (DomPDF $pdf): DomPDF => $pdf->setPaper($paper, $orientation)
+            ->setOption($options['dompdf_options'] ?? []);
         $title = $options['title'] ?? '';
         $headerLayoutId = $configured['header_layout_id'] ?? null;
         $footerLayoutId = $configured['footer_layout_id'] ?? null;
@@ -467,7 +469,8 @@ HTML;
         $hasCustomLayout = $headerLayoutId !== null || $footerLayoutId !== null;
         if (! $hasCustomLayout) {
             return app(PdfUpdateFooterService::class)->apply(
-                Pdf::loadView($view, $viewData)->setPaper($paper, $orientation), $renderedAt,
+                $configurePdf(Pdf::loadView($view, $viewData)), $renderedAt,
+                prefix: $options['footer_prefix'] ?? null,
             );
         }
 
@@ -562,7 +565,7 @@ HTML;
 HTMLDOC;
 
         // First render to discover page count
-        $pdf = Pdf::loadHTML($html)->setPaper($paper, $orientation);
+        $pdf = $configurePdf(Pdf::loadHTML($html));
         $pdf->render();
 
         try {
@@ -591,7 +594,7 @@ HTMLDOC;
                     1
                 );
 
-                $pdf = Pdf::loadHTML($html)->setPaper($paper, $orientation);
+                $pdf = $configurePdf(Pdf::loadHTML($html));
                 $pdf->render();
 
                 $canvas = $pdf->getDomPDF()->get_canvas();
@@ -605,7 +608,7 @@ HTMLDOC;
             // fail silently
         }
 
-        return app(PdfUpdateFooterService::class)->apply($pdf, $renderedAt, true);
+        return app(PdfUpdateFooterService::class)->apply($pdf, $renderedAt, true, $options['footer_prefix'] ?? null);
     }
 
     /**

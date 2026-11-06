@@ -7,6 +7,7 @@ use App\Models\PreDistributionSheet;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\PdfUpdateFooterService;
+use App\Services\TemplatedPdfService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Barryvdh\DomPDF\PDF as DomPdfDocument;
 use Illuminate\Support\Arr;
@@ -55,19 +56,23 @@ final class PreDistributionReportService
 
     public function printSheet(Tenant $tenant, PreDistributionSheet $sheet, bool $showPrices = false): DomPdfDocument
     {
-        $pdf = Pdf::loadView('pdf.pre-distribution-sheet', [
+        $title = 'Relação de Produtos Entregues';
+
+        return app(TemplatedPdfService::class)->generateSystemPdf('pdf.pre-distribution-sheet', [
             'tenant' => $tenant,
             'sheet' => $sheet,
             'groups' => $this->sheetGroups($tenant, $sheet, $showPrices),
             'showPrices' => $showPrices,
-            'title' => 'Relação de Produtos Entregues',
+            'title' => $title,
             'subtitle' => $sheet->code.' | '.$sheet->operational_date->format('d/m/Y'),
             'hide_header_email' => true,
             'suppress_generation_timestamp' => true,
             'suppress_internal_footer' => true,
-        ])->setPaper('a4')->setOption('isRemoteEnabled', false);
-
-        return app(PdfUpdateFooterService::class)->apply($pdf, prefix: 'PLANILHA OPERACIONAL | '.$sheet->code);
+        ], [
+            'title' => $title,
+            'footer_prefix' => 'PLANILHA OPERACIONAL | '.$sheet->code,
+            'dompdf_options' => ['isRemoteEnabled' => false],
+        ]);
     }
 
     private function sheetTable(Collection $items, Collection $customers, bool $showPrices): array
