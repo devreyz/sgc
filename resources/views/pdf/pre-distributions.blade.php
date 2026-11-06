@@ -10,10 +10,10 @@
     <div class="section-title">{{ $projectRows->first()['project'] }}</div>
     @foreach($projectRows->groupBy('customer_id') as $rows)
     <h3 style="margin:12px 0 6px">{{ $rows->first()['customer'] }}</h3>
-    <table class="data-table"><thead><tr><th style="width:34%">Produto</th><th>U.C.</th><th class="text-right">Qtd. informada</th>@if($snapshot['include_prices'])<th class="text-right">Preço de referência</th><th class="text-right">Valor estimado</th>@endif</tr></thead><tbody>
+    <table class="data-table"><thead><tr><th style="width:34%">Produto</th><th class="text-right">Qtd. informada</th>@if($snapshot['include_prices'])<th class="text-right">Preço de referência</th><th class="text-right">Valor estimado</th>@endif</tr></thead><tbody>
     @foreach($rows as $row)
-        <tr><td>{{ $row['product'] }}@if($row['pending'])<br><small>{{ $row['pending'] }} linha(s) pendente(s)</small>@endif</td><td>1 {{ $row['unit'] }}</td>
-        <td class="text-right">{{ $row['quantity'] === null ? 'Pendente' : number_format((float) $row['quantity'], 4, ',', '.') }}</td>
+        <tr><td>{{ $row['product'] }}@if($row['pending'])<br><small>{{ $row['pending'] }} linha(s) pendente(s)</small>@endif</td>
+        <td class="text-right">{{ $row['quantity'] === null ? 'Pendente' : number_format((float) $row['quantity'], 4, ',', '.').' '.$row['unit'] }}</td>
         @if($snapshot['include_prices'])<td class="text-right">{{ $row['reference_price'] === null ? '—' : number_format((float) $row['reference_price'], 4, ',', '.') }}</td><td class="text-right">{{ $row['quantity'] === null || $row['reference_price'] === null ? '—' : 'R$ '.number_format((float) bcmul($row['quantity'], $row['reference_price'], 4), 2, ',', '.') }}</td>@endif</tr>
     @endforeach
     </tbody></table>
@@ -21,9 +21,9 @@
 @endforeach
 @if(collect($snapshot['sources'])->pluck('customer_id')->unique()->count() > 1)
 <div class="section-title" style="margin-top:16px">Total por produto e projeto</div>
-<table class="data-table"><thead><tr><th>Projeto</th><th>Produto</th><th>U.C.</th><th class="text-right">Qtd. total informada</th></tr></thead><tbody>
+<table class="data-table"><thead><tr><th>Projeto</th><th>Produto</th><th class="text-right">Qtd. total informada</th></tr></thead><tbody>
 @foreach($snapshot['product_totals'] as $row)
-<tr><td>{{ $row['project'] }}</td><td>{{ $row['product'] }}@if($row['pending'])<br><small>{{ $row['pending'] }} linha(s) pendente(s)</small>@endif</td><td>1 {{ $row['unit'] }}</td><td class="text-right">{{ $row['quantity'] === null ? 'Pendente' : number_format((float) $row['quantity'], 4, ',', '.') }}</td></tr>
+<tr><td>{{ $row['project'] }}</td><td>{{ $row['product'] }}@if($row['pending'])<br><small>{{ $row['pending'] }} linha(s) pendente(s)</small>@endif</td><td class="text-right">{{ $row['quantity'] === null ? 'Pendente' : number_format((float) $row['quantity'], 4, ',', '.').' '.$row['unit'] }}</td></tr>
 @endforeach
 </tbody></table>
 @endif

@@ -694,6 +694,7 @@ class PreDistributionFoundationTest extends TestCase
     public function test_preliminary_pdf_is_immutable_and_reissues_preserve_the_previous_revision(): void
     {
         Storage::fake('local');
+        DB::table('customers')->where('id', 1)->update(['trade_name' => 'Escola do Centro']);
         $sheet = $this->sheet();
         $item = PreDistributionItem::firstOrFail();
         $this->service->save(1, $this->manager, $sheet['sheet_id'], (string) Str::uuid(), ['version' => 1,
@@ -706,6 +707,7 @@ class PreDistributionFoundationTest extends TestCase
         $oldBytes = $reports->bytes(1, $this->manager, $first['report_id'])['bytes'];
         self::assertStringStartsWith('%PDF-', $oldBytes);
         $snapshot = json_decode(DB::table('pre_distribution_reports')->find($first['report_id'])->snapshot, true);
+        self::assertSame('Escola do Centro', $snapshot['groups'][0]['customer']);
         self::assertSame('45.1234', $snapshot['groups'][0]['quantity']);
         self::assertSame('5.0000', $snapshot['groups'][0]['reference_price']);
         $this->service->save(1, $this->manager, $sheet['sheet_id'], (string) Str::uuid(), ['version' => 2, 'items' => [['id' => $item->id, 'reported_quantity' => '60']]]);
@@ -728,9 +730,9 @@ class PreDistributionFoundationTest extends TestCase
 
     public function test_assigned_operator_can_print_the_saved_sheet_and_other_operators_cannot(): void
     {
-        DB::table('organizations')->insert(['id' => 1, 'tenant_id' => 1, 'name' => 'Rede escolar']);
+        DB::table('organizations')->insert(['id' => 1, 'tenant_id' => 1, 'name' => 'Rede escolar', 'short_name' => 'Rede Municipal']);
         DB::table('customers')->where('id', 1)->update(['organization_id' => 1]);
-        DB::table('customers')->insert(['id' => 3, 'tenant_id' => 1, 'name' => 'Creche Municipal', 'organization_id' => 1]);
+        DB::table('customers')->insert(['id' => 3, 'tenant_id' => 1, 'name' => 'Creche Municipal', 'trade_name' => 'Creche Central', 'organization_id' => 1]);
         DB::table('sales_project_customers')->insert(['sales_project_id' => 1, 'customer_id' => 3]);
         $sheet = $this->sheet();
         $this->service->save(1, $this->manager, $sheet['sheet_id'], (string) Str::uuid(), [
@@ -751,7 +753,7 @@ class PreDistributionFoundationTest extends TestCase
         $managerPdf = $this->actingAs($this->manager)->get($url)->assertOk();
         $tableUrl = '/tenant-a/pre-distributions/'.$sheet['sheet_id'].'/table';
         $this->getJson($tableUrl)->assertOk()->assertJsonPath('show_prices', true)
-            ->assertJsonPath('groups.0.tables.0.customers.0.name', 'Creche Municipal')
+            ->assertJsonPath('groups.0.tables.0.customers.0.name', 'Creche Central')
             ->assertJsonPath('groups.0.tables.0.rows.0.by_customer.3', '7.6544')
             ->assertJsonPath('groups.0.tables.0.rows.0.quantity', '20.0000')
             ->assertJsonPath('groups.0.tables.0.total', '104.60');
@@ -773,8 +775,11 @@ class PreDistributionFoundationTest extends TestCase
             'groups' => $reports->sheetGroups($tenant, $savedSheet, $showPrices),
         ])->render();
         $document = $render(true);
-        self::assertStringContainsString('U.C.', $document);
-        self::assertStringContainsString('Creche Municipal', $document);
+        self::assertStringNotContainsString('U.C.', $document);
+        self::assertStringContainsString('20,0000 kg', $document);
+        self::assertStringContainsString('Creche Central', $document);
+        self::assertStringContainsString('Rede Municipal', $document);
+        self::assertStringNotContainsString('Creche Municipal', $document);
         self::assertStringContainsString('Vlr. Unit. Ref.', $document);
         self::assertStringContainsString('Total R$', $document);
 

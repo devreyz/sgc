@@ -20,8 +20,7 @@
         $quantity = fn ($value) => number_format((float) $value, 4, ',', '.');
         $money = fn ($value, $decimals = 2) => 'R$ '.number_format((float) $value, $decimals, ',', '.');
         $sections = $visible_sections ?? ['context', 'notes', 'table', 'totals'];
-        $columns = $visible_columns ?? ['unit', 'customers', 'unit_price', 'gross'];
-        $showUnit = in_array('unit', $columns, true);
+        $columns = $visible_columns ?? ['customers', 'unit_price', 'gross'];
         $showCustomers = in_array('customers', $columns, true);
         $showUnitPrice = $showPrices && in_array('unit_price', $columns, true);
         $showGross = $showPrices && in_array('gross', $columns, true);
@@ -55,7 +54,6 @@
                 <thead>
                     <tr>
                         <th style="width: 23%">Produto</th>
-                        @if($showUnit)<th class="text-center">U.C.</th>@endif
                         @foreach($destinations as $customer)
                             <th class="text-right">{{ $customer['name'] }}</th>
                         @endforeach
@@ -68,11 +66,10 @@
                     @foreach($table['rows'] as $row)
                         <tr>
                             <td>{{ $row['product'] }}</td>
-                            @if($showUnit)<td class="text-center">1 {{ $row['unit'] }}</td>@endif
                             @foreach($destinations as $customer)
                                 <td class="text-right delivery-number">{{ isset($row['by_customer'][$customer['id']]) ? $quantity($row['by_customer'][$customer['id']]) : '—' }}</td>
                             @endforeach
-                            <td class="text-right delivery-number">{{ $quantity($row['quantity']) }}{{ $showUnit ? '' : ' '.$row['unit'] }}</td>
+                            <td class="text-right delivery-number">{{ $quantity($row['quantity']) }} {{ $row['unit'] }}</td>
                             @if($showUnitPrice)<td class="text-right delivery-number">{{ $row['price'] === null ? '—' : $money($row['price'], 4) }}</td>@endif
                             @if($showGross)<td class="text-right delivery-number">{{ $row['amount'] === null ? '—' : $money($row['amount']) }}</td>@endif
                         </tr>
@@ -80,7 +77,7 @@
                 </tbody>
                 @if($showGross && in_array('totals', $sections, true) && $table['rows']->contains(fn ($row) => $row['amount'] !== null))
                     <tfoot><tr>
-                        <td colspan="{{ 2 + $destinations->count() + (int) $showUnit + (int) $showUnitPrice }}">Subtotal estimado</td>
+                        <td colspan="{{ 2 + $destinations->count() + (int) $showUnitPrice }}">Subtotal estimado</td>
                         <td class="text-right delivery-number">{{ $money($table['total']) }}</td>
                     </tr></tfoot>
                 @endif

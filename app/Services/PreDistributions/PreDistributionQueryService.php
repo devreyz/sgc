@@ -80,8 +80,9 @@ final class PreDistributionQueryService
             ->join('sales_projects as p', fn ($j) => $j->on('p.id', '=', 'i.sales_project_id')->on('p.tenant_id', '=', 'i.tenant_id'))
             ->join('customers as c', fn ($j) => $j->on('c.id', '=', 'i.customer_id')->on('c.tenant_id', '=', 'i.tenant_id'))
             ->join('products as pr', fn ($j) => $j->on('pr.id', '=', 'i.product_id')->on('pr.tenant_id', '=', 'i.tenant_id'))
-            ->select('i.*', 's.version as sheet_version', 's.operational_date', 's.assigned_to', 's.status as sheet_status', 'p.title as project_name', 'c.name as customer_name', 'pr.name as product_name')
-            ->orderBy('p.title')->orderBy('c.name')->orderBy('pr.name')->orderBy('i.id')->limit($limit + 1)->get();
+            ->select('i.*', 's.version as sheet_version', 's.operational_date', 's.assigned_to', 's.status as sheet_status', 'p.title as project_name', 'pr.name as product_name')
+            ->selectRaw("COALESCE(NULLIF(TRIM(c.trade_name), ''), c.name) as customer_name")
+            ->orderBy('p.title')->orderBy('customer_name')->orderBy('pr.name')->orderBy('i.id')->limit($limit + 1)->get();
         if ($rows->count() > $limit) {
             throw ValidationException::withMessages(['sheet_ids' => 'Selecione até '.$limit.' linhas por relatório; reduza o período ou as planilhas.']);
         }

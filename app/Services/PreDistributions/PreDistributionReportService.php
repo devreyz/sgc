@@ -32,7 +32,7 @@ final class PreDistributionReportService
             ->whereNull('cancelled_at')->where('reported_quantity', '>', 0)->with([
             'project' => fn ($query) => $query->withTrashed()->where('tenant_id', $tenant->id)->select('id', 'title'),
             'customer' => fn ($query) => $query->withTrashed()->where('tenant_id', $tenant->id)->select('id', 'name', 'trade_name', 'organization_id'),
-            'customer.organization' => fn ($query) => $query->withTrashed()->where('tenant_id', $tenant->id)->select('id', 'name'),
+            'customer.organization' => fn ($query) => $query->withTrashed()->where('tenant_id', $tenant->id)->select('id', 'name', 'short_name'),
             'product' => fn ($query) => $query->withTrashed()->where('tenant_id', $tenant->id)->select('id', 'name'),
         ])->orderBy('id')->get([
             'id', 'sales_project_id', 'customer_id', 'product_id', 'unit', 'reported_quantity', ...($showPrices ? ['reference_price'] : []),
@@ -43,12 +43,15 @@ final class PreDistributionReportService
             fn ($item) => $item->customer?->organization ? 'organization-'.$item->customer->organization_id : 'customer-'.$item->customer_id,
         ])->flatMap(fn ($organizations) => $organizations->values())->map(function (Collection $group) use ($showPrices) {
             $first = $group->first();
-            $customers = $group->mapWithKeys(fn ($item) => [$item->customer_id => $item->customer?->trade_name ?: ($item->customer?->name ?? 'Cliente #'.$item->customer_id)])->sort(SORT_NATURAL | SORT_FLAG_CASE);
+            $organization = $first->customer?->organization;
+            $customers = $group->mapWithKeys(fn ($item) => [
+                $item->customer_id => trim($item->customer?->trade_name ?? '') ?: ($item->customer?->name ?? 'Cliente #'.$item->customer_id),
+            ])->sort(SORT_NATURAL | SORT_FLAG_CASE);
 
             return [
                 'project' => $first->project?->title ?? 'Projeto indisponível',
-                'organization' => $first->customer?->organization?->name ?? $customers->first(),
-                'recipient_label' => $first->customer?->organization ? 'Organização' : 'Cliente',
+                'organization' => trim($organization?->short_name ?? '') ?: ($organization?->name ?? $customers->first()),
+                'recipient_label' => $organization ? 'Organização' : 'Cliente',
                 'tables' => $customers->chunk(4)->map(fn (Collection $destinations) => $this->sheetTable($group, $destinations, $showPrices)),
             ];
         });
