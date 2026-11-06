@@ -56,6 +56,13 @@ class Customer extends Model
             ->dontSubmitEmptyLogs();
     }
 
+    public function getReportNameAttribute(): ?string
+    {
+        $tradeName = trim($this->trade_name ?? '');
+
+        return $tradeName !== '' ? $tradeName : $this->name;
+    }
+
     /**
      * Organização à qual este cliente pertence (ex: escola → município).
      */

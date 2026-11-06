@@ -76,7 +76,7 @@
             </tr>
             <tr>
                 <td class="label">Cliente:</td>
-                <td>{{ $project->customer->name ?? 'N/I' }}</td>
+                <td>{{ $project->customer?->report_name ?? 'N/I' }}</td>
                 <td class="label">Ano Ref.:</td>
                 <td>{{ $project->reference_year ?? date('Y') }}</td>
             </tr>

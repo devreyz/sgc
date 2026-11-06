@@ -83,10 +83,18 @@ body { margin: 0; color: #111; font-family: 'DejaVu Sans', Arial, sans-serif; fo
 </style>
 </head>
 <body>
-<div class="footer">SGC · Folha de Conferência de Entregas@unless($suppress_internal_pagination ?? false) · Página <span class="pagenum"></span>@endunless</div>
+<div class="footer">
+    SGC · Folha de Conferência de Entregas
+    @unless($suppress_internal_pagination ?? false)
+        · Página <span class="pagenum"></span>
+    @endunless
+</div>
 
 @foreach($groups as $groupRows)
-    @php $clientName = $detailed ? data_get($groupRows->first(), 'customer.name') : null; @endphp
+    @php
+        $customerName = fn (array $row) => $customerNames[data_get($row, 'customer.id')] ?? data_get($row, 'customer.name');
+        $clientName = $detailed ? $customerName($groupRows->first()) : null;
+    @endphp
     <section class="customer-page {{ $loop->first ? '' : 'page-break' }}">
         @if(in_array('document_info', $pdfSections, true))
         <div class="header">
@@ -135,7 +143,7 @@ body { margin: 0; color: #111; font-family: 'DejaVu Sans', Arial, sans-serif; fo
                         @if(in_array('date', $pdfColumns, true))
                             <td class="date">{{ $fmtDate($row['date_start'] ?? null) }}@if(($row['date_end'] ?? null) && $row['date_end'] !== ($row['date_start'] ?? null))<br>a {{ $fmtDate($row['date_end']) }}@endif</td>
                         @endif
-                        @if(in_array('customer', $pdfColumns, true))<td class="customer">{{ data_get($row, 'customer.name') }}</td>@endif
+                        @if(in_array('customer', $pdfColumns, true))<td class="customer">{{ $customerName($row) }}</td>@endif
                         @if(in_array('product', $pdfColumns, true))<td class="product">{{ data_get($row, 'product.name') }}</td>@endif
                         @if(in_array('quantity', $pdfColumns, true))<td class="quantity">{{ $fmtQty($row['quantity']) }} {{ $row['unit'] }}</td>@endif
                         @if(in_array('unit_price', $pdfColumns, true))<td class="money">{{ array_key_exists('unit_price', $row) ? $fmtMoney($row['unit_price']) : '—' }}</td>@endif

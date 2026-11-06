@@ -45,7 +45,7 @@ final class PreDistributionReportService
             $first = $group->first();
             $organization = $first->customer?->organization;
             $customers = $group->mapWithKeys(fn ($item) => [
-                $item->customer_id => trim($item->customer?->trade_name ?? '') ?: ($item->customer?->name ?? 'Cliente #'.$item->customer_id),
+                $item->customer_id => $item->customer?->report_name ?? 'Cliente #'.$item->customer_id,
             ])->sort(SORT_NATURAL | SORT_FLAG_CASE);
 
             return [

@@ -253,7 +253,7 @@ table.main-tbl tfoot td.r { text-align: right; color: #059669; }
             @if($showDeliveryDate)<th style="width:9%">Data</th>@endif
             <th style="width:22%">Produto</th>
             @foreach($groupCustomers as $c)
-            <th class="r">{{ $c->name }}</th>
+            <th class="r">{{ $c->report_name }}</th>
             @endforeach
             <th class="r" style="width:13%">Qtd. Total</th>
             @if($showUnitPrice)<th class="r" style="white-space:nowrap;">Vlr. Unit.</th>@endif

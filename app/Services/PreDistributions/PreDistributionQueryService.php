@@ -33,7 +33,7 @@ final class PreDistributionQueryService
             ->join('products as pr', fn ($join) => $join->on('pr.id', '=', 'i.product_id')->on('pr.tenant_id', '=', 'i.tenant_id'))
             ->groupBy('i.tenant_id', 'i.sales_project_id', 'i.customer_id', 'i.product_id', 'i.unit')
             ->select('i.tenant_id', 'i.sales_project_id', 'i.customer_id', 'i.product_id', 'i.unit')
-            ->selectRaw('MAX(p.title) as project, MAX(c.name) as customer, MAX(pr.name) as product, SUM(i.planned_quantity) as planned_quantity, SUM(i.reported_quantity) as reported_quantity')
+            ->selectRaw("MAX(p.title) as project, MAX(COALESCE(NULLIF(TRIM(c.trade_name), ''), c.name)) as customer, MAX(pr.name) as product, SUM(i.planned_quantity) as planned_quantity, SUM(i.reported_quantity) as reported_quantity")
             ->selectRaw('COUNT(*) as source_items, COUNT(DISTINCT i.sheet_id) as source_sheets, COUNT(DISTINCT s.operational_date) as source_days, SUM(CASE WHEN i.reported_quantity IS NULL THEN 1 ELSE 0 END) as pending_items')
             ->orderBy('customer')->orderBy('product')->orderBy('i.sales_project_id')->paginate(50)
             ->through(function ($row) {

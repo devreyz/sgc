@@ -6,6 +6,7 @@ use App\Enums\DeliveryConferenceStatus;
 use App\Enums\DocumentCategory;
 use App\Filament\Resources\CustomerBillingReceiptResource;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\DeliveryConferenceSheet;
 use App\Models\Document;
 use App\Models\ProductionDelivery;
@@ -280,8 +281,12 @@ class DeliveryConferenceSheetController extends Controller
     private function pdf(DeliveryConferenceSheet $sheet, array $snapshot, bool $inline)
     {
         $sheet->loadMissing('tenant');
+        $customerIds = collect($snapshot['rows'] ?? [])->pluck('customer.id')->filter()->unique();
+        $customerNames = Customer::withTrashed()->where('tenant_id', $sheet->tenant_id)
+            ->whereIn('id', $customerIds)->get(['id', 'name', 'trade_name'])
+            ->mapWithKeys(fn (Customer $customer) => [$customer->id => $customer->report_name]);
         $options = app(TemplatedPdfService::class)->systemPdfOptions('pdf.delivery-conference-sheet', 'Folha de Conferência de Entregas', $sheet->project?->type, $sheet->tenant_id);
-        $pdf = app(TemplatedPdfService::class)->generateSystemPdf('pdf.delivery-conference-sheet', compact('sheet', 'snapshot'), $options)
+        $pdf = app(TemplatedPdfService::class)->generateSystemPdf('pdf.delivery-conference-sheet', compact('sheet', 'snapshot', 'customerNames'), $options)
             ->setOption('defaultFont', 'DejaVu Sans')->setOption('isHtml5ParserEnabled', true)->setOption('isRemoteEnabled', true);
         $filename = str_replace('/', '-', $sheet->formatted_number).'-r'.$sheet->revision.'.pdf';
 

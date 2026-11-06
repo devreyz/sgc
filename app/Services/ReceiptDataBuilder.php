@@ -179,7 +179,8 @@ class ReceiptDataBuilder
                     'distribution_ids' => $group->pluck('id')->map(fn ($id): int => (int) $id)->all(),
                     'distributions' => $group->map(fn ($d) => [
                         'distribution_ids' => [(int) $d->id],
-                        'customer_name' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
+                        'customer_id' => $d->customer_id,
+                        'customer_name' => $d->customer?->report_name ?? '—',
                         'quantity' => (float) $d->quantity,
                         'unit_price' => (float) ($d->unit_price ?? 0),
                         'gross' => (float) ($d->gross_value ?? 0),
@@ -236,7 +237,9 @@ class ReceiptDataBuilder
                 $distributions = $groups
                     ->flatMap(fn (array $group): array => $group['distributions'] ?? [])
                     ->groupBy(fn (array $distribution): string => implode('|', [
-                        mb_strtolower((string) ($distribution['customer_name'] ?? '')),
+                        ! empty($distribution['customer_id'])
+                            ? 'id:'.$distribution['customer_id']
+                            : 'name:'.mb_strtolower((string) ($distribution['customer_name'] ?? '')),
                         number_format((float) ($distribution['unit_price'] ?? 0), 8, '.', ''),
                     ]))
                     ->map(function (Collection $rows): array {
@@ -244,6 +247,7 @@ class ReceiptDataBuilder
 
                         return [
                             'distribution_ids' => $rows->flatMap(fn (array $item): array => $item['distribution_ids'] ?? [])->unique()->values()->all(),
+                            'customer_id' => $row['customer_id'] ?? null,
                             'customer_name' => (string) ($row['customer_name'] ?? '—'),
                             'quantity' => $rows->sum(fn (array $item): float => (float) ($item['quantity'] ?? 0)),
                             'unit_price' => (float) ($row['unit_price'] ?? 0),

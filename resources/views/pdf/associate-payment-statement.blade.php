@@ -161,7 +161,7 @@
             <tr>
                 <td style="text-align:center">{{ $d->delivery_date?->format('d/m/Y') ?? '—' }}</td>
                 <td>{{ optional($d->product)->name ?? '—' }}</td>
-                <td>{{ optional($d->customer)->trade_name ?? optional($d->customer)->name ?? '—' }}</td>
+                <td>{{ $d->customer?->report_name ?? '—' }}</td>
                 <td style="text-align:right">{{ number_format((float)$d->quantity, 3, ',', '.') }}&nbsp;{{ optional($d->product)->unit ?? '' }}</td>
                 <td style="text-align:right">R$&nbsp;{{ number_format($dGross, 2, ',', '.') }}</td>
                 <td style="text-align:center">{{ number_format($dFeeP, 1, ',', '.') }}%</td>

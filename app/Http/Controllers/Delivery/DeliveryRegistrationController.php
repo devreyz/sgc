@@ -3063,7 +3063,7 @@ class DeliveryRegistrationController extends Controller
             'associate' => $d->associate?->display_name ?? 'Associado nao identificado',
             'product' => $d->product?->name ?? '—',
             'unit' => $d->product?->unit ?? 'un',
-            'customer' => $d->customer?->trade_name ?? $d->customer?->name ?? '—',
+            'customer' => $d->customer?->report_name ?? '—',
             'organization' => $d->customer?->organization?->short_name ?? $d->customer?->organization?->name ?? '—',
             'quantity' => (float) $d->quantity,
             'unit_price' => (float) $d->unit_price,
@@ -3241,7 +3241,7 @@ class DeliveryRegistrationController extends Controller
         $groups = [];
         foreach ($distributions as $d) {
             $customerId = $d->customer_id ?? 0;
-            $customerName = $d->customer?->trade_name ?? $d->customer?->name ?? 'Sem cliente';
+            $customerName = $d->customer?->report_name ?? 'Sem cliente';
             $organizationId = $d->customer?->organization_id ?? 0;
             $organizationName = $d->customer?->organization?->name ?? 'Sem organização';
             $productId = $d->product_id ?? 0;

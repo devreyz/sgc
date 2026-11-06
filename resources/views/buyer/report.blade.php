@@ -27,7 +27,7 @@
                 <tbody>
                 @forelse($rows as $row)
                     <tr>
-                        <td>{{ $row['customer']?->name }}</td>
+                        <td>{{ $row['customer']?->report_name }}</td>
                         <td>{{ $row['product']?->name }}</td>
                         <td>{{ number_format($row['requested_quantity'], 3, ',', '.') }}</td>
                         <td>{{ number_format($row['distributed_quantity'], 3, ',', '.') }}</td>

@@ -139,7 +139,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
                 'document_amount' => (string) ($distribution->gross_value
                     ?: bcmul((string) $distribution->quantity, (string) $distribution->unit_price, 8)),
                 'delivery_date' => $distribution->delivery_date?->format('d/m/Y') ?? '—',
-                'customer' => $distribution->customer?->name ?? $customerName,
+                'customer' => $distribution->customer?->report_name ?? $customerName,
                 'associate' => $distribution->associate?->display_name ?? '—',
                 'billing_status' => $distribution->billing_status?->getLabel() ?? '—',
             ]);
@@ -158,7 +158,7 @@ class CustomerBillingReceiptExport implements FromArray, ShouldAutoSize, WithEve
                     'project' => $line['project'] ?? $projectName,
                     'delivery_date' => $line['delivery_date'] ?? ($receipt->from_date?->format('d/m/Y').' a '.$receipt->to_date?->format('d/m/Y')),
                     'product' => $line['product'] ?? '—',
-                    'customer' => $line['customer'] ?? $customerName,
+                    'customer' => $line['customer'] ?? $receipt->customer?->report_name ?? $customerName,
                     'associate' => $line['associate'] ?? 'Consolidado',
                     'quantity' => (string) ($line['quantity'] ?? '0'),
                     'unit' => $line['unit'] ?? 'un',

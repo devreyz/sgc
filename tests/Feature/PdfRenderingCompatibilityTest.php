@@ -505,7 +505,7 @@ class PdfRenderingCompatibilityTest extends TestCase
         $tenant = new Tenant(['name' => 'Cooperativa Teste']);
         $project = new SalesProject(['title' => 'PAA 2026']);
         $organization = new Organization(['name' => 'Prefeitura Municipal']);
-        $customer = new Customer(['name' => 'Escola Central']);
+        $customer = new Customer(['name' => 'Escola Central', 'trade_name' => '  Escola do Centro  ']);
         $customer->id = 10;
         $receipt = new CustomerBillingReceipt([
             'receipt_year' => 2026,
@@ -546,6 +546,8 @@ class PdfRenderingCompatibilityTest extends TestCase
             'visible_sections' => ['document_info', 'organization_info', 'project_info', 'deliveries'],
         ])->render();
 
+        $this->assertStringContainsString('<th class="r">Escola do Centro</th>', $html);
+        $this->assertStringNotContainsString('<th class="r">Escola Central</th>', $html);
         $this->assertStringContainsString('Nº Documento:', $html);
         $this->assertStringNotContainsString('<div class="sec-label">Resumo financeiro</div>', $html);
         $this->assertStringNotContainsString('<div class="fin-summary">', $html);

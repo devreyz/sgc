@@ -161,7 +161,7 @@ class DeliveryConferenceSheetServiceTest extends TestCase
         self::assertStringContainsString('SEM VALOR FISCAL', $html);
         self::assertStringContainsString('>OK<', $html);
         self::assertStringContainsString('Correção', $html);
-        self::assertStringContainsString('10 kg', $html);
+        self::assertStringContainsString('10,000 kg', $html);
         self::assertStringContainsString('Assinatura do responsável', $html);
         self::assertStringContainsString('Data da entrega', $html);
         self::assertStringNotContainsString('Cargo/Função', $html);
@@ -205,12 +205,17 @@ class DeliveryConferenceSheetServiceTest extends TestCase
             'grouping_mode' => 'organization_detailed',
         ], User::findOrFail(1));
         $sheet = $service->issue($sheet, User::findOrFail(1));
-        $html = view('pdf.delivery-conference-sheet', ['sheet' => $sheet, 'snapshot' => $sheet->snapshot])->render();
+        $html = view('pdf.delivery-conference-sheet', [
+            'sheet' => $sheet,
+            'snapshot' => $sheet->snapshot,
+            'customerNames' => [30 => 'Escola do Centro'],
+        ])->render();
 
         self::assertSame(2, substr_count($html, '<section class="customer-page '));
         self::assertSame(1, substr_count($html, 'class="customer-page page-break"'));
         self::assertSame(2, substr_count($html, 'FOLHA DE CONFERÊNCIA'));
-        self::assertStringContainsString('Escola A', $html);
+        self::assertStringContainsString('Escola do Centro', $html);
+        self::assertStringNotContainsString('Escola A', $html);
         self::assertStringContainsString('Escola B', $html);
     }
 

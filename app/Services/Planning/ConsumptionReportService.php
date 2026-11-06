@@ -105,7 +105,7 @@ final class ConsumptionReportService
             $row = $result + ['id' => $distribution->id, 'product_id' => $distribution->product_id, 'customer_id' => $distribution->customer_id,
                 'associate_id' => $distribution->associate_id, 'product' => $distribution->product?->name ?? 'Produto indisponível',
                 'associate' => $distribution->associate?->display_name ?? 'Produtor indisponível',
-                'customer' => $distribution->customer?->name ?? 'Unidade indisponível', 'physical_quantity' => (string) $distribution->quantity,
+                'customer' => $distribution->customer?->report_name ?? 'Unidade indisponível', 'physical_quantity' => (string) $distribution->quantity,
                 'unit' => $distribution->product?->unit, 'delivery_date' => $distribution->delivery_date->format('Y-m-d')];
             $rows[] = $row;
             // Evaluate each cycle against the version effective at its start, never today's rule.

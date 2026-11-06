@@ -169,7 +169,7 @@ final class BillingDossierReportService
             foreach (['gross', 'discounts', 'accruals', 'net'] as $field) {
                 $totals[$field] = $products->reduce(fn ($sum, $product) => bcadd($sum, $product[$field], 2), '0.00');
             }
-            return ['id' => (int) $id, 'name' => $customer?->name ?: 'Cliente não identificado',
+            return ['id' => (int) $id, 'name' => $customer?->report_name ?? 'Cliente não identificado',
                 'document' => $customer?->cnpj, 'projects' => $group->pluck('salesProject.title')->unique()->implode(' · '),
                 'members' => $clientMembers, 'units' => $this->units($group), 'totals' => $totals];
         })->sortBy(fn ($customer) => mb_strtolower(\Illuminate\Support\Str::ascii($customer['name'])), SORT_NATURAL)->values()->all();
@@ -221,8 +221,9 @@ final class BillingDossierReportService
             ->get()->filter(fn ($member) => $memberIds->contains($member->id)
                 || collect($member->delivery_ids)->intersect($selected->pluck('id'))->isNotEmpty());
         $names += app(TenantIdentityService::class)->namesForUsers($tenantId, $members->pluck('associate.user_id')->filter());
-        $owners = [$billing->getMorphClass().'|'.$billing->id => $billing->recipient_name];
-        $result = [['type' => 'Folha de faturamento', 'number' => $billing->formatted_number, 'owner' => $billing->recipient_name,
+        $billingOwner = $billing->customer?->report_name ?? $billing->recipient_name;
+        $owners = [$billing->getMorphClass().'|'.$billing->id => $billingOwner];
+        $result = [['type' => 'Folha de faturamento', 'number' => $billing->formatted_number, 'owner' => $billingOwner,
             'status' => $billing->status?->getLabel(), 'date' => $billing->issued_at?->format('d/m/Y'), 'count' => $selected->count(),
             'amount' => $billing->total_net === null ? null : \App\Support\FinancialAmount::cents($billing->total_net)]];
         foreach ($members as $member) {
@@ -242,7 +243,7 @@ final class BillingDossierReportService
             $payments = $paymentModel::withoutGlobalScopes()->where('tenant_id', $tenantId)
                 ->whereIn($foreignKey, $customerPayment ? [$billing->id] : $members->pluck('id'))->get(['id', $foreignKey]);
             foreach ($payments as $payment) {
-                $owners[$payment->getMorphClass().'|'.$payment->id] = $customerPayment ? $billing->recipient_name
+                $owners[$payment->getMorphClass().'|'.$payment->id] = $customerPayment ? $billingOwner
                     : ($owners[(new AssociateReceipt)->getMorphClass().'|'.$payment->associate_receipt_id] ?? 'Não identificado');
             }
         }

@@ -13,7 +13,7 @@
         </tr>
         <tr>
             <td class="label">Cliente:</td>
-            <td class="value">{{ $project->customer->name ?? 'N/I' }}</td>
+            <td class="value">{{ $project->customer?->report_name ?? 'N/I' }}</td>
             <td class="label">Contrato:</td>
             <td class="value">{{ $project->contract_number ?? 'N/I' }}</td>
         </tr>

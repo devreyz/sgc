@@ -13,12 +13,13 @@
 
     $receiptLabel = $receipt?->formatted_number ?? '-';
     $issuedAt = $receipt?->issued_at?->format('d/m/Y') ?? now()->format('d/m/Y');
-    $customerNames = collect($productsSummary ?? [])
-        ->flatMap(fn (array $product) => collect($product['distributions'] ?? [])->pluck('customer_name'))
+    $customers = collect($productsSummary ?? [])
+        ->flatMap(fn (array $product) => $product['distributions'] ?? [])
+        ->map(fn (array $row) => ! empty($row['customer_id']) ? 'id:'.$row['customer_id'] : ($row['customer_name'] ?? null))
         ->filter()
         ->unique()
         ->values();
-    $hideCustomer = $customerNames->count() <= 1;
+    $hideCustomer = $customers->count() <= 1;
     $associateTerm = $tenant?->associateTerm() ?? 'Associado';
     $associateTermLower = $tenant?->associateTerm(lowercase: true) ?? 'associado';
     $pdfSections = $visible_sections ?? ['associate_info', 'financial', 'distributions'];

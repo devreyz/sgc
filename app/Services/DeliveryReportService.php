@@ -62,8 +62,8 @@ class DeliveryReportService
             ->whereNotIn('status', $this->excludedStatuses())->whereNotNull('customer_id')->distinct()->pluck('customer_id');
         $customers = Customer::query()->where('tenant_id', $project->tenant_id)->whereIn('id', $customerIds)
             ->get(['id', 'tenant_id', 'organization_id', 'name', 'trade_name'])
-            ->sortBy(fn ($customer) => mb_strtolower($customer->trade_name ?: $customer->name))->values()
-            ->map(fn ($customer) => ['id' => (int) $customer->id, 'name' => $customer->trade_name ?: $customer->name]);
+            ->sortBy(fn ($customer) => mb_strtolower($customer->report_name))->values()
+            ->map(fn ($customer) => ['id' => (int) $customer->id, 'name' => $customer->report_name]);
 
         return [
             'project' => ['id' => (int) $project->id, 'title' => $project->title,
@@ -170,7 +170,7 @@ class DeliveryReportService
 
             return [
                 'id' => (int) $distribution->id, 'customer_id' => (int) $distribution->customer_id,
-                'customer' => $distribution->customer?->trade_name ?: ($distribution->customer?->name ?? 'Cliente não identificado'),
+                'customer' => $distribution->customer?->report_name ?? 'Cliente não identificado',
                 'organization' => $distribution->customer?->organization?->short_name ?: ($distribution->customer?->organization?->name ?? null),
                 'quantity' => (float) $distribution->quantity, 'unit_price' => (float) $distribution->unit_price,
                 'gross' => $gross, 'fees' => (float) ($distribution->admin_fee_amount ?? 0),
