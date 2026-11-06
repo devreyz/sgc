@@ -77,7 +77,7 @@
                 </tbody>
                 @if($showGross && in_array('totals', $sections, true) && $table['rows']->contains(fn ($row) => $row['amount'] !== null))
                     <tfoot><tr>
-                        <td colspan="{{ 2 + $destinations->count() + (int) $showUnitPrice }}">Subtotal estimado</td>
+                        <td colspan="{{ 2 + $destinations->count() + (int) $showUnitPrice }}">Total:</td>
                         <td class="text-right delivery-number">{{ $money($table['total']) }}</td>
                     </tr></tfoot>
                 @endif
