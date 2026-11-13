@@ -24,9 +24,9 @@
     @elseif($type === 'boolean')
         <select name="{{ $name }}" @required($required)><option value="0">Não</option><option value="1" @selected($value)>Sim</option></select>
     @elseif(in_array($type, ['image', 'file', 'signature'], true))
-        <span style="color:#64748b">Esta evidência será anexada durante a execução.</span>
+        <span style="color:var(--ui-color-text-secondary, #64748b)">Esta evidência será anexada durante a execução.</span>
     @else
         <input type="{{ $numeric ? 'number' : match($type) { 'date', 'time' => $type, 'datetime' => 'datetime-local', default => 'text' } }}" name="{{ $name }}" value="{{ $value }}" @required($required) @if($numeric) step="{{ $type === 'integer' ? '1' : 'any' }}" min="{{ $field->minimum ?? 0 }}" @if($field->maximum !== null) max="{{ $field->maximum }}" @endif @endif placeholder="{{ $field->placeholder }}">
     @endif
-    @if($field->help)<small style="color:#64748b">{{ $field->help }}</small>@endif
+    @if($field->help)<small style="color:var(--ui-color-text-secondary, #64748b)">{{ $field->help }}</small>@endif
 </label>
