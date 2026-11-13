@@ -20,7 +20,7 @@
     "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
   },
   "resources/css/accounting-portal.css": {
-    "file": "assets/resources/css/accounting-portal-DkB0cpfT.css",
+    "file": "assets/resources/css/accounting-portal-DlXMuXJO.css",
     "src": "resources/css/accounting-portal.css",
     "isEntry": true,
     "name": "resources/css/accounting-portal.css",
@@ -29,7 +29,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/resources/css/app-D3CV_iz8.css",
+    "file": "assets/resources/css/app-CrLA9bE7.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "resources/css/app.css",
@@ -38,7 +38,7 @@
     ]
   },
   "resources/css/document-quick-verification.css": {
-    "file": "assets/resources/css/document-quick-verification-BbSuo_wc.css",
+    "file": "assets/resources/css/document-quick-verification-DjNWx6nn.css",
     "src": "resources/css/document-quick-verification.css",
     "isEntry": true,
     "name": "resources/css/document-quick-verification.css",
@@ -99,12 +99,12 @@
     ]
   },
   "resources/js/pre-distributions.js": {
-    "file": "assets/resources/js/pre-distributions.js-D2v1ZW91.js",
+    "file": "assets/resources/js/pre-distributions.js-CArANKXX.js",
     "name": "resources/js/pre-distributions.js",
     "src": "resources/js/pre-distributions.js",
     "isEntry": true,
     "css": [
-      "assets/pre-distributions-CWuMYrwB.css"
+      "assets/pre-distributions-D7_rakNK.css"
     ]
   }
 }

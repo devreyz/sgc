@@ -1635,3 +1635,25 @@
         white-space: nowrap;
     }
 }
+/* SGC Campo | ergonomia sem remover componentes ou interfaces públicas. */
+:where(.ui-page, .ui-scope) :is(button, a, input, select, textarea):focus-visible {
+    outline: 2px solid var(--ui-color-focus);
+    outline-offset: 2px;
+}
+:where(.ui-page, .ui-scope) :is(.ui-card, .ui-surface, .ui-section) {
+    background: var(--ui-color-surface);
+    color: var(--ui-color-text);
+    border-color: var(--ui-color-border);
+}
+:where(.ui-page, .ui-scope) :is(input:not([type="checkbox"]), select, textarea) {
+    color-scheme: inherit;
+}
+html[data-theme='dark'] :where(.ui-page, .ui-scope) :is(.ui-card, .ui-surface, .ui-section) {
+    box-shadow: var(--ui-shadow-xs);
+}
+html[data-theme='dark'] :where(.ui-page, .ui-scope) :is(.ui-btn--primary, .ui-button--primary) {
+    color: var(--sgc-on-primary);
+}
+@media (prefers-reduced-motion: reduce) {
+    :where(.ui-page, .ui-scope) * { scroll-behavior: auto !important; }
+}

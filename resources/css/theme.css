@@ -3,14 +3,9 @@
  * -----------------------------------------------------------------------------
  * Fonte única dos tokens visuais do SGC.
  *
- * Referências visuais oficiais:
- * - Dashboard do associado
- * - Workspace do projeto do associado
- *
- * O objetivo não é criar uma biblioteca genérica "bonita". Os tokens abaixo
- * reproduzem a linguagem que já funcionou melhor no produto: superfícies claras,
- * bordas discretas, sombras muito leves, densidade controlada, ícones compactos
- * e cor usada com propósito.
+ * SGC Campo: tema claro Campo e escuro Grafite & Ouro.
+ * Mapeamento semântico retrocompatível: --ui-*, --color-*, --app-* e --ws-*.
+ * As classes e os fluxos das views continuam os mesmos.
  */
 
 @theme {
@@ -59,14 +54,14 @@
        Identidade e tons semânticos
        ------------------------------------------------------------------------- */
 
-    --ui-brand: #219653;
+    --ui-brand: #173c2e;
 
     --ui-color-primary: var(--ui-brand);
-    --ui-color-primary-strong: #177c43;
-    --ui-color-primary-deep: #126a38;
-    --ui-color-primary-soft: #edf8f1;
-    --ui-color-primary-muted: #dff1e6;
-    --ui-color-primary-border: #cde8d6;
+    --ui-color-primary-strong: #214d3a;
+    --ui-color-primary-deep: #102d23;
+    --ui-color-primary-soft: #e7f0e7;
+    --ui-color-primary-muted: #dce9dd;
+    --ui-color-primary-border: #bfd5c4;
 
     --ui-color-info: #3478d4;
     --ui-color-info-strong: #285fa9;
@@ -107,21 +102,21 @@
        Superfícies e texto
        ------------------------------------------------------------------------- */
 
-    --ui-color-canvas: #f1f6f3;
-    --ui-color-canvas-deep: #eaf1ed;
-    --ui-color-surface: #ffffff;
-    --ui-color-surface-soft: #f7faf8;
-    --ui-color-surface-muted: #eef4f0;
-    --ui-color-surface-raised: #ffffff;
+    --ui-color-canvas: #f4f4ef;
+    --ui-color-canvas-deep: #efefe8;
+    --ui-color-surface: #fffefb;
+    --ui-color-surface-soft: #f0f0e9;
+    --ui-color-surface-muted: #e7eae2;
+    --ui-color-surface-raised: #fffefb;
 
-    --ui-color-border: #d7e2da;
-    --ui-color-border-strong: #becdc3;
+    --ui-color-border: #d9e0d7;
+    --ui-color-border-strong: #b9c7bc;
 
-    --ui-color-text: #17251c;
-    --ui-color-text-secondary: #58685e;
-    --ui-color-text-muted: #87938b;
-    --ui-color-focus: #3478d4;
-    --ui-color-overlay: rgb(10 24 16 / 0.58);
+    --ui-color-text: #1d2922;
+    --ui-color-text-secondary: #647167;
+    --ui-color-text-muted: #879087;
+    --ui-color-focus: #386a8b;
+    --ui-color-overlay: rgb(15 26 20 / 0.58);
 
     /* -------------------------------------------------------------------------
        Tipografia
@@ -167,14 +162,14 @@
     --ui-radius-xs: 0.375rem;
     --ui-radius-sm: 0.5rem;
     --ui-radius-md: 0.5625rem;
-    --ui-radius-lg: 0.75rem;
+    --ui-radius-lg: 0.8125rem;
     --ui-radius-xl: 0.875rem;
     --ui-radius-2xl: 1rem;
     --ui-radius-pill: 999px;
 
-    --ui-shadow-xs: 0 2px 8px rgb(15 35 24 / 0.035);
-    --ui-shadow-sm: 0 5px 18px rgb(25 61 39 / 0.055);
-    --ui-shadow-md: 0 10px 28px rgb(15 35 24 / 0.075);
+    --ui-shadow-xs: 0 2px 8px rgb(25 35 28 / 0.03);
+    --ui-shadow-sm: 0 6px 18px rgb(25 35 28 / 0.04);
+    --ui-shadow-md: 0 10px 28px rgb(25 35 28 / 0.065);
     --ui-shadow-lg: 0 22px 56px rgb(8 24 15 / 0.16);
     --ui-shadow-focus: 0 0 0 3px color-mix(in srgb, var(--ui-color-focus) 14%, transparent);
 
@@ -218,55 +213,65 @@
     --shadow-sm: var(--ui-shadow-sm);
 }
 
-/*
- * Tema escuro permanece suportado, mas mantém a mesma lógica de contraste,
- * densidade e hierarquia do tema claro.
- */
+/* Grafite & Ouro: neutros frios, dourado pontual; sem verde como fundo geral. */
+html[data-theme='dark'],
 [data-theme='dark'] {
     color-scheme: dark;
+    --ui-brand: #e7c87d;
+    --ui-color-primary: #e7c87d;
+    --ui-color-primary-strong: #d6b46b;
+    --ui-color-primary-deep: #b58d48;
+    --ui-color-primary-soft: #353022;
+    --ui-color-primary-muted: #403728;
+    --ui-color-primary-border: #5b4c35;
 
-    --ui-brand: #43c779;
-
-    --ui-color-canvas: #0d1711;
-    --ui-color-canvas-deep: #08110c;
-    --ui-color-surface: #142019;
-    --ui-color-surface-soft: #18271f;
-    --ui-color-surface-muted: #203128;
-    --ui-color-surface-raised: #1a2920;
-
-    --ui-color-border: #2b4033;
-    --ui-color-border-strong: #3b5444;
-
-    --ui-color-text: #edf6f0;
-    --ui-color-text-secondary: #bfd0c4;
-    --ui-color-text-muted: #8da095;
-
+    --ui-color-canvas: #111418;
+    --ui-color-canvas-deep: #101317;
+    --ui-color-surface: #191e24;
+    --ui-color-surface-soft: #212830;
+    --ui-color-surface-muted: #2b343d;
+    --ui-color-surface-raised: #232b34;
+    --ui-color-border: #323c47;
+    --ui-color-border-strong: #495564;
+    --ui-color-text: #edf2f6;
+    --ui-color-text-secondary: #afbac6;
+    --ui-color-text-muted: #94a2ae;
+    --ui-color-focus: #e7c87d;
     --ui-color-overlay: rgb(0 0 0 / 0.72);
 
-    --ui-color-primary-soft: color-mix(in srgb, var(--ui-color-primary) 18%, var(--ui-color-surface));
-    --ui-color-primary-muted: color-mix(in srgb, var(--ui-color-primary) 24%, var(--ui-color-surface));
-    --ui-color-primary-border: color-mix(in srgb, var(--ui-color-primary) 35%, var(--ui-color-border));
+    --ui-color-info: #95c0e3;
+    --ui-color-info-strong: #b6d7ef;
+    --ui-color-info-soft: #233545;
+    --ui-color-info-border: #345069;
+    --ui-color-success: #8dd0a3;
+    --ui-color-success-strong: #b2e1c0;
+    --ui-color-success-soft: #1f3227;
+    --ui-color-success-border: #335641;
+    --ui-color-warning: #e8bf79;
+    --ui-color-warning-strong: #f3d29c;
+    --ui-color-warning-soft: #3d301d;
+    --ui-color-warning-border: #5b4625;
+    --ui-color-danger: #e9a197;
+    --ui-color-danger-strong: #fac0ba;
+    --ui-color-danger-soft: #442827;
+    --ui-color-danger-border: #69413f;
+    --ui-color-violet: #c3b5e8;
+    --ui-color-violet-strong: #d6ccf0;
+    --ui-color-violet-soft: #302b43;
+    --ui-color-violet-border: #4d4564;
+    --ui-color-cyan: #8fd3df;
+    --ui-color-cyan-strong: #b5e5ec;
+    --ui-color-cyan-soft: #223b42;
+    --ui-color-cyan-border: #38555b;
+    --ui-color-neutral: #b1bfcc;
+    --ui-color-neutral-strong: #dce4eb;
+    --ui-color-neutral-soft: #27303a;
+    --ui-color-neutral-border: #394653;
 
-    --ui-color-info-soft: color-mix(in srgb, var(--ui-color-info) 18%, var(--ui-color-surface));
-    --ui-color-info-border: color-mix(in srgb, var(--ui-color-info) 34%, var(--ui-color-border));
-
-    --ui-color-success-soft: color-mix(in srgb, var(--ui-color-success) 18%, var(--ui-color-surface));
-    --ui-color-success-border: color-mix(in srgb, var(--ui-color-success) 34%, var(--ui-color-border));
-
-    --ui-color-warning-soft: color-mix(in srgb, var(--ui-color-warning) 18%, var(--ui-color-surface));
-    --ui-color-warning-border: color-mix(in srgb, var(--ui-color-warning) 34%, var(--ui-color-border));
-
-    --ui-color-danger-soft: color-mix(in srgb, var(--ui-color-danger) 18%, var(--ui-color-surface));
-    --ui-color-danger-border: color-mix(in srgb, var(--ui-color-danger) 34%, var(--ui-color-border));
-
-    --ui-color-violet-soft: color-mix(in srgb, var(--ui-color-violet) 18%, var(--ui-color-surface));
-    --ui-color-violet-border: color-mix(in srgb, var(--ui-color-violet) 34%, var(--ui-color-border));
-
-    --ui-color-cyan-soft: color-mix(in srgb, var(--ui-color-cyan) 18%, var(--ui-color-surface));
-    --ui-color-cyan-border: color-mix(in srgb, var(--ui-color-cyan) 34%, var(--ui-color-border));
-
-    --ui-color-neutral-soft: #223129;
-    --ui-color-neutral-border: #33473b;
+    --ui-shadow-xs: 0 1px 4px rgb(0 0 0 / .1);
+    --ui-shadow-sm: 0 6px 18px rgb(0 0 0 / .13);
+    --ui-shadow-md: 0 12px 30px rgb(0 0 0 / .18);
+    --ui-shadow-lg: 0 28px 64px rgb(0 0 0 / .35);
 }
 
 [data-density='compact'] {
@@ -284,4 +289,65 @@
         --ui-transition-fast: 0.01ms;
         --ui-transition: 0.01ms;
     }
+}
+/* Camada Campo: identidade e ações com contraste em ambos os temas. */
+:root,
+[data-theme='sgc'] {
+    --sgc-rail: #173c2e;
+    --sgc-rail-hover: #214d3a;
+    --sgc-rail-text: #eff5ed;
+    --sgc-rail-muted: #b8cdbf;
+    --sgc-rail-divider: rgb(236 255 231 / 13%);
+    --sgc-accent: #d9f172;
+    --sgc-accent-hover: #c9e660;
+    --sgc-on-accent: #233523;
+    --sgc-on-primary: #ffffff;
+}
+html[data-theme='dark'],
+[data-theme='dark'] {
+    --sgc-rail: #151a20;
+    --sgc-rail-hover: #252c34;
+    --sgc-rail-text: #f2f5f7;
+    --sgc-rail-muted: #a4b0bb;
+    --sgc-rail-divider: rgb(255 255 255 / 9%);
+    --sgc-accent: #e7c87d;
+    --sgc-accent-hover: #f0d693;
+    --sgc-on-accent: #2e2617;
+    --sgc-on-primary: #2e2617;
+}
+
+/* Bridge disponível também em layouts que não herdam o Bento. */
+:root, [data-theme='sgc'] {
+    --color-primary: var(--ui-color-primary);
+    --color-primary-dark: var(--ui-color-primary-strong);
+    --color-primary-deep: var(--ui-color-primary-deep);
+    --color-primary-light: var(--ui-color-primary-muted);
+    --color-primary-50: var(--ui-color-primary-soft);
+    --color-secondary: var(--ui-color-info);
+    --color-success: var(--ui-color-success);
+    --color-danger: var(--ui-color-danger);
+    --color-warning: var(--ui-color-warning);
+    --color-info: var(--ui-color-info);
+    --color-bg: var(--ui-color-canvas);
+    --color-surface-muted: var(--ui-color-surface-muted);
+    --app-primary: var(--ui-color-primary);
+    --app-primary-600: var(--ui-color-primary-strong);
+    --app-primary-700: var(--ui-color-primary-deep);
+    --app-primary-soft: var(--ui-color-primary-soft);
+    --app-primary-muted: var(--ui-color-primary-muted);
+    --app-bg: var(--ui-color-canvas);
+    --app-surface: var(--ui-color-surface);
+    --app-surface-soft: var(--ui-color-surface-soft);
+    --app-surface-muted: var(--ui-color-surface-muted);
+    --app-border: var(--ui-color-border);
+    --app-border-strong: var(--ui-color-border-strong);
+    --app-text: var(--ui-color-text);
+    --app-text-secondary: var(--ui-color-text-secondary);
+    --app-text-muted: var(--ui-color-text-muted);
+    --ws-primary: var(--ui-color-primary);
+    --ws-surface: var(--ui-color-surface);
+    --ws-soft: var(--ui-color-surface-soft);
+    --ws-border: var(--ui-color-border);
+    --ws-text: var(--ui-color-text);
+    --ws-secondary: var(--ui-color-text-secondary);
 }

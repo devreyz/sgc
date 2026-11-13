@@ -38,6 +38,7 @@
     <nav
         class="nav-tabs"
         data-portal-nav="{{ $portal }}"
+        data-sgc-nav="campo"
         aria-label="{{ $ariaLabel }}"
     >
         @foreach($items as $item)
@@ -94,6 +95,7 @@
                         type="submit"
                         class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                         data-nav-key="{{ $key }}"
+                        title="{{ $item['label'] ?? '' }}"
                         @if($isActive)
                             aria-current="page"
                         @endif
@@ -107,6 +109,7 @@
                     type="button"
                     class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                     data-nav-key="{{ $key }}"
+                    title="{{ $item['label'] ?? '' }}"
                     data-nav-event="{{ $item['action'] ?? $key }}"
                     @if($isActive)
                         aria-current="page"
@@ -120,6 +123,7 @@
                     href="{{ $item['url'] ?? '#' }}"
                     class="nav-tab {{ $isActive ? 'active' : '' }} {{ $mobileHidden ? 'nav-tab-mobile-hidden' : '' }}"
                     data-nav-key="{{ $key }}"
+                    title="{{ $item['label'] ?? '' }}"
                     @if($isActive)
                         aria-current="page"
                     @endif

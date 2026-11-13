@@ -1,11 +1,22 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="app-version" content="{{ config('app.version') }}">
-    <meta name="theme-color" content="#16a34a">
+    <meta name="theme-color" content="#f4f4ef">
+    <script>
+        /* Aplicar tema antes da renderização para impedir clarão entre páginas. */
+        (function () {
+            try {
+                var choice = localStorage.getItem('sgc-campo-theme') || localStorage.getItem('sgc-theme');
+                var dark = choice === 'dark' || (!choice && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+                document.querySelector('meta[name="theme-color"]').content = dark ? '#111418' : '#f4f4ef';
+            } catch (error) { document.documentElement.dataset.theme = 'light'; }
+        }());
+    </script>
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -38,77 +49,62 @@
         }
 
         :root {
-            --app-primary: #22c55e;
-            --app-primary-600: #16a34a;
-            --app-primary-700: #15803d;
-            --app-primary-800: #166534;
-            --app-primary-soft: #ecfdf5;
-            --app-primary-muted: #dcfce7;
+            /* Pontes para o CSS antigo. A fonte oficial é resources/css/theme.css. */
+            --app-primary: var(--ui-color-primary, #173c2e);
+            --app-primary-600: var(--ui-color-primary-strong, #214d3a);
+            --app-primary-700: var(--ui-color-primary-deep, #102d23);
+            --app-primary-800: var(--ui-color-primary-deep, #102d23);
+            --app-primary-soft: var(--ui-color-primary-soft, #e7f0e7);
+            --app-primary-muted: var(--ui-color-primary-muted, #dce9dd);
 
-            --app-blue: #2563eb;
-            --app-blue-soft: #eff6ff;
-            --app-sky: #0284c7;
-            --app-sky-soft: #f0f9ff;
-            --app-violet: #7c3aed;
-            --app-violet-soft: #f5f3ff;
-            --app-amber: #d97706;
-            --app-amber-soft: #fffbeb;
-            --app-danger: #dc2626;
-            --app-danger-soft: #fef2f2;
-            --app-success: #059669;
-            --app-success-soft: #ecfdf5;
+            --app-blue: var(--ui-color-info, #386a8b);
+            --app-blue-soft: var(--ui-color-info-soft, #e9f2f6);
+            --app-sky: var(--ui-color-cyan, #168eae);
+            --app-sky-soft: var(--ui-color-cyan-soft, #edf8fb);
+            --app-violet: var(--ui-color-violet, #8a4bd2);
+            --app-violet-soft: var(--ui-color-violet-soft, #f5effc);
+            --app-amber: var(--ui-color-warning, #926122);
+            --app-amber-soft: var(--ui-color-warning-soft, #fbf1db);
+            --app-danger: var(--ui-color-danger, #a94a3b);
+            --app-danger-soft: var(--ui-color-danger-soft, #f9e9e5);
+            --app-success: var(--ui-color-success, #207346);
+            --app-success-soft: var(--ui-color-success-soft, #e8f4e9);
 
-            --app-bg: #f1f6f3;
-            --app-bg-deep: #eaf1ed;
-            --app-surface: #ffffff;
-            --app-surface-soft: #f8faf9;
-            --app-surface-muted: #eef4f0;
+            --app-bg: var(--ui-color-canvas, #f4f4ef);
+            --app-bg-deep: var(--ui-color-canvas-deep, #efefe8);
+            --app-surface: var(--ui-color-surface, #fffefb);
+            --app-surface-soft: var(--ui-color-surface-soft, #f0f0e9);
+            --app-surface-muted: var(--ui-color-surface-muted, #e7eae2);
+            --app-border: var(--ui-color-border, #d9e0d7);
+            --app-border-strong: var(--ui-color-border-strong, #b9c7bc);
+            --app-text: var(--ui-color-text, #1d2922);
+            --app-text-secondary: var(--ui-color-text-secondary, #647167);
+            --app-text-muted: var(--ui-color-text-muted, #879087);
 
-            --app-border: #dce6df;
-            --app-border-strong: #c8d6cd;
+            --app-shadow-xs: var(--ui-shadow-xs, 0 1px 5px rgb(0 0 0 / .035));
+            --app-shadow-sm: var(--ui-shadow-sm, 0 6px 18px rgb(0 0 0 / .045));
+            --app-shadow-md: var(--ui-shadow-md, 0 12px 30px rgb(0 0 0 / .06));
+            --app-shadow-lg: var(--ui-shadow-lg, 0 28px 64px rgb(0 0 0 / .24));
 
-            --app-text: #102018;
-            --app-text-secondary: #52645a;
-            --app-text-muted: #809087;
-
-            --app-shadow-xs:
-                0 2px 8px rgba(15, 35, 24, .045);
-
-            --app-shadow-sm:
-                0 7px 24px rgba(15, 35, 24, .065);
-
-            --app-shadow-md:
-                0 16px 44px rgba(15, 35, 24, .095);
-
-            --app-shadow-lg:
-                0 28px 78px rgba(8, 24, 15, .22);
-
-            --app-radius-sm: 9px;
-            --app-radius-md: 11px;
-            --app-radius-lg: 15px;
-            --app-radius-xl: 19px;
-
+            --app-radius-sm: 8px;
+            --app-radius-md: 9px;
+            --app-radius-lg: 13px;
+            --app-radius-xl: 16px;
             --app-content-max: 1680px;
-            --app-header-height: 76px;
+            --app-header-height: 72px;
             --app-header-rendered-height: var(--app-header-height);
             --app-sticky-gap: .75rem;
-            --app-sticky-top:
-                calc(
-                    var(--app-header-rendered-height)
-                    + var(--app-sticky-gap)
-                );
-            --app-sidebar-width: 236px;
-            --app-mobile-nav-height: 58px;
-            --app-mobile-nav-clearance: 22px;
+            --app-sticky-top: calc(var(--app-header-rendered-height) + var(--app-sticky-gap));
+            --app-sidebar-width: 250px;
+            --app-mobile-nav-height: 65px;
+            --app-mobile-nav-clearance: 18px;
             --app-mobile-nav-max-width: 760px;
-            --app-shell-gutter: .75rem;
+            --app-shell-gutter: 1rem;
             --app-shell-gap: 1rem;
-
             --safe-top: env(safe-area-inset-top, 0px);
             --safe-right: env(safe-area-inset-right, 0px);
             --safe-bottom: env(safe-area-inset-bottom, 0px);
             --safe-left: env(safe-area-inset-left, 0px);
-
             --app-layer-navigation: 600;
             --app-layer-header: 700;
             --app-layer-drawer: 1000;
@@ -584,7 +580,7 @@
             padding: 0 4px;
             border: 2px solid var(--app-primary-700);
             border-radius: 999px;
-            background: #fff;
+            background: var(--app-surface);
             color: var(--app-primary-800);
             font-size: .59rem;
             font-weight: 900;
@@ -1045,7 +1041,7 @@
                 overflow-y: hidden;
                 border: 1px solid rgba(23, 53, 42, .12);
                 border-radius: 17px;
-                background: #fff;
+                background: var(--app-surface);
                 box-shadow:
                     0 14px 34px rgba(17, 49, 34, .18),
                     0 3px 9px rgba(17, 49, 34, .08);
@@ -1271,7 +1267,7 @@
             overflow: hidden;
             border: 1px solid rgba(220, 230, 223, .98) !important;
             border-radius: 14px !important;
-            background: #fff !important;
+            background: var(--app-surface) !important;
             box-shadow: var(--app-shadow-xs) !important;
             backdrop-filter: none;
             transition:
@@ -1587,7 +1583,7 @@
         .filter-select:focus,
         .modal-search:focus {
             border-color: var(--app-primary) !important;
-            background: #fff !important;
+            background: var(--app-surface) !important;
             outline: none !important;
             box-shadow:
                 0 0 0 3px rgba(34, 197, 94, .12)
@@ -1639,7 +1635,7 @@
             overflow-y: hidden;
             border: 1px solid rgba(220, 230, 223, .96);
             border-radius: var(--app-radius-lg);
-            background: #fff;
+            background: var(--app-surface);
             box-shadow: var(--app-shadow-xs);
             -webkit-overflow-scrolling: touch;
             overscroll-behavior-inline: contain;
@@ -2468,7 +2464,7 @@
 
         .user-menu-footer .user-menu-item {
             border-color: rgba(220, 38, 38, .08);
-            background: #fff;
+            background: var(--app-surface);
         }
 
         @media (max-width: 767px) {
@@ -3076,6 +3072,221 @@
             }
         }
 
+
+        /* ------------------------------------------------------------------
+           SGC CAMPO v3 · shell. Overrides only presentation, no route or DOM flow.
+           Desktop sidebar / tablet rail / mobile bottom dock.
+           ------------------------------------------------------------------ */
+        html { background: var(--app-bg); color: var(--app-text); }
+        body { background: var(--app-bg); color: var(--app-text); }
+        body::before, body::after { display: none; }
+        :is(button, a, input, textarea, select):focus-visible { outline-color: var(--ui-color-focus); }
+
+        .app-header {
+            background: var(--app-surface);
+            color: var(--app-text);
+            border-bottom: 1px solid var(--app-border);
+            box-shadow: none;
+        }
+        .app-header__content { max-width: none; padding-inline: clamp(15px, 2.1vw, 34px); }
+        .app-header__wave { display: none; }
+        .app-header__eyebrow { color: var(--app-text-secondary); font-size: .62rem; letter-spacing: .12em; }
+        .app-header__eyebrow-dot { background: var(--app-success); border-color: var(--app-surface); box-shadow: none; }
+        .app-header__title { color: var(--app-text); font-size: clamp(.98rem, 1.5vw, 1.23rem); }
+        .app-home-button,
+        .app-header-action,
+        .app-profile-button {
+            background: var(--app-surface-soft);
+            color: var(--app-text);
+            border: 1px solid var(--app-border);
+            border-radius: 10px;
+            box-shadow: none;
+            backdrop-filter: none;
+            transform: none;
+        }
+        .app-home-button { background: var(--app-surface); }
+        .app-home-button:hover, .app-header-action:hover, .app-profile-button:hover,
+        .app-home-button:focus-visible, .app-header-action:focus-visible, .app-profile-button:focus-visible {
+            border-color: var(--app-border-strong);
+            background: var(--app-surface-muted);
+            color: var(--app-text);
+            transform: none;
+            box-shadow: none;
+        }
+        .app-profile-role { color: var(--app-text-muted); }
+        .app-avatar { background: var(--app-surface-muted); color: var(--app-text); border-color: var(--app-border); border-radius: 10px; box-shadow: none; }
+        .notification-header-link:has(.notification-count:not([hidden])) { background: var(--app-surface-muted); border-color: var(--app-border); }
+        .notification-header-link:has(.notification-count:not([hidden]))::before { background: transparent; }
+        .notification-header-link .notification-count { background: var(--app-danger); color: var(--app-surface); border-color: var(--app-surface); box-shadow: none; }
+        .sgc-theme-toggle { flex: 0 0 41px; }
+
+        .nav-tabs { background: var(--sgc-rail); color: var(--sgc-rail-text); }
+        .nav-tabs::before { display: none; color: var(--sgc-rail-muted) !important; content: "ÁREAS DE TRABALHO" !important; }
+        .nav-tabs .nav-tab { color: var(--sgc-rail-muted); border-color: transparent; font-size: .79rem; font-weight: 680; }
+        .nav-tabs .app-nav-icon { color: inherit; background: transparent; box-shadow: none; }
+        .nav-tabs .nav-tab:hover, .nav-tabs .nav-tab:focus-visible {
+            background: var(--sgc-rail-hover); color: var(--sgc-rail-text); border-color: transparent;
+        }
+        .nav-tabs .nav-tab:hover .app-nav-icon { background: transparent; color: inherit; transform: none; }
+        .nav-tabs .nav-tab.active,
+        .nav-tabs .nav-tab[data-nav-key="register"].active,
+        .nav-tabs .nav-tab[data-nav-key="create"].active {
+            color: var(--sgc-on-accent); border-color: transparent; background: var(--sgc-accent); box-shadow: none;
+        }
+        .nav-tabs .nav-tab.active .app-nav-icon { color: var(--sgc-on-accent); background: transparent; box-shadow: none; transform: none; }
+        .nav-tabs .nav-tab.active::after { background: transparent; box-shadow: none; }
+        .nav-tabs .nav-tab[data-nav-key="register"], .nav-tabs .nav-tab[data-nav-key="create"] {
+            background: transparent; color: var(--sgc-rail-muted); border-color: transparent; margin: 0;
+        }
+        .nav-tabs .nav-tab[data-nav-key="register"] .app-nav-icon,
+        .nav-tabs .nav-tab[data-nav-key="create"] .app-nav-icon { background: transparent; color: inherit; box-shadow: none; }
+
+        .bento-container { padding-top: 1.45rem; }
+        .bento-card, .pd-card, .card, .reports-bar, .pd-header, .pd-stat, .mobile-card {
+            background: var(--app-surface) !important;
+            color: var(--app-text);
+            border-color: var(--app-border) !important;
+            border-radius: 12px !important;
+            box-shadow: var(--app-shadow-xs) !important;
+        }
+        body.portal-associate .bento-grid > .bento-card {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
+        }
+        .data-table th { background: var(--app-surface-soft); color: var(--app-text-secondary); }
+        .data-table td { background: var(--app-surface); color: var(--app-text); border-color: var(--app-border); }
+        .data-table tbody tr:hover td { background: var(--app-surface-soft); }
+        .stat-card { background: var(--app-surface); border-color: var(--app-border); }
+        .user-menu-overlay { background: var(--ui-color-overlay); }
+        .user-menu-sheet { background: var(--app-surface); border-color: var(--app-border); backdrop-filter: none; }
+        .user-menu-header { background: var(--app-surface-soft); }
+        .user-menu-header::before { background: var(--sgc-accent); }
+        .user-menu-header .user-menu-info :is(h3, p) { color: var(--app-text); }
+        .user-menu-profile, .user-menu-content, .user-menu-footer { background: var(--app-surface); color: var(--app-text); }
+        .user-menu-item { color: var(--app-text); }
+        .user-menu-item:hover { background: var(--app-surface-soft); }
+        .tenant-switch-button.active { border-color: var(--ui-color-primary-border); background: var(--app-primary-soft); box-shadow: none; }
+        .user-menu-section, .user-menu-section-head { border-color: var(--app-border); }
+        .user-menu-section-head { background: var(--app-surface-soft); }
+        .user-menu-section-count { background: var(--app-primary-soft); color: var(--app-primary-600); }
+        .global-request-loader-card { background: var(--app-surface); color: var(--app-text); border-color: var(--app-border); }
+        .app-alert-success p, .app-alert-error p { color: inherit; }
+
+        @media (min-width: 1200px) {
+            .nav-tabs {
+                top: var(--app-header-rendered-height); bottom: 0; left: 0;
+                width: var(--app-sidebar-width); max-width: none;
+                border: 0; border-right: 1px solid var(--sgc-rail-divider);
+                border-radius: 0; box-shadow: none; padding: 25px 13px;
+                gap: 4px; backdrop-filter: none;
+            }
+            .nav-tabs::before { display: block; }
+            .nav-tabs .nav-tab { min-height: 45px; border-radius: 9px; padding: 8px 12px; gap: 10px; }
+            .nav-tabs .app-nav-icon { width: 25px; height: 28px; }
+            body.has-app-nav .bento-container {
+                margin-left: calc(var(--app-sidebar-width) + 1.1rem);
+                margin-right: 1.1rem;
+                padding-bottom: 3rem;
+            }
+        }
+        @media (min-width: 768px) and (max-width: 1199px) {
+            .nav-tabs {
+                position: fixed; top: var(--app-header-rendered-height); bottom: 0; left: 0; right: auto;
+                width: 76px; max-width: 76px; height: auto;
+                display: grid; grid-auto-flow: row; grid-template-columns: 1fr; grid-auto-columns: auto;
+                align-content: start; gap: 5px; padding: 15px 9px;
+                border: 0; border-right: 1px solid var(--sgc-rail-divider);
+                border-radius: 0; box-shadow: none; backdrop-filter: none;
+                overflow-y: auto; overflow-x: hidden;
+            }
+            .nav-tabs::before { display: none; }
+            .nav-tabs form { display: block; width: 100%; }
+            .nav-tabs .nav-tab {
+                display: flex; width: 100%; min-width: 0; min-height: 54px;
+                flex-direction: column; justify-content: center; align-items: center;
+                gap: 3px; padding: 7px 4px; border-radius: 9px;
+                font-size: 10px; text-align: center;
+            }
+            .nav-tabs .app-nav-icon { display: grid; place-items: center; width: 26px; height: 26px; }
+            .nav-tabs .app-nav-label { font-size: 9px; line-height: 1.1; white-space: normal; }
+            .nav-tabs .nav-tab::after { display: none; }
+            /* Itens marcados mobile=false continuam disponíveis no tablet. */
+            .nav-tabs .nav-tab-mobile-hidden { display: flex !important; }
+            body.has-app-nav .bento-container {
+                margin-left: 86px; margin-right: 10px;
+                width: auto; max-width: none; padding-inline: 12px; padding-bottom: 2rem;
+            }
+        }
+        @media (max-width: 767px) {
+            :root { --app-mobile-nav-height: 65px; }
+            .app-header__content { min-height: 62px; }
+            .app-header__actions { gap: 5px; }
+            .app-header-action, .sgc-theme-toggle { width: 37px; height: 37px; }
+            .nav-tabs {
+                position: fixed; z-index: calc(var(--app-layer-navigation) + 50);
+                top: auto; left: 0; right: 0; bottom: 0;
+                width: 100%; max-width: none;
+                min-height: calc(var(--app-mobile-nav-height) + var(--safe-bottom));
+                display: flex; gap: 0; align-items: stretch;
+                padding: 5px max(4px, var(--safe-right)) calc(5px + var(--safe-bottom)) max(4px, var(--safe-left));
+                margin: 0; border: 0; border-top: 1px solid var(--app-border);
+                border-radius: 0; box-shadow: 0 -4px 15px rgb(0 0 0 / .06);
+                background: var(--app-surface);
+                overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+                scrollbar-width: none; scroll-snap-type: x proximity;
+            }
+            .nav-tabs form { display: contents; }
+            .nav-tabs .nav-tab,
+            .nav-tabs .nav-tab[data-nav-key="create"],
+            .nav-tabs .nav-tab[data-nav-key="register"] {
+                flex: 1 0 max(61px, calc(20% - 2px)); min-width: 61px; min-height: 52px;
+                border: 0; border-radius: 8px; background: transparent; color: var(--app-text-muted);
+                padding: 4px 5px; gap: 3px; font-size: 9px; scroll-snap-align: center;
+            }
+            .nav-tabs .app-nav-icon,
+            .nav-tabs .nav-tab[data-nav-key="create"] .app-nav-icon,
+            .nav-tabs .nav-tab[data-nav-key="register"] .app-nav-icon { color: inherit; background: transparent; }
+            .nav-tabs .nav-tab.active,
+            .nav-tabs .nav-tab[data-nav-key="create"].active,
+            .nav-tabs .nav-tab[data-nav-key="register"].active {
+                color: var(--app-text); background: var(--app-surface-soft);
+            }
+            .nav-tabs .nav-tab.active .app-nav-icon { color: var(--app-primary-600); }
+            .nav-tabs .nav-tab.active .app-nav-label { color: inherit; }
+            .nav-tabs .nav-tab:hover, .nav-tabs .nav-tab:focus-visible {
+                background: var(--app-surface-soft); color: var(--app-text);
+            }
+            body.has-app-nav .bento-container { margin: 0 auto; }
+            body.has-active-app-nav .bento-container,
+            body.has-app-nav .bento-container {
+                padding-bottom: calc(var(--app-mobile-nav-height) + var(--app-mobile-nav-clearance) + var(--safe-bottom));
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .app-header *, .nav-tabs *, .user-menu-sheet * { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+        }
+        html[data-theme='dark'] .app-header,
+        html[data-theme='dark'] .nav-tabs { color-scheme: dark; }
+        /* O CSS legado usa !important nestes botões: mantém contraste ao trocar para ouro. */
+        .btn-secondary {
+            border: 1px solid var(--app-border-strong) !important;
+            background: var(--app-surface) !important;
+            color: var(--app-text) !important;
+            box-shadow: none !important;
+        }
+        .btn-secondary:hover { background: var(--app-surface-soft) !important; }
+        html[data-theme='dark'] :is(.btn-primary, .btn-success) { color: var(--sgc-on-primary) !important; box-shadow: none; }
+        html[data-theme='dark'] :is(.btn-danger, .btn-reject, .btn-delete-approved) { color: #291b1a !important; }
+        html[data-theme='dark'] :is(.btn-outline, .btn-edit) {
+            background: var(--app-surface-soft) !important;
+            border-color: var(--app-border-strong) !important;
+            color: var(--app-text) !important;
+            box-shadow: none !important;
+        }
+        html[data-theme='dark'] .app-header__eyebrow-dot { background: var(--sgc-accent); }
+        html[data-theme='dark'] .notification-header-link .notification-count { color: #291b1a; }
+
     </style>
 
     @stack('styles')
@@ -3176,6 +3387,10 @@
             </div>
 
             <div class="app-header__actions">
+                <button type="button" class="app-header-action sgc-theme-toggle" data-sgc-theme-toggle
+                    aria-label="Ativar tema escuro" title="Alternar tema claro ou escuro" aria-pressed="false">
+                    <i class="ph ph-moon" data-sgc-theme-icon aria-hidden="true"></i>
+                </button>
                 @if($currentTenantSlug)
                     <a href="{{ route('notifications.index', ['tenant' => $currentTenantSlug]) }}" class="app-header-action notification-header-link" aria-label="Notificacoes" title="Notificacoes">
                         <i class="ph-duotone ph-bell-ringing" aria-hidden="true"></i>
@@ -3654,6 +3869,30 @@
 
     <script src="{{ asset('js/image-compressor.js') }}"></script>
 
+    <script>
+        (function () {
+            const root = document.documentElement;
+            const controls = document.querySelectorAll('[data-sgc-theme-toggle]');
+            const meta = document.querySelector('meta[name="theme-color"]');
+            function paint() {
+                const isDark = root.dataset.theme === 'dark';
+                controls.forEach(button => {
+                    button.setAttribute('aria-pressed', String(isDark));
+                    button.setAttribute('aria-label', isDark ? 'Ativar tema claro' : 'Ativar tema escuro');
+                    const icon = button.querySelector('[data-sgc-theme-icon]');
+                    if (icon) icon.className = 'ph ' + (isDark ? 'ph-sun' : 'ph-moon');
+                });
+                if (meta) meta.content = isDark ? '#111418' : '#f4f4ef';
+            }
+            controls.forEach(button => button.addEventListener('click', () => {
+                root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+                try { localStorage.setItem('sgc-campo-theme', root.dataset.theme); } catch (error) {}
+                paint();
+                window.dispatchEvent(new CustomEvent('sgc:theme-change', { detail: { theme: root.dataset.theme } }));
+            }));
+            paint();
+        }());
+    </script>
     @stack('scripts')
 </body>
 </html>

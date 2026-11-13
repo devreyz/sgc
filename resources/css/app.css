@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import './theme.css';
 @import './design-system.css';
+/* A camada SGC Campo é definida em theme.css e aplicada pelo layout Bento. */
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
