@@ -381,13 +381,21 @@ window.SgcDocuments = {
         }
         openInBrowser(blob, fileName, 'Documento SGC');
     },
-    async fetchPdf(url, title = 'Documento SGC') {
+    async fetchPdf(url, title = 'Documento SGC', options = {}) {
+        const headers = new Headers(options.headers);
+        if (!headers.has('Accept')) headers.set('Accept', 'application/pdf');
+        headers.set('Cache-Control', 'no-cache');
+        headers.set('Pragma', 'no-cache');
         const response = await fetch(url, {
+            ...options,
             credentials: 'same-origin', cache: 'no-store',
-            headers: { Accept: 'application/pdf', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+            headers,
         });
-        if (!response.ok) throw new Error('Não foi possível carregar o PDF.');
         const type = response.headers.get('content-type') || '';
+        if (!response.ok) {
+            const error = type.includes('application/json') ? await response.json().catch(() => null) : null;
+            throw new Error(error?.message || 'Não foi possível carregar o PDF.');
+        }
         if (!type.includes('pdf')) return null;
         const disposition = response.headers.get('content-disposition') || '';
         const filenameMatch = disposition.match(/filename\*?=(?:UTF-8''|\")?([^;\"]+)/i);
@@ -443,7 +451,7 @@ document.addEventListener('click', (event) => {
 document.addEventListener('submit', (event) => {
     if (!isNativeAndroid() || event.defaultPrevented) return;
     const form = event.target;
-    if (!(form instanceof HTMLFormElement) || form.dataset.sgcNoNavigationLoading !== undefined) return;
+    if (!(form instanceof HTMLFormElement) || form.matches('[data-sgc-no-navigation-loading], [data-sgc-pdf-form]')) return;
     showNavigationLoading('Processando', 'Aguarde um instante');
 }, true);
 
@@ -498,6 +506,41 @@ function installLivewirePdfDownloadBridge() {
 }
 
 installLivewirePdfDownloadBridge();
+
+document.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (event.defaultPrevented || !(form instanceof HTMLFormElement) || !form.matches('[data-sgc-pdf-form]')) return;
+    if (!isNativeAndroid() && !isInstalledPwa() && !isMobileBrowser()) return;
+
+    const action = new URL(form.action, window.location.href);
+    if (action.origin !== window.location.origin) return;
+    event.preventDefault();
+    if (form.dataset.sgcPdfHandled === 'true') return;
+
+    const body = new FormData(form);
+    // The shared fetch wrapper supplies the current CSRF header and retries a 419.
+    body.delete('_token');
+    const button = event.submitter;
+    const feedback = form.querySelector('[data-sgc-pdf-error]');
+    form.dataset.sgcPdfHandled = 'true';
+    if (button) button.disabled = true;
+    if (feedback) feedback.textContent = '';
+    showNavigationLoading('Abrindo documento', 'Preparando o PDF');
+    try {
+        const pdf = await window.SgcDocuments.fetchPdf(action.href, form.dataset.sgcPdfForm, {
+            method: 'POST', body, headers: { Accept: 'application/json, application/pdf' },
+        });
+        if (!pdf) throw new Error('A emissão não retornou um PDF. Confira se sua sessão está ativa.');
+        await window.SgcDocuments.openPdf(pdf.blob, pdf.fileName, pdf.title, { relativePath: pdf.relativePath, origin: pdf.origin });
+    } catch (error) {
+        if (feedback) feedback.textContent = error.message;
+        else window.appToast?.(error.message, 'error');
+    } finally {
+        hideNavigationLoading();
+        if (button) button.disabled = false;
+        delete form.dataset.sgcPdfHandled;
+    }
+});
 
 document.addEventListener('submit', async (event) => {
     const form = event.target;

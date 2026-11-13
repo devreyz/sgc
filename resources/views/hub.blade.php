@@ -399,383 +399,422 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
 @endonce
 
+{{-- Design específico do hub, compatível com SGC Campo e com o tema legado. --}}
 <style>
-    /*
-     * CSS específico do Hub.
-     * Os componentes visuais vêm de theme.css + design-system.css.
-     * Aqui ficam somente composição, integração mobile e estados do Hub.
-     */
+/* Identidade SGC Campo: marfim + floresta / grafite + ouro */
+.hub-page {
+    --hub-bg: #f4f4ef;
+    --hub-panel: #fffefb;
+    --hub-soft: #f1f2ec;
+    --hub-pressed: #e9eee7;
+    --hub-line: #dce2d8;
+    --hub-ink: #1d2922;
+    --hub-muted: #617166;
+    --hub-faint: #879288;
+    --hub-primary: #173c2e;
+    --hub-primary-hover: #25513d;
+    --hub-primary-text: #fffef9;
+    --hub-light-tint: #e9f1e8;
+    --hub-accent: #d9f172;
+    --hub-accent-text: #253924;
+    --hub-link: #266c4c;
+    --hub-status: #1c7149;
+    --hub-focus: #37885e;
+    --hub-shadow: 0 7px 27px rgb(24 44 30 / .035);
+    display: grid;
+    width: min(100%, 1510px);
+    min-width: 0;
+    grid-column: 1 / -1;
+    gap: 20px;
+    margin-inline: auto;
+    padding-bottom: 34px;
+    color: var(--hub-ink);
+    font-size: .875rem;
+    font-family: Inter, 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+/* O dark é grafite e ouro, sem verde dominante nas superfícies. */
+:where(html[data-theme='dark'],html.dark,body.dark,html[data-theme='grafite-ouro'],html[data-theme='graphite-gold']) .hub-page,
+.hub-page[data-theme='dark'] {
+    color-scheme: dark;
+    --hub-bg: #111418;
+    --hub-panel: #191e24;
+    --hub-soft: #222830;
+    --hub-pressed: #2c3440;
+    --hub-line: #35404a;
+    --hub-ink: #edf2f6;
+    --hub-muted: #b3c0cb;
+    --hub-faint: #8c9ba9;
+    --hub-primary: #222932;
+    --hub-primary-hover: #303944;
+    --hub-primary-text: #f2f5f7;
+    --hub-light-tint: #2d3440;
+    --hub-accent: #e7c87d;
+    --hub-accent-text: #2e2619;
+    --hub-link: #e7c87d;
+    --hub-status: #a4d6ac;
+    --hub-focus: #e7c87d;
+    --hub-shadow: none;
+}
+.hub-page *, .hub-page *::before, .hub-page *::after, .hub-bottom-nav * { box-sizing: border-box; }
+.hub-page [hidden], .hub-bottom-nav [hidden] { display: none !important; }
+.hub-page :is(h1,h2,h3,p) { margin-top: 0; }
+.hub-page :is(a,button,input):focus-visible,.hub-bottom-nav button:focus-visible { outline: 3px solid var(--hub-focus); outline-offset: 2px; }
+.hub-page a { text-decoration: none; }
+.hub-page a:hover { text-decoration: none; }
 
-    .hub-page {
-        padding-bottom: var(--ui-space-6);
-    }
+/* 01 — Cabeçalho como identidade, não como mais um card */
+.hub-page > .ui-page-head {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 195px;
+    padding: clamp(24px,3vw,38px) clamp(22px,3vw,42px);
+    gap: 22px;
+    border: 1px solid var(--hub-primary);
+    border-radius: 14px;
+    background: var(--hub-primary);
+    color: var(--hub-primary-text);
+    box-shadow: none;
+    overflow: hidden;
+}
+.hub-page > .ui-page-head::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 430px;
+    height: 430px;
+    top: -285px;
+    right: -95px;
+    border: 1px solid rgb(225 241 184 / .13);
+    border-radius: 50%;
+    box-shadow: 0 0 0 57px rgb(225 241 184 / .035), 0 0 0 115px rgb(225 241 184 / .026);
+    pointer-events: none;
+}
+.hub-page > .ui-page-head .ui-page-head__start { min-width: 0; gap: 21px; align-items: center; }
+.hub-page .hub-brand-logo {
+    display: grid;
+    width: 72px;
+    height: 72px;
+    flex: 0 0 72px;
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid rgb(243 255 238 / .24);
+    border-radius: 12px;
+    background: rgb(255 255 255 / .96);
+}
+.hub-page .hub-brand-logo img { display: block; width: 100%; height: 100%; padding: 9px; object-fit: contain; }
+.hub-page > .ui-page-head .ui-page-head__copy { min-width: 0; }
+.hub-page > .ui-page-head .ui-page-head__copy::before {
+    content: 'SGC  /  ESPAÇO DE TRABALHO';
+    display: block;
+    margin-bottom: 9px;
+    color: var(--hub-accent);
+    font-size: .66rem;
+    font-weight: 850;
+    letter-spacing: .16em;
+    line-height: 1.3;
+}
+.hub-page > .ui-page-head .ui-page-head__title {
+    margin: 0;
+    color: var(--hub-primary-text);
+    font-size: clamp(1.75rem,3.8vw,2.8rem);
+    font-weight: 850;
+    line-height: 1.07;
+    letter-spacing: -.058em;
+    overflow-wrap: anywhere;
+}
+.hub-page .ui-page-head__meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 15px; color: rgb(243 249 245 / .77); }
+.hub-page .ui-page-head__meta > span { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; }
+.hub-page .ui-page-head__meta i { color: var(--hub-accent); font-size: 1rem; }
+.hub-page .hub-head-meta-count { color: var(--hub-accent); font-weight: 900; }
+.hub-page .ui-page-head__actions { flex-shrink: 0; }
+.hub-page .hub-page-head-site {
+    min-height: 40px;
+    padding: 9px 14px;
+    border: 1px solid rgb(245 251 245 / .28);
+    border-radius: 8px;
+    background: rgb(255 255 255 / .055);
+    color: #f9fcf7;
+    font-size: .75rem;
+    font-weight: 760;
+}
+.hub-page .hub-page-head-site:hover { background: rgb(255 255 255 / .12); }
 
-    .hub-brand-logo {
-        display: grid;
-        width: 42px;
-        height: 42px;
-        flex: 0 0 auto;
-        place-items: center;
-        overflow: hidden;
-        border: 1px solid var(--ui-color-border);
-        border-radius: var(--ui-radius-md);
-        background: var(--ui-color-surface);
-    }
+/* 02 — Faixa editorial após a identificação */
+.hub-page .hub-overview-note { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 1px 1px 2px; }
+.hub-page .hub-overview-note__copy { display: grid; gap: 4px; }
+.hub-page .hub-overview-note__eyebrow { color: var(--hub-link); font-size: .65rem; font-weight: 850; letter-spacing: .15em; text-transform: uppercase; }
+.hub-page .hub-overview-note__title { margin: 0; font-size: 1.07rem; font-weight: 780; letter-spacing: -.03em; color: var(--hub-ink); }
+.hub-page .hub-overview-note__caption { max-width: 440px; color: var(--hub-muted); font-size: .76rem; line-height: 1.5; }
+.hub-page .hub-overview-note__shortcut { display: inline-flex; align-items: center; gap: 7px; font-size: .72rem; color: var(--hub-muted); white-space: nowrap; }
+.hub-page .hub-overview-note__shortcut i { color: var(--hub-link); font-size: 1.1rem; }
 
-    .hub-brand-logo img {
-        display: block;
-        width: 100%;
-        height: 100%;
-        padding: var(--ui-space-1);
-        object-fit: contain;
-    }
+/* 03 — Workspace com áreas bem delimitadas */
+.hub-page > .ui-workspace-grid {
+    display: grid;
+    grid-template-columns: minmax(0,1.55fr) minmax(280px,.75fr);
+    gap: 19px;
+    min-width: 0;
+    align-items: start;
+}
+.hub-page :is(.hub-main-stack,.hub-side-stack) { display: grid; min-width: 0; gap: 19px; align-content: start; }
+.hub-page .ui-section {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--hub-line);
+    border-radius: 12px;
+    background: var(--hub-panel);
+    box-shadow: var(--hub-shadow);
+    color: var(--hub-ink);
+}
+.hub-page .ui-section__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px 17px;
+    border-bottom: 1px solid var(--hub-line);
+    background: var(--hub-panel);
+}
+.hub-page .ui-section__heading { display: flex; min-width: 0; gap: 12px; align-items: center; }
+.hub-page .ui-section__heading > .ui-icon-box { display: grid; place-items: center; width: 39px; height: 39px; flex: 0 0 39px; border-radius: 9px; border: 0; background: var(--hub-light-tint); color: var(--hub-link); }
+.hub-page .ui-section__heading > .ui-icon-box i { font-size: 1.25rem; }
+.hub-page .ui-section__copy { min-width: 0; }
+.hub-page .ui-section__copy h2 { margin: 0; font-size: 1rem; font-weight: 850; letter-spacing: -.03em; line-height: 1.25; color: var(--hub-ink); }
+.hub-page .ui-section__copy p { color: var(--hub-muted); margin: 3px 0 0; font-size: .75rem; line-height: 1.4; }
+.hub-page .ui-section__actions { flex-shrink: 0; }
+.hub-page .ui-count { display: inline-flex; min-width: 29px; height: 26px; align-items: center; justify-content: center; padding: 1px 7px; background: var(--hub-soft); color: var(--hub-ink); border: 1px solid var(--hub-line); border-radius: 6px; font-size: .71rem; font-weight: 850; font-variant-numeric: tabular-nums; }
+.hub-page .ui-section__body { min-width: 0; padding: 0; background: var(--hub-panel); }
 
-    .hub-head-meta-count {
-        color: var(--ui-color-text-secondary);
-        font-weight: var(--ui-weight-bold);
-    }
+/* 04 — Portais: grade com índice e affordance verdadeira */
+.hub-page .hub-portals-toolbar { padding: 16px 19px 13px; margin: 0; border: 0; background: var(--hub-panel); }
+.hub-page .hub-portals-toolbar .ui-toolbar__main { width: 100%; min-width: 0; }
+.hub-page .hub-search { position: relative; width: 100%; max-width: none; margin: 0; }
+.hub-page .hub-search > i { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--hub-muted); z-index: 2; pointer-events: none; font-size: 1rem; }
+.hub-page .hub-search .hub-search-input { display: block; width: 100%; min-width: 0; min-height: 44px; padding: 10px 40px 10px 40px; border: 1px solid var(--hub-line); border-radius: 8px; background: var(--hub-soft); color: var(--hub-ink); font: inherit; font-size: .78rem; transition: border-color .15s,background-color .15s; box-shadow: none; }
+.hub-page .hub-search .hub-search-input::placeholder { color: var(--hub-faint); }
+.hub-page .hub-search .hub-search-input:focus { background: var(--hub-panel); border-color: var(--hub-focus); outline: 3px solid color-mix(in srgb, var(--hub-focus) 18%, transparent); outline-offset: 0; }
+.hub-page .hub-search-clear { position: absolute; z-index: 3; top: 50%; right: 5px; display: grid; place-items: center; width: 34px; height: 34px; transform: translateY(-50%); border: 0; border-radius: 6px; color: var(--hub-muted); background: transparent; cursor: pointer; }
+.hub-page .hub-search-clear:hover { background: var(--hub-pressed); }
+.hub-page .hub-search:not(.has-value) .hub-search-clear { display: none; }
+.hub-page .hub-portals-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    counter-reset: hubPortals;
+    gap: 11px;
+    align-content: start;
+    padding: 6px 18px 18px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+.hub-page .hub-portals-list > [data-hub-link] {
+    position: relative;
+    display: grid;
+    grid-template-columns: 43px minmax(0,1fr) 24px;
+    grid-template-rows: auto 1fr;
+    min-width: 0;
+    min-height: 145px;
+    align-content: start;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 16px;
+    padding: 17px;
+    border: 1px solid var(--hub-line);
+    border-radius: 10px;
+    background: var(--hub-panel);
+    color: var(--hub-ink);
+    text-decoration: none;
+    transition: border-color .14s,background-color .14s,transform .14s;
+    counter-increment: hubPortals;
+}
+.hub-page .hub-portals-list > [data-hub-link]::before {
+    content: 'PORTAL  ' counter(hubPortals, decimal-leading-zero);
+    grid-column: 1 / -1;
+    grid-row: 1;
+    align-self: start;
+    color: var(--hub-faint);
+    font-size: .59rem;
+    font-weight: 900;
+    letter-spacing: .14em;
+}
+.hub-page .hub-portals-list > [data-hub-link]:hover { border-color: var(--hub-link); background: var(--hub-soft); transform: translateY(-1px); }
+.hub-page .hub-portals-list > [data-hub-link]:focus-visible { border-color: var(--hub-focus); }
+.hub-page .hub-portals-list > [data-hub-link].is-opening { pointer-events: none; opacity: .64; }
+.hub-page .hub-portals-list > [data-hub-link] .ui-icon-box {
+    grid-column: 1;
+    grid-row: 2;
+    display: grid;
+    place-items: center;
+    width: 43px;
+    height: 43px;
+    background: var(--hub-light-tint);
+    color: var(--hub-link);
+    border-radius: 9px;
+    border: 0;
+}
+.hub-page .hub-portals-list > [data-hub-link] .ui-icon-box i { font-size: 1.4rem; }
+.hub-page .hub-portals-list > [data-hub-link] .ui-action-row__copy { display: grid; grid-column: 2; grid-row: 2; gap: 3px; min-width: 0; }
+.hub-page .hub-portals-list .ui-action-row__title { display: block; margin: 0; font-size: .91rem; color: var(--hub-ink); font-weight: 840; line-height: 1.25; letter-spacing: -.015em; overflow-wrap: anywhere; }
+.hub-page .hub-portals-list .ui-action-row__description { display: -webkit-box; overflow: hidden; margin-top: 2px; color: var(--hub-muted); font-size: .72rem; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.hub-page .hub-portals-list > [data-hub-link] .ui-action-row__action { display: grid; place-items: center; grid-column: 3; grid-row: 2; width: 24px; height: 24px; margin: 0; align-self: center; color: var(--hub-link); }
+.hub-page .hub-portals-list > [data-hub-link] .ui-action-row__action i { font-size: 1rem; }
+.hub-page .hub-portals-list > [data-hub-link][hidden] { display: none !important; }
+.hub-page .hub-portals-list > .hub-no-results, .hub-page .hub-portals-list > .ui-state { grid-column: 1 / -1; margin: 0; padding: 25px; border: 1px dashed var(--hub-line); border-radius: 10px; background: var(--hub-soft); }
+.hub-page .hub-no-results[hidden] { display: none !important; }
+.hub-page .ui-state__content { display: grid; gap: 7px; justify-items: center; text-align: center; color: var(--hub-muted); font-size: .78rem; }
+.hub-page .ui-state__content strong { color: var(--hub-ink); font-size: .89rem; }
+.hub-page .ui-state__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: var(--hub-light-tint); color: var(--hub-link); }
+.hub-page .ui-state__icon i { font-size: 1.4rem; }
 
-    .hub-screen[hidden],
-    .hub-no-results[hidden],
-    .hub-search-clear[hidden] {
-        display: none !important;
-    }
+/* 05 — Recursos e contato: linhas horizontais com leitura densa */
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-list { display: grid; min-width: 0; gap: 0; overflow: hidden; border: 0; border-radius: 0; background: var(--hub-panel); }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 37px minmax(0,1fr) 20px;
+    gap: 11px;
+    align-items: center;
+    min-width: 0;
+    min-height: 64px;
+    padding: 12px 19px;
+    border: 0;
+    border-bottom: 1px solid var(--hub-line);
+    border-radius: 0;
+    background: var(--hub-panel);
+    color: var(--hub-ink);
+    transition: background .15s;
+}
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row:last-child { border-bottom: 0; }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row:hover { background: var(--hub-soft); }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row .ui-icon-box { display: grid; width: 37px; height: 37px; place-items: center; border: 0; border-radius: 8px; background: var(--hub-light-tint); color: var(--hub-link); }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row .ui-icon-box i { font-size: 1.15rem; }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row__copy { display: grid; min-width: 0; gap: 2px; }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row__title { margin: 0; font-size: .8rem; font-weight: 810; color: var(--hub-ink); }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row__description { font-size: .69rem; color: var(--hub-muted); overflow-wrap: anywhere; }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row__action { display: grid; place-items: center; color: var(--hub-faint); font-size: .95rem; }
+.hub-page .ui-section:not(#hub-screen-portals) .ui-action-row:hover .ui-action-row__action { color: var(--hub-link); }
 
-    .hub-portals-toolbar {
-        margin-bottom: var(--ui-space-4);
-    }
+/* 06 — Novidades como boletim da organização */
+.hub-page .hub-news-list { display: block; overflow: hidden; border: 0; border-radius: 0; background: var(--hub-panel); }
+.hub-page .hub-news-row { display: grid; grid-template-columns: 30px minmax(0,1fr); gap: 12px; align-items: start; padding: 16px 19px; border: 0; border-bottom: 1px solid var(--hub-line); background: var(--hub-panel); }
+.hub-page .hub-news-row:last-child { border: 0; }
+.hub-page .hub-news-row > .ui-icon-box { display: grid; width: 30px; height: 30px; place-items: center; background: var(--hub-soft); border: 0; border-radius: 7px; color: var(--hub-link); }
+.hub-page .hub-news-row > .ui-icon-box i { font-size: 1.1rem; }
+.hub-page .hub-news-copy { display: grid; min-width: 0; }
+.hub-page .hub-news-label { font-size: .62rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; color: var(--hub-link); }
+.hub-page .hub-news-title { display: block; margin-top: 4px; font-size: .81rem; line-height: 1.3; color: var(--hub-ink); font-weight: 840; }
+.hub-page .hub-news-description { display: -webkit-box; margin-top: 5px; overflow: hidden; color: var(--hub-muted); font-size: .71rem; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.hub-page .hub-news-action { display: inline-flex; align-items: center; gap: 5px; justify-self: start; min-height: 30px; margin-top: 8px; padding: 0; background: transparent; color: var(--hub-link); border: 0; font-size: .7rem; font-weight: 790; }
+.hub-page .hub-news-action:hover { text-decoration: underline; }
 
-    .hub-search {
-        position: relative;
-        width: min(100%, 24rem);
-        margin-left: auto;
-    }
+/* 07 — Informações da organização */
+.hub-page .hub-org-card { display: grid; gap: 11px; padding: 17px 19px; margin: 0; border: 0; border-bottom: 1px solid var(--hub-line); border-radius: 0; background: var(--hub-soft); box-shadow: none; }
+.hub-page .hub-org-main { display: grid; grid-template-columns: 47px minmax(0,1fr); min-width: 0; gap: 11px; align-items: center; }
+.hub-page .hub-org-main .hub-brand-logo { width: 47px; height: 47px; flex-basis: 47px; border-color: var(--hub-line); border-radius: 9px; }
+.hub-page .hub-org-main .hub-brand-logo img { padding: 5px; }
+.hub-page .hub-org-copy { min-width: 0; }
+.hub-page .hub-org-copy strong { display: block; color: var(--hub-ink); font-size: .81rem; font-weight: 830; overflow-wrap: anywhere; }
+.hub-page .hub-org-copy span { display: -webkit-box; overflow: hidden; margin-top: 4px; color: var(--hub-muted); font-size: .7rem; line-height: 1.42; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.hub-page .hub-org-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.hub-page .hub-org-facts .ui-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--hub-line); border-radius: 6px; background: var(--hub-panel); color: var(--hub-muted); font-size: .66rem; }
+.hub-page .hub-socials { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 13px 19px 17px; margin: 0; border-top: 1px solid var(--hub-line); }
+.hub-page .hub-socials > a { display: inline-flex; align-items: center; gap: 6px; min-height: 33px; padding: 7px 10px; background: var(--hub-soft); border: 1px solid var(--hub-line); border-radius: 7px; color: var(--hub-ink); font-size: .71rem; font-weight: 730; }
+.hub-page .hub-socials > a:hover { border-color: var(--hub-link); }
+.hub-page .hub-screen[hidden] { display: none !important; }
+.hub-bottom-nav { display: none; }
 
-    .hub-search > .ph {
-        position: absolute;
-        z-index: 2;
-        top: 50%;
-        left: var(--ui-space-3);
-        color: var(--ui-color-text-muted);
-        pointer-events: none;
-        transform: translateY(-50%);
-    }
-
-    .hub-search-input {
-        padding-left: 2rem;
-        padding-right: 2.45rem;
-    }
-
-    .hub-search-clear {
-        position: absolute;
-        z-index: 3;
-        top: 50%;
-        right: var(--ui-space-1);
-        transform: translateY(-50%);
-    }
-
-    .hub-search:not(.has-value) .hub-search-clear {
-        display: none;
-    }
-
-    .hub-action-list {
-        width: 100%;
-    }
-
-    .hub-action-row.is-opening {
-        pointer-events: none;
-        opacity: .58;
-    }
-
-    .hub-action-row.is-opening .ui-icon-box {
-        animation: hub-open-pulse .42s ease-in-out infinite alternate;
-    }
-
-    @keyframes hub-open-pulse {
-        to {
-            opacity: .62;
-            transform: scale(.94);
-        }
-    }
-
-    .hub-news-list {
-        display: block;
-        min-width: 0;
-        overflow: hidden;
-        border: 1px solid var(--ui-color-border);
-        border-radius: var(--ui-radius-md);
-        background: var(--ui-color-surface);
-    }
-
-    .hub-news-row {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: var(--ui-space-3);
-        align-items: start;
-        padding: .56rem .58rem;
-        border-bottom: 1px solid var(--ui-color-border);
-        background: var(--ui-color-surface);
-    }
-
-    .hub-news-row:last-child {
-        border-bottom: 0;
-    }
-
-    .hub-news-copy {
-        min-width: 0;
-    }
-
-    .hub-news-label,
-    .hub-news-title,
-    .hub-news-description {
-        display: block;
-    }
-
-    .hub-news-label {
-        color: var(--ui-tone, var(--ui-color-info));
-        font-size: .56rem;
-        font-weight: 800;
-        letter-spacing: .035em;
-        text-transform: uppercase;
-    }
-
-    .hub-news-title {
-        margin-top: .05rem;
-        color: var(--ui-color-text);
-        font-size: .72rem;
-        font-weight: 820;
-        line-height: 1.35;
-    }
-
-    .hub-news-description {
-        display: -webkit-box;
-        overflow: hidden;
-        margin-top: .1rem;
-        color: var(--ui-color-text-muted);
-        font-size: .62rem;
-        line-height: 1.42;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 3;
-    }
-
-    .hub-news-action {
-        margin-top: .24rem;
-    }
-
-    .hub-org-card {
-        display: grid;
-        gap: var(--ui-space-3);
-        margin-bottom: var(--ui-space-4);
-        padding: .6rem;
-        background: var(--ui-color-surface-soft);
-    }
-
-    .hub-org-main {
-        display: grid;
-        min-width: 0;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: var(--ui-space-3);
-        align-items: center;
-    }
-
-    .hub-org-copy {
-        min-width: 0;
-    }
-
-    .hub-org-copy strong,
-    .hub-org-copy span {
-        display: block;
-    }
-
-    .hub-org-copy strong {
-        overflow: hidden;
-        color: var(--ui-color-text);
-        font-size: .74rem;
-        font-weight: 820;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .hub-org-copy span {
-        display: -webkit-box;
-        overflow: hidden;
-        margin-top: .06rem;
-        color: var(--ui-color-text-muted);
-        font-size: .62rem;
-        line-height: 1.42;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 3;
-    }
-
-    .hub-org-facts,
-    .hub-socials {
-        display: flex;
-        gap: var(--ui-space-2);
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .hub-socials {
-        margin-top: var(--ui-space-4);
-    }
-
+/* 08 — Tablet: conteúdo principal primeiro e sidebar global não alterada */
+@media (min-width: 821px) and (max-width: 1190px) {
+    .hub-page > .ui-workspace-grid { grid-template-columns: 1fr; }
+    .hub-page .hub-side-stack { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 15px; align-items: start; }
+    .hub-page .hub-side-stack > section { min-height: 100%; }
+}
+/* Mobile: o próprio hub controla 4 abas, mas a barra integra-se à borda inferior. */
+@media (max-width: 820px) {
+    body.hub-app-navigation .app-nav-layer { display: none !important; }
+    body.hub-app-navigation.has-app-nav .bento-container { padding-bottom: calc(78px + env(safe-area-inset-bottom,0px)) !important; }
+    .hub-page { gap: 14px; padding-bottom: calc(80px + env(safe-area-inset-bottom,0px)); }
+    .hub-page > .ui-page-head { min-height: 0; align-items: flex-start; padding: 21px 18px; flex-direction: column; gap: 13px; border-radius: 11px; }
+    .hub-page > .ui-page-head .ui-page-head__start { gap: 12px; }
+    .hub-page .hub-brand-logo { width: 50px; height: 50px; flex-basis: 50px; border-radius: 9px; }
+    .hub-page > .ui-page-head .ui-page-head__copy::before { margin-bottom: 5px; font-size: .55rem; letter-spacing: .12em; }
+    .hub-page > .ui-page-head .ui-page-head__title { font-size: clamp(1.35rem,5vw,2.1rem); }
+    .hub-page .ui-page-head__meta { gap: 5px 12px; margin-top: 8px; }
+    .hub-page .ui-page-head__meta > span { font-size: .66rem; }
+    .hub-page .hub-page-head-site { min-height: 34px; padding: 6px 11px; font-size: .68rem; }
+    .hub-page .hub-overview-note { align-items: flex-start; }
+    .hub-page .hub-overview-note__title { font-size: .95rem; }
+    .hub-page .hub-overview-note__shortcut { display: none; }
+    .hub-page > .ui-workspace-grid { display: block; }
+    .hub-page .hub-main-stack,.hub-page .hub-side-stack { display: contents; }
+    .hub-page .hub-screen { display: none; }
+    .hub-page .hub-screen.is-active { display: block; }
+    .hub-page .ui-section__header { padding: 15px; }
+    .hub-page .ui-section__copy h2 { font-size: .92rem; }
+    .hub-page .ui-section__copy p { font-size: .69rem; }
+    .hub-page .hub-portals-toolbar { padding: 12px 13px 9px; }
+    .hub-page .hub-search .hub-search-input { font-size: 16px; min-height: 44px; }
+    .hub-page .hub-portals-list { padding: 4px 12px 13px; gap: 9px; }
+    .hub-page .hub-portals-list > [data-hub-link] { min-height: 130px; padding: 13px; gap: 9px; grid-template-columns: 34px minmax(0,1fr) 17px; }
+    .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box { width: 34px; height: 34px; }
+    .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box i { font-size: 1.1rem; }
+    .hub-page .hub-portals-list .ui-action-row__title { font-size: .79rem; }
+    .hub-page .hub-portals-list .ui-action-row__description { font-size: .66rem; }
+    .hub-page .hub-portals-list > [data-hub-link] .ui-action-row__action { width: 17px; }
+    .hub-page .ui-section:not(#hub-screen-portals) .ui-action-row { padding: 14px; }
+    .hub-page .hub-news-row { padding: 14px; }
     .hub-bottom-nav {
-        display: none;
+        position: fixed;
+        z-index: 640;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        display: grid;
+        grid-template-columns: repeat(4,minmax(0,1fr));
+        gap: 0;
+        width: 100%;
+        min-height: calc(66px + env(safe-area-inset-bottom,0px));
+        padding: 5px max(5px,env(safe-area-inset-right,0px)) max(6px,env(safe-area-inset-bottom,0px)) max(5px,env(safe-area-inset-left,0px));
+        background: var(--hub-nav-bg,#fffefb);
+        border: 0;
+        border-top: 1px solid var(--hub-nav-line,#dce2d8);
+        border-radius: 0;
+        box-shadow: 0 -5px 18px rgb(10 26 15 / .055);
     }
-
-    @media (max-width: 1080px) and (min-width: 821px) {
-        .hub-page .ui-workspace-grid {
-            grid-template-columns:
-                minmax(0, 1.28fr)
-                minmax(290px, .72fr);
-        }
+    .hub-bottom-item { display: grid; min-width: 0; min-height: 53px; align-content: center; justify-items: center; gap: 3px; padding: 5px 2px; background: transparent; border: 0; border-radius: 7px; color: var(--hub-nav-muted,#748278); cursor: pointer; }
+    .hub-bottom-item i { font-size: 1.35rem; line-height: 1; }
+    .hub-bottom-item span { font-size: .66rem; font-weight: 750; white-space: nowrap; overflow: hidden; max-width: 100%; text-overflow: ellipsis; }
+    .hub-bottom-item.is-active { background: transparent; color: var(--hub-nav-active,#245d43); }
+    .hub-bottom-item.is-active::after { content: ''; display: block; width: 19px; height: 3px; border-radius: 3px; margin-top: 1px; background: var(--hub-nav-active,#245d43); }
+}
+@media (max-width: 540px) {
+    .hub-page .hub-portals-list { grid-template-columns: 1fr; }
+    .hub-page .hub-portals-list > [data-hub-link] { min-height: 98px; grid-template-columns: 40px minmax(0,1fr) 21px; row-gap: 10px; padding: 13px 14px; }
+    .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box { width: 39px; height: 39px; }
+    .hub-page .hub-portals-list > [data-hub-link] .ui-icon-box i { font-size: 1.24rem; }
+    .hub-page .hub-portals-list > [data-hub-link]::before { font-size: .56rem; }
+    .hub-page .hub-portals-list .ui-action-row__title { font-size: .87rem; }
+    .hub-page .hub-portals-list .ui-action-row__description { font-size: .7rem; }
+    .hub-page .hub-page-head-site span { display: initial; }
+}
+@media (prefers-reduced-motion: reduce) { .hub-page *, .hub-bottom-nav * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+/* Theme handling on nav, which is outside .hub-page */
+@media (max-width: 820px) {
+    :where(html[data-theme='dark'],html.dark,body.dark,html[data-theme='graphite-gold'],html[data-theme='grafite-ouro']) .hub-bottom-nav {
+        --hub-nav-bg: #191e24;
+        --hub-nav-line: #35404a;
+        --hub-nav-muted: #aab9c5;
+        --hub-nav-active: #e7c87d;
     }
-
-    @media (max-width: 820px) {
-        /*
-         * Integração intencional com a navegação global:
-         * dentro do Hub a bottom-nav própria assume a navegação entre telas.
-         */
-        body.hub-app-navigation .app-nav-layer {
-            display: none !important;
-        }
-
-        body.hub-app-navigation.has-app-nav .bento-container {
-            padding-bottom:
-                calc(
-                    70px
-                    + var(--ui-space-4)
-                    + env(safe-area-inset-bottom, 0px)
-                ) !important;
-        }
-
-        .hub-page {
-            padding-bottom:
-                calc(
-                    70px
-                    + var(--ui-space-5)
-                    + env(safe-area-inset-bottom, 0px)
-                );
-        }
-
-        .hub-page .ui-workspace-grid {
-            display: block;
-        }
-
-        .hub-main-stack,
-        .hub-side-stack {
-            display: contents;
-        }
-
-        .hub-screen {
-            display: none;
-        }
-
-        .hub-screen.is-active {
-            display: block;
-            animation: hub-screen-enter var(--ui-transition-fast) both;
-        }
-
-        .hub-search {
-            width: 100%;
-            margin-left: 0;
-        }
-
-        .hub-search-input {
-            min-height: 46px;
-            font-size: 16px;
-        }
-
-        .hub-bottom-nav {
-            position: fixed;
-            z-index: 140;
-            right: max(var(--ui-space-2), env(safe-area-inset-right, 0px));
-            bottom: max(var(--ui-space-2), env(safe-area-inset-bottom, 0px));
-            left: max(var(--ui-space-2), env(safe-area-inset-left, 0px));
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: var(--ui-space-1);
-            padding: var(--ui-space-1);
-            border: 1px solid var(--ui-color-border);
-            border-radius: var(--ui-radius-lg);
-            background: var(--ui-color-surface);
-            box-shadow: var(--ui-shadow-md);
-        }
-
-        .hub-bottom-item {
-            display: grid;
-            min-width: 0;
-            min-height: 54px;
-            place-items: center;
-            align-content: center;
-            gap: var(--ui-space-1);
-            padding: var(--ui-space-1);
-            border: 0;
-            border-radius: var(--ui-radius-md);
-            background: transparent;
-            color: var(--ui-color-text-muted);
-            cursor: pointer;
-        }
-
-        .hub-bottom-item i {
-            font-size: 1.08rem;
-        }
-
-        .hub-bottom-item span {
-            overflow: hidden;
-            max-width: 100%;
-            font-size: .58rem;
-            font-weight: 760;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .hub-bottom-item.is-active {
-            background: var(--ui-color-primary-soft);
-            color: var(--ui-color-primary-strong);
-        }
-
-        .hub-bottom-item:focus-visible {
-            outline: 2px solid var(--ui-color-primary-border);
-            outline-offset: -2px;
-        }
-
-        @keyframes hub-screen-enter {
-            from {
-                opacity: 0;
-                transform: translateY(4px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    }
-
-    @media (max-width: 460px) {
-        .hub-page-head-site span {
-            display: none;
-        }
-
-        .hub-bottom-nav {
-            gap: 0;
-            padding-inline: .25rem;
-        }
-
-        .hub-bottom-item span {
-            font-size: .55rem;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .hub-action-row.is-opening .ui-icon-box,
-        .hub-screen.is-active {
-            animation: none;
-        }
-    }
+}
 </style>
+
 
 <main class="ui-page ui-scope hub-page" data-hub-root>
     <header
@@ -838,6 +877,15 @@
         @endif
     </header>
 
+    <div class="hub-overview-note" aria-label="Resumo do espaço de trabalho">
+        <div class="hub-overview-note__copy">
+            <span class="hub-overview-note__eyebrow">SEU ESPAÇO / ACESSO ORGANIZADO</span>
+            <h2 class="hub-overview-note__title">Tudo que você precisa, em um só lugar.</h2>
+            <span class="hub-overview-note__caption">Acesse seus portais, consulte os comunicados e encontre os canais oficiais da organização.</span>
+        </div>
+        <span class="hub-overview-note__shortcut"><i class="ph ph-check-circle" aria-hidden="true"></i> Seus acessos aparecem conforme suas permissões</span>
+    </div>
+
     <div class="ui-workspace-grid">
         <div class="ui-stack hub-main-stack">
             <section
@@ -857,8 +905,8 @@
                         </span>
 
                         <div class="ui-section__copy">
-                            <h2 id="hub-portals-title">Portais de acesso</h2>
-                            <p>Escolha a área de trabalho que deseja abrir.</p>
+                            <h2 id="hub-portals-title">Áreas de trabalho</h2>
+                            <p>Selecione o portal para continuar suas atividades.</p>
                         </div>
                     </div>
 
@@ -870,7 +918,7 @@
                 </header>
 
                 <div class="ui-section__body">
-                    @if($availablePanelsCount > 5)
+                    @if($availablePanelsCount > 0)
                         <div class="ui-toolbar hub-portals-toolbar">
                             <div class="ui-toolbar__main">
                                 <div class="hub-search" data-hub-search>
@@ -904,7 +952,7 @@
                     @endif
 
                     <nav
-                        class="ui-action-list hub-action-list"
+                        class="ui-action-list hub-action-list hub-portals-list"
                         aria-label="Portais disponíveis"
                         data-hub-list
                     >
@@ -924,7 +972,7 @@
                                     class="ui-icon-box ui-icon-box--sm"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill {{ $superVisual['icon'] }}"></i>
+                                    <i class="ph {{ $superVisual['icon'] }}"></i>
                                 </span>
 
                                 <span class="ui-action-row__copy">
@@ -968,7 +1016,7 @@
                                     class="ui-icon-box ui-icon-box--sm"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill {{ $visual['icon'] }}"></i>
+                                    <i class="ph {{ $visual['icon'] }}"></i>
                                 </span>
 
                                 <span class="ui-action-row__copy">
@@ -1050,7 +1098,7 @@
                         </span>
 
                         <div class="ui-section__copy">
-                            <h2 id="hub-resources-title">Recursos</h2>
+                            <h2 id="hub-resources-title">Recursos e conta</h2>
                             <p>Documentos, conta e serviços complementares.</p>
                         </div>
                     </div>
@@ -1075,7 +1123,7 @@
                                         class="ui-icon-box ui-icon-box--sm"
                                         aria-hidden="true"
                                     >
-                                        <i class="ph-fill {{ $resource['icon'] }}"></i>
+                                        <i class="ph {{ $resource['icon'] }}"></i>
                                     </span>
 
                                     <span class="ui-action-row__copy">
@@ -1134,7 +1182,7 @@
                         </span>
 
                         <div class="ui-section__copy">
-                            <h2 id="hub-news-title">Novidades</h2>
+                            <h2 id="hub-news-title">Mural da organização</h2>
                             <p>Atualizações e informações em destaque.</p>
                         </div>
                     </div>
@@ -1153,7 +1201,7 @@
                                     class="ui-icon-box ui-icon-box--sm"
                                     aria-hidden="true"
                                 >
-                                    <i class="ph-fill {{ $news['icon'] }}"></i>
+                                    <i class="ph {{ $news['icon'] }}"></i>
                                 </span>
 
                                 <div class="hub-news-copy">
@@ -1205,7 +1253,7 @@
                         </span>
 
                         <div class="ui-section__copy">
-                            <h2 id="hub-contact-title">Contato</h2>
+                            <h2 id="hub-contact-title">Fale com a organização</h2>
                             <p>Informações e canais oficiais.</p>
                         </div>
                     </div>
@@ -1422,7 +1470,7 @@
         data-hub-screen-target="portals"
         aria-current="page"
     >
-        <i class="ph-fill ph-squares-four" aria-hidden="true"></i>
+        <i class="ph ph-squares-four" aria-hidden="true"></i>
         <span>Portais</span>
     </button>
 
@@ -1431,7 +1479,7 @@
         type="button"
         data-hub-screen-target="news"
     >
-        <i class="ph-fill ph-megaphone-simple" aria-hidden="true"></i>
+        <i class="ph ph-megaphone-simple" aria-hidden="true"></i>
         <span>Novidades</span>
     </button>
 
@@ -1440,7 +1488,7 @@
         type="button"
         data-hub-screen-target="resources"
     >
-        <i class="ph-fill ph-compass-tool" aria-hidden="true"></i>
+        <i class="ph ph-compass-tool" aria-hidden="true"></i>
         <span>Recursos</span>
     </button>
 
@@ -1449,7 +1497,7 @@
         type="button"
         data-hub-screen-target="contact"
     >
-        <i class="ph-fill ph-chats-circle" aria-hidden="true"></i>
+        <i class="ph ph-chats-circle" aria-hidden="true"></i>
         <span>Contato</span>
     </button>
 </nav>
@@ -1762,8 +1810,9 @@
         );
 
         if (noResults) {
+            // Sem portais autorizados, exibimos somente o estado de ausência de acesso.
             noResults.hidden =
-                matches !== 0;
+                matches !== 0 || portalLinks.length === 0;
         }
 
         visibleCounts.forEach(

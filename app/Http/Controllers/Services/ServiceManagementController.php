@@ -520,9 +520,18 @@ class ServiceManagementController extends Controller
             'suppress_internal_footer' => true,
         ], ['configuration_view' => $systemView, 'title' => $record->title]) : $pdf->generateFrozenDocument($record);
 
-        return $request->boolean('inline')
+        $response = $request->boolean('inline')
             ? $documentPdf->stream($filename)
             : $documentPdf->download($filename);
+
+        $response->headers->add([
+            'Cache-Control' => 'no-store, private',
+            'X-SGC-Document-Origin' => 'generated',
+            'X-SGC-Document-Path' => 'Serviços/Documentos',
+            'X-SGC-Document-Title' => $record->title,
+        ]);
+
+        return $response;
     }
 
     public function evidence(Request $request, Tenant $tenant, int $evidence, ServiceEvidenceService $files)

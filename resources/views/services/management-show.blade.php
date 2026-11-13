@@ -1750,20 +1750,22 @@
                 <a class="btn" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
             @endif
             @if($execution?->isFrozen() && auth()->user()->checkPermissionTo('view_service_financials'))
-                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank">
+                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="Nota interna">
                     @csrf
                     <input type="hidden" name="type" value="note">
                     <button class="btn btn-primary">Emitir nota interna</button>
+                    <small data-sgc-pdf-error role="alert"></small>
                 </form>
                 @foreach($notes ?? [] as $note)
-                    <a class="btn" target="_blank" rel="noopener" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
+                    <a class="btn" target="_blank" rel="noopener" data-sgc-pdf title="Nota interna" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
                 @endforeach
             @endif
             @foreach((auth()->user()->checkPermissionTo('view_service_financials') ? ['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] : ['order' => 'Imprimir OS']) as $documentType => $documentLabel)
-                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank">
+                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank" data-sgc-pdf-form="{{ $documentLabel }}">
                     @csrf
                     <input type="hidden" name="type" value="{{ $documentType }}">
                     <button class="ds-button blue" type="submit"><i class="ph-fill ph-printer"></i>{{ $documentLabel }}</button>
+                    <small data-sgc-pdf-error role="alert"></small>
                 </form>
             @endforeach
             @if($order->execution?->obligations?->where('direction', 'receivable')->isNotEmpty())
@@ -2683,8 +2685,11 @@
                     'order' => 'Ordem de serviço',
                     'execution' => 'Relatório de execução',
                 ] as $type => $label)
+                    @continue($type === 'execution' && !auth()->user()->checkPermissionTo('view_service_financials'))
                     <form
                         method="post"
+                        target="_blank"
+                        data-sgc-pdf-form="{{ $label }}"
                         action="{{ route(
                             'services.management.documents.generate',
                             [
@@ -2708,6 +2713,7 @@
                             <i class="ph-fill ph-file-arrow-down"></i>
                             {{ $label }}
                         </button>
+                        <small data-sgc-pdf-error role="alert"></small>
                     </form>
                 @endforeach
             </div>
