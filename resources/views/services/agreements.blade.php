@@ -19,6 +19,8 @@
 
     $openObligationsCount = $obligations->count();
     $agreementsCount = $agreements->count();
+    $canCancel = fn ($agreement) => $agreement->status === 'active' && $agreement->plan?->status === 'active'
+        && $agreement->plan->installments->every(fn ($item) => $item->status === 'scheduled' && ! $item->service_payment_event_id);
 
     $agreementStatusMeta = static function ($agreement): array {
         if ($agreement->plan?->status === 'completed') {
@@ -1100,11 +1102,19 @@
             </div>
         </div>
     </header>
+    <nav class="ag-create-actions" aria-label="Acordos">
+        @if($creating ?? false)
+            <a class="ag-action" href="{{ route('services.management.agreements', $tenantSlug) }}">Voltar aos acordos</a>
+        @else
+            <a class="ag-action primary" href="{{ route('services.management.agreements.create', $tenantSlug) }}">+ Novo acordo</a>
+        @endif
+    </nav>
 
     {{-- ======================================================
          NOVO TERMO
          ====================================================== --}}
 
+    @if($creating ?? false)
     <section class="ag-panel">
         <header class="ag-panel-head">
             <div class="ag-panel-title">
@@ -1412,6 +1422,11 @@
                         </div>
                     </header>
 
+                    <div class="ag-create-actions">
+                        <label class="ag-field"><span>Buscar beneficiário</span><input class="ag-control" id="find-agreement-party" type="search" placeholder="Digite o nome"></label>
+                        <button class="ag-action" type="button" id="select-same-beneficiary">Selecionar demais saldos do beneficiário</button>
+                        <button class="ag-action" type="button" id="clear-obligations">Limpar seleção</button>
+                    </div>
                     <div id="mixed-party-warning" class="ag-validation" role="alert" hidden>
                         Um termo não pode misturar pessoas diferentes. Selecione somente obrigações do mesmo beneficiário.
                     </div>
@@ -1569,6 +1584,7 @@
                     <div class="ag-create-actions">
                         <button
                             class="ag-action primary"
+                            type="submit"
                             @disabled($obligations->isEmpty())
                         >
                             <i class="ph-fill ph-file-pdf"></i>
@@ -1584,6 +1600,7 @@
          TERMOS EMITIDOS
          ====================================================== --}}
 
+    @else
     <section class="ag-panel">
         <header class="ag-panel-head">
             <div class="ag-panel-title">
@@ -1729,6 +1746,9 @@
 
                                 <td>
                                     <div class="ag-doc-actions">
+                                        @if($canCancel($agreement))
+                                            <button class="ag-action" type="button" data-cancel-agreement="{{ route('services.management.agreements.cancel', [$tenantSlug, $agreement]) }}">Cancelar acordo</button>
+                                        @endif
                                         @if(
                                             $agreement
                                                 ->generatedDocument
@@ -1939,6 +1959,8 @@
                                                                                         )
                                                                                 }}
                                                                             </span>
+                                                                        @elseif($installment->status === 'cancelled')
+                                                                            <span class="ag-status is-cancelled">Cancelada</span>
                                                                         @elseif(
                                                                             auth()
                                                                                 ->user()
@@ -2200,6 +2222,9 @@
                     </div>
 
                     <div class="ag-doc-actions">
+                        @if($canCancel($agreement))
+                            <button class="ag-action" type="button" data-cancel-agreement="{{ route('services.management.agreements.cancel', [$tenantSlug, $agreement]) }}">Cancelar acordo</button>
+                        @endif
                         @if($agreement->generatedDocument)
                             <a
                                 class="ag-action primary"
@@ -2396,6 +2421,8 @@
                                                     }}
                                                 </span>
                                             </div>
+                                        @elseif($installment->status === 'cancelled')
+                                            <span class="ag-status is-cancelled">Cancelada</span>
                                         @elseif(
                                             auth()
                                                 ->user()
@@ -2530,6 +2557,7 @@
             @endif
         </div>
     </section>
+    @endif
 </main>
 
 <template id="schedule-row-template">
@@ -2589,8 +2617,27 @@
     </div>
 </template>
 
+@include('services._workspace-style')
+<dialog class="sg-dialog service-grid" id="cancel-agreement-dialog">
+    <form method="post">
+        @csrf
+        @method('DELETE')
+        <h2>Cancelar acordo</h2>
+        <p>As obrigações voltam à lista para uma nova negociação.</p>
+        <label>Motivo<textarea name="reason" minlength="5" maxlength="500" required></textarea></label>
+        <div class="sg-actions"><button class="sg-button" type="button" data-close>Voltar</button><button class="sg-button sg-primary">Confirmar</button></div>
+    </form>
+</dialog>
 <script>
 (() => {
+    const cancelDialog = document.getElementById('cancel-agreement-dialog');
+    document.querySelectorAll('[data-cancel-agreement]').forEach(button => button.addEventListener('click', () => {
+        const form = cancelDialog.querySelector('form');
+        form.reset();
+        form.action = button.dataset.cancelAgreement;
+        cancelDialog.showModal();
+    }));
+    cancelDialog.querySelector('[data-close]').addEventListener('click', () => cancelDialog.close());
     const rows =
         document.getElementById(
             'schedule-rows'
@@ -2627,7 +2674,7 @@
         );
 
     const mixedPartyWarning = document.getElementById('mixed-party-warning');
-    const createButton = document.querySelector('#agreement-form .ag-create-actions button');
+    const createButton = document.querySelector('#agreement-form button[type="submit"]');
     const bulkCount = document.getElementById('bulk-installment-count');
     const bulkFirstDate = document.getElementById('bulk-first-date');
     const generateInstallments = document.getElementById('generate-installments');
@@ -2802,11 +2849,32 @@
         }
 
         const mixedParties = selectedParties.size > 1;
+        document.getElementById('select-same-beneficiary').disabled = selectedParties.size !== 1;
+        document.getElementById('clear-obligations').disabled = selectedIds.size === 0;
         if (mixedPartyWarning) mixedPartyWarning.hidden = !mixedParties;
         if (createButton) {
             createButton.disabled = selectedIds.size === 0 || mixedParties || Math.abs(difference) >= .01;
         }
     };
+
+    document.getElementById('select-same-beneficiary')?.addEventListener('click', () => {
+        const party = document.querySelector('.obligation-choice:checked')?.dataset.party;
+        if (!party) return;
+        document.querySelectorAll('.obligation-choice').forEach(field => field.checked = field.dataset.party === party);
+        refresh();
+    });
+    document.getElementById('clear-obligations')?.addEventListener('click', () => {
+        document.querySelectorAll('.obligation-choice').forEach(field => field.checked = false);
+        refresh();
+    });
+    const normalizeName = value => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+    document.getElementById('find-agreement-party')?.addEventListener('input', event => {
+        const search = normalizeName(event.target.value);
+        document.querySelectorAll('.obligation-choice').forEach(field => {
+            const container = field.closest('tr, label');
+            if (container) container.hidden = !field.checked && !normalizeName(container.textContent).includes(search);
+        });
+    });
 
     const hasEntry = () =>
         [
@@ -2907,7 +2975,7 @@
     );
 
     generateInstallments?.addEventListener('click', () => {
-        const count = Math.max(1, Math.min(120, Number(bulkCount?.value || 1)));
+        const count = Math.max(1, Math.min(hasEntry() ? 119 : 120, Math.trunc(Number(bulkCount?.value || 1))));
         const firstDate = bulkFirstDate?.value;
         if (!firstDate) {
             bulkFirstDate?.focus();
@@ -2921,7 +2989,12 @@
             .filter(row => row.querySelector('[data-kind]')?.value === 'entry')
             .reduce((sum, row) => sum + Number(row.querySelector('[data-amount]')?.value || 0), 0);
         const remainingCents = Math.round((selected - entryAmount) * 100);
-        if (remainingCents <= 0) return;
+        if (remainingCents < count) {
+            bulkCount.setCustomValidity('Reduza o número de parcelas ou o valor da entrada.');
+            bulkCount.reportValidity();
+            bulkCount.setCustomValidity('');
+            return;
+        }
         [...rows.querySelectorAll('[data-schedule-row]')].forEach(row => {
             if (row.querySelector('[data-kind]')?.value === 'installment') row.remove();
         });
@@ -2929,10 +3002,12 @@
         let remainder = remainingCents - baseCents * count;
         const start = new Date(`${firstDate}T12:00:00`);
         for (let index = 0; index < count; index++) {
-            const due = new Date(start);
-            due.setMonth(start.getMonth() + index);
+            const due = new Date(start.getFullYear(), start.getMonth() + index, 1, 12);
+            const lastDay = new Date(due.getFullYear(), due.getMonth() + 1, 0).getDate();
+            due.setDate(Math.min(start.getDate(), lastDay));
             const cents = baseCents + (remainder-- > 0 ? 1 : 0);
-            addRow('installment', {dueDate: due.toISOString().slice(0, 10), amount: cents / 100});
+            const localDate = [due.getFullYear(), due.getMonth() + 1, due.getDate()].map(value => String(value).padStart(2, '0')).join('-');
+            addRow('installment', {dueDate: localDate, amount: cents / 100});
         }
         reindex();
         refresh();

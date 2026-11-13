@@ -12,7 +12,7 @@
         : $routeTenant;
 
     $bentoNavigation = \App\Support\PortalNavigation::make(
-        'provider',
+        ($management ?? false) ? 'services' : 'provider',
         'expenses',
         $tenantSlug
     );
@@ -1686,6 +1686,33 @@
         </button>
     </header>
 
+    @if(($management ?? false) && $selectedOrder)
+        @include('services._workspace-style')
+        <section class="service-grid sg-panel">
+            <div class="sg-actions">
+                <strong>Ordem {{ $orders->firstWhere('id', $selectedOrder)?->number }}</strong>
+                <a class="sg-button" href="{{ route('services.management.show', [$tenantSlug, $selectedOrder]) }}">Abrir ordem</a>
+                <a class="sg-button" href="{{ route('services.management.expenses', $tenantSlug) }}">Todas as despesas</a>
+            </div>
+            @if($unlinkedExpenses->isNotEmpty())
+                <form class="sg-actions" method="post" action="{{ route('services.management.expenses.link', $tenantSlug) }}">
+                    @csrf
+                    <input type="hidden" name="service_order_id" value="{{ $selectedOrder }}">
+                    <label>Despesa pendente sem ordem<select name="expense_id" required>
+                        <option value="">Escolher despesa</option>
+                        @foreach($unlinkedExpenses as $unlinked)
+                            <option value="{{ $unlinked->id }}">{{ $unlinked->date?->format('d/m/Y') }} · {{ $unlinked->description }} · R$ {{ number_format((float) $unlinked->amount, 2, ',', '.') }}</option>
+                        @endforeach
+                    </select></label>
+                    <button class="sg-button" type="submit">Vincular à ordem</button>
+                </form>
+            @endif
+        </section>
+    @endif
+    @if(session('success'))
+        <p role="status">{{ session('success') }}</p>
+    @endif
+
     @if($errors->any())
         <section class="expense-errors" role="alert">
             <span
@@ -1819,14 +1846,14 @@
                                                 @foreach($expense->documents as $document)
                                                     <a
                                                         class="expense-attachment-link"
-                                                        href="{{ route('provider.expenses.documents.show', [$tenantSlug, $document]) }}"
+                                                        href="{{ route((($management ?? false) ? 'services.management.expenses.documents.show' : 'provider.expenses.documents.show'), [$tenantSlug, $document]) }}"
                                                         target="_blank"
                                                         rel="noopener"
                                                         title="Visualizar {{ $document->name }}"
                                                     >
                                                         @if(str_starts_with((string) $document->mime_type, 'image/'))
                                                             <img
-                                                                src="{{ route('provider.expenses.documents.show', [$tenantSlug, $document]) }}"
+                                                                src="{{ route((($management ?? false) ? 'services.management.expenses.documents.show' : 'provider.expenses.documents.show'), [$tenantSlug, $document]) }}"
                                                                 alt="Prévia de {{ $document->name }}"
                                                                 loading="lazy"
                                                             >
@@ -1997,14 +2024,14 @@
                                 @foreach($expense->documents as $document)
                                     <a
                                         class="expense-attachment-link"
-                                        href="{{ route('provider.expenses.documents.show', [$tenantSlug, $document]) }}"
+                                        href="{{ route((($management ?? false) ? 'services.management.expenses.documents.show' : 'provider.expenses.documents.show'), [$tenantSlug, $document]) }}"
                                         target="_blank"
                                         rel="noopener"
                                         title="Visualizar {{ $document->name }}"
                                     >
                                         @if(str_starts_with((string) $document->mime_type, 'image/'))
                                             <img
-                                                src="{{ route('provider.expenses.documents.show', [$tenantSlug, $document]) }}"
+                                                src="{{ route((($management ?? false) ? 'services.management.expenses.documents.show' : 'provider.expenses.documents.show'), [$tenantSlug, $document]) }}"
                                                 alt="Prévia de {{ $document->name }}"
                                                 loading="lazy"
                                             >
@@ -2097,7 +2124,7 @@
                 method="post"
                 enctype="multipart/form-data"
                 action="{{ route(
-                    'provider.expenses.store',
+                    (($management ?? false) ? 'services.management.expenses.store' : 'provider.expenses.store'),
                     $tenantSlug
                 ) }}"
             >
@@ -2253,7 +2280,7 @@
                     class="expense-optional"
                     id="expense-optional"
                     {{
-                        old('service_order_id')
+                        old('service_order_id', $selectedOrder ?? null)
                         || old('chart_account_id')
                         || old('document_number')
                         || old('notes')
@@ -2309,7 +2336,7 @@
                                             data-secondary="{{ $orderBeneficiary }} · {{ $orderDate }}"
                                             data-search="{{ $order->number }} {{ $orderBeneficiary }} {{ $orderDate }}"
                                             data-option-icon="ph-clipboard-text"
-                                            @selected(old('service_order_id') == $order->id)
+                                            @selected(old('service_order_id', $selectedOrder ?? null) == $order->id)
                                         >
                                             {{ $order->number }}
                                             · {{ $orderBeneficiary }}

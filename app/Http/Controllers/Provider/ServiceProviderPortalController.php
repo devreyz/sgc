@@ -203,19 +203,41 @@ class ServiceProviderPortalController extends Controller
 
     public function expenses(Request $request, Tenant $tenant): View
     {
-        [, $operator] = $this->access($request, $tenant);
-        abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
-        $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')->with(['expenseable', 'documents'])->latest('date')->paginate(25);
-        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')->latest()->limit(200)->get(['id', 'number', 'beneficiary_snapshot', 'scheduled_at']);
+        $management = $this->expenseAccess($request, $tenant);
+        $selectedOrder = $request->integer('order') ?: null;
+        $expenses = Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')
+            ->when($selectedOrder, fn ($query) => $query->where(fn ($linked) => $linked
+                ->whereMorphedTo('expenseable', ServiceOrder::class)->where('expenseable_id', $selectedOrder)
+                ->orWhereHasMorph('expenseable', [\App\Models\ServiceExecution::class], fn ($execution) => $execution->where('tenant_id', $tenant->id)->where('service_order_id', $selectedOrder))))
+            ->with(['expenseable', 'documents'])->latest('date')->paginate(25)->withQueryString();
+        $orders = ServiceOrder::query()->where('tenant_id', $tenant->id)->whereNotNull('service_version_id')
+            ->where(fn ($query) => $query->whereNull('operational_status')->orWhere('operational_status', '!=', 'cancelled'))
+            ->when($selectedOrder, fn ($query) => $query->orderByRaw('CASE WHEN id = ? THEN 0 ELSE 1 END', [$selectedOrder]))
+            ->latest()->limit(200)->get(['id', 'number', 'beneficiary_snapshot', 'scheduled_at']);
         $accounts = ChartAccount::query()->where('tenant_id', $tenant->id)->where('type', 'despesa')->orderBy('name')->get(['id', 'name']);
 
-        return view('provider.services-expenses', compact('operator', 'expenses', 'orders', 'accounts'));
+        $selectedOrder = $orders->contains('id', $selectedOrder) ? $selectedOrder : null;
+        $unlinkedExpenses = $management && $selectedOrder
+            ? Expense::query()->where('tenant_id', $tenant->id)->where('origin_module', 'services')->pending()
+                ->whereNull('expenseable_type')->whereNull('expenseable_id')->latest('date')->limit(200)
+                ->get(['id', 'description', 'amount', 'date'])
+            : collect();
+
+        return view('provider.services-expenses', ['operator' => true] + compact('management', 'expenses', 'orders', 'accounts', 'selectedOrder', 'unlinkedExpenses'));
+    }
+
+    public function linkExpense(Request $request, Tenant $tenant, ServiceExpenseService $service): RedirectResponse
+    {
+        $this->expenseAccess($request, $tenant);
+        $data = $request->validate(['service_order_id' => 'required|integer', 'expense_id' => 'required|integer']);
+        $service->link($tenant, (int) $data['service_order_id'], (int) $data['expense_id'], $request->user());
+
+        return back()->with('success', 'Despesa vinculada à ordem.');
     }
 
     public function storeExpense(Request $request, Tenant $tenant, ServiceExpenseService $service, ServiceExpenseAttachmentService $attachments): RedirectResponse|JsonResponse
     {
-        [, $operator] = $this->access($request, $tenant);
-        abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
+        $management = $this->expenseAccess($request, $tenant);
         $data = $request->validate([
             'description' => 'required|string|max:191', 'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date', 'due_date' => 'required|date|after_or_equal:date', 'service_order_id' => 'nullable|integer',
@@ -233,7 +255,8 @@ class ServiceProviderPortalController extends Controller
             return response()->json([
                 'ok' => true,
                 'message' => 'Despesa de serviço registrada. O pagamento continua sendo controlado pelo motor financeiro.',
-                'url' => route('provider.expenses', $tenant->slug),
+                'url' => route($management ? 'services.management.expenses' : 'provider.expenses',
+                    ['tenant' => $tenant->slug, 'order' => $management ? ($data['service_order_id'] ?? null) : null]),
             ]);
         }
 
@@ -242,8 +265,7 @@ class ServiceProviderPortalController extends Controller
 
     public function expenseDocument(Request $request, Tenant $tenant, int $document, ServiceExpenseAttachmentService $attachments)
     {
-        [, $operator] = $this->access($request, $tenant);
-        abort_unless($operator && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
+        $this->expenseAccess($request, $tenant);
         $record = Document::query()->where('tenant_id', $tenant->id)
             ->where('documentable_type', Expense::class)->whereKey($document)->with('documentable')->firstOrFail();
         abort_unless($record->documentable?->origin_module === 'services', 404);
@@ -253,6 +275,16 @@ class ServiceProviderPortalController extends Controller
             'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $record->original_name).'"',
             'X-Content-Type-Options' => 'nosniff',
         ]);
+    }
+
+    private function expenseAccess(Request $request, Tenant $tenant): bool
+    {
+        $management = $request->routeIs('services.management.expenses*');
+        $permission = $management ? 'view_service_management' : 'operate_all_service_orders_portal';
+        abort_unless($request->user()->checkPermissionTo($permission)
+            && $request->user()->checkPermissionTo('manage_service_expenses'), 403);
+
+        return $management;
     }
 
     /** @return array{0:?ServiceProvider,1:bool} */

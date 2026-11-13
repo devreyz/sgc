@@ -100,7 +100,7 @@
 
     $executionFrozen =
         $execution
-        ? $execution->isFrozen()
+        ? ($execution->isFrozen() || $execution->status === 'cancelled')
         : true;
 
     $formatExecutionValue = static function ($value): string {
@@ -1738,12 +1738,28 @@
             </span>
         </div>
 
-        @if(auth()->user()?->checkPermissionTo('operate_all_service_orders_portal'))
+        @if(auth()->user()?->checkPermissionTo('operate_all_service_orders_portal') && in_array($execution?->status, ['draft', 'in_progress', 'rejected'], true))
             <p><a href="{{ route('services.management.execute', [$tenantSlug, $order]) }}" class="btn btn-primary"><i class="ph-fill ph-pencil-simple-line"></i> Preencher ou concluir esta ordem</a></p>
         @endif
 
         <div class="ds-doc-actions" style="margin:.6rem 0">
-            @foreach(['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] as $documentType => $documentLabel)
+            @if($execution?->status === 'draft' && auth()->user()->checkPermissionTo('edit_service_order'))
+                <a class="btn" href="{{ route('services.management.edit', [$tenantSlug, $order]) }}">Editar ordem</a>
+            @endif
+            @if(auth()->user()->checkPermissionTo('manage_service_expenses'))
+                <a class="btn" href="{{ route('services.management.expenses', ['tenant' => $tenantSlug, 'order' => $order->id]) }}">Despesas da ordem</a>
+            @endif
+            @if($execution?->isFrozen() && auth()->user()->checkPermissionTo('view_service_financials'))
+                <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank">
+                    @csrf
+                    <input type="hidden" name="type" value="note">
+                    <button class="btn btn-primary">Emitir nota interna</button>
+                </form>
+                @foreach($notes ?? [] as $note)
+                    <a class="btn" target="_blank" rel="noopener" href="{{ route('services.management.documents.download', [$tenantSlug, $note, 'inline' => 1]) }}">Nota de {{ $note->created_at?->format('d/m/Y H:i') }}</a>
+                @endforeach
+            @endif
+            @foreach((auth()->user()->checkPermissionTo('view_service_financials') ? ['order' => 'Imprimir OS', 'execution' => 'Comprovante de execução'] : ['order' => 'Imprimir OS']) as $documentType => $documentLabel)
                 <form method="post" action="{{ route('services.management.documents.generate', [$tenantSlug, $order]) }}" target="_blank">
                     @csrf
                     <input type="hidden" name="type" value="{{ $documentType }}">

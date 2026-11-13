@@ -133,6 +133,14 @@ class DocumentTemplateResource extends Resource
                             ->columnSpanFull())->values()->all(),
                 ])->columns(2),
 
+            Forms\Components\Section::make('Texto complementar dos serviços')
+                ->visible(fn (Get $get) => $get('template_category') === 'system'
+                    && isset(\App\Services\Services\ServiceDocumentService::PDF_VIEWS[$get('system_template_key')]))
+                ->schema([
+                    Forms\Components\RichEditor::make('report_contents.intro')->label('Antes das tabelas'),
+                    Forms\Components\RichEditor::make('report_contents.closing')->label('Após as tabelas'),
+                ]),
+
             Forms\Components\Section::make('Declaração e assinaturas')
                 ->description('Personalize a declaração do comprovante. Este texto confirma o fato documentado e não é um consentimento geral de tratamento de dados.')
                 ->schema([

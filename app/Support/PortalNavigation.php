@@ -39,7 +39,8 @@ class PortalNavigation
                 ...((auth()->user()?->checkPermissionTo('manage_service_expenses') ?? false) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'provider.expenses', 'icon' => 'receipt']] : []),
             ],
             'services' => [
-                ...((auth()->user()?->checkPermissionTo('view_service_management') ?? false) ? [['key' => 'queue', 'label' => 'Fila', 'route' => 'services.management.index', 'icon' => 'list-checks']] : []),
+                ...((auth()->user()?->checkPermissionTo('view_service_management') ?? false) ? [['key' => 'queue', 'label' => 'Ordens', 'route' => 'services.management.index', 'icon' => 'list-checks']] : []),
+                ...((auth()->user()?->checkPermissionTo('manage_service_expenses') && auth()->user()?->checkPermissionTo('view_service_management')) ? [['key' => 'expenses', 'label' => 'Despesas', 'route' => 'services.management.expenses', 'icon' => 'receipt']] : []),
                 ...((auth()->user()?->checkPermissionTo('create_service_order') ?? false) ? [['key' => 'new', 'label' => 'Nova ordem', 'route' => 'services.management.create', 'icon' => 'plus-circle']] : []),
                 ...((auth()->user()?->checkPermissionTo('manage_service_catalog') ?? false) ? [['key' => 'catalog', 'label' => 'Catálogo', 'route' => 'services.catalog.index', 'icon' => 'wrench']] : []),
                 ...((auth()->user()?->checkPermissionTo('manage_service_providers') ?? false) ? [['key' => 'providers', 'label' => 'Prestadores', 'route' => 'services.providers.index', 'icon' => 'users-three']] : []),

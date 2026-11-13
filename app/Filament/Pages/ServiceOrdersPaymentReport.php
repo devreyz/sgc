@@ -6,7 +6,7 @@ use App\Models\Asset;
 use App\Models\Service;
 use App\Models\ServiceProvider;
 use App\Services\Services\ServiceReportService;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\TemplatedPdfService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Pages\Page;
@@ -63,7 +63,10 @@ class ServiceOrdersPaymentReport extends Page
     public function download()
     {
         $summary = $this->report();
-        $pdf = Pdf::loadView('pdf.service-accountability', compact('summary'))->setPaper('a4', 'landscape');
+        $tenant = \App\Models\Tenant::findOrFail(session('tenant_id'));
+        $pdf = app(TemplatedPdfService::class)->generateSystemPdf('pdf.service-accountability', compact('summary', 'tenant') + ['suppress_internal_footer' => true], [
+            'title' => 'Prestação de contas de serviços',
+        ]);
 
         return response()->streamDownload(fn () => print ($pdf->output()), 'prestacao-servicos.pdf', ['Content-Type' => 'application/pdf']);
     }

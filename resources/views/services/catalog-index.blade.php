@@ -1061,6 +1061,7 @@
                                 </td>
 
                                 <td class="ct-open-cell">
+                                    @include('services._catalog-remove')
                                     @if($targetVersion)
                                         <a
                                             class="
@@ -1188,6 +1189,7 @@
 
                         @if($targetVersion)
                             <div class="ct-mobile-bottom">
+                                @include('services._catalog-remove')
                                 <a
                                     class="
                                         ct-open

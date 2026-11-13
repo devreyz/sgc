@@ -24,7 +24,7 @@ class ServiceResourceService
                 return $existing;
             }
             $execution = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
-            if ($execution->isFrozen()) {
+            if ($execution->isFrozen() || $execution->status === 'cancelled') {
                 throw ValidationException::withMessages(['execution' => 'Execução validada não aceita novos recursos.']);
             }
             $effect = $data['effect'] ?? 'information_only';

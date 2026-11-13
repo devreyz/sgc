@@ -78,7 +78,7 @@ class FinancialDocumentPaymentService
         return match ($document?->getMorphClass()) {
             AssociateReceipt::class, CustomerBillingReceipt::class => (float) $document->remaining_amount,
             ServiceObligation::class => (float) $document->balance,
-            ServicePaymentPlanInstallment::class => $document->status === 'paid' ? 0.0 : (float) $document->amount,
+            ServicePaymentPlanInstallment::class => $document->status === 'scheduled' && $document->plan?->status === 'active' ? (float) $document->amount : 0.0,
             FinancialReceipt::class => 0.0,
             default => 0.0,
         };

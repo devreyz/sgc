@@ -606,6 +606,32 @@ class DocumentTemplate extends Model
                 'default_columns' => ['date', 'description', 'associate', 'hours', 'value', 'status'],
                 'paper_orientation' => 'landscape',
             ],
+            'service_internal_note' => [
+                'label' => 'Nota Interna de Serviço', 'blade_view' => 'pdf.service-internal-note', 'type' => 'report',
+                'description' => 'Execução validada, valores e observações da ordem.',
+                'sections' => ['identity' => 'Dados da execução', 'receivable' => 'Valores a receber', 'payable' => 'Remuneração do prestador', 'fields' => 'Campos da execução', 'notes' => 'Observações'],
+                'columns' => [],
+            ],
+            'service_execution' => [
+                'label' => 'Comprovante de Execução de Serviço', 'blade_view' => 'pdf.service-execution', 'type' => 'report',
+                'description' => 'Identificação, quantidade e dados da execução.',
+                'sections' => ['identity' => 'Dados da execução', 'fields' => 'Campos da execução', 'notes' => 'Observações'],
+                'columns' => [],
+            ],
+            'service_negotiation' => [
+                'label' => 'Termo de Negociação de Serviços', 'blade_view' => 'pdf.service-negotiation', 'type' => 'contract',
+                'description' => 'Identificação das partes, obrigações, parcelas e assinaturas.',
+                'sections' => ['identity' => 'Partes do acordo', 'obligations' => 'Obrigações', 'installments' => 'Parcelas e QR', 'signature' => 'Assinaturas'],
+                'columns' => [],
+            ],
+            'service_report' => [
+                'label' => 'Prestação de Contas de Serviços', 'blade_view' => 'pdf.service-accountability', 'type' => 'report',
+                'description' => 'Execuções, saldos, movimentações e despesas do período.',
+                'sections' => ['summary' => 'Resumo do período', 'orders' => 'Ordens e saldos', 'monthly' => 'Resumo mensal', 'composition' => 'Composição dos valores', 'fields' => 'Campos da execução', 'payments' => 'Recebimentos e pagamentos', 'resources' => 'Recursos', 'expenses' => 'Despesas'],
+                'default_sections' => ['summary', 'orders', 'monthly', 'payments', 'expenses'],
+                'columns' => ['beneficiary' => 'Beneficiário', 'provider' => 'Prestador', 'quantity' => 'Quantidade', 'balances' => 'Saldos'],
+                'paper_orientation' => 'landscape',
+            ],
             'service_order' => [
                 'label' => 'Ordem de Servico',
                 'blade_view' => 'pdf.service-order',

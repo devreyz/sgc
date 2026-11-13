@@ -80,4 +80,12 @@ class ServiceObligation extends Model
     {
         return max(0, round($this->total_amount - $this->paid_amount, 2));
     }
+
+    public function activePaymentPlan(): bool
+    {
+        return \Illuminate\Support\Facades\DB::table('service_payment_plan_obligations as link')
+            ->join('service_payment_plans as plan', 'plan.id', '=', 'link.service_payment_plan_id')
+            ->where('link.service_obligation_id', $this->id)
+            ->where('plan.tenant_id', $this->tenant_id)->where('plan.status', 'active')->exists();
+    }
 }

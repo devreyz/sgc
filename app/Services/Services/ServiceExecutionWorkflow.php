@@ -39,6 +39,28 @@ class ServiceExecutionWorkflow
         }, 3);
     }
 
+    public function updateFromTable(ServiceExecution $execution, array $values, string $date, int $version, ?string $operationKey, User $actor, array $times = []): ServiceExecution
+    {
+        return DB::transaction(function () use ($execution, $values, $date, $version, $operationKey, $actor, $times): ServiceExecution {
+            $locked = $this->lock($execution);
+            if ($operationKey && $locked->submit_operation_key === $operationKey) {
+                return $locked;
+            }
+            if ((int) $locked->lock_version !== $version || ! in_array($locked->status, ['draft', 'in_progress', 'rejected'], true)) {
+                throw ValidationException::withMessages(['order' => 'A ordem mudou ou saiu da edição. Atualize a tabela antes de continuar.']);
+            }
+            $locked->order->update(['execution_date' => $date] + $times);
+            if (! $operationKey) {
+                return $this->saveDraft($locked, $values, $actor);
+            }
+            if ($locked->status !== 'in_progress') {
+                $locked = $this->start($locked, $values, $operationKey, $actor);
+            }
+
+            return $this->submit($locked, $values, $operationKey, $actor);
+        }, 3);
+    }
+
     public function submit(ServiceExecution $execution, array $values, string $operationKey, User $actor): ServiceExecution
     {
         return DB::transaction(function () use ($execution, $values, $operationKey, $actor) {
@@ -111,14 +133,26 @@ class ServiceExecutionWorkflow
         $snapshot = ['catalog' => $execution->catalog_snapshot, 'values' => $execution->values, 'derived_values' => $execution->derived_values, 'quantity' => $execution->quantity, 'composition' => $composition];
         $execution->forceFill(['status' => 'validated', 'validated_at' => now(), 'validated_by' => $actor->id, 'reviewed_by' => $actor->id, 'review_operation_key' => $operationKey, 'snapshot_hash' => $this->snapshots->hash($snapshot), 'lock_version' => $execution->lock_version + 1])->save();
         $this->obligations->handle($execution, $composition, $actor);
-        $execution->order->update(['operational_status' => 'validated', 'execution_date' => now()->toDateString(), 'actual_quantity' => $execution->quantity, 'final_price' => $composition['receivable_total'], 'provider_payment' => $composition['payable_total']]);
+        $order = $execution->order;
+        $order->update(['operational_status' => 'validated',
+            'execution_date' => $order->execution_date ?? $order->scheduled_date ?? $order->scheduled_at ?? $execution->started_at ?? now(),
+            'actual_quantity' => $execution->quantity, 'final_price' => $composition['receivable_total'], 'provider_payment' => $composition['payable_total']]);
 
         return $execution->fresh(['compositionLines', 'obligations']);
     }
 
     private function lock(ServiceExecution $execution): ServiceExecution
     {
-        return ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
+        $locked = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
+        if ($locked->status === 'cancelled') {
+            throw ValidationException::withMessages(['status' => 'Esta ordem foi cancelada.']);
+        }
+        if ((int) $locked->service_provider_id !== (int) $execution->service_provider_id
+            || (int) $locked->service_version_id !== (int) $execution->service_version_id) {
+            throw ValidationException::withMessages(['status' => 'A ordem foi corrigida. Reabra para carregar os dados atuais.']);
+        }
+
+        return $locked;
     }
 
     private function validateFinancialQuantities(ServiceExecution $execution, array $derived): void

@@ -45,6 +45,9 @@ class ServicePaymentService
             if ($obligation->status === 'cancelled') {
                 throw ValidationException::withMessages(['status' => 'Obrigação cancelada não aceita pagamento.']);
             }
+            if ($obligation->direction === 'receivable' && $obligation->activePaymentPlan()) {
+                throw ValidationException::withMessages(['amount' => 'Este saldo está em um acordo ativo. Registre o recebimento na parcela correspondente.']);
+            }
             if ($amount > $obligation->balance + 0.0001) {
                 throw ValidationException::withMessages(['amount' => 'O pagamento não pode superar o saldo da obrigação.']);
             }
@@ -97,6 +100,9 @@ class ServicePaymentService
                 ->with('plan.obligations')
                 ->lockForUpdate()
                 ->firstOrFail();
+            if ($installment->plan()->lockForUpdate()->value('status') !== 'active') {
+                throw ValidationException::withMessages(['installment' => 'Este acordo não aceita novos recebimentos.']);
+            }
             if ($installment->status === 'paid' || $installment->service_payment_event_id) {
                 throw ValidationException::withMessages(['installment' => 'Esta parcela já foi recebida.']);
             }

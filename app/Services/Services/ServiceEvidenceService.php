@@ -24,9 +24,14 @@ class ServiceEvidenceService
     public function upload(ServiceExecution $execution, string $fieldKey, UploadedFile $file, User $actor): ServiceExecutionEvidence
     {
         return DB::transaction(function () use ($execution, $fieldKey, $file, $actor) {
+            $provider = $execution->service_provider_id;
+            $version = $execution->service_version_id;
             $execution = ServiceExecution::query()->whereKey($execution->id)->where('tenant_id', $execution->tenant_id)->lockForUpdate()->firstOrFail();
-            if ($execution->isFrozen()) {
-                throw ValidationException::withMessages(['file' => 'Execução validada não aceita novos anexos.']);
+            if ((int) $execution->service_provider_id !== (int) $provider || (int) $execution->service_version_id !== (int) $version) {
+                throw ValidationException::withMessages(['file' => 'A ordem foi corrigida. Reabra antes de anexar.']);
+            }
+            if ($execution->isFrozen() || $execution->status === 'cancelled') {
+                throw ValidationException::withMessages(['file' => 'Esta execução não aceita novos anexos.']);
             }$field = collect(data_get($execution->catalog_snapshot, 'fields', []))->firstWhere('key', $fieldKey);
             if (! $field || ! in_array($field['type'] ?? null, ['image', 'file', 'signature'], true)) {
                 throw ValidationException::withMessages(['field_key' => 'Campo de evidência inválido.']);

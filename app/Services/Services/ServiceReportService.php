@@ -19,14 +19,22 @@ class ServiceReportService
         if ($from->greaterThan($to)) {
             throw ValidationException::withMessages(['from' => 'O início deve ser anterior ao fim do período.']);
         }
-        $executions = ServiceExecution::query()->where('tenant_id', $tenantId)->where('status', 'validated')->whereBetween('validated_at', [$from, $to])
+        $serviceDate = 'COALESCE(orders.execution_date, orders.scheduled_date, DATE(orders.scheduled_at), DATE(service_executions.validated_at))';
+        $executions = ServiceExecution::query()->where('service_executions.tenant_id', $tenantId)->where('service_executions.status', 'validated')
+            ->join('service_orders as orders', fn ($join) => $join->on('orders.id', '=', 'service_executions.service_order_id')
+                ->on('orders.tenant_id', '=', 'service_executions.tenant_id'))
+            ->whereNull('orders.deleted_at')->whereRaw("$serviceDate BETWEEN ? AND ?", [$from->toDateString(), $to->toDateString()])
+            ->select('service_executions.*')->selectRaw("$serviceDate as report_execution_date")
             ->with(['order.service', 'obligations.allocations.paymentEvent', 'obligations.adjustments', 'resources', 'compositionLines'])
-            ->when($providerId, fn ($q) => $q->where('service_provider_id', $providerId))
+            ->when($providerId, fn ($q) => $q->where('service_executions.service_provider_id', $providerId))
             ->when($serviceId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('service_id', $serviceId)))
-            ->when($assetId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('asset_id', $assetId)))->orderBy('validated_at')->get();
+            ->when($assetId, fn ($q) => $q->whereHas('order', fn ($oq) => $oq->where('asset_id', $assetId)))
+            ->orderBy('report_execution_date')->orderBy('orders.start_time')->orderBy('orders.scheduled_at')->orderBy('service_executions.id')->get();
         $details = $executions->map(function ($execution) use ($to): array {
-            $row = ['execution_id' => $execution->id, 'date' => $execution->validated_at->format('d/m/Y'), 'month' => $execution->validated_at->format('Y-m'),
-                'number' => $execution->order->number, 'service' => $execution->order->service->name,
+            $date = \Illuminate\Support\Carbon::parse($execution->report_execution_date);
+            $row = ['execution_id' => $execution->id, 'date' => $date->format('d/m/Y'), 'month' => $date->format('Y-m'),
+                'start_time' => $execution->order->start_time, 'end_time' => $execution->order->end_time,
+                'number' => $execution->order->number, 'service' => $execution->order->service?->name ?? data_get($execution->catalog_snapshot, 'service.name', '—'),
                 'beneficiary' => data_get($execution->order->beneficiary_snapshot, 'name', '—'),
                 'provider' => data_get($execution->order->provider_snapshot, 'name', '—'),
                 'unit' => $execution->unit, 'quantity' => (float) $execution->quantity,

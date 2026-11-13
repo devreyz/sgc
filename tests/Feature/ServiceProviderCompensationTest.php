@@ -7,6 +7,7 @@ use App\Models\ServiceExecution;
 use App\Models\ServiceExecutionEvidence;
 use App\Models\ServiceExecutionResource;
 use App\Models\ServiceObligation;
+use App\Models\ServiceNegotiation;
 use App\Models\ServicePaymentEvent;
 use App\Models\ServicePaymentPlan;
 use App\Models\ServicePaymentPlanInstallment;
@@ -19,6 +20,7 @@ use App\Services\Services\ServiceCompositionCalculator;
 use App\Services\Services\ServiceExecutionWorkflow;
 use App\Services\Services\ServiceFieldValidator;
 use App\Services\Services\ServicePaymentService;
+use App\Services\Services\ServiceNegotiationService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -139,6 +141,8 @@ class ServiceProviderCompensationTest extends TestCase
             $t->string('operational_status')->default('validated');
             $t->string('status')->default('scheduled');
             $t->date('execution_date')->nullable();
+            $t->time('start_time')->nullable();
+            $t->time('end_time')->nullable();
             $t->decimal('actual_quantity', 18, 4)->nullable();
             $t->decimal('unit_price', 14, 2)->default(0);
             $t->decimal('provider_payment', 14, 2)->nullable();
@@ -507,6 +511,94 @@ class ServiceProviderCompensationTest extends TestCase
         $this->assertSame(60.0, $second->fresh()->balance);
     }
 
+    public function test_cancelling_an_unpaid_agreement_preserves_the_balance_and_blocks_installment_receipt(): void
+    {
+        Schema::create('service_negotiations', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('payment_plan_id');
+            $table->string('status');
+        });
+        [$execution] = $this->execution(1, 100, null);
+        $obligation = $this->receivableObligation($execution, 'REC-1', 60);
+        $plan = new ServicePaymentPlan(['status' => 'active']);
+        $plan->tenant_id = 1;
+        $plan->save();
+        $plan->obligations()->attach($obligation->id, ['included_amount' => 60]);
+        $installment = $plan->installments()->make(['number' => 1, 'kind' => 'installment', 'due_date' => '2026-11-20', 'amount' => 60, 'status' => 'scheduled']);
+        $installment->tenant_id = 1;
+        $installment->save();
+        $agreement = new ServiceNegotiation(['status' => 'active', 'payment_plan_id' => $plan->id]);
+        $agreement->tenant_id = 1;
+        $agreement->save();
+        $actor = new User;
+
+        app(ServiceNegotiationService::class)->cancel($agreement, 'Corrigir os vencimentos', $actor);
+
+        $this->assertSame('cancelled', $plan->fresh()->status);
+        $this->assertSame('cancelled', $agreement->fresh()->status);
+        $this->assertSame('cancelled', $installment->fresh()->status);
+        $this->assertSame(60.0, $obligation->fresh()->balance);
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Este acordo não aceita novos recebimentos.');
+        app(ServicePaymentService::class)->recordInstallment($installment, 'pix', '2026-11-20', 1, (string) Str::uuid(), $actor);
+    }
+
+    public function test_batch_rejects_all_rows_when_one_service_order_is_invalid(): void
+    {
+        Schema::table('service_orders', function (Blueprint $table): void {
+            $table->unsignedBigInteger('asset_id')->nullable();
+            $table->timestamp('scheduled_at')->nullable();
+            $table->date('scheduled_date')->nullable();
+            $table->string('location')->nullable();
+            $table->string('unit')->nullable();
+            $table->json('order_data')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+        });
+        Schema::create('service_order_sequences', function (Blueprint $table): void {
+            $this->base($table);
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedInteger('year');
+            $table->unsignedInteger('last_number');
+            $table->unique(['tenant_id', 'year']);
+        });
+        [, , $version] = $this->execution(1, 100, null);
+        Schema::getConnection()->table('service_versions')->where('id', $version->id)->update(['payable_enabled' => false]);
+        $actor = \Mockery::mock(User::class)->makePartial();
+        $actor->shouldReceive('checkPermissionTo')->with('create_service_order')->andReturn(true);
+        $actor->shouldReceive('checkPermissionTo')->with('view_service_financials')->andReturn(true);
+        $tenant = new \App\Models\Tenant;
+        $tenant->forceFill(['id' => 1, 'slug' => 'teste']);
+        $row = ['service_version_id' => $version->id, 'beneficiary_name' => 'Beneficiário avulso',
+            'scheduled_at' => '2026-11-20T08:00', 'customer_rate' => '120.50'];
+        $controller = app(\App\Http\Controllers\Services\ServiceManagementController::class);
+        $creator = app(\App\Services\Services\CreateServiceOrder::class);
+        $request = fn (array $rows) => \Illuminate\Http\Request::create('/teste/services-management/orders/batch', 'POST', ['rows' => $rows])
+            ->setUserResolver(fn () => $actor);
+
+        try {
+            $controller->batch($request([$row, array_replace($row, ['service_version_id' => 999])]), $tenant, $creator);
+            $this->fail('O lote inválido deveria ter sido rejeitado.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('rows.1.service_version_id', $exception->errors());
+        }
+        $this->assertDatabaseCount('service_orders', 1);
+        $this->assertDatabaseCount('service_order_sequences', 0);
+
+        $controller->batch($request([$row]), $tenant, $creator);
+        $order = \App\Models\ServiceOrder::query()->latest('id')->firstOrFail();
+        $this->assertSame('Beneficiário avulso', $order->beneficiary_snapshot['name']);
+        $this->assertSame('120.50', $order->execution->catalog_snapshot['customer_rate']);
+        $this->assertSame('draft', $order->execution->status);
+        $corrected = $creator->handle(1, $version, [
+            'beneficiary_name' => 'Nome corrigido', 'scheduled_at' => '2026-11-20T09:00', 'lock_version' => 0,
+        ], $actor, $order);
+        $this->assertSame($order->number, $corrected->number);
+        $this->assertSame('Nome corrigido', $corrected->beneficiary_snapshot['name']);
+        $this->assertSame('120.50', $corrected->execution->catalog_snapshot['customer_rate']);
+        $this->assertSame(1, (int) $corrected->execution->lock_version);
+    }
+
     public function test_automatic_review_freezes_execution_and_generates_independent_obligations_once(): void
     {
         [$execution] = $this->execution(3, 150, 300);
@@ -526,6 +618,28 @@ class ServiceProviderCompensationTest extends TestCase
         $retry = $workflow->submit($result, ['hours' => 3], $finish, $actor);
         $this->assertSame($result->id, $retry->id);
         $this->assertSame(2, ServiceObligation::count());
+    }
+
+    public function test_table_can_conclude_a_past_execution_without_replacing_its_date_with_the_approval_date(): void
+    {
+        [$execution] = $this->execution(3, 150, 300);
+        $execution->forceFill(['status' => 'draft', 'quantity' => null, 'catalog_snapshot' => [
+            'review_mode' => 'automatic', 'execution_config' => ['quantity_field' => 'hours'], 'fields' => [],
+        ]])->saveQuietly();
+        $actor = new User;
+        $actor->id = 1;
+        $actor->exists = true;
+        $key = (string) Str::uuid();
+        $workflow = app(ServiceExecutionWorkflow::class);
+        $result = $workflow->updateFromTable($execution, ['hours' => '3'], '2025-10-09', 0, $key, $actor, ['start_time' => '08:00', 'end_time' => '11:00']);
+
+        $this->assertSame('validated', $result->status);
+        $this->assertSame('2025-10-09', $result->order->execution_date->toDateString());
+        $this->assertSame('08:00', substr($result->order->start_time, 0, 5));
+        $this->assertSame('11:00', substr($result->order->end_time, 0, 5));
+        $this->assertSame(now()->toDateString(), $result->validated_at->toDateString());
+        $this->assertSame($result->id, $workflow->updateFromTable($execution, ['hours' => '3'], '2025-10-09', 0, $key, $actor)->id);
+        $this->assertSame(2, $result->obligations()->count());
     }
 
     public function test_meter_difference_is_the_quantity_used_for_customer_and_provider(): void

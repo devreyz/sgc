@@ -14,6 +14,7 @@ use App\Services\Services\ServiceCatalogService;
 use App\Services\Services\ServicePresetRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -22,7 +23,8 @@ class ServiceCatalogController extends Controller
     public function index(Request $request, Tenant $tenant): View
     {
         $this->allow($request, 'manage_service_catalog');
-        $services = Service::query()->where('tenant_id', $tenant->id)->with(['currentVersion', 'versions'])->orderBy('name')->get();
+        $services = Service::query()->where('tenant_id', $tenant->id)->with(['currentVersion', 'versions'])
+            ->withExists(['serviceOrders' => fn ($query) => $query->withTrashed()])->orderBy('name')->get();
 
         return view('services.catalog-index', compact('services'));
     }
@@ -32,6 +34,24 @@ class ServiceCatalogController extends Controller
         $this->allow($request, 'manage_service_catalog');
 
         return view('services.catalog-form', ['presets' => $presets->all()]);
+    }
+
+    public function remove(Request $request, Tenant $tenant, int $service): RedirectResponse
+    {
+        $this->allow($request, 'manage_service_catalog');
+        $data = $request->validate(['reason' => 'required|string|min:5|max:500']);
+        DB::transaction(function () use ($tenant, $service, $request, $data): void {
+            $record = Service::query()->where('tenant_id', $tenant->id)->lockForUpdate()->findOrFail($service);
+            if ($record->serviceOrders()->withTrashed()->exists() || $record->versions()->where('status', '!=', 'draft')->exists()) {
+                throw ValidationException::withMessages(['reason' => 'Este serviço já tem histórico ou versão publicada. Desative a versão para impedir novos lançamentos.']);
+            }
+            $record->update(['status' => false]);
+            activity('service_catalog')->performedOn($record)->causedBy($request->user())
+                ->withProperties(['reason' => $data['reason']])->log('Serviço excluído do catálogo');
+            $record->delete();
+        }, 3);
+
+        return back()->with('success', 'Serviço excluído do catálogo.');
     }
 
     public function store(Request $request, Tenant $tenant, ServiceCatalogService $catalog, ServicePresetRegistry $presets): RedirectResponse

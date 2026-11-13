@@ -13,6 +13,26 @@ use Illuminate\Validation\ValidationException;
 
 class ServiceNegotiationService
 {
+    public function cancel(ServiceNegotiation $agreement, string $reason, User $actor): void
+    {
+        DB::transaction(function () use ($agreement, $reason, $actor): void {
+            $agreement = ServiceNegotiation::query()->where('tenant_id', $agreement->tenant_id)->lockForUpdate()->findOrFail($agreement->id);
+            $plan = $agreement->plan()->firstOrFail();
+            $installments = $plan->installments()->orderBy('id')->lockForUpdate()->get();
+            if ($agreement->status !== 'active' || $agreement->plan()->lockForUpdate()->value('status') !== 'active'
+                || $installments->contains(fn ($item) => $item->status !== 'scheduled' || $item->service_payment_event_id)) {
+                throw ValidationException::withMessages(['reason' => 'Somente acordos ativos sem parcelas recebidas podem ser cancelados.']);
+            }
+            foreach ($installments as $installment) {
+                $installment->update(['status' => 'cancelled']);
+            }
+            $plan->update(['status' => 'cancelled']);
+            $agreement->update(['status' => 'cancelled']);
+            activity('service_negotiation')->performedOn($agreement)->causedBy($actor)
+                ->withProperties(['reason' => $reason])->log('Acordo de serviço cancelado');
+        }, 3);
+    }
+
     public function create(int $tenantId, array $obligationIds, array $installments, User $actor, ?ServiceNegotiation $supersedes = null): ServiceNegotiation
     {
         return DB::transaction(function () use ($tenantId, $obligationIds, $installments, $actor, $supersedes) {
@@ -29,6 +49,9 @@ class ServiceNegotiationService
                 ->get();
             if ($obligations->count() !== count(array_unique($obligationIds))) {
                 throw ValidationException::withMessages(['obligations' => 'Uma ou mais obrigações não pertencem à organização.']);
+            }
+            if ($obligations->contains(fn (ServiceObligation $item) => ! in_array($item->status, ['open', 'partially_paid'], true) || $item->balance <= 0)) {
+                throw ValidationException::withMessages(['obligation_ids' => 'Uma obrigação mudou de situação. Atualize a lista e selecione somente saldos em aberto.']);
             }
             $parties = $obligations->map(fn (ServiceObligation $obligation): string => implode(':', [
                 (string) data_get($obligation->party_snapshot, 'type', 'party'),
