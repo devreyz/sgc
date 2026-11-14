@@ -1,6 +1,7 @@
 {
   "id": "/",
   "name": "SGC — Sistema de Gestão Cooperativa",
+  "version": "0.7",
   "short_name": "SGC",
   "start_url": "/app",
   "scope": "/",
